@@ -1,0 +1,2410 @@
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ArrowLeft, ArrowUpToLine, Check, Clock3, Copy, Database, ExternalLink, Globe, LogOut, Menu, Receipt, Rocket, Search, ShieldCheck, Wallet, X } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  readCachedCentralWalletRecord,
+  readCentralWalletRecord,
+  registerCentralWalletIdentity,
+} from "@/components/octopus-market/octopus-central-registry";
+import { OctopusBrand } from "@/components/octopus-market/octopus-brand";
+import { OctopusRuntimeBoundary } from "@/components/octopus-market/octopus-runtime-boundary";
+import {
+  clawdTrustDiscountAddress,
+  clawdTrustThresholdUsd,
+  contactItems,
+  featuredTools,
+  heroStats,
+  highlightItems,
+  navigationItems,
+  officialTokenAddress,
+  predictionMarketCategories,
+  predictionMarketQuestions,
+  predictionMarketTreasuryAddress,
+  pricingPlans,
+  toolTabs,
+  type OctopusTokenBoardItem,
+  type ToolItem,
+} from "@/components/octopus-market/octopus-market-data";
+import { clearAdminControlHistory, trackConnectedWalletSession } from "@/components/octopus-market/octopus-admin";
+import { migrateWalletMemory, runLocalStorageMigration } from "@/lib/localStorage-migration";
+import {
+  readAdminCreatedPredictionMarkets,
+  subscribeToPredictionMarketStorage,
+  type AdminCreatedPredictionMarket,
+} from "@/components/octopus-market/prediction-market-store";
+import { SectionHeading } from "@/components/octopus-market/section-heading";
+import { ThemeToggle } from "@/components/octopus-market/theme-toggle";
+import { useOctopusLocale } from "@/components/octopus-market/octopus-locale";
+import {
+  connectSolanaWallet,
+  disconnectSolanaWallet,
+  fetchSolanaWalletBalanceSnapshot,
+  formatSolBalance,
+  formatUsdcBalance,
+  formatWalletAddress,
+  getSolanaProvider,
+  readCachedWalletSnapshot,
+  restoreSolanaWalletConnection,
+  type SolanaWalletBalanceSnapshot,
+} from "@/components/octopus-market/solana-wallet";
+import { useLegacyBrowser } from "@/hooks/use-legacy-browser";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useThemeMode } from "@/hooks/use-theme-mode";
+
+function SafeImage({
+  src,
+  alt,
+  className,
+  style,
+  loading = "lazy",
+  fetchPriority = "auto",
+}: {
+  src?: string | null;
+  alt: string;
+  className?: string;
+  style?: CSSProperties;
+  loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
+}) {
+  if (!src) {
+    return null;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={loading}
+      fetchPriority={fetchPriority}
+      decoding="async"
+      referrerPolicy="no-referrer"
+      draggable={false}
+    />
+  );
+}
+
+function AgentAvatar({ className = "size-8 rounded-xl", initialsClassName = "text-orange-600" }: { className?: string; initialsClassName?: string }) {
+  const cyrDogeProfileSrc =
+    "https://studio-assets.supernova.io/files/ws/757243/9f6009d0241fda73d5e07a356ccc6c33825c2d1abb0e629d11579561e5f4e941.jpeg";
+
+  return (
+    <div className={`flex shrink-0 items-center justify-center overflow-hidden border border-white/30 bg-white ${className}`}>
+      <img
+        src={cyrDogeProfileSrc}
+        alt="Aido Agent profile"
+        loading="eager"
+        fetchPriority="high"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        draggable={false}
+        className="h-full w-full object-cover"
+        onError={(event) => {
+          const target = event.currentTarget;
+          target.style.display = "none";
+          const nextSibling = target.nextElementSibling as HTMLSpanElement | null;
+          if (nextSibling) {
+            nextSibling.style.display = "flex";
+          }
+        }}
+      />
+      <span className={`hidden h-full w-full items-center justify-center bg-orange-100 font-semibold ${initialsClassName}`}>
+        AA
+      </span>
+    </div>
+  );
+}
+
+function renderPredictionPreviewHeadline(market: {
+  title: string;
+  visualType?: "vs" | "simple";
+  singleName?: string;
+  singleImageSrc?: string;
+  leftCompetitorName?: string;
+  leftCompetitorImageSrc?: string;
+  rightCompetitorName?: string;
+  rightCompetitorImageSrc?: string;
+}) {
+  if (market.visualType === "vs") {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-lg font-semibold text-zinc-950 dark:text-white">
+        {market.leftCompetitorImageSrc ? (
+          <SafeImage
+            src={market.leftCompetitorImageSrc}
+            alt={`${market.leftCompetitorName ?? "Left team"} logo`}
+            className="size-9 rounded-full border border-white/60 object-cover"
+          />
+        ) : null}
+        <span>{market.leftCompetitorName ?? "Team A"}</span>
+        <span className="text-zinc-400 dark:text-zinc-500">vs</span>
+        {market.rightCompetitorImageSrc ? (
+          <SafeImage
+            src={market.rightCompetitorImageSrc}
+            alt={`${market.rightCompetitorName ?? "Right team"} logo`}
+            className="size-9 rounded-full border border-white/60 object-cover"
+          />
+        ) : null}
+        <span>{market.rightCompetitorName ?? "Team B"}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-lg font-semibold text-zinc-950 dark:text-white">
+      {market.singleImageSrc ? (
+        <SafeImage
+          src={market.singleImageSrc}
+          alt={`${market.singleName ?? market.title} logo`}
+          className="size-9 rounded-full border border-white/60 object-cover"
+        />
+      ) : null}
+      <span>{market.singleName ?? market.title}</span>
+    </div>
+  );
+}
+
+const LazyAdminControlCenter = lazy(() =>
+  import("@/components/octopus-market/admin-control-center").then((module) => ({
+    default: module.AdminControlCenter,
+  }))
+);
+
+const LazyAIToolSocialPanel = lazy(() =>
+  import("@/components/octopus-market/ai-tool-social-panel").then((module) => ({
+    default: module.AIToolSocialPanel,
+  }))
+);
+
+const LazyCyrDogeChat = lazy(() =>
+  import("@/components/octopus-market/cyrdoge-chat").then((module) => ({
+    default: module.CyrDogeChat,
+  }))
+);
+
+const LazyOctopusAIListingDialog = lazy(() =>
+  import("@/components/octopus-market/octopus-ai-listing-dialog").then((module) => ({
+    default: module.OctopusAIListingDialog,
+  }))
+);
+
+const LazyCommunityAIMarket = lazy(() =>
+  import("@/components/octopus-market/community-ai-market").then((module) => ({
+    default: module.CommunityAIMarket,
+  }))
+);
+
+const LazyOctopusOnboardingDialog = lazy(() =>
+  import("@/components/octopus-market/octopus-onboarding-dialog").then((module) => ({
+    default: module.OctopusOnboardingDialog,
+  }))
+);
+
+const LazyUserDashboardSections = lazy(() =>
+  import("@/components/octopus-market/user-dashboard-sections").then((module) => ({
+    default: module.UserDashboardSections,
+  }))
+);
+
+const LazyBinaryPredictionStudio = lazy(() =>
+  import("@/components/octopus-market/binary-prediction-studio").then((module) => ({
+    default: module.BinaryPredictionStudio,
+  }))
+);
+
+const LazySolfairLaunchStudio = lazy(() =>
+  import("@/components/octopus-market/solfair-launch-studio").then((module) => ({
+    default: module.SolfairLaunchStudio,
+  }))
+);
+
+const LazyAdminDatabasePanel = lazy(() =>
+  import("@/components/octopus-market/admin-database-panel").then((module) => ({
+    default: module.AdminDatabasePanel,
+  }))
+);
+
+function InlineLazyFallback({ label = "Loading..." }: { label?: string }) {
+  return (
+    <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
+      {label}
+    </div>
+  );
+}
+
+function readStoredLaunchedTokensForWallet(walletAddress: string | null): OctopusTokenBoardItem[] {
+  if (!walletAddress || typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem("octopus-market-token-board-v3");
+
+    if (!rawValue) {
+      return [];
+    }
+
+    const parsedValue = JSON.parse(rawValue) as OctopusTokenBoardItem[];
+    return Array.isArray(parsedValue)
+      ? parsedValue.filter((token) => token?.launchedByWallet === walletAddress)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function readOrCreateOctopusGuestActorId() {
+  if (typeof window === "undefined") {
+    return "guest";
+  }
+
+  try {
+    const existingValue = window.localStorage.getItem("octopus-market-guest-actor-id");
+
+    if (existingValue) {
+      return existingValue;
+    }
+
+    const nextValue = `guest-${Math.random().toString(36).slice(2, 10)}`;
+    window.localStorage.setItem("octopus-market-guest-actor-id", nextValue);
+    return nextValue;
+  } catch {
+    return "guest";
+  }
+}
+
+const goldVerificationBadgeSrc =
+  "https://studio-assets.supernova.io/files/ws/757243/2f25ed55d146075e38472bdc708603004b4959dee3f03f4e93ea9bfca247f038.png";
+const blueVerificationBadgeSrc =
+  "https://studio-assets.supernova.io/files/ws/757243/659fe936faed48e9b5996663334209a9fef847420609aa602ff6d1890cb9f370.png";
+
+function InlineVerificationBadge({ tool }: { tool: ToolItem }) {
+  if (tool.verificationTone === "gold") {
+    return (
+      <SafeImage
+        src={goldVerificationBadgeSrc}
+        alt={`${tool.name} gold verified`}
+        className="size-5 shrink-0 object-contain"
+      />
+    );
+  }
+
+  return (
+    <SafeImage
+      src={blueVerificationBadgeSrc}
+      alt={`${tool.name} verified`}
+      className="size-5 shrink-0 object-contain"
+    />
+  );
+}
+
+function InlinePanel({
+  open,
+  onClose,
+  side = "right",
+  title,
+  description,
+  badge,
+  children,
+  className,
+}: {
+  open: boolean;
+  onClose: () => void;
+  side?: "left" | "right";
+  title: string;
+  description?: string;
+  badge?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  useEffect(() => {
+    if (!open || typeof window === "undefined") {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    const previousOverflow = window.document.body.style.overflow;
+    window.document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [open, onClose]);
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-sm">
+      {side === "left" ? (
+        <div
+          className={`flex h-full w-full max-w-[96vw] flex-col overflow-hidden border-r border-orange-200 bg-white text-zinc-950 shadow-2xl dark:border-white/10 dark:bg-zinc-950 dark:text-white sm:max-w-sm ${className ?? ""}`}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-orange-100 bg-white/90 px-5 py-5 backdrop-blur-sm dark:border-white/10 dark:bg-zinc-950/85">
+            <div>
+              <h2 className="text-left text-xl font-semibold text-zinc-950 dark:text-white">{title}</h2>
+              {description ? (
+                <p className="mt-1 text-left text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+              onClick={onClose}
+            >
+              <X className="size-4" />
+              Close
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto">{children}</div>
+        </div>
+      ) : null}
+
+      <button type="button" className="flex-1 cursor-default" aria-label="Close panel overlay" onClick={onClose} />
+
+      {side === "right" ? (
+        <div
+          className={`ml-auto flex h-full w-full max-w-[96vw] flex-col overflow-hidden border-l border-orange-200 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_12%,#fff7ed_100%)] text-zinc-950 shadow-2xl dark:border-white/10 dark:bg-[linear-gradient(180deg,#09090b_0%,#18181b_18%,#09090b_100%)] dark:text-white lg:max-w-[1320px] ${className ?? ""}`}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-orange-100 bg-white/90 px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-5 dark:border-white/10 dark:bg-zinc-950/85">
+            <div>
+              <h2 className="text-left text-xl font-semibold text-zinc-950 dark:text-white">{title}</h2>
+              {description ? (
+                <p className="mt-1 text-left text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-3">
+              {badge ? (
+                <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                  {badge}
+                </Badge>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                onClick={onClose}
+              >
+                <X className="size-4" />
+                Close
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">{children}</div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type UserPageRoute = "home" | "wallet-dashboard" | "my-bets" | "my-gains";
+
+const marketSectionShortcuts = [
+  { id: "sports", label: "Sports" },
+  { id: "crypto", label: "Crypto" },
+  { id: "politics", label: "Politics" },
+  { id: "technology", label: "Technologie" },
+  { id: "cinema", label: "Cinema" },
+  { id: "gaming", label: "Gaming" },
+] as const;
+
+function resolveUserPageRoute(hashValue: string): UserPageRoute {
+  switch (hashValue) {
+    case "#wallet-dashboard":
+      return "wallet-dashboard";
+    case "#my-bets":
+      return "my-bets";
+    case "#my-gains":
+      return "my-gains";
+    default:
+      return "home";
+  }
+}
+
+export function OctopusMarketPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletUsername, setWalletUsername] = useState<string | null>(null);
+  const [walletTwitterHandle, setWalletTwitterHandle] = useState<string | null>(null);
+  const [walletAvatarSrc, setWalletAvatarSrc] = useState<string | null>(null);
+  const [pendingUsername, setPendingUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [isCheckingWalletIdentity, setIsCheckingWalletIdentity] = useState(false);
+  const [walletSnapshot, setWalletSnapshot] = useState<SolanaWalletBalanceSnapshot | null>(null);
+  const [isLoadingWalletBalance, setIsLoadingWalletBalance] = useState(false);
+  const [walletBalanceError, setWalletBalanceError] = useState<string | null>(null);
+  const walletBalanceRefreshIdRef = useRef(0);
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserAccessOpen, setIsUserAccessOpen] = useState(false);
+  const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
+  const [isAdminCenterOpen, setIsAdminCenterOpen] = useState(false);
+  const [isAidoOpen, setIsAidoOpen] = useState(false);
+  const { locale, setLocale, tr } = useOctopusLocale();
+  const { isDark, toggleTheme } = useThemeMode();
+  const { isLegacyBrowser } = useLegacyBrowser();
+  const isMobile = useIsMobile();
+  const reduceVisualLoad = isLegacyBrowser;
+  const isWalletConnected = Boolean(walletAddress);
+  const isAdminWallet = walletAddress === predictionMarketTreasuryAddress;
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [activeUserPage, setActiveUserPage] = useState<UserPageRoute>(() =>
+    typeof window === "undefined" ? "home" : resolveUserPageRoute(window.location.hash)
+  );
+  const [selectedPredictionCategoryId, setSelectedPredictionCategoryId] = useState<string>("sports");
+  const [selectedPredictionMarketId, setSelectedPredictionMarketId] = useState<string | null>(null);
+  const [adminCreatedMarkets, setAdminCreatedMarkets] = useState<AdminCreatedPredictionMarket[]>(() =>
+    readAdminCreatedPredictionMarkets()
+  );
+  const adminCreatedMarketsStateRef = useRef(JSON.stringify(readAdminCreatedPredictionMarkets()));
+  const [isPredictionMarketOpen, setIsPredictionMarketOpen] = useState(false);
+  const [isLaunchStudioOpen, setIsLaunchStudioOpen] = useState(false);
+  const [isExploreOpen, setIsExploreOpen] = useState(false);
+  const [isListingPricingOpen, setIsListingPricingOpen] = useState(false);
+  const [copiedFooterField, setCopiedFooterField] = useState<string | null>(null);
+  const floatingCardsContainerRef = useRef<HTMLDivElement | null>(null);
+  const floatingCardsDragPointerIdRef = useRef<number | null>(null);
+  const floatingCardsDragStartRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
+  const [floatingCardsPosition, setFloatingCardsPosition] = useState<{ x: number; y: number } | null>(null);
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  // One-time localStorage cleanup (removes stale pre-Supabase keys)
+  useEffect(() => {
+    runLocalStorageMigration();
+  }, []);
+
+  // Migrate old localStorage agent memory → Supabase when wallet connects
+  useEffect(() => {
+    if (!walletAddress) return;
+    void migrateWalletMemory(walletAddress);
+  }, [walletAddress]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const resetVersionKey = "octopus-market-admin-history-reset-v1";
+
+    if (window.localStorage.getItem(resetVersionKey) === "done") {
+      return;
+    }
+
+    window.localStorage.setItem(resetVersionKey, "pending");
+    void clearAdminControlHistory().finally(() => {
+      window.localStorage.setItem(resetVersionKey, "done");
+    });
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncRouteFromHash = () => {
+      setActiveUserPage(resolveUserPageRoute(window.location.hash));
+      setIsPredictionMarketOpen(window.location.hash === "#prediction-market");
+      setIsLaunchStudioOpen(
+        window.location.hash === "#launch-token" || window.location.hash === "#list-my-ai"
+      );
+      setIsExploreOpen(window.location.hash === "#explore");
+      setIsListingPricingOpen(window.location.hash === "#listing-price");
+    };
+
+    syncRouteFromHash();
+    window.addEventListener("hashchange", syncRouteFromHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncRouteFromHash);
+    };
+  }, []);
+
+  useEffect(() => {
+    return subscribeToPredictionMarketStorage(() => {
+      const nextMarkets = readAdminCreatedPredictionMarkets();
+      const nextSerializedMarkets = JSON.stringify(nextMarkets);
+
+      if (adminCreatedMarketsStateRef.current === nextSerializedMarkets) {
+        return;
+      }
+
+      adminCreatedMarketsStateRef.current = nextSerializedMarkets;
+      setAdminCreatedMarkets(nextMarkets);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined") {
+      setFloatingCardsPosition(null);
+      return;
+    }
+
+    const syncFloatingCardsPosition = () => {
+      const container = floatingCardsContainerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const nextX = Math.max(12, window.innerWidth - rect.width - 12);
+      const nextY = Math.max(88, Math.min(window.innerHeight - rect.height - 12, 96));
+
+      setFloatingCardsPosition((currentValue) => {
+        if (!currentValue) {
+          return { x: nextX, y: nextY };
+        }
+
+        const clampedX = Math.min(Math.max(12, currentValue.x), Math.max(12, window.innerWidth - rect.width - 12));
+        const clampedY = Math.min(Math.max(12, currentValue.y), Math.max(12, window.innerHeight - rect.height - 12));
+
+        if (clampedX === currentValue.x && clampedY === currentValue.y) {
+          return currentValue;
+        }
+
+        return { x: clampedX, y: clampedY };
+      });
+    };
+
+    syncFloatingCardsPosition();
+    window.addEventListener("resize", syncFloatingCardsPosition);
+
+    return () => {
+      window.removeEventListener("resize", syncFloatingCardsPosition);
+    };
+  }, [isMobile]);
+
+  const refreshWalletBalance = useCallback(async (address: string) => {
+    const refreshId = walletBalanceRefreshIdRef.current + 1;
+    walletBalanceRefreshIdRef.current = refreshId;
+
+    setIsLoadingWalletBalance(true);
+    setWalletBalanceError(null);
+
+    try {
+      const snapshot = await fetchSolanaWalletBalanceSnapshot(address);
+
+      if (walletBalanceRefreshIdRef.current !== refreshId) {
+        return snapshot;
+      }
+
+      setWalletSnapshot(snapshot);
+      setWalletBalanceError(null);
+      return snapshot;
+    } catch (error) {
+      if (walletBalanceRefreshIdRef.current === refreshId) {
+        setWalletSnapshot((currentSnapshot) => (currentSnapshot?.address === address ? currentSnapshot : null));
+        setWalletBalanceError(
+          error instanceof Error
+            ? error.message
+            : "Live SOL and USDC wallet data is unavailable right now because the public Solana RPC network did not answer."
+        );
+      }
+
+      return null;
+    } finally {
+      if (walletBalanceRefreshIdRef.current === refreshId) {
+        setIsLoadingWalletBalance(false);
+      }
+    }
+  }, []);
+
+  const refreshWalletIdentity = useCallback(async (address: string | null) => {
+    if (!address) {
+      setWalletUsername(null);
+      setWalletTwitterHandle(null);
+      setWalletAvatarSrc(null);
+      setPendingUsername("");
+      setUsernameError(null);
+      setIsCheckingWalletIdentity(false);
+      return;
+    }
+
+    setIsCheckingWalletIdentity(true);
+
+    const cachedWalletRecord = readCachedCentralWalletRecord(address);
+    const cachedUsername = cachedWalletRecord?.username?.trim() || null;
+
+    if (cachedUsername) {
+      setWalletUsername(cachedUsername);
+      setWalletTwitterHandle(cachedWalletRecord?.twitterHandle?.trim() || null);
+      setWalletAvatarSrc(cachedWalletRecord?.avatarSrc || null);
+      setPendingUsername(cachedUsername);
+      setUsernameError(null);
+    }
+
+    try {
+      const walletRecord = await readCentralWalletRecord(address);
+      const nextUsername = walletRecord?.displayName?.trim() || walletRecord?.username?.trim() || null;
+      setWalletUsername(nextUsername);
+      setWalletTwitterHandle(walletRecord?.twitterHandle?.trim() || null);
+      setWalletAvatarSrc(walletRecord?.avatarSrc || null);
+      setUsernameError(null);
+      setPendingUsername((currentValue) => {
+        if (nextUsername) {
+          return nextUsername;
+        }
+
+        return currentValue;
+      });
+    } finally {
+      setIsCheckingWalletIdentity(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const restoredConnection = await restoreSolanaWalletConnection();
+
+      if (!restoredConnection) {
+        return;
+      }
+
+      setWalletAddress(restoredConnection.address);
+      void refreshWalletIdentity(restoredConnection.address);
+      void refreshWalletBalance(restoredConnection.address);
+    })();
+  }, [refreshWalletBalance, refreshWalletIdentity]);
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setWalletSnapshot(null);
+      setWalletBalanceError(null);
+      return;
+    }
+
+    const cachedSnapshot = readCachedWalletSnapshot(walletAddress);
+
+    if (cachedSnapshot) {
+      setWalletSnapshot(cachedSnapshot);
+    }
+
+    void refreshWalletBalance(walletAddress);
+
+    const timer = window.setInterval(() => {
+      void refreshWalletBalance(walletAddress);
+    }, 60000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [walletAddress, refreshWalletBalance]);
+
+  useEffect(() => {
+    void refreshWalletIdentity(walletAddress);
+  }, [refreshWalletIdentity, walletAddress]);
+
+  const resetWalletUiState = useCallback(() => {
+    setWalletAddress(null);
+    setWalletUsername(null);
+    setWalletTwitterHandle(null);
+    setWalletAvatarSrc(null);
+    setPendingUsername("");
+    setUsernameError(null);
+    setIsSavingUsername(false);
+    setIsCheckingWalletIdentity(false);
+    setWalletSnapshot(null);
+    setWalletBalanceError(null);
+    setIsLoadingWalletBalance(false);
+    setIsConnectingWallet(false);
+  }, []);
+
+  const syncConnectedWallet = useCallback(
+    (address: string, activityLabel: string) => {
+      setWalletAddress(address);
+      setUsernameError(null);
+      const cachedSnapshot = readCachedWalletSnapshot(address);
+
+      if (cachedSnapshot) {
+        setWalletSnapshot(cachedSnapshot);
+        setWalletBalanceError(null);
+      }
+
+      void refreshWalletIdentity(address);
+      void refreshWalletBalance(address);
+      trackConnectedWalletSession(address, {
+        isAdminWallet: address === predictionMarketTreasuryAddress,
+        activityLabel,
+      });
+      return address;
+    },
+    [refreshWalletBalance, refreshWalletIdentity]
+  );
+  useEffect(() => {
+    const provider = getSolanaProvider();
+
+    if (!provider?.on) {
+      return;
+    }
+
+    const handleConnect = (publicKey?: { toString(): string } | null) => {
+      const nextAddress = publicKey?.toString() ?? provider.publicKey?.toString() ?? null;
+
+      if (!nextAddress) {
+        return;
+      }
+
+      syncConnectedWallet(
+        nextAddress,
+        nextAddress === predictionMarketTreasuryAddress
+          ? "Admin wallet connected from provider event"
+          : "User wallet connected from provider event"
+      );
+    };
+
+    const handleAccountChanged = (publicKey?: { toString(): string } | null) => {
+      const nextAddress = publicKey?.toString() ?? null;
+
+      if (nextAddress) {
+        syncConnectedWallet(
+          nextAddress,
+          nextAddress === predictionMarketTreasuryAddress
+            ? "Admin wallet switched account on Octopus Market"
+            : "User wallet switched account on Octopus Market"
+        );
+        return;
+      }
+
+      resetWalletUiState();
+    };
+
+    provider.on("connect", handleConnect);
+    provider.on("accountChanged", handleAccountChanged);
+
+    return () => {
+      provider.removeListener?.("connect", handleConnect);
+      provider.removeListener?.("accountChanged", handleAccountChanged);
+    };
+  }, [resetWalletUiState, syncConnectedWallet]);
+
+  useEffect(() => {
+    const provider = getSolanaProvider();
+
+    if (!provider?.on) {
+      return;
+    }
+
+    const handleDisconnect = () => {
+      resetWalletUiState();
+    };
+
+    provider.on("disconnect", handleDisconnect);
+
+    return () => {
+      provider.removeListener?.("disconnect", handleDisconnect);
+    };
+  }, [resetWalletUiState]);
+
+  const handleConnectWallet = async () => {
+    if (isConnectingWallet) {
+      return walletAddress;
+    }
+
+    if (walletAddress) {
+      return walletAddress;
+    }
+
+    try {
+      setIsConnectingWallet(true);
+      const connection = await connectSolanaWallet();
+      return syncConnectedWallet(
+        connection.address,
+        connection.address === predictionMarketTreasuryAddress
+          ? "Admin wallet connected from top navigation"
+          : "User wallet connected from top navigation"
+      );
+    } catch {
+      return null;
+    } finally {
+      setIsConnectingWallet(false);
+    }
+  };
+
+  const handleRegisterWalletIdentity = async () => {
+    if (!walletAddress || isSavingUsername) {
+      return;
+    }
+
+    const normalizedUsername = pendingUsername.trim();
+
+    if (normalizedUsername.length < 2) {
+      return;
+    }
+
+    setUsernameError(null);
+
+    setWalletUsername(normalizedUsername);
+    setPendingUsername(normalizedUsername);
+
+    try {
+      setIsSavingUsername(true);
+      const nextRecord = await registerCentralWalletIdentity(
+        walletAddress,
+        normalizedUsername,
+        walletAddress === predictionMarketTreasuryAddress ? "admin" : "user"
+      );
+      const nextUsername = nextRecord?.username?.trim() || normalizedUsername;
+      setWalletUsername(nextUsername);
+      setPendingUsername(nextUsername);
+    } catch (error) {
+      setWalletUsername(null);
+      setPendingUsername(normalizedUsername);
+
+      if (error instanceof Error && error.message === "username-taken") {
+        setUsernameError("This username is already reserved by another wallet.");
+      } else if (error instanceof Error && error.message === "username-locked") {
+        setUsernameError("This wallet already has a permanent username and it cannot be changed.");
+      } else {
+        setUsernameError("Username registration failed. Please try again.");
+      }
+    } finally {
+      setIsSavingUsername(false);
+    }
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      await disconnectSolanaWallet();
+    } finally {
+      resetWalletUiState();
+    }
+  };
+
+  const getFilteredTools = (category: string) =>
+    featuredTools.filter((tool) => {
+      const matchesCategory = category === "all" || tool.category === category;
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        tool.name.toLowerCase().includes(normalizedSearch) ||
+        tool.description.toLowerCase().includes(normalizedSearch) ||
+        tool.badge.toLowerCase().includes(normalizedSearch);
+
+      return matchesCategory && matchesSearch;
+    });
+
+  const totalVisibleTools = useMemo(() => getFilteredTools("all").length, [normalizedSearch]);
+  const openPredictionMarket = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.hash !== "#prediction-market") {
+      window.history.replaceState(null, "", "#prediction-market");
+    }
+
+    setIsPredictionMarketOpen(true);
+  }, []);
+
+  const openPredictionMarketSection = useCallback(
+    (categoryId: string, marketId?: string) => {
+      setSelectedPredictionCategoryId(categoryId);
+      setSelectedPredictionMarketId(marketId ?? null);
+      openPredictionMarket();
+    },
+    [openPredictionMarket]
+  );
+
+  const focusPredictionCategoryOnPage = useCallback((categoryId: string) => {
+    setSelectedPredictionCategoryId(categoryId);
+    setSelectedPredictionMarketId(null);
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "#open-prediction-markets");
+      window.requestAnimationFrame(() => {
+        window.document.getElementById("open-prediction-markets")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, []);
+
+  const openListingStudio = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.hash !== "#list-my-ai") {
+      window.history.replaceState(null, "", "#list-my-ai");
+    }
+
+    setIsLaunchStudioOpen(true);
+  }, []);
+
+  const openLaunchStudio = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.hash !== "#launch-token") {
+      window.history.replaceState(null, "", "#launch-token");
+    }
+
+    setIsLaunchStudioOpen(true);
+  }, []);
+
+  const openExploreWindow = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.hash !== "#explore") {
+      window.history.replaceState(null, "", "#explore");
+    }
+
+    setIsExploreOpen(true);
+  }, []);
+
+  const openListingPricingWindow = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.hash !== "#listing-price") {
+      window.history.replaceState(null, "", "#listing-price");
+    }
+
+    setIsListingPricingOpen(true);
+  }, []);
+
+  const closePredictionMarket = useCallback((nextOpen: boolean) => {
+    setIsPredictionMarketOpen(nextOpen);
+
+    if (!nextOpen && typeof window !== "undefined" && window.location.hash === "#prediction-market") {
+      setSelectedPredictionMarketId(null);
+      window.history.replaceState(null, "", "#hero");
+    }
+  }, []);
+
+  const closeLaunchStudio = useCallback((nextOpen: boolean) => {
+    setIsLaunchStudioOpen(nextOpen);
+
+    if (
+      !nextOpen &&
+      typeof window !== "undefined" &&
+      (window.location.hash === "#launch-token" || window.location.hash === "#list-my-ai")
+    ) {
+      window.history.replaceState(null, "", "#hero");
+    }
+  }, []);
+
+  const closeExploreWindow = useCallback((nextOpen: boolean) => {
+    setIsExploreOpen(nextOpen);
+
+    if (!nextOpen && typeof window !== "undefined" && window.location.hash === "#explore") {
+      window.history.replaceState(null, "", "#hero");
+    }
+  }, []);
+
+  const closeListingPricingWindow = useCallback((nextOpen: boolean) => {
+    setIsListingPricingOpen(nextOpen);
+
+    if (!nextOpen && typeof window !== "undefined" && window.location.hash === "#listing-price") {
+      window.history.replaceState(null, "", "#hero");
+    }
+  }, []);
+
+  const formattedCurrentTime = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(currentTime)),
+    [currentTime]
+  );
+  const walletBalance = walletSnapshot?.balanceSol ?? null;
+  const walletUsdcBalance = walletSnapshot?.usdcBalance ?? null;
+  const walletZeroBalanceSuffix = useMemo(() => {
+    if (typeof walletBalance !== "number" || Number.isNaN(walletBalance) || walletBalance > 0) {
+      return "";
+    }
+
+    return " · 0 SOL";
+  }, [walletBalance]);
+  const walletHeaderLabel = useMemo(() => {
+    if (!walletAddress) {
+      return "Connect wallet";
+    }
+
+    return `Wallet ${formatWalletAddress(walletAddress)}${walletZeroBalanceSuffix}`;
+  }, [walletAddress, walletZeroBalanceSuffix]);
+  const floatingWalletBalanceLabel = useMemo(() => {
+    if (!walletAddress) {
+      return "Connect wallet";
+    }
+
+    if (typeof walletBalance === "number") {
+      return formatSolBalance(walletBalance);
+    }
+
+    if (isLoadingWalletBalance && typeof walletBalance !== "number") {
+      return "Loading...";
+    }
+
+    if (walletBalanceError) {
+      return "Syncing...";
+    }
+
+    return "Loading...";
+  }, [isLoadingWalletBalance, walletAddress, walletBalance, walletBalanceError]);
+  const floatingWalletUsdcBalanceLabel = useMemo(() => {
+    if (!walletAddress) {
+      return "Connect wallet";
+    }
+
+    if (typeof walletUsdcBalance === "number") {
+      return formatUsdcBalance(walletUsdcBalance);
+    }
+
+    if (isLoadingWalletBalance && typeof walletUsdcBalance !== "number") {
+      return "Loading...";
+    }
+
+    if (walletBalanceError) {
+      return "Syncing...";
+    }
+
+    return "Loading...";
+  }, [isLoadingWalletBalance, walletAddress, walletUsdcBalance, walletBalanceError]);
+
+  const launchedTokens = useMemo(
+    () => readStoredLaunchedTokensForWallet(walletAddress),
+    [walletAddress]
+  );
+  const socialActorKey = useMemo(
+    () => walletAddress || walletUsername || readOrCreateOctopusGuestActorId(),
+    [walletAddress, walletUsername]
+  );
+  const socialActorLabel = useMemo(
+    () => walletUsername || walletTwitterHandle || formatWalletAddress(walletAddress) || "Guest",
+    [walletAddress, walletTwitterHandle, walletUsername]
+  );
+
+  const isDedicatedUserPage = activeUserPage !== "home";
+  const activeUserPageTitle =
+    activeUserPage === "wallet-dashboard"
+      ? "Wallet Dashboard"
+      : activeUserPage === "my-bets"
+        ? "My Bets"
+        : "My Winnings";
+  const activeUserSections =
+    activeUserPage === "wallet-dashboard"
+      ? (["wallet"] as const)
+      : activeUserPage === "my-bets"
+        ? (["bets"] as const)
+        : (["gains"] as const);
+  const userNavigationItems = [
+    { label: "My Bets", route: "#my-bets", icon: Search },
+    { label: "My Winnings", route: "#my-gains", icon: Rocket },
+    { label: "Wallet Dashboard", route: "#wallet-dashboard", icon: Wallet },
+  ] as const;
+
+  const allPredictionMarkets = useMemo(
+    () => [...predictionMarketQuestions, ...adminCreatedMarkets],
+    [adminCreatedMarkets]
+  );
+
+  const selectedPredictionCategory = useMemo(
+    () => predictionMarketCategories.find((category) => category.id === selectedPredictionCategoryId) ?? predictionMarketCategories[0],
+    [selectedPredictionCategoryId]
+  );
+
+  const visiblePredictionMarkets = useMemo(
+    () => allPredictionMarkets.filter((market) => market.categoryId === selectedPredictionCategoryId),
+    [allPredictionMarkets, selectedPredictionCategoryId]
+  );
+
+  const headerNavigationItems = navigationItems.filter(
+    (item) => !["#hero", "#prediction-market", "#launch-token", "#explore"].includes(item.href)
+  );
+
+  const userAccessButtonClassName =
+    "flex h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-left text-xs font-medium text-zinc-950 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800";
+
+  const handleOpenUserRoute = (route: string) => {
+    setIsUserAccessOpen(false);
+
+    if (typeof window !== "undefined") {
+      window.location.hash = route;
+    }
+  };
+
+  const handleCopyFooterValue = useCallback(async (field: string, value: string) => {
+    if (!value) {
+      return;
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else if (typeof window !== "undefined") {
+        const textArea = window.document.createElement("textarea");
+        textArea.value = value;
+        textArea.setAttribute("readonly", "true");
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
+        window.document.body.appendChild(textArea);
+        textArea.select();
+        window.document.execCommand("copy");
+        window.document.body.removeChild(textArea);
+      }
+
+      setCopiedFooterField(field);
+      window.setTimeout(() => {
+        setCopiedFooterField((currentValue) => (currentValue === field ? null : currentValue));
+      }, 1800);
+    } catch {
+      return;
+    }
+  }, []);
+
+  const handleFloatingCardsPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isMobile || typeof window === "undefined") {
+        return;
+      }
+
+      const container = floatingCardsContainerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const startX = floatingCardsPosition?.x ?? rect.left;
+      const startY = floatingCardsPosition?.y ?? rect.top;
+
+      floatingCardsDragPointerIdRef.current = event.pointerId;
+      floatingCardsDragStartRef.current = {
+        pointerX: event.clientX,
+        pointerY: event.clientY,
+        x: startX,
+        y: startY,
+      };
+
+      container.setPointerCapture?.(event.pointerId);
+    },
+    [floatingCardsPosition, isMobile]
+  );
+
+  const handleFloatingCardsPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isMobile || typeof window === "undefined") {
+        return;
+      }
+
+      if (floatingCardsDragPointerIdRef.current !== event.pointerId) {
+        return;
+      }
+
+      const dragState = floatingCardsDragStartRef.current;
+      const container = floatingCardsContainerRef.current;
+
+      if (!dragState || !container) {
+        return;
+      }
+
+      const deltaX = event.clientX - dragState.pointerX;
+      const deltaY = event.clientY - dragState.pointerY;
+      const maxX = Math.max(12, window.innerWidth - container.offsetWidth - 12);
+      const maxY = Math.max(12, window.innerHeight - container.offsetHeight - 12);
+
+      setFloatingCardsPosition({
+        x: Math.min(Math.max(12, dragState.x + deltaX), maxX),
+        y: Math.min(Math.max(12, dragState.y + deltaY), maxY),
+      });
+    },
+    [isMobile]
+  );
+
+  const handleFloatingCardsPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const container = floatingCardsContainerRef.current;
+
+    if (floatingCardsDragPointerIdRef.current === event.pointerId) {
+      container?.releasePointerCapture?.(event.pointerId);
+      floatingCardsDragPointerIdRef.current = null;
+      floatingCardsDragStartRef.current = null;
+    }
+  }, []);
+
+  return (
+    <div className="relative min-h-screen overflow-x-hidden bg-white text-zinc-950 dark:bg-black dark:text-white">
+      <style>{`
+        @keyframes aido-float {
+          0%, 100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
+          25% { transform: translateY(-8px) rotateX(8deg) rotateY(-6deg) rotateZ(-1.5deg) scale(1.01); }
+          50% { transform: translateY(-14px) rotateX(0deg) rotateY(7deg) rotateZ(1.5deg) scale(1.02); }
+          75% { transform: translateY(-6px) rotateX(-7deg) rotateY(-5deg) rotateZ(-1deg) scale(1.01); }
+        }
+
+        @keyframes aido-glow {
+          0%, 100% { box-shadow: 0 18px 40px rgba(249, 115, 22, 0.28), 0 0 0 1px rgba(251, 146, 60, 0.18); }
+          50% { box-shadow: 0 28px 58px rgba(249, 115, 22, 0.42), 0 0 0 1px rgba(251, 146, 60, 0.34); }
+        }
+
+        @keyframes aido-orbit {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
+          50% { transform: translate3d(-4px, -10px, 0) scale(1.08); opacity: 1; }
+        }
+
+        @keyframes om-floating-card-drift {
+          0%, 100% {
+            transform: translateY(0px) rotateX(0deg) rotateY(-10deg) scale(1);
+            box-shadow: 0 18px 44px rgba(249,115,22,0.14);
+          }
+          25% {
+            transform: translateY(-7px) rotateX(5deg) rotateY(-4deg) scale(1.01);
+            box-shadow: 0 24px 48px rgba(249,115,22,0.18);
+          }
+          50% {
+            transform: translateY(-12px) rotateX(8deg) rotateY(1deg) scale(1.02);
+            box-shadow: 0 28px 56px rgba(249,115,22,0.22);
+          }
+          75% {
+            transform: translateY(-6px) rotateX(4deg) rotateY(-6deg) scale(1.01);
+            box-shadow: 0 22px 46px rgba(249,115,22,0.18);
+          }
+        }
+
+        @keyframes om-floating-card-glow {
+          0%, 100% { filter: drop-shadow(0 0 0 rgba(251,146,60,0)); }
+          50% { filter: drop-shadow(0 0 16px rgba(251,146,60,0.22)); }
+        }
+      `}</style>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[36rem] bg-white dark:bg-black" />
+      <header
+        className={`top-0 z-40 border-b border-orange-100 dark:border-white/10 ${
+          reduceVisualLoad ? "sticky bg-white dark:bg-black" : "sticky bg-white backdrop-blur-xl dark:bg-black"
+        }`}
+      >
+        <div className="mx-auto flex w-full max-w-[112rem] items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:gap-4 lg:px-8 2xl:px-10">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+              aria-label="Open user access shortcuts"
+              onClick={() => setIsUserAccessOpen(true)}
+            >
+              <Menu className="size-5" />
+            </Button>
+            <OctopusBrand compact />
+          </div>
+
+          <nav className="hidden min-w-0 flex-1 justify-center lg:flex">
+            <div className="flex w-full max-w-[76rem] items-center justify-center gap-2 overflow-x-auto rounded-[1.75rem] border border-orange-100 bg-orange-50/80 p-2 shadow-[0_16px_40px_rgba(249,115,22,0.12)] md:[transform:perspective(1600px)_rotateX(6deg)] dark:border-white/10 dark:bg-white/5 dark:shadow-[0_22px_55px_rgba(0,0,0,0.3)]">
+              {headerNavigationItems.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-transparent px-3 text-center text-[11px] font-medium leading-none text-zinc-700 transition hover:border-orange-200 hover:bg-white hover:text-orange-500 lg:text-sm dark:text-zinc-300 dark:hover:border-white/10 dark:hover:bg-zinc-900 dark:hover:text-orange-300"
+                >
+                  {item.label}
+                </a>
+              ))}
+              {marketSectionShortcuts.map((item) => {
+                const isActiveShortcut = item.id === selectedPredictionCategoryId;
+
+                return (
+                  <Button
+                    key={item.id}
+                    type="button"
+                    variant="ghost"
+                    className={
+                      isActiveShortcut
+                        ? "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-orange-400 bg-orange-500 px-3 text-center text-[11px] font-semibold leading-none text-white shadow-sm transition hover:bg-orange-400 lg:text-sm"
+                        : "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-transparent px-3 text-center text-[11px] font-medium leading-none text-zinc-700 transition hover:border-orange-200 hover:bg-white hover:text-orange-500 lg:text-sm dark:text-zinc-300 dark:hover:border-white/10 dark:hover:bg-zinc-900 dark:hover:text-orange-300"
+                    }
+                    onClick={() => focusPredictionCategoryOnPage(item.id)}
+                  >
+                    {item.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </nav>
+
+          <div className="hidden shrink-0 items-center gap-3 lg:flex">
+            {isLegacyBrowser ? (
+              <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                Windows 7 compatibility mode
+              </Badge>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+              onClick={() => void handleConnectWallet()}
+            >
+              <Wallet className="size-4" />
+              {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
+            </Button>
+            {isWalletConnected ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => void handleDisconnectWallet()}
+              >
+                <LogOut className="size-4" />
+                Disconnect
+              </Button>
+            ) : null}
+            <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+          </div>
+
+          <Button className="lg:hidden" variant="ghost" size="icon" aria-label="Open menu" onClick={() => setIsMobileMenuOpen(true)}>
+            <Menu className="size-5" />
+          </Button>
+        </div>
+      </header>
+
+      <InlinePanel
+        open={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        side="left"
+        title="Octopus Market"
+        className="bg-white dark:bg-zinc-950"
+      >
+        <div className="mt-5 space-y-2.5 px-4 pb-6">
+          {isLegacyBrowser ? (
+            <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+              Windows 7 compatibility mode
+            </Badge>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs text-zinc-950 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+            onClick={() => void handleConnectWallet()}
+          >
+            <Wallet className="size-4" />
+            {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
+          </Button>
+          {isWalletConnected ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs text-zinc-950 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+              onClick={() => void handleDisconnectWallet()}
+            >
+              <LogOut className="size-4" />
+              Disconnect wallet
+            </Button>
+          ) : null}
+          <ThemeToggle
+            isDark={isDark}
+            onToggle={toggleTheme}
+            className="h-9 w-full justify-start rounded-xl px-3 py-2 text-xs sm:text-sm"
+          />
+        </div>
+        <div className="mt-6 space-y-2 px-4 pb-6">
+          {headerNavigationItems.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              className="block rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:border-orange-300 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5"
+            >
+              {item.label}
+            </a>
+          ))}
+          {marketSectionShortcuts.map((item) => {
+            const isActiveShortcut = item.id === selectedPredictionCategoryId;
+
+            return (
+              <Button
+                key={item.id}
+                type="button"
+                variant="outline"
+                className={
+                  isActiveShortcut
+                    ? "h-9 w-full justify-start rounded-xl border-orange-400 bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-400 sm:text-sm"
+                    : "h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:border-orange-300 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5"
+                }
+                onClick={() => focusPredictionCategoryOnPage(item.id)}
+              >
+                {item.label}
+              </Button>
+            );
+          })}
+        </div>
+      </InlinePanel>
+
+      <div
+        ref={floatingCardsContainerRef}
+        className={isMobile ? "fixed z-30 touch-none" : "pointer-events-none fixed right-3 top-24 z-30 sm:right-4 sm:top-28 xl:right-4 xl:top-28"}
+        style={
+          isMobile && floatingCardsPosition
+            ? {
+                left: `${floatingCardsPosition.x}px`,
+                top: `${floatingCardsPosition.y}px`,
+              }
+            : undefined
+        }
+        onPointerDown={handleFloatingCardsPointerDown}
+        onPointerMove={handleFloatingCardsPointerMove}
+        onPointerUp={handleFloatingCardsPointerUp}
+        onPointerCancel={handleFloatingCardsPointerUp}
+      >
+        <div className="flex flex-col items-stretch gap-2 sm:gap-3 lg:flex-row">
+          <div
+            className={`min-w-[7.2rem] rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2 text-right shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] sm:min-w-[8rem] sm:rounded-[1.35rem] sm:px-3.5 sm:py-2.5 ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
+            style={
+              reduceVisualLoad
+                ? undefined
+                : {
+                    animation: "om-floating-card-drift 4.8s ease-in-out infinite, om-floating-card-glow 3.8s ease-in-out infinite",
+                    transformStyle: "preserve-3d",
+                  }
+            }
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300 sm:text-[11px] sm:tracking-[0.26em]">Live date</p>
+            <p className="mt-1 text-xs font-semibold text-zinc-950 [transform:translateZ(16px)] dark:text-white sm:text-sm">
+              {formattedCurrentTime}
+            </p>
+            {isMobile ? <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Drag</p> : null}
+          </div>
+
+          <div
+            className={`min-w-[7.2rem] rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2 text-right shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] sm:min-w-[8rem] sm:rounded-[1.35rem] sm:px-3.5 sm:py-2.5 ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
+            style={
+              reduceVisualLoad
+                ? undefined
+                : {
+                    animation: "om-floating-card-drift 5.2s ease-in-out infinite, om-floating-card-glow 4.2s ease-in-out infinite",
+                    transformStyle: "preserve-3d",
+                  }
+            }
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300 sm:text-[11px] sm:tracking-[0.26em]">SOL balance</p>
+            <p className="mt-1 text-xs font-semibold text-zinc-950 [transform:translateZ(16px)] dark:text-white sm:text-sm">
+              {floatingWalletBalanceLabel}
+            </p>
+          </div>
+
+          <div
+            className={`min-w-[7.2rem] rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2 text-right shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] sm:min-w-[8rem] sm:rounded-[1.35rem] sm:px-3.5 sm:py-2.5 ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
+            style={
+              reduceVisualLoad
+                ? undefined
+                : {
+                    animation: "om-floating-card-drift 5.6s ease-in-out infinite, om-floating-card-glow 4.6s ease-in-out infinite",
+                    transformStyle: "preserve-3d",
+                  }
+            }
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300 sm:text-[11px] sm:tracking-[0.26em]">USDC balance</p>
+            <p className="mt-1 text-xs font-semibold text-zinc-950 [transform:translateZ(16px)] dark:text-white sm:text-sm">
+              {floatingWalletUsdcBalanceLabel}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <InlinePanel
+        open={isUserAccessOpen}
+        onClose={() => setIsUserAccessOpen(false)}
+        side="left"
+        title="User access"
+        description="Open your personal sections and dedicated platform windows from here."
+        className="w-[18.5rem] max-w-[88vw] bg-white p-0 dark:bg-zinc-950"
+      >
+        <div className="max-h-[calc(100vh-7rem)] overflow-y-auto px-4 py-4">
+          <div className="space-y-2.5">
+            {isAdminWallet ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={userAccessButtonClassName}
+                onClick={() => {
+                  setIsUserAccessOpen(false);
+                  setIsDatabaseOpen(true);
+                }}
+              >
+                <Database className="size-4" />
+                Data Base
+              </Button>
+            ) : null}
+
+            {isAdminWallet ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={userAccessButtonClassName}
+                onClick={() => {
+                  setIsUserAccessOpen(false);
+                  setIsAdminCenterOpen(true);
+                }}
+              >
+                <ShieldCheck className="size-4" />
+                Admin Control Center
+              </Button>
+            ) : null}
+
+              <div className="rounded-2xl border border-orange-200 bg-orange-50/80 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+                  {tr("Language", "Langue")}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={locale === "en"
+                      ? "h-9 rounded-xl border-orange-400 bg-orange-500 px-3 text-xs font-semibold text-white hover:bg-orange-400"
+                      : "h-9 rounded-xl border-orange-200 bg-white px-3 text-xs font-medium text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                    }
+                    onClick={() => setLocale("en")}
+                  >
+                    English
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={locale === "fr"
+                      ? "h-9 rounded-xl border-orange-400 bg-orange-500 px-3 text-xs font-semibold text-white hover:bg-orange-400"
+                      : "h-9 rounded-xl border-orange-200 bg-white px-3 text-xs font-medium text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                    }
+                    onClick={() => setLocale("fr")}
+                  >
+                    Français
+                  </Button>
+                </div>
+              </div>
+
+            {isWalletConnected
+              ? userNavigationItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <Button
+                      key={item.label}
+                      type="button"
+                      variant="outline"
+                      className={userAccessButtonClassName}
+                      onClick={() => handleOpenUserRoute(item.route)}
+                    >
+                      <Icon className="size-4" />
+                      {item.label}
+                    </Button>
+                  );
+                })
+              : null}
+
+            <Button
+              type="button"
+              variant="outline"
+              className={userAccessButtonClassName}
+              onClick={() => {
+                setIsUserAccessOpen(false);
+                openPredictionMarketSection("sports", null);
+              }}
+            >
+              <Search className="size-4" />
+              Prediction Market
+            </Button>
+
+            {isWalletConnected ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={userAccessButtonClassName}
+                onClick={() => {
+                  setIsUserAccessOpen(false);
+                  openListingStudio();
+                }}
+              >
+                <Globe className="size-4" />
+                List My AI
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className={userAccessButtonClassName}
+                onClick={() => void handleConnectWallet()}
+              >
+                <Globe className="size-4" />
+                List My AI
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              className={userAccessButtonClassName}
+              onClick={() => {
+                setIsUserAccessOpen(false);
+                openListingPricingWindow();
+              }}
+            >
+              <Receipt className="size-4" />
+              AI Listing Price
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className={userAccessButtonClassName}
+              onClick={() => {
+                setIsUserAccessOpen(false);
+                openLaunchStudio();
+              }}
+            >
+              <Rocket className="size-4" />
+              Launch Token
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className={userAccessButtonClassName}
+              onClick={() => {
+                setIsUserAccessOpen(false);
+                openExploreWindow();
+              }}
+            >
+              <Search className="size-4" />
+              Explore AI
+            </Button>
+          </div>
+        </div>
+      </InlinePanel>
+
+      <main className="relative z-10 [perspective:1800px]">
+        <div className="mx-auto w-full max-w-[112rem] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 2xl:px-10">
+          <div className="min-w-0 flex-1">
+            {isDedicatedUserPage ? (
+              <section className="py-16">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-orange-200 bg-white px-5 py-5 shadow-[0_18px_50px_rgba(249,115,22,0.1)] dark:border-white/10 dark:bg-white/5 dark:shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+                    <div>
+                      <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                        User area
+                      </Badge>
+                      <h1 className="mt-3 text-3xl font-semibold text-zinc-950 dark:text-white">{activeUserPageTitle}</h1>
+                      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        This section now opens as its own dedicated page inside Octopus Market.
+                      </p>
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                    >
+                      <a href="#hero">
+                        <ArrowLeft className="size-4" />
+                        Back to home
+                      </a>
+                    </Button>
+                  </div>
+
+                  <OctopusRuntimeBoundary fallbackTitle="User page recovered safely." fallbackDescription="This user page hit a browser-specific issue, so only this area was isolated while the rest of Octopus Market stays available.">
+                    <Suspense fallback={<InlineLazyFallback label="Loading user page..." />}>
+                      <LazyUserDashboardSections
+                        walletAddress={walletAddress}
+                        walletRecord={readCachedCentralWalletRecord(walletAddress ?? "")}
+                        launchedTokens={launchedTokens}
+                        onConnectWallet={handleConnectWallet}
+                        visibleSections={[...activeUserSections]}
+                      />
+                    </Suspense>
+                  </OctopusRuntimeBoundary>
+                </div>
+              </section>
+            ) : (
+              <>
+                <section id="hero" className="relative overflow-hidden scroll-mt-28">
+                  <div
+                    className={
+                      isLegacyBrowser
+                        ? "absolute inset-0 bg-white dark:bg-black"
+                        : "absolute inset-0 bg-white dark:bg-black"
+                    }
+                  />
+                  <div className="relative mx-auto max-w-[92rem] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+                    <div className="grid gap-5">
+                      <div className="flex flex-col justify-center text-left lg:items-start">
+                        {isLegacyBrowser ? (
+                          <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-400">
+                            Compatibility mode stays active for older Windows PCs, with reduced visual effects for a safer preview.
+                          </p>
+                        ) : null}
+
+                        {highlightItems.length > 0 ? (
+                          <div className="mt-6 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+                            {highlightItems.map((item) => {
+                              const Icon = item.icon;
+                              return (
+                                <div
+                                  key={item.label}
+                                  className="rounded-2xl border border-orange-200 bg-white px-4 py-4 text-sm text-zinc-700 shadow-[0_12px_35px_rgba(249,115,22,0.08)] transition-transform duration-300 hover:-translate-y-1 md:[transform:perspective(1600px)_rotateX(4deg)] dark:border-white/10 dark:bg-white/5 dark:text-zinc-200 dark:shadow-[0_16px_40px_rgba(0,0,0,0.22)]"
+                                >
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Icon className="size-4 text-orange-500 dark:text-orange-300" />
+                                    <span>{item.label}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                      {heroStats.length > 0 ? (
+                        <div>
+                          <div className="grid gap-4 md:grid-cols-4">
+                            {heroStats.map((stat) => (
+                              <Card
+                                key={stat.label}
+                                className="border-orange-200 bg-white text-zinc-950 shadow-[0_14px_40px_rgba(249,115,22,0.08)] transition-transform duration-300 hover:-translate-y-1 md:[transform:perspective(1600px)_rotateX(4deg)] dark:border-white/10 dark:bg-white/5 dark:text-white dark:shadow-[0_18px_45px_rgba(0,0,0,0.22)]"
+                              >
+                                <CardHeader className="gap-3">
+                                  <CardTitle className="text-3xl font-semibold text-orange-600 dark:text-orange-300">
+                                    {stat.value}
+                                  </CardTitle>
+                                  <CardDescription className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                                    {stat.label}
+                                  </CardDescription>
+                                </CardHeader>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </section>
+
+                <section id="open-prediction-markets" className="-mt-2 scroll-mt-28 pb-8 pt-1 sm:-mt-4 lg:-mt-6">
+                  <div className="mx-auto max-w-[92rem] px-4 sm:px-6 lg:px-8">
+                    <div className="rounded-[1.75rem] border-2 border-orange-300 bg-white p-4 shadow-[0_18px_50px_rgba(249,115,22,0.14)] transition-transform duration-500 dark:border-orange-400/20 dark:bg-zinc-950/92 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:rounded-[2rem] sm:border sm:border-orange-200 sm:bg-white/90 sm:p-6 md:[transform:perspective(1800px)_rotateX(4deg)] dark:sm:border-white/10 dark:sm:bg-white/5">
+                      <div className="rounded-2xl border border-orange-300 bg-orange-100 px-4 py-4 text-sm leading-6 text-zinc-700 shadow-[0_10px_24px_rgba(249,115,22,0.08)] dark:border-orange-400/20 dark:bg-black/30 dark:text-zinc-300 sm:border-orange-200 sm:bg-orange-50 sm:shadow-none dark:sm:border-white/10 dark:sm:bg-black/20">
+                        <p className="font-medium text-zinc-950 dark:text-white">{selectedPredictionCategory?.label}</p>
+                        <p className="mt-1">{selectedPredictionCategory?.description}</p>
+                      </div>
+
+                      <div className="mt-6 space-y-4">
+                        {visiblePredictionMarkets.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                            No prediction market is open yet in this section. Select another section to see its live markets.
+                          </div>
+                        ) : null}
+
+                        {visiblePredictionMarkets.map((market) => (
+                          <Card
+                            key={market.id}
+                            className="border-2 border-orange-300 bg-white text-zinc-950 shadow-[0_12px_28px_rgba(249,115,22,0.1)] dark:border-orange-400/20 dark:bg-zinc-900/85 dark:text-white sm:border-orange-200 sm:bg-orange-50/60 sm:shadow-none dark:sm:border-white/10 dark:sm:bg-black/20"
+                          >
+                            <CardContent className="space-y-4 p-5">
+                              <div className="flex flex-wrap items-start justify-between gap-4">
+                                <div className="space-y-2">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
+                                    {market.title}
+                                  </p>
+                                  {renderPredictionPreviewHeadline(market)}
+                                  <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">{market.resolutionLabel}</p>
+                                  {market.eventDateLabel ? (
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-700 dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300">
+                                      <Clock3 className="size-3.5" />
+                                      {market.eventDateLabel}
+                                    </div>
+                                  ) : null}
+                                </div>
+
+                                <div className="flex flex-col items-start gap-3 sm:items-end">
+                                  <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950">
+                                    {market.options?.length === 3 ? "3 choices open" : "2 choices open"}
+                                  </Badge>
+                                  <Button
+                                    type="button"
+                                    className="w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-400 sm:w-auto"
+                                    onClick={() => openPredictionMarketSection(market.categoryId, market.id)}
+                                  >
+                                    Place a bet
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {market.options?.length ? (
+                                <div className={`grid gap-3 ${market.options.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                                  {market.options.map((option) => (
+                                    <div
+                                      key={option.id}
+                                      className="rounded-2xl border border-orange-300 bg-orange-50/70 px-4 py-4 dark:border-orange-400/20 dark:bg-zinc-950/90 sm:border-orange-200 sm:bg-white dark:sm:border-white/10 dark:sm:bg-zinc-950/80"
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                          {option.logoSrc ? (
+                                            <SafeImage
+                                              src={option.logoSrc}
+                                              alt={`${option.label} logo`}
+                                              className="size-8 rounded-full border border-white/60 object-cover"
+                                            />
+                                          ) : null}
+                                          <div>
+                                            <p className="text-sm font-semibold text-zinc-950 dark:text-white">{option.label}</p>
+                                            {option.description ? (
+                                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{option.description}</p>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-300">x{option.oddsMultiplier}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <footer id="footer" className="relative z-20 border-t border-orange-200 bg-white/95 py-12 shadow-[0_-18px_40px_rgba(249,115,22,0.08)] dark:border-white/10 dark:bg-zinc-900/95 sm:py-14 lg:py-16">
+        <div className="mx-auto max-w-[92rem] px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10 [transform-style:preserve-3d]">
+            <div className="min-w-0 overflow-hidden rounded-[2rem] border border-orange-200 bg-white/96 p-5 shadow-[0_18px_45px_rgba(249,115,22,0.08)] backdrop-blur-md transition-transform duration-500 md:[transform:perspective(1800px)_rotateY(-2deg)_rotateX(3deg)] dark:border-white/10 dark:bg-zinc-900/92 dark:shadow-[0_18px_45px_rgba(0,0,0,0.28)] sm:p-7 lg:p-8">
+              <Badge className="inline-flex max-w-full whitespace-normal border border-orange-200 bg-orange-100 px-3 py-1 text-left text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                Ready to become an AI reference?
+              </Badge>
+              <h2 className="mt-5 break-words text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white sm:text-3xl lg:text-5xl">
+                Launch your presence on Octopus Market now.
+              </h2>
+              <p className="mt-4 max-w-full text-sm leading-7 text-zinc-600 dark:text-zinc-400 sm:text-base lg:max-w-2xl lg:text-lg lg:leading-8">
+                Launch Token, Prediction Market, AI listing, official platform references, and wallet validation all work together in one Octopus Market flow.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
+                <Button
+                  type="button"
+                  className="h-11 w-full rounded-2xl bg-orange-500 px-5 text-sm text-white hover:bg-orange-400 sm:w-auto sm:px-8 sm:text-base"
+                  onClick={openListingStudio}
+                >
+                  <Rocket className="size-4" />
+                  List my AI
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full rounded-2xl border-orange-200 bg-white px-5 text-sm text-zinc-950 hover:bg-orange-50 dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:bg-white/5 sm:w-auto sm:px-8 sm:text-base"
+                  onClick={() => focusPredictionCategoryOnPage("sports")}
+                >
+                  Browse open markets
+                </Button>
+              </div>
+            </div>
+
+            <Card className="min-w-0 border-orange-200 bg-orange-50/95 text-zinc-950 shadow-[0_18px_45px_rgba(249,115,22,0.08)] backdrop-blur-md transition-transform duration-500 md:[transform:perspective(1800px)_rotateY(2deg)_rotateX(3deg)] dark:border-white/10 dark:bg-zinc-800/95 dark:text-white">
+              <CardHeader>
+                <CardTitle className="text-2xl">Key information</CardTitle>
+                <CardDescription className="text-base text-zinc-600 dark:text-zinc-400">
+                  Important platform references are accessible at a glance.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  {contactItems.map((item, index) => {
+                    const Icon = item.icon;
+                    const isContractAddressItem = item.label.startsWith("CA ·");
+                    const contractValue = isContractAddressItem ? officialTokenAddress : "";
+                    return (
+                      <div key={item.label}>
+                        {item.href ? (
+                          <a
+                            href={item.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex min-w-0 items-center gap-3 rounded-2xl border border-orange-200 bg-white px-4 py-3 transition hover:border-orange-300 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:hover:border-white/20 dark:hover:bg-zinc-800"
+                          >
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-300">
+                              <Icon className="size-4" />
+                            </div>
+                            <span className="min-w-0 text-sm text-zinc-700 dark:text-zinc-200">{item.label}</span>
+                            <ExternalLink className="ml-auto size-4 text-zinc-400 dark:text-zinc-500" />
+                          </a>
+                        ) : (
+                          <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-orange-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-900">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-300">
+                              <Icon className="size-4" />
+                            </div>
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <span
+                                className={isContractAddressItem
+                                  ? "min-w-0 break-all text-xs leading-5 text-zinc-700 dark:text-zinc-200 sm:text-sm"
+                                  : "min-w-0 text-sm text-zinc-700 dark:text-zinc-200"
+                                }
+                              >
+                                {item.label}
+                              </span>
+                              {isContractAddressItem ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto shrink-0 rounded-xl border-orange-200 bg-white px-3 text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                  onClick={() => void handleCopyFooterValue("contract-address", contractValue)}
+                                >
+                                  {copiedFooterField === "contract-address" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                                  {copiedFooterField === "contract-address" ? "Copied" : "Copy"}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+                        {index < contactItems.length - 1 ? (
+                          <Separator className="my-3 bg-orange-100 dark:bg-white/5" />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Separator className="my-10 bg-orange-200 dark:bg-white/10" />
+
+          <div className="flex flex-col gap-4 text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-300">
+            <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-200">
+              <Globe className="size-4" />
+              <span>© 2026 Octopus Market · All rights reserved</span>
+            </div>
+            <div className="text-zinc-600 dark:text-zinc-300">
+              Designed to showcase, launch, and grow premium AI products on the market.
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      <Suspense fallback={null}>
+        <LazyOctopusOnboardingDialog
+          walletAddress={walletAddress}
+          walletRecord={readCachedCentralWalletRecord(walletAddress ?? "")}
+          onProfileSaved={(record) => {
+            setWalletUsername(record.displayName || record.username || null);
+            setWalletTwitterHandle(record.twitterHandle || null);
+            setWalletAvatarSrc(record.avatarSrc || null);
+          }}
+        />
+      </Suspense>
+
+      <Button
+        type="button"
+        size="icon"
+        className="fixed bottom-24 right-3 z-40 size-11 rounded-full border border-orange-300/70 bg-white/95 text-zinc-950 shadow-[0_18px_40px_rgba(249,115,22,0.22)] backdrop-blur-md hover:bg-white sm:bottom-28 sm:right-4 sm:size-12 dark:border-white/10 dark:bg-zinc-950/95 dark:text-white dark:hover:bg-zinc-900"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="Back to top"
+      >
+        <ArrowUpToLine className="size-5" />
+      </Button>
+
+      <Button
+        type="button"
+        onClick={() => setIsAidoOpen(true)}
+        className="fixed bottom-3 right-3 z-40 h-auto rounded-[1.5rem] border border-orange-300/70 bg-white/95 px-3 py-2.5 text-zinc-950 shadow-[0_20px_40px_rgba(249,115,22,0.16)] backdrop-blur-md hover:bg-white sm:bottom-4 sm:right-4 sm:rounded-[1.75rem] sm:px-4 sm:py-3 dark:border-orange-400/25 dark:bg-zinc-950/95 dark:text-white dark:hover:bg-zinc-900"
+        style={
+          reduceVisualLoad
+            ? undefined
+            : {
+                animation: "aido-float 4.6s ease-in-out infinite, aido-glow 3.4s ease-in-out infinite",
+                transformStyle: "preserve-3d",
+              }
+        }
+      >
+        <span className="pointer-events-none absolute inset-0 rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.7),rgba(249,115,22,0.14))] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(249,115,22,0.2))]" />
+        <span
+          className="pointer-events-none absolute -right-2 -top-2 size-4 rounded-full bg-orange-400 dark:bg-orange-300"
+          style={reduceVisualLoad ? undefined : { animation: "aido-orbit 2.6s ease-in-out infinite" }}
+        />
+        <span className="relative flex items-center gap-3 [transform-style:preserve-3d]">
+          <span className="flex size-11 items-center justify-center rounded-2xl border border-white/60 bg-white/80 shadow-[0_10px_25px_rgba(249,115,22,0.22)] [transform:translateZ(22px)] dark:border-white/10 dark:bg-zinc-900/90 dark:shadow-[0_12px_28px_rgba(0,0,0,0.3)]">
+            <AgentAvatar className="size-8 rounded-xl border-orange-200 dark:border-white/10" initialsClassName="text-xs text-orange-600 dark:text-orange-300" />
+          </span>
+          <span className="flex flex-col items-start [transform:translateZ(16px)]">
+            <span className="text-sm font-semibold leading-none">Aido Agent</span>
+            <span className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Floating assistant</span>
+          </span>
+        </span>
+      </Button>
+
+      <InlinePanel
+        open={isAidoOpen}
+        onClose={() => setIsAidoOpen(false)}
+        side="right"
+        title="Aido Agent"
+        description="The assistant is now available only from this floating entry point, with wallet-aware platform guidance inside Octopus Market."
+        className="lg:max-w-[1260px]"
+      >
+        <div className="mb-4 flex items-center gap-3">
+          <AgentAvatar className="size-11 rounded-2xl border-orange-200 dark:border-white/10" initialsClassName="text-orange-600 dark:text-orange-300" />
+        </div>
+        <Suspense fallback={<InlineLazyFallback label="Loading Aido Agent..." />}>
+          <LazyCyrDogeChat
+            isWalletConnected={isWalletConnected}
+            walletAddress={walletAddress}
+            onConnectWallet={handleConnectWallet}
+          />
+        </Suspense>
+      </InlinePanel>
+
+      <InlinePanel
+        open={isDatabaseOpen}
+        onClose={() => setIsDatabaseOpen(false)}
+        side="right"
+        title="Data Base"
+        description="Shared Octopus Market registry access for the admin wallet only."
+        badge="Admin only"
+        className="lg:max-w-[1360px]"
+      >
+        <OctopusRuntimeBoundary fallbackTitle="Database view recovered safely." fallbackDescription="This admin database window hit a browser-specific issue, so only this area was isolated while the rest of Octopus Market stays available.">
+          <Suspense fallback={<InlineLazyFallback label="Loading database..." />}>
+            <LazyAdminDatabasePanel walletAddress={walletAddress} />
+          </Suspense>
+        </OctopusRuntimeBoundary>
+      </InlinePanel>
+
+      <InlinePanel
+        open={isAdminCenterOpen}
+        onClose={() => setIsAdminCenterOpen(false)}
+        side="right"
+        title="Admin Control Center"
+        description="This admin area now opens only from the dedicated admin button above My Bets."
+        badge="Admin only"
+      >
+        <OctopusRuntimeBoundary fallbackTitle="Admin center recovered safely." fallbackDescription="This admin window hit a browser-specific issue, so only the admin area was isolated while the rest of Octopus Market stays available.">
+          <Suspense fallback={<InlineLazyFallback label="Loading admin center..." />}>
+            <LazyAdminControlCenter walletAddress={walletAddress} />
+          </Suspense>
+        </OctopusRuntimeBoundary>
+      </InlinePanel>
+
+      {isPredictionMarketOpen ? (
+        <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-sm">
+          <div className="ml-auto flex h-full w-full max-w-[1320px] flex-col overflow-hidden border-l border-orange-200 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_12%,#fff7ed_100%)] text-zinc-950 shadow-2xl dark:border-white/10 dark:bg-[linear-gradient(180deg,#09090b_0%,#18181b_18%,#09090b_100%)] dark:text-white">
+            <div className="flex items-start justify-between gap-4 border-b border-orange-100 bg-white/90 px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-5 dark:border-white/10 dark:bg-zinc-950/85">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">Dedicated view</p>
+                <h2 className="mt-2 text-left text-xl font-semibold text-zinc-950 dark:text-white">Prediction Market</h2>
+                <p className="mt-1 text-left text-sm text-zinc-600 dark:text-zinc-400">
+                  The prediction flow now opens only inside this dedicated window, separated from the main platform page.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => closePredictionMarket(false)}
+              >
+                <X className="size-4" />
+                Close
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+              <OctopusRuntimeBoundary fallbackTitle="Prediction market recovered safely." fallbackDescription="This window hit a browser-specific issue, so only the prediction market view was isolated while the rest of Octopus Market stays available.">
+                <Suspense fallback={<InlineLazyFallback label="Loading prediction market..." />}>
+                  <LazyBinaryPredictionStudio
+                    isWalletConnected={isWalletConnected}
+                    walletAddress={walletAddress}
+                    walletUsername={walletUsername}
+                    onConnectWallet={handleConnectWallet}
+                    selectedCategoryId={selectedPredictionCategoryId}
+                    selectedMarketId={selectedPredictionMarketId}
+                  />
+                </Suspense>
+              </OctopusRuntimeBoundary>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <InlinePanel
+        open={isExploreOpen}
+        onClose={() => closeExploreWindow(false)}
+        side="right"
+        title="Explore AI"
+        description="Explore AI now opens only inside this dedicated window, separate from the main platform page."
+        badge="Dedicated view"
+      >
+        <section className="space-y-10">
+          <div className="rounded-3xl border border-orange-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950/70">
+            <SectionHeading
+              eyebrow="Explore"
+              title="AI tools already listed on Octopus Market"
+              description="A discovery experience designed to help users quickly compare the best tools on the market."
+              align="left"
+            />
+
+            <div className="mt-10 flex flex-col gap-4 rounded-3xl border border-orange-200 bg-orange-50/70 p-5 lg:flex-row lg:items-center lg:justify-between dark:border-white/10 dark:bg-black/20">
+              <div>
+                <p className="text-lg font-semibold text-zinc-950 dark:text-white">Growing premium catalog</p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {totalVisibleTools} tools visible in this demo, with launch-focused placement for ClawdTrust and the Agent category.
+                </p>
+              </div>
+              <div className="relative w-full max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search a tool, benefit, or category"
+                  className="h-11 border-orange-200 bg-white pl-10 text-zinc-950 placeholder:text-zinc-400 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-zinc-500"
+                />
+              </div>
+            </div>
+
+            <Tabs defaultValue="all" className="mt-8 gap-6">
+              <TabsList className="h-auto flex-wrap border border-orange-100 bg-white p-1 dark:border-white/10 dark:bg-white/5">
+                {toolTabs.map((tab) => (
+                  <TabsTrigger key={tab.value} value={tab.value} className="min-w-24">
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {toolTabs.map((tab) => {
+                const visibleTools = getFilteredTools(tab.value);
+                return (
+                  <TabsContent key={tab.value} value={tab.value} className="space-y-5">
+                    {visibleTools.length > 0 ? (
+                      <div className="grid gap-5 lg:grid-cols-3">
+                        {visibleTools.map((tool) => (
+                          <Card
+                            key={tool.name}
+                            className="overflow-hidden border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white"
+                          >
+                            {tool.imageSrc ? (
+                              <div className="h-44 overflow-hidden border-b border-orange-100 bg-slate-100 dark:border-white/10 dark:bg-slate-900">
+                                <SafeImage src={tool.imageSrc} alt={tool.name} className="h-full w-full object-cover" />
+                              </div>
+                            ) : null}
+                            <CardHeader>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <CardTitle className="flex items-center gap-2 text-xl">
+                                    {tool.logoSrc ? (
+                                      <SafeImage
+                                        src={tool.logoSrc}
+                                        alt={`${tool.name} logo`}
+                                        className="size-6 rounded-md object-cover"
+                                      />
+                                    ) : null}
+                                    <span>{tool.name}</span>
+                                    <InlineVerificationBadge tool={tool} />
+                                  </CardTitle>
+                                  <CardDescription className="mt-2 text-sm text-orange-600 dark:text-orange-300">
+                                    {tool.price}
+                                  </CardDescription>
+                                </div>
+                                <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                                  {tool.badge}
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <p className="text-sm leading-7 text-zinc-600 dark:text-zinc-400">{tool.description}</p>
+                              <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
+                                <span>{tool.rating}</span>
+                                <span>{tool.users}</span>
+                              </div>
+                              <Suspense fallback={<InlineLazyFallback label="Loading reactions..." />}>
+                                <LazyAIToolSocialPanel
+                                  toolName={tool.name}
+                                  actorKey={socialActorKey}
+                                  actorLabel={socialActorLabel}
+                                />
+                              </Suspense>
+                              <Button asChild className="w-full rounded-xl bg-orange-500 text-white hover:bg-orange-400">
+                                <a
+                                  href={tool.url ?? "#"}
+                                  target={tool.url ? "_blank" : undefined}
+                                  rel={tool.url ? "noreferrer" : undefined}
+                                >
+                                  {tool.url ? "Open website" : "Discover"}
+                                  {tool.url ? <ExternalLink className="size-4" /> : null}
+                                </a>
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="border-dashed border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                        <CardHeader>
+                          <CardTitle>No results for this search</CardTitle>
+                          <CardDescription className="text-zinc-600 dark:text-zinc-400">
+                            Try another keyword or go back to the All tab.
+                          </CardDescription>
+                        </CardHeader>
+                      </Card>
+                    )}
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
+          </div>
+
+          <OctopusRuntimeBoundary fallbackTitle="Community AI recovered safely." fallbackDescription="The community AI listing block hit a browser-specific issue, so the rest of Explore AI stays visible.">
+            <Suspense fallback={<InlineLazyFallback label="Loading community AI..." />}>
+              <LazyCommunityAIMarket actorKey={socialActorKey} actorLabel={socialActorLabel} />
+            </Suspense>
+          </OctopusRuntimeBoundary>
+        </section>
+      </InlinePanel>
+
+      <InlinePanel
+        open={isListingPricingOpen}
+        onClose={() => closeListingPricingWindow(false)}
+        side="right"
+        title="AI Listing Price"
+        description="AI listing pricing now opens only inside this dedicated window, separate from the main platform page."
+        badge="Dedicated view"
+      >
+        <section className="space-y-6">
+          <SectionHeading
+            eyebrow="Pricing"
+            title="AI listing pricing"
+            description="A clear model with USDC on Solana payment approval, automatic listing charge, and an instant advantage for $ClawdTrust holders."
+            align="left"
+          />
+
+          <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+            <div className="grid gap-6 md:grid-cols-2">
+              {pricingPlans.map((plan) => (
+                <Card
+                  key={plan.name}
+                  className={`shadow-sm ${
+                    plan.featured
+                      ? "border-orange-300 bg-orange-100/70 text-zinc-950 dark:border-orange-400/40 dark:bg-orange-500/10 dark:text-white"
+                      : "border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  }`}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                        <CardDescription className="mt-3 text-base text-zinc-600 dark:text-zinc-300">
+                          {plan.description}
+                        </CardDescription>
+                      </div>
+                      {plan.savings ? (
+                        <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                          {plan.savings}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-end gap-1">
+                      <span className="text-5xl font-semibold text-zinc-950 dark:text-white">{plan.price}</span>
+                      <span className="pb-1 text-sm text-zinc-500 dark:text-zinc-400">{plan.billing}</span>
+                    </div>
+                    <ul className="mt-6 space-y-3 text-sm text-zinc-700 dark:text-zinc-200">
+                      {plan.perks.map((perk) => (
+                        <li key={perk} className="flex items-center gap-2">
+                          <div className="size-2 rounded-full bg-orange-500 dark:bg-orange-300" />
+                          <span>{perk}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-8">
+                      <Suspense fallback={<InlineLazyFallback label="Loading listing flow..." />}>
+                        <LazyOctopusAIListingDialog
+                          walletAddress={walletAddress}
+                          walletRecord={readCachedCentralWalletRecord(walletAddress ?? "")}
+                          onConnectWallet={handleConnectWallet}
+                          triggerLabel={plan.cta}
+                        />
+                      </Suspense>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-zinc-950/70 dark:text-white">
+              <CardHeader>
+                <Badge className="w-fit border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                  Holder benefit
+                </Badge>
+                <CardTitle className="text-2xl">-30% from {clawdTrustThresholdUsd}$ in $ClawdTrust</CardTitle>
+                <CardDescription className="text-base leading-7 text-zinc-600 dark:text-zinc-400">
+                  The ClawdTrust ecosystem rewards holders with a direct discount on listing.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-white/10 dark:bg-white/5">
+                  <div className="flex items-center justify-between text-sm text-zinc-700 dark:text-zinc-300">
+                    <span>Wallet threshold</span>
+                    <span>{clawdTrustThresholdUsd}$ required</span>
+                  </div>
+                  <Progress
+                    value={100}
+                    className="mt-3 h-2 bg-orange-100 dark:bg-white/10 [&_[data-slot=progress-indicator]]:bg-orange-500 dark:[&_[data-slot=progress-indicator]]:bg-orange-300"
+                  />
+                  <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                    Use the holder address provided during your listing request to activate the benefit.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-orange-200 bg-white p-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">$ClawdTrust holder address</p>
+                  <p className="mt-3 break-all text-xs leading-6 text-orange-600 dark:text-orange-300">
+                    {clawdTrustDiscountAddress}
+                  </p>
+                </div>
+
+                <Suspense fallback={<InlineLazyFallback label="Loading listing flow..." />}>
+                  <LazyOctopusAIListingDialog
+                    walletAddress={walletAddress}
+                    walletRecord={readCachedCentralWalletRecord(walletAddress ?? "")}
+                    onConnectWallet={handleConnectWallet}
+                    triggerLabel="Activate my listing"
+                  />
+                </Suspense>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      </InlinePanel>
+
+      <InlinePanel
+        open={isLaunchStudioOpen}
+        onClose={() => closeLaunchStudio(false)}
+        side="right"
+        title={typeof window !== "undefined" && window.location.hash === "#list-my-ai" ? "List My AI" : "Launch Token"}
+        description={typeof window !== "undefined" && window.location.hash === "#list-my-ai"
+          ? "The AI listing flow now opens only inside this dedicated window, separate from the main platform page."
+          : "The launch token flow now opens only inside this dedicated window, separate from the main platform page."}
+        badge="Dedicated view"
+      >
+        <OctopusRuntimeBoundary fallbackTitle="Launch studio recovered safely." fallbackDescription="This window hit a browser-specific issue, so only the launch token view was isolated while the rest of Octopus Market stays available.">
+          <Suspense fallback={<InlineLazyFallback label="Loading launch studio..." />}>
+            <LazySolfairLaunchStudio
+              isWalletConnected={isWalletConnected}
+              isLegacyBrowser={isLegacyBrowser}
+              walletAddress={walletAddress}
+              walletUsername={walletUsername}
+              onConnectWallet={handleConnectWallet}
+            />
+          </Suspense>
+        </OctopusRuntimeBoundary>
+      </InlinePanel>
+    </div>
+  );
+}
