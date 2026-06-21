@@ -17,6 +17,8 @@ export type AIListingPlanId = "free" | "starter" | "builder";
 export type AIListingStatus = "pending" | "approved" | "rejected";
 export type AIListingBadge = "none" | "blue" | "gold";
 export type ToolReactionType = "heart" | "thumbs-up" | "flame";
+export type PayoutStatus = "claimed" | "paid";
+
 export type PredictionResultStatus =
   | "open"
   | "pending_review"
@@ -24,6 +26,7 @@ export type PredictionResultStatus =
   | "win"
   | "lose"
   | "claimed"
+  | "paid"
   | "rejected";
 export type AdminAction =
   | "create_prediction"
@@ -139,6 +142,9 @@ export interface PredictionHistoryRow {
   payout_recorded_at: string | null;
   claimed_at: string | null;
   claim_reference: string | null;
+  payout_status: PayoutStatus | null;
+  paid_at: string | null;
+  paid_by_wallet: string | null;
   reported_at: string;
   created_at: string;
   updated_at: string;

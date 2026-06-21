@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { buildStoredAdminAuthHeaders, ensureAdminSession } from "@/components/octopus-market/octopus-admin-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -51,8 +50,6 @@ type DatabaseSnapshot = {
   bets: RegistryBetRecord[];
   history: RegistryHistoryRecord[];
   adminLogs: RegistryAdminLogRecord[];
-  serverToolSocialCount?: number;
-  serverPredictionMarketCount?: number;
 };
 
 async function loadDatabaseSnapshot(): Promise<DatabaseSnapshot> {
@@ -80,8 +77,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
     bets: [],
     history: [],
     adminLogs: [],
-    serverToolSocialCount: 0,
-    serverPredictionMarketCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -97,45 +92,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
     let isMounted = true;
 
     const hydrate = async () => {
-      let nextSnapshot = await loadDatabaseSnapshot();
-
-      try {
-        await ensureAdminSession(walletAddress);
-        const adminAuthHeaders = buildStoredAdminAuthHeaders(walletAddress);
-
-        if (!adminAuthHeaders) {
-          throw new Error("admin-session-missing");
-        }
-
-        const serverResponse = await fetch("/api/admin/database", {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            ...adminAuthHeaders,
-          },
-        });
-
-        if (serverResponse.ok) {
-          const serverPayload = (await serverResponse.json()) as {
-            toolSocial?: Record<string, unknown>;
-            predictionMarkets?: { markets?: unknown[] };
-          };
-
-          nextSnapshot = {
-            ...nextSnapshot,
-            serverToolSocialCount: Object.keys(serverPayload.toolSocial ?? {}).length,
-            serverPredictionMarketCount: Array.isArray(serverPayload.predictionMarkets?.markets)
-              ? serverPayload.predictionMarkets.markets.length
-              : 0,
-          };
-        }
-      } catch {
-        nextSnapshot = {
-          ...nextSnapshot,
-          serverToolSocialCount: 0,
-          serverPredictionMarketCount: 0,
-        };
-      }
+      const nextSnapshot = await loadDatabaseSnapshot();
 
       if (isMounted) {
         setSnapshot(nextSnapshot);
@@ -223,18 +180,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
           <CardHeader className="pb-3">
             <CardDescription>Approved volume</CardDescription>
             <CardTitle className="text-2xl">{formatAmount(totals.approvedVolume)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
-          <CardHeader className="pb-3">
-            <CardDescription>Protected AI records</CardDescription>
-            <CardTitle className="text-2xl">{snapshot.serverToolSocialCount ?? 0}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
-          <CardHeader className="pb-3">
-            <CardDescription>Protected markets</CardDescription>
-            <CardTitle className="text-2xl">{snapshot.serverPredictionMarketCount ?? 0}</CardTitle>
           </CardHeader>
         </Card>
       </div>

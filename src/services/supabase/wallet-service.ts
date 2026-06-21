@@ -35,7 +35,7 @@ export async function getWallet(address: string): Promise<WalletRow | null> {
   return data;
 }
 
-export async function getAllWallets(): Promise<WalletRow[]> {
+export async function getAllWallets(): Promise<WalletRow[] | null> {
   const { data, error } = await supabase
     .from("wallets")
     .select("*")
@@ -43,7 +43,7 @@ export async function getAllWallets(): Promise<WalletRow[]> {
 
   if (error) {
     console.error("[wallet-service] getAllWallets:", error.message);
-    return [];
+    return null; // null = erreur Supabase, distingué de [] (aucun wallet en base)
   }
   return data ?? [];
 }

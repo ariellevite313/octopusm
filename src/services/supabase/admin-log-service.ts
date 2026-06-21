@@ -10,7 +10,7 @@ import type { AdminLogRow, AdminAction } from "../../lib/supabase-types";
 
 export async function getAdminLogs(
   limit = 200
-): Promise<AdminLogRow[]> {
+): Promise<AdminLogRow[] | null> {
   const { data, error } = await supabase
     .from("admin_logs")
     .select("*")
@@ -19,7 +19,7 @@ export async function getAdminLogs(
 
   if (error) {
     console.error("[admin-log-service] getAdminLogs:", error.message);
-    return [];
+    return null; // null = erreur Supabase, distingué de [] (aucun log)
   }
   return data ?? [];
 }

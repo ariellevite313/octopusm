@@ -151,16 +151,51 @@ export async function claimPredictionWin(
   entryId: string,
   claimReference: string
 ): Promise<{ success: boolean; error?: string }> {
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from("prediction_history")
     .update({
-      claimed_at: new Date().toISOString(),
+      claimed_at: now,
       claim_reference: claimReference,
+      payout_status: "claimed",
     })
     .eq("id", entryId);
 
   if (error) return { success: false, error: error.message };
   return { success: true };
+}
+
+export async function markClaimAsPaid(
+  entryId: string,
+  adminWallet: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from("prediction_history")
+    .update({
+      payout_status: "paid",
+      paid_at: new Date().toISOString(),
+      paid_by_wallet: adminWallet,
+    })
+    .eq("id", entryId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function getClaimedPredictions(): Promise<
+  (PredictionHistoryRow & { result_status: PredictionResultStatus })[]
+> {
+  const { data, error } = await supabase
+    .from("prediction_history_with_status")
+    .select("*")
+    .in("result_status", ["claimed", "paid"])
+    .order("claimed_at", { ascending: false });
+
+  if (error) {
+    console.error("[prediction-service] getClaimedPredictions:", error.message);
+    return [];
+  }
+  return (data ?? []) as (PredictionHistoryRow & { result_status: PredictionResultStatus })[];
 }
 
 // ─── Mise à jour des paris après résolution ───────────────────────────────────

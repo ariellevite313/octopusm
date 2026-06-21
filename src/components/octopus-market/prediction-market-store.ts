@@ -26,6 +26,7 @@ import {
 import type {
   PredictionMarketRow,
   PredictionHistoryRow,
+  PayoutStatus,
 } from "@/lib/supabase-types";
 
 // ─── Types publics (inchangés) ────────────────────────────────────────────────
@@ -37,6 +38,7 @@ export type PredictionResultStatus =
   | "win"
   | "lose"
   | "claimed"
+  | "paid"
   | "rejected";
 
 export type PredictionHistoryEntry = {
@@ -67,6 +69,9 @@ export type PredictionHistoryEntry = {
   payoutRecordedAt?: number;
   claimedAt?: number;
   claimReference?: string;
+  payoutStatus?: PayoutStatus;
+  paidAt?: number;
+  paidByWallet?: string;
 };
 
 export type PredictionResolutionRecord = {
@@ -159,6 +164,9 @@ function historyRowToApp(
       : undefined,
     claimedAt: row.claimed_at ? new Date(row.claimed_at).getTime() : undefined,
     claimReference: row.claim_reference ?? undefined,
+    payoutStatus: row.payout_status ?? undefined,
+    paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
+    paidByWallet: row.paid_by_wallet ?? undefined,
   };
 }
 
@@ -191,6 +199,9 @@ function entryToDbRow(
       : null,
     claimed_at: entry.claimedAt ? new Date(entry.claimedAt).toISOString() : null,
     claim_reference: entry.claimReference ?? null,
+    payout_status: entry.payoutStatus ?? null,
+    paid_at: entry.paidAt ? new Date(entry.paidAt).toISOString() : null,
+    paid_by_wallet: entry.paidByWallet ?? null,
     reported_at: new Date(entry.reportedAt).toISOString(),
   };
 }
@@ -343,9 +354,28 @@ export async function claimPredictionEntry(
 ): Promise<{ success: boolean; error?: string }> {
   const result = await claimPredictionWin(entryId, claimReference);
   if (result.success) {
+    const now = Date.now();
     predictionHistoryCache = predictionHistoryCache.map((e) =>
       e.id === entryId
-        ? { ...e, claimedAt: Date.now(), claimReference, resultStatus: "claimed" as const }
+        ? { ...e, claimedAt: now, claimReference, payoutStatus: "claimed" as const, resultStatus: "claimed" as const }
+        : e
+    );
+    emitUpdate();
+  }
+  return result;
+}
+
+export async function markClaimPaidInStore(
+  entryId: string,
+  adminWallet: string
+): Promise<{ success: boolean; error?: string }> {
+  const { markClaimAsPaid } = await import("@/services/supabase/prediction-service");
+  const result = await markClaimAsPaid(entryId, adminWallet);
+  if (result.success) {
+    const now = Date.now();
+    predictionHistoryCache = predictionHistoryCache.map((e) =>
+      e.id === entryId
+        ? { ...e, payoutStatus: "paid" as const, paidAt: now, paidByWallet: adminWallet, resultStatus: "paid" as const }
         : e
     );
     emitUpdate();

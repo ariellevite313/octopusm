@@ -452,6 +452,7 @@ export function OctopusMarketPage() {
   const [isLoadingWalletBalance, setIsLoadingWalletBalance] = useState(false);
   const [walletBalanceError, setWalletBalanceError] = useState<string | null>(null);
   const walletBalanceRefreshIdRef = useRef(0);
+  const walletRestoredRef = useRef(false);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [walletConnectError, setWalletConnectError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -682,6 +683,10 @@ export function OctopusMarketPage() {
   }, []);
 
   useEffect(() => {
+    // Guard against React StrictMode double-invocation and unexpected re-runs
+    if (walletRestoredRef.current) return;
+    walletRestoredRef.current = true;
+
     void (async () => {
       const restoredConnection = await restoreSolanaWalletConnection();
 

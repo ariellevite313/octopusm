@@ -24,7 +24,7 @@ export async function getPaymentsByWallet(
   return data ?? [];
 }
 
-export async function getAllPaymentsAdmin(): Promise<PaymentRow[]> {
+export async function getAllPaymentsAdmin(): Promise<PaymentRow[] | null> {
   const { data, error } = await supabase
     .from("payments")
     .select("*")
@@ -32,7 +32,7 @@ export async function getAllPaymentsAdmin(): Promise<PaymentRow[]> {
 
   if (error) {
     console.error("[payment-service] getAllPaymentsAdmin:", error.message);
-    return [];
+    return null; // null = erreur Supabase, distingué de [] (aucun paiement)
   }
   return data ?? [];
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, CheckCircle2, ShieldCheck, Users, XCircle } from "lucide-react";
+import { Bell, CheckCircle2, Coins, ShieldCheck, Users, XCircle } from "lucide-react";
 
 import { AdminPaymentsManualConfirm } from "@/components/octopus-market/admin-payments-manual-confirm";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,9 @@ import {
 import {
   readPredictionHistory,
   readPredictionResolutions,
+  markClaimPaidInStore,
   subscribeToPredictionMarketStorage,
+  type PredictionHistoryEntry,
   type PredictionResolutionRecord,
 } from "@/components/octopus-market/prediction-market-store";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
@@ -44,7 +46,7 @@ type AdminControlCenterProps = {
   walletAddress: string | null;
 };
 
-type AdminPanelKey = "wallets" | "pending" | "approved" | "participants";
+type AdminPanelKey = "wallets" | "pending" | "approved" | "participants" | "claims";
 
 type WalletActivitySummary = {
   address: string;
@@ -111,6 +113,10 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
   const [paymentRecords, setPaymentRecords] = useState<RegistryPaymentRecord[]>([]);
   const [historyRecords, setHistoryRecords] = useState<RegistryHistoryRecord[]>([]);
   const [resolutions, setResolutions] = useState<Record<string, PredictionResolutionRecord>>(() => readPredictionResolutions());
+  const [claimsHistory, setClaimsHistory] = useState<PredictionHistoryEntry[]>(() =>
+    readPredictionHistory().filter((e) => e.payoutStatus === "claimed" || e.payoutStatus === "paid")
+  );
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [selectedPanel, setSelectedPanel] = useState<AdminPanelKey>("pending");
   const [aiListingRefreshIndex, setAIListingRefreshIndex] = useState(0);
   const [reviewActionByReference, setReviewActionByReference] = useState<Record<string, "approved" | "rejected">>({});
@@ -166,6 +172,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
   useEffect(() => {
     return subscribeToPredictionMarketStorage(() => {
       setResolutions(readPredictionResolutions());
+      setClaimsHistory(readPredictionHistory().filter((e) => e.payoutStatus === "claimed" || e.payoutStatus === "paid"));
       void hydrateCentralRegistry({ history: readPredictionHistory() }).then(loadCentralData);
     });
   }, [loadCentralData]);
@@ -437,6 +444,16 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
     setAdminListingStatusMessage("The admin AI listing is now published on the platform with 0 fee.");
   }, [adminListingDraft, walletAddress]);
 
+  const handleMarkAsPaid = useCallback(async (entryId: string) => {
+    if (!walletAddress) return;
+    try {
+      setMarkingPaidId(entryId);
+      await markClaimPaidInStore(entryId, walletAddress);
+    } finally {
+      setMarkingPaidId(null);
+    }
+  }, [walletAddress]);
+
   if (!isAdminWallet) {
     return null;
   }
@@ -516,7 +533,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
               </div>
             ) : null}
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
               <button
                 type="button"
                 onClick={() => setSelectedPanel("wallets")}
@@ -564,6 +581,18 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                 </div>
                 <p className="mt-3 text-3xl font-semibold text-zinc-950 dark:text-white">{uniquePredictionWallets.length}</p>
                 <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Open to inspect players by section with wallet-level totals and dates.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPanel("claims")}
+                className={`rounded-2xl border px-4 py-4 text-left transition ${selectedPanel === "claims" ? "border-emerald-300 bg-emerald-50/90" : "border-orange-100 bg-orange-50 hover:border-emerald-300 dark:border-white/10 dark:bg-black/20 dark:hover:border-emerald-500/30"}`}
+              >
+                <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  <Coins className="size-4 text-emerald-500 dark:text-emerald-300" />
+                  Claims
+                </div>
+                <p className="mt-3 text-3xl font-semibold text-zinc-950 dark:text-white">{claimsHistory.length}</p>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Rewards claimed by users. Mark as paid once the USDC transfer is sent.</p>
               </button>
             </div>
 
@@ -847,6 +876,73 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                   ) : (
                     <div className="rounded-2xl border border-dashed border-orange-200 bg-white px-4 py-5 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950/80 dark:text-zinc-400">
                       No prediction participants yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {selectedPanel === "claims" ? (
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-500/20 dark:bg-black/20">
+                <p className="text-lg font-semibold text-zinc-950 dark:text-white">Claims — rewards to pay out</p>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  Users who won a bet and clicked Claim appear here. Mark each one as Paid once you have sent the USDC to their wallet.
+                </p>
+                <div className="mt-5 space-y-3">
+                  {claimsHistory.length > 0 ? (
+                    claimsHistory.map((entry) => {
+                      const isPaid = entry.payoutStatus === "paid";
+                      const isMarkingThis = markingPaidId === entry.id;
+                      return (
+                        <div
+                          key={entry.id}
+                          className={`rounded-2xl border px-4 py-4 ${isPaid ? "border-emerald-200 bg-white dark:border-emerald-500/20 dark:bg-zinc-950/80" : "border-orange-100 bg-white dark:border-white/10 dark:bg-zinc-950/80"}`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1 text-sm">
+                              <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
+                              <p className="text-zinc-500 dark:text-zinc-400">{formatWalletAddress(entry.walletAddress)}</p>
+                              <p className="text-zinc-500 dark:text-zinc-400">
+                                Selection: <span className="font-medium text-zinc-700 dark:text-zinc-300">{entry.selectionLabel}</span>
+                              </p>
+                              <p className="text-zinc-500 dark:text-zinc-400">
+                                Net reward: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(entry.netReward)}</span>
+                              </p>
+                              {entry.claimedAt ? (
+                                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                                  Claimed: {formatMoment(entry.claimedAt)}
+                                </p>
+                              ) : null}
+                              {isPaid && entry.paidAt ? (
+                                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                  Paid: {formatMoment(entry.paidAt)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              {isPaid ? (
+                                <Badge className="border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                  Paid
+                                </Badge>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isMarkingThis}
+                                  className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60"
+                                  onClick={() => void handleMarkAsPaid(entry.id)}
+                                >
+                                  {isMarkingThis ? "Saving…" : "Mark as paid"}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-emerald-200 bg-white px-4 py-5 text-sm text-zinc-600 dark:border-emerald-500/20 dark:bg-zinc-950/80 dark:text-zinc-400">
+                      No claims yet. When a user wins a bet and clicks Claim, it appears here.
                     </div>
                   )}
                 </div>

@@ -38,11 +38,10 @@ export type SolanaWalletBalanceSnapshot = {
 };
 
 export const SOLANA_MAINNET_RPC_URLS = [
-  "https://mainnet.helius-rpc.com/?api-key=3d4f1b3e-bf16-4bf3-96db-2a3785ddacf2",
-  "https://api.mainnet-beta.solana.com",
+  // Primary — no API key required, browser CORS allowed
   "https://solana-rpc.publicnode.com",
-  "https://rpc.ankr.com/solana",
-  "https://solana.public-rpc.com",
+  // Add your own RPC here if you have a Helius/QuickNode/Alchemy key, e.g.:
+  // "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",
 ];
 
 export const SOLANA_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";

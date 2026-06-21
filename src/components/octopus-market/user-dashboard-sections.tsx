@@ -18,7 +18,7 @@ import {
 import {
   readPredictionHistory,
   subscribeToPredictionMarketStorage,
-  updatePredictionHistoryEntry,
+  claimPredictionEntry,
   type PredictionHistoryEntry,
 } from "@/components/octopus-market/prediction-market-store";
 import { OctopusAIListingDialog } from "@/components/octopus-market/octopus-ai-listing-dialog";
@@ -116,23 +116,29 @@ export function UserDashboardSections({
     () =>
       predictionHistory.map((entry) => {
         const payment = paymentNotifications.find((item) => item.paymentReference === entry.paymentReference);
-        const canClaim = Boolean(walletAddress) && walletAddress === entry.walletAddress && entry.resultStatus === "win" && !entry.claimedAt;
+        const canClaim =
+          Boolean(walletAddress) &&
+          walletAddress === entry.walletAddress &&
+          entry.resultStatus === "win" &&
+          !entry.claimedAt;
 
         return {
           ...entry,
           adminStatus: payment?.status ?? "pending",
           statusLabel:
-            entry.resultStatus === "claimed"
-              ? "Claimed"
-              : entry.resultStatus === "win"
-                ? "Win"
-                : entry.resultStatus === "lose"
-                  ? "Lose"
-                  : entry.resultStatus === "rejected"
-                    ? "Rejected"
-                    : entry.resultStatus === "approved_pending_result"
-                      ? "Approved"
-                      : "Pending review",
+            entry.resultStatus === "paid"
+              ? "Paid"
+              : entry.resultStatus === "claimed"
+                ? "Claimed"
+                : entry.resultStatus === "win"
+                  ? "Win"
+                  : entry.resultStatus === "lose"
+                    ? "Lose"
+                    : entry.resultStatus === "rejected"
+                      ? "Rejected"
+                      : entry.resultStatus === "approved_pending_result"
+                        ? "Approved"
+                        : "Pending review",
           canClaim,
         };
       }),
@@ -143,7 +149,7 @@ export function UserDashboardSections({
     return derivedHistory.reduce(
       (summary, entry) => ({
         totalBets: summary.totalBets + entry.amount,
-        totalWins: summary.totalWins + (entry.statusLabel === "Win" || entry.statusLabel === "Claimed" ? entry.netReward : 0),
+        totalWins: summary.totalWins + (entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid" ? entry.netReward : 0),
         totalLosses: summary.totalLosses + (entry.statusLabel === "Lose" ? entry.totalCharged : 0),
         claimable: summary.claimable + (entry.canClaim ? entry.netReward : 0),
       }),
@@ -170,11 +176,8 @@ export function UserDashboardSections({
 
     try {
       setClaimingId(entryId);
-      updatePredictionHistoryEntry(entryId, (entry) => ({
-        ...entry,
-        claimedAt: Date.now(),
-        claimReference: `CLAIM-${Date.now().toString(36).toUpperCase()}`,
-      }));
+      const claimReference = `CLAIM-${Date.now().toString(36).toUpperCase()}`;
+      await claimPredictionEntry(entryId, claimReference);
     } finally {
       setClaimingId(null);
     }
@@ -261,7 +264,13 @@ export function UserDashboardSections({
                             {entry.categoryLabel} · {entry.selectionLabel} · {formatMoment(entry.createdAt)}
                           </p>
                         </div>
-                        <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950">
+                        <Badge className={
+                          entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid"
+                            ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                            : entry.statusLabel === "Lose" || entry.statusLabel === "Rejected"
+                              ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-50 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/10"
+                              : "border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950"
+                        }>
                           {entry.statusLabel}
                         </Badge>
                       </div>
@@ -316,9 +325,9 @@ export function UserDashboardSections({
                   </div>
                 </div>
 
-                {derivedHistory.filter((entry) => entry.canClaim || entry.claimedAt).length > 0 ? (
+                {derivedHistory.filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid").length > 0 ? (
                   derivedHistory
-                    .filter((entry) => entry.canClaim || entry.claimedAt)
+                    .filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid")
                     .map((entry) => (
                       <div key={entry.id} className="rounded-2xl border border-orange-100 bg-orange-50/80 p-4 dark:border-white/10 dark:bg-black/20">
                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -337,9 +346,13 @@ export function UserDashboardSections({
                             >
                               {claimingId === entry.id ? "Claiming..." : "Claim"}
                             </Button>
+                          ) : entry.payoutStatus === "paid" ? (
+                            <Badge className="border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-200 dark:hover:bg-emerald-500/20">
+                              Paid ✓
+                            </Badge>
                           ) : (
                             <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
-                              Claimed
+                              Claimed — pending payment
                             </Badge>
                           )}
                         </div>

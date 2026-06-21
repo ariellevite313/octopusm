@@ -189,13 +189,20 @@ export async function initCentralRegistry(): Promise<void> {
     getAdminLogs(),
   ]);
 
-  walletsCache = wallets.map(walletRowToRegistry);
-  paymentsCache = payments.map(paymentRowToRegistry);
-  adminLogsCache = logs.map(adminLogRowToRegistry);
-
-  hasHydratedWallets = true;
-  hasHydratedPayments = true;
-  hasHydratedLogs = true;
+  // null = erreur Supabase → ne pas écraser le cache existant
+  // (évite de vider le cache quand Supabase est en pause ou indisponible)
+  if (wallets !== null) {
+    walletsCache = wallets.map(walletRowToRegistry);
+    hasHydratedWallets = true;
+  }
+  if (payments !== null) {
+    paymentsCache = payments.map(paymentRowToRegistry);
+    hasHydratedPayments = true;
+  }
+  if (logs !== null) {
+    adminLogsCache = logs.map(adminLogRowToRegistry);
+    hasHydratedLogs = true;
+  }
 
   emitRegistryUpdate();
   startRealtimeSync();
