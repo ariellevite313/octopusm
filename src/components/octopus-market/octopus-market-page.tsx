@@ -35,6 +35,7 @@ import {
 import { clearAdminControlHistory, trackConnectedWalletSession } from "@/components/octopus-market/octopus-admin";
 import { migrateWalletMemory, runLocalStorageMigration } from "@/lib/localStorage-migration";
 import {
+  initPredictionStore,
   readAdminCreatedPredictionMarkets,
   subscribeToPredictionMarketStorage,
   type AdminCreatedPredictionMarket,
@@ -452,6 +453,7 @@ export function OctopusMarketPage() {
   const [walletBalanceError, setWalletBalanceError] = useState<string | null>(null);
   const walletBalanceRefreshIdRef = useRef(0);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
+  const [walletConnectError, setWalletConnectError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserAccessOpen, setIsUserAccessOpen] = useState(false);
   const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
@@ -749,6 +751,8 @@ export function OctopusMarketPage() {
 
       void refreshWalletIdentity(address);
       void refreshWalletBalance(address);
+      // Charge l'historique des paris pour ce wallet (prediction store)
+      void initPredictionStore(address);
       trackConnectedWalletSession(address, {
         isAdminWallet: address === predictionMarketTreasuryAddress,
         activityLabel,
@@ -833,6 +837,7 @@ export function OctopusMarketPage() {
 
     try {
       setIsConnectingWallet(true);
+      setWalletConnectError(null);
       const connection = await connectSolanaWallet();
       return syncConnectedWallet(
         connection.address,
@@ -840,7 +845,17 @@ export function OctopusMarketPage() {
           ? "Admin wallet connected from top navigation"
           : "User wallet connected from top navigation"
       );
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === "wallet-unavailable") {
+        setWalletConnectError("Phantom not detected. Install the Phantom extension.");
+      } else if (msg === "connection-timeout") {
+        setWalletConnectError("Connection timed out. Please try again.");
+      } else if (msg.includes("User rejected") || msg.includes("rejected")) {
+        setWalletConnectError("Connection cancelled.");
+      } else {
+        setWalletConnectError(msg || "Connection failed.");
+      }
       return null;
     } finally {
       setIsConnectingWallet(false);
@@ -1339,15 +1354,20 @@ export function OctopusMarketPage() {
                 Windows 7 compatibility mode
               </Badge>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-              onClick={() => void handleConnectWallet()}
-            >
-              <Wallet className="size-4" />
-              {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                onClick={() => void handleConnectWallet()}
+              >
+                <Wallet className="size-4" />
+                {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
+              </Button>
+              {walletConnectError && !walletAddress ? (
+                <p className="max-w-[220px] text-right text-xs text-orange-600 dark:text-orange-400">{walletConnectError}</p>
+              ) : null}
+            </div>
             {isWalletConnected ? (
               <Button
                 type="button"
@@ -1390,6 +1410,9 @@ export function OctopusMarketPage() {
             <Wallet className="size-4" />
             {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
           </Button>
+          {walletConnectError && !walletAddress ? (
+            <p className="text-xs text-orange-600 dark:text-orange-400">{walletConnectError}</p>
+          ) : null}
           {isWalletConnected ? (
             <Button
               type="button"

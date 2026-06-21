@@ -77,9 +77,11 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
 
   useEffect(() => {
     // Initialiser les stores publics immédiatement
-    void initPublicStores().then(() => {
-      setIsLoading(false);
-    });
+    // Le .finally() garantit que isLoading passe à false même si Supabase
+    // est temporairement indisponible (projet en pause, réseau, etc.)
+    void initPublicStores()
+      .catch((err) => console.warn("[supabase-provider] initPublicStores failed:", err))
+      .finally(() => setIsLoading(false));
 
     // Écouter les changements de session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -89,12 +91,16 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
 
         if (session && address) {
           setWalletAddress(address);
-          await initPrivateStores(address);
+          await initPrivateStores(address).catch((err) =>
+            console.warn("[supabase-provider] initPrivateStores failed:", err)
+          );
         } else {
           setWalletAddress(null);
           setIsAdmin(false);
           // Re-init les stores publics après déconnexion
-          await initPublicStores();
+          await initPublicStores().catch((err) =>
+            console.warn("[supabase-provider] initPublicStores (logout) failed:", err)
+          );
         }
       }
     );
