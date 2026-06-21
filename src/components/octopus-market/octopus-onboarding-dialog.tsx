@@ -7,6 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { registerCentralWalletProfile, type RegistryWalletRecord } from "@/components/octopus-market/octopus-central-registry";
 
+function persistDismissed(walletAddress: string): void {
+  try {
+    window.localStorage.setItem(`octopus-market-onboarding-dismissed-${walletAddress}`, "1");
+  } catch {
+    // localStorage indisponible — sans effet
+  }
+}
+
 type OctopusOnboardingDialogProps = {
   walletAddress: string | null;
   walletRecord: RegistryWalletRecord | null;
@@ -24,12 +32,24 @@ export function OctopusOnboardingDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Lit l'état persisté pour ce wallet afin d'éviter la réapparition à la reconnexion
   useEffect(() => {
-    setIsDismissed(false);
+    if (!walletAddress) {
+      setIsDismissed(false);
+      return;
+    }
+    const storageKey = `octopus-market-onboarding-dismissed-${walletAddress}`;
+    try {
+      setIsDismissed(window.localStorage.getItem(storageKey) === "1");
+    } catch {
+      setIsDismissed(false);
+    }
   }, [walletAddress]);
 
   const isVisible = useMemo(() => {
-    return Boolean(walletAddress) && !walletRecord?.displayName && !walletRecord?.username && !isDismissed;
+    // Si le profil existe en DB, jamais visible
+    if (walletRecord?.displayName || walletRecord?.username) return false;
+    return Boolean(walletAddress) && !isDismissed;
   }, [isDismissed, walletAddress, walletRecord?.displayName, walletRecord?.username]);
 
   const handleSaveProfile = async () => {
@@ -61,6 +81,7 @@ export function OctopusOnboardingDialog({
 
       if (nextRecord) {
         onProfileSaved(nextRecord);
+        persistDismissed(walletAddress);
         setIsDismissed(true);
       }
     } catch (error) {
@@ -89,7 +110,7 @@ export function OctopusOnboardingDialog({
             variant="ghost"
             size="icon"
             className="absolute right-4 top-4 rounded-full"
-            onClick={() => setIsDismissed(true)}
+            onClick={() => { if (walletAddress) persistDismissed(walletAddress); setIsDismissed(true); }}
           >
             <X className="size-4" />
           </Button>

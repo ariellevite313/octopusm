@@ -95,7 +95,7 @@ export async function reviewPayment(
       reviewed_at: new Date().toISOString(),
       reviewed_by_wallet: reviewerWallet,
     })
-    .eq("id", paymentId);
+    .eq("payment_reference", paymentId);
 
   if (error) return { success: false, error: error.message };
 

@@ -15,6 +15,7 @@ import {
   upsertWalletOnConnect,
   updateWalletActivity,
   updateWalletProfile,
+  updateWalletRole,
   suspendWallet,
   reactivateWallet,
   subscribeToWallets,
@@ -276,7 +277,12 @@ export async function upsertWalletActivityToCentralRegistry(
 
   await updateWalletActivity(address, label);
 
-  const record = walletRowToRegistry({ ...row, latest_activity_label: label });
+  // Si un rôle est explicitement fourni, l'écrire en base
+  if (options.role && options.role !== row.role) {
+    await updateWalletRole(address, options.role);
+  }
+
+  const record = walletRowToRegistry({ ...row, latest_activity_label: label, role: options.role ?? row.role });
   const idx = walletsCache.findIndex((w) => w.address === address);
   if (idx >= 0) {
     walletsCache[idx] = record;

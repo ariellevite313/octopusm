@@ -11,14 +11,17 @@ import {
 } from "@/components/octopus-market/ai-listing-store";
 import type { RegistryWalletRecord } from "@/components/octopus-market/octopus-central-registry";
 import {
-  readCentralBetRecords,
   readCentralPaymentRecords,
   subscribeToCentralRegistry,
-  type RegistryBetRecord,
   type RegistryPaymentRecord,
 } from "@/components/octopus-market/octopus-central-registry";
+import {
+  readPredictionHistory,
+  subscribeToPredictionMarketStorage,
+  updatePredictionHistoryEntry,
+  type PredictionHistoryEntry,
+} from "@/components/octopus-market/prediction-market-store";
 import { OctopusAIListingDialog } from "@/components/octopus-market/octopus-ai-listing-dialog";
-import { updatePredictionHistoryEntry } from "@/components/octopus-market/prediction-market-store";
 import type { OctopusTokenBoardItem } from "@/components/octopus-market/octopus-market-data";
 
 type DashboardSectionId = "wallet" | "bets" | "gains" | "listed-ai" | "token-launch";
@@ -59,7 +62,7 @@ export function UserDashboardSections({
   const [adminRefreshIndex, setAdminRefreshIndex] = useState(0);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [paymentRecords, setPaymentRecords] = useState<RegistryPaymentRecord[]>([]);
-  const [betRecords, setBetRecords] = useState<RegistryBetRecord[]>([]);
+  const [betRecords, setBetRecords] = useState<PredictionHistoryEntry[]>([]);
 
   useEffect(() => {
     return subscribeToAIListings(() => {
@@ -68,19 +71,28 @@ export function UserDashboardSections({
   }, []);
 
   useEffect(() => {
-    const loadCentralRows = () => {
-      void Promise.all([readCentralPaymentRecords(), readCentralBetRecords()]).then(([payments, bets]) => {
-        setPaymentRecords(payments);
-        setBetRecords(bets);
-      });
+    const loadPayments = () => {
+      setPaymentRecords(readCentralPaymentRecords());
     };
 
-    loadCentralRows();
+    loadPayments();
 
-    return subscribeToCentralRegistry(() => {
-      loadCentralRows();
+    const unsubRegistry = subscribeToCentralRegistry(() => {
+      loadPayments();
       setAdminRefreshIndex((currentValue) => currentValue + 1);
     });
+
+    const unsubPrediction = subscribeToPredictionMarketStorage(() => {
+      setBetRecords([...readPredictionHistory()]);
+    });
+
+    // Charge les paris depuis le cache (déjà populé par initPredictionStore)
+    setBetRecords([...readPredictionHistory()]);
+
+    return () => {
+      unsubRegistry();
+      unsubPrediction();
+    };
   }, []);
 
   const predictionHistory = useMemo(() => {

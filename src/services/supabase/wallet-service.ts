@@ -146,6 +146,19 @@ export async function updateWalletActivity(
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
+export async function updateWalletRole(
+  address: string,
+  role: "user" | "admin"
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from("wallets")
+    .update({ role })
+    .eq("address", address);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 export async function suspendWallet(
   address: string
 ): Promise<{ success: boolean; error?: string }> {
