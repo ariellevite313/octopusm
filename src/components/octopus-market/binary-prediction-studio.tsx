@@ -88,7 +88,11 @@ let paymentModulePromise: Promise<typeof import("@/components/octopus-market/sol
 
 function loadPaymentModule() {
   if (!paymentModulePromise) {
-    paymentModulePromise = import("@/components/octopus-market/solana-pay");
+    paymentModulePromise = import("@/components/octopus-market/solana-pay").catch((err) => {
+      // Réinitialiser pour permettre une nouvelle tentative au prochain appel
+      paymentModulePromise = null;
+      throw err;
+    });
   }
 
   return paymentModulePromise;
@@ -472,6 +476,8 @@ export function BinaryPredictionStudio({
   const [claimingEntryId, setClaimingEntryId] = useState<string | null>(null);
   const [latestPaymentRequest, setLatestPaymentRequest] = useState<PaymentRequest | null>(null);
   const [isRecoveringPendingPayments, setIsRecoveringPendingPayments] = useState(false);
+  // Ref pour éviter le double-enregistrement même si le state history est stale
+  const reportedReferencesRef = useRef<Set<string>>(new Set());
   const [showAdminMarketForm, setShowAdminMarketForm] = useState(false);
   const [adminMarketDraft, setAdminMarketDraft] = useState<AdminMarketDraft>(() => createInitialAdminMarketDraft());
 
@@ -579,6 +585,12 @@ export function BinaryPredictionStudio({
 
 
   const handleReportValidatedPayment = useCallback((paymentRequest: PaymentRequest) => {
+    // Guard contre le double-enregistrement (state stale ou recovery concurrente)
+    if (reportedReferencesRef.current.has(paymentRequest.reference)) {
+      return;
+    }
+    reportedReferencesRef.current.add(paymentRequest.reference);
+
     const historyEntry = buildPredictionHistoryEntryFromPaymentRequest(paymentRequest);
     appendPredictionHistoryEntry(historyEntry);
     const notification = notifyAdminForValidatedPayment(paymentRequest);
@@ -592,7 +604,8 @@ export function BinaryPredictionStudio({
 
       setHistory(readPredictionHistory());
       setAdminNotifications(readAdminPaymentNotifications());
-      setLatestPaymentRequest(paymentRequest);
+      // Effacer latestPaymentRequest pour que recoverPredictionPayments ne le reprenne pas
+      setLatestPaymentRequest(null);
       toast.success(`Pari enregistré · ${historyEntry.marketTitle}`, {
         description: `Position sur "${historyEntry.selectionLabel}" en attente de validation admin.`,
         duration: 5000,
@@ -606,7 +619,10 @@ export function BinaryPredictionStudio({
       return;
     }
 
-    if (history.some((entry) => entry.paymentReference === latestPaymentRequest.reference)) {
+    if (
+      history.some((entry) => entry.paymentReference === latestPaymentRequest.reference) ||
+      reportedReferencesRef.current.has(latestPaymentRequest.reference)
+    ) {
       return;
     }
 
@@ -1115,12 +1131,18 @@ export function BinaryPredictionStudio({
         toast.error("Transaction annulée", {
           description: "Le paiement a été refusé dans Phantom.",
         });
+      } else if (
+        msg.includes("failed to fetch") ||
+        msg.includes("dynamically imported") ||
+        msg.includes("load failed") ||
+        msg.includes("networkerror")
+      ) {
+        toast.error("Erreur réseau", {
+          description: "Le module de paiement n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
+        });
       } else {
         toast.error("Échec du paiement", {
-          description:
-            error instanceof Error
-              ? error.message
-              : "Le transfert Phantom a échoué ou n'a pas pu être validé on-chain.",
+          description: "Le transfert Phantom a échoué ou n'a pas pu être validé on-chain.",
         });
       }
     } finally {
