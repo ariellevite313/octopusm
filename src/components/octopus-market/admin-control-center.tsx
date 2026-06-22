@@ -34,11 +34,11 @@ import {
 import {
   readPredictionHistory,
   readPredictionResolutions,
-  markClaimPaidInStore,
   subscribeToPredictionMarketStorage,
   type PredictionHistoryEntry,
   type PredictionResolutionRecord,
 } from "@/components/octopus-market/prediction-market-store";
+import { getClaimedPredictions, markClaimAsPaid } from "@/services/supabase/prediction-service";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
 import { formatWalletAddress } from "@/components/octopus-market/solana-wallet";
 
@@ -113,9 +113,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
   const [paymentRecords, setPaymentRecords] = useState<RegistryPaymentRecord[]>([]);
   const [historyRecords, setHistoryRecords] = useState<RegistryHistoryRecord[]>([]);
   const [resolutions, setResolutions] = useState<Record<string, PredictionResolutionRecord>>(() => readPredictionResolutions());
-  const [claimsHistory, setClaimsHistory] = useState<PredictionHistoryEntry[]>(() =>
-    readPredictionHistory().filter((e) => e.payoutStatus === "claimed" || e.payoutStatus === "paid")
-  );
+  const [claimsHistory, setClaimsHistory] = useState<PredictionHistoryEntry[]>([]);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [selectedPanel, setSelectedPanel] = useState<AdminPanelKey>("pending");
   const [aiListingRefreshIndex, setAIListingRefreshIndex] = useState(0);
@@ -146,13 +144,46 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
     setHistoryRecords(nextHistoryRecords);
   }, []);
 
+  const loadClaims = useCallback(async () => {
+    const rows = await getClaimedPredictions();
+    // Convertir les rows DB en PredictionHistoryEntry (shape minimale pour l'affichage)
+    setClaimsHistory(
+      rows.map((row) => ({
+        id: row.id,
+        marketId: row.market_id,
+        marketTitle: row.market_title,
+        categoryLabel: row.category_label,
+        selectionId: row.selection_id,
+        selectionLabel: row.selection_label,
+        amount: Number(row.amount),
+        reserveFee: Number(row.reserve_fee),
+        totalCharged: Number(row.total_charged),
+        claimFeeRate: Number(row.claim_fee_rate),
+        payoutMultiple: Number(row.payout_multiple),
+        grossReward: Number(row.gross_reward),
+        netReward: Number(row.net_reward),
+        walletAddress: row.wallet_address,
+        paymentReference: row.payment_reference,
+        paymentRequestId: row.payment_request_id,
+        createdAt: new Date(row.created_at).getTime(),
+        reportedAt: new Date(row.reported_at).getTime(),
+        claimedAt: row.claimed_at ? new Date(row.claimed_at).getTime() : undefined,
+        claimReference: row.claim_reference ?? undefined,
+        payoutStatus: row.payout_status ?? undefined,
+        paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
+        paidByWallet: row.paid_by_wallet ?? undefined,
+      }))
+    );
+  }, []);
+
   useEffect(() => {
     void hydrateCentralRegistry({
       wallets: readConnectedWalletSessions(),
       payments: readAdminPaymentNotifications(),
       history: readPredictionHistory(),
     }).then(loadCentralData);
-  }, [loadCentralData]);
+    void loadClaims();
+  }, [loadCentralData, loadClaims]);
 
   useEffect(() => {
     return subscribeToCentralRegistry(() => {
@@ -172,10 +203,10 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
   useEffect(() => {
     return subscribeToPredictionMarketStorage(() => {
       setResolutions(readPredictionResolutions());
-      setClaimsHistory(readPredictionHistory().filter((e) => e.payoutStatus === "claimed" || e.payoutStatus === "paid"));
+      void loadClaims();
       void hydrateCentralRegistry({ history: readPredictionHistory() }).then(loadCentralData);
     });
-  }, [loadCentralData]);
+  }, [loadCentralData, loadClaims]);
 
   useEffect(() => {
     return subscribeToAIListings(() => {
@@ -448,11 +479,12 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
     if (!walletAddress) return;
     try {
       setMarkingPaidId(entryId);
-      await markClaimPaidInStore(entryId, walletAddress);
+      await markClaimAsPaid(entryId, walletAddress);
+      await loadClaims();
     } finally {
       setMarkingPaidId(null);
     }
-  }, [walletAddress]);
+  }, [loadClaims, walletAddress]);
 
   if (!isAdminWallet) {
     return null;

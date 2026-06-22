@@ -4,17 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   readCentralAdminLogs,
-  readCentralBetRecords,
-  readCentralHistoryRecords,
   readCentralPaymentRecords,
   readCentralWalletRecords,
   subscribeToCentralRegistry,
   type RegistryAdminLogRecord,
-  type RegistryBetRecord,
-  type RegistryHistoryRecord,
   type RegistryPaymentRecord,
   type RegistryWalletRecord,
 } from "@/components/octopus-market/octopus-central-registry";
+import { getAllPredictionHistoryAdmin } from "@/services/supabase/prediction-service";
+import type { PredictionHistoryRow, PredictionResultStatus } from "@/lib/supabase-types";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
 import { formatWalletAddress } from "@/components/octopus-market/solana-wallet";
 
@@ -44,37 +42,30 @@ type AdminDatabasePanelProps = {
   walletAddress: string | null;
 };
 
+type PredictionHistoryWithStatus = PredictionHistoryRow & { result_status: PredictionResultStatus };
+
 type DatabaseSnapshot = {
   wallets: RegistryWalletRecord[];
   payments: RegistryPaymentRecord[];
-  bets: RegistryBetRecord[];
-  history: RegistryHistoryRecord[];
+  history: PredictionHistoryWithStatus[];
   adminLogs: RegistryAdminLogRecord[];
 };
 
 async function loadDatabaseSnapshot(): Promise<DatabaseSnapshot> {
-  const [wallets, payments, bets, history, adminLogs] = await Promise.all([
+  const [wallets, payments, history, adminLogs] = await Promise.all([
     readCentralWalletRecords(),
     readCentralPaymentRecords(),
-    readCentralBetRecords(),
-    readCentralHistoryRecords(),
+    getAllPredictionHistoryAdmin(),
     readCentralAdminLogs(),
   ]);
 
-  return {
-    wallets,
-    payments,
-    bets,
-    history,
-    adminLogs,
-  };
+  return { wallets, payments, history, adminLogs };
 }
 
 export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
   const [snapshot, setSnapshot] = useState<DatabaseSnapshot>({
     wallets: [],
     payments: [],
-    bets: [],
     history: [],
     adminLogs: [],
   });
@@ -84,7 +75,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
 
   useEffect(() => {
     if (!isAdminWallet) {
-      setSnapshot({ wallets: [], payments: [], bets: [], history: [], adminLogs: [] });
+      setSnapshot({ wallets: [], payments: [], history: [], adminLogs: [] });
       setIsLoading(false);
       return;
     }
@@ -116,7 +107,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
     return {
       wallets: snapshot.wallets.length,
       payments: snapshot.payments.length,
-      bets: snapshot.bets.length,
       history: snapshot.history.length,
       adminLogs: snapshot.adminLogs.length,
       approvedVolume,
@@ -156,12 +146,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
           <CardHeader className="pb-3">
             <CardDescription>Total payments</CardDescription>
             <CardTitle className="text-2xl">{totals.payments}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
-          <CardHeader className="pb-3">
-            <CardDescription>Total bets</CardDescription>
-            <CardTitle className="text-2xl">{totals.bets}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
@@ -295,36 +279,34 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {snapshot.bets.map((bet) => {
-                    const ownerRecord = snapshot.wallets.find((wallet) => wallet.address === bet.walletAddress);
-
+                  {snapshot.history.map((bet) => {
+                    const ownerRecord = snapshot.wallets.find((w) => w.address === bet.wallet_address);
                     return (
                       <tr key={bet.id} className="border-t border-orange-100 dark:border-white/10">
                         <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">
-                          <div className="font-medium">{ownerRecord?.displayName || ownerRecord?.username || formatWalletAddress(bet.walletAddress)}</div>
+                          <div className="font-medium">{ownerRecord?.displayName || ownerRecord?.username || formatWalletAddress(bet.wallet_address)}</div>
                           <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{ownerRecord?.twitterHandle || "No X profile saved"}</div>
                         </td>
                         <td className="px-4 py-3 align-top text-xs text-zinc-600 dark:text-zinc-300">
-                          <span className="break-all">{bet.walletAddress}</span>
+                          <span className="break-all">{bet.wallet_address}</span>
                         </td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{bet.marketTitle}</td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{bet.categoryLabel}</td>
-                        <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">{bet.selectionLabel}</td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(bet.amount)}</td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(bet.totalCharged)}</td>
-                        <td className="px-4 py-3 align-top capitalize text-zinc-600 dark:text-zinc-300">{bet.adminDecisionStatus ?? "pending"}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{bet.market_title}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{bet.category_label}</td>
+                        <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">{bet.selection_label}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(Number(bet.amount))}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(Number(bet.total_charged))}</td>
+                        <td className="px-4 py-3 align-top capitalize text-zinc-600 dark:text-zinc-300">{bet.admin_decision_status ?? "pending"}</td>
                         <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">
-                          <div className="font-medium text-zinc-950 dark:text-white">{bet.resultStatus ?? "pending_review"}</div>
-                          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{bet.winningChoiceLabel ?? "No winning side yet"}</div>
+                          <div className="font-medium text-zinc-950 dark:text-white">{bet.result_status ?? "open"}</div>
                         </td>
                         <td className="px-4 py-3 align-top text-xs text-zinc-600 dark:text-zinc-300">
-                          <span className="break-all">{bet.paymentReference}</span>
+                          <span className="break-all">{bet.payment_reference}</span>
                         </td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatMoment(bet.createdAt)}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatMoment(new Date(bet.created_at).getTime())}</td>
                       </tr>
                     );
                   })}
-                  {!snapshot.bets.length ? (
+                  {!snapshot.history.length ? (
                     <tr>
                       <td colSpan={11} className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400">
                         {isLoading ? "Loading bets..." : "No user bets stored yet."}
@@ -357,11 +339,11 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                 <tbody>
                   {snapshot.history.map((entry) => (
                     <tr key={entry.id} className="border-t border-orange-100 dark:border-white/10">
-                      <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">{formatWalletAddress(entry.walletAddress)}</td>
-                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{entry.marketTitle}</td>
-                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(entry.netReward)}</td>
-                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{entry.resultStatus ?? "pending_review"}</td>
-                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatMoment(entry.reportedAt || entry.createdAt)}</td>
+                      <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">{formatWalletAddress(entry.wallet_address)}</td>
+                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{entry.market_title}</td>
+                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(Number(entry.net_reward))}</td>
+                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{entry.result_status ?? "open"}</td>
+                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatMoment(new Date(entry.reported_at ?? entry.created_at).getTime())}</td>
                     </tr>
                   ))}
                   {!snapshot.history.length ? (

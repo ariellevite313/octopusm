@@ -182,20 +182,20 @@ export async function markClaimAsPaid(
   return { success: true };
 }
 
-export async function getClaimedPredictions(): Promise<
-  (PredictionHistoryRow & { result_status: PredictionResultStatus })[]
-> {
+export async function getClaimedPredictions(): Promise<PredictionHistoryRow[]> {
+  // Requête sur la table de base (pas la vue) pour éviter les limitations
+  // de filtrage PostgREST sur les colonnes calculées.
   const { data, error } = await supabase
-    .from("prediction_history_with_status")
+    .from("prediction_history")
     .select("*")
-    .in("result_status", ["claimed", "paid"])
+    .not("claimed_at", "is", null)
     .order("claimed_at", { ascending: false });
 
   if (error) {
     console.error("[prediction-service] getClaimedPredictions:", error.message);
     return [];
   }
-  return (data ?? []) as (PredictionHistoryRow & { result_status: PredictionResultStatus })[];
+  return data ?? [];
 }
 
 // ─── Mise à jour des paris après résolution ───────────────────────────────────
