@@ -1,9 +1,14 @@
 /**
  * Prediction Service — remplace prediction-market-store.ts
  * CRUD marchés de prédiction + historique des paris
+ *
+ * Les mutations admin (createMarket, deleteMarket, resolveMarket, markClaimAsPaid)
+ * passent par des Edge Functions qui vérifient le wallet admin côté serveur
+ * et utilisent service_role pour contourner les RLS restreintes.
  */
 
 import { supabase } from "../../lib/supabase";
+import { callAdminFunction } from "../../lib/supabase-admin";
 import type {
   PredictionMarketRow,
   PredictionHistoryRow,
@@ -57,53 +62,44 @@ export async function getAllMarketsAdmin(): Promise<PredictionMarketRow[]> {
 
 // ─── Admin : création / suppression / résolution ──────────────────────────────
 
+/**
+ * Crée un marché. Route vers l'Edge Function admin-create-market.
+ * adminWallet est requis pour la vérification serveur.
+ */
 export async function createMarket(
-  market: Omit<PredictionMarketRow, "created_at" | "updated_at">
+  market: Omit<PredictionMarketRow, "created_at" | "updated_at">,
+  adminWallet: string
 ): Promise<{ success: boolean; data?: PredictionMarketRow; error?: string }> {
-  const { data, error } = await supabase
-    .from("prediction_markets")
-    .insert(market)
-    .select()
-    .single();
-
-  if (error) return { success: false, error: error.message };
-  return { success: true, data };
+  return callAdminFunction<PredictionMarketRow>(
+    "admin-create-market",
+    market as unknown as Record<string, unknown>,
+    adminWallet
+  );
 }
 
+/**
+ * Désactivation logique d'un marché. Route vers l'Edge Function admin-delete-market.
+ */
 export async function deleteMarket(
-  id: string
+  id: string,
+  adminWallet: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Désactivation logique (soft delete)
-  const { error } = await supabase
-    .from("prediction_markets")
-    .update({ is_active: false })
-    .eq("id", id);
-
-  if (error) return { success: false, error: error.message };
-  return { success: true };
+  return callAdminFunction("admin-delete-market", { marketId: id }, adminWallet);
 }
 
+/**
+ * Résout un marché et met à jour les paris. Route vers l'Edge Function admin-resolve-market.
+ */
 export async function resolveMarket(
   marketId: string,
   outcomeId: string,
   resolvedByWallet: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from("prediction_markets")
-    .update({
-      is_resolved: true,
-      resolution_outcome_id: outcomeId,
-      resolved_at: new Date().toISOString(),
-      resolved_by_wallet: resolvedByWallet,
-    })
-    .eq("id", marketId);
-
-  if (error) return { success: false, error: error.message };
-
-  // Mettre à jour tous les paris liés à ce marché
-  await updateBetsAfterResolution(marketId, outcomeId, resolvedByWallet);
-
-  return { success: true };
+  return callAdminFunction("admin-resolve-market", {
+    marketId,
+    outcomeId,
+    resolvedByWallet,
+  }, resolvedByWallet);
 }
 
 // ─── Historique des paris ─────────────────────────────────────────────────────
@@ -165,21 +161,15 @@ export async function claimPredictionWin(
   return { success: true };
 }
 
+/**
+ * Marque un claim comme payé. Route vers l'Edge Function admin-mark-paid.
+ * La mise à jour de payout_status='paid' est bloquée pour anon par RLS.
+ */
 export async function markClaimAsPaid(
   entryId: string,
   adminWallet: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from("prediction_history")
-    .update({
-      payout_status: "paid",
-      paid_at: new Date().toISOString(),
-      paid_by_wallet: adminWallet,
-    })
-    .eq("id", entryId);
-
-  if (error) return { success: false, error: error.message };
-  return { success: true };
+  return callAdminFunction("admin-mark-paid", { entryId, adminWallet }, adminWallet);
 }
 
 export async function getClaimedPredictions(): Promise<PredictionHistoryRow[]> {
@@ -196,26 +186,6 @@ export async function getClaimedPredictions(): Promise<PredictionHistoryRow[]> {
     return [];
   }
   return data ?? [];
-}
-
-// ─── Mise à jour des paris après résolution ───────────────────────────────────
-
-async function updateBetsAfterResolution(
-  marketId: string,
-  outcomeId: string,
-  resolvedByWallet: string
-): Promise<void> {
-  const now = new Date().toISOString();
-
-  await supabase
-    .from("prediction_history")
-    .update({
-      resolution_outcome_id: outcomeId,
-      resolved_at: now,
-      resolved_by_wallet: resolvedByWallet,
-    })
-    .eq("market_id", marketId)
-    .eq("admin_decision_status", "approved");
 }
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────

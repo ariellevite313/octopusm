@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -1442,7 +1442,7 @@ export function BinaryPredictionStudio({
             </CardContent>
           </Card>
 
-          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+          {ownerWalletConnected ? <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
             <CardHeader>
               <CardTitle className="text-xl">Owner resolution panel</CardTitle>
               <CardDescription className="text-zinc-600 dark:text-zinc-400">
@@ -1824,7 +1824,7 @@ export function BinaryPredictionStudio({
                 })}
               </div>
             </CardContent>
-          </Card>
+          </Card> : null}
 
           <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
             <CardHeader>

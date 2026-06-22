@@ -1,9 +1,13 @@
 /**
  * Payment Service — remplace octopus-admin.ts (notifications)
  * CRUD sur la table `payments` (notifications de paiement admin)
+ *
+ * Les mutations admin (reviewPayment) passent par une Edge Function
+ * qui vérifie le wallet admin côté serveur et utilise service_role.
  */
 
 import { supabase } from "../../lib/supabase";
+import { callAdminFunction } from "../../lib/supabase-admin";
 import type { PaymentRow, PaymentStatus } from "../../lib/supabase-types";
 
 // ─── Lecture ──────────────────────────────────────────────────────────────────
@@ -79,8 +83,13 @@ export async function createPaymentNotification(
 
 // ─── Admin : décision ─────────────────────────────────────────────────────────
 
+/**
+ * Approuve ou rejette un paiement.
+ * Route vers l'Edge Function admin-review-payment qui vérifie le wallet
+ * côté serveur et utilise service_role pour contourner les RLS restreintes.
+ */
 export async function reviewPayment(
-  paymentId: string,
+  paymentReference: string,
   status: PaymentStatus,
   reviewerWallet: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -88,29 +97,11 @@ export async function reviewPayment(
     return { success: false, error: "Statut invalide pour une révision." };
   }
 
-  const { error } = await supabase
-    .from("payments")
-    .update({
-      status,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by_wallet: reviewerWallet,
-    })
-    .eq("payment_reference", paymentId);
-
-  if (error) return { success: false, error: error.message };
-
-  // Si approuvé : mettre à jour le statut dans prediction_history
-  if (status === "approved") {
-    const payment = await getPaymentByReference(paymentId);
-    if (payment?.flow === "prediction" && payment.market_id) {
-      await supabase
-        .from("prediction_history")
-        .update({ admin_decision_status: "approved" })
-        .eq("payment_reference", payment.payment_reference);
-    }
-  }
-
-  return { success: true };
+  return callAdminFunction("admin-review-payment", {
+    paymentReference,
+    status,
+    reviewerWallet,
+  }, reviewerWallet);
 }
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────

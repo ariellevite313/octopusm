@@ -430,7 +430,7 @@ export function syncPredictionEntriesForResolvedMarket(
 
 export async function appendAdminCreatedPredictionMarket(
   market: AdminCreatedPredictionMarket,
-  _adminWalletAddress?: string | null
+  adminWalletAddress?: string | null
 ): Promise<AdminCreatedPredictionMarket[]> {
   if (predictionMarketsCache.some((m) => m.id === market.id)) {
     return predictionMarketsCache;
@@ -459,7 +459,7 @@ export async function appendAdminCreatedPredictionMarket(
     is_active: true,
   };
 
-  const result = await createMarket(dbMarket);
+  const result = await createMarket(dbMarket, adminWalletAddress ?? "");
   if (result.success) {
     predictionMarketsCache = [market, ...predictionMarketsCache];
     emitUpdate();
@@ -470,9 +470,9 @@ export async function appendAdminCreatedPredictionMarket(
 
 export async function removeAdminCreatedPredictionMarket(
   marketId: string,
-  _adminWalletAddress?: string | null
+  adminWalletAddress?: string | null
 ): Promise<AdminCreatedPredictionMarket[]> {
-  await deleteMarket(marketId);
+  await deleteMarket(marketId, adminWalletAddress ?? "");
   predictionMarketsCache = predictionMarketsCache.filter((m) => m.id !== marketId);
 
   if (predictionResolutionsCache[marketId]) {

@@ -264,8 +264,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
         (notification) => notification.flow === "prediction" && notification.userWallet !== predictionMarketTreasuryAddress
       ),
     [paymentRecords]
-  );
-
+  ); 
   const walletSummaries = useMemo<WalletActivitySummary[]>(() => {
     return walletRecords
       .filter((walletRecord) => walletRecord.address !== predictionMarketTreasuryAddress)

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUpToLine, Check, Clock3, Copy, Database, ExternalLink, Globe, LogOut, Menu, Receipt, Rocket, Search, ShieldCheck, Wallet, X } from "lucide-react";
+import { ArrowLeft, ArrowUpToLine, Check, Clock3, Copy, Database, ExternalLink, Globe, Lock, LogOut, Menu, Receipt, Rocket, Search, ShieldCheck, Wallet, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -215,6 +215,12 @@ const LazyUserDashboardSections = lazy(() =>
   }))
 );
 
+const LazyClawdTrustHolderPage = lazy(() =>
+  import("@/components/octopus-market/clawdtrust-holder-page").then((module) => ({
+    default: module.ClawdTrustHolderPage,
+  }))
+);
+
 const LazyBinaryPredictionStudio = lazy(() =>
   import("@/components/octopus-market/binary-prediction-studio").then((module) => ({
     default: module.BinaryPredictionStudio,
@@ -415,7 +421,7 @@ function InlinePanel({
   );
 }
 
-type UserPageRoute = "home" | "wallet-dashboard" | "my-bets" | "my-gains";
+type UserPageRoute = "home" | "wallet-dashboard" | "my-bets" | "my-gains" | "octopus-market";
 
 const marketSectionShortcuts = [
   { id: "sports", label: "Sports" },
@@ -434,6 +440,8 @@ function resolveUserPageRoute(hashValue: string): UserPageRoute {
       return "my-bets";
     case "#my-gains":
       return "my-gains";
+    case "#octopus-market":
+      return "octopus-market";
     default:
       return "home";
   }
@@ -1115,7 +1123,9 @@ export function OctopusMarketPage() {
       ? "Wallet Dashboard"
       : activeUserPage === "my-bets"
         ? "My Bets"
-        : "My Winnings";
+        : activeUserPage === "octopus-market"
+          ? "Become a ClawdTrust Holder"
+          : "My Winnings";
   const activeUserSections =
     activeUserPage === "wallet-dashboard"
       ? (["wallet"] as const)
@@ -1634,68 +1644,56 @@ export function OctopusMarketPage() {
               Prediction Market
             </Button>
 
-            {isWalletConnected ? (
-              <Button
-                type="button"
-                variant="outline"
-                className={userAccessButtonClassName}
-                onClick={() => {
-                  setIsUserAccessOpen(false);
-                  openListingStudio();
-                }}
-              >
-                <Globe className="size-4" />
-                List My AI
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className={userAccessButtonClassName}
-                onClick={() => void handleConnectWallet()}
-              >
-                <Globe className="size-4" />
-                List My AI
-              </Button>
-            )}
-
             <Button
               type="button"
               variant="outline"
               className={userAccessButtonClassName}
-              onClick={() => {
-                setIsUserAccessOpen(false);
-                openListingPricingWindow();
-              }}
+              onClick={() => handleOpenUserRoute("#octopus-market")}
             >
-              <Receipt className="size-4" />
-              AI Listing Price
+              <Globe className="size-4" />
+              Octopus Token
             </Button>
 
             <Button
               type="button"
               variant="outline"
-              className={userAccessButtonClassName}
-              onClick={() => {
-                setIsUserAccessOpen(false);
-                openLaunchStudio();
-              }}
+              disabled
+              className={`${userAccessButtonClassName} cursor-not-allowed opacity-60`}
+              aria-label="List My AI — Coming Soon"
             >
-              <Rocket className="size-4" />
+              <Lock className="size-4" />
+              List My AI
+              <Badge className="ml-auto border border-orange-200 bg-orange-50 px-2 py-0 text-[10px] text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-400">
+                Coming Soon
+              </Badge>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled
+              className={`${userAccessButtonClassName} cursor-not-allowed opacity-60`}
+              aria-label="Launch Token — Coming Soon"
+            >
+              <Lock className="size-4" />
               Launch Token
+              <Badge className="ml-auto border border-orange-200 bg-orange-50 px-2 py-0 text-[10px] text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-400">
+                Coming Soon
+              </Badge>
             </Button>
 
             <Button
               type="button"
               variant="outline"
-              className={userAccessButtonClassName}
-              onClick={() => {
-                setIsUserAccessOpen(false);
-                openExploreWindow();
-              }}
+              disabled
+              className={`${userAccessButtonClassName} cursor-not-allowed opacity-60`}
+              aria-label="Explore AI — Coming Soon"
             >
-              <Search className="size-4" />
+              <Lock className="size-4" />
               Explore AI
+              <Badge className="ml-auto border border-orange-200 bg-orange-50 px-2 py-0 text-[10px] text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-400">
+                Coming Soon
+              </Badge>
             </Button>
           </div>
         </div>
@@ -1731,13 +1729,17 @@ export function OctopusMarketPage() {
 
                   <OctopusRuntimeBoundary fallbackTitle="User page recovered safely." fallbackDescription="This user page hit a browser-specific issue, so only this area was isolated while the rest of Octopus Market stays available.">
                     <Suspense fallback={<InlineLazyFallback label="Loading user page..." />}>
-                      <LazyUserDashboardSections
-                        walletAddress={walletAddress}
-                        walletRecord={readCachedCentralWalletRecord(walletAddress ?? "")}
-                        launchedTokens={launchedTokens}
-                        onConnectWallet={handleConnectWallet}
-                        visibleSections={[...activeUserSections]}
-                      />
+                      {activeUserPage === "octopus-market" ? (
+                        <LazyClawdTrustHolderPage />
+                      ) : (
+                        <LazyUserDashboardSections
+                          walletAddress={walletAddress}
+                          walletRecord={readCachedCentralWalletRecord(walletAddress ?? "")}
+                          launchedTokens={launchedTokens}
+                          onConnectWallet={handleConnectWallet}
+                          visibleSections={[...activeUserSections]}
+                        />
+                      )}
                     </Suspense>
                   </OctopusRuntimeBoundary>
                 </div>
@@ -1901,9 +1903,15 @@ export function OctopusMarketPage() {
         <div className="mx-auto max-w-[92rem] px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10 [transform-style:preserve-3d]">
             <div className="min-w-0 overflow-hidden rounded-[2rem] border border-orange-200 bg-white/96 p-5 shadow-[0_18px_45px_rgba(249,115,22,0.08)] backdrop-blur-md transition-transform duration-500 md:[transform:perspective(1800px)_rotateY(-2deg)_rotateX(3deg)] dark:border-white/10 dark:bg-zinc-900/92 dark:shadow-[0_18px_45px_rgba(0,0,0,0.28)] sm:p-7 lg:p-8">
-              <Badge className="inline-flex max-w-full whitespace-normal border border-orange-200 bg-orange-100 px-3 py-1 text-left text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
-                Ready to become an AI reference?
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="inline-flex max-w-full whitespace-normal border border-orange-200 bg-orange-100 px-3 py-1 text-left text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                  Ready to become an AI reference?
+                </Badge>
+                <Badge className="border border-zinc-200 bg-zinc-100 px-3 py-1 text-zinc-500 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/5">
+                  <Lock className="mr-1 size-3" />
+                  Coming Soon
+                </Badge>
+              </div>
               <h2 className="mt-5 break-words text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white sm:text-3xl lg:text-5xl">
                 Launch your presence on Octopus Market now.
               </h2>
@@ -1914,17 +1922,17 @@ export function OctopusMarketPage() {
               <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
-                  className="h-11 w-full rounded-2xl bg-orange-500 px-5 text-sm text-white hover:bg-orange-400 sm:w-auto sm:px-8 sm:text-base"
-                  onClick={openListingStudio}
+                  disabled
+                  className="h-11 w-full cursor-not-allowed rounded-2xl bg-orange-300 px-5 text-sm text-white opacity-60 sm:w-auto sm:px-8 sm:text-base"
                 >
-                  <Rocket className="size-4" />
+                  <Lock className="size-4" />
                   List my AI
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 w-full rounded-2xl border-orange-200 bg-white px-5 text-sm text-zinc-950 hover:bg-orange-50 dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:bg-white/5 sm:w-auto sm:px-8 sm:text-base"
-                  onClick={() => focusPredictionCategoryOnPage("sports")}
+                  disabled
+                  className="h-11 w-full cursor-not-allowed rounded-2xl border-orange-200 bg-white px-5 text-sm text-zinc-950 opacity-60 sm:w-auto sm:px-8 sm:text-base dark:border-white/15 dark:bg-transparent dark:text-white"
                 >
                   Browse open markets
                 </Button>
