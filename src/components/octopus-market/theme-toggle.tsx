@@ -14,6 +14,8 @@ export function ThemeToggle({ isDark, onToggle, className }: ThemeToggleProps) {
     <Button
       type="button"
       variant="outline"
+      size="icon"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className={cn(
         "border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800",
         className
@@ -21,7 +23,6 @@ export function ThemeToggle({ isDark, onToggle, className }: ThemeToggleProps) {
       onClick={onToggle}
     >
       {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-      <span>{isDark ? "Light mode" : "Dark mode"}</span>
     </Button>
   );
 }

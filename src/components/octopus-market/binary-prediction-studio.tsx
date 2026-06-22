@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   CheckCircle2,
   History,
   LoaderCircle,
   Plus,
-  QrCode,
   ShieldCheck,
   Signature,
-  Sparkles,
   Trash2,
   TrendingUp,
   Wallet,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,8 +77,6 @@ type BinaryPredictionStudioProps = {
   selectedCategoryId?: string;
   selectedMarketId?: string | null;
 };
-
-type MarketDraftStatus = "idle" | "success" | "error";
 
 type MarketOptionSummary = PredictionMarketOption & {
   liveVolumeUsd: number;
@@ -464,10 +462,6 @@ export function BinaryPredictionStudio({
   const [activeCategoryId, setActiveCategoryId] = useState(predictionMarketCategories[0]?.id ?? "crypto");
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selections, setSelections] = useState<Record<string, string | undefined>>({});
-  const [status, setStatus] = useState<MarketDraftStatus>("idle");
-  const [statusMessage, setStatusMessage] = useState(
-    "Connect a wallet, choose the live sports market, confirm the payment in Phantom, then click Payment made to notify admin and save your history."
-  );
   const [history, setHistory] = useState<PredictionHistoryEntry[]>(() => readPredictionHistory());
   const [resolutions, setResolutions] = useState<Record<string, PredictionResolutionRecord>>(() => readPredictionResolutions());
   const [adminNotifications, setAdminNotifications] = useState<AdminPaymentNotification[]>(() => readAdminPaymentNotifications());
@@ -583,29 +577,6 @@ export function BinaryPredictionStudio({
     [derivedHistory, walletAddress]
   );
 
-  const latestReportablePaymentRequest = useMemo(() => {
-    if (
-      latestPaymentRequest?.status === "validated" &&
-      !history.some((entry) => entry.paymentReference === latestPaymentRequest.reference)
-    ) {
-      return latestPaymentRequest;
-    }
-
-    return null;
-  }, [history, latestPaymentRequest]);
-
-  const finalizeValidatedPredictionPayment = useCallback((paymentRequest: PaymentRequest, options?: { redirect?: boolean }) => {
-    setLatestPaymentRequest(paymentRequest);
-
-    setStatus("success");
-    setStatusMessage(
-      `${paymentRequest.message ?? "Prediction payment"} was validated on-chain. Click Payment made to notify the admin wallet and add this position to your history.`
-    );
-
-    if (options?.redirect !== false) {
-      redirectToPredictionHistory();
-    }
-  }, []);
 
   const handleReportValidatedPayment = useCallback((paymentRequest: PaymentRequest) => {
     const historyEntry = buildPredictionHistoryEntryFromPaymentRequest(paymentRequest);
@@ -622,10 +593,10 @@ export function BinaryPredictionStudio({
       setHistory(readPredictionHistory());
       setAdminNotifications(readAdminPaymentNotifications());
       setLatestPaymentRequest(paymentRequest);
-      setStatus("success");
-      setStatusMessage(
-        `Payment reported to admin for ${historyEntry.marketTitle}. The position is now stored in the shared database and visible in the admin approval queue.`
-      );
+      toast.success(`Pari enregistré · ${historyEntry.marketTitle}`, {
+        description: `Position sur "${historyEntry.selectionLabel}" en attente de validation admin.`,
+        duration: 5000,
+      });
       redirectToPredictionHistory();
     })();
   }, []);
@@ -660,14 +631,14 @@ export function BinaryPredictionStudio({
       const validatedPaymentRequest = await paymentModule.fetchTransaction(latestPaymentRequest.id);
 
       if (validatedPaymentRequest?.status === "validated") {
-        finalizeValidatedPredictionPayment(validatedPaymentRequest, { redirect: false });
+        handleReportValidatedPayment(validatedPaymentRequest);
       }
     } catch {
       return;
     } finally {
       setIsRecoveringPendingPayments(false);
     }
-  }, [finalizeValidatedPredictionPayment, history, isRecoveringPendingPayments, latestPaymentRequest]);
+  }, [handleReportValidatedPayment, history, isRecoveringPendingPayments, latestPaymentRequest]);
 
   useEffect(() => {
     void recoverPredictionPayments();
@@ -728,8 +699,7 @@ export function BinaryPredictionStudio({
       const nextImageSrc = await readImageFileAsDataUrl(nextFile);
       handleAdminDraftChange(key, nextImageSrc);
     } catch {
-      setStatus("error");
-      setStatusMessage("The image could not be loaded. Please try another file.");
+      toast.error("Image invalide", { description: "L'image n'a pas pu être chargée. Essayez un autre fichier." });
     }
   };
 
@@ -774,8 +744,7 @@ export function BinaryPredictionStudio({
 
   const handleCreateAdminMarket = async () => {
     if (!ownerWalletConnected || !walletAddress) {
-      setStatus("error");
-      setStatusMessage("Only the admin receiver wallet can add a new prediction market.");
+      toast.error("Accès refusé", { description: "Seul le wallet admin peut créer un marché." });
       return;
     }
 
@@ -783,30 +752,26 @@ export function BinaryPredictionStudio({
     const trimmedResolution = adminMarketDraft.resolutionLabel.trim();
 
     if (!trimmedTitle || !trimmedResolution) {
-      setStatus("error");
-      setStatusMessage("Add at least a title and a resolution rule before creating a market.");
+      toast.error("Champs manquants", { description: "Ajoutez un titre et une règle de résolution avant de publier." });
       return;
     }
 
     if (adminMarketDraft.mode === "vs") {
       if (!adminMarketDraft.leftCompetitorName.trim() || !adminMarketDraft.rightCompetitorName.trim()) {
-        setStatus("error");
-        setStatusMessage("Add both team names for a VS market before publishing it.");
+        toast.error("Noms manquants", { description: "Ajoutez les deux noms d'équipe pour un marché VS." });
         return;
       }
     }
 
     if (adminMarketDraft.mode === "simple" && !adminMarketDraft.singleName.trim()) {
-      setStatus("error");
-      setStatusMessage("Add the subject name for a simple market before publishing it.");
+      toast.error("Nom manquant", { description: "Ajoutez le nom du sujet pour ce marché simple." });
       return;
     }
 
     const nextOptions = buildAdminCreatedMarketOptions(adminMarketDraft);
 
     if (nextOptions.some((option) => !Number.isFinite(option.oddsMultiplier) || option.oddsMultiplier <= 1)) {
-      setStatus("error");
-      setStatusMessage("Each market option must have a valid odds value above 1.");
+      toast.error("Cotes invalides", { description: "Chaque option doit avoir une cote valide supérieure à 1." });
       return;
     }
 
@@ -846,8 +811,7 @@ export function BinaryPredictionStudio({
     const commitResult = await createPredictionMarketOnServer(nextMarket, walletAddress);
 
     if (!commitResult) {
-      setStatus("error");
-      setStatusMessage("The market could not be written to the shared prediction database. Please try again.");
+      toast.error("Erreur base de données", { description: "Le marché n'a pas pu être enregistré. Réessayez." });
       return;
     }
 
@@ -872,14 +836,14 @@ export function BinaryPredictionStudio({
     setActiveCategoryId(nextMarket.categoryId);
     setShowAdminMarketForm(false);
     setAdminMarketDraft(createInitialAdminMarketDraft());
-    setStatus("success");
-    setStatusMessage(`${nextMarket.title} is now live inside the ${predictionMarketCategories.find((category) => category.id === nextMarket.categoryId)?.label ?? "selected"} section.`);
+    toast.success(`Marché publié`, {
+      description: `${nextMarket.title} est maintenant visible dans la section ${predictionMarketCategories.find((c) => c.id === nextMarket.categoryId)?.label ?? "sélectionnée"}.`,
+    });
   };
 
   const handleResolveMarket = async (market: PredictionMarketQuestion, outcomeId: string) => {
     if (!ownerWalletConnected || !walletAddress) {
-      setStatus("error");
-      setStatusMessage("Only the admin receiver wallet can resolve a prediction market section.");
+      toast.error("Accès refusé", { description: "Seul le wallet admin peut résoudre un marché." });
       return;
     }
 
@@ -888,8 +852,7 @@ export function BinaryPredictionStudio({
     const commitResult = await resolvePredictionMarketOnServer(market.id, outcomeId, walletAddress);
 
     if (!commitResult) {
-      setStatus("error");
-      setStatusMessage("The winning side could not be written to the shared prediction database. Please try again.");
+      toast.error("Erreur base de données", { description: "Le résultat n'a pas pu être enregistré. Réessayez." });
       return;
     }
 
@@ -916,24 +879,21 @@ export function BinaryPredictionStudio({
       }),
     });
 
-    setStatus("success");
-    setStatusMessage(
-      `${market.title} is now resolved on the platform. The winning side is ${resolvedOption?.label ?? outcomeId}, and eligible users can claim rewards.`
-    );
+    toast.success(`Marché résolu`, {
+      description: `${market.title} — côté gagnant : ${resolvedOption?.label ?? outcomeId}. Les gains sont maintenant réclamables.`,
+    });
   };
 
   const handleDeleteMarket = async (market: PredictionMarketQuestion) => {
     if (!ownerWalletConnected || !walletAddress) {
-      setStatus("error");
-      setStatusMessage("Only the admin receiver wallet can remove a prediction market.");
+      toast.error("Accès refusé", { description: "Seul le wallet admin peut supprimer un marché." });
       return;
     }
 
     const commitResult = await deletePredictionMarketOnServer(market.id, walletAddress);
 
     if (!commitResult) {
-      setStatus("error");
-      setStatusMessage("The market could not be removed from the shared prediction database. Please try again.");
+      toast.error("Erreur base de données", { description: "Le marché n'a pas pu être supprimé. Réessayez." });
       return;
     }
 
@@ -949,8 +909,7 @@ export function BinaryPredictionStudio({
       }),
     });
 
-    setStatus("success");
-    setStatusMessage(`${market.title} was removed from the shared prediction markets database.`);
+    toast.success(`Marché supprimé`, { description: `${market.title} a été retiré de la base de données.` });
   };
 
   const handleClaimReward = async (entry: PredictionHistoryEntry) => {
@@ -961,8 +920,7 @@ export function BinaryPredictionStudio({
     }
 
     if (!connectedWallet) {
-      setStatus("error");
-      setStatusMessage("Connect the winning wallet first to claim a reward.");
+      toast.error("Wallet requis", { description: "Connectez le wallet gagnant pour réclamer votre gain." });
       return;
     }
 
@@ -972,32 +930,27 @@ export function BinaryPredictionStudio({
     );
 
     if (!resolution) {
-      setStatus("error");
-      setStatusMessage("This prediction has not been resolved by the admin yet.");
+      toast.error("Marché non résolu", { description: "Ce marché n'a pas encore été résolu par l'admin." });
       return;
     }
 
     if (paymentNotification?.status !== "approved") {
-      setStatus("error");
-      setStatusMessage("The payment for this position must be approved by the admin before a reward can be claimed.");
+      toast.error("Paiement non approuvé", { description: "Le paiement doit être approuvé par l'admin avant de réclamer." });
       return;
     }
 
     if (connectedWallet !== entry.walletAddress) {
-      setStatus("error");
-      setStatusMessage("Use the same wallet that placed the winning position to claim the reward.");
+      toast.error("Mauvais wallet", { description: "Utilisez le même wallet que celui qui a placé le pari gagnant." });
       return;
     }
 
     if (resolution.outcomeId !== entry.selectionId) {
-      setStatus("error");
-      setStatusMessage("This position is not on the winning side, so there is no reward to claim.");
+      toast.error("Pari perdant", { description: "Ce pari n'est pas sur le côté gagnant." });
       return;
     }
 
     if (entry.claimedAt) {
-      setStatus("error");
-      setStatusMessage("This reward has already been claimed.");
+      toast.error("Déjà réclamé", { description: "Ce gain a déjà été réclamé." });
       return;
     }
 
@@ -1017,10 +970,10 @@ export function BinaryPredictionStudio({
       }));
       setHistory(readPredictionHistory());
 
-      setStatus("success");
-      setStatusMessage(
-        `Claim recorded for ${entry.marketTitle}. Net reward ${formatCurrency(entry.netReward)} is now marked as claimed after the ${entry.claimFeeRate}% claim fee.`
-      );
+      toast.success(`Gain réclamé`, {
+        description: `${entry.marketTitle} — ${formatCurrency(entry.netReward)} net (après ${entry.claimFeeRate}% de frais). En attente de paiement admin.`,
+        duration: 6000,
+      });
     } finally {
       setClaimingEntryId(null);
     }
@@ -1028,8 +981,7 @@ export function BinaryPredictionStudio({
 
   const handleConfirmPosition = async (market: PredictionMarketQuestion, marketIndex: number) => {
     if (walletAddress && readCachedCentralWalletRecord(walletAddress)?.status === "suspended") {
-      setStatus("error");
-      setStatusMessage("This wallet is suspended and cannot place new bets right now.");
+      toast.error("Wallet suspendu", { description: "Ce wallet est suspendu et ne peut pas placer de pari." });
       return;
     }
 
@@ -1040,16 +992,14 @@ export function BinaryPredictionStudio({
     const selectedOption = marketOptions.find((option) => option.id === selectedOptionId);
 
     if (!selectedOption) {
-      setStatus("error");
-      setStatusMessage(`Choose one market option for ${market.title}.`);
+      toast.error("Sélection manquante", { description: `Choisissez une option pour ${market.title}.` });
       return;
     }
 
     if (!Number.isFinite(amount) || amount < predictionMarketMinStakeUsd || amount > predictionMarketMaxStakeUsd) {
-      setStatus("error");
-      setStatusMessage(
-        `Enter an amount between ${formatCurrency(predictionMarketMinStakeUsd)} and ${formatCurrency(predictionMarketMaxStakeUsd)}.`
-      );
+      toast.error("Montant invalide", {
+        description: `Entrez un montant entre ${formatCurrency(predictionMarketMinStakeUsd)} et ${formatCurrency(predictionMarketMaxStakeUsd)}.`,
+      });
       return;
     }
 
@@ -1060,16 +1010,16 @@ export function BinaryPredictionStudio({
     }
 
     if (!connectedWallet) {
-      setStatus("error");
-      setStatusMessage("Connect a Solana wallet first to confirm a prediction market position.");
+      toast.error("Wallet requis", { description: "Connectez un wallet Solana pour confirmer votre position." });
       return;
     }
 
     const provider = getSolanaProvider();
 
     if (!provider?.signAndSendTransaction && !provider?.signTransaction) {
-      setStatus("error");
-      setStatusMessage(`This wallet cannot send a real ${paymentTokenSymbol} transfer for the prediction market yet.`);
+      toast.error(`Wallet incompatible`, {
+        description: `Ce wallet ne peut pas envoyer de ${paymentTokenSymbol} pour le moment.`,
+      });
       return;
     }
 
@@ -1114,8 +1064,6 @@ export function BinaryPredictionStudio({
 
     try {
       setSigningMarketId(market.id);
-      setStatus("idle");
-      setStatusMessage(`A real transfer request is ready. Phantom is now asking for the on-chain ${paymentTokenSymbol} prediction payment.`);
 
       await paymentModule.submitSolanaTransfer(transferRequest);
 
@@ -1140,14 +1088,41 @@ export function BinaryPredictionStudio({
         throw new Error("validated-transfer-required");
       }
 
-      finalizeValidatedPredictionPayment(storedValidatedTransfer, { redirect: true });
+      handleReportValidatedPayment(storedValidatedTransfer);
     } catch (error) {
-      setStatus("error");
-      setStatusMessage(
-        error instanceof Error
-          ? `The Phantom transfer could not be completed: ${error.message}`
-          : "The Phantom transfer was cancelled, failed, or could not be validated on-chain."
-      );
+      const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+      if (
+        msg.includes("insufficient") ||
+        msg.includes("0x1") ||
+        msg.includes("custom program error: 0x1") ||
+        msg.includes("not enough")
+      ) {
+        toast.error("Fonds USDC insuffisants", {
+          description: "Vérifiez votre solde USDC avant de placer ce pari.",
+        });
+      } else if (msg.includes("reference-not-found") || msg.includes("timeout") || msg.includes("timed out")) {
+        toast.error("Confirmation expirée", {
+          description:
+            "La transaction n'a pas été confirmée à temps. Si le montant a été débité, il réapparaîtra automatiquement à la reconnexion.",
+          duration: 7000,
+        });
+      } else if (
+        msg.includes("cancel") ||
+        msg.includes("rejected") ||
+        msg.includes("user rejected") ||
+        msg.includes("denied")
+      ) {
+        toast.error("Transaction annulée", {
+          description: "Le paiement a été refusé dans Phantom.",
+        });
+      } else {
+        toast.error("Échec du paiement", {
+          description:
+            error instanceof Error
+              ? error.message
+              : "Le transfert Phantom a échoué ou n'a pas pu être validé on-chain.",
+        });
+      }
     } finally {
       setSigningMarketId(null);
     }
@@ -1413,43 +1388,6 @@ export function BinaryPredictionStudio({
                   <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Payment token</p>
                   <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol}</p>
                 </div>
-              </div>
-              <div className="rounded-2xl border border-orange-100 bg-white px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                <div className="flex items-center gap-2 text-sm font-medium text-zinc-950 dark:text-white">
-                  <QrCode className="size-4 text-orange-500 dark:text-orange-300" />
-                  Latest transfer request
-                </div>
-                <p className="mt-2 break-all text-zinc-700 dark:text-zinc-300">
-                  {latestPaymentRequest?.encodedUrl ?? "A validated transfer request appears here after a market confirmation."}
-                </p>
-                {latestPaymentRequest?.signature ? (
-                  <p className="mt-3 break-all text-xs text-zinc-500 dark:text-zinc-400">
-                    Transaction signature: {latestPaymentRequest.signature}
-                  </p>
-                ) : null}
-                {latestPaymentRequest ? (
-                  <div className="mt-4 rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-white/5">
-                    <img
-                      src={latestPaymentRequest.qrCodeSrc}
-                      alt="Prediction market payment QR"
-                      className="mx-auto w-full max-w-44 rounded-2xl border border-orange-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-950"
-                    />
-                    <p className="mt-3 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                      Reference {latestPaymentRequest.reference} is linked to the latest request.
-                    </p>
-                  </div>
-                ) : null}
-
-                {latestReportablePaymentRequest?.signature && !history.some((entry) => entry.paymentReference === latestReportablePaymentRequest.reference) ? (
-                  <Button
-                    type="button"
-                    className="mt-4 w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
-                    onClick={() => handleReportValidatedPayment(latestReportablePaymentRequest)}
-                  >
-                    <CheckCircle2 className="size-4" />
-                    {`Payment made · ${latestReportablePaymentRequest.amount.toFixed(2)} ${paymentTokenSymbol}`}
-                  </Button>
-                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -1889,29 +1827,6 @@ export function BinaryPredictionStudio({
             </CardContent>
           </Card>
 
-          <Alert
-            className={
-              status === "error"
-                ? "border-red-200 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
-                : status === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
-                  : "border-orange-200 bg-orange-50/70 text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white"
-            }
-          >
-            {status === "success" ? <CheckCircle2 className="size-4" /> : status === "error" ? <ShieldCheck className="size-4" /> : <Sparkles className="size-4" />}
-            <AlertTitle>
-              {status === "success"
-                ? "Prediction market updated"
-                : status === "error"
-                  ? "Action required"
-                  : "Prototype status"}
-            </AlertTitle>
-            <AlertDescription className={status === "error" ? "text-red-700 dark:text-red-100/80" : undefined}>
-              {isRecoveringPendingPayments && status !== "error"
-                ? "Octopus Market is checking whether a payment just finished in Phantom and will keep the Payment made button ready when the transfer is confirmed."
-                : statusMessage}
-            </AlertDescription>
-          </Alert>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 import { ArrowLeft, ArrowUpToLine, Check, Clock3, Copy, Database, ExternalLink, Globe, LogOut, Menu, Receipt, Rocket, Search, ShieldCheck, Wallet, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -445,7 +446,6 @@ export function OctopusMarketPage() {
   const [walletTwitterHandle, setWalletTwitterHandle] = useState<string | null>(null);
   const [walletAvatarSrc, setWalletAvatarSrc] = useState<string | null>(null);
   const [pendingUsername, setPendingUsername] = useState("");
-  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [isSavingUsername, setIsSavingUsername] = useState(false);
   const [isCheckingWalletIdentity, setIsCheckingWalletIdentity] = useState(false);
   const [walletSnapshot, setWalletSnapshot] = useState<SolanaWalletBalanceSnapshot | null>(null);
@@ -454,7 +454,6 @@ export function OctopusMarketPage() {
   const walletBalanceRefreshIdRef = useRef(0);
   const walletRestoredRef = useRef(false);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
-  const [walletConnectError, setWalletConnectError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserAccessOpen, setIsUserAccessOpen] = useState(false);
   const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
@@ -645,7 +644,6 @@ export function OctopusMarketPage() {
       setWalletTwitterHandle(null);
       setWalletAvatarSrc(null);
       setPendingUsername("");
-      setUsernameError(null);
       setIsCheckingWalletIdentity(false);
       return;
     }
@@ -660,7 +658,6 @@ export function OctopusMarketPage() {
       setWalletTwitterHandle(cachedWalletRecord?.twitterHandle?.trim() || null);
       setWalletAvatarSrc(cachedWalletRecord?.avatarSrc || null);
       setPendingUsername(cachedUsername);
-      setUsernameError(null);
     }
 
     try {
@@ -669,7 +666,6 @@ export function OctopusMarketPage() {
       setWalletUsername(nextUsername);
       setWalletTwitterHandle(walletRecord?.twitterHandle?.trim() || null);
       setWalletAvatarSrc(walletRecord?.avatarSrc || null);
-      setUsernameError(null);
       setPendingUsername((currentValue) => {
         if (nextUsername) {
           return nextUsername;
@@ -734,7 +730,6 @@ export function OctopusMarketPage() {
     setWalletTwitterHandle(null);
     setWalletAvatarSrc(null);
     setPendingUsername("");
-    setUsernameError(null);
     setIsSavingUsername(false);
     setIsCheckingWalletIdentity(false);
     setWalletSnapshot(null);
@@ -746,7 +741,6 @@ export function OctopusMarketPage() {
   const syncConnectedWallet = useCallback(
     (address: string, activityLabel: string) => {
       setWalletAddress(address);
-      setUsernameError(null);
       const cachedSnapshot = readCachedWalletSnapshot(address);
 
       if (cachedSnapshot) {
@@ -842,7 +836,6 @@ export function OctopusMarketPage() {
 
     try {
       setIsConnectingWallet(true);
-      setWalletConnectError(null);
       const connection = await connectSolanaWallet();
       return syncConnectedWallet(
         connection.address,
@@ -853,13 +846,21 @@ export function OctopusMarketPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "wallet-unavailable") {
-        setWalletConnectError("Phantom not detected. Install the Phantom extension.");
+        toast.error("Phantom introuvable", {
+          description: "Installez l'extension Phantom pour vous connecter.",
+        });
       } else if (msg === "connection-timeout") {
-        setWalletConnectError("Connection timed out. Please try again.");
+        toast.error("Connexion expirée", {
+          description: "La connexion a pris trop de temps. Réessayez.",
+        });
       } else if (msg.includes("User rejected") || msg.includes("rejected")) {
-        setWalletConnectError("Connection cancelled.");
+        toast.error("Connexion annulée", {
+          description: "Vous avez refusé la connexion dans Phantom.",
+        });
       } else {
-        setWalletConnectError(msg || "Connection failed.");
+        toast.error("Connexion échouée", {
+          description: msg || "Une erreur inattendue est survenue.",
+        });
       }
       return null;
     } finally {
@@ -878,8 +879,6 @@ export function OctopusMarketPage() {
       return;
     }
 
-    setUsernameError(null);
-
     setWalletUsername(normalizedUsername);
     setPendingUsername(normalizedUsername);
 
@@ -893,16 +892,17 @@ export function OctopusMarketPage() {
       const nextUsername = nextRecord?.username?.trim() || normalizedUsername;
       setWalletUsername(nextUsername);
       setPendingUsername(nextUsername);
+      toast.success("Nom enregistré", { description: `Votre identité "${nextUsername}" est sauvegardée.` });
     } catch (error) {
       setWalletUsername(null);
       setPendingUsername(normalizedUsername);
 
       if (error instanceof Error && error.message === "username-taken") {
-        setUsernameError("This username is already reserved by another wallet.");
+        toast.error("Nom déjà pris", { description: "Ce nom est déjà réservé par un autre wallet." });
       } else if (error instanceof Error && error.message === "username-locked") {
-        setUsernameError("This wallet already has a permanent username and it cannot be changed.");
+        toast.error("Nom verrouillé", { description: "Ce wallet a déjà un nom permanent qui ne peut pas être modifié." });
       } else {
-        setUsernameError("Username registration failed. Please try again.");
+        toast.error("Échec de l'enregistrement", { description: "L'enregistrement du nom a échoué. Réessayez." });
       }
     } finally {
       setIsSavingUsername(false);
@@ -1369,9 +1369,6 @@ export function OctopusMarketPage() {
                 <Wallet className="size-4" />
                 {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
               </Button>
-              {walletConnectError && !walletAddress ? (
-                <p className="max-w-[220px] text-right text-xs text-orange-600 dark:text-orange-400">{walletConnectError}</p>
-              ) : null}
             </div>
             {isWalletConnected ? (
               <Button
@@ -1415,9 +1412,6 @@ export function OctopusMarketPage() {
             <Wallet className="size-4" />
             {isWalletConnected ? walletHeaderLabel : isConnectingWallet ? "Connecting wallet..." : "Connect wallet"}
           </Button>
-          {walletConnectError && !walletAddress ? (
-            <p className="text-xs text-orange-600 dark:text-orange-400">{walletConnectError}</p>
-          ) : null}
           {isWalletConnected ? (
             <Button
               type="button"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Coins, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +179,12 @@ export function UserDashboardSections({
       setClaimingId(entryId);
       const claimReference = `CLAIM-${Date.now().toString(36).toUpperCase()}`;
       await claimPredictionEntry(entryId, claimReference);
+      toast.success("Gain réclamé", {
+        description: `${targetEntry.marketTitle} — en attente de paiement admin.`,
+        duration: 5000,
+      });
+    } catch {
+      toast.error("Échec de la réclamation", { description: "Réessayez ou contactez l'admin." });
     } finally {
       setClaimingId(null);
     }

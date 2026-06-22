@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Bell, CheckCircle2, Coins, ShieldCheck, Users, XCircle } from "lucide-react";
 
 import { AdminPaymentsManualConfirm } from "@/components/octopus-market/admin-payments-manual-confirm";
@@ -479,7 +480,12 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
     if (!walletAddress) return;
     try {
       setMarkingPaidId(entryId);
-      await markClaimAsPaid(entryId, walletAddress);
+      const result = await markClaimAsPaid(entryId, walletAddress);
+      if (result.success) {
+        toast.success("Paiement confirmé", { description: "Le claim a été marqué comme payé." });
+      } else {
+        toast.error("Échec", { description: result.error ?? "Impossible de marquer ce claim comme payé." });
+      }
       await loadClaims();
     } finally {
       setMarkingPaidId(null);
@@ -792,6 +798,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 [notification.paymentReference]: "approved",
                               }));
                               updateAdminPaymentNotificationStatus(notification.paymentReference, "approved", walletAddress ?? predictionMarketTreasuryAddress);
+                              toast.success("Paiement approuvé", { description: `Référence ${notification.paymentReference.slice(0, 8)}… validée.` });
                             }}
                           >
                             <CheckCircle2 className="size-4" />
@@ -807,6 +814,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 [notification.paymentReference]: "rejected",
                               }));
                               updateAdminPaymentNotificationStatus(notification.paymentReference, "rejected", walletAddress ?? predictionMarketTreasuryAddress);
+                              toast.error("Paiement rejeté", { description: `Référence ${notification.paymentReference.slice(0, 8)}… rejetée.` });
                             }}
                           >
                             <XCircle className="size-4" />
