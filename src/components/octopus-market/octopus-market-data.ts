@@ -122,6 +122,8 @@ export type PredictionMarketQuestion = {
   /** ISO timestamp UTC — null = pas de date définie */
   eventStartAt?: string | null;
   options?: PredictionMarketOption[];
+  /** true si le marché a été résolu — exclut le marché de la vue publique */
+  isResolved?: boolean;
 } & PredictionMarketVisualMeta;
 
 export type AidoAgentFaqItem = {

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   CheckCircle2,
   History,
+  XCircle,
   LoaderCircle,
   Plus,
   ShieldCheck,
@@ -68,6 +69,10 @@ import {
   getSolanaProvider,
 } from "@/components/octopus-market/solana-wallet";
 import type { PaymentRequest } from "@/components/octopus-market/solana-pay";
+import { getAllMarketsAdmin } from "@/services/supabase/prediction-service";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { PredictionMarketRow } from "@/lib/supabase-types";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ─── Event status helpers ─────────────────────────────────────────────────────
 
@@ -611,6 +616,9 @@ export function BinaryPredictionStudio({
 
   const ownerWalletConnected = walletAddress === predictionMarketTreasuryAddress;
 
+  const [allMarketsAdmin, setAllMarketsAdmin] = useState<PredictionMarketRow[]>([]);
+  const [isLoadingAdminMarkets, setIsLoadingAdminMarkets] = useState(false);
+
   const derivedHistory = useMemo(
     () =>
       history.map((entry) => {
@@ -735,6 +743,15 @@ export function BinaryPredictionStudio({
   useEffect(() => {
     void recoverPredictionPayments();
   }, [recoverPredictionPayments]);
+
+  useEffect(() => {
+    if (!ownerWalletConnected) return;
+    setIsLoadingAdminMarkets(true);
+    getAllMarketsAdmin()
+      .then(setAllMarketsAdmin)
+      .catch((err) => console.warn("[admin-markets]", err))
+      .finally(() => setIsLoadingAdminMarkets(false));
+  }, [ownerWalletConnected]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -900,6 +917,7 @@ export function BinaryPredictionStudio({
       createdAt: Date.now(),
       createdByWallet: walletAddress,
       isAdminCreated: true,
+      isResolved: false,
     };
 
     const commitResult = await createPredictionMarketOnServer(nextMarket, walletAddress);
@@ -1238,353 +1256,172 @@ export function BinaryPredictionStudio({
     <div className="space-y-6">
       <div id="prediction-market-studio" className="scroll-mt-32" />
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
-                Prediction market sections
-              </Badge>
-              <Badge className="border border-orange-200 bg-white text-zinc-700 hover:bg-white dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-900">
-                Wallet approval required
-              </Badge>
-            </div>
-            <CardTitle className="text-2xl">Take positions by section inside Octopus Market</CardTitle>
-            <CardDescription className="text-base leading-7 text-zinc-600 dark:text-zinc-400">
-              Choose one section at a time, pick a prediction, enter a stake between {formatCurrency(predictionMarketMinStakeUsd)} and {formatCurrency(predictionMarketMaxStakeUsd)}, then confirm the {paymentTokenSymbol} debit in Phantom.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert className="border-orange-200 bg-orange-50/70 text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              {isWalletConnected ? <CheckCircle2 className="size-4" /> : <Wallet className="size-4" />}
-              <AlertTitle>{isWalletConnected ? "Wallet unlocked for utilities" : "Connect wallet to unlock utilities"}</AlertTitle>
-              <AlertDescription>
-                {isWalletConnected
-                  ? `Connected wallet: ${formatWalletAddress(walletAddress)}${readCachedCentralWalletRecord(walletAddress ?? "")?.status === "suspended" ? " · suspended" : ""}`
-                  : "Prediction positions, launch actions, and assistant interactions are gated until a Solana wallet is connected."}
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Choose a market section</p>
-              <div className="flex flex-wrap gap-3">
-                {predictionMarketCategories.map((category) => (
-                  <Button
-                    key={category.id}
-                    type="button"
-                    variant={category.id === activeCategoryId ? "default" : "outline"}
-                    className={
-                      category.id === activeCategoryId
-                        ? "rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
-                        : "rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
-                    }
-                    onClick={() => setActiveCategoryId(category.id)}
-                  >
-                    {category.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm leading-6 text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
-                <p className="font-medium text-zinc-950 dark:text-white">{activeCategory?.label}</p>
-                <p className="mt-1">{activeCategory?.description}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {visibleQuestions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-orange-200 bg-white px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                  No live bets are open in this section yet. Add a new market from the admin panel and it will appear here automatically.
-                </div>
-              ) : null}
-
-              {visibleQuestions.map((market, index) => {
-                const amountValue = amounts[market.id] ?? "";
-                const chosenSelectionId = selections[market.id];
-                const numericAmount = Number(amountValue);
-                const stakePreviewAmount =
-                  Number.isFinite(numericAmount) && numericAmount >= predictionMarketMinStakeUsd
-                    ? numericAmount
-                    : predictionMarketMinStakeUsd;
-                const reserveFee = Number.isFinite(numericAmount)
-                  ? calculatePercentageAmount(numericAmount, predictionMarketReserveFeeRate)
-                  : 0;
-                const totalCharge = Number.isFinite(numericAmount) ? Number((numericAmount + reserveFee).toFixed(2)) : 0;
-                const marketOptions = getMarketOptions(market, index);
-                const optionSummaries = buildOptionSummaries(
-                  market,
-                  marketOptions,
-                  history,
-                  adminNotifications,
-                  stakePreviewAmount
-                );
-                const isSigning = signingMarketId === market.id;
-                const resolution = resolutions[market.id];
-                const resolvedOption = resolution
-                  ? marketOptions.find((option) => option.id === resolution.outcomeId)
-                  : undefined;
-                const isMarketLive =
-                  !resolution &&
-                  Boolean(market.eventStartAt) &&
-                  Date.now() >= new Date(market.eventStartAt!).getTime();
-
-                return (
-                  <Card
-                    key={market.id}
-                    id={`prediction-market-card-${market.id}`}
-                    className={`text-zinc-950 shadow-none dark:text-white ${
-                      selectedMarketId === market.id
-                        ? "border-orange-400 bg-orange-100/80 ring-1 ring-orange-300 dark:border-orange-400/50 dark:bg-orange-500/10 dark:ring-orange-400/30"
-                        : "border-orange-200 bg-orange-50/60 dark:border-white/10 dark:bg-black/20"
-                    }`}
-                  >
-                    <CardContent className="space-y-4 p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
-                            {market.title}
-                          </p>
-                          <div className="mt-2">
-                            {renderMarketHeadline(market)}
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{market.resolutionLabel}</p>
-                          {(market.eventStartAt || market.eventDateLabel) && !resolution ? (
-                            <p className="mt-2 text-sm font-medium text-orange-600 dark:text-orange-300">
-                              {market.eventStartAt
-                                ? formatEventStartLabel(market.eventStartAt)
-                                : market.eventDateLabel}
-                            </p>
-                          ) : null}
-                          {market.eventStartAt && !resolution ? (
-                            <div className="mt-2">
-                              <MarketEventCountdown eventStartAt={market.eventStartAt} />
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {resolvedOption ? (
-                            <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
-                              Resolved · {resolvedOption.label}
-                            </Badge>
-                          ) : null}
-                          <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950">
-                            {marketOptions.length === 3 ? "Three-way market" : "Binary market"}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className={`grid gap-3 ${marketOptions.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
-                        {optionSummaries.map((option) => {
-                          const isSelected = chosenSelectionId === option.id;
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => handleChooseSelection(market.id, option.id)}
-                              className={`rounded-2xl border px-4 py-4 text-left transition ${getSelectionClasses(option.id, isSelected)}`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="flex items-center gap-3">
-                                    {option.logoSrc ? (
-                                      <img
-                                        src={option.logoSrc}
-                                        alt={`${option.label} logo`}
-                                        className="size-9 rounded-full border border-white/60 object-cover"
-                                      />
-                                    ) : null}
-                                    <div>
-                                      <p className="text-base font-semibold">{option.label}</p>
-                                      {option.description ? (
-                                        <p className={`mt-1 text-sm ${isSelected ? "text-white/90" : "text-zinc-600 dark:text-zinc-400"}`}>
-                                          {option.description}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                </div>
-                                <p className="text-lg font-semibold">x{option.oddsMultiplier}</p>
-                              </div>
-                              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
-                                  <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
-                                    Live volume
-                                  </p>
-                                  <p className="mt-1 font-semibold">{formatCurrency(option.liveVolumeUsd)}</p>
-                                </div>
-                                <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
-                                  <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
-                                    Net return
-                                  </p>
-                                  <p className="mt-1 font-semibold">{formatCurrency(option.netReturnUsd)}</p>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className="space-y-3">
-                        {!isMarketLive ? (
-                          <>
-                            <Input
-                              type="number"
-                              min={predictionMarketMinStakeUsd}
-                              max={predictionMarketMaxStakeUsd}
-                              step="0.01"
-                              value={amountValue}
-                              onChange={(event) => handleAmountChange(market.id, event.target.value)}
-                              placeholder={`Enter amount from ${predictionMarketMinStakeUsd} to ${predictionMarketMaxStakeUsd}`}
-                              className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
-                            />
-                            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-                              <span>
-                                Reserve fee preview: <strong className="text-zinc-950 dark:text-white">{formatCurrency(reserveFee)}</strong>
-                              </span>
-                              <span>
-                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${paymentTokenSymbol}` : `0.00 ${paymentTokenSymbol}`}</strong>
-                              </span>
-                              <span>
-                                Claim fee on rewards: <strong className="text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</strong>
-                              </span>
-                            </div>
-                          </>
-                        ) : null}
-                        {isMarketLive ? (
-                          <div className="flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
-                            <span className="mr-2 size-2 rounded-full bg-emerald-500" />
-                            Bets closed — event in progress
-                          </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            className="h-11 rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
-                            onClick={() => void handleConfirmPosition(market, index)}
-                            disabled={isSigning}
-                          >
-                            {isSigning ? <LoaderCircle className="size-4 animate-spin" /> : <Signature className="size-4" />}
-                            {isWalletConnected ? "Confirm position" : "Connect & confirm"}
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-zinc-950/70 dark:text-white">
+        {ownerWalletConnected ? (
+          <>
+            <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
             <CardHeader>
-              <CardTitle className="text-xl">Prediction wallet summary</CardTitle>
-              <CardDescription className="text-zinc-600 dark:text-zinc-400">
-                The product rules stay visible before the user signs anything.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                <div className="flex items-center gap-2 text-sm font-medium text-zinc-950 dark:text-white">
-                  <Wallet className="size-4 text-orange-500 dark:text-orange-300" />
-                  Connected wallet
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl">Tous les marchés</CardTitle>
+                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    {allMarketsAdmin.length} marché{allMarketsAdmin.length !== 1 ? "s" : ""} au total — les plus récents en premier
+                  </p>
                 </div>
-                <p className="mt-2 break-all text-zinc-700 dark:text-zinc-300">{walletAddress ?? "Waiting for connection"}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoadingAdminMarkets(true);
+                    getAllMarketsAdmin()
+                      .then(setAllMarketsAdmin)
+                      .catch(console.error)
+                      .finally(() => setIsLoadingAdminMarkets(false));
+                  }}
+                  className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-orange-300 dark:hover:bg-zinc-800"
+                >
+                  {isLoadingAdminMarkets ? "Chargement…" : "Actualiser"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminMarketForm(true)}
+                  className="shrink-0 rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-400"
+                >
+                  + Créer
+                </button>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Minimum</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(predictionMarketMinStakeUsd)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Maximum</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(predictionMarketMaxStakeUsd)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Reserve fee</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {predictionMarketReserveFeeRate}%
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Claim fee</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Payment token</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <History className="size-5 text-orange-500 dark:text-orange-300" />
-                History and claims moved to the wallet dashboard
-              </CardTitle>
-              <CardDescription className="text-zinc-600 dark:text-zinc-400">
-                Payment history, active predictions, validation state, total win, total loss, and claims are now accessible from the navigation links: My Bets, My Winnings, and Wallet Dashboard.
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Total positioned</p>
-                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalPositioned)}</p>
+              {isLoadingAdminMarkets && allMarketsAdmin.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                  Chargement des marchés…
                 </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Reserve fees tracked</p>
-                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalReserveFees)}</p>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-orange-200 dark:border-white/10">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-orange-200 bg-orange-50 dark:border-white/10 dark:bg-zinc-900">
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Titre</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Catégorie</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Statut</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Options</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Résultat</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Date événement</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Créé le</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allMarketsAdmin.map((m) => {
+                        const opts = Array.isArray(m.options)
+                          ? (m.options as { id: string; label: string }[])
+                          : [];
+                        const winningOption = m.is_resolved && m.resolution_outcome_id
+                          ? opts.find((o) => o.id === m.resolution_outcome_id)
+                          : null;
+                        const category = predictionMarketCategories.find((c) => c.id === m.category_id);
+                        return (
+                          <TableRow key={m.id} className="border-orange-100 dark:border-white/10">
+                            <TableCell className="max-w-[180px] truncate py-3 text-sm font-medium text-zinc-900 dark:text-white" title={m.title}>
+                              {m.title}
+                            </TableCell>
+                            <TableCell className="py-3 text-xs text-zinc-600 dark:text-zinc-400">
+                              {category?.label ?? m.category_id}
+                            </TableCell>
+                            <TableCell className="py-3">
+                              {m.is_resolved ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                                  <CheckCircle2 className="size-3" /> Résolu
+                                </span>
+                              ) : m.is_active ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/15 dark:text-orange-400">
+                                  <span className="size-1.5 rounded-full bg-orange-500" /> Actif
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                  <XCircle className="size-3" /> Inactif
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-3 text-xs text-zinc-600 dark:text-zinc-400">
+                              {opts.length > 0 ? (
+                                <div className="flex flex-col gap-0.5">
+                                  {opts.map((o) => (
+                                    <span
+                                      key={o.id}
+                                      className={m.resolution_outcome_id === o.id ? "font-semibold text-emerald-600 dark:text-emerald-400" : ""}
+                                    >
+                                      {o.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell className="py-3 text-xs">
+                              {winningOption ? (
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{winningOption.label}</span>
+                              ) : (
+                                <span className="text-zinc-400">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-3 text-xs text-zinc-600 dark:text-zinc-400">
+                              {m.event_start_at
+                                ? new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(m.event_start_at))
+                                : m.event_date_label ?? "—"}
+                            </TableCell>
+                            <TableCell className="py-3 text-xs text-zinc-500 dark:text-zinc-400">
+                              {new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(m.created_at))}
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <div className="flex items-center gap-2">
+                                {!m.is_resolved ? (
+                                  <select
+                                    defaultValue=""
+                                    onChange={async (e) => {
+                                      if (!e.target.value || !walletAddress) return;
+                                      await resolvePredictionMarketOnServer(m.id, e.target.value, walletAddress);
+                                      setIsLoadingAdminMarkets(true);
+                                      getAllMarketsAdmin().then(setAllMarketsAdmin).catch(console.error).finally(() => setIsLoadingAdminMarkets(false));
+                                    }}
+                                    className="rounded-lg border border-orange-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none focus:border-orange-400 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                                  >
+                                    <option value="">Résoudre…</option>
+                                    {opts.map((o) => (
+                                      <option key={o.id} value={o.id}>{o.label}</option>
+                                    ))}
+                                  </select>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!walletAddress) return;
+                                    await deletePredictionMarketOnServer(m.id, walletAddress);
+                                    setAllMarketsAdmin((prev) => prev.filter((x) => x.id !== m.id));
+                                  }}
+                                  className="rounded-lg border border-red-200 bg-white p-1.5 text-red-500 hover:bg-red-50 dark:border-red-500/20 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-500/10"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  {allMarketsAdmin.length === 0 && !isLoadingAdminMarkets && (
+                    <div className="px-5 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+                      Aucun marché en base.
+                    </div>
+                  )}
                 </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Claimable now</p>
-                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalClaimable)}</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
-
-          {ownerWalletConnected ? <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-            <CardHeader>
-              <CardTitle className="text-xl">Owner resolution panel</CardTitle>
-              <CardDescription className="text-zinc-600 dark:text-zinc-400">
-                The admin receiver wallet selects the winning side for each prediction. This unlocks claims for approved winners on the platform.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
-              <Alert className="border-orange-200 bg-orange-50/70 text-zinc-950 dark:border-white/10 dark:bg-black/20 dark:text-white">
-                {ownerWalletConnected ? <CheckCircle2 className="size-4" /> : <ShieldCheck className="size-4" />}
-                <AlertTitle>{ownerWalletConnected ? "Admin wallet connected" : "Admin wallet required"}</AlertTitle>
-                <AlertDescription>
-                  {ownerWalletConnected
-                    ? "You can resolve the markets shown below and unlock claims for approved winners."
-                    : `Connect the admin wallet ${formatWalletAddress(predictionMarketTreasuryAddress)} to resolve market outcomes.`}
-                </AlertDescription>
-              </Alert>
-              {ownerWalletConnected ? (
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-zinc-950 dark:text-white">Admin market extension</p>
-                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        Use the + button to add a new market inside any prediction section. This action stays available only to the admin wallet.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      className="h-10 rounded-2xl bg-orange-500 px-4 text-white hover:bg-orange-400"
-                      onClick={() => setShowAdminMarketForm((currentValue) => !currentValue)}
-                    >
-                      <Plus className="size-4" />
-                      {showAdminMarketForm ? "Close" : "Add market"}
-                    </Button>
-                  </div>
-
-                  {showAdminMarketForm ? (
+            <Sheet open={showAdminMarketForm} onOpenChange={setShowAdminMarketForm}>
+              <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+                <SheetHeader>
+                  <SheetTitle>Créer un marché</SheetTitle>
+                </SheetHeader>
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       <div className="space-y-4 rounded-2xl border border-orange-100 bg-white p-4 dark:border-white/10 dark:bg-zinc-950/70">
                         <div>
@@ -1877,68 +1714,320 @@ export function BinaryPredictionStudio({
                         </div>
                       </div>
                     </div>
-                  ) : null}
+              </SheetContent>
+            </Sheet>
+          </>
+        ) : (
+        <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+          <CardHeader>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
+                Prediction market sections
+              </Badge>
+              <Badge className="border border-orange-200 bg-white text-zinc-700 hover:bg-white dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-900">
+                Wallet approval required
+              </Badge>
+            </div>
+            <CardTitle className="text-2xl">Take positions by section inside Octopus Market</CardTitle>
+            <CardDescription className="text-base leading-7 text-zinc-600 dark:text-zinc-400">
+              Choose one section at a time, pick a prediction, enter a stake between {formatCurrency(predictionMarketMinStakeUsd)} and {formatCurrency(predictionMarketMaxStakeUsd)}, then confirm the {paymentTokenSymbol} debit in Phantom.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Alert className="border-orange-200 bg-orange-50/70 text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
+              {isWalletConnected ? <CheckCircle2 className="size-4" /> : <Wallet className="size-4" />}
+              <AlertTitle>{isWalletConnected ? "Wallet unlocked for utilities" : "Connect wallet to unlock utilities"}</AlertTitle>
+              <AlertDescription>
+                {isWalletConnected
+                  ? `Connected wallet: ${formatWalletAddress(walletAddress)}${readCachedCentralWalletRecord(walletAddress ?? "")?.status === "suspended" ? " · suspended" : ""}`
+                  : "Prediction positions, launch actions, and assistant interactions are gated until a Solana wallet is connected."}
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Choose a market section</p>
+              <div className="flex flex-wrap gap-3">
+                {predictionMarketCategories.map((category) => (
+                  <Button
+                    key={category.id}
+                    type="button"
+                    variant={category.id === activeCategoryId ? "default" : "outline"}
+                    className={
+                      category.id === activeCategoryId
+                        ? "rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
+                        : "rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
+                    }
+                    onClick={() => setActiveCategoryId(category.id)}
+                  >
+                    {category.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm leading-6 text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
+                <p className="font-medium text-zinc-950 dark:text-white">{activeCategory?.label}</p>
+                <p className="mt-1">{activeCategory?.description}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {visibleQuestions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-orange-200 bg-white px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                  No live bets are open in this section yet. Add a new market from the admin panel and it will appear here automatically.
                 </div>
               ) : null}
-              <div className="space-y-3">
-                {visibleQuestions.map((market, index) => {
-                  const resolution = resolutions[market.id];
-                  const marketOptions = getMarketOptions(market, index);
-                  const resolvedOption = resolution
-                    ? marketOptions.find((option) => option.id === resolution.outcomeId)
-                    : undefined;
 
-                  return (
-                    <div
-                      key={market.id}
-                      className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20"
-                    >
+              {visibleQuestions.map((market, index) => {
+                const amountValue = amounts[market.id] ?? "";
+                const chosenSelectionId = selections[market.id];
+                const numericAmount = Number(amountValue);
+                const stakePreviewAmount =
+                  Number.isFinite(numericAmount) && numericAmount >= predictionMarketMinStakeUsd
+                    ? numericAmount
+                    : predictionMarketMinStakeUsd;
+                const reserveFee = Number.isFinite(numericAmount)
+                  ? calculatePercentageAmount(numericAmount, predictionMarketReserveFeeRate)
+                  : 0;
+                const totalCharge = Number.isFinite(numericAmount) ? Number((numericAmount + reserveFee).toFixed(2)) : 0;
+                const marketOptions = getMarketOptions(market, index);
+                const optionSummaries = buildOptionSummaries(
+                  market,
+                  marketOptions,
+                  history,
+                  adminNotifications,
+                  stakePreviewAmount
+                );
+                const isSigning = signingMarketId === market.id;
+                const resolution = resolutions[market.id];
+                const resolvedOption = resolution
+                  ? marketOptions.find((option) => option.id === resolution.outcomeId)
+                  : undefined;
+                const isMarketLive =
+                  !resolution &&
+                  Boolean(market.eventStartAt) &&
+                  Date.now() >= new Date(market.eventStartAt!).getTime();
+
+                return (
+                  <Card
+                    key={market.id}
+                    id={`prediction-market-card-${market.id}`}
+                    className={`text-zinc-950 shadow-none dark:text-white ${
+                      selectedMarketId === market.id
+                        ? "border-orange-400 bg-orange-100/80 ring-1 ring-orange-300 dark:border-orange-400/50 dark:bg-orange-500/10 dark:ring-orange-400/30"
+                        : "border-orange-200 bg-orange-50/60 dark:border-white/10 dark:bg-black/20"
+                    }`}
+                  >
+                    <CardContent className="space-y-4 p-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-zinc-950 dark:text-white">{market.title}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">
-                            {resolvedOption ? `Resolved ${resolvedOption.label} · ${formatMoment(resolution!.resolvedAt)}` : "Awaiting admin decision"}
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
+                            {market.title}
                           </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {"createdByWallet" in market ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full border-red-200 bg-white text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:bg-zinc-950 dark:text-red-300 dark:hover:bg-red-500/10"
-                              disabled={!ownerWalletConnected}
-                              onClick={() => void handleDeleteMarket(market)}
-                            >
-                              <Trash2 className="size-3.5" />
-                              Delete
-                            </Button>
+                          <div className="mt-2">
+                            {renderMarketHeadline(market)}
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{market.resolutionLabel}</p>
+                          {(market.eventStartAt || market.eventDateLabel) && !resolution ? (
+                            <p className="mt-2 text-sm font-medium text-orange-600 dark:text-orange-300">
+                              {market.eventStartAt
+                                ? formatEventStartLabel(market.eventStartAt)
+                                : market.eventDateLabel}
+                            </p>
                           ) : null}
-                          {marketOptions.map((option) => (
-                            <Button
-                              key={option.id}
-                              type="button"
-                              size="sm"
-                              variant={resolution?.outcomeId === option.id ? "default" : "outline"}
-                              className={
-                                resolution?.outcomeId === option.id
-                                  ? "rounded-full bg-orange-500 text-white hover:bg-orange-400"
-                                  : "rounded-full border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
-                              }
-                              disabled={!ownerWalletConnected}
-                              onClick={() => void handleResolveMarket(market, option.id)}
-                            >
-                              {option.label}
-                            </Button>
-                          ))}
+                          {market.eventStartAt && !resolution ? (
+                            <div className="mt-2">
+                              <MarketEventCountdown eventStartAt={market.eventStartAt} />
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {resolvedOption ? (
+                            <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
+                              Resolved · {resolvedOption.label}
+                            </Badge>
+                          ) : null}
+                          <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950">
+                            {marketOptions.length === 3 ? "Three-way market" : "Binary market"}
+                          </Badge>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+
+                      <div className={`grid gap-3 ${marketOptions.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                        {optionSummaries.map((option) => {
+                          const isSelected = chosenSelectionId === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => handleChooseSelection(market.id, option.id)}
+                              className={`rounded-2xl border px-4 py-4 text-left transition ${getSelectionClasses(option.id, isSelected)}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-3">
+                                    {option.logoSrc ? (
+                                      <img
+                                        src={option.logoSrc}
+                                        alt={`${option.label} logo`}
+                                        className="size-9 rounded-full border border-white/60 object-cover"
+                                      />
+                                    ) : null}
+                                    <div>
+                                      <p className="text-base font-semibold">{option.label}</p>
+                                      {option.description ? (
+                                        <p className={`mt-1 text-sm ${isSelected ? "text-white/90" : "text-zinc-600 dark:text-zinc-400"}`}>
+                                          {option.description}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+                                <p className="text-lg font-semibold">x{option.oddsMultiplier}</p>
+                              </div>
+                              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
+                                  <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
+                                    Live volume
+                                  </p>
+                                  <p className="mt-1 font-semibold">{formatCurrency(option.liveVolumeUsd)}</p>
+                                </div>
+                                <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
+                                  <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
+                                    Net return
+                                  </p>
+                                  <p className="mt-1 font-semibold">{formatCurrency(option.netReturnUsd)}</p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="space-y-3">
+                        {!isMarketLive ? (
+                          <>
+                            <Input
+                              type="number"
+                              min={predictionMarketMinStakeUsd}
+                              max={predictionMarketMaxStakeUsd}
+                              step="0.01"
+                              value={amountValue}
+                              onChange={(event) => handleAmountChange(market.id, event.target.value)}
+                              placeholder={`Enter amount from ${predictionMarketMinStakeUsd} to ${predictionMarketMaxStakeUsd}`}
+                              className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
+                            />
+                            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+                              <span>
+                                Reserve fee preview: <strong className="text-zinc-950 dark:text-white">{formatCurrency(reserveFee)}</strong>
+                              </span>
+                              <span>
+                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${paymentTokenSymbol}` : `0.00 ${paymentTokenSymbol}`}</strong>
+                              </span>
+                              <span>
+                                Claim fee on rewards: <strong className="text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</strong>
+                              </span>
+                            </div>
+                          </>
+                        ) : null}
+                        {isMarketLive ? (
+                          <div className="flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+                            <span className="mr-2 size-2 rounded-full bg-emerald-500" />
+                            Bets closed — event in progress
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            className="h-11 rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
+                            onClick={() => void handleConfirmPosition(market, index)}
+                            disabled={isSigning}
+                          >
+                            {isSigning ? <LoaderCircle className="size-4 animate-spin" /> : <Signature className="size-4" />}
+                            {isWalletConnected ? "Confirm position" : "Connect & confirm"}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+        )}
+
+        <div className="space-y-6">
+          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-zinc-950/70 dark:text-white">
+            <CardHeader>
+              <CardTitle className="text-xl">Prediction wallet summary</CardTitle>
+              <CardDescription className="text-zinc-600 dark:text-zinc-400">
+                The product rules stay visible before the user signs anything.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                <div className="flex items-center gap-2 text-sm font-medium text-zinc-950 dark:text-white">
+                  <Wallet className="size-4 text-orange-500 dark:text-orange-300" />
+                  Connected wallet
+                </div>
+                <p className="mt-2 break-all text-zinc-700 dark:text-zinc-300">{walletAddress ?? "Waiting for connection"}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Minimum</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
+                    {formatCurrency(predictionMarketMinStakeUsd)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Maximum</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
+                    {formatCurrency(predictionMarketMaxStakeUsd)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Reserve fee</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
+                    {predictionMarketReserveFeeRate}%
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Claim fee</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</p>
+                </div>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20 sm:col-span-2">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Payment token</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol}</p>
+                </div>
               </div>
             </CardContent>
-          </Card> : null}
+          </Card>
+
+          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <History className="size-5 text-orange-500 dark:text-orange-300" />
+                History and claims moved to the wallet dashboard
+              </CardTitle>
+              <CardDescription className="text-zinc-600 dark:text-zinc-400">
+                Payment history, active predictions, validation state, total win, total loss, and claims are now accessible from the navigation links: My Bets, My Winnings, and Wallet Dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Total positioned</p>
+                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalPositioned)}</p>
+                </div>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Reserve fees tracked</p>
+                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalReserveFees)}</p>
+                </div>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Claimable now</p>
+                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalClaimable)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
             <CardHeader>

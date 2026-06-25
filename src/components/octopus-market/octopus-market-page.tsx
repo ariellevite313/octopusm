@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowUpToLine, Check, Clock3, Copy, Database, ExternalLink, Globe, Lock, LogOut, Menu, Receipt, Rocket, Search, ShieldCheck, Wallet, X } from "lucide-react";
 
@@ -38,8 +39,10 @@ import { migrateWalletMemory, runLocalStorageMigration } from "@/lib/localStorag
 import {
   initPredictionStore,
   readAdminCreatedPredictionMarkets,
+  readPredictionResolutions,
   subscribeToPredictionMarketStorage,
   type AdminCreatedPredictionMarket,
+  type PredictionResolutionRecord,
 } from "@/components/octopus-market/prediction-market-store";
 import { SectionHeading } from "@/components/octopus-market/section-heading";
 import { ThemeToggle } from "@/components/octopus-market/theme-toggle";
@@ -461,11 +464,26 @@ function homeFormatEventStartLabel(eventStartAt: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
   }).format(new Date(eventStartAt));
 }
 
+function homeFormatCountdown(eventStartAt: string): string {
+  const diff = new Date(eventStartAt).getTime() - Date.now();
+  if (diff <= 0) return "LIVE";
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+  }
+  return `${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+}
+
 function HomeLiveBadge({ eventStartAt }: { eventStartAt: string | null | undefined }) {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!eventStartAt) return;
@@ -475,7 +493,9 @@ function HomeLiveBadge({ eventStartAt }: { eventStartAt: string | null | undefin
 
   if (!eventStartAt) return null;
 
-  if (homeGetEventLiveStatus(eventStartAt) === "live") {
+  const status = homeGetEventLiveStatus(eventStartAt);
+
+  if (status === "live") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-400">
         <span className="relative flex size-2">
@@ -487,7 +507,12 @@ function HomeLiveBadge({ eventStartAt }: { eventStartAt: string | null | undefin
     );
   }
 
-  return null;
+  void tick;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-300">
+      ⏳ Starts in {homeFormatCountdown(eventStartAt)}
+    </span>
+  );
 }
 
 export function OctopusMarketPage() {
@@ -527,6 +552,11 @@ export function OctopusMarketPage() {
     readAdminCreatedPredictionMarkets()
   );
   const adminCreatedMarketsStateRef = useRef(JSON.stringify(readAdminCreatedPredictionMarkets()));
+
+  // ── Admin : tous les marchés (résolus + actifs) pour la vue tableau ────────
+  const [homeResolutions, setHomeResolutions] = useState<Record<string, PredictionResolutionRecord>>(
+    () => readPredictionResolutions()
+  );
   const [isPredictionMarketOpen, setIsPredictionMarketOpen] = useState(false);
   const [isLaunchStudioOpen, setIsLaunchStudioOpen] = useState(false);
   const [isExploreOpen, setIsExploreOpen] = useState(false);
@@ -605,12 +635,12 @@ export function OctopusMarketPage() {
       const nextMarkets = readAdminCreatedPredictionMarkets();
       const nextSerializedMarkets = JSON.stringify(nextMarkets);
 
-      if (adminCreatedMarketsStateRef.current === nextSerializedMarkets) {
-        return;
+      if (adminCreatedMarketsStateRef.current !== nextSerializedMarkets) {
+        adminCreatedMarketsStateRef.current = nextSerializedMarkets;
+        setAdminCreatedMarkets(nextMarkets);
       }
 
-      adminCreatedMarketsStateRef.current = nextSerializedMarkets;
-      setAdminCreatedMarkets(nextMarkets);
+      setHomeResolutions(readPredictionResolutions());
     });
   }, []);
 
@@ -1192,8 +1222,10 @@ export function OctopusMarketPage() {
   );
 
   const visiblePredictionMarkets = useMemo(
-    () => allPredictionMarkets.filter((market) => market.categoryId === selectedPredictionCategoryId),
-    [allPredictionMarkets, selectedPredictionCategoryId]
+    () => allPredictionMarkets.filter(
+      (market) => market.categoryId === selectedPredictionCategoryId && !market.isResolved && !homeResolutions[market.id]
+    ),
+    [allPredictionMarkets, selectedPredictionCategoryId, homeResolutions]
   );
 
   const headerNavigationItems = navigationItems.filter(
@@ -1853,12 +1885,14 @@ export function OctopusMarketPage() {
                 <section id="open-prediction-markets" className="-mt-2 scroll-mt-28 pb-8 pt-1 sm:-mt-4 lg:-mt-6">
                   <div className="mx-auto max-w-[92rem] px-4 sm:px-6 lg:px-8">
                     <div className="rounded-[1.75rem] border-2 border-orange-300 bg-white p-4 shadow-[0_18px_50px_rgba(249,115,22,0.14)] transition-transform duration-500 dark:border-orange-400/20 dark:bg-zinc-950/92 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:rounded-[2rem] sm:border sm:border-orange-200 sm:bg-white/90 sm:p-6 md:[transform:perspective(1800px)_rotateX(4deg)] dark:sm:border-white/10 dark:sm:bg-white/5">
+
+
                       <div className="rounded-2xl border border-orange-300 bg-orange-100 px-4 py-4 text-sm leading-6 text-zinc-700 shadow-[0_10px_24px_rgba(249,115,22,0.08)] dark:border-orange-400/20 dark:bg-black/30 dark:text-zinc-300 sm:border-orange-200 sm:bg-orange-50 sm:shadow-none dark:sm:border-white/10 dark:sm:bg-black/20">
                         <p className="font-medium text-zinc-950 dark:text-white">{selectedPredictionCategory?.label}</p>
                         <p className="mt-1">{selectedPredictionCategory?.description}</p>
                       </div>
 
-                      <div className="mt-6 space-y-4">
+                      <div className={`mt-6 ${visiblePredictionMarkets.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}`}>
                         {visiblePredictionMarkets.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                             No prediction market is open yet in this section. Select another section to see its live markets.
@@ -1944,6 +1978,7 @@ export function OctopusMarketPage() {
                           </Card>
                         ))}
                       </div>
+
                     </div>
                   </div>
                 </section>
@@ -2068,8 +2103,16 @@ export function OctopusMarketPage() {
               <Globe className="size-4" />
               <span>© 2026 Octopus Market · All rights reserved</span>
             </div>
-            <div className="text-zinc-600 dark:text-zinc-300">
-              Designed to showcase, launch, and grow premium AI products on the market.
+            <div className="flex flex-wrap items-center gap-4">
+              <Link
+                to="/archive"
+                className="text-zinc-600 hover:text-orange-600 hover:underline dark:text-zinc-400 dark:hover:text-orange-300"
+              >
+                Previous markets
+              </Link>
+              <span className="text-zinc-600 dark:text-zinc-300">
+                Designed to showcase, launch, and grow premium AI products on the market.
+              </span>
             </div>
           </div>
         </div>

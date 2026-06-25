@@ -235,11 +235,35 @@ export async function disconnectSolanaWallet() {
   }
 }
 
+/**
+ * Détecte si l'utilisateur est sur un appareil mobile (iOS / Android).
+ * Utilisé pour adapter le comportement quand Phantom n'est pas disponible.
+ */
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 export async function connectSolanaWallet() {
   const provider = getSolanaProvider();
 
   if (!provider) {
-    throw new Error("wallet-unavailable");
+    if (isMobileDevice()) {
+      // Mobile sans Phantom installé → ouvrir le site dans le navigateur intégré de l'app Phantom.
+      // phantom.app/ul/v1/browse/{url} détecte automatiquement si l'app est installée :
+      //   • App installée  → ouvre l'app et charge le site (wallet disponible)
+      //   • App absente    → redirige vers l'App Store / Play Store
+      const targetUrl = encodeURIComponent(window.location.href);
+      const refUrl    = encodeURIComponent(window.location.origin);
+      window.location.href = `https://phantom.app/ul/v1/browse/${targetUrl}?ref=${refUrl}`;
+      // La page se ferme — on retourne sans throw pour éviter un toast parasite.
+      return { address: "", provider: null as unknown as SolanaProvider };
+    } else {
+      // Desktop sans extension → ouvrir la page de téléchargement Phantom dans un nouvel onglet.
+      // phantom.app/download détecte le navigateur et propose le bon lien (Chrome, Firefox…).
+      window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
+      throw new Error("wallet-unavailable");
+    }
   }
 
   const existingAddress = provider.publicKey?.toString();

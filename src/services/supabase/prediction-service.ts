@@ -225,3 +225,18 @@ export function subscribeToPredictionHistory(
     )
     .subscribe();
 }
+
+/**
+ * Récupère tous les marchés résolus (is_resolved = true), triés par date de résolution desc.
+ * Utilisé par la page archive (/archive).
+ */
+export async function getResolvedMarkets(): Promise<PredictionMarketRow[]> {
+  const { data, error } = await supabase
+    .from("prediction_markets")
+    .select("*")
+    .eq("is_resolved", true)
+    .order("resolved_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as PredictionMarketRow[];
+}

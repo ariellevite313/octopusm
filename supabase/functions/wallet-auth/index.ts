@@ -86,20 +86,21 @@ serve(async (req: Request) => {
     );
 
     // Email fictif basé sur l'adresse wallet (Supabase Auth exige un email)
+    // L'email est déterministe : même wallet → même email → pas de doublon
     const fakeEmail = `${walletAddress.toLowerCase()}@octopus-market.wallet`;
 
-    // Chercher si l'utilisateur existe déjà
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(
-      (u) => u.user_metadata?.wallet_address === walletAddress
-    );
-
+    // ── Chercher l'utilisateur par email (O(1) au lieu de scanner tous les users)
+    // Remplace listUsers() qui plafonne à 1000 utilisateurs et est O(n).
     let userId: string;
 
-    if (existingUser) {
-      userId = existingUser.id;
+    const { data: existingUser, error: getUserError } =
+      await supabaseAdmin.auth.admin.getUserByEmail(fakeEmail);
+
+    if (!getUserError && existingUser?.user?.id) {
+      // Utilisateur trouvé — réutiliser son ID
+      userId = existingUser.user.id;
     } else {
-      // Créer l'utilisateur Auth
+      // Utilisateur inconnu — le créer
       const { data: newUser, error: createError } =
         await supabaseAdmin.auth.admin.createUser({
           email: fakeEmail,

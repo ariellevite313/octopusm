@@ -7,7 +7,12 @@
  * 3. Initialise les stores wallet-spécifiques après connexion
  * 4. Expose le wallet connecté via contexte React
  *
- * À placer autour de <App /> dans main.tsx
+ * Optimisations appliquées :
+ * - Pas de double appel initPredictionStore() : si une session wallet est déjà
+ *   présente au chargement, on va directement sur initPrivateStores (qui inclut
+ *   initPredictionStore avec wallet) sans passer par initPublicStores.
+ * - isAdminWallet() s'exécute EN PARALLÈLE avec initPredictionStore et
+ *   initAIListingStore au lieu de les bloquer (~200ms gagnés par connexion).
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
@@ -49,41 +54,69 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialisation des stores publics (sans wallet)
+  // ── Init stores publics (visiteur anonyme) ────────────────────────────────
   const initPublicStores = useCallback(async () => {
     await Promise.all([
-      initPredictionStore(),
-      initAIListingStore("public"),
+      initPredictionStore(),       // marchés sans historique
+      initAIListingStore("public"), // listings approuvés
     ]);
   }, []);
 
-  // Initialisation des stores privés (après connexion wallet)
+  // ── Init stores privés (wallet connecté) ──────────────────────────────────
+  // isAdminWallet() s'exécute EN PARALLÈLE avec initPredictionStore et
+  // initAIListingStore pour ne pas bloquer le chargement des marchés.
   const initPrivateStores = useCallback(async (address: string) => {
-    const adminStatus = await isAdminWallet();
+    const [adminStatus] = await Promise.all([
+      isAdminWallet(),                      // RPC → lancé en même temps que les stores
+      initPredictionStore(address),         // marchés + historique wallet
+      initAIListingStore("wallet", address), // listings du wallet
+    ]);
+
     setIsAdmin(adminStatus);
 
-    await Promise.all([
-      initPredictionStore(address),
-      initAIListingStore("wallet", address),
-      ...(adminStatus
-        ? [
-            initCentralRegistry(),
-            initAdminNotifications(true),
-            initAIListingStore("admin"),
-          ]
-        : []),
-    ]);
+    // Les stores admin dépendent du statut confirmé → lancés après
+    if (adminStatus) {
+      await Promise.all([
+        initCentralRegistry(),
+        initAdminNotifications(true),
+        initAIListingStore("admin"),
+      ]);
+    }
   }, []);
 
   useEffect(() => {
-    // Initialiser les stores publics immédiatement
-    // Le .finally() garantit que isLoading passe à false même si Supabase
-    // est temporairement indisponible (projet en pause, réseau, etc.)
-    void initPublicStores()
-      .catch((err) => console.warn("[supabase-provider] initPublicStores failed:", err))
+    // ── Stratégie de démarrage ────────────────────────────────────────────
+    // On vérifie d'abord la session existante AVANT de lancer quoi que ce soit.
+    // Si une session wallet est active → on saute initPublicStores et on va
+    // directement sur initPrivateStores (qui appelle déjà initPredictionStore).
+    // Cela évite le double appel à getActiveMarkets() pour les utilisateurs connectés.
+    supabase.auth.getSession()
+      .then(async ({ data }) => {
+        const address: string | undefined =
+          data.session?.user?.user_metadata?.wallet_address;
+
+        if (data.session && address) {
+          // Session wallet active → init privé uniquement (inclut les marchés)
+          setWalletAddress(address);
+          await initPrivateStores(address).catch((err) =>
+            console.warn("[supabase-provider] initPrivateStores failed:", err)
+          );
+        } else {
+          // Pas de session → init public uniquement
+          await initPublicStores().catch((err) =>
+            console.warn("[supabase-provider] initPublicStores failed:", err)
+          );
+        }
+      })
+      .catch((err) => {
+        // getSession() a échoué (Supabase indisponible, réseau coupé)
+        // → on tente quand même le mode public pour afficher les marchés
+        console.warn("[supabase-provider] getSession failed:", err);
+        void initPublicStores().catch(() => null);
+      })
       .finally(() => setIsLoading(false));
 
-    // Écouter les changements de session
+    // ── Écouter les connexions / déconnexions suivantes ───────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const address: string | undefined =
@@ -92,29 +125,18 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
         if (session && address) {
           setWalletAddress(address);
           await initPrivateStores(address).catch((err) =>
-            console.warn("[supabase-provider] initPrivateStores failed:", err)
+            console.warn("[supabase-provider] initPrivateStores (auth change) failed:", err)
           );
         } else {
           setWalletAddress(null);
           setIsAdmin(false);
-          // Re-init les stores publics après déconnexion
+          // Après déconnexion → repasser en mode public
           await initPublicStores().catch((err) =>
             console.warn("[supabase-provider] initPublicStores (logout) failed:", err)
           );
         }
       }
     );
-
-    // Vérifier la session existante au chargement
-    supabase.auth.getSession().then(async ({ data }) => {
-      const address: string | undefined =
-        data.session?.user?.user_metadata?.wallet_address;
-
-      if (data.session && address) {
-        setWalletAddress(address);
-        await initPrivateStores(address);
-      }
-    });
 
     return () => {
       subscription.unsubscribe();

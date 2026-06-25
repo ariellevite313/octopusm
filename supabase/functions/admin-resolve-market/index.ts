@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
       .from("prediction_markets")
       .update({
         is_resolved: true,
+        is_active: false,          // désactive le marché pour qu'il quitte la vue publique
         resolution_outcome_id: outcomeId,
         resolved_at: now,
         resolved_by_wallet: resolvedByWallet,
