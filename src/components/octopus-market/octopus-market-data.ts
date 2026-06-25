@@ -119,6 +119,8 @@ export type PredictionMarketQuestion = {
   marketType: "yes-no" | "threshold" | "three-way";
   resolutionLabel: string;
   eventDateLabel?: string;
+  /** ISO timestamp UTC — null = pas de date définie */
+  eventStartAt?: string | null;
   options?: PredictionMarketOption[];
 } & PredictionMarketVisualMeta;
 

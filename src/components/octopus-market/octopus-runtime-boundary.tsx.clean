@@ -89,14 +89,4 @@ export class OctopusRuntimeBoundary extends Component<
             <Button
               type="button"
               variant="outline"
-              className="rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-              onClick={() => window.location.reload()}
-            >
-              Reload page
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
+              className="rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-
