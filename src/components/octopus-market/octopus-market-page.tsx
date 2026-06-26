@@ -438,7 +438,6 @@ const marketSectionShortcuts = [
   { id: "previous", label: "Previous Markets" },
 ] as const;
 
-const headerNavShortcuts = marketSectionShortcuts.filter((item) => item.id !== "previous");
 
 function resolveUserPageRoute(hashValue: string): UserPageRoute {
   switch (hashValue) {
@@ -1455,15 +1454,19 @@ export function OctopusMarketPage() {
                   {item.label}
                 </a>
               ))}
-              {headerNavShortcuts.map((item) => {
+              {marketSectionShortcuts.map((item, idx) => {
                 const isActiveShortcut = item.id === selectedPredictionCategoryId;
 
                 return (
-                  <Button
-                    key={item.id}
-                    type="button"
-                    variant="ghost"
-                    className={
+                  <>
+                    {item.id === "previous" ? (
+                      <span className="mx-1 h-5 w-px shrink-0 bg-orange-200 dark:bg-white/10" aria-hidden="true" />
+                    ) : null}
+                    <Button
+                      key={item.id}
+                      type="button"
+                      variant="ghost"
+                      className={
                       isActiveShortcut
                         ? "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-orange-400 bg-orange-500 px-3 text-center text-[11px] font-semibold leading-none text-white shadow-sm transition hover:bg-orange-400 lg:text-sm"
                         : "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-transparent px-3 text-center text-[11px] font-medium leading-none text-zinc-700 transition hover:border-orange-200 hover:bg-white hover:text-orange-500 lg:text-sm dark:text-zinc-300 dark:hover:border-white/10 dark:hover:bg-zinc-900 dark:hover:text-orange-300"
@@ -1471,7 +1474,8 @@ export function OctopusMarketPage() {
                     onClick={() => focusPredictionCategoryOnPage(item.id)}
                   >
                     {item.label}
-                  </Button>
+                    </Button>
+                  </>
                 );
               })}
             </div>
