@@ -59,6 +59,7 @@ import {
   restoreSolanaWalletConnection,
   type SolanaWalletBalanceSnapshot,
 } from "@/components/octopus-market/solana-wallet";
+import { registerReferral } from "@/services/supabase/octo-service";
 import { useLegacyBrowser } from "@/hooks/use-legacy-browser";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeMode } from "@/hooks/use-theme-mode";
@@ -833,6 +834,17 @@ export function OctopusMarketPage() {
       void refreshWalletBalance(address);
       // Charge l'historique des paris pour ce wallet (prediction store)
       void initPredictionStore(address);
+      // Referral: si un code est stocké en localStorage, on l'enregistre
+      try {
+        const storedRef = localStorage.getItem("octo_ref");
+        if (storedRef?.startsWith("OCT-")) {
+          void registerReferral(address, storedRef).then(() => {
+            localStorage.removeItem("octo_ref");
+          });
+        }
+      } catch {
+        // localStorage unavailable — ignore
+      }
       trackConnectedWalletSession(address, {
         isAdminWallet: address === predictionMarketTreasuryAddress,
         activityLabel,

@@ -1,5 +1,15 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
+// Capture referral code from URL on first load (runs once at module init)
+try {
+  const ref = new URLSearchParams(window.location.search).get("ref");
+  if (ref?.startsWith("OCT-")) {
+    localStorage.setItem("octo_ref", ref);
+  }
+} catch {
+  // localStorage may be unavailable in some environments
+}
+
 import { SnErrorBoundary } from "../supernova/helpers/snErrorBoundary";
 
 import { OctopusLocaleProvider } from "@/components/octopus-market/octopus-locale";

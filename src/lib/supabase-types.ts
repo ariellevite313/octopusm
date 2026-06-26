@@ -8,6 +8,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export type WalletRole = "user" | "admin";
+export type OctoTransactionType = "referral" | "bet";
 export type WalletStatus = "active" | "suspended";
 export type PaymentFlow = "prediction" | "launch" | "listing";
 export type PaymentStatus = "pending" | "approved" | "rejected";
@@ -386,4 +387,49 @@ export interface Database {
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
+}
+
+// ─── OCTO Referral System ─────────────────────────────────────────────────────
+
+export interface ReferralCodeRow {
+  wallet_address: string;
+  code: string;
+  created_at: string;
+}
+
+export interface ReferralRow {
+  id: string;
+  referrer_wallet: string;
+  referred_wallet: string;
+  created_at: string;
+}
+
+export interface OctoTransactionRow {
+  id: string;
+  wallet_address: string;
+  type: OctoTransactionType;
+  amount: number;
+  ref_wallet: string | null;
+  bet_amount_usd: number | null;
+  created_at: string;
+}
+
+export interface ReferralCommissionRow {
+  id: string;
+  referrer_wallet: string;
+  referred_wallet: string;
+  type: "bet_fee" | "loss_commission";
+  amount_usdc: number;
+  bet_reference: string;
+  created_at: string;
+}
+
+export interface ReferralCommissionClaimRow {
+  id: string;
+  referrer_wallet: string;
+  total_usdc: number;
+  status: "pending" | "paid";
+  paid_at: string | null;
+  paid_by_wallet: string | null;
+  created_at: string;
 }

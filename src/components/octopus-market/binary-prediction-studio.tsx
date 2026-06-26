@@ -69,9 +69,10 @@ import {
   getSolanaProvider,
 } from "@/components/octopus-market/solana-wallet";
 import type { PaymentRequest } from "@/components/octopus-market/solana-pay";
-import { getAllMarketsAdmin } from "@/services/supabase/prediction-service";
+import { getAllMarketsAdmin, getAllPredictionHistoryAdmin } from "@/services/supabase/prediction-service";
+import { creditBetOcto, creditReferralCommission, getAllCommissionClaims, markCommissionClaimPaid } from "@/services/supabase/octo-service";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { PredictionMarketRow } from "@/lib/supabase-types";
+import type { PredictionMarketRow, ReferralCommissionClaimRow } from "@/lib/supabase-types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ─── Event status helpers ─────────────────────────────────────────────────────
@@ -548,6 +549,13 @@ export function BinaryPredictionStudio({
   const [isRecoveringPendingPayments, setIsRecoveringPendingPayments] = useState(false);
   // Ref pour éviter le double-enregistrement même si le state history est stale
   const reportedReferencesRef = useRef<Set<string>>(new Set());
+  // Tick every 60s so visibleQuestions re-sorts when a market flips live
+  const [sortTick, setSortTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setSortTick((n) => n + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const [showAdminMarketForm, setShowAdminMarketForm] = useState(false);
   const [adminMarketDraft, setAdminMarketDraft] = useState<AdminMarketDraft>(() => createInitialAdminMarketDraft());
 
@@ -599,24 +607,31 @@ export function BinaryPredictionStudio({
   );
 
   const visibleQuestions = useMemo(() => {
+    void sortTick; // re-sort every 60s so live markets bubble up automatically
+    const now = Date.now();
     const filtered = allPredictionMarkets.filter((question) => question.categoryId === activeCategoryId);
 
     return [...filtered].sort((a, b) => {
-      const statusOrder = { live: 0, upcoming: 1, none: 2 };
-      const aStatus = getEventLiveStatus(a.eventStartAt);
-      const bStatus = getEventLiveStatus(b.eventStartAt);
-      if (aStatus !== bStatus) return statusOrder[aStatus] - statusOrder[bStatus];
-      // À statut égal : upcoming → trier du plus proche au plus lointain
-      if (aStatus === "upcoming" && a.eventStartAt && b.eventStartAt) {
-        return new Date(a.eventStartAt).getTime() - new Date(b.eventStartAt).getTime();
-      }
-      return 0;
+      const getMs = (m: typeof a) =>
+        m.eventStartAt ? new Date(m.eventStartAt).getTime() : null;
+      const aMs = getMs(a);
+      const bMs = getMs(b);
+      // No date → always last
+      if (aMs === null && bMs === null) return 0;
+      if (aMs === null) return 1;
+      if (bMs === null) return -1;
+      // Both have a date: sort by distance to now (live = 0 remaining, upcoming = positive remaining)
+      const aRemaining = Math.max(0, aMs - now);
+      const bRemaining = Math.max(0, bMs - now);
+      return aRemaining - bRemaining;
     });
-  }, [activeCategoryId, allPredictionMarkets]);
+  }, [activeCategoryId, allPredictionMarkets, sortTick]);
 
   const ownerWalletConnected = walletAddress === predictionMarketTreasuryAddress;
 
   const [allMarketsAdmin, setAllMarketsAdmin] = useState<PredictionMarketRow[]>([]);
+  const [adminClaims, setAdminClaims] = useState<ReferralCommissionClaimRow[]>([]);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(false);
   const [isLoadingAdminMarkets, setIsLoadingAdminMarkets] = useState(false);
 
   const derivedHistory = useMemo(
@@ -994,6 +1009,26 @@ export function BinaryPredictionStudio({
     toast.success(`Marché résolu`, {
       description: `${market.title} — côté gagnant : ${resolvedOption?.label ?? outcomeId}. Les gains sont maintenant réclamables.`,
     });
+
+    // Credit 5% of each losing bet amount to the referrer (fire-and-forget)
+    void (async () => {
+      try {
+        const allHistory = await getAllPredictionHistoryAdmin();
+        const losers = allHistory.filter(
+          (h) => h.market_id === market.id && h.resolution_outcome_id !== outcomeId && h.admin_decision_status === "approved"
+        );
+        for (const loser of losers) {
+          void creditReferralCommission(
+            loser.wallet_address,
+            "loss_commission",
+            loser.amount,
+            loser.payment_reference
+          );
+        }
+      } catch (err) {
+        console.error("[handleResolveMarket] loss commission crediting failed:", err);
+      }
+    })();
   };
 
   const handleDeleteMarket = async (market: PredictionMarketQuestion) => {
@@ -1207,6 +1242,13 @@ export function BinaryPredictionStudio({
       }
 
       handleReportValidatedPayment(storedValidatedTransfer);
+
+      // Credit OCTO for the confirmed bet (fire-and-forget, never blocks the user)
+      if (connectedWallet) {
+        void creditBetOcto(connectedWallet, amount);
+        // Credit 5% of reserve fee to referrer (if any)
+        void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, transferRequest.reference);
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
       if (
@@ -1255,16 +1297,16 @@ export function BinaryPredictionStudio({
   return (
     <div className="space-y-6">
       <div id="prediction-market-studio" className="scroll-mt-32" />
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className={ownerWalletConnected ? "w-full" : "grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"}>
         {ownerWalletConnected ? (
           <>
             <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-xl">Tous les marchés</CardTitle>
+                  <CardTitle className="text-xl">All markets</CardTitle>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    {allMarketsAdmin.length} marché{allMarketsAdmin.length !== 1 ? "s" : ""} au total — les plus récents en premier
+                    {allMarketsAdmin.length} market{allMarketsAdmin.length !== 1 ? "s" : ""} total — most recent first
                   </p>
                 </div>
                 <button
@@ -1278,34 +1320,34 @@ export function BinaryPredictionStudio({
                   }}
                   className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-orange-300 dark:hover:bg-zinc-800"
                 >
-                  {isLoadingAdminMarkets ? "Chargement…" : "Actualiser"}
+                  {isLoadingAdminMarkets ? "Loading…" : "Refresh"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAdminMarketForm(true)}
                   className="shrink-0 rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-400"
                 >
-                  + Créer
+                  + Create
                 </button>
               </div>
             </CardHeader>
             <CardContent>
               {isLoadingAdminMarkets && allMarketsAdmin.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                  Chargement des marchés…
+                  Loading markets…
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-orange-200 dark:border-white/10">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-orange-200 bg-orange-50 dark:border-white/10 dark:bg-zinc-900">
-                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Titre</TableHead>
-                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Catégorie</TableHead>
-                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Statut</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Title</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Category</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Options</TableHead>
-                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Résultat</TableHead>
-                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Date événement</TableHead>
-                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Créé le</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Result</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Event date</TableHead>
+                        <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Created</TableHead>
                         <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1329,15 +1371,15 @@ export function BinaryPredictionStudio({
                             <TableCell className="py-3">
                               {m.is_resolved ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
-                                  <CheckCircle2 className="size-3" /> Résolu
+                                  <CheckCircle2 className="size-3" /> Resolved
                                 </span>
                               ) : m.is_active ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/15 dark:text-orange-400">
-                                  <span className="size-1.5 rounded-full bg-orange-500" /> Actif
+                                  <span className="size-1.5 rounded-full bg-orange-500" /> Active
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                                  <XCircle className="size-3" /> Inactif
+                                  <XCircle className="size-3" /> Inactive
                                 </span>
                               )}
                             </TableCell>
@@ -1364,11 +1406,11 @@ export function BinaryPredictionStudio({
                             </TableCell>
                             <TableCell className="py-3 text-xs text-zinc-600 dark:text-zinc-400">
                               {m.event_start_at
-                                ? new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(m.event_start_at))
+                                ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(m.event_start_at))
                                 : m.event_date_label ?? "—"}
                             </TableCell>
                             <TableCell className="py-3 text-xs text-zinc-500 dark:text-zinc-400">
-                              {new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(m.created_at))}
+                              {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(m.created_at))}
                             </TableCell>
                             <TableCell className="py-3">
                               <div className="flex items-center gap-2">
@@ -1383,7 +1425,7 @@ export function BinaryPredictionStudio({
                                     }}
                                     className="rounded-lg border border-orange-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none focus:border-orange-400 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
                                   >
-                                    <option value="">Résoudre…</option>
+                                    <option value="">Resolve…</option>
                                     {opts.map((o) => (
                                       <option key={o.id} value={o.id}>{o.label}</option>
                                     ))}
@@ -1397,7 +1439,7 @@ export function BinaryPredictionStudio({
                                     setAllMarketsAdmin((prev) => prev.filter((x) => x.id !== m.id));
                                   }}
                                   className="rounded-lg border border-red-200 bg-white p-1.5 text-red-500 hover:bg-red-50 dark:border-red-500/20 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-500/10"
-                                  title="Supprimer"
+                                  title="Delete"
                                 >
                                   <Trash2 className="size-3.5" />
                                 </button>
@@ -1410,7 +1452,7 @@ export function BinaryPredictionStudio({
                   </Table>
                   {allMarketsAdmin.length === 0 && !isLoadingAdminMarkets && (
                     <div className="px-5 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
-                      Aucun marché en base.
+                      No markets yet.
                     </div>
                   )}
                 </div>
@@ -1420,7 +1462,7 @@ export function BinaryPredictionStudio({
             <Sheet open={showAdminMarketForm} onOpenChange={setShowAdminMarketForm}>
               <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
                 <SheetHeader>
-                  <SheetTitle>Créer un marché</SheetTitle>
+                  <SheetTitle>Create a market</SheetTitle>
                 </SheetHeader>
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       <div className="space-y-4 rounded-2xl border border-orange-100 bg-white p-4 dark:border-white/10 dark:bg-zinc-950/70">
@@ -1716,6 +1758,108 @@ export function BinaryPredictionStudio({
                     </div>
               </SheetContent>
             </Sheet>
+
+            {/* ── Referral Commission Claims ──────────────────────────────── */}
+            <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-xl">Referral Commission Claims</CardTitle>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      USDC payout requests from referrers — mark as paid after transfer
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLoadingClaims(true);
+                      getAllCommissionClaims()
+                        .then(setAdminClaims)
+                        .catch(console.error)
+                        .finally(() => setIsLoadingClaims(false));
+                    }}
+                    className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-orange-300 dark:hover:bg-zinc-800"
+                  >
+                    {isLoadingClaims ? "Loading…" : "Refresh"}
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {adminClaims.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                    No claims yet — click Refresh to load.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl border border-orange-200 dark:border-white/10">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-orange-200 bg-orange-50 dark:border-white/10 dark:bg-zinc-900">
+                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Wallet</TableHead>
+                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Amount USDC</TableHead>
+                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Requested at</TableHead>
+                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Status</TableHead>
+                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {adminClaims.map((claim) => (
+                          <TableRow key={claim.id} className="border-orange-100 dark:border-white/10">
+                            <TableCell className="py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                              {claim.referrer_wallet.slice(0, 6)}…{claim.referrer_wallet.slice(-4)}
+                            </TableCell>
+                            <TableCell className="py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                              ${Number(claim.total_usdc).toFixed(4)}
+                            </TableCell>
+                            <TableCell className="py-3 text-xs text-zinc-500 dark:text-zinc-400">
+                              {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(claim.created_at))}
+                            </TableCell>
+                            <TableCell className="py-3">
+                              {claim.status === "paid" ? (
+                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                  Paid
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                                  Pending
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-3">
+                              {claim.status === "pending" && walletAddress ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void markCommissionClaimPaid(claim.id, walletAddress).then((res) => {
+                                      if (res.success) {
+                                        setAdminClaims((prev) =>
+                                          prev.map((c) =>
+                                            c.id === claim.id
+                                              ? { ...c, status: "paid", paid_at: new Date().toISOString(), paid_by_wallet: walletAddress }
+                                              : c
+                                          )
+                                        );
+                                        toast.success("Claim marked as paid");
+                                      } else {
+                                        toast.error("Failed", { description: res.error });
+                                      }
+                                    });
+                                  }}
+                                  className="rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                                >
+                                  Mark as Paid
+                                </button>
+                              ) : (
+                                <span className="text-xs text-zinc-400">—</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         ) : (
         <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
@@ -1954,6 +2098,7 @@ export function BinaryPredictionStudio({
         </Card>
         )}
 
+        {!ownerWalletConnected && (
         <div className="space-y-6">
           <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-zinc-950/70 dark:text-white">
             <CardHeader>
@@ -2053,6 +2198,7 @@ export function BinaryPredictionStudio({
           </Card>
 
         </div>
+        )}
       </div>
     </div>
   );
