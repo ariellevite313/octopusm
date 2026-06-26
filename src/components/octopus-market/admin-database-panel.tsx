@@ -3,11 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  readCentralAdminLogs,
   readCentralPaymentRecords,
   readCentralWalletRecords,
   subscribeToCentralRegistry,
-  type RegistryAdminLogRecord,
   type RegistryPaymentRecord,
   type RegistryWalletRecord,
 } from "@/components/octopus-market/octopus-central-registry";
@@ -48,18 +46,16 @@ type DatabaseSnapshot = {
   wallets: RegistryWalletRecord[];
   payments: RegistryPaymentRecord[];
   history: PredictionHistoryWithStatus[];
-  adminLogs: RegistryAdminLogRecord[];
 };
 
 async function loadDatabaseSnapshot(): Promise<DatabaseSnapshot> {
-  const [wallets, payments, history, adminLogs] = await Promise.all([
+  const [wallets, payments, history] = await Promise.all([
     readCentralWalletRecords(),
     readCentralPaymentRecords(),
     getAllPredictionHistoryAdmin(),
-    readCentralAdminLogs(),
   ]);
 
-  return { wallets, payments, history, adminLogs };
+  return { wallets, payments, history };
 }
 
 export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
@@ -67,7 +63,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
     wallets: [],
     payments: [],
     history: [],
-    adminLogs: [],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -75,7 +70,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
 
   useEffect(() => {
     if (!isAdminWallet) {
-      setSnapshot({ wallets: [], payments: [], history: [], adminLogs: [] });
+      setSnapshot({ wallets: [], payments: [], history: [] });
       setIsLoading(false);
       return;
     }
@@ -108,7 +103,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
       wallets: snapshot.wallets.length,
       payments: snapshot.payments.length,
       history: snapshot.history.length,
-      adminLogs: snapshot.adminLogs.length,
       approvedVolume,
     };
   }, [snapshot]);
@@ -152,12 +146,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
           <CardHeader className="pb-3">
             <CardDescription>Total history rows</CardDescription>
             <CardTitle className="text-2xl">{totals.history}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
-          <CardHeader className="pb-3">
-            <CardDescription>Admin logs</CardDescription>
-            <CardTitle className="text-2xl">{totals.adminLogs}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
@@ -359,31 +347,6 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
           </CardContent>
         </Card>
 
-        <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
-          <CardHeader>
-            <CardTitle className="text-xl">Admin logs</CardTitle>
-            <CardDescription>Tracked admin actions stored in the shared registry.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {snapshot.adminLogs.map((log) => (
-                <div key={log.id} className="rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 dark:border-white/10 dark:bg-zinc-950/70">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium capitalize text-zinc-950 dark:text-white">{log.action.replaceAll("_", " ")}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{formatMoment(log.createdAt)}</p>
-                  </div>
-                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{log.details}</p>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Target: {log.targetId}</p>
-                </div>
-              ))}
-              {!snapshot.adminLogs.length ? (
-                <div className="rounded-2xl border border-dashed border-orange-200 px-4 py-6 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                  {isLoading ? "Loading admin logs..." : "No admin logs yet."}
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </section>
   );

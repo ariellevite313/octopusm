@@ -747,6 +747,18 @@ export function BinaryPredictionStudio({
 
       if (validatedPaymentRequest?.status === "validated") {
         handleReportValidatedPayment(validatedPaymentRequest);
+        // Credit OCTO + referral commission in recovery path (fire-and-forget)
+        if (walletAddress) {
+          const meta = (latestPaymentRequest.metadata ?? {}) as Record<string, unknown>;
+          const stake = typeof meta["stake"] === "number" ? meta["stake"] : 0;
+          const recoveredReserveFee = typeof meta["reserveFee"] === "number" ? meta["reserveFee"] : 0;
+          if (stake > 0) {
+            void creditBetOcto(walletAddress, stake);
+          }
+          if (recoveredReserveFee > 0) {
+            void creditReferralCommission(walletAddress, "bet_fee", recoveredReserveFee, validatedPaymentRequest.reference);
+          }
+        }
       }
     } catch {
       return;
@@ -1015,7 +1027,7 @@ export function BinaryPredictionStudio({
       try {
         const allHistory = await getAllPredictionHistoryAdmin();
         const losers = allHistory.filter(
-          (h) => h.market_id === market.id && h.resolution_outcome_id !== outcomeId && h.admin_decision_status === "approved"
+          (h) => h.market_id === market.id && h.selection_id !== outcomeId && h.admin_decision_status === "approved"
         );
         for (const loser of losers) {
           void creditReferralCommission(
@@ -1247,7 +1259,7 @@ export function BinaryPredictionStudio({
       if (connectedWallet) {
         void creditBetOcto(connectedWallet, amount);
         // Credit 5% of reserve fee to referrer (if any)
-        void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, transferRequest.reference);
+        void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, storedValidatedTransfer.reference);
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();

@@ -98,15 +98,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Créditer +10 OCTO au parrain
+    // 5. Créditer +10 OCTO au parrain ET +5 OCTO au filleul
     const { error: txError } = await supabase
       .from("octo_transactions")
-      .insert({
-        wallet_address: referrer_wallet,
-        type: "referral",
-        amount: 10,
-        ref_wallet: referred_wallet,
-      });
+      .insert([
+        {
+          wallet_address: referrer_wallet,
+          type: "referral",
+          amount: 10,
+          ref_wallet: referred_wallet,
+        },
+        {
+          wallet_address: referred_wallet,
+          type: "referral",
+          amount: 5,
+          ref_wallet: referrer_wallet,
+        },
+      ]);
 
     if (txError) {
       console.error("[register-referral] credit OCTO error:", txError.message);
@@ -114,7 +122,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, referrer_wallet, octo_credited: 10 }),
+      JSON.stringify({ success: true, referrer_wallet, octo_credited: 10, referred_octo_credited: 5 }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

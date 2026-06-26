@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Coins, Copy, DollarSign, Gift, Star, Wallet } from "lucide-react";
+import { CheckCircle2, Coins, Copy, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ export function UserDashboardSections({
   const [usdcBalance, setUsdcBalance] = useState({ available: 0, total_earned: 0, pending_claim: 0 });
   const [commissionsByReferred, setCommissionsByReferred] = useState<Record<string, number>>({});
   const [isClaiming, setIsClaiming] = useState(false);
+  const [activeTab, setActiveTab] = useState<"bets" | "winnings" | "rewards">("bets");
 
   useEffect(() => {
     return subscribeToAIListings(() => {
@@ -281,7 +282,7 @@ export function UserDashboardSections({
         {showSection("wallet") ? (
           <div id="wallet-dashboard" className="scroll-mt-28">
             <Card className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              <CardHeader>
+              <CardHeader className="pb-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
                     Wallet dashboard
@@ -290,311 +291,297 @@ export function UserDashboardSections({
                     {walletRecord?.status === "suspended" ? "Suspended" : "Active"}
                   </Badge>
                 </div>
-                <CardTitle className="text-2xl">Wallet profile and access state</CardTitle>
-                <CardDescription>
-                  Your wallet identity, X profile, and current account status are tracked here after connection.
-                </CardDescription>
+                <CardTitle className="text-2xl">Wallet Dashboard</CardTitle>
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Pseudo</p>
+                    <p className="mt-2 font-semibold text-zinc-950 dark:text-white">{walletRecord?.displayName || walletRecord?.username || "Unnamed"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">X profile</p>
+                    <p className="mt-2 font-semibold text-zinc-950 dark:text-white">{walletRecord?.twitterHandle || "Not added"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20 md:col-span-2">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Solana wallet</p>
+                    <p className="mt-2 break-all font-semibold text-zinc-950 dark:text-white">{walletAddress}</p>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Pseudo</p>
-                  <p className="mt-2 font-semibold text-zinc-950 dark:text-white">{walletRecord?.displayName || walletRecord?.username || "Unnamed"}</p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">X profile</p>
-                  <p className="mt-2 font-semibold text-zinc-950 dark:text-white">{walletRecord?.twitterHandle || "Not added"}</p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20 md:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Solana wallet</p>
-                  <p className="mt-2 break-all font-semibold text-zinc-950 dark:text-white">{walletAddress}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : null}
 
-        {/* ── OCTO Rewards ──────────────────────────────────────────────────── */}
-        <div id="octo-rewards" className="scroll-mt-28">
-          <Card className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-500/10">
-                    <Star className="size-5 text-orange-500 dark:text-orange-300" />
+              <CardContent className="space-y-6">
+                {/* ── Stats row ── */}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total wagered</p>
+                    <p className="mt-2 text-xl font-bold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
                   </div>
-                  <div>
-                    <CardTitle className="text-2xl">OCTO Rewards</CardTitle>
-                    <CardDescription className="mt-0.5">
-                      Earn OCTO by referring friends and placing bets
-                    </CardDescription>
+                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total won</p>
+                    <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">OCTO balance</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <img src="/octo-coin.png" alt="OCTO" className="size-6 object-contain" />
+                      <p className="text-xl font-bold text-orange-600 dark:text-orange-300">{octoBreakdown.total.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">USDC commissions</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <img src="/usdc-coin.png" alt="USDC" className="size-6 object-contain" />
+                      <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
+                    </div>
                   </div>
                 </div>
-                {/* Total balance chip */}
-                <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-3 dark:border-white/10 dark:bg-orange-500/10">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total balance</p>
-                  <p className="mt-1 text-3xl font-bold text-orange-600 dark:text-orange-300">
-                    {octoBreakdown.total.toLocaleString()} <span className="text-lg font-semibold">OCTO</span>
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-8">
 
-              {/* Breakdown */}
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <Gift className="size-5 shrink-0 text-orange-500 dark:text-orange-300" />
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">From referrals</p>
-                    <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">
-                      {octoBreakdown.referral.toLocaleString()} OCTO
-                    </p>
-                  </div>
+                {/* ── Tab bar ── */}
+                <div className="flex gap-1 rounded-2xl border border-orange-100 bg-orange-50 p-1 dark:border-white/10 dark:bg-black/20">
+                  {(["bets", "winnings", "rewards"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className={[
+                        "flex-1 rounded-xl px-2 py-2 text-xs font-medium transition-colors sm:px-4 sm:text-sm",
+                        activeTab === tab
+                          ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-white"
+                          : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+                      ].join(" ")}
+                    >
+                      {tab === "bets" ? "My Bets" : tab === "winnings" ? "My Winnings" : "Rewards"}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <Coins className="size-5 shrink-0 text-orange-500 dark:text-orange-300" />
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">From bets</p>
-                    <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">
-                      {octoBreakdown.bet.toLocaleString()} OCTO
-                    </p>
-                  </div>
-                </div>
-                {/* USDC Commission card */}
-                <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                  <DollarSign className="size-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">USDC commissions</p>
-                    <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300">
-                      ${usdcBalance.total_earned.toFixed(4)}
-                    </p>
-                    {usdcBalance.pending_claim > 0 ? (
-                      <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                        ${usdcBalance.pending_claim.toFixed(4)} pending payment
-                      </p>
-                    ) : usdcBalance.available > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => void handleClaimUsdc()}
-                        disabled={isClaiming}
-                        className="mt-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                      >
-                        {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
-                      </button>
+
+                {/* ── Bets tab ── */}
+                {activeTab === "bets" && (
+                  <div className="space-y-4">
+                    {derivedHistory.length > 0 ? (
+                      derivedHistory.map((entry) => (
+                        <div key={entry.id} className="rounded-2xl border border-orange-100 bg-orange-50/80 p-4 dark:border-white/10 dark:bg-black/20">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {entry.categoryLabel} · {entry.selectionLabel} · {formatMoment(entry.createdAt)}
+                              </p>
+                            </div>
+                            <Badge className={
+                              entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid"
+                                ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                                : entry.statusLabel === "Lose" || entry.statusLabel === "Rejected"
+                                  ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-50 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/10"
+                                  : "border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950"
+                            }>
+                              {entry.statusLabel}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 xl:grid-cols-4">
+                            <div>Bet amount: {formatCurrency(entry.amount)}</div>
+                            <div>Reserve fee: {formatCurrency(entry.reserveFee)}</div>
+                            <div>Total paid: {formatCurrency(entry.totalCharged)}</div>
+                            <div>Odds: x{entry.payoutMultiple}</div>
+                            <div>Admin decision: {entry.adminDecisionStatus ?? "pending"}</div>
+                            <div>Result from database: {entry.statusLabel}</div>
+                            <div>Resolved at: {entry.resolvedAt ? formatMoment(entry.resolvedAt) : "Awaiting result"}</div>
+                            <div>Winning choice: {entry.winningChoiceLabel ?? "Not a winning bet"}</div>
+                          </div>
+                        </div>
+                      ))
                     ) : (
-                      <p className="mt-0.5 text-xs text-zinc-400">No available balance</p>
+                      <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                        No bets recorded yet.
+                      </div>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Referral link */}
-              <div>
-                <p className="mb-2 text-sm font-semibold text-zinc-950 dark:text-white">Your referral link</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 truncate rounded-2xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-mono text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
-                    {referralCode
-                      ? `${window.location.origin}?ref=${referralCode}`
-                      : "Generating your code…"}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!referralCode}
-                    onClick={() => {
-                      if (!referralCode) return;
-                      void navigator.clipboard.writeText(`${window.location.origin}?ref=${referralCode}`).then(() => {
-                        setCopiedLink(true);
-                        setTimeout(() => setCopiedLink(false), 2000);
-                      });
-                    }}
-                    className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-400 disabled:opacity-50"
-                  >
-                    {copiedLink ? (
-                      <><CheckCircle2 className="size-4" /> Copied!</>
-                    ) : (
-                      <><Copy className="size-4" /> Copy link</>
-                    )}
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  You earn <span className="font-semibold text-orange-600 dark:text-orange-300">10 OCTO</span> for each friend who connects their wallet via your link.
-                </p>
-              </div>
-
-              {/* Referral activity table */}
-              <div>
-                <p className="mb-3 text-sm font-semibold text-zinc-950 dark:text-white">
-                  Referral activity · {referrals.length} friend{referrals.length !== 1 ? "s" : ""} referred
-                </p>
-                {referrals.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-5 py-6 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                    No referrals yet — share your link to start earning OCTO.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-2xl border border-orange-200 dark:border-white/10">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-orange-200 bg-orange-50 dark:border-white/10 dark:bg-zinc-900">
-                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">User</TableHead>
-                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Joined</TableHead>
-                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">OCTO earned</TableHead>
-                          <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">USDC earned</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {referrals.map((row) => (
-                          <TableRow key={row.id} className="border-orange-100 dark:border-white/10">
-                            <TableCell className="py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                              {row.referred_wallet.slice(0, 6)}…{row.referred_wallet.slice(-4)}
-                            </TableCell>
-                            <TableCell className="py-3 text-xs text-zinc-600 dark:text-zinc-400">
-                              {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(row.created_at))}
-                            </TableCell>
-                            <TableCell className="py-3">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
-                                +10 OCTO
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-3">
-                              {commissionsByReferred[row.referred_wallet] ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                  +${commissionsByReferred[row.referred_wallet]!.toFixed(4)} USDC
-                                </span>
-                              ) : (
-                                <span className="text-xs text-zinc-400">—</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </div>
                 )}
-              </div>
 
-            </CardContent>
-          </Card>
-        </div>
-
-        {showSection("bets") ? (
-          <div id="my-bets" className="scroll-mt-28">
-            <Card className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              <CardHeader>
-                <CardTitle className="text-2xl">My Bets</CardTitle>
-                <CardDescription>
-                  Review your payment history, selected side, odds, total charged amount, and deposit review status.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {derivedHistory.length > 0 ? (
-                  derivedHistory.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-orange-100 bg-orange-50/80 p-4 dark:border-white/10 dark:bg-black/20">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
-                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {entry.categoryLabel} · {entry.selectionLabel} · {formatMoment(entry.createdAt)}
-                          </p>
-                        </div>
-                        <Badge className={
-                          entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid"
-                            ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
-                            : entry.statusLabel === "Lose" || entry.statusLabel === "Rejected"
-                              ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-50 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/10"
-                              : "border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950"
-                        }>
-                          {entry.statusLabel}
-                        </Badge>
+                {/* ── Winnings tab ── */}
+                {activeTab === "winnings" && (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
+                        <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
                       </div>
-                      <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 xl:grid-cols-4">
-                        <div>Bet amount: {formatCurrency(entry.amount)}</div>
-                        <div>Reserve fee: {formatCurrency(entry.reserveFee)}</div>
-                        <div>Total paid: {formatCurrency(entry.totalCharged)}</div>
-                        <div>Odds: x{entry.payoutMultiple}</div>
-                        <div>Admin decision: {entry.adminDecisionStatus ?? "pending"}</div>
-                        <div>Result from database: {entry.statusLabel}</div>
-                        <div>Resolved at: {entry.resolvedAt ? formatMoment(entry.resolvedAt) : "Awaiting result"}</div>
-                        <div>Winning choice: {entry.winningChoiceLabel ?? "Not a winning bet"}</div>
+                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total win</p>
+                        <p className="mt-2 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total loss</p>
+                        <p className="mt-2 text-xl font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Claimable now</p>
+                        <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                    No bets recorded yet.
+                    {derivedHistory.filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid").length > 0 ? (
+                      derivedHistory
+                        .filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid")
+                        .map((entry) => (
+                          <div key={entry.id} className="rounded-2xl border border-orange-100 bg-orange-50/80 p-4 dark:border-white/10 dark:bg-black/20">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
+                                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                  Net reward {formatCurrency(entry.netReward)} · Won on {entry.winningChoiceLabel ?? entry.selectionLabel} · {formatMoment(entry.resolvedAt ?? entry.createdAt)}
+                                </p>
+                              </div>
+                              {entry.canClaim ? (
+                                <Button
+                                  type="button"
+                                  className="rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
+                                  disabled={claimingId === entry.id}
+                                  onClick={() => void handleClaim(entry.id)}
+                                >
+                                  {claimingId === entry.id ? "Claiming..." : "Claim"}
+                                </Button>
+                              ) : entry.payoutStatus === "paid" ? (
+                                <Badge className="border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-200 dark:hover:bg-emerald-500/20">
+                                  Paid ✓
+                                </Badge>
+                              ) : (
+                                <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
+                                  Claimed — pending payment
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                        No winnings are available yet.
+                      </div>
+                    )}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        ) : null}
 
-        {showSection("gains") ? (
-          <div id="my-gains" className="scroll-mt-28">
-            <Card className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              <CardHeader>
-                <CardTitle className="text-2xl">My Winnings</CardTitle>
-                <CardDescription>
-                  Follow your total wins, losses, claimable rewards, and claim actions after an admin-approved result.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-4">
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
-                    <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total win</p>
-                    <p className="mt-2 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total loss</p>
-                    <p className="mt-2 text-xl font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Claimable now</p>
-                    <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
-                  </div>
-                </div>
-
-                {derivedHistory.filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid").length > 0 ? (
-                  derivedHistory
-                    .filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid")
-                    .map((entry) => (
-                      <div key={entry.id} className="rounded-2xl border border-orange-100 bg-orange-50/80 p-4 dark:border-white/10 dark:bg-black/20">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                              Net reward {formatCurrency(entry.netReward)} · Won on {entry.winningChoiceLabel ?? entry.selectionLabel} · {formatMoment(entry.resolvedAt ?? entry.createdAt)}
-                            </p>
-                          </div>
-                          {entry.canClaim ? (
-                            <Button
+                {/* ── Rewards tab ── */}
+                {activeTab === "rewards" && (
+                  <div className="space-y-8">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                        <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">From referrals</p>
+                          <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.referral.toLocaleString()} OCTO</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
+                        <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">From bets</p>
+                          <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.bet.toLocaleString()} OCTO</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                        <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">USDC commissions</p>
+                          <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
+                          {usdcBalance.pending_claim > 0 ? (
+                            <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">${usdcBalance.pending_claim.toFixed(4)} pending payment</p>
+                          ) : usdcBalance.available > 0 ? (
+                            <button
                               type="button"
-                              className="rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
-                              disabled={claimingId === entry.id}
-                              onClick={() => void handleClaim(entry.id)}
+                              onClick={() => void handleClaimUsdc()}
+                              disabled={isClaiming}
+                              className="mt-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                             >
-                              {claimingId === entry.id ? "Claiming..." : "Claim"}
-                            </Button>
-                          ) : entry.payoutStatus === "paid" ? (
-                            <Badge className="border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-200 dark:hover:bg-emerald-500/20">
-                              Paid ✓
-                            </Badge>
+                              {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
+                            </button>
                           ) : (
-                            <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
-                              Claimed — pending payment
-                            </Badge>
+                            <p className="mt-0.5 text-xs text-zinc-400">No available balance</p>
                           )}
                         </div>
                       </div>
-                    ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                    No winnings are available yet.
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-zinc-950 dark:text-white">Your referral link</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 truncate rounded-2xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-mono text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
+                          {referralCode ? `${window.location.origin}?ref=${referralCode}` : "Generating your code…"}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!referralCode}
+                          onClick={() => {
+                            if (!referralCode) return;
+                            void navigator.clipboard.writeText(`${window.location.origin}?ref=${referralCode}`).then(() => {
+                              setCopiedLink(true);
+                              setTimeout(() => setCopiedLink(false), 2000);
+                            });
+                          }}
+                          className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-400 disabled:opacity-50"
+                        >
+                          {copiedLink ? (
+                            <><CheckCircle2 className="size-4" /> Copied!</>
+                          ) : (
+                            <><Copy className="size-4" /> Copy link</>
+                          )}
+                        </button>
+                      </div>
+                      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                        You earn <span className="font-semibold text-orange-600 dark:text-orange-300">10 OCTO</span> for each friend who connects their wallet via your link.
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="mb-3 text-sm font-semibold text-zinc-950 dark:text-white">
+                        Referral activity · {referrals.length} friend{referrals.length !== 1 ? "s" : ""} referred
+                      </p>
+                      {referrals.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-5 py-6 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                          No referrals yet — share your link to start earning OCTO.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-2xl border border-orange-200 dark:border-white/10">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-orange-200 bg-orange-50 dark:border-white/10 dark:bg-zinc-900">
+                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">User</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Joined</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">OCTO earned</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">USDC earned</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {referrals.map((row) => (
+                                <TableRow key={row.id} className="border-orange-100 dark:border-white/10">
+                                  <TableCell className="py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                                    {row.referred_wallet.slice(0, 6)}…{row.referred_wallet.slice(-4)}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-xs text-zinc-600 dark:text-zinc-400">
+                                    {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(row.created_at))}
+                                  </TableCell>
+                                  <TableCell className="py-3">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
+                                      +10 OCTO
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-3">
+                                    {commissionsByReferred[row.referred_wallet] ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                        +${commissionsByReferred[row.referred_wallet]!.toFixed(4)} USDC
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-zinc-400">—</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
+
               </CardContent>
             </Card>
           </div>

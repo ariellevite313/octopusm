@@ -124,6 +124,10 @@ export type PredictionMarketQuestion = {
   options?: PredictionMarketOption[];
   /** true si le marché a été résolu — exclut le marché de la vue publique */
   isResolved?: boolean;
+  /** ID de l'option gagnante après résolution */
+  resolutionOutcomeId?: string;
+  /** Timestamp (ms) de la résolution */
+  resolvedAt?: number;
 } & PredictionMarketVisualMeta;
 
 export type AidoAgentFaqItem = {

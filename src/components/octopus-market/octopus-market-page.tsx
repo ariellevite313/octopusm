@@ -425,7 +425,7 @@ function InlinePanel({
   );
 }
 
-type UserPageRoute = "home" | "wallet-dashboard" | "my-bets" | "my-gains" | "octopus-market";
+type UserPageRoute = "home" | "wallet-dashboard" | "octopus-market";
 
 const marketSectionShortcuts = [
   { id: "sports", label: "Sports" },
@@ -434,16 +434,13 @@ const marketSectionShortcuts = [
   { id: "technology", label: "Technologie" },
   { id: "cinema", label: "Cinema" },
   { id: "gaming", label: "Gaming" },
+  { id: "previous", label: "Previous Markets" },
 ] as const;
 
 function resolveUserPageRoute(hashValue: string): UserPageRoute {
   switch (hashValue) {
     case "#wallet-dashboard":
       return "wallet-dashboard";
-    case "#my-bets":
-      return "my-bets";
-    case "#my-gains":
-      return "my-gains";
     case "#octopus-market":
       return "octopus-market";
     default:
@@ -1206,20 +1203,9 @@ export function OctopusMarketPage() {
   const activeUserPageTitle =
     activeUserPage === "wallet-dashboard"
       ? "Wallet Dashboard"
-      : activeUserPage === "my-bets"
-        ? "My Bets"
-        : activeUserPage === "octopus-market"
-          ? "Become a ClawdTrust Holder"
-          : "My Winnings";
-  const activeUserSections =
-    activeUserPage === "wallet-dashboard"
-      ? (["wallet"] as const)
-      : activeUserPage === "my-bets"
-        ? (["bets"] as const)
-        : (["gains"] as const);
+      : "Become a ClawdTrust Holder";
+  const activeUserSections = (["wallet"] as const);
   const userNavigationItems = [
-    { label: "My Bets", route: "#my-bets", icon: Search },
-    { label: "My Winnings", route: "#my-gains", icon: Rocket },
     { label: "Wallet Dashboard", route: "#wallet-dashboard", icon: Wallet },
   ] as const;
 
@@ -1234,9 +1220,11 @@ export function OctopusMarketPage() {
   );
 
   const visiblePredictionMarkets = useMemo(
-    () => allPredictionMarkets.filter(
-      (market) => market.categoryId === selectedPredictionCategoryId && !market.isResolved && !homeResolutions[market.id]
-    ),
+    () => selectedPredictionCategoryId === "previous"
+      ? allPredictionMarkets.filter((market) => market.isResolved || Boolean(homeResolutions[market.id]))
+      : allPredictionMarkets.filter(
+          (market) => market.categoryId === selectedPredictionCategoryId && !market.isResolved && !homeResolutions[market.id]
+        ),
     [allPredictionMarkets, selectedPredictionCategoryId, homeResolutions]
   );
 
@@ -1899,19 +1887,105 @@ export function OctopusMarketPage() {
                     <div className="rounded-[1.75rem] border-2 border-orange-300 bg-white p-4 shadow-[0_18px_50px_rgba(249,115,22,0.14)] transition-transform duration-500 dark:border-orange-400/20 dark:bg-zinc-950/92 dark:shadow-[0_18px_50px_rgba(0,0,0,0.28)] sm:rounded-[2rem] sm:border sm:border-orange-200 sm:bg-white/90 sm:p-6 md:[transform:perspective(1800px)_rotateX(4deg)] dark:sm:border-white/10 dark:sm:bg-white/5">
 
 
-                      <div className="rounded-2xl border border-orange-300 bg-orange-100 px-4 py-4 text-sm leading-6 text-zinc-700 shadow-[0_10px_24px_rgba(249,115,22,0.08)] dark:border-orange-400/20 dark:bg-black/30 dark:text-zinc-300 sm:border-orange-200 sm:bg-orange-50 sm:shadow-none dark:sm:border-white/10 dark:sm:bg-black/20">
-                        <p className="font-medium text-zinc-950 dark:text-white">{selectedPredictionCategory?.label}</p>
-                        <p className="mt-1">{selectedPredictionCategory?.description}</p>
+                      <div className={`rounded-2xl border px-4 py-4 text-sm leading-6 shadow-[0_10px_24px_rgba(249,115,22,0.08)] sm:shadow-none ${selectedPredictionCategoryId === "previous" ? "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300" : "border-orange-300 bg-orange-100 text-zinc-700 dark:border-orange-400/20 dark:bg-black/30 dark:text-zinc-300 sm:border-orange-200 sm:bg-orange-50 dark:sm:border-white/10 dark:sm:bg-black/20"}`}>
+                        <p className="font-medium text-zinc-950 dark:text-white">
+                          {selectedPredictionCategoryId === "previous" ? "Previous Markets" : selectedPredictionCategory?.label}
+                        </p>
+                        <p className="mt-1">
+                          {selectedPredictionCategoryId === "previous"
+                            ? "Resolved prediction markets — browse past events and their outcomes."
+                            : selectedPredictionCategory?.description}
+                        </p>
                       </div>
 
                       <div className={`mt-6 ${visiblePredictionMarkets.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}`}>
                         {visiblePredictionMarkets.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                            No prediction market is open yet in this section. Select another section to see its live markets.
+                            {selectedPredictionCategoryId === "previous"
+                              ? "No resolved markets yet."
+                              : "No prediction market is open yet in this section. Select another section to see its live markets."}
                           </div>
                         ) : null}
 
-                        {visiblePredictionMarkets.map((market) => (
+                        {visiblePredictionMarkets.map((market) => {
+                          const isPreviousView = selectedPredictionCategoryId === "previous";
+                          const winningOptionId = market.resolutionOutcomeId ?? homeResolutions[market.id]?.outcomeId;
+                          const resolvedTimestamp = market.resolvedAt ?? homeResolutions[market.id]?.resolvedAt;
+
+                          if (isPreviousView) {
+                            return (
+                              <Card
+                                key={market.id}
+                                className="border border-zinc-200 bg-zinc-50 text-zinc-950 dark:border-white/5 dark:bg-zinc-900/50 dark:text-white"
+                              >
+                                <CardContent className="space-y-4 p-5">
+                                  <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400 dark:text-zinc-500">
+                                        {market.title}
+                                      </p>
+                                      {renderPredictionPreviewHeadline(market)}
+                                      <p className="text-sm leading-6 text-zinc-500 dark:text-zinc-400">{market.resolutionLabel}</p>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-2">
+                                      <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
+                                        ✓ Resolved
+                                      </Badge>
+                                      {resolvedTimestamp ? (
+                                        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                                          {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(resolvedTimestamp))}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  {market.options?.length ? (
+                                    <div className={`grid gap-3 ${market.options.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                                      {market.options.map((option) => {
+                                        const isWinner = option.id === winningOptionId;
+                                        return (
+                                          <div
+                                            key={option.id}
+                                            className={isWinner
+                                              ? "rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-4 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                                              : "rounded-2xl border border-zinc-200 bg-white px-4 py-4 opacity-50 dark:border-white/5 dark:bg-zinc-950/80"
+                                            }
+                                          >
+                                            <div className="flex items-center justify-between gap-3">
+                                              <div className="flex items-center gap-3">
+                                                {option.logoSrc ? (
+                                                  <SafeImage
+                                                    src={option.logoSrc}
+                                                    alt={`${option.label} logo`}
+                                                    className="size-8 rounded-full border border-white/60 object-cover"
+                                                  />
+                                                ) : null}
+                                                <div>
+                                                  <p className={`text-sm font-semibold ${isWinner ? "text-emerald-800 dark:text-emerald-300" : "text-zinc-950 dark:text-white"}`}>
+                                                    {option.label}
+                                                  </p>
+                                                  {option.description ? (
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{option.description}</p>
+                                                  ) : null}
+                                                </div>
+                                              </div>
+                                              {isWinner ? (
+                                                <span className="text-lg">🏆</span>
+                                              ) : (
+                                                <span className="text-sm font-semibold text-zinc-400 dark:text-zinc-500">x{option.oddsMultiplier}</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null}
+                                </CardContent>
+                              </Card>
+                            );
+                          }
+
+                          return (
                           <Card
                             key={market.id}
                             className="border-2 border-orange-300 bg-white text-zinc-950 shadow-[0_12px_28px_rgba(249,115,22,0.1)] dark:border-orange-400/20 dark:bg-zinc-900/85 dark:text-white sm:border-orange-200 sm:bg-orange-50/60 sm:shadow-none dark:sm:border-white/10 dark:sm:bg-black/20"
@@ -1988,7 +2062,8 @@ export function OctopusMarketPage() {
                               ) : null}
                             </CardContent>
                           </Card>
-                        ))}
+                          );
+                        })}
                       </div>
 
                     </div>
