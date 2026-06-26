@@ -543,6 +543,10 @@ export function OctopusMarketPage() {
   const isWalletConnected = Boolean(walletAddress);
   const isAdminWallet = walletAddress === predictionMarketTreasuryAddress;
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [clockDisplay, setClockDisplay] = useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  });
   const [activeUserPage, setActiveUserPage] = useState<UserPageRoute>(() =>
     typeof window === "undefined" ? "home" : resolveUserPageRoute(window.location.hash)
   );
@@ -607,6 +611,17 @@ export function OctopusMarketPage() {
     return () => {
       window.clearInterval(timer);
     };
+  }, []);
+
+  useEffect(() => {
+    const updateClock = () => {
+      const d = new Date();
+      setClockDisplay(
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`
+      );
+    };
+    const clockTimer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(clockTimer);
   }, []);
 
   useEffect(() => {
@@ -689,6 +704,12 @@ export function OctopusMarketPage() {
   const refreshWalletBalance = useCallback(async (address: string) => {
     const refreshId = walletBalanceRefreshIdRef.current + 1;
     walletBalanceRefreshIdRef.current = refreshId;
+
+    // Afficher le cache immédiatement — le RPC rafraîchit en arrière-plan
+    const cached = readCachedWalletSnapshot(address);
+    if (cached) {
+      setWalletSnapshot(cached);
+    }
 
     setIsLoadingWalletBalance(true);
     setWalletBalanceError(null);
@@ -1137,6 +1158,7 @@ export function OctopusMarketPage() {
   );
   const walletBalance = walletSnapshot?.balanceSol ?? null;
   const walletUsdcBalance = walletSnapshot?.usdcBalance ?? null;
+  const walletCltBalance = walletSnapshot?.clawdtrustBalance ?? null;
   const walletZeroBalanceSuffix = useMemo(() => {
     if (typeof walletBalance !== "number" || Number.isNaN(walletBalance) || walletBalance > 0) {
       return "";
@@ -1144,6 +1166,8 @@ export function OctopusMarketPage() {
 
     return " · 0 SOL";
   }, [walletBalance]);
+  const isFirstLoadBalance = isLoadingWalletBalance && typeof walletBalance !== "number";
+  const isRefreshingBalance = isLoadingWalletBalance && typeof walletBalance === "number";
   const walletHeaderLabel = useMemo(() => {
     if (!walletAddress) {
       return "Connect wallet";
@@ -1189,6 +1213,14 @@ export function OctopusMarketPage() {
 
     return "Loading...";
   }, [isLoadingWalletBalance, walletAddress, walletUsdcBalance, walletBalanceError]);
+
+  const floatingWalletCltBalanceLabel = useMemo(() => {
+    if (!walletAddress) return "—";
+    if (typeof walletCltBalance === "number") return `${walletCltBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} CT`;
+    if (isLoadingWalletBalance) return "...";
+    if (walletBalanceError) return "~";
+    return "...";
+  }, [isLoadingWalletBalance, walletAddress, walletCltBalance, walletBalanceError]);
 
   const launchedTokens = useMemo(
     () => readStoredLaunchedTokensForWallet(walletAddress),
@@ -1589,76 +1621,48 @@ export function OctopusMarketPage() {
         </div>
       </InlinePanel>
 
-      <div
-        ref={floatingCardsContainerRef}
-        className={isMobile ? "fixed z-30 touch-none" : "pointer-events-none fixed right-3 top-24 z-30 sm:right-4 sm:top-28 xl:right-4 xl:top-28"}
-        style={
-          isMobile && floatingCardsPosition
-            ? {
-                left: `${floatingCardsPosition.x}px`,
-                top: `${floatingCardsPosition.y}px`,
-              }
-            : undefined
-        }
-        onPointerDown={handleFloatingCardsPointerDown}
-        onPointerMove={handleFloatingCardsPointerMove}
-        onPointerUp={handleFloatingCardsPointerUp}
-        onPointerCancel={handleFloatingCardsPointerUp}
-      >
-        <div className="flex flex-col items-stretch gap-2 sm:gap-3 lg:flex-row">
+      {activeUserPage === "home" ? (
+        <div
+          ref={floatingCardsContainerRef}
+          className={isMobile ? "fixed z-30 touch-none" : "pointer-events-none fixed right-3 top-24 z-30 sm:right-4 sm:top-28 xl:right-4 xl:top-28"}
+          style={
+            isMobile && floatingCardsPosition
+              ? { left: `${floatingCardsPosition.x}px`, top: `${floatingCardsPosition.y}px` }
+              : undefined
+          }
+          onPointerDown={handleFloatingCardsPointerDown}
+          onPointerMove={handleFloatingCardsPointerMove}
+          onPointerUp={handleFloatingCardsPointerUp}
+          onPointerCancel={handleFloatingCardsPointerUp}
+        >
           <div
-            className={`min-w-[7.2rem] rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2 text-right shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] sm:min-w-[8rem] sm:rounded-[1.35rem] sm:px-3.5 sm:py-2.5 ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
-            style={
-              reduceVisualLoad
-                ? undefined
-                : {
-                    animation: "om-floating-card-drift 4.8s ease-in-out infinite, om-floating-card-glow 3.8s ease-in-out infinite",
-                    transformStyle: "preserve-3d",
-                  }
-            }
+            className={`rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2.5 shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
+            style={reduceVisualLoad ? undefined : { animation: "om-floating-card-drift 5s ease-in-out infinite, om-floating-card-glow 4s ease-in-out infinite", transformStyle: "preserve-3d" }}
           >
-            <p className="text-[10px] uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300 sm:text-[11px] sm:tracking-[0.26em]">Live date</p>
-            <p className="mt-1 text-xs font-semibold text-zinc-950 [transform:translateZ(16px)] dark:text-white sm:text-sm">
-              {formattedCurrentTime}
-            </p>
-            {isMobile ? <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Drag</p> : null}
-          </div>
-
-          <div
-            className={`min-w-[7.2rem] rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2 text-right shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] sm:min-w-[8rem] sm:rounded-[1.35rem] sm:px-3.5 sm:py-2.5 ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
-            style={
-              reduceVisualLoad
-                ? undefined
-                : {
-                    animation: "om-floating-card-drift 5.2s ease-in-out infinite, om-floating-card-glow 4.2s ease-in-out infinite",
-                    transformStyle: "preserve-3d",
-                  }
-            }
-          >
-            <p className="text-[10px] uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300 sm:text-[11px] sm:tracking-[0.26em]">SOL balance</p>
-            <p className="mt-1 text-xs font-semibold text-zinc-950 [transform:translateZ(16px)] dark:text-white sm:text-sm">
-              {floatingWalletBalanceLabel}
-            </p>
-          </div>
-
-          <div
-            className={`min-w-[7.2rem] rounded-[1.2rem] border border-orange-200 bg-white/92 px-3 py-2 text-right shadow-[0_18px_44px_rgba(249,115,22,0.14)] backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/88 dark:shadow-[0_22px_50px_rgba(0,0,0,0.32)] sm:min-w-[8rem] sm:rounded-[1.35rem] sm:px-3.5 sm:py-2.5 ${isMobile ? "cursor-grab active:cursor-grabbing" : ""}`}
-            style={
-              reduceVisualLoad
-                ? undefined
-                : {
-                    animation: "om-floating-card-drift 5.6s ease-in-out infinite, om-floating-card-glow 4.6s ease-in-out infinite",
-                    transformStyle: "preserve-3d",
-                  }
-            }
-          >
-            <p className="text-[10px] uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300 sm:text-[11px] sm:tracking-[0.26em]">USDC balance</p>
-            <p className="mt-1 text-xs font-semibold text-zinc-950 [transform:translateZ(16px)] dark:text-white sm:text-sm">
-              {floatingWalletUsdcBalanceLabel}
-            </p>
+            <p className="text-sm font-semibold tabular-nums text-zinc-950 dark:text-white">{clockDisplay}</p>
+            <div className="mt-1.5 space-y-0.5">
+              {isFirstLoadBalance ? (
+                <div className="h-3 w-20 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">SOL</span>
+                    <span className="text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{floatingWalletBalanceLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">USDC</span>
+                    <span className="text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{floatingWalletUsdcBalanceLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">CT</span>
+                    <span className="text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{floatingWalletCltBalanceLabel}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <InlinePanel
         open={isUserAccessOpen}

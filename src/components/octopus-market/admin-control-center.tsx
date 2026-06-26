@@ -42,6 +42,7 @@ import {
 import { getClaimedPredictions, markClaimAsPaid } from "@/services/supabase/prediction-service";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
 import { formatWalletAddress } from "@/components/octopus-market/solana-wallet";
+import type { BetToken } from "@/lib/supabase-types";
 
 type AdminControlCenterProps = {
   walletAddress: string | null;
@@ -173,6 +174,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
         payoutStatus: row.payout_status ?? undefined,
         paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
         paidByWallet: row.paid_by_wallet ?? undefined,
+        token: (row.token as BetToken) ?? "usdc",
       }))
     );
   }, []);

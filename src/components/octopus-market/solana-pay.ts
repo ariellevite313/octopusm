@@ -3,7 +3,7 @@ import { getSolanaProvider, SOLANA_MAINNET_RPC_URLS, SOLANA_USDC_MINT } from "@/
 
 export type PaymentRequestKind = "listing" | "launch" | "prediction";
 export type PaymentRequestStatus = "created" | "signed" | "validated";
-export type PaymentCurrency = "SOL" | "USDC";
+export type PaymentCurrency = "SOL" | "USDC" | "CT";
 export type PaymentRequestMetadata = Record<string, string | number | boolean>;
 
 export type EncodedTransferRequest = {

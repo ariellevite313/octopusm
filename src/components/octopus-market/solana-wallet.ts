@@ -32,6 +32,9 @@ export type SolanaWalletBalanceSnapshot = {
   usdcBalance: number;
   usdcRawAmount: string;
   usdcDecimals: number;
+  clawdtrustBalance: number;
+  clawdtrustRawAmount: string;
+  clawdtrustDecimals: number;
   slot: number | null;
   rpcUrl: string;
   fetchedAt: number;
@@ -45,6 +48,7 @@ export const SOLANA_MAINNET_RPC_URLS = [
 ];
 
 export const SOLANA_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+export const SOLANA_CLAWDTRUST_MINT = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 
 const SOLANA_RPC_TIMEOUT_MS = 5000;
 const walletSnapshotCacheStorageKey = "octopus-market-wallet-snapshot-cache-v1";
@@ -345,57 +349,61 @@ export function buildPaymentReference(signature: Uint8Array) {
   return `OM-${segments}`;
 }
 
+function parseTokenAccounts(accounts: unknown[]) {
+  let balance = 0;
+  let rawAmount = 0;
+  let decimals = 6;
+  for (const tokenAccount of accounts) {
+    const tokenAmount = (tokenAccount as { account?: { data?: { parsed?: { info?: { tokenAmount?: unknown } } } } }).account?.data?.parsed?.info?.tokenAmount;
+    if (!tokenAmount) continue;
+    const normalizedBalance = normalizeUiTokenAmount(tokenAmount);
+    const normalizedRawAmount = Number((tokenAmount as { amount?: string }).amount ?? 0);
+    balance += normalizedBalance;
+    if (Number.isFinite(normalizedRawAmount)) rawAmount += normalizedRawAmount;
+    if (typeof (tokenAmount as { decimals?: number }).decimals === "number") decimals = (tokenAmount as { decimals: number }).decimals;
+  }
+  return { balance, rawAmount, decimals };
+}
+
 async function fetchSnapshotFromRpc(rpcUrl: string, address: string): Promise<SolanaWalletBalanceSnapshot> {
   const { Connection, PublicKey } = await loadSolanaWeb3();
   const ownerPublicKey = new PublicKey(address);
   const usdcMintPublicKey = new PublicKey(SOLANA_USDC_MINT);
+  const cltMintPublicKey = new PublicKey(SOLANA_CLAWDTRUST_MINT);
   const connection = new Connection(rpcUrl, "confirmed");
 
-  const [lamports, tokenAccountsResponse, slot] = await Promise.all([
+  const [lamports, usdcAccountsResponse, cltAccountsResponse, slot] = await Promise.all([
     withTimeout(connection.getBalance(ownerPublicKey, "confirmed"), SOLANA_RPC_TIMEOUT_MS, `balance-timeout-${rpcUrl}`),
     withTimeout(
       connection.getParsedTokenAccountsByOwner(ownerPublicKey, { mint: usdcMintPublicKey }, "confirmed"),
       SOLANA_RPC_TIMEOUT_MS,
       `usdc-timeout-${rpcUrl}`
     ),
+    withTimeout(
+      connection.getParsedTokenAccountsByOwner(ownerPublicKey, { mint: cltMintPublicKey }, "confirmed"),
+      SOLANA_RPC_TIMEOUT_MS,
+      `clt-timeout-${rpcUrl}`
+    ),
     withTimeout(connection.getSlot("confirmed"), SOLANA_RPC_TIMEOUT_MS, `slot-timeout-${rpcUrl}`),
   ]);
 
-  const parsedTokenAccounts = Array.isArray(tokenAccountsResponse.value) ? tokenAccountsResponse.value : [];
+  const usdcAccounts = Array.isArray(usdcAccountsResponse.value) ? usdcAccountsResponse.value : [];
+  const cltAccounts = Array.isArray(cltAccountsResponse.value) ? cltAccountsResponse.value : [];
 
-  let usdcBalance = 0;
-  let usdcRawAmount = 0;
-  let usdcDecimals = 6;
-
-  for (const tokenAccount of parsedTokenAccounts) {
-    const tokenAmount = tokenAccount.account?.data?.parsed?.info?.tokenAmount;
-
-    if (!tokenAmount) {
-      continue;
-    }
-
-    const normalizedBalance = normalizeUiTokenAmount(tokenAmount);
-    const normalizedRawAmount = Number(tokenAmount.amount ?? 0);
-
-    usdcBalance += normalizedBalance;
-
-    if (Number.isFinite(normalizedRawAmount)) {
-      usdcRawAmount += normalizedRawAmount;
-    }
-
-    if (typeof tokenAmount.decimals === "number") {
-      usdcDecimals = tokenAmount.decimals;
-    }
-  }
+  const usdc = parseTokenAccounts(usdcAccounts);
+  const clt = parseTokenAccounts(cltAccounts);
 
   return {
     address,
     lamports,
     balanceSol: lamports / 1_000_000_000,
-    usdcBalance: Number(usdcBalance.toFixed(usdcDecimals > 4 ? 4 : usdcDecimals)),
-    usdcRawAmount: String(Math.max(0, Math.round(usdcRawAmount))),
-    usdcDecimals,
-    slot: Number.isFinite(slot) ? slot : tokenAccountsResponse.context?.slot ?? null,
+    usdcBalance: Number(usdc.balance.toFixed(usdc.decimals > 4 ? 4 : usdc.decimals)),
+    usdcRawAmount: String(Math.max(0, Math.round(usdc.rawAmount))),
+    usdcDecimals: usdc.decimals,
+    clawdtrustBalance: Number(clt.balance.toFixed(clt.decimals > 4 ? 4 : clt.decimals)),
+    clawdtrustRawAmount: String(Math.max(0, Math.round(clt.rawAmount))),
+    clawdtrustDecimals: clt.decimals,
+    slot: Number.isFinite(slot) ? slot : usdcAccountsResponse.context?.slot ?? null,
     rpcUrl,
     fetchedAt: Date.now(),
   };

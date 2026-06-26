@@ -165,6 +165,7 @@ export async function appendAdminNotification(
       ? new Date(notification.reviewedAt).toISOString()
       : null,
     reviewed_by_wallet: notification.reviewedByWallet ?? null,
+    token: "usdc",
   });
 
   adminNotificationsCache = [notification, ...adminNotificationsCache];

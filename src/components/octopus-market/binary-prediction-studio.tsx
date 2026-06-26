@@ -67,12 +67,14 @@ import {
   calculatePercentageAmount,
   formatWalletAddress,
   getSolanaProvider,
+  SOLANA_CLAWDTRUST_MINT,
+  readCachedWalletSnapshot,
 } from "@/components/octopus-market/solana-wallet";
 import type { PaymentRequest } from "@/components/octopus-market/solana-pay";
 import { getAllMarketsAdmin, getAllPredictionHistoryAdmin } from "@/services/supabase/prediction-service";
 import { creditBetOcto, creditReferralCommission, getAllCommissionClaims, markCommissionClaimPaid } from "@/services/supabase/octo-service";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { PredictionMarketRow, ReferralCommissionClaimRow } from "@/lib/supabase-types";
+import type { BetToken, PredictionMarketRow, ReferralCommissionClaimRow } from "@/lib/supabase-types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ─── Event status helpers ─────────────────────────────────────────────────────
@@ -249,11 +251,16 @@ function buildOptionSummaries(
   marketOptions: PredictionMarketOption[],
   allHistoryEntries: PredictionHistoryEntry[],
   paymentNotifications: AdminPaymentNotification[],
-  amount: number
+  amount: number,
+  token: BetToken = "usdc"
 ): MarketOptionSummary[] {
   return marketOptions.map((option) => {
     const relevantEntries = allHistoryEntries.filter((entry) => {
       if (entry.marketId !== question.id || entry.selectionId !== option.id) {
+        return false;
+      }
+
+      if (entry.token !== token) {
         return false;
       }
 
@@ -385,6 +392,7 @@ function buildPredictionHistoryEntryFromPaymentRequest(paymentRequest: PaymentRe
     reportedAt: Date.now(),
     adminDecisionStatus: "pending",
     resultStatus: "pending_review",
+    token: ((typeof metadata.token === "string" ? metadata.token : undefined) ?? "usdc") as BetToken,
   } satisfies PredictionHistoryEntry;
 }
 
@@ -545,6 +553,7 @@ export function BinaryPredictionStudio({
   );
   const [signingMarketId, setSigningMarketId] = useState<string | null>(null);
   const [claimingEntryId, setClaimingEntryId] = useState<string | null>(null);
+  const [selectedTokens, setSelectedTokens] = useState<Record<string, BetToken>>({});
   const [latestPaymentRequest, setLatestPaymentRequest] = useState<PaymentRequest | null>(null);
   const [isRecoveringPendingPayments, setIsRecoveringPendingPayments] = useState(false);
   // Ref pour éviter le double-enregistrement même si le state history est stale
@@ -1193,6 +1202,13 @@ export function BinaryPredictionStudio({
     const grossReward = Number((amount * selectedOption.oddsMultiplier).toFixed(2));
     const netReward = Number((grossReward * (1 - predictionMarketFeeRate / 100)).toFixed(2));
 
+    const selectedToken: BetToken = selectedTokens[market.id] ?? "usdc";
+    const tokenMint = selectedToken === "clawdtrust" ? SOLANA_CLAWDTRUST_MINT : solanaUsdcMintAddress;
+    const tokenDecimals = selectedToken === "clawdtrust"
+      ? (readCachedWalletSnapshot(connectedWallet)?.clawdtrustDecimals ?? 9)
+      : 6;
+    const tokenCurrency = selectedToken === "clawdtrust" ? "CT" : "USDC";
+
     const paymentModule = await loadPaymentModule();
 
     const transferRequest = await paymentModule.buildTransaction({
@@ -1200,9 +1216,9 @@ export function BinaryPredictionStudio({
       recipient: predictionMarketTreasuryAddress,
       amount: totalChargeUsd,
       walletAddress: connectedWallet,
-      currency: "USDC",
-      tokenMint: solanaUsdcMintAddress,
-      tokenDecimals: 6,
+      currency: tokenCurrency,
+      tokenMint,
+      tokenDecimals,
       label: "Octopus Market prediction market",
       message: `${market.title} · ${selectedOption.label}`,
       memo: `${activeCategory.label} market position`,
@@ -1221,6 +1237,7 @@ export function BinaryPredictionStudio({
         reserveFee,
         totalChargeUsd,
         totalChargeUsdc: totalChargeUsd,
+        token: selectedToken,
         ...(walletUsername?.trim() ? { username: walletUsername.trim() } : {}),
       },
     });
@@ -1242,9 +1259,9 @@ export function BinaryPredictionStudio({
         recipient: predictionMarketTreasuryAddress,
         amount: totalChargeUsd,
         reference: transferRequest.reference,
-        currency: "USDC",
-        tokenMint: solanaUsdcMintAddress,
-        tokenDecimals: 6,
+        currency: tokenCurrency,
+        tokenMint,
+        tokenDecimals,
       });
 
       const storedValidatedTransfer = await paymentModule.fetchTransaction(transferRequest.id);
@@ -1269,8 +1286,8 @@ export function BinaryPredictionStudio({
         msg.includes("custom program error: 0x1") ||
         msg.includes("not enough")
       ) {
-        toast.error("Fonds USDC insuffisants", {
-          description: "Vérifiez votre solde USDC avant de placer ce pari.",
+        toast.error(`Fonds ${selectedToken === "clawdtrust" ? "CT" : "USDC"} insuffisants`, {
+          description: `Vérifiez votre solde ${selectedToken === "clawdtrust" ? "CT" : "USDC"} avant de placer ce pari.`,
         });
       } else if (msg.includes("reference-not-found") || msg.includes("timeout") || msg.includes("timed out")) {
         toast.error("Confirmation expirée", {
@@ -1945,12 +1962,14 @@ export function BinaryPredictionStudio({
                   : 0;
                 const totalCharge = Number.isFinite(numericAmount) ? Number((numericAmount + reserveFee).toFixed(2)) : 0;
                 const marketOptions = getMarketOptions(market, index);
+                const selectedToken: BetToken = selectedTokens[market.id] ?? "usdc";
                 const optionSummaries = buildOptionSummaries(
                   market,
                   marketOptions,
                   history,
                   adminNotifications,
-                  stakePreviewAmount
+                  stakePreviewAmount,
+                  selectedToken
                 );
                 const isSigning = signingMarketId === market.id;
                 const resolution = resolutions[market.id];
@@ -2061,6 +2080,23 @@ export function BinaryPredictionStudio({
                       <div className="space-y-3">
                         {!isMarketLive ? (
                           <>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Bet with:</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTokens((prev) => ({ ...prev, [market.id]: "usdc" }))}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${selectedToken === "usdc" ? "bg-orange-500 text-white" : "border border-orange-200 bg-white text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
+                              >
+                                USDC
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTokens((prev) => ({ ...prev, [market.id]: "clawdtrust" }))}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${selectedToken === "clawdtrust" ? "bg-orange-500 text-white" : "border border-orange-200 bg-white text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
+                              >
+                                CT
+                              </button>
+                            </div>
                             <Input
                               type="number"
                               min={predictionMarketMinStakeUsd}
@@ -2076,7 +2112,7 @@ export function BinaryPredictionStudio({
                                 Reserve fee preview: <strong className="text-zinc-950 dark:text-white">{formatCurrency(reserveFee)}</strong>
                               </span>
                               <span>
-                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${paymentTokenSymbol}` : `0.00 ${paymentTokenSymbol}`}</strong>
+                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${selectedToken === "clawdtrust" ? "CT" : paymentTokenSymbol}` : `0.00 ${selectedToken === "clawdtrust" ? "CT" : paymentTokenSymbol}`}</strong>
                               </span>
                               <span>
                                 Claim fee on rewards: <strong className="text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</strong>
@@ -2152,7 +2188,7 @@ export function BinaryPredictionStudio({
                 </div>
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20 sm:col-span-2">
                   <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Payment token</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol}</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol} &amp; CT</p>
                 </div>
               </div>
             </CardContent>

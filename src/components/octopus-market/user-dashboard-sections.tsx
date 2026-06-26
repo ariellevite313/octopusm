@@ -170,13 +170,22 @@ export function UserDashboardSections({
 
   const totals = useMemo(() => {
     return derivedHistory.reduce(
-      (summary, entry) => ({
-        totalBets: summary.totalBets + entry.amount,
-        totalWins: summary.totalWins + (entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid" ? entry.netReward : 0),
-        totalLosses: summary.totalLosses + (entry.statusLabel === "Lose" ? entry.totalCharged : 0),
-        claimable: summary.claimable + (entry.canClaim ? entry.netReward : 0),
-      }),
-      { totalBets: 0, totalWins: 0, totalLosses: 0, claimable: 0 }
+      (summary, entry) => {
+        const isClt = entry.token === "clawdtrust";
+        const isWon = entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid";
+        const isLost = entry.statusLabel === "Lose";
+        return {
+          totalBets: summary.totalBets + (isClt ? 0 : entry.amount),
+          totalBetsClt: summary.totalBetsClt + (isClt ? entry.amount : 0),
+          totalWins: summary.totalWins + (!isClt && isWon ? entry.netReward : 0),
+          totalWinsClt: summary.totalWinsClt + (isClt && isWon ? entry.netReward : 0),
+          totalLosses: summary.totalLosses + (!isClt && isLost ? entry.totalCharged : 0),
+          totalLossesClt: summary.totalLossesClt + (isClt && isLost ? entry.totalCharged : 0),
+          claimable: summary.claimable + (!isClt && entry.canClaim ? entry.netReward : 0),
+          claimableClt: summary.claimableClt + (isClt && entry.canClaim ? entry.netReward : 0),
+        };
+      },
+      { totalBets: 0, totalBetsClt: 0, totalWins: 0, totalWinsClt: 0, totalLosses: 0, totalLossesClt: 0, claimable: 0, claimableClt: 0 }
     );
   }, [derivedHistory]);
 
@@ -367,15 +376,23 @@ export function UserDashboardSections({
                                 {entry.categoryLabel} · {entry.selectionLabel} · {formatMoment(entry.createdAt)}
                               </p>
                             </div>
-                            <Badge className={
-                              entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid"
-                                ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
-                                : entry.statusLabel === "Lose" || entry.statusLabel === "Rejected"
-                                  ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-50 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/10"
-                                  : "border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950"
-                            }>
-                              {entry.statusLabel}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge className={entry.token === "clawdtrust"
+                                ? "border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-50 dark:border-purple-400/20 dark:bg-purple-500/15 dark:text-purple-300 dark:hover:bg-purple-500/15"
+                                : "border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50 dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-300 dark:hover:bg-blue-500/15"
+                              }>
+                                {entry.token === "clawdtrust" ? "CT" : "USDC"}
+                              </Badge>
+                              <Badge className={
+                                entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid"
+                                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                                  : entry.statusLabel === "Lose" || entry.statusLabel === "Rejected"
+                                    ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-50 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/10"
+                                    : "border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950"
+                              }>
+                                {entry.statusLabel}
+                              </Badge>
+                            </div>
                           </div>
                           <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 xl:grid-cols-4">
                             <div>Bet amount: {formatCurrency(entry.amount)}</div>
@@ -404,18 +421,30 @@ export function UserDashboardSections({
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
                         <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
+                        {totals.totalBetsClt > 0 && (
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalBetsClt.toFixed(4)} CT</p>
+                        )}
                       </div>
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total win</p>
                         <p className="mt-2 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
+                        {totals.totalWinsClt > 0 && (
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalWinsClt.toFixed(4)} CT</p>
+                        )}
                       </div>
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total loss</p>
                         <p className="mt-2 text-xl font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
+                        {totals.totalLossesClt > 0 && (
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalLossesClt.toFixed(4)} CT</p>
+                        )}
                       </div>
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Claimable now</p>
                         <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
+                        {totals.claimableClt > 0 && (
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.claimableClt.toFixed(4)} CT</p>
+                        )}
                       </div>
                     </div>
                     {derivedHistory.filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid").length > 0 ? (

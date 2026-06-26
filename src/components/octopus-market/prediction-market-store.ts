@@ -24,6 +24,7 @@ import {
   subscribeToPredictionHistory,
 } from "@/services/supabase/prediction-service";
 import type {
+  BetToken,
   PredictionMarketRow,
   PredictionHistoryRow,
   PayoutStatus,
@@ -72,6 +73,7 @@ export type PredictionHistoryEntry = {
   payoutStatus?: PayoutStatus;
   paidAt?: number;
   paidByWallet?: string;
+  token: BetToken;
 };
 
 export type PredictionResolutionRecord = {
@@ -199,6 +201,7 @@ function historyRowToApp(
     payoutStatus: row.payout_status ?? undefined,
     paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
     paidByWallet: row.paid_by_wallet ?? undefined,
+    token: (row.token as BetToken) ?? "usdc",
   };
 }
 
@@ -235,6 +238,7 @@ function entryToDbRow(
     paid_at: entry.paidAt ? new Date(entry.paidAt).toISOString() : null,
     paid_by_wallet: entry.paidByWallet ?? null,
     reported_at: new Date(entry.reportedAt).toISOString(),
+    token: entry.token ?? "usdc",
   };
 }
 

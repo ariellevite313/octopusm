@@ -10,6 +10,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type WalletRole = "user" | "admin";
 export type OctoTransactionType = "referral" | "bet";
 export type WalletStatus = "active" | "suspended";
+export type BetToken = "usdc" | "clawdtrust";
+
 export type PaymentFlow = "prediction" | "launch" | "listing";
 export type PaymentStatus = "pending" | "approved" | "rejected";
 export type MarketType = "yes-no" | "threshold" | "three-way";
@@ -113,6 +115,7 @@ export interface PaymentRow {
   amount_usdc: number;
   reserve_fee_usdc: number;
   total_paid_usdc: number;
+  token: BetToken;
   status: PaymentStatus;
   reviewed_at: string | null;
   reviewed_by_wallet: string | null;
@@ -147,6 +150,7 @@ export interface PredictionHistoryRow {
   payout_status: PayoutStatus | null;
   paid_at: string | null;
   paid_by_wallet: string | null;
+  token: BetToken;
   reported_at: string;
   created_at: string;
   updated_at: string;
