@@ -44,6 +44,7 @@ import {
   type AdminCreatedPredictionMarket,
   type PredictionResolutionRecord,
 } from "@/components/octopus-market/prediction-market-store";
+import { getResolvedMarkets } from "@/services/supabase/prediction-service";
 import { SectionHeading } from "@/components/octopus-market/section-heading";
 import { ThemeToggle } from "@/components/octopus-market/theme-toggle";
 import { useOctopusLocale } from "@/components/octopus-market/octopus-locale";
@@ -437,6 +438,8 @@ const marketSectionShortcuts = [
   { id: "previous", label: "Previous Markets" },
 ] as const;
 
+const headerNavShortcuts = marketSectionShortcuts.filter((item) => item.id !== "previous");
+
 function resolveUserPageRoute(hashValue: string): UserPageRoute {
   switch (hashValue) {
     case "#wallet-dashboard":
@@ -550,6 +553,8 @@ export function OctopusMarketPage() {
     readAdminCreatedPredictionMarkets()
   );
   const adminCreatedMarketsStateRef = useRef(JSON.stringify(readAdminCreatedPredictionMarkets()));
+  const [resolvedMarkets, setResolvedMarkets] = useState<AdminCreatedPredictionMarket[]>([]);
+  const [isLoadingResolved, setIsLoadingResolved] = useState(false);
 
   // ── Admin : tous les marchés (résolus + actifs) pour la vue tableau ────────
   const [homeResolutions, setHomeResolutions] = useState<Record<string, PredictionResolutionRecord>>(
@@ -1199,7 +1204,41 @@ export function OctopusMarketPage() {
     [walletAddress, walletTwitterHandle, walletUsername]
   );
 
-  const isDedicatedUserPage = activeUserPage !== "home";
+  // Charger les marchés résolus à la demande
+  useEffect(() => {
+    if (selectedPredictionCategoryId !== "previous") return;
+    if (resolvedMarkets.length > 0 || isLoadingResolved) return;
+    setIsLoadingResolved(true);
+    void getResolvedMarkets().then((rows) => {
+      const mapped: AdminCreatedPredictionMarket[] = rows.map((row) => ({
+        id: row.id,
+        categoryId: row.category_id,
+        title: row.title,
+        marketType: row.market_type as AdminCreatedPredictionMarket["marketType"],
+        resolutionLabel: row.resolution_label,
+        eventDateLabel: row.event_date_label ?? undefined,
+        eventStartAt: row.event_start_at ?? null,
+        visualType: row.visual_type as AdminCreatedPredictionMarket["visualType"],
+        singleName: row.single_name ?? undefined,
+        singleImageSrc: row.single_image_src ?? undefined,
+        leftCompetitorName: row.left_competitor_name ?? undefined,
+        leftCompetitorImageSrc: row.left_competitor_image_src ?? undefined,
+        rightCompetitorName: row.right_competitor_name ?? undefined,
+        rightCompetitorImageSrc: row.right_competitor_image_src ?? undefined,
+        options: (row.options ?? []) as AdminCreatedPredictionMarket["options"],
+        createdAt: new Date(row.created_at).getTime(),
+        createdByWallet: row.created_by_wallet ?? "",
+        isAdminCreated: true as const,
+        isResolved: row.is_resolved,
+        resolutionOutcomeId: row.resolution_outcome_id ?? undefined,
+        resolvedAt: row.resolved_at ? new Date(row.resolved_at).getTime() : undefined,
+      }));
+      setResolvedMarkets(mapped);
+      setIsLoadingResolved(false);
+    });
+  }, [selectedPredictionCategoryId]);
+
+    const isDedicatedUserPage = activeUserPage !== "home";
   const activeUserPageTitle =
     activeUserPage === "wallet-dashboard"
       ? "Wallet Dashboard"
@@ -1221,11 +1260,11 @@ export function OctopusMarketPage() {
 
   const visiblePredictionMarkets = useMemo(
     () => selectedPredictionCategoryId === "previous"
-      ? allPredictionMarkets.filter((market) => market.isResolved || Boolean(homeResolutions[market.id]))
+      ? resolvedMarkets
       : allPredictionMarkets.filter(
           (market) => market.categoryId === selectedPredictionCategoryId && !market.isResolved && !homeResolutions[market.id]
         ),
-    [allPredictionMarkets, selectedPredictionCategoryId, homeResolutions]
+    [allPredictionMarkets, resolvedMarkets, selectedPredictionCategoryId, homeResolutions]
   );
 
   const headerNavigationItems = navigationItems.filter(
@@ -1416,7 +1455,7 @@ export function OctopusMarketPage() {
                   {item.label}
                 </a>
               ))}
-              {marketSectionShortcuts.map((item) => {
+              {headerNavShortcuts.map((item) => {
                 const isActiveShortcut = item.id === selectedPredictionCategoryId;
 
                 return (
@@ -1821,7 +1860,7 @@ export function OctopusMarketPage() {
               </section>
             ) : (
               <>
-                <section id="hero" className="relative overflow-hidden scroll-mt-28">
+                <section id="hero" className={`relative overflow-hidden scroll-mt-28${(highlightItems.length === 0 && heroStats.length === 0 && !isLegacyBrowser) ? " h-0 overflow-hidden" : ""}`}>
                   <div
                     className={
                       isLegacyBrowser
@@ -1899,7 +1938,11 @@ export function OctopusMarketPage() {
                       </div>
 
                       <div className={`mt-6 ${visiblePredictionMarkets.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}`}>
-                        {visiblePredictionMarkets.length === 0 ? (
+                        {isLoadingResolved && selectedPredictionCategoryId === "previous" ? (
+                          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-5 py-6 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                            Loading previous markets…
+                          </div>
+                        ) : visiblePredictionMarkets.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                             {selectedPredictionCategoryId === "previous"
                               ? "No resolved markets yet."

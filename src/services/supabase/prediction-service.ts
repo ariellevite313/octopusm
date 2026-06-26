@@ -31,6 +31,20 @@ export async function getActiveMarkets(): Promise<PredictionMarketRow[]> {
   return data ?? [];
 }
 
+export async function getResolvedMarkets(): Promise<PredictionMarketRow[]> {
+  const { data, error } = await supabase
+    .from("prediction_markets")
+    .select("*")
+    .eq("is_resolved", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[prediction-service] getResolvedMarkets:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export async function getMarketById(
   id: string
 ): Promise<PredictionMarketRow | null> {
@@ -230,13 +244,3 @@ export function subscribeToPredictionHistory(
  * Récupère tous les marchés résolus (is_resolved = true), triés par date de résolution desc.
  * Utilisé par la page archive (/archive).
  */
-export async function getResolvedMarkets(): Promise<PredictionMarketRow[]> {
-  const { data, error } = await supabase
-    .from("prediction_markets")
-    .select("*")
-    .eq("is_resolved", true)
-    .order("resolved_at", { ascending: false });
-
-  if (error) throw error;
-  return (data ?? []) as PredictionMarketRow[];
-}
