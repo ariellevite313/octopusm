@@ -3,7 +3,7 @@ import { getSolanaProvider, SOLANA_MAINNET_RPC_URLS, SOLANA_USDC_MINT } from "@/
 
 export type PaymentRequestKind = "listing" | "launch" | "prediction";
 export type PaymentRequestStatus = "created" | "signed" | "validated";
-export type PaymentCurrency = "SOL" | "USDC" | "CT";
+export type PaymentCurrency = "SOL" | "USDC" | "ClawdTrust";
 export type PaymentRequestMetadata = Record<string, string | number | boolean>;
 
 export type EncodedTransferRequest = {
@@ -806,8 +806,11 @@ async function sendDirectWalletTransfer(paymentRequest: PaymentRequest, payerAdd
   const payerPublicKey = new PublicKey(payerAddress);
   const recipientPublicKey = new PublicKey(paymentRequest.recipient);
   const referencePublicKey = new PublicKey(paymentRequest.reference);
-  const mintPublicKey = paymentRequest.currency === "USDC" ? new PublicKey(paymentRequest.tokenMint || SOLANA_USDC_MINT) : null;
-  const tokenDecimals = paymentRequest.currency === "USDC" ? paymentRequest.tokenDecimals ?? 6 : 9;
+  const isSplPayment = paymentRequest.currency === "USDC" || paymentRequest.currency === "ClawdTrust";
+  const mintPublicKey = isSplPayment
+    ? new PublicKey(paymentRequest.tokenMint || (paymentRequest.currency === "USDC" ? SOLANA_USDC_MINT : ""))
+    : null;
+  const tokenDecimals = isSplPayment ? (paymentRequest.tokenDecimals ?? 6) : 9;
 
   for (const rpcUrl of SOLANA_MAINNET_RPC_URLS) {
     try {
@@ -818,7 +821,7 @@ async function sendDirectWalletTransfer(paymentRequest: PaymentRequest, payerAdd
         recentBlockhash: blockhash,
       });
 
-      if (paymentRequest.currency === "USDC" && mintPublicKey) {
+      if (isSplPayment && mintPublicKey) {
         const payerTokenAccount = findAssociatedTokenAddress(web3, payerPublicKey, mintPublicKey);
         const recipientTokenAccount = findAssociatedTokenAddress(web3, recipientPublicKey, mintPublicKey);
         const recipientAtaInfo = await connection.getAccountInfo(recipientTokenAccount, "confirmed");
@@ -971,11 +974,12 @@ export function createPaymentReference() {
 
 export function encodeURL({ recipient, amount, reference, currency, tokenMint, tokenDecimals, label, message, memo }: EncodedTransferRequest) {
   const params = new URLSearchParams();
-  const decimals = currency === "USDC" ? tokenDecimals ?? 6 : 9;
+  const isSpl = currency === "USDC" || currency === "ClawdTrust";
+  const decimals = isSpl ? tokenDecimals ?? 6 : 9;
   params.set("amount", normalizeAmount(amount, decimals).toFixed(decimals));
   params.append("reference", reference);
 
-  if (currency === "USDC" && tokenMint) {
+  if (isSpl && tokenMint) {
     params.set("spl-token", tokenMint);
   }
 
@@ -1018,8 +1022,11 @@ export function parseURL(encodedUrl: string): EncodedTransferRequest {
 export function createTransfer(input: BuildTransactionInput) {
   const reference = input.reference ?? createPaymentReference();
   const currency = input.currency ?? "SOL";
-  const tokenMint = currency === "USDC" ? input.tokenMint ?? SOLANA_USDC_MINT : undefined;
-  const tokenDecimals = currency === "USDC" ? input.tokenDecimals ?? 6 : 9;
+  const isSplTransfer = currency === "USDC" || currency === "ClawdTrust";
+  const tokenMint = isSplTransfer
+    ? (currency === "USDC" ? (input.tokenMint ?? SOLANA_USDC_MINT) : input.tokenMint)
+    : undefined;
+  const tokenDecimals = isSplTransfer ? (input.tokenDecimals ?? 6) : 9;
   const amount = normalizeAmount(input.amount, tokenDecimals);
   const encodedUrl = encodeURL({
     recipient: input.recipient,
@@ -1221,8 +1228,11 @@ export async function attachSignature(transactionId: string, signature: string) 
 export async function validateTransfer(signature: string, criteria: TransferValidationCriteria) {
   const transactions = readStoredTransactions();
   const normalizedCurrency = criteria.currency ?? "SOL";
-  const normalizedTokenMint = normalizedCurrency === "USDC" ? criteria.tokenMint ?? SOLANA_USDC_MINT : undefined;
-  const normalizedTokenDecimals = normalizedCurrency === "USDC" ? criteria.tokenDecimals ?? 6 : 9;
+  const isSplValidation = normalizedCurrency === "USDC" || normalizedCurrency === "ClawdTrust";
+  const normalizedTokenMint = isSplValidation
+    ? (normalizedCurrency === "USDC" ? (criteria.tokenMint ?? SOLANA_USDC_MINT) : criteria.tokenMint)
+    : undefined;
+  const normalizedTokenDecimals = isSplValidation ? (criteria.tokenDecimals ?? 6) : 9;
   const matchingTransaction = transactions.find(
     (transaction) =>
       transaction.reference === criteria.reference &&
@@ -1257,7 +1267,7 @@ export async function validateTransfer(signature: string, criteria: TransferVali
           continue;
         }
 
-        if (normalizedCurrency === "USDC" && normalizedTokenMint) {
+        if (isSplValidation && normalizedTokenMint) {
           const web3 = await loadSolanaWeb3();
           const { PublicKey } = web3;
           const recipientTokenAccount = findAssociatedTokenAddress(

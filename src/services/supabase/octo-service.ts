@@ -197,6 +197,14 @@ export async function getReferralCommissionBalance(
       .eq("referrer_wallet", referrerWallet),
   ]);
 
+  if (commissionsRes.error) {
+    console.error("[octo-service] referral_commissions SELECT error:", commissionsRes.error.message, commissionsRes.error.code, { referrerWallet });
+  }
+  if (claimsRes.error) {
+    console.error("[octo-service] referral_commission_claims SELECT error:", claimsRes.error.message, claimsRes.error.code, { referrerWallet });
+  }
+  console.log("[octo-service] commissions data:", commissionsRes.data, "claims data:", claimsRes.data);
+
   const totalEarned = (commissionsRes.data ?? []).reduce(
     (sum, row) => sum + Number((row as ReferralCommissionRow).amount_usdc),
     0

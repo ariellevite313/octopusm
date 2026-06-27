@@ -381,7 +381,7 @@ export function UserDashboardSections({
                                 ? "border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-50 dark:border-purple-400/20 dark:bg-purple-500/15 dark:text-purple-300 dark:hover:bg-purple-500/15"
                                 : "border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50 dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-300 dark:hover:bg-blue-500/15"
                               }>
-                                {entry.token === "clawdtrust" ? "CT" : "USDC"}
+                                {entry.token === "clawdtrust" ? "ClawdTrust" : "USDC"}
                               </Badge>
                               <Badge className={
                                 entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid"
@@ -422,28 +422,28 @@ export function UserDashboardSections({
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
                         <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
                         {totals.totalBetsClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalBetsClt.toFixed(4)} CT</p>
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalBetsClt.toFixed(4)} ClawdTrust</p>
                         )}
                       </div>
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total win</p>
                         <p className="mt-2 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
                         {totals.totalWinsClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalWinsClt.toFixed(4)} CT</p>
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalWinsClt.toFixed(4)} ClawdTrust</p>
                         )}
                       </div>
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total loss</p>
                         <p className="mt-2 text-xl font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
                         {totals.totalLossesClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalLossesClt.toFixed(4)} CT</p>
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalLossesClt.toFixed(4)} ClawdTrust</p>
                         )}
                       </div>
                       <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Claimable now</p>
                         <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
                         {totals.claimableClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.claimableClt.toFixed(4)} CT</p>
+                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.claimableClt.toFixed(4)} ClawdTrust</p>
                         )}
                       </div>
                     </div>

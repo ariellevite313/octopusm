@@ -16,7 +16,7 @@ import {
   subscribeToPayments,
 } from "@/services/supabase/payment-service";
 import { upsertWalletActivityToCentralRegistry } from "@/components/octopus-market/octopus-central-registry";
-import type { PaymentRow } from "@/lib/supabase-types";
+import type { PaymentRow, BetToken } from "@/lib/supabase-types";
 
 // ─── Types publics (inchangés) ────────────────────────────────────────────────
 
@@ -44,6 +44,7 @@ export type AdminPaymentNotification = {
   status: AdminPaymentStatus;
   reviewedAt?: number;
   reviewedByWallet?: string;
+  token?: BetToken;
 };
 
 export type ConnectedWalletSession = {
@@ -143,7 +144,7 @@ export async function appendAdminNotification(
     return adminNotificationsCache;
   }
 
-  await createPaymentNotification({
+  const insertResult = await createPaymentNotification({
     id: notification.id,
     payment_request_id: notification.paymentRequestId,
     payment_reference: notification.paymentReference,
@@ -165,8 +166,11 @@ export async function appendAdminNotification(
       ? new Date(notification.reviewedAt).toISOString()
       : null,
     reviewed_by_wallet: notification.reviewedByWallet ?? null,
-    token: "usdc",
+    token: notification.token ?? "usdc",
   });
+  if (!insertResult.success) {
+    console.error("[octopus-admin] createPaymentNotification failed:", insertResult.error, { ref: notification.paymentReference });
+  }
 
   adminNotificationsCache = [notification, ...adminNotificationsCache];
   emitAdminStorageUpdate();
@@ -182,10 +186,10 @@ export async function approveAdminNotification(
   const result = await reviewPayment(notificationId, "approved", reviewerWallet);
 
   if (result.success) {
-    const notification = adminNotificationsCache.find((n) => n.id === notificationId);
+    const notification = adminNotificationsCache.find((n) => n.paymentReference === notificationId);
 
     adminNotificationsCache = adminNotificationsCache.map((n) =>
-      n.id === notificationId
+      n.paymentReference === notificationId
         ? { ...n, status: "approved" as const, reviewedAt: Date.now(), reviewedByWallet: reviewerWallet }
         : n
     );
@@ -208,10 +212,10 @@ export async function rejectAdminNotification(
   const result = await reviewPayment(notificationId, "rejected", reviewerWallet);
 
   if (result.success) {
-    const notification = adminNotificationsCache.find((n) => n.id === notificationId);
+    const notification = adminNotificationsCache.find((n) => n.paymentReference === notificationId);
 
     adminNotificationsCache = adminNotificationsCache.map((n) =>
-      n.id === notificationId
+      n.paymentReference === notificationId
         ? { ...n, status: "rejected" as const, reviewedAt: Date.now(), reviewedByWallet: reviewerWallet }
         : n
     );
@@ -322,6 +326,7 @@ export function notifyAdminForValidatedPayment(
     totalPaidUsdc: Number(meta.totalChargeUsdc ?? pr.amount),
     createdAt: Date.now(),
     status: "pending",
+    token: (typeof meta.token === "string" ? meta.token : "usdc") as BetToken,
   };
   void appendAdminNotification(notification);
   return notification;

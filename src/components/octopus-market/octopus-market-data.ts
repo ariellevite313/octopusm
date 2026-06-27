@@ -570,3 +570,4 @@ export const platformReserveFeeRate = 1;
 export const predictionMarketReserveFeeRate = platformReserveFeeRate;
 export const predictionMarketMinStakeUsd = 2;
 export const predictionMarketMaxStakeUsd = 50;
+export const predictionMarketMinStakeClt = 500000;

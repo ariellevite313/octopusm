@@ -31,7 +31,6 @@ import {
 import {
   appendCentralAdminLog,
   readCachedCentralWalletRecord,
-  syncPaymentRecordToCentralRegistry,
   syncPredictionHistoryToCentralRegistry,
 } from "@/components/octopus-market/octopus-central-registry";
 import {
@@ -55,6 +54,7 @@ import {
   predictionMarketCategories,
   predictionMarketFeeRate,
   predictionMarketMaxStakeUsd,
+  predictionMarketMinStakeClt,
   predictionMarketMinStakeUsd,
   predictionMarketQuestions,
   predictionMarketReserveFeeRate,
@@ -191,6 +191,10 @@ function formatCurrency(amount: number) {
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+function formatClawdTrust(amount: number) {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(amount)} ClawdTrust`;
 }
 
 function formatMoment(timestamp: number) {
@@ -706,7 +710,6 @@ export function BinaryPredictionStudio({
     void (async () => {
       await Promise.allSettled([
         syncPredictionHistoryToCentralRegistry(historyEntry),
-        syncPaymentRecordToCentralRegistry(notification),
         persistAdminNotificationsStateToServer(),
       ]);
 
@@ -1170,9 +1173,13 @@ export function BinaryPredictionStudio({
       return;
     }
 
-    if (!Number.isFinite(amount) || amount < predictionMarketMinStakeUsd || amount > predictionMarketMaxStakeUsd) {
+    const isCltBet = (selectedTokens[market.id] ?? "usdc") === "clawdtrust";
+    const minStake = isCltBet ? predictionMarketMinStakeClt : predictionMarketMinStakeUsd;
+    if (!Number.isFinite(amount) || amount < minStake || (!isCltBet && amount > predictionMarketMaxStakeUsd)) {
       toast.error("Montant invalide", {
-        description: `Entrez un montant entre ${formatCurrency(predictionMarketMinStakeUsd)} et ${formatCurrency(predictionMarketMaxStakeUsd)}.`,
+        description: isCltBet
+          ? `Minimum ${formatClawdTrust(predictionMarketMinStakeClt)}.`
+          : `Entrez un montant entre ${formatCurrency(predictionMarketMinStakeUsd)} et ${formatCurrency(predictionMarketMaxStakeUsd)}.`,
       });
       return;
     }
@@ -1207,7 +1214,7 @@ export function BinaryPredictionStudio({
     const tokenDecimals = selectedToken === "clawdtrust"
       ? (readCachedWalletSnapshot(connectedWallet)?.clawdtrustDecimals ?? 9)
       : 6;
-    const tokenCurrency = selectedToken === "clawdtrust" ? "CT" : "USDC";
+    const tokenCurrency = selectedToken === "clawdtrust" ? "ClawdTrust" : "USDC";
 
     const paymentModule = await loadPaymentModule();
 
@@ -1286,8 +1293,8 @@ export function BinaryPredictionStudio({
         msg.includes("custom program error: 0x1") ||
         msg.includes("not enough")
       ) {
-        toast.error(`Fonds ${selectedToken === "clawdtrust" ? "CT" : "USDC"} insuffisants`, {
-          description: `Vérifiez votre solde ${selectedToken === "clawdtrust" ? "CT" : "USDC"} avant de placer ce pari.`,
+        toast.error(`Fonds ${selectedToken === "clawdtrust" ? "ClawdTrust" : "USDC"} insuffisants`, {
+          description: `Vérifiez votre solde ${selectedToken === "clawdtrust" ? "ClawdTrust" : "USDC"} avant de placer ce pari.`,
         });
       } else if (msg.includes("reference-not-found") || msg.includes("timeout") || msg.includes("timed out")) {
         toast.error("Confirmation expirée", {
@@ -1953,16 +1960,17 @@ export function BinaryPredictionStudio({
                 const amountValue = amounts[market.id] ?? "";
                 const chosenSelectionId = selections[market.id];
                 const numericAmount = Number(amountValue);
+                const marketOptions = getMarketOptions(market, index);
+                const selectedToken: BetToken = selectedTokens[market.id] ?? "usdc";
+                const minStakeForToken = selectedToken === "clawdtrust" ? predictionMarketMinStakeClt : predictionMarketMinStakeUsd;
                 const stakePreviewAmount =
-                  Number.isFinite(numericAmount) && numericAmount >= predictionMarketMinStakeUsd
+                  Number.isFinite(numericAmount) && numericAmount >= minStakeForToken
                     ? numericAmount
-                    : predictionMarketMinStakeUsd;
+                    : minStakeForToken;
                 const reserveFee = Number.isFinite(numericAmount)
                   ? calculatePercentageAmount(numericAmount, predictionMarketReserveFeeRate)
                   : 0;
                 const totalCharge = Number.isFinite(numericAmount) ? Number((numericAmount + reserveFee).toFixed(2)) : 0;
-                const marketOptions = getMarketOptions(market, index);
-                const selectedToken: BetToken = selectedTokens[market.id] ?? "usdc";
                 const optionSummaries = buildOptionSummaries(
                   market,
                   marketOptions,
@@ -2063,13 +2071,13 @@ export function BinaryPredictionStudio({
                                   <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
                                     Live volume
                                   </p>
-                                  <p className="mt-1 font-semibold">{formatCurrency(option.liveVolumeUsd)}</p>
+                                  <p className="mt-1 font-semibold">{selectedToken === "clawdtrust" ? formatClawdTrust(option.liveVolumeUsd) : formatCurrency(option.liveVolumeUsd)}</p>
                                 </div>
                                 <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
                                   <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
                                     Net return
                                   </p>
-                                  <p className="mt-1 font-semibold">{formatCurrency(option.netReturnUsd)}</p>
+                                  <p className="mt-1 font-semibold">{selectedToken === "clawdtrust" ? formatClawdTrust(option.netReturnUsd) : formatCurrency(option.netReturnUsd)}</p>
                                 </div>
                               </div>
                             </button>
@@ -2085,34 +2093,36 @@ export function BinaryPredictionStudio({
                               <button
                                 type="button"
                                 onClick={() => setSelectedTokens((prev) => ({ ...prev, [market.id]: "usdc" }))}
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${selectedToken === "usdc" ? "bg-orange-500 text-white" : "border border-orange-200 bg-white text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
+                                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${selectedToken === "usdc" ? "bg-orange-500 text-white" : "border border-orange-200 bg-white text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
                               >
+                                <img src="/usdc-coin.png" alt="USDC" className="size-4 rounded-full object-cover" />
                                 USDC
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setSelectedTokens((prev) => ({ ...prev, [market.id]: "clawdtrust" }))}
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${selectedToken === "clawdtrust" ? "bg-orange-500 text-white" : "border border-orange-200 bg-white text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
+                                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${selectedToken === "clawdtrust" ? "bg-orange-500 text-white" : "border border-orange-200 bg-white text-zinc-700 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"}`}
                               >
-                                CT
+                                <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-4 rounded-full object-cover" />
+                                ClawdTrust
                               </button>
                             </div>
                             <Input
                               type="number"
-                              min={predictionMarketMinStakeUsd}
-                              max={predictionMarketMaxStakeUsd}
-                              step="0.01"
+                              min={selectedToken === "clawdtrust" ? predictionMarketMinStakeClt : predictionMarketMinStakeUsd}
+                              max={selectedToken === "clawdtrust" ? undefined : predictionMarketMaxStakeUsd}
+                              step={selectedToken === "clawdtrust" ? "1" : "0.01"}
                               value={amountValue}
                               onChange={(event) => handleAmountChange(market.id, event.target.value)}
-                              placeholder={`Enter amount from ${predictionMarketMinStakeUsd} to ${predictionMarketMaxStakeUsd}`}
+                              placeholder={selectedToken === "clawdtrust" ? `Min. ${predictionMarketMinStakeClt.toLocaleString("en-US")} ClawdTrust` : `Enter amount from ${predictionMarketMinStakeUsd} to ${predictionMarketMaxStakeUsd}`}
                               className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
                             />
                             <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600 dark:text-zinc-400">
                               <span>
-                                Reserve fee preview: <strong className="text-zinc-950 dark:text-white">{formatCurrency(reserveFee)}</strong>
+                                Reserve fee preview: <strong className="text-zinc-950 dark:text-white">{selectedToken === "clawdtrust" ? formatClawdTrust(reserveFee) : formatCurrency(reserveFee)}</strong>
                               </span>
                               <span>
-                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${selectedToken === "clawdtrust" ? "CT" : paymentTokenSymbol}` : `0.00 ${selectedToken === "clawdtrust" ? "CT" : paymentTokenSymbol}`}</strong>
+                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${selectedToken === "clawdtrust" ? "ClawdTrust" : paymentTokenSymbol}` : `0.00 ${selectedToken === "clawdtrust" ? "ClawdTrust" : paymentTokenSymbol}`}</strong>
                               </span>
                               <span>
                                 Claim fee on rewards: <strong className="text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</strong>
@@ -2167,13 +2177,13 @@ export function BinaryPredictionStudio({
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
                   <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Minimum</p>
                   <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(predictionMarketMinStakeUsd)}
+                    {Object.values(selectedTokens).some(t => t === "clawdtrust") ? formatClawdTrust(predictionMarketMinStakeClt) : formatCurrency(predictionMarketMinStakeUsd)}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
                   <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Maximum</p>
                   <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {formatCurrency(predictionMarketMaxStakeUsd)}
+                    {Object.values(selectedTokens).some(t => t === "clawdtrust") ? "Unlimited" : formatCurrency(predictionMarketMaxStakeUsd)}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
@@ -2188,7 +2198,7 @@ export function BinaryPredictionStudio({
                 </div>
                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20 sm:col-span-2">
                   <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Payment token</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol} &amp; CT</p>
+                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol} &amp; ClawdTrust</p>
                 </div>
               </div>
             </CardContent>

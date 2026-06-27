@@ -352,7 +352,7 @@ export async function appendPaymentToCentralRegistry(
     status: payment.status,
     reviewed_at: payment.reviewedAt ? new Date(payment.reviewedAt).toISOString() : null,
     reviewed_by_wallet: payment.reviewedByWallet ?? null,
-    token: "usdc",
+    token: payment.token ?? "usdc",
   });
 
   const record: RegistryPaymentRecord = { ...payment, updatedAt: Date.now() };

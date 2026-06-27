@@ -385,7 +385,10 @@ export async function appendPredictionHistoryEntry(
     return predictionHistoryCache;
   }
 
-  await addPredictionHistoryEntry(entryToDbRow(entry));
+  const insertResult = await addPredictionHistoryEntry(entryToDbRow(entry));
+  if (!insertResult.success) {
+    console.error("[prediction-store] addPredictionHistoryEntry failed:", insertResult.error, { ref: entry.paymentReference });
+  }
   predictionHistoryCache = [entry, ...predictionHistoryCache];
   emitUpdate();
   return predictionHistoryCache;

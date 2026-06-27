@@ -1216,7 +1216,7 @@ export function OctopusMarketPage() {
 
   const floatingWalletCltBalanceLabel = useMemo(() => {
     if (!walletAddress) return "—";
-    if (typeof walletCltBalance === "number") return `${walletCltBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} CT`;
+    if (typeof walletCltBalance === "number") return `${walletCltBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} ClawdTrust`;
     if (isLoadingWalletBalance) return "...";
     if (walletBalanceError) return "~";
     return "...";
@@ -1646,15 +1646,24 @@ export function OctopusMarketPage() {
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">SOL</span>
+                    <div className="flex items-center gap-1">
+                      <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png" alt="SOL" className="size-3.5 rounded-full object-cover" />
+                      <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">SOL</span>
+                    </div>
                     <span className="text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{floatingWalletBalanceLabel}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">USDC</span>
+                    <div className="flex items-center gap-1">
+                      <img src="/usdc-coin.png" alt="USDC" className="size-3.5 rounded-full object-cover" />
+                      <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">USDC</span>
+                    </div>
                     <span className="text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{floatingWalletUsdcBalanceLabel}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">CT</span>
+                    <div className="flex items-center gap-1">
+                      <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-3.5 rounded-full object-cover" />
+                      <span className="text-[10px] tracking-[0.08em] text-orange-600 dark:text-orange-300">ClawdTrust</span>
+                    </div>
                     <span className="text-xs font-medium tabular-nums text-zinc-950 dark:text-white">{floatingWalletCltBalanceLabel}</span>
                   </div>
                 </>
