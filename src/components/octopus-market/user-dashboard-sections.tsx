@@ -81,9 +81,9 @@ export function UserDashboardSections({
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // USDC Commission state
-  const [usdcBalance, setUsdcBalance] = useState({ available: 0, total_earned: 0, pending_claim: 0 });
-  const [commissionsByReferred, setCommissionsByReferred] = useState<Record<string, number>>({});
+  // Commission state (USDC + CLT)
+  const [usdcBalance, setUsdcBalance] = useState({ available: 0, total_earned: 0, pending_claim: 0, available_clt: 0, total_earned_clt: 0, pending_claim_clt: 0 });
+  const [commissionsByReferred, setCommissionsByReferred] = useState<Record<string, { usdc: number; clt: number }>>({});
   const [isClaiming, setIsClaiming] = useState(false);
   const [activeTab, setActiveTab] = useState<"bets" | "winnings" | "rewards">("bets");
 
@@ -195,7 +195,7 @@ export function UserDashboardSections({
       setReferralCode(null);
       setOctoBreakdown({ referral: 0, bet: 0, total: 0 });
       setReferrals([]);
-      setUsdcBalance({ available: 0, total_earned: 0, pending_claim: 0 });
+      setUsdcBalance({ available: 0, total_earned: 0, pending_claim: 0, available_clt: 0, total_earned_clt: 0, pending_claim_clt: 0 });
       setCommissionsByReferred({});
       return;
     }
@@ -239,13 +239,16 @@ export function UserDashboardSections({
   };
 
   const handleClaimUsdc = async () => {
-    if (!walletAddress || usdcBalance.available <= 0 || isClaiming) return;
+    if (!walletAddress || (usdcBalance.available <= 0 && usdcBalance.available_clt <= 0) || isClaiming) return;
     try {
       setIsClaiming(true);
       const res = await claimReferralCommissions(walletAddress);
       if (res.success) {
+        const parts: string[] = [];
+        if ((res.total_usdc ?? 0) > 0) parts.push(`$${(res.total_usdc ?? 0).toFixed(4)} USDC`);
+        if ((res.total_clt ?? 0) > 0) parts.push(`${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(res.total_clt ?? 0)} ClawdTrust`);
         toast.success("Claim submitted", {
-          description: `$${res.total_usdc?.toFixed(4)} USDC — pending admin payment.`,
+          description: `${parts.join(" + ")} — pending admin payment.`,
           duration: 5000,
         });
         // Refresh balance
@@ -319,7 +322,7 @@ export function UserDashboardSections({
 
               <CardContent className="space-y-6">
                 {/* ── Stats row ── */}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
                     <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total wagered</p>
                     <p className="mt-2 text-xl font-bold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
@@ -340,6 +343,15 @@ export function UserDashboardSections({
                     <div className="mt-2 flex items-center gap-2">
                       <img src="/usdc-coin.png" alt="USDC" className="size-6 object-contain" />
                       <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 dark:border-purple-500/20 dark:bg-purple-500/10">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">ClawdTrust commissions</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Coins className="size-6 shrink-0 text-purple-500 dark:text-purple-300" />
+                      <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                        {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} CLT
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -491,7 +503,7 @@ export function UserDashboardSections({
                 {/* ── Rewards tab ── */}
                 {activeTab === "rewards" && (
                   <div className="space-y-8">
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
                         <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
                         <div>
@@ -521,6 +533,31 @@ export function UserDashboardSections({
                               className="mt-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                             >
                               {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
+                            </button>
+                          ) : (
+                            <p className="mt-0.5 text-xs text-zinc-400">No available balance</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-2xl border border-purple-100 bg-purple-50 px-4 py-4 dark:border-purple-500/20 dark:bg-purple-500/10">
+                        <Coins className="size-5 shrink-0 text-purple-500 dark:text-purple-300" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">ClawdTrust commissions</p>
+                          <p className="mt-1 text-xl font-bold text-purple-700 dark:text-purple-300">
+                            {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} CLT
+                          </p>
+                          {usdcBalance.pending_claim_clt > 0 ? (
+                            <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} CLT pending payment
+                            </p>
+                          ) : usdcBalance.available_clt > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleClaimUsdc()}
+                              disabled={isClaiming}
+                              className="mt-1.5 rounded-xl bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
+                            >
+                              {isClaiming ? "Submitting…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)} CLT`}
                             </button>
                           ) : (
                             <p className="mt-0.5 text-xs text-zinc-400">No available balance</p>
@@ -576,6 +613,7 @@ export function UserDashboardSections({
                                 <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Joined</TableHead>
                                 <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">OCTO earned</TableHead>
                                 <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">USDC earned</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">CLT earned</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -593,9 +631,18 @@ export function UserDashboardSections({
                                     </span>
                                   </TableCell>
                                   <TableCell className="py-3">
-                                    {commissionsByReferred[row.referred_wallet] ? (
+                                    {(commissionsByReferred[row.referred_wallet]?.usdc ?? 0) > 0 ? (
                                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                        +${commissionsByReferred[row.referred_wallet]!.toFixed(4)} USDC
+                                        +${commissionsByReferred[row.referred_wallet]!.usdc.toFixed(4)} USDC
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-zinc-400">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-3">
+                                    {(commissionsByReferred[row.referred_wallet]?.clt ?? 0) > 0 ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-500/15 dark:text-purple-300">
+                                        +{new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(commissionsByReferred[row.referred_wallet]!.clt)} CLT
                                       </span>
                                     ) : (
                                       <span className="text-xs text-zinc-400">—</span>

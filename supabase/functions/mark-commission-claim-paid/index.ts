@@ -1,7 +1,7 @@
 /**
  * mark-commission-claim-paid
  *
- * Admin marque une réclamation de commission USDC comme payée.
+ * Admin marque une réclamation de commission (USDC + CLT) comme payée.
  * Vérifie que le wallet appelant est bien le wallet admin.
  *
  * Body: { claim_id: string, admin_wallet: string }
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     // Récupérer le claim
     const { data: claim, error: fetchError } = await supabase
       .from("referral_commission_claims")
-      .select("id, status, total_usdc, referrer_wallet")
+      .select("id, status, total_usdc, total_clt, referrer_wallet")
       .eq("id", claim_id)
       .maybeSingle();
 
@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
         claim_id,
         referrer_wallet: claim.referrer_wallet,
         total_usdc: claim.total_usdc,
+        total_clt: claim.total_clt ?? 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

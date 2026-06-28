@@ -176,16 +176,18 @@ export async function creditReferralCommission(
 
 export async function claimReferralCommissions(
   referrerWallet: string
-): Promise<{ success: boolean; claim_id?: string; total_usdc?: number; already_pending?: boolean; error?: string }> {
+): Promise<{ success: boolean; claim_id?: string; total_usdc?: number; total_clt?: number; already_pending?: boolean; error?: string }> {
   const res = await callOctoFunction<{
     claim_id?: string;
     total_usdc?: number;
+    total_clt?: number;
     already_pending?: boolean;
   }>("claim-referral-commissions", { referrer_wallet: referrerWallet });
   return {
     success: res.success,
     claim_id: res.data?.claim_id,
     total_usdc: res.data?.total_usdc,
+    total_clt: res.data?.total_clt,
     already_pending: res.data?.already_pending,
     error: res.error,
   };
@@ -205,15 +207,18 @@ export async function markCommissionClaimPaid(
 /** Solde USDC disponible (total gagné - total payé via claims paid) */
 export async function getReferralCommissionBalance(
   referrerWallet: string
-): Promise<{ available: number; total_earned: number; pending_claim: number }> {
+): Promise<{
+  available: number; total_earned: number; pending_claim: number;
+  available_clt: number; total_earned_clt: number; pending_claim_clt: number;
+}> {
   const [commissionsRes, claimsRes] = await Promise.all([
     supabase
       .from("referral_commissions")
-      .select("amount_usdc")
+      .select("amount_usdc, amount_clt")
       .eq("referrer_wallet", referrerWallet),
     supabase
       .from("referral_commission_claims")
-      .select("total_usdc, status")
+      .select("total_usdc, total_clt, status")
       .eq("referrer_wallet", referrerWallet),
   ]);
 
@@ -223,36 +228,48 @@ export async function getReferralCommissionBalance(
   if (claimsRes.error) {
     console.error("[octo-service] referral_commission_claims SELECT error:", claimsRes.error.message, claimsRes.error.code, { referrerWallet });
   }
-  console.log("[octo-service] commissions data:", commissionsRes.data, "claims data:", claimsRes.data);
 
   const totalEarned = (commissionsRes.data ?? []).reduce(
-    (sum, row) => sum + Number((row as ReferralCommissionRow).amount_usdc),
+    (sum, row) => sum + Number((row as ReferralCommissionRow).amount_usdc ?? 0),
+    0
+  );
+  const totalEarnedClt = (commissionsRes.data ?? []).reduce(
+    (sum, row) => sum + Number((row as ReferralCommissionRow).amount_clt ?? 0),
     0
   );
 
-  const rows = (claimsRes.data ?? []) as Pick<ReferralCommissionClaimRow, "total_usdc" | "status">[];
-  const totalPaid = rows.filter((r) => r.status === "paid").reduce((sum, r) => sum + Number(r.total_usdc), 0);
-  const pendingClaim = rows.filter((r) => r.status === "pending").reduce((sum, r) => sum + Number(r.total_usdc), 0);
+  const rows = (claimsRes.data ?? []) as Pick<ReferralCommissionClaimRow, "total_usdc" | "total_clt" | "status">[];
+  const totalPaid = rows.filter((r) => r.status === "paid").reduce((sum, r) => sum + Number(r.total_usdc ?? 0), 0);
+  const pendingClaim = rows.filter((r) => r.status === "pending").reduce((sum, r) => sum + Number(r.total_usdc ?? 0), 0);
+  const totalPaidClt = rows.filter((r) => r.status === "paid").reduce((sum, r) => sum + Number(r.total_clt ?? 0), 0);
+  const pendingClaimClt = rows.filter((r) => r.status === "pending").reduce((sum, r) => sum + Number(r.total_clt ?? 0), 0);
 
   return {
     total_earned: Math.round(totalEarned * 10000) / 10000,
     available: Math.round((totalEarned - totalPaid - pendingClaim) * 10000) / 10000,
     pending_claim: Math.round(pendingClaim * 10000) / 10000,
+    total_earned_clt: Math.round(totalEarnedClt * 100) / 100,
+    available_clt: Math.round((totalEarnedClt - totalPaidClt - pendingClaimClt) * 100) / 100,
+    pending_claim_clt: Math.round(pendingClaimClt * 100) / 100,
   };
 }
 
 /** Commissions par filleul (pour colonne USDC dans le tableau) */
 export async function getReferralCommissionsByReferred(
   referrerWallet: string
-): Promise<Record<string, number>> {
+): Promise<Record<string, { usdc: number; clt: number }>> {
   const { data } = await supabase
     .from("referral_commissions")
-    .select("referred_wallet, amount_usdc")
+    .select("referred_wallet, amount_usdc, amount_clt")
     .eq("referrer_wallet", referrerWallet);
 
-  const map: Record<string, number> = {};
-  for (const row of (data ?? []) as Pick<ReferralCommissionRow, "referred_wallet" | "amount_usdc">[]) {
-    map[row.referred_wallet] = (map[row.referred_wallet] ?? 0) + Number(row.amount_usdc);
+  const map: Record<string, { usdc: number; clt: number }> = {};
+  for (const row of (data ?? []) as Pick<ReferralCommissionRow, "referred_wallet" | "amount_usdc" | "amount_clt">[]) {
+    const prev = map[row.referred_wallet] ?? { usdc: 0, clt: 0 };
+    map[row.referred_wallet] = {
+      usdc: prev.usdc + Number(row.amount_usdc ?? 0),
+      clt: prev.clt + Number(row.amount_clt ?? 0),
+    };
   }
   return map;
 }

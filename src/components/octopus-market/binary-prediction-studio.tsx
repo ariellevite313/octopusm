@@ -1010,7 +1010,8 @@ export function BinaryPredictionStudio({
             loser.wallet_address,
             "loss_commission",
             loser.amount,
-            loser.payment_reference
+            loser.payment_reference,
+            (loser.token as BetToken) ?? "usdc"
           );
         }
       } catch (err) {
@@ -1106,7 +1107,7 @@ export function BinaryPredictionStudio({
       setHistory(readPredictionHistory());
 
       toast.success(`Gain réclamé`, {
-        description: `${entry.marketTitle} — ${formatCurrency(entry.netReward)} net (après ${entry.claimFeeRate}% de frais). En attente de paiement admin.`,
+        description: `${entry.marketTitle} — ${entry.token === "clawdtrust" ? formatClawdTrust(entry.netReward) : formatCurrency(entry.netReward)} net (après ${entry.claimFeeRate}% de frais). En attente de paiement admin.`,
         duration: 6000,
       });
     } finally {
@@ -1206,8 +1207,9 @@ export function BinaryPredictionStudio({
         claimFeeRate: predictionMarketFeeRate,
         stake: amount,
         reserveFee,
-        totalChargeUsd,
-        totalChargeUsdc: totalChargeUsd,
+        totalChargeUsd: selectedToken === "usdc" ? totalChargeUsd : 0,
+        totalChargeUsdc: selectedToken === "usdc" ? totalChargeUsd : 0,
+        totalChargeClt: selectedToken === "clawdtrust" ? totalChargeUsd : 0,
         token: selectedToken,
         ...(walletUsername?.trim() ? { username: walletUsername.trim() } : {}),
       },
@@ -1808,7 +1810,9 @@ export function BinaryPredictionStudio({
                               {claim.referrer_wallet.slice(0, 6)}…{claim.referrer_wallet.slice(-4)}
                             </TableCell>
                             <TableCell className="py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                              ${Number(claim.total_usdc).toFixed(4)}
+                              {Number(claim.total_usdc) > 0 ? `$${Number(claim.total_usdc).toFixed(4)}` : null}
+                              {Number(claim.total_usdc) > 0 && Number(claim.total_clt ?? 0) > 0 ? " + " : null}
+                              {Number(claim.total_clt ?? 0) > 0 ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(claim.total_clt))} CLT` : null}
                             </TableCell>
                             <TableCell className="py-3 text-xs text-zinc-500 dark:text-zinc-400">
                               {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(claim.created_at))}

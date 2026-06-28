@@ -874,15 +874,9 @@ async function sendDirectWalletTransfer(paymentRequest: PaymentRequest, payerAdd
             preflightCommitment: "confirmed",
           });
 
-      await connection.confirmTransaction(
-        {
-          signature,
-          blockhash,
-          lastValidBlockHeight,
-        },
-        "confirmed"
-      );
-
+      // confirmTransaction est omis intentionnellement : findReference + validateTransfer
+      // gèrent la confirmation on-chain côté appelant. Attendre ici causerait des faux
+      // échecs (timeout / block height exceeded) même quand la tx est bien passée.
       return { signature, rpcUrl };
     } catch (error) {
       endpointErrors.push(error instanceof Error ? error.message : `transfer failed on ${rpcUrl}`);
