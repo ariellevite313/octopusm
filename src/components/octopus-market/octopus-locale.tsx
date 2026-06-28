@@ -110,7 +110,6 @@ const translationEntries: Array<[string, string]> = [
   ["Publish market", "Publier le marché"],
   ["Cancel", "Annuler"],
   ["Delete", "Supprimer"],
-  ["Product coverage", "Couverture produit"],
   ["Prototype status", "Statut du prototype"],
   ["Action required", "Action requise"],
   ["Prediction market updated", "Marché de prédiction mis à jour"],

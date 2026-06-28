@@ -97,6 +97,47 @@ let predictionHistoryCache: PredictionHistoryEntry[] = [];
 let hasHydrated = false;
 let activeWalletAddress: string | null = null;
 
+// ─── Cache localStorage ───────────────────────────────────────────────────────
+const LS_MARKETS_KEY = "octopus-markets-cache-v1";
+const LS_MARKETS_TTL_MS = 60_000; // 60 secondes
+
+type MarketsLocalCache = {
+  ts: number;
+  markets: AdminCreatedPredictionMarket[];
+};
+
+function readMarketsFromLocalStorage(): AdminCreatedPredictionMarket[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LS_MARKETS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MarketsLocalCache;
+    if (Date.now() - parsed.ts > LS_MARKETS_TTL_MS) return null; // expiré
+    return parsed.markets;
+  } catch {
+    return null;
+  }
+}
+
+function writeMarketsToLocalStorage(markets: AdminCreatedPredictionMarket[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: MarketsLocalCache = { ts: Date.now(), markets };
+    window.localStorage.setItem(LS_MARKETS_KEY, JSON.stringify(payload));
+  } catch {
+    // localStorage plein ou bloqué — on ignore silencieusement
+  }
+}
+
+function invalidateMarketsLocalStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LS_MARKETS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 let realtimeMarketsUnsub: (() => void) | null = null;
 let realtimeHistoryUnsub: (() => void) | null = null;
 
@@ -251,23 +292,39 @@ function entryToDbRow(
 export async function initPredictionStore(walletAddress?: string | null): Promise<void> {
   activeWalletAddress = walletAddress ?? null;
 
-  // ── Stratégie de chargement optimisée ────────────────────────────────────
-  // 1. Marchés et historique sont lancés EN PARALLÈLE (Promise.all).
-  // 2. Dès que les marchés arrivent, on émet une première mise à jour :
-  //    l'UI s'affiche immédiatement sans attendre l'historique wallet.
-  // 3. L'historique arrive quelques ms plus tard et déclenche un second emit.
-  //
-  // Gain typique : -300 à -400ms sur le premier affichage pour les utilisateurs connectés.
+  // ── Stratégie de chargement ───────────────────────────────────────────────
+  // 0. Lire le cache localStorage → affichage instantané (<1ms)
+  // 1. Lancer Supabase + historique EN PARALLÈLE en arrière-plan
+  // 2. Dès que Supabase répond : mettre à jour le cache + re-émettre
+  // 3. L'historique wallet arrive ensuite → second emit
 
+  // Étape 0 : seed instantané depuis le cache local
+  const cached = readMarketsFromLocalStorage();
+  if (cached && cached.length > 0) {
+    predictionMarketsCache = cached;
+    predictionResolutionsCache = {};
+    for (const market of cached) {
+      if (market.isResolved && market.resolutionOutcomeId) {
+        predictionResolutionsCache[market.id] = {
+          outcomeId: market.resolutionOutcomeId,
+          resolvedAt: market.createdAt,
+          resolvedByWallet: market.createdByWallet,
+        };
+      }
+    }
+    hasHydrated = true;
+    emitUpdate(); // UI visible immédiatement
+  }
+
+  // Étape 1 : fetch Supabase + historique en parallèle
   const historyPromise: Promise<typeof predictionHistoryCache> = walletAddress
     ? getPredictionHistory(walletAddress).then((rows) => rows.map(historyRowToApp))
     : Promise.resolve([]);
 
-  // Charger les marchés et l'historique en parallèle
   const marketsPromise = getActiveMarkets();
   const [markets] = await Promise.all([marketsPromise, historyPromise.catch(() => [])]);
 
-  // Appliquer les marchés immédiatement
+  // Étape 2 : appliquer les marchés frais
   predictionMarketsCache = markets.map(marketRowToApp);
   predictionResolutionsCache = {};
   for (const market of markets) {
@@ -280,14 +337,16 @@ export async function initPredictionStore(walletAddress?: string | null): Promis
     }
   }
 
-  // Émettre une première fois dès que les marchés sont prêts (UI visible)
+  // Persister dans localStorage pour le prochain chargement
+  writeMarketsToLocalStorage(predictionMarketsCache);
+
   hasHydrated = true;
   emitUpdate();
 
-  // Subscriptions Realtime (démarrées sans attendre l'historique)
+  // Subscriptions Realtime
   startRealtimeSync(walletAddress ?? null);
 
-  // Appliquer l'historique dès qu'il arrive (second emit)
+  // Étape 3 : historique wallet
   if (walletAddress) {
     historyPromise.then((history) => {
       predictionHistoryCache = history;
@@ -323,6 +382,7 @@ function startRealtimeSync(walletAddress: string | null): void {
       };
     }
 
+    writeMarketsToLocalStorage(predictionMarketsCache);
     emitUpdate();
   });
 
@@ -520,6 +580,7 @@ export async function appendAdminCreatedPredictionMarket(
   const result = await createMarket(dbMarket, adminWalletAddress ?? "");
   if (result.success) {
     predictionMarketsCache = [market, ...predictionMarketsCache];
+    writeMarketsToLocalStorage(predictionMarketsCache);
     emitUpdate();
   }
 
@@ -532,6 +593,7 @@ export async function removeAdminCreatedPredictionMarket(
 ): Promise<AdminCreatedPredictionMarket[]> {
   await deleteMarket(marketId, adminWalletAddress ?? "");
   predictionMarketsCache = predictionMarketsCache.filter((m) => m.id !== marketId);
+  invalidateMarketsLocalStorage();
 
   if (predictionResolutionsCache[marketId]) {
     const next = { ...predictionResolutionsCache };
@@ -563,6 +625,7 @@ export async function resolveAdminCreatedPredictionMarket(
     predictionMarketsCache = predictionMarketsCache.map((m) =>
       m.id === marketId ? { ...m, isResolved: true } : m
     );
+    invalidateMarketsLocalStorage();
 
     syncPredictionEntriesForResolvedMarket({
       marketId,

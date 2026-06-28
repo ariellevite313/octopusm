@@ -142,38 +142,38 @@ function renderPredictionPreviewHeadline(market: {
 }) {
   if (market.visualType === "vs") {
     return (
-      <div className="flex flex-wrap items-center gap-2 text-lg font-semibold text-zinc-950 dark:text-white">
+      <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-zinc-950 dark:text-white">
         {market.leftCompetitorImageSrc ? (
           <SafeImage
             src={market.leftCompetitorImageSrc}
             alt={`${market.leftCompetitorName ?? "Left team"} logo`}
-            className="size-9 rounded-full border border-white/60 object-cover"
+            className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
           />
         ) : null}
-        <span>{market.leftCompetitorName ?? "Team A"}</span>
-        <span className="text-zinc-400 dark:text-zinc-500">vs</span>
+        <span className="min-w-0 flex-1 truncate">{market.leftCompetitorName ?? "Team A"}</span>
+        <span className="shrink-0 text-zinc-400 dark:text-zinc-500">vs</span>
         {market.rightCompetitorImageSrc ? (
           <SafeImage
             src={market.rightCompetitorImageSrc}
             alt={`${market.rightCompetitorName ?? "Right team"} logo`}
-            className="size-9 rounded-full border border-white/60 object-cover"
+            className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
           />
         ) : null}
-        <span>{market.rightCompetitorName ?? "Team B"}</span>
+        <span className="min-w-0 flex-1 truncate">{market.rightCompetitorName ?? "Team B"}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 text-lg font-semibold text-zinc-950 dark:text-white">
+    <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-zinc-950 dark:text-white">
       {market.singleImageSrc ? (
         <SafeImage
           src={market.singleImageSrc}
           alt={`${market.singleName ?? market.title} logo`}
-          className="size-9 rounded-full border border-white/60 object-cover"
+          className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
         />
       ) : null}
-      <span>{market.singleName ?? market.title}</span>
+      <span className="min-w-0 truncate">{market.singleName ?? market.title}</span>
     </div>
   );
 }
@@ -513,6 +513,18 @@ function HomeLiveBadge({ eventStartAt }: { eventStartAt: string | null | undefin
       ⏳ Starts in {homeFormatCountdown(eventStartAt)}
     </span>
   );
+}
+
+function HomeMarketCountdownText({ eventStartAt }: { eventStartAt: string }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  void tick;
+  const text = homeFormatCountdown(eventStartAt);
+  if (text === "LIVE") return null;
+  return <>{text}</>;
 }
 
 export function OctopusMarketPage() {
@@ -1289,14 +1301,20 @@ export function OctopusMarketPage() {
     [selectedPredictionCategoryId]
   );
 
-  const visiblePredictionMarkets = useMemo(
-    () => selectedPredictionCategoryId === "previous"
-      ? resolvedMarkets
-      : allPredictionMarkets.filter(
-          (market) => market.categoryId === selectedPredictionCategoryId && !market.isResolved && !homeResolutions[market.id]
-        ),
-    [allPredictionMarkets, resolvedMarkets, selectedPredictionCategoryId, homeResolutions]
-  );
+  const visiblePredictionMarkets = useMemo(() => {
+    if (selectedPredictionCategoryId === "previous") return resolvedMarkets;
+    const now = Date.now();
+    return allPredictionMarkets
+      .filter((market) => market.categoryId === selectedPredictionCategoryId && !market.isResolved && !homeResolutions[market.id])
+      .sort((a, b) => {
+        const aMs = a.eventStartAt ? new Date(a.eventStartAt).getTime() : null;
+        const bMs = b.eventStartAt ? new Date(b.eventStartAt).getTime() : null;
+        if (aMs === null && bMs === null) return 0;
+        if (aMs === null) return 1;
+        if (bMs === null) return -1;
+        return Math.max(0, aMs - now) - Math.max(0, bMs - now);
+      });
+  }, [allPredictionMarkets, resolvedMarkets, selectedPredictionCategoryId, homeResolutions]);
 
   const headerNavigationItems = navigationItems.filter(
     (item) => !["#hero", "#prediction-market", "#launch-token", "#explore"].includes(item.href)
@@ -1954,7 +1972,7 @@ export function OctopusMarketPage() {
                         </p>
                       </div>
 
-                      <div className={`mt-6 ${visiblePredictionMarkets.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}`}>
+                      <div className={`mt-6 ${visiblePredictionMarkets.length >= 6 ? "grid gap-4 lg:grid-cols-3" : visiblePredictionMarkets.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}`}>
                         {isLoadingResolved && selectedPredictionCategoryId === "previous" ? (
                           <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-5 py-6 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                             Loading previous markets…
@@ -2045,81 +2063,80 @@ export function OctopusMarketPage() {
                             );
                           }
 
+                          const isMarketLive = homeGetEventLiveStatus(market.eventStartAt) === "live";
                           return (
                           <Card
                             key={market.id}
-                            className="border-2 border-orange-300 bg-white text-zinc-950 shadow-[0_12px_28px_rgba(249,115,22,0.1)] dark:border-orange-400/20 dark:bg-zinc-900/85 dark:text-white sm:border-orange-200 sm:bg-orange-50/60 sm:shadow-none dark:sm:border-white/10 dark:sm:bg-black/20"
+                            className="overflow-hidden border-orange-200 bg-orange-50/60 text-zinc-950 shadow-none dark:border-white/10 dark:bg-black/20 dark:text-white"
                           >
                             <CardContent className="space-y-4 p-5">
-                              <div className="flex flex-wrap items-start justify-between gap-4">
-                                <div className="space-y-2">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
+                              {/* Header + pill */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
                                     {market.title}
                                   </p>
-                                  {renderPredictionPreviewHeadline(market)}
-                                  <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">{market.resolutionLabel}</p>
-                                  {(market.eventStartAt || market.eventDateLabel) ? (
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-700 dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300">
-                                      <Clock3 className="size-3.5" />
-                                      {market.eventStartAt
-                                        ? homeFormatEventStartLabel(market.eventStartAt)
-                                        : market.eventDateLabel}
-                                    </div>
-                                  ) : null}
-                                  {market.eventStartAt ? (
-                                    <HomeLiveBadge eventStartAt={market.eventStartAt} />
-                                  ) : null}
+                                  <div className="mt-1.5">{renderPredictionPreviewHeadline(market)}</div>
                                 </div>
-
-                                <div className="flex flex-col items-start gap-3 sm:items-end">
-                                  <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950">
-                                    {market.options?.length === 3 ? "3 choices open" : "2 choices open"}
-                                  </Badge>
-                                  {homeGetEventLiveStatus(market.eventStartAt) === "live" ? (
-                                    <div className="flex h-9 w-full items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-xs font-medium text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 sm:w-auto">
-                                      Event in progress
-                                    </div>
-                                  ) : (
-                                    <Button
-                                      type="button"
-                                      className="w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-400 sm:w-auto"
-                                      onClick={() => openPredictionMarketSection(market.categoryId, market.id)}
-                                    >
-                                      Place a bet
-                                    </Button>
-                                  )}
-                                </div>
+                                {isMarketLive ? (
+                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                    <span className="relative flex size-1.5">
+                                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                      <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                                    </span>
+                                    LIVE
+                                  </span>
+                                ) : market.eventStartAt ? (
+                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-300">
+                                    ⏳ <HomeMarketCountdownText eventStartAt={market.eventStartAt} />
+                                  </span>
+                                ) : null}
                               </div>
 
+                              {/* Options */}
                               {market.options?.length ? (
-                                <div className={`grid gap-3 ${market.options.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                                <div className={`grid gap-2 ${market.options.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                                   {market.options.map((option) => (
                                     <div
                                       key={option.id}
-                                      className="rounded-2xl border border-orange-300 bg-orange-50/70 px-4 py-4 dark:border-orange-400/20 dark:bg-zinc-950/90 sm:border-orange-200 sm:bg-white dark:sm:border-white/10 dark:sm:bg-zinc-950/80"
+                                      className="flex flex-col gap-2 overflow-hidden rounded-2xl border border-orange-200 bg-white px-3 py-3 dark:border-white/10 dark:bg-zinc-950/80"
                                     >
-                                      <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3">
-                                          {option.logoSrc ? (
-                                            <SafeImage
-                                              src={option.logoSrc}
-                                              alt={`${option.label} logo`}
-                                              className="size-8 rounded-full border border-white/60 object-cover"
-                                            />
-                                          ) : null}
-                                          <div>
-                                            <p className="text-sm font-semibold text-zinc-950 dark:text-white">{option.label}</p>
-                                            {option.description ? (
-                                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{option.description}</p>
-                                            ) : null}
-                                          </div>
-                                        </div>
-                                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-300">x{option.oddsMultiplier}</span>
+                                      <div className="flex items-center justify-between gap-2">
+                                        {option.logoSrc ? (
+                                          <SafeImage
+                                            src={option.logoSrc}
+                                            alt={`${option.label} logo`}
+                                            className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
+                                          />
+                                        ) : <span className="size-5 shrink-0" />}
+                                        <span className="shrink-0 text-sm font-bold text-zinc-950 dark:text-white">×{option.oddsMultiplier}</span>
                                       </div>
+                                      <span className="line-clamp-2 text-xs font-semibold leading-tight text-zinc-800 dark:text-zinc-100">{option.label}</span>
                                     </div>
                                   ))}
                                 </div>
                               ) : null}
+
+                              {/* CTA */}
+                              <div className="flex justify-end">
+                                {isMarketLive ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                    <span className="relative flex size-1.5">
+                                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                      <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                                    </span>
+                                    Event in progress
+                                  </span>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    className="rounded-full bg-orange-500 text-white hover:bg-orange-400"
+                                    onClick={() => openPredictionMarketSection(market.categoryId, market.id)}
+                                  >
+                                    Place a bet
+                                  </Button>
+                                )}
+                              </div>
                             </CardContent>
                           </Card>
                           );

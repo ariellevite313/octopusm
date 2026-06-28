@@ -1,12 +1,10 @@
 /**
  * claim-referral-commissions
  *
- * Le parrain demande le paiement de son solde USDC disponible.
- * "Disponible" = total des commissions NON couvertes par un claim pending ou paid.
+ * Le parrain demande le paiement de son solde disponible (USDC + CLT).
  *
  * Body: { referrer_wallet: string }
- *
- * Returns: { success, claim_id, total_usdc } | { success: false, error, already_pending? }
+ * Returns: { success, claim_id, total_usdc, total_clt }
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -39,7 +37,7 @@ Deno.serve(async (req) => {
     // Vérifier qu'il n'y a pas déjà un claim pending
     const { data: pendingClaim } = await supabase
       .from("referral_commission_claims")
-      .select("id, total_usdc")
+      .select("id, total_usdc, total_clt")
       .eq("referrer_wallet", referrer_wallet)
       .eq("status", "pending")
       .maybeSingle();
@@ -52,37 +50,43 @@ Deno.serve(async (req) => {
           error: "A claim is already pending payment",
           pending_claim_id: pendingClaim.id,
           pending_usdc: pendingClaim.total_usdc,
+          pending_clt: pendingClaim.total_clt,
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Calculer le total des commissions déjà payées (paid claims)
+    // Totaux déjà payés (paid claims)
     const { data: paidClaims } = await supabase
       .from("referral_commission_claims")
-      .select("total_usdc")
+      .select("total_usdc, total_clt")
       .eq("referrer_wallet", referrer_wallet)
       .eq("status", "paid");
 
-    const totalPaid = (paidClaims ?? []).reduce(
-      (sum: number, row: { total_usdc: number }) => sum + Number(row.total_usdc),
-      0
+    const totalPaidUsdc = (paidClaims ?? []).reduce(
+      (sum: number, row: { total_usdc: number }) => sum + Number(row.total_usdc), 0
+    );
+    const totalPaidClt = (paidClaims ?? []).reduce(
+      (sum: number, row: { total_clt: number }) => sum + Number(row.total_clt ?? 0), 0
     );
 
-    // Calculer le total de toutes les commissions gagnées
+    // Total de toutes les commissions gagnées
     const { data: allCommissions } = await supabase
       .from("referral_commissions")
-      .select("amount_usdc")
+      .select("amount_usdc, amount_clt")
       .eq("referrer_wallet", referrer_wallet);
 
-    const totalEarned = (allCommissions ?? []).reduce(
-      (sum: number, row: { amount_usdc: number }) => sum + Number(row.amount_usdc),
-      0
+    const totalEarnedUsdc = (allCommissions ?? []).reduce(
+      (sum: number, row: { amount_usdc: number | null }) => sum + Number(row.amount_usdc ?? 0), 0
+    );
+    const totalEarnedClt = (allCommissions ?? []).reduce(
+      (sum: number, row: { amount_clt: number | null }) => sum + Number(row.amount_clt ?? 0), 0
     );
 
-    const availableUsdc = Math.round((totalEarned - totalPaid) * 10000) / 10000;
+    const availableUsdc = Math.round((totalEarnedUsdc - totalPaidUsdc) * 10000) / 10000;
+    const availableClt  = Math.round((totalEarnedClt  - totalPaidClt)  * 10000) / 10000;
 
-    if (availableUsdc <= 0) {
+    if (availableUsdc <= 0 && availableClt <= 0) {
       return new Response(
         JSON.stringify({ success: false, error: "No available balance to claim" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -94,14 +98,14 @@ Deno.serve(async (req) => {
       .from("referral_commission_claims")
       .insert({
         referrer_wallet,
-        total_usdc: availableUsdc,
+        total_usdc: Math.max(0, availableUsdc),
+        total_clt:  Math.max(0, availableClt),
         status: "pending",
       })
       .select("id")
       .single();
 
     if (insertError || !claim) {
-      console.error("[claim-referral-commissions] insert:", insertError?.message);
       return new Response(
         JSON.stringify({ success: false, error: insertError?.message ?? "Insert failed" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -109,11 +113,15 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, claim_id: claim.id, total_usdc: availableUsdc }),
+      JSON.stringify({
+        success: true,
+        claim_id: claim.id,
+        total_usdc: Math.max(0, availableUsdc),
+        total_clt:  Math.max(0, availableClt),
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("[claim-referral-commissions] unexpected:", err);
     return new Response(
       JSON.stringify({ success: false, error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

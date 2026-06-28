@@ -2,10 +2,14 @@
  * Edge Function : credit-bet-octo
  *
  * Crédite des OCTO après un pari confirmé.
- * Formule : floor(amount_usd / 2) * 10
- * Exemple : 100$ → 500 OCTO
  *
- * Body attendu : { wallet_address: string, amount_usd: number, bet_id?: string }
+ * Formule USDC    : floor(amount_usd / 2) × 10
+ *   Exemple : 100 USDC  → 500 OCTO
+ *
+ * Formule CLT     : floor(amount_clt / 25 000)
+ *   Exemple : 500 000 CLT → 20 OCTO
+ *
+ * Body : { wallet_address, token, amount_usd?, amount_clt?, bet_id? }
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -21,21 +25,43 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { wallet_address, amount_usd } = await req.json() as {
+    const { wallet_address, token, amount_usd, amount_clt } = await req.json() as {
       wallet_address?: string;
+      token?: string;
       amount_usd?: number;
+      amount_clt?: number;
     };
 
-    if (!wallet_address || amount_usd == null || amount_usd <= 0) {
+    if (!wallet_address) {
       return new Response(
-        JSON.stringify({ error: "wallet_address et amount_usd (> 0) requis" }),
+        JSON.stringify({ error: "wallet_address requis" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const octo_amount = Math.floor(amount_usd / 2) * 10;
+    let octo_amount = 0;
 
-    // Montant trop faible pour gagner des OCTO (< 2$)
+    if (token === "clawdtrust") {
+      if (amount_clt == null || amount_clt <= 0) {
+        return new Response(
+          JSON.stringify({ error: "amount_clt (> 0) requis pour le token clawdtrust" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // 25 000 CLT = 1 OCTO
+      octo_amount = Math.floor(amount_clt / 25000);
+    } else {
+      // USDC par défaut
+      if (amount_usd == null || amount_usd <= 0) {
+        return new Response(
+          JSON.stringify({ error: "amount_usd (> 0) requis pour le token usdc" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      octo_amount = Math.floor(amount_usd / 2) * 10;
+    }
+
+    // Montant trop faible pour gagner des OCTO
     if (octo_amount === 0) {
       return new Response(
         JSON.stringify({ success: true, octo_credited: 0 }),
@@ -54,7 +80,7 @@ Deno.serve(async (req) => {
         wallet_address,
         type: "bet",
         amount: octo_amount,
-        bet_amount_usd: amount_usd,
+        bet_amount_usd: token === "clawdtrust" ? null : (amount_usd ?? null),
       });
 
     if (error) {

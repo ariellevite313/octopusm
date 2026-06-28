@@ -7,7 +7,7 @@
  */
 
 import { supabase } from "../../lib/supabase";
-import type { OctoTransactionRow, ReferralCommissionRow, ReferralCommissionClaimRow, ReferralRow } from "../../lib/supabase-types";
+import type { OctoTransactionRow, ReferralCommissionRow, ReferralCommissionClaimRow, ReferralRow, BetToken } from "../../lib/supabase-types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -70,12 +70,19 @@ export async function registerReferral(
 
 export async function creditBetOcto(
   walletAddress: string,
-  amountUsd: number
+  amount: number,
+  token: BetToken = "usdc"
 ): Promise<{ octo_credited: number }> {
-  const res = await callOctoFunction<{ octo_credited: number }>(
-    "credit-bet-octo",
-    { wallet_address: walletAddress, amount_usd: amountUsd }
-  );
+  const body: Record<string, unknown> = {
+    wallet_address: walletAddress,
+    token,
+  };
+  if (token === "clawdtrust") {
+    body.amount_clt = amount;
+  } else {
+    body.amount_usd = amount;
+  }
+  const res = await callOctoFunction<{ octo_credited: number }>("credit-bet-octo", body);
   return { octo_credited: res.data?.octo_credited ?? 0 };
 }
 
@@ -135,21 +142,34 @@ export async function getWalletUsername(walletAddress: string): Promise<string |
   return (data as { username: string | null } | null)?.username ?? null;
 }
 
-// ─── Referral Commission (USDC) ───────────────────────────────────────────────
+// ─── Referral Commission (USDC + CLT) ──────────────────────────────────────────
 
 export async function creditReferralCommission(
   referredWallet: string,
   type: "bet_fee" | "loss_commission",
-  amountUsdc: number,
-  betReference: string
-): Promise<{ success: boolean; commission_usdc?: number; skipped?: boolean }> {
-  const res = await callOctoFunction<{ commission_usdc?: number; skipped?: boolean }>(
+  amount: number,
+  betReference: string,
+  token: BetToken = "usdc"
+): Promise<{ success: boolean; commission_usdc?: number; commission_clt?: number; skipped?: boolean }> {
+  const body: Record<string, unknown> = {
+    referred_wallet: referredWallet,
+    type,
+    token,
+    bet_reference: betReference,
+  };
+  if (token === "clawdtrust") {
+    body.amount_clt = amount;
+  } else {
+    body.amount_usdc = amount;
+  }
+  const res = await callOctoFunction<{ commission_usdc?: number; commission_clt?: number; skipped?: boolean }>(
     "credit-referral-commission",
-    { referred_wallet: referredWallet, type, amount_usdc: amountUsdc, bet_reference: betReference }
+    body
   );
   return {
     success: res.success,
     commission_usdc: res.data?.commission_usdc,
+    commission_clt: res.data?.commission_clt,
     skipped: res.data?.skipped,
   };
 }

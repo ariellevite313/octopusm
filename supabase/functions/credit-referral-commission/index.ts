@@ -4,11 +4,15 @@
  * Crédite 5% des frais (bet_fee) ou 5% de la mise perdue (loss_commission)
  * au parrain du wallet référencé.
  *
+ * Supporte USDC et ClawdTrust (CLT).
+ *
  * Body: {
- *   referred_wallet : string   — wallet du filleul
+ *   referred_wallet : string
  *   type            : "bet_fee" | "loss_commission"
- *   amount_usdc     : number   — montant BRUT (frais ou mise) ; on calcule 5% ici
- *   bet_reference   : string   — payment_reference du pari
+ *   token           : "usdc" | "clawdtrust"
+ *   amount_usdc?    : number   — montant BRUT en USDC (si token = usdc)
+ *   amount_clt?     : number   — montant BRUT en CLT  (si token = clawdtrust)
+ *   bet_reference   : string
  * }
  */
 
@@ -28,14 +32,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { referred_wallet, type, amount_usdc, bet_reference } = await req.json() as {
-      referred_wallet: string;
-      type: "bet_fee" | "loss_commission";
-      amount_usdc: number;
-      bet_reference: string;
-    };
+    const { referred_wallet, type, token, amount_usdc, amount_clt, bet_reference } =
+      await req.json() as {
+        referred_wallet: string;
+        type: "bet_fee" | "loss_commission";
+        token?: string;
+        amount_usdc?: number;
+        amount_clt?: number;
+        bet_reference: string;
+      };
 
-    if (!referred_wallet || !type || !amount_usdc || !bet_reference) {
+    const resolvedToken = token ?? "usdc";
+
+    if (!referred_wallet || !type || !bet_reference) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -49,9 +58,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    const commission = Math.round(amount_usdc * 0.05 * 10000) / 10000; // 5%, arrondi 4 décimales
+    // ── Calcul de la commission selon le token ────────────────────────────────
+    let commission_usdc: number | null = null;
+    let commission_clt: number | null = null;
 
-    if (commission <= 0) {
+    if (resolvedToken === "clawdtrust") {
+      if (!amount_clt || amount_clt <= 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: "amount_clt requis pour clawdtrust" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      commission_clt = Math.round(amount_clt * 0.05 * 10000) / 10000; // 5%, 4 décimales
+    } else {
+      if (!amount_usdc || amount_usdc <= 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: "amount_usdc requis pour usdc" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      commission_usdc = Math.round(amount_usdc * 0.05 * 10000) / 10000;
+    }
+
+    const effectiveCommission = commission_usdc ?? commission_clt ?? 0;
+    if (effectiveCommission <= 0) {
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "commission_zero" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -68,7 +98,6 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (refError) {
-      console.error("[credit-referral-commission] referral lookup:", refError.message);
       return new Response(
         JSON.stringify({ success: false, error: refError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -76,19 +105,19 @@ Deno.serve(async (req) => {
     }
 
     if (!referralRow) {
-      // Pas de parrain → rien à créditer
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "no_referrer" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Éviter les doublons sur (bet_reference, type)
+    // Éviter les doublons sur (bet_reference, type, token)
     const { data: existing } = await supabase
       .from("referral_commissions")
       .select("id")
       .eq("bet_reference", bet_reference)
       .eq("type", type)
+      .eq("token", resolvedToken)
       .maybeSingle();
 
     if (existing) {
@@ -105,12 +134,13 @@ Deno.serve(async (req) => {
         referrer_wallet: referralRow.referrer_wallet,
         referred_wallet,
         type,
-        amount_usdc: commission,
+        token: resolvedToken,
+        amount_usdc: commission_usdc,
+        amount_clt: commission_clt,
         bet_reference,
       });
 
     if (insertError) {
-      console.error("[credit-referral-commission] insert:", insertError.message);
       return new Response(
         JSON.stringify({ success: false, error: insertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -121,13 +151,13 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         referrer_wallet: referralRow.referrer_wallet,
-        commission_usdc: commission,
-        type,
+        token: resolvedToken,
+        commission_usdc,
+        commission_clt,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("[credit-referral-commission] unexpected:", err);
     return new Response(
       JSON.stringify({ success: false, error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

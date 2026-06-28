@@ -2,14 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  History,
   XCircle,
   LoaderCircle,
   Plus,
   ShieldCheck,
   Signature,
   Trash2,
-  TrendingUp,
   Wallet,
 } from "lucide-react";
 
@@ -79,15 +77,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 // ─── Event status helpers ─────────────────────────────────────────────────────
 
-function formatEventStartLabel(eventStartAt: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(eventStartAt));
-}
 
 function getEventLiveStatus(eventStartAt: string | null | undefined): "live" | "upcoming" | "none" {
   if (!eventStartAt) return "none";
@@ -105,6 +94,18 @@ function formatCountdown(eventStartAt: string): string {
     return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
   }
   return `${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function MarketCountdownText({ eventStartAt }: { eventStartAt: string }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  void tick;
+  const remaining = formatCountdown(eventStartAt);
+  if (remaining === "LIVE") return null;
+  return <>{remaining}</>;
 }
 
 function MarketEventCountdown({ eventStartAt }: { eventStartAt: string | null | undefined }) {
@@ -170,20 +171,6 @@ function loadPaymentModule() {
   return paymentModulePromise;
 }
 
-const contractCapabilities = [
-  "Every prediction section stays inside Octopus Market, with a wallet-gated deposit flow and local user history.",
-  "No market is seeded by default anymore, so every live market shown here now comes directly from admin publication.",
-  "Each validated payment creates an admin notification so the receiver wallet can approve or reject the incoming deposit.",
-  "Winning users see claim access only after admin approval and final outcome resolution on the platform.",
-  "The owner wallet can resolve each market directly inside the owner panel once payment review is complete.",
-];
-
-const roadmapItems = [
-  "Connect the local approval flow to a production admin dashboard and a persistent backend.",
-  "Sync exact live market pools with on-chain escrow balances and real settlement logic.",
-  "Route approved winner claims to a production payout transaction from the owner treasury.",
-  "Expand sports and event markets with more custom three-way or multi-outcome cards.",
-];
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -622,7 +609,7 @@ export function BinaryPredictionStudio({
   const visibleQuestions = useMemo(() => {
     void sortTick; // re-sort every 60s so live markets bubble up automatically
     const now = Date.now();
-    const filtered = allPredictionMarkets.filter((question) => question.categoryId === activeCategoryId);
+    const filtered = allPredictionMarkets.filter((question) => question.categoryId === activeCategoryId && !question.isResolved);
 
     return [...filtered].sort((a, b) => {
       const getMs = (m: typeof a) =>
@@ -672,29 +659,6 @@ export function BinaryPredictionStudio({
       }),
     [adminNotifications, history, resolutions]
   );
-
-  const totalPositioned = useMemo(
-    () => history.reduce((total, entry) => total + entry.amount, 0),
-    [history]
-  );
-
-  const totalReserveFees = useMemo(
-    () => history.reduce((total, entry) => total + entry.reserveFee, 0),
-    [history]
-  );
-
-  const totalClaimable = useMemo(
-    () =>
-      derivedHistory.reduce((total, entry) => {
-        if (!entry.canClaim || walletAddress !== entry.walletAddress) {
-          return total;
-        }
-
-        return total + entry.netReward;
-      }, 0),
-    [derivedHistory, walletAddress]
-  );
-
 
   const handleReportValidatedPayment = useCallback((paymentRequest: PaymentRequest) => {
     // Guard contre le double-enregistrement (state stale ou recovery concurrente)
@@ -768,7 +732,7 @@ export function BinaryPredictionStudio({
             void creditBetOcto(walletAddress, stake);
           }
           if (recoveredReserveFee > 0) {
-            void creditReferralCommission(walletAddress, "bet_fee", recoveredReserveFee, validatedPaymentRequest.reference);
+            void creditReferralCommission(walletAddress, "bet_fee", recoveredReserveFee, validatedPaymentRequest.reference, (meta["token"] as BetToken | undefined) ?? "usdc");
           }
         }
       }
@@ -854,38 +818,38 @@ export function BinaryPredictionStudio({
   const renderMarketHeadline = (market: PredictionMarketQuestion) => {
     if (market.visualType === "vs") {
       return (
-        <div className="flex flex-wrap items-center gap-2 text-lg font-semibold text-zinc-950 dark:text-white">
+        <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-zinc-950 dark:text-white">
           {market.leftCompetitorImageSrc ? (
             <img
               src={market.leftCompetitorImageSrc}
               alt={`${market.leftCompetitorName ?? "Left team"} logo`}
-              className="size-8 rounded-full border border-white/60 object-cover"
+              className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
             />
           ) : null}
-          <span>{market.leftCompetitorName ?? "Team A"}</span>
-          <span className="text-zinc-400 dark:text-zinc-500">vs</span>
+          <span className="min-w-0 flex-1 truncate">{market.leftCompetitorName ?? "Team A"}</span>
+          <span className="shrink-0 text-zinc-400 dark:text-zinc-500">vs</span>
           {market.rightCompetitorImageSrc ? (
             <img
               src={market.rightCompetitorImageSrc}
               alt={`${market.rightCompetitorName ?? "Right team"} logo`}
-              className="size-8 rounded-full border border-white/60 object-cover"
+              className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
             />
           ) : null}
-          <span>{market.rightCompetitorName ?? "Team B"}</span>
+          <span className="min-w-0 flex-1 truncate">{market.rightCompetitorName ?? "Team B"}</span>
         </div>
       );
     }
 
     return (
-      <div className="flex flex-wrap items-center gap-3 text-lg font-semibold text-zinc-950 dark:text-white">
+      <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-zinc-950 dark:text-white">
         {market.singleImageSrc ? (
           <img
             src={market.singleImageSrc}
             alt={`${market.singleName ?? market.title} logo`}
-            className="size-8 rounded-full border border-white/60 object-cover"
+            className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
           />
         ) : null}
-        <span>{market.singleName ?? market.title}</span>
+        <span className="min-w-0 truncate">{market.singleName ?? market.title}</span>
       </div>
     );
   };
@@ -1281,9 +1245,9 @@ export function BinaryPredictionStudio({
 
       // Credit OCTO for the confirmed bet (fire-and-forget, never blocks the user)
       if (connectedWallet) {
-        void creditBetOcto(connectedWallet, amount);
+        void creditBetOcto(connectedWallet, amount, selectedToken);
         // Credit 5% of reserve fee to referrer (if any)
-        void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, storedValidatedTransfer.reference);
+        void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, storedValidatedTransfer.reference, selectedToken);
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
@@ -1333,7 +1297,7 @@ export function BinaryPredictionStudio({
   return (
     <div className="space-y-6">
       <div id="prediction-market-studio" className="scroll-mt-32" />
-      <div className={ownerWalletConnected ? "w-full" : "grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"}>
+      <div className="w-full">
         {ownerWalletConnected ? (
           <>
             <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
@@ -1949,7 +1913,7 @@ export function BinaryPredictionStudio({
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className={visibleQuestions.length >= 6 ? "grid gap-4 lg:grid-cols-3" : visibleQuestions.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}>
               {visibleQuestions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-orange-200 bg-white px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                   No live bets are open in this section yet. Add a new market from the admin panel and it will appear here automatically.
@@ -1993,48 +1957,38 @@ export function BinaryPredictionStudio({
                   <Card
                     key={market.id}
                     id={`prediction-market-card-${market.id}`}
-                    className={`text-zinc-950 shadow-none dark:text-white ${
+                    className={`overflow-hidden text-zinc-950 shadow-none dark:text-white ${
                       selectedMarketId === market.id
                         ? "border-orange-400 bg-orange-100/80 ring-1 ring-orange-300 dark:border-orange-400/50 dark:bg-orange-500/10 dark:ring-orange-400/30"
                         : "border-orange-200 bg-orange-50/60 dark:border-white/10 dark:bg-black/20"
                     }`}
                   >
                     <CardContent className="space-y-4 p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
+                      {/* Market header + pill */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
                             {market.title}
                           </p>
-                          <div className="mt-2">
-                            {renderMarketHeadline(market)}
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{market.resolutionLabel}</p>
-                          {(market.eventStartAt || market.eventDateLabel) && !resolution ? (
-                            <p className="mt-2 text-sm font-medium text-orange-600 dark:text-orange-300">
-                              {market.eventStartAt
-                                ? formatEventStartLabel(market.eventStartAt)
-                                : market.eventDateLabel}
-                            </p>
-                          ) : null}
-                          {market.eventStartAt && !resolution ? (
-                            <div className="mt-2">
-                              <MarketEventCountdown eventStartAt={market.eventStartAt} />
-                            </div>
-                          ) : null}
+                          <div className="mt-1.5">{renderMarketHeadline(market)}</div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {resolvedOption ? (
-                            <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
-                              Resolved · {resolvedOption.label}
-                            </Badge>
-                          ) : null}
-                          <Badge className="border border-orange-200 bg-white text-orange-700 hover:bg-white dark:border-white/10 dark:bg-zinc-950 dark:text-orange-300 dark:hover:bg-zinc-950">
-                            {marketOptions.length === 3 ? "Three-way market" : "Binary market"}
-                          </Badge>
-                        </div>
+                        {isMarketLive ? (
+                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                            <span className="relative flex size-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                            </span>
+                            LIVE
+                          </span>
+                        ) : market.eventStartAt ? (
+                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-300">
+                            ⏳ <MarketCountdownText eventStartAt={market.eventStartAt} />
+                          </span>
+                        ) : null}
                       </div>
 
-                      <div className={`grid gap-3 ${marketOptions.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                      {/* Option buttons */}
+                      <div className={`grid gap-2 ${marketOptions.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                         {optionSummaries.map((option) => {
                           const isSelected = chosenSelectionId === option.id;
                           return (
@@ -2042,54 +1996,46 @@ export function BinaryPredictionStudio({
                               key={option.id}
                               type="button"
                               onClick={() => handleChooseSelection(market.id, option.id)}
-                              className={`rounded-2xl border px-4 py-4 text-left transition ${getSelectionClasses(option.id, isSelected)}`}
+                              className={`flex flex-col gap-2 overflow-hidden rounded-2xl border px-3 py-3 text-left transition ${getSelectionClasses(option.id, isSelected)}`}
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="flex items-center gap-3">
-                                    {option.logoSrc ? (
-                                      <img
-                                        src={option.logoSrc}
-                                        alt={`${option.label} logo`}
-                                        className="size-9 rounded-full border border-white/60 object-cover"
-                                      />
-                                    ) : null}
-                                    <div>
-                                      <p className="text-base font-semibold">{option.label}</p>
-                                      {option.description ? (
-                                        <p className={`mt-1 text-sm ${isSelected ? "text-white/90" : "text-zinc-600 dark:text-zinc-400"}`}>
-                                          {option.description}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                </div>
-                                <p className="text-lg font-semibold">x{option.oddsMultiplier}</p>
+                              <div className="flex items-center justify-between gap-2">
+                                {option.logoSrc ? (
+                                  <img
+                                    src={option.logoSrc}
+                                    alt={`${option.label} logo`}
+                                    className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
+                                  />
+                                ) : <span className="size-5 shrink-0" />}
+                                <span className={`shrink-0 text-sm font-bold leading-none ${isSelected ? "text-white" : "text-zinc-950 dark:text-white"}`}>×{option.oddsMultiplier}</span>
                               </div>
-                              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
-                                  <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
-                                    Live volume
-                                  </p>
-                                  <p className="mt-1 font-semibold">{selectedToken === "clawdtrust" ? formatClawdTrust(option.liveVolumeUsd) : formatCurrency(option.liveVolumeUsd)}</p>
-                                </div>
-                                <div className={`rounded-xl border px-3 py-2 ${isSelected ? "border-white/20 bg-white/10" : "border-orange-100 bg-white/80 dark:border-white/10 dark:bg-zinc-950/80"}`}>
-                                  <p className={`text-[11px] uppercase tracking-[0.12em] ${isSelected ? "text-white/70" : "text-zinc-500 dark:text-zinc-400"}`}>
-                                    Net return
-                                  </p>
-                                  <p className="mt-1 font-semibold">{selectedToken === "clawdtrust" ? formatClawdTrust(option.netReturnUsd) : formatCurrency(option.netReturnUsd)}</p>
-                                </div>
-                              </div>
+                              <span className={`line-clamp-2 text-xs font-semibold leading-tight ${isSelected ? "text-white" : "text-zinc-800 dark:text-zinc-100"}`}>{option.label}</span>
+                              <p className={`text-[9px] leading-none ${isSelected ? "text-white/60" : "text-zinc-400 dark:text-zinc-500"}`}>
+                                <span className="uppercase tracking-[0.06em]">Vol.</span> {selectedToken === "clawdtrust" ? formatClawdTrust(option.liveVolumeUsd) : formatCurrency(option.liveVolumeUsd)}
+                              </p>
                             </button>
                           );
                         })}
                       </div>
 
-                      <div className="space-y-3">
-                        {!isMarketLive ? (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Bet with:</span>
+                      {/* Action zone or Event in progress pill */}
+                      {isMarketLive ? (
+                        <>
+                          <p className="text-sm leading-6 text-zinc-500 dark:text-zinc-400">Bets are closed during the event.</p>
+                          <div className="flex justify-end">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                              <span className="relative flex size-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                              </span>
+                              Event in progress
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Separator className="border-orange-100 dark:border-white/10" />
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => setSelectedTokens((prev) => ({ ...prev, [market.id]: "usdc" }))}
@@ -2106,47 +2052,52 @@ export function BinaryPredictionStudio({
                                 <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-4 rounded-full object-cover" />
                                 ClawdTrust
                               </button>
+                              <Input
+                                type="number"
+                                min={selectedToken === "clawdtrust" ? predictionMarketMinStakeClt : predictionMarketMinStakeUsd}
+                                max={selectedToken === "clawdtrust" ? undefined : predictionMarketMaxStakeUsd}
+                                step={selectedToken === "clawdtrust" ? "1" : "0.01"}
+                                value={amountValue}
+                                onChange={(event) => handleAmountChange(market.id, event.target.value)}
+                                placeholder={selectedToken === "clawdtrust" ? `Min. ${predictionMarketMinStakeClt.toLocaleString("en-US")} CLT` : `Min. ${predictionMarketMinStakeUsd} – max. ${predictionMarketMaxStakeUsd}`}
+                                className="min-w-0 flex-1 border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
+                              />
                             </div>
-                            <Input
-                              type="number"
-                              min={selectedToken === "clawdtrust" ? predictionMarketMinStakeClt : predictionMarketMinStakeUsd}
-                              max={selectedToken === "clawdtrust" ? undefined : predictionMarketMaxStakeUsd}
-                              step={selectedToken === "clawdtrust" ? "1" : "0.01"}
-                              value={amountValue}
-                              onChange={(event) => handleAmountChange(market.id, event.target.value)}
-                              placeholder={selectedToken === "clawdtrust" ? `Min. ${predictionMarketMinStakeClt.toLocaleString("en-US")} ClawdTrust` : `Enter amount from ${predictionMarketMinStakeUsd} to ${predictionMarketMaxStakeUsd}`}
-                              className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
-                            />
-                            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-                              <span>
-                                Reserve fee preview: <strong className="text-zinc-950 dark:text-white">{selectedToken === "clawdtrust" ? formatClawdTrust(reserveFee) : formatCurrency(reserveFee)}</strong>
-                              </span>
-                              <span>
-                                Total wallet debit: <strong className="text-zinc-950 dark:text-white">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${selectedToken === "clawdtrust" ? "ClawdTrust" : paymentTokenSymbol}` : `0.00 ${selectedToken === "clawdtrust" ? "ClawdTrust" : paymentTokenSymbol}`}</strong>
-                              </span>
-                              <span>
-                                Claim fee on rewards: <strong className="text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</strong>
-                              </span>
+
+                            {chosenSelectionId && Number.isFinite(numericAmount) && numericAmount > 0 ? (
+                              <div className="flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-white/10 dark:bg-orange-500/10">
+                                <p className="text-xs uppercase tracking-[0.1em] text-orange-700 dark:text-orange-300">Estimated net return</p>
+                                <p className="text-base font-semibold text-orange-900 dark:text-orange-200">
+                                  {(() => {
+                                    const sel = optionSummaries.find((o) => o.id === chosenSelectionId);
+                                    if (!sel) return "—";
+                                    const net = Number((numericAmount * sel.oddsMultiplier * (1 - predictionMarketFeeRate / 100)).toFixed(2));
+                                    return selectedToken === "clawdtrust" ? formatClawdTrust(net) : formatCurrency(net);
+                                  })()}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              <span>Reserve ({predictionMarketReserveFeeRate}%): <strong className="text-zinc-700 dark:text-zinc-300">{selectedToken === "clawdtrust" ? formatClawdTrust(reserveFee) : formatCurrency(reserveFee)}</strong></span>
+                              <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                              <span>Debit: <strong className="text-zinc-700 dark:text-zinc-300">{totalCharge > 0 ? `${totalCharge.toFixed(2)} ${selectedToken === "clawdtrust" ? "ClawdTrust" : paymentTokenSymbol}` : `0.00 ${selectedToken === "clawdtrust" ? "ClawdTrust" : paymentTokenSymbol}`}</strong></span>
+                              <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                              <span>Claim: <strong className="text-zinc-700 dark:text-zinc-300">{predictionMarketFeeRate}%</strong></span>
                             </div>
-                          </>
-                        ) : null}
-                        {isMarketLive ? (
-                          <div className="flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
-                            <span className="mr-2 size-2 rounded-full bg-emerald-500" />
-                            Bets closed — event in progress
+
+                            <Button
+                              type="button"
+                              className="h-11 w-full rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
+                              onClick={() => void handleConfirmPosition(market, index)}
+                              disabled={isSigning}
+                            >
+                              {isSigning ? <LoaderCircle className="size-4 animate-spin" /> : <Signature className="size-4" />}
+                              {isWalletConnected ? "Confirm position" : "Connect & confirm"}
+                            </Button>
                           </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            className="h-11 rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
-                            onClick={() => void handleConfirmPosition(market, index)}
-                            disabled={isSigning}
-                          >
-                            {isSigning ? <LoaderCircle className="size-4 animate-spin" /> : <Signature className="size-4" />}
-                            {isWalletConnected ? "Confirm position" : "Connect & confirm"}
-                          </Button>
-                        )}
-                      </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -2156,107 +2107,6 @@ export function BinaryPredictionStudio({
         </Card>
         )}
 
-        {!ownerWalletConnected && (
-        <div className="space-y-6">
-          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-zinc-950/70 dark:text-white">
-            <CardHeader>
-              <CardTitle className="text-xl">Prediction wallet summary</CardTitle>
-              <CardDescription className="text-zinc-600 dark:text-zinc-400">
-                The product rules stay visible before the user signs anything.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                <div className="flex items-center gap-2 text-sm font-medium text-zinc-950 dark:text-white">
-                  <Wallet className="size-4 text-orange-500 dark:text-orange-300" />
-                  Connected wallet
-                </div>
-                <p className="mt-2 break-all text-zinc-700 dark:text-zinc-300">{walletAddress ?? "Waiting for connection"}</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Minimum</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {Object.values(selectedTokens).some(t => t === "clawdtrust") ? formatClawdTrust(predictionMarketMinStakeClt) : formatCurrency(predictionMarketMinStakeUsd)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Maximum</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {Object.values(selectedTokens).some(t => t === "clawdtrust") ? "Unlimited" : formatCurrency(predictionMarketMaxStakeUsd)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Reserve fee</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">
-                    {predictionMarketReserveFeeRate}%
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Claim fee</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{predictionMarketFeeRate}%</p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Payment token</p>
-                  <p className="mt-2 text-lg font-semibold text-zinc-950 dark:text-white">{paymentTokenSymbol} &amp; ClawdTrust</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <History className="size-5 text-orange-500 dark:text-orange-300" />
-                History and claims moved to the wallet dashboard
-              </CardTitle>
-              <CardDescription className="text-zinc-600 dark:text-zinc-400">
-                Payment history, active predictions, validation state, total win, total loss, and claims are now accessible from the navigation links: My Bets, My Winnings, and Wallet Dashboard.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Total positioned</p>
-                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalPositioned)}</p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Reserve fees tracked</p>
-                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalReserveFees)}</p>
-                </div>
-                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                  <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Claimable now</p>
-                  <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totalClaimable)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-            <CardHeader>
-              <CardTitle className="text-xl">Product coverage</CardTitle>
-              <CardDescription className="text-zinc-600 dark:text-zinc-400">
-                The current studio already shows the core market logic and the next build steps.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
-              {contractCapabilities.map((item) => (
-                <div key={item} className="flex items-start gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-orange-500 dark:text-orange-300" />
-                  <span>{item}</span>
-                </div>
-              ))}
-              {roadmapItems.map((item) => (
-                <div key={item} className="flex items-start gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-white/10 dark:bg-zinc-950">
-                      <TrendingUp className="mt-0.5 size-4 shrink-0 text-orange-500 dark:text-orange-300" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-        </div>
-        )}
       </div>
     </div>
   );

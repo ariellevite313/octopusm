@@ -423,7 +423,9 @@ export interface ReferralCommissionRow {
   referrer_wallet: string;
   referred_wallet: string;
   type: "bet_fee" | "loss_commission";
-  amount_usdc: number;
+  token: BetToken;
+  amount_usdc: number | null;
+  amount_clt: number | null;
   bet_reference: string;
   created_at: string;
 }
@@ -432,6 +434,7 @@ export interface ReferralCommissionClaimRow {
   id: string;
   referrer_wallet: string;
   total_usdc: number;
+  total_clt: number;
   status: "pending" | "paid";
   paid_at: string | null;
   paid_by_wallet: string | null;

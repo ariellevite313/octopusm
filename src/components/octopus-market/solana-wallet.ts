@@ -41,10 +41,26 @@ export type SolanaWalletBalanceSnapshot = {
 };
 
 export const SOLANA_MAINNET_RPC_URLS = [
-  // Primary — no API key required, browser CORS allowed
+  // All entries are free public endpoints — no API key required, CORS allowed.
+  // The fetcher races all of them and resolves on the first success,
+  // so extra entries improve resilience without adding latency.
+
+  // PublicNode — fast, no auth required
   "https://solana-rpc.publicnode.com",
-  // Add your own RPC here if you have a Helius/QuickNode/Alchemy key, e.g.:
-  // "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",
+  // Solana Foundation official — always available, conservative rate limit
+  "https://api.mainnet-beta.solana.com",
+  // Ankr public — reliable free tier
+  "https://rpc.ankr.com/solana",
+  // dRPC public — no key required
+  "https://solana.drpc.org",
+  // 1RPC by Automata — privacy-focused free endpoint
+  "https://1rpc.io/sol",
+
+  // ── Free-tier upgrade path ──────────────────────────────────────────────────
+  // When you hit sustained rate limits, sign up at https://helius.dev (free plan
+  // gives 100 k credits/day) and replace/append:
+  //   "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",
+  // No code changes needed — just add it above and it joins the race.
 ];
 
 export const SOLANA_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
