@@ -737,9 +737,7 @@ export function BinaryPredictionStudio({
           if (stake > 0 && recoveredToken !== "clawdtrust") {
             void creditBetOcto(walletAddress, stake);
           }
-          if (recoveredReserveFee > 0) {
-            void creditReferralCommission(walletAddress, "bet_fee", recoveredReserveFee, validatedPaymentRequest.reference, recoveredToken);
-          }
+          // Commission parrain créditée à l'approbation admin (pas ici)
         }
       }
     } catch {
@@ -1256,8 +1254,7 @@ export function BinaryPredictionStudio({
         if (selectedToken !== "clawdtrust") {
           void creditBetOcto(connectedWallet, amount, selectedToken);
         }
-        // Credit 5% of reserve fee to referrer (if any)
-        void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, storedValidatedTransfer.reference, selectedToken);
+        // Commission parrain créditée à l'approbation admin (pas ici)
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();

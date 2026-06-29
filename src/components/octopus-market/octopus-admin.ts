@@ -15,7 +15,7 @@ import {
   reviewPayment,
   subscribeToPayments,
 } from "@/services/supabase/payment-service";
-import { creditBetOcto } from "@/services/supabase/octo-service";
+import { creditBetOcto, creditReferralCommission } from "@/services/supabase/octo-service";
 import { upsertWalletActivityToCentralRegistry } from "@/components/octopus-market/octopus-central-registry";
 import type { PaymentRow, BetToken } from "@/lib/supabase-types";
 
@@ -216,6 +216,17 @@ export async function approveAdminNotification(
       notification.amountUsdc > 0
     ) {
       void creditBetOcto(notification.userWallet, notification.amountUsdc, "clawdtrust");
+    }
+
+    // Créditer 5% des frais de réserve au parrain (dans le token du pari)
+    if (notification?.flow === "prediction" && notification.reserveFeeUsdc > 0) {
+      void creditReferralCommission(
+        notification.userWallet,
+        "bet_fee",
+        notification.reserveFeeUsdc,
+        notification.paymentReference,
+        notification.token ?? "usdc"
+      );
     }
 
     emitAdminStorageUpdate();

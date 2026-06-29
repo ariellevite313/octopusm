@@ -46,11 +46,7 @@ type UserDashboardSectionsProps = {
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(amount)} USDC`;
 }
 
 function formatClawdTrust(amount: number) {
@@ -250,7 +246,7 @@ export function UserDashboardSections({
       const res = await claimReferralCommissions(walletAddress);
       if (res.success) {
         const parts: string[] = [];
-        if ((res.total_usdc ?? 0) > 0) parts.push(`$${(res.total_usdc ?? 0).toFixed(4)} USDC`);
+        if ((res.total_usdc ?? 0) > 0) parts.push(`${(res.total_usdc ?? 0).toFixed(4)} USDC`);
         if ((res.total_clt ?? 0) > 0) parts.push(`${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(res.total_clt ?? 0)} ClawdTrust`);
         toast.success("Claim submitted", {
           description: `${parts.join(" + ")} — pending admin payment.`,
@@ -520,70 +516,85 @@ export function UserDashboardSections({
                 {/* ── Rewards tab ── */}
                 {activeTab === "rewards" && (
                   <div className="space-y-8">
-                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-                      <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                        <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">From referrals</p>
-                          <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.referral.toLocaleString()} OCTO</p>
+                    <div className="space-y-4">
+
+                      {/* OCTO from referrals */}
+                      <div>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">OCTO from referrals</p>
+                        <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                          <div className="flex items-center gap-2">
+                            <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
+                            <span className="text-sm text-zinc-600 dark:text-zinc-400">OCTO</span>
+                          </div>
+                          <span className="text-sm font-semibold text-zinc-950 dark:text-white">{octoBreakdown.referral.toLocaleString()} OCTO</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
-                        <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">From bets</p>
-                          <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.bet.toLocaleString()} OCTO</p>
+
+                      {/* OCTO from bets */}
+                      <div>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">OCTO from bets</p>
+                        <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                          <div className="flex items-center gap-2">
+                            <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
+                            <span className="text-sm text-zinc-600 dark:text-zinc-400">OCTO</span>
+                          </div>
+                          <span className="text-sm font-semibold text-zinc-950 dark:text-white">{octoBreakdown.bet.toLocaleString()} OCTO</span>
                         </div>
                       </div>
-                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                        <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">Commissions</p>
-                        {/* USDC */}
-                        <div className="mt-3 flex items-center gap-3">
-                          <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)} USDC</p>
-                            {usdcBalance.pending_claim > 0 ? (
-                              <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">${usdcBalance.pending_claim.toFixed(4)} pending payment</p>
-                            ) : usdcBalance.available > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => void handleClaimUsdc()}
-                                disabled={isClaiming}
-                                className="mt-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                              >
-                                {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
-                              </button>
-                            ) : (
-                              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">No available balance</p>
-                            )}
+
+                      {/* Commissions */}
+                      <div>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Commissions</p>
+                        <div className="space-y-2">
+                          {/* USDC */}
+                          <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                            <div className="flex items-center gap-2">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-emerald-700 dark:text-emerald-400">USDC</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{usdcBalance.total_earned.toFixed(4)} USDC</span>
+                              {usdcBalance.pending_claim > 0 ? (
+                                <span className="text-xs text-amber-600 dark:text-amber-400">({usdcBalance.pending_claim.toFixed(4)} pending)</span>
+                              ) : usdcBalance.available > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleClaimUsdc()}
+                                  disabled={isClaiming}
+                                  className="rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                                >
+                                  {isClaiming ? "…" : `Claim ${usdcBalance.available.toFixed(4)}`}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                          {/* CLT */}
+                          <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                            <div className="flex items-center gap-2">
+                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-emerald-700 dark:text-emerald-400">ClawdTrust</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                                {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} CLT
+                              </span>
+                              {usdcBalance.pending_claim_clt > 0 ? (
+                                <span className="text-xs text-amber-600 dark:text-amber-400">({new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} pending)</span>
+                              ) : usdcBalance.available_clt > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleClaimUsdc()}
+                                  disabled={isClaiming}
+                                  className="rounded-xl bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
+                                >
+                                  {isClaiming ? "…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)}`}
+                                </button>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
-                        {/* CLT */}
-                        <div className="mt-3 flex items-center gap-3 border-t border-emerald-100 pt-3 dark:border-emerald-500/20">
-                          <img src="/clawdtrust-coin.png" alt="CLT" className="size-5 shrink-0 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display="none"; }} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
-                              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} ClawdTrust
-                            </p>
-                            {usdcBalance.pending_claim_clt > 0 ? (
-                              <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                                {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} ClawdTrust pending payment
-                              </p>
-                            ) : usdcBalance.available_clt > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => void handleClaimUsdc()}
-                                disabled={isClaiming}
-                                className="mt-1.5 rounded-xl bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
-                              >
-                                {isClaiming ? "Submitting…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)} ClawdTrust`}
-                              </button>
-                            ) : (
-                              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">No available balance</p>
-                            )}
-                          </div>
-                        </div>
                       </div>
+
                     </div>
 
                     <div>
@@ -653,7 +664,7 @@ export function UserDashboardSections({
                                   <TableCell className="py-3">
                                     {(commissionsByReferred[row.referred_wallet]?.usdc ?? 0) > 0 ? (
                                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                        +${commissionsByReferred[row.referred_wallet]!.usdc.toFixed(4)} USDC
+                                        +{commissionsByReferred[row.referred_wallet]!.usdc.toFixed(4)} USDC
                                       </span>
                                     ) : (
                                       <span className="text-xs text-zinc-600">—</span>
