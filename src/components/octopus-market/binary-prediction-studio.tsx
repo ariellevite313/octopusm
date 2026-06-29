@@ -685,8 +685,8 @@ export function BinaryPredictionStudio({
       setAdminNotifications(readAdminPaymentNotifications());
       // Effacer latestPaymentRequest pour que recoverPredictionPayments ne le reprenne pas
       setLatestPaymentRequest(null);
-      toast.success(`Pari enregistré · ${historyEntry.marketTitle}`, {
-        description: `Position sur "${historyEntry.selectionLabel}" en attente de validation admin.`,
+      toast.success(`Bet recorded · ${historyEntry.marketTitle}`, {
+        description: `Position on "${historyEntry.selectionLabel}" pending admin validation.`,
         duration: 5000,
       });
       redirectToPredictionHistory();
@@ -817,7 +817,7 @@ export function BinaryPredictionStudio({
       const nextImageSrc = await readImageFileAsDataUrl(nextFile);
       handleAdminDraftChange(key, nextImageSrc);
     } catch {
-      toast.error("Image invalide", { description: "L'image n'a pas pu être chargée. Essayez un autre fichier." });
+      toast.error("Invalid image", { description: "The image could not be loaded. Try another file." });
     }
   };
 
@@ -862,33 +862,33 @@ export function BinaryPredictionStudio({
 
   const handleCreateAdminMarket = async () => {
     if (!ownerWalletConnected || !walletAddress) {
-      toast.error("Accès refusé", { description: "Seul le wallet admin peut créer un marché." });
+      toast.error("Access denied", { description: "Only the admin wallet can create a market." });
       return;
     }
 
     const trimmedTitle = adminMarketDraft.title.trim();
 
     if (!trimmedTitle) {
-      toast.error("Champs manquants", { description: "Ajoutez un titre avant de publier." });
+      toast.error("Missing fields", { description: "Add a title before publishing." });
       return;
     }
 
     if (adminMarketDraft.mode === "vs") {
       if (!adminMarketDraft.leftCompetitorName.trim() || !adminMarketDraft.rightCompetitorName.trim()) {
-        toast.error("Noms manquants", { description: "Ajoutez les deux noms d'équipe pour un marché VS." });
+        toast.error("Missing names", { description: "Add both team names for a VS market." });
         return;
       }
     }
 
     if (adminMarketDraft.mode === "simple" && !adminMarketDraft.singleName.trim()) {
-      toast.error("Nom manquant", { description: "Ajoutez le nom du sujet pour ce marché simple." });
+      toast.error("Missing name", { description: "Add the subject name for this simple market." });
       return;
     }
 
     const nextOptions = buildAdminCreatedMarketOptions(adminMarketDraft);
 
     if (nextOptions.some((option) => !Number.isFinite(option.oddsMultiplier) || option.oddsMultiplier <= 1)) {
-      toast.error("Cotes invalides", { description: "Chaque option doit avoir une cote valide supérieure à 1." });
+      toast.error("Invalid odds", { description: "Each option must have a valid multiplier greater than 1." });
       return;
     }
 
@@ -931,7 +931,7 @@ export function BinaryPredictionStudio({
     const commitResult = await createPredictionMarketOnServer(nextMarket, walletAddress);
 
     if (!commitResult) {
-      toast.error("Erreur base de données", { description: "Le marché n'a pas pu être enregistré. Réessayez." });
+      toast.error("Database error", { description: "The market could not be saved. Please try again." });
       return;
     }
 
@@ -956,14 +956,14 @@ export function BinaryPredictionStudio({
     setActiveCategoryId(nextMarket.categoryId);
     setShowAdminMarketForm(false);
     setAdminMarketDraft(createInitialAdminMarketDraft());
-    toast.success(`Marché publié`, {
-      description: `${nextMarket.title} est maintenant visible dans la section ${predictionMarketCategories.find((c) => c.id === nextMarket.categoryId)?.label ?? "sélectionnée"}.`,
+    toast.success(`Market published`, {
+      description: `${nextMarket.title} is now visible in the ${predictionMarketCategories.find((c) => c.id === nextMarket.categoryId)?.label ?? "selected"} section.`,
     });
   };
 
   const handleResolveMarket = async (market: PredictionMarketQuestion, outcomeId: string) => {
     if (!ownerWalletConnected || !walletAddress) {
-      toast.error("Accès refusé", { description: "Seul le wallet admin peut résoudre un marché." });
+      toast.error("Access denied", { description: "Only the admin wallet can resolve a market." });
       return;
     }
 
@@ -972,7 +972,7 @@ export function BinaryPredictionStudio({
     const commitResult = await resolvePredictionMarketOnServer(market.id, outcomeId, walletAddress);
 
     if (!commitResult) {
-      toast.error("Erreur base de données", { description: "Le résultat n'a pas pu être enregistré. Réessayez." });
+      toast.error("Database error", { description: "The result could not be saved. Please try again." });
       return;
     }
 
@@ -999,8 +999,8 @@ export function BinaryPredictionStudio({
       }),
     });
 
-    toast.success(`Marché résolu`, {
-      description: `${market.title} — côté gagnant : ${resolvedOption?.label ?? outcomeId}. Les gains sont maintenant réclamables.`,
+    toast.success(`Market resolved`, {
+      description: `${market.title} — winning side: ${resolvedOption?.label ?? outcomeId}. Winnings are now claimable.`,
     });
 
     // Credit 5% of each losing bet amount to the referrer (fire-and-forget)
@@ -1027,14 +1027,14 @@ export function BinaryPredictionStudio({
 
   const handleDeleteMarket = async (market: PredictionMarketQuestion) => {
     if (!ownerWalletConnected || !walletAddress) {
-      toast.error("Accès refusé", { description: "Seul le wallet admin peut supprimer un marché." });
+      toast.error("Access denied", { description: "Only the admin wallet can delete a market." });
       return;
     }
 
     const commitResult = await deletePredictionMarketOnServer(market.id, walletAddress);
 
     if (!commitResult) {
-      toast.error("Erreur base de données", { description: "Le marché n'a pas pu être supprimé. Réessayez." });
+      toast.error("Database error", { description: "The market could not be deleted. Please try again." });
       return;
     }
 
@@ -1050,7 +1050,7 @@ export function BinaryPredictionStudio({
       }),
     });
 
-    toast.success(`Marché supprimé`, { description: `${market.title} a été retiré de la base de données.` });
+    toast.success(`Market deleted`, { description: `${market.title} has been removed from the database.` });
   };
 
   const handleClaimReward = async (entry: PredictionHistoryEntry) => {
@@ -1061,7 +1061,7 @@ export function BinaryPredictionStudio({
     }
 
     if (!connectedWallet) {
-      toast.error("Wallet requis", { description: "Connectez le wallet gagnant pour réclamer votre gain." });
+      toast.error("Wallet required", { description: "Connect the winning wallet to claim your reward." });
       return;
     }
 
@@ -1071,27 +1071,27 @@ export function BinaryPredictionStudio({
     );
 
     if (!resolution) {
-      toast.error("Marché non résolu", { description: "Ce marché n'a pas encore été résolu par l'admin." });
+      toast.error("Market not resolved", { description: "This market has not been resolved by the admin yet." });
       return;
     }
 
     if (paymentNotification?.status !== "approved") {
-      toast.error("Paiement non approuvé", { description: "Le paiement doit être approuvé par l'admin avant de réclamer." });
+      toast.error("Payment not approved", { description: "The payment must be approved by the admin before claiming." });
       return;
     }
 
     if (connectedWallet !== entry.walletAddress) {
-      toast.error("Mauvais wallet", { description: "Utilisez le même wallet que celui qui a placé le pari gagnant." });
+      toast.error("Wrong wallet", { description: "Use the same wallet that placed the winning bet." });
       return;
     }
 
     if (resolution.outcomeId !== entry.selectionId) {
-      toast.error("Pari perdant", { description: "Ce pari n'est pas sur le côté gagnant." });
+      toast.error("Losing bet", { description: "This bet is not on the winning side." });
       return;
     }
 
     if (entry.claimedAt) {
-      toast.error("Déjà réclamé", { description: "Ce gain a déjà été réclamé." });
+      toast.error("Already claimed", { description: "This reward has already been claimed." });
       return;
     }
 
@@ -1111,8 +1111,8 @@ export function BinaryPredictionStudio({
       }));
       setHistory(readPredictionHistory());
 
-      toast.success(`Gain réclamé`, {
-        description: `${entry.marketTitle} — ${entry.token === "clawdtrust" ? formatClawdTrust(entry.netReward) : formatCurrency(entry.netReward)} net (après ${entry.claimFeeRate}% de frais). En attente de paiement admin.`,
+      toast.success(`Reward claimed`, {
+        description: `${entry.marketTitle} — ${entry.token === "clawdtrust" ? formatClawdTrust(entry.netReward) : formatCurrency(entry.netReward)} net (after ${entry.claimFeeRate}% fee). Pending admin payment.`,
         duration: 6000,
       });
     } finally {
@@ -1122,13 +1122,13 @@ export function BinaryPredictionStudio({
 
   const handleConfirmPosition = async (market: PredictionMarketQuestion, marketIndex: number) => {
     if (walletAddress && readCachedCentralWalletRecord(walletAddress)?.status === "suspended") {
-      toast.error("Wallet suspendu", { description: "Ce wallet est suspendu et ne peut pas placer de pari." });
+      toast.error("Wallet suspended", { description: "This wallet is suspended and cannot place bets." });
       return;
     }
 
     // Bloquer les paris une fois l'événement démarré
     if (market.eventStartAt && Date.now() >= new Date(market.eventStartAt).getTime()) {
-      toast.error("Marché fermé", { description: "Les paris sont bloqués — l'événement est en cours." });
+      toast.error("Market closed", { description: "Bets are locked — the event is underway." });
       return;
     }
 
@@ -1139,17 +1139,17 @@ export function BinaryPredictionStudio({
     const selectedOption = marketOptions.find((option) => option.id === selectedOptionId);
 
     if (!selectedOption) {
-      toast.error("Sélection manquante", { description: `Choisissez une option pour ${market.title}.` });
+      toast.error("Missing selection", { description: `Choose an option for ${market.title}.` });
       return;
     }
 
     const isCltBet = (selectedTokens[market.id] ?? "usdc") === "clawdtrust";
     const minStake = isCltBet ? predictionMarketMinStakeClt : predictionMarketMinStakeUsd;
     if (!Number.isFinite(amount) || amount < minStake || (!isCltBet && amount > predictionMarketMaxStakeUsd)) {
-      toast.error("Montant invalide", {
+      toast.error("Invalid amount", {
         description: isCltBet
           ? `Minimum ${formatClawdTrust(predictionMarketMinStakeClt)}.`
-          : `Entrez un montant entre ${formatCurrency(predictionMarketMinStakeUsd)} et ${formatCurrency(predictionMarketMaxStakeUsd)}.`,
+          : `Enter an amount between ${formatCurrency(predictionMarketMinStakeUsd)} and ${formatCurrency(predictionMarketMaxStakeUsd)}.`,
       });
       return;
     }
@@ -1268,12 +1268,12 @@ export function BinaryPredictionStudio({
         msg.includes("not enough")
       ) {
         toast.error(`Fonds ${selectedToken === "clawdtrust" ? "ClawdTrust" : "USDC"} insuffisants`, {
-          description: `Vérifiez votre solde ${selectedToken === "clawdtrust" ? "ClawdTrust" : "USDC"} avant de placer ce pari.`,
+          description: `Check your ${selectedToken === "clawdtrust" ? "ClawdTrust" : "USDC"} balance before placing this bet.`,
         });
       } else if (msg.includes("reference-not-found") || msg.includes("timeout") || msg.includes("timed out")) {
-        toast.error("Confirmation expirée", {
+        toast.error("Confirmation expired", {
           description:
-            "La transaction n'a pas été confirmée à temps. Si le montant a été débité, il réapparaîtra automatiquement à la reconnexion.",
+            "The transaction was not confirmed in time. If the amount was debited, it will reappear automatically on reconnection.",
           duration: 7000,
         });
       } else if (
@@ -1282,8 +1282,8 @@ export function BinaryPredictionStudio({
         msg.includes("user rejected") ||
         msg.includes("denied")
       ) {
-        toast.error("Transaction annulée", {
-          description: "Le paiement a été refusé dans Phantom.",
+        toast.error("Transaction cancelled", {
+          description: "The payment was rejected in Phantom.",
         });
       } else if (
         msg.includes("failed to fetch") ||
@@ -1291,12 +1291,12 @@ export function BinaryPredictionStudio({
         msg.includes("load failed") ||
         msg.includes("networkerror")
       ) {
-        toast.error("Erreur réseau", {
-          description: "Le module de paiement n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
+        toast.error("Network error", {
+          description: "The payment module could not be loaded. Check your connection and try again.",
         });
       } else {
-        toast.error("Échec du paiement", {
-          description: "Le transfert Phantom a échoué ou n'a pas pu être validé on-chain.",
+        toast.error("Payment failed", {
+          description: "The Phantom transfer failed or could not be validated on-chain.",
         });
       }
     } finally {

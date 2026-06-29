@@ -9,6 +9,7 @@
 
 import type { AdminPaymentNotification } from "@/components/octopus-market/octopus-admin";
 import type { PredictionHistoryEntry } from "@/components/octopus-market/prediction-market-store";
+import { historyRowToApp } from "@/components/octopus-market/prediction-market-store";
 import {
   getWallet,
   getAllWallets,
@@ -25,10 +26,13 @@ import {
   createPaymentNotification,
 } from "@/services/supabase/payment-service";
 import {
+  getAllPredictionHistoryAdmin,
+} from "@/services/supabase/prediction-service";
+import {
   getAdminLogs,
   addAdminLog,
 } from "@/services/supabase/admin-log-service";
-import type { WalletRow, PaymentRow, AdminLogRow } from "@/lib/supabase-types";
+import type { WalletRow, PaymentRow, AdminLogRow, BetToken } from "@/lib/supabase-types";
 
 // ─── Types publics (inchangés) ────────────────────────────────────────────────
 
@@ -101,9 +105,11 @@ type WalletActivityOptions = {
 
 let walletsCache: RegistryWalletRecord[] = [];
 let paymentsCache: RegistryPaymentRecord[] = [];
+let historyCache: RegistryHistoryRecord[] = [];
 let adminLogsCache: RegistryAdminLogRecord[] = [];
 let hasHydratedWallets = false;
 let hasHydratedPayments = false;
+let hasHydratedHistory = false;
 let hasHydratedLogs = false;
 
 const registryEventName = "octopus-market-central-registry-update";
@@ -161,6 +167,7 @@ function paymentRowToRegistry(row: PaymentRow): RegistryPaymentRecord {
     amountUsdc: Number(row.amount_usdc),
     reserveFeeUsdc: Number(row.reserve_fee_usdc),
     totalPaidUsdc: Number(row.total_paid_usdc),
+    token: (row.token as BetToken) ?? "usdc",
     status: row.status as "pending" | "approved" | "rejected",
     reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).getTime() : undefined,
     reviewedByWallet: row.reviewed_by_wallet ?? undefined,
@@ -183,10 +190,11 @@ function adminLogRowToRegistry(row: AdminLogRow): RegistryAdminLogRecord {
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
 export async function initCentralRegistry(): Promise<void> {
-  const [wallets, payments, logs] = await Promise.all([
+  const [wallets, payments, logs, history] = await Promise.all([
     getAllWallets(),
     getAllPaymentsAdmin(),
     getAdminLogs(),
+    getAllPredictionHistoryAdmin(),
   ]);
 
   // null = erreur Supabase → ne pas écraser le cache existant
@@ -202,6 +210,10 @@ export async function initCentralRegistry(): Promise<void> {
   if (logs !== null) {
     adminLogsCache = logs.map(adminLogRowToRegistry);
     hasHydratedLogs = true;
+  }
+  if (history.length > 0 || !hasHydratedHistory) {
+    historyCache = history.map((row) => ({ ...historyRowToApp(row), updatedAt: Date.now() }));
+    hasHydratedHistory = true;
   }
 
   emitRegistryUpdate();
@@ -259,6 +271,15 @@ export function readAllCentralPaymentRecords(): RegistryPaymentRecord[] {
     void initCentralRegistry();
   }
   return paymentsCache;
+}
+
+// ─── Lecture historique ───────────────────────────────────────────────────────
+
+export function readAllCentralHistoryRecords(): RegistryHistoryRecord[] {
+  if (!hasHydratedHistory) {
+    void initCentralRegistry();
+  }
+  return historyCache;
 }
 
 // ─── Lecture logs admin ───────────────────────────────────────────────────────
@@ -509,9 +530,9 @@ export function readCentralBetRecords(): RegistryBetRecord[] {
   return [];
 }
 
-/** @deprecated — L'historique est dans prediction_history. Retourne cache vide. */
+/** @deprecated — no-op */
 export function readCentralHistoryRecords(): RegistryHistoryRecord[] {
-  return [];
+  return readAllCentralHistoryRecords();
 }
 
 /** @deprecated — no-op */

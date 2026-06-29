@@ -78,20 +78,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Si approuvé : mettre à jour prediction_history ─────────────────────────
-    if (status === "approved") {
-      const { data: payment } = await supabase
-        .from("payments")
-        .select("flow, market_id")
-        .eq("payment_reference", paymentReference)
-        .maybeSingle();
+    // ── Mettre à jour prediction_history (approuvé ET rejeté) ─────────────────
+    const { data: payment } = await supabase
+      .from("payments")
+      .select("flow, market_id")
+      .eq("payment_reference", paymentReference)
+      .maybeSingle();
 
-      if (payment?.flow === "prediction" && payment?.market_id) {
-        await supabase
-          .from("prediction_history")
-          .update({ admin_decision_status: "approved" })
-          .eq("payment_reference", paymentReference);
-      }
+    if (payment?.flow === "prediction" && payment?.market_id) {
+      await supabase
+        .from("prediction_history")
+        .update({ admin_decision_status: status })
+        .eq("payment_reference", paymentReference);
     }
 
     return new Response(

@@ -87,6 +87,7 @@ function paymentRowToNotification(row: PaymentRow): AdminPaymentNotification {
     amountUsdc: Number(row.amount_usdc),
     reserveFeeUsdc: Number(row.reserve_fee_usdc),
     totalPaidUsdc: Number(row.total_paid_usdc),
+    token: (row.token as BetToken) ?? "usdc",
     createdAt: new Date(row.created_at).getTime(),
     status: row.status as AdminPaymentStatus,
     reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).getTime() : undefined,
@@ -106,11 +107,18 @@ export async function initAdminNotifications(adminOnly = false): Promise<void> {
   realtimeUnsub?.();
   const channel = subscribeToPayments((updatedRow) => {
     const idx = adminNotificationsCache.findIndex((n) => n.id === updatedRow.id);
+    const existing = idx >= 0 ? adminNotificationsCache[idx] : undefined;
     const notification = paymentRowToNotification(updatedRow);
+    // Preserve token from existing cache if the raw Realtime row doesn't have it
+    // (migration not yet applied → updatedRow.token is null)
+    const merged: AdminPaymentNotification = {
+      ...notification,
+      token: (updatedRow.token as BetToken | null | undefined) ?? existing?.token ?? "usdc",
+    };
     if (idx >= 0) {
-      adminNotificationsCache[idx] = notification;
+      adminNotificationsCache[idx] = merged;
     } else {
-      adminNotificationsCache = [notification, ...adminNotificationsCache];
+      adminNotificationsCache = [merged, ...adminNotificationsCache];
     }
     emitAdminStorageUpdate();
   });
@@ -376,6 +384,7 @@ export async function syncAdminNotificationsFromTreasury(_walletAddress?: string
 
 /** @deprecated — no-op, Supabase persiste automatiquement */
 export async function persistAdminNotificationsStateToServer(): Promise<void> {}
+
 
 /** @deprecated — no-op */
 export async function clearAdminControlHistory(): Promise<void> {}

@@ -175,6 +175,7 @@ export function UserDashboardSections({
   const totals = useMemo(() => {
     return derivedHistory.reduce(
       (summary, entry) => {
+        if (entry.statusLabel === "Rejected") return summary;
         const isClt = entry.token === "clawdtrust";
         const isWon = entry.statusLabel === "Win" || entry.statusLabel === "Claimed" || entry.statusLabel === "Paid";
         const isLost = entry.statusLabel === "Lose";
@@ -231,12 +232,12 @@ export function UserDashboardSections({
       setClaimingId(entryId);
       const claimReference = `CLAIM-${Date.now().toString(36).toUpperCase()}`;
       await claimPredictionEntry(entryId, claimReference);
-      toast.success("Gain réclamé", {
-        description: `${targetEntry.marketTitle} — en attente de paiement admin.`,
+      toast.success("Reward claimed", {
+        description: `${targetEntry.marketTitle} — pending admin payment.`,
         duration: 5000,
       });
     } catch {
-      toast.error("Échec de la réclamation", { description: "Réessayez ou contactez l'admin." });
+      toast.error("Claim failed", { description: "Please try again or contact the admin." });
     } finally {
       setClaimingId(null);
     }
@@ -648,53 +649,53 @@ export function UserDashboardSections({
                           <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.bet.toLocaleString()} OCTO</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                        <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">USDC commissions</p>
-                          <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
-                          {usdcBalance.pending_claim > 0 ? (
-                            <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">${usdcBalance.pending_claim.toFixed(4)} pending payment</p>
-                          ) : usdcBalance.available > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleClaimUsdc()}
-                              disabled={isClaiming}
-                              className="mt-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                            >
-                              {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
-                            </button>
-                          ) : (
-                            <p className="mt-0.5 text-xs text-zinc-600">No available balance</p>
-                          )}
+                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                        <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">Commissions</p>
+                        {/* USDC */}
+                        <div className="mt-3 flex items-center gap-3">
+                          <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)} USDC</p>
+                            {usdcBalance.pending_claim > 0 ? (
+                              <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">${usdcBalance.pending_claim.toFixed(4)} pending payment</p>
+                            ) : usdcBalance.available > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleClaimUsdc()}
+                                disabled={isClaiming}
+                                className="mt-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                              >
+                                {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
+                              </button>
+                            ) : (
+                              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">No available balance</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3 rounded-2xl border border-purple-100 bg-purple-50 px-4 py-4 dark:border-purple-500/20 dark:bg-purple-500/10">
-                        <Coins className="size-5 shrink-0 text-purple-500 dark:text-purple-300" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">ClawdTrust commissions</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <img src="/clawdtrust-coin.png" alt="CLT" className="size-5 shrink-0 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display="none"; }} />
-                            <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                        {/* CLT */}
+                        <div className="mt-3 flex items-center gap-3 border-t border-emerald-100 pt-3 dark:border-emerald-500/20">
+                          <img src="/clawdtrust-coin.png" alt="CLT" className="size-5 shrink-0 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display="none"; }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
                               {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} ClawdTrust
                             </p>
+                            {usdcBalance.pending_claim_clt > 0 ? (
+                              <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                                {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} ClawdTrust pending payment
+                              </p>
+                            ) : usdcBalance.available_clt > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleClaimUsdc()}
+                                disabled={isClaiming}
+                                className="mt-1.5 rounded-xl bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
+                              >
+                                {isClaiming ? "Submitting…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)} ClawdTrust`}
+                              </button>
+                            ) : (
+                              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">No available balance</p>
+                            )}
                           </div>
-                          {usdcBalance.pending_claim_clt > 0 ? (
-                            <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} ClawdTrust pending payment
-                            </p>
-                          ) : usdcBalance.available_clt > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleClaimUsdc()}
-                              disabled={isClaiming}
-                              className="mt-1.5 rounded-xl bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
-                            >
-                              {isClaiming ? "Submitting…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)} ClawdTrust`}
-                            </button>
-                          ) : (
-                            <p className="mt-0.5 text-xs text-zinc-600">No available balance</p>
-                          )}
                         </div>
                       </div>
                     </div>

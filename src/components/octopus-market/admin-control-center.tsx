@@ -59,9 +59,12 @@ type WalletActivitySummary = {
   pendingCount: number;
   approvedCount: number;
   rejectedCount: number;
-  totalWon: number;
-  totalLost: number;
-  totalStaked: number;
+  totalWonUsdc: number;
+  totalWonClt: number;
+  totalLostUsdc: number;
+  totalLostClt: number;
+  totalStakedUsdc: number;
+  totalStakedClt: number;
 };
 
 type AdminWalletSummary = {
@@ -293,25 +296,38 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
           payments.filter((payment) => payment.status === "rejected").map((payment) => payment.paymentReference)
         );
 
-        const totalWon = entries.reduce((total, entry) => {
+        const totalWonUsdc = entries.filter((e) => e.token !== "clawdtrust").reduce((total, entry) => {
           if (approvedReferences.has(entry.paymentReference) && entry.claimedAt) {
             return total + entry.netReward;
           }
-
           return total;
         }, 0);
-        const totalLost = entries.reduce((total, entry) => {
+        const totalWonClt = entries.filter((e) => e.token === "clawdtrust").reduce((total, entry) => {
+          if (approvedReferences.has(entry.paymentReference) && entry.claimedAt) {
+            return total + entry.netReward;
+          }
+          return total;
+        }, 0);
+        const totalLostUsdc = entries.filter((e) => e.token !== "clawdtrust").reduce((total, entry) => {
           if (rejectedReferences.has(entry.paymentReference)) {
             return total + entry.totalCharged;
           }
-
           const resolution = resolutions[entry.marketId];
           const payment = payments.find((item) => item.paymentReference === entry.paymentReference);
-
           if (payment?.status === "approved" && resolution && resolution.outcomeId !== entry.selectionId) {
             return total + entry.totalCharged;
           }
-
+          return total;
+        }, 0);
+        const totalLostClt = entries.filter((e) => e.token === "clawdtrust").reduce((total, entry) => {
+          if (rejectedReferences.has(entry.paymentReference)) {
+            return total + entry.totalCharged;
+          }
+          const resolution = resolutions[entry.marketId];
+          const payment = payments.find((item) => item.paymentReference === entry.paymentReference);
+          if (payment?.status === "approved" && resolution && resolution.outcomeId !== entry.selectionId) {
+            return total + entry.totalCharged;
+          }
           return total;
         }, 0);
 
@@ -324,9 +340,12 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
           pendingCount: payments.filter((payment) => payment.status === "pending").length,
           approvedCount: payments.filter((payment) => payment.status === "approved").length,
           rejectedCount: payments.filter((payment) => payment.status === "rejected").length,
-          totalWon,
-          totalLost,
-          totalStaked: entries.reduce((total, entry) => total + entry.amount, 0),
+          totalWonUsdc,
+          totalWonClt,
+          totalLostUsdc,
+          totalLostClt,
+          totalStakedUsdc: entries.filter((e) => e.token !== "clawdtrust").reduce((total, entry) => total + entry.amount, 0),
+          totalStakedClt: entries.filter((e) => e.token === "clawdtrust").reduce((total, entry) => total + entry.amount, 0),
         };
       })
       .sort((left, right) => right.walletRecord.latestActivityAt - left.walletRecord.latestActivityAt);
@@ -373,7 +392,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
       approvedReceivedCount: receivedNotifications.filter((notification) => notification.status === "approved").length,
       rejectedReceivedCount: receivedNotifications.filter((notification) => notification.status === "rejected").length,
       totalReceivedUsdc: receivedNotifications
-        .filter((n) => n.token !== "clawdtrust")
+        .filter((n) => n.token !== "clawdtrust" && n.status !== "rejected")
         .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
       totalApprovedUsdc: receivedNotifications
         .filter((notification) => notification.status === "approved" && notification.token !== "clawdtrust")
@@ -382,7 +401,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
         .filter((notification) => notification.status === "pending" && notification.token !== "clawdtrust")
         .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
       totalReceivedClt: receivedNotifications
-        .filter((n) => n.token === "clawdtrust")
+        .filter((n) => n.token === "clawdtrust" && n.status !== "rejected")
         .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
       totalApprovedClt: receivedNotifications
         .filter((notification) => notification.status === "approved" && notification.token === "clawdtrust")
@@ -507,9 +526,9 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
       setMarkingPaidId(entryId);
       const result = await markClaimAsPaid(entryId, walletAddress);
       if (result.success) {
-        toast.success("Paiement confirmé", { description: "Le claim a été marqué comme payé." });
+        toast.success("Payment confirmed", { description: "The claim has been marked as paid." });
       } else {
-        toast.error("Échec", { description: result.error ?? "Impossible de marquer ce claim comme payé." });
+        toast.error("Failed", { description: result.error ?? "Could not mark this claim as paid." });
       }
       await loadClaims();
     } finally {
@@ -701,8 +720,10 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                           <div className="grid gap-2 text-right text-sm text-zinc-600 dark:text-zinc-300">
                             <span>Stake USDC: <strong className="text-zinc-950 dark:text-white">{formatCurrency(wallet.entries.filter((e) => e.token !== "clawdtrust").reduce((s, e) => s + e.amount, 0))}</strong></span>
                             <span>Stake CLT: <strong className="text-purple-600 dark:text-purple-300">{formatClawdTrust(wallet.entries.filter((e) => e.token === "clawdtrust").reduce((s, e) => s + e.amount, 0))}</strong></span>
-                            <span>Won: <strong className="text-emerald-600 dark:text-emerald-300">{formatCurrency(wallet.totalWon)}</strong></span>
-                            <span>Lost: <strong className="text-red-600 dark:text-red-300">{formatCurrency(wallet.totalLost)}</strong></span>
+                            {wallet.totalWonUsdc > 0 && <span>Won USDC: <strong className="text-emerald-600 dark:text-emerald-300">{formatCurrency(wallet.totalWonUsdc)}</strong></span>}
+                            {wallet.totalWonClt > 0 && <span>Won CLT: <strong className="text-emerald-600 dark:text-emerald-300">{formatClawdTrust(wallet.totalWonClt)}</strong></span>}
+                            {wallet.totalLostUsdc > 0 && <span>Lost USDC: <strong className="text-red-600 dark:text-red-300">{formatCurrency(wallet.totalLostUsdc)}</strong></span>}
+                            {wallet.totalLostClt > 0 && <span>Lost CLT: <strong className="text-red-600 dark:text-red-300">{formatClawdTrust(wallet.totalLostClt)}</strong></span>}
                           </div>
                         </div>
                         <div className="mt-3 grid gap-2 sm:grid-cols-5">
@@ -842,7 +863,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 [notification.paymentReference]: "approved",
                               }));
                               updateAdminPaymentNotificationStatus(notification.paymentReference, "approved", walletAddress ?? predictionMarketTreasuryAddress);
-                              toast.success("Paiement approuvé", { description: `Référence ${notification.paymentReference.slice(0, 8)}… validée.` });
+                              toast.success("Payment approved", { description: `Reference ${notification.paymentReference.slice(0, 8)}… validated.` });
                             }}
                           >
                             <CheckCircle2 className="size-4" />
@@ -858,7 +879,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 [notification.paymentReference]: "rejected",
                               }));
                               updateAdminPaymentNotificationStatus(notification.paymentReference, "rejected", walletAddress ?? predictionMarketTreasuryAddress);
-                              toast.error("Paiement rejeté", { description: `Référence ${notification.paymentReference.slice(0, 8)}… rejetée.` });
+                              toast.error("Payment rejected", { description: `Reference ${notification.paymentReference.slice(0, 8)}… rejected.` });
                             }}
                           >
                             <XCircle className="size-4" />
@@ -950,7 +971,10 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 <p>{formatMoment(participant.createdAt)}</p>
                               </div>
                               <div className="w-full text-xs text-zinc-500 dark:text-zinc-400">
-                                Wallet totals · stake {formatCurrency(walletSummaryByAddress[participant.userWallet]?.totalStaked ?? 0)} · approved {walletSummaryByAddress[participant.userWallet]?.approvedCount ?? 0} · pending {walletSummaryByAddress[participant.userWallet]?.pendingCount ?? 0}
+                                Wallet totals
+                                {(walletSummaryByAddress[participant.userWallet]?.totalStakedUsdc ?? 0) > 0 && <> · stake {formatCurrency(walletSummaryByAddress[participant.userWallet]!.totalStakedUsdc)} USDC</>}
+                                {(walletSummaryByAddress[participant.userWallet]?.totalStakedClt ?? 0) > 0 && <> · stake {formatClawdTrust(walletSummaryByAddress[participant.userWallet]!.totalStakedClt)} CLT</>}
+                                {" "}· approved {walletSummaryByAddress[participant.userWallet]?.approvedCount ?? 0} · pending {walletSummaryByAddress[participant.userWallet]?.pendingCount ?? 0}
                               </div>
                             </div>
                           ))}
@@ -1198,20 +1222,6 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                               ...currentListing,
                               status: "approved",
                               badge: currentListing.badge,
-                              updatedAt: Date.now(),
-                            }))
-                          }
-                        >
-                          Approve listing
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-2xl border-red-200 bg-white text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:bg-zinc-950 dark:text-red-300 dark:hover:bg-red-500/10"
-                          onClick={() =>
-                            updateAIListingSubmission(listing.id, (currentListing) => ({
-                              ...currentListing,
-                              status: "rejected",
                               updatedAt: Date.now(),
                             }))
                           }

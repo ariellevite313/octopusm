@@ -988,20 +988,20 @@ export function OctopusMarketPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "wallet-unavailable") {
-        toast.error("Phantom introuvable", {
-          description: "Installez l'extension Phantom pour vous connecter.",
+        toast.error("Phantom not found", {
+          description: "Install the Phantom extension to connect.",
         });
       } else if (msg === "connection-timeout") {
-        toast.error("Connexion expirée", {
-          description: "La connexion a pris trop de temps. Réessayez.",
+        toast.error("Connection timed out", {
+          description: "The connection took too long. Please try again.",
         });
       } else if (msg.includes("User rejected") || msg.includes("rejected")) {
-        toast.error("Connexion annulée", {
-          description: "Vous avez refusé la connexion dans Phantom.",
+        toast.error("Connection cancelled", {
+          description: "You rejected the connection in Phantom.",
         });
       } else {
-        toast.error("Connexion échouée", {
-          description: msg || "Une erreur inattendue est survenue.",
+        toast.error("Connection failed", {
+          description: msg || "An unexpected error occurred.",
         });
       }
       return null;
@@ -1034,17 +1034,17 @@ export function OctopusMarketPage() {
       const nextUsername = nextRecord?.username?.trim() || normalizedUsername;
       setWalletUsername(nextUsername);
       setPendingUsername(nextUsername);
-      toast.success("Nom enregistré", { description: `Votre identité "${nextUsername}" est sauvegardée.` });
+      toast.success("Name saved", { description: `Your identity "${nextUsername}" has been registered.` });
     } catch (error) {
       setWalletUsername(null);
       setPendingUsername(normalizedUsername);
 
       if (error instanceof Error && error.message === "username-taken") {
-        toast.error("Nom déjà pris", { description: "Ce nom est déjà réservé par un autre wallet." });
+        toast.error("Name already taken", { description: "This name is already reserved by another wallet." });
       } else if (error instanceof Error && error.message === "username-locked") {
-        toast.error("Nom verrouillé", { description: "Ce wallet a déjà un nom permanent qui ne peut pas être modifié." });
+        toast.error("Name locked", { description: "This wallet already has a permanent name that cannot be changed." });
       } else {
-        toast.error("Échec de l'enregistrement", { description: "L'enregistrement du nom a échoué. Réessayez." });
+        toast.error("Registration failed", { description: "The name could not be registered. Please try again." });
       }
     } finally {
       setIsSavingUsername(false);

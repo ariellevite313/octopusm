@@ -207,7 +207,7 @@ function marketRowToApp(row: PredictionMarketRow): AdminCreatedPredictionMarket 
   };
 }
 
-function historyRowToApp(
+export function historyRowToApp(
   row: PredictionHistoryRow & { result_status?: PredictionResultStatus }
 ): PredictionHistoryEntry {
   return {
@@ -391,11 +391,20 @@ function startRealtimeSync(walletAddress: string | null): void {
   if (walletAddress) {
     const historyChannel = subscribeToPredictionHistory(walletAddress, (updatedRow) => {
       const idx = predictionHistoryCache.findIndex((e) => e.id === updatedRow.id);
+      const existing = idx >= 0 ? predictionHistoryCache[idx] : undefined;
       const appEntry = historyRowToApp(updatedRow);
+      // Realtime payload is the raw table row — it lacks computed columns (result_status)
+      // and may lack `token` if the DB migration hasn't been applied yet.
+      // Merge with the existing cache entry to preserve those values.
+      const merged: PredictionHistoryEntry = {
+        ...appEntry,
+        token: (updatedRow.token as BetToken | null | undefined) ?? existing?.token ?? "usdc",
+        resultStatus: appEntry.resultStatus ?? existing?.resultStatus,
+      };
       if (idx >= 0) {
-        predictionHistoryCache[idx] = appEntry;
+        predictionHistoryCache[idx] = merged;
       } else {
-        predictionHistoryCache = [appEntry, ...predictionHistoryCache];
+        predictionHistoryCache = [merged, ...predictionHistoryCache];
       }
       emitUpdate();
     });
@@ -506,9 +515,12 @@ export function syncPredictionEntriesForAdminDecision(
   paymentReference: string,
   status: AdminPaymentStatus
 ): PredictionHistoryEntry[] {
+  const resultStatus: PredictionResultStatus =
+    status === "rejected" ? "rejected" : "approved_pending_result";
+
   predictionHistoryCache = predictionHistoryCache.map((e) =>
     e.paymentReference === paymentReference
-      ? { ...e, adminDecisionStatus: status }
+      ? { ...e, adminDecisionStatus: status, resultStatus }
       : e
   );
   emitUpdate();
@@ -695,7 +707,7 @@ export async function deletePredictionMarketOnServer(
 
 /** @deprecated */
 export async function persistPredictionMarketStateToServer(): Promise<boolean> {
-  return true; // Supabase gère la persistance automatiquement
+  return true;
 }
 
 /**
@@ -711,5 +723,3 @@ export async function commitPredictionMarketStateToServer(): Promise<{
     resolutions: predictionResolutionsCache,
   };
 }
-
-// ─── Souscription (compatible avec les co

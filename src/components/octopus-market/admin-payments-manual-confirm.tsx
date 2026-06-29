@@ -11,8 +11,10 @@ import {
   type AdminPaymentNotification,
 } from "@/components/octopus-market/octopus-admin";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
+import type { BetToken } from "@/lib/supabase-types";
 
 const paymentFlowOptions: AdminPaymentFlow[] = ["prediction", "launch", "listing"];
+const tokenOptions: BetToken[] = ["usdc", "clawdtrust"];
 
 type AdminPaymentsManualConfirmProps = {
   walletAddress: string | null;
@@ -37,6 +39,7 @@ export function AdminPaymentsManualConfirm({
   const [manualForm, setManualForm] = useState({
     username: "",
     type: "prediction" as AdminPaymentFlow,
+    token: "usdc" as BetToken,
     amount: "",
     txSignature: "",
     userWallet: "",
@@ -83,6 +86,7 @@ export function AdminPaymentsManualConfirm({
       amountUsdc: amount,
       reserveFeeUsdc: 0,
       totalPaidUsdc: amount,
+      token: manualForm.token,
       createdAt: Date.now(),
       status: "pending",
     });
@@ -90,6 +94,7 @@ export function AdminPaymentsManualConfirm({
     setManualForm({
       username: "",
       type: "prediction",
+      token: "usdc",
       amount: "",
       txSignature: "",
       userWallet: "",
@@ -169,12 +174,28 @@ export function AdminPaymentsManualConfirm({
                 </option>
               ))}
             </select>
+            <select
+              value={manualForm.token}
+              onChange={(event) =>
+                setManualForm((currentValue) => ({
+                  ...currentValue,
+                  token: event.target.value as BetToken,
+                }))
+              }
+              className="h-10 rounded-md border border-orange-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-zinc-950"
+            >
+              {tokenOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t === "clawdtrust" ? "ClawdTrust" : "USDC"}
+                </option>
+              ))}
+            </select>
             <Input
               type="number"
               step="0.01"
               value={manualForm.amount}
               onChange={(event) => setManualForm((currentValue) => ({ ...currentValue, amount: event.target.value }))}
-              placeholder="Amount in USDC"
+              placeholder={manualForm.token === "clawdtrust" ? "Amount in CLT" : "Amount in USDC"}
               className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
             />
             <Input
