@@ -2352,9 +2352,6 @@ export function OctopusMarketPage() {
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">Dedicated view</p>
                 <h2 className="mt-2 text-left text-xl font-semibold text-zinc-950 dark:text-white">Prediction Market</h2>
-                <p className="mt-1 text-left text-sm text-zinc-600 dark:text-zinc-400">
-                  The prediction flow now opens only inside this dedicated window, separated from the main platform page.
-                </p>
               </div>
               <Button
                 type="button"
