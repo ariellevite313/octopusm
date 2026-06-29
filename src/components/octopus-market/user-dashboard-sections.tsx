@@ -315,86 +315,27 @@ export function UserDashboardSections({
               </div>
 
               <div className="space-y-6">
-                {/* ── Stats row ── */}
-                <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-                  <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total wagered</p>
-                    {(totals.totalBets > 0 || totals.totalBetsClt > 0) ? (
-                      <>
-                        {totals.totalBets > 0 && (
-                          <div className="mt-2 flex items-center gap-1.5">
-                            <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                            <p className="min-w-0 truncate text-lg font-bold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
-                          </div>
-                        )}
-                        {totals.totalBetsClt > 0 && (
-                          <div className={`${totals.totalBets > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
-                            <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                            <p className="min-w-0 truncate text-sm font-bold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalBetsClt)}</p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="mt-2 flex items-center gap-1.5">
-                          <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
-                          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
-                        </div>
-                        <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
-                          <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
-                          <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total won</p>
-                    {(totals.totalWins > 0 || totals.totalWinsClt > 0) ? (
-                      <>
-                        {totals.totalWins > 0 && (
-                          <div className="mt-2 flex items-center gap-1.5">
-                            <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                            <p className="min-w-0 truncate text-lg font-bold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
-                          </div>
-                        )}
-                        {totals.totalWinsClt > 0 && (
-                          <div className={`${totals.totalWins > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
-                            <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                            <p className="min-w-0 truncate text-sm font-bold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalWinsClt)}</p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="mt-2 flex items-center gap-1.5">
-                          <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
-                          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
-                        </div>
-                        <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
-                          <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
-                          <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">OCTO balance</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <img src="/octo-coin.png" alt="OCTO" className="size-6 object-contain" />
-                      <p className="text-xl font-bold text-orange-600 dark:text-orange-300">{octoBreakdown.total.toLocaleString()}</p>
+                {/* ── Balance ── */}
+                <div>
+                  <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-400">Balance</p>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                      <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-9 shrink-0 object-contain" />
+                      <span className="text-base font-semibold text-zinc-950 dark:text-white">
+                        {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(totals.claimableClt + usdcBalance.available_clt)} ClawdTrust
+                      </span>
                     </div>
-                  </div>
-                  <div className="col-span-2 lg:col-span-1 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Commissions</p>
-                    <div className="mt-2 flex items-center gap-1.5">
-                      <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                      <p className="min-w-0 truncate text-lg font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
+                    <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                      <img src="/octo-coin.png" alt="OCTO" className="size-9 shrink-0 object-contain" />
+                      <span className="text-base font-semibold text-zinc-950 dark:text-white">
+                        {octoBreakdown.total.toLocaleString()} OCTO
+                      </span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1.5 border-t border-emerald-100 pt-1 dark:border-emerald-500/20">
-                      <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                      <p className="min-w-0 truncate text-sm font-bold text-purple-700 dark:text-purple-300">
-                        {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} ClawdTrust
-                      </p>
+                    <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                      <img src="/usdc-coin.png" alt="USDC" className="size-9 shrink-0 object-contain" />
+                      <span className="text-base font-semibold text-zinc-950 dark:text-white">
+                        {formatCurrency(totals.claimable + usdcBalance.available)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -468,127 +409,72 @@ export function UserDashboardSections({
                 {/* ── Winnings tab ── */}
                 {activeTab === "winnings" && (
                   <div className="space-y-4">
-                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total bet volume</p>
-                        {(totals.totalBets > 0 || totals.totalBetsClt > 0) ? (
-                          <>
-                            {totals.totalBets > 0 && (
-                              <div className="mt-2 flex items-center gap-1.5">
-                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-lg font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
-                              </div>
-                            )}
-                            {totals.totalBetsClt > 0 && (
-                              <div className={`${totals.totalBets > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
-                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalBetsClt)}</p>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="mt-2 flex items-center gap-1.5">
-                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                    {/* ── Stat rows ── */}
+                    <div className="space-y-4">
+
+                      {/* Total bet volume */}
+                      <div>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                            <div className="flex items-center gap-2">
+                              <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-zinc-600 dark:text-zinc-400">ClawdTrust</span>
                             </div>
-                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
-                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            <span className="text-sm font-semibold text-zinc-950 dark:text-white">{formatClawdTrust(totals.totalBetsClt)}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                            <div className="flex items-center gap-2">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-zinc-600 dark:text-zinc-400">USDC</span>
                             </div>
-                          </>
-                        )}
+                            <span className="text-sm font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total win</p>
-                        {(totals.totalWins > 0 || totals.totalWinsClt > 0) ? (
-                          <>
-                            {totals.totalWins > 0 && (
-                              <div className="mt-2 flex items-center gap-1.5">
-                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-lg font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
-                              </div>
-                            )}
-                            {totals.totalWinsClt > 0 && (
-                              <div className={`${totals.totalWins > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
-                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalWinsClt)}</p>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="mt-2 flex items-center gap-1.5">
-                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+
+                      {/* Total win */}
+                      <div>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Total win</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                            <div className="flex items-center gap-2">
+                              <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-emerald-700 dark:text-emerald-400">ClawdTrust</span>
                             </div>
-                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
-                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{formatClawdTrust(totals.totalWinsClt)}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                            <div className="flex items-center gap-2">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-emerald-700 dark:text-emerald-400">USDC</span>
                             </div>
-                          </>
-                        )}
+                            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total loss</p>
-                        {(totals.totalLosses > 0 || totals.totalLossesClt > 0) ? (
-                          <>
-                            {totals.totalLosses > 0 && (
-                              <div className="mt-2 flex items-center gap-1.5">
-                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-lg font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
-                              </div>
-                            )}
-                            {totals.totalLossesClt > 0 && (
-                              <div className={`${totals.totalLosses > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
-                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalLossesClt)}</p>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="mt-2 flex items-center gap-1.5">
-                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+
+                      {/* Total loss */}
+                      <div>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Total loss</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10">
+                            <div className="flex items-center gap-2">
+                              <img src="/clawdtrust-coin.png" alt="ClawdTrust" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-red-700 dark:text-red-400">ClawdTrust</span>
                             </div>
-                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
-                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            <span className="text-sm font-semibold text-red-700 dark:text-red-300">{formatClawdTrust(totals.totalLossesClt)}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10">
+                            <div className="flex items-center gap-2">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
+                              <span className="text-sm text-red-700 dark:text-red-400">USDC</span>
                             </div>
-                          </>
-                        )}
+                            <span className="text-sm font-semibold text-red-700 dark:text-red-300">{formatCurrency(totals.totalLosses)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Claimable now</p>
-                        {(totals.claimable > 0 || totals.claimableClt > 0) ? (
-                          <>
-                            {totals.claimable > 0 && (
-                              <div className="mt-2 flex items-center gap-1.5">
-                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-lg font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
-                              </div>
-                            )}
-                            {totals.claimableClt > 0 && (
-                              <div className={`${totals.claimable > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
-                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
-                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.claimableClt)}</p>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="mt-2 flex items-center gap-1.5">
-                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
-                            </div>
-                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
-                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
-                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
-                            </div>
-                          </>
-                        )}
-                      </div>
+
                     </div>
                     {derivedHistory.filter((entry) => entry.canClaim || entry.claimedAt || entry.payoutStatus === "paid").length > 0 ? (
                       derivedHistory

@@ -203,6 +203,14 @@ function buildOnChainMemo(paymentRequest: Pick<PaymentRequest, "id" | "kind" | "
     params.set("username", metadata.username);
   }
 
+  if (typeof metadata.token === "string") {
+    params.set("token", metadata.token);
+  }
+
+  if (typeof metadata.totalChargeClt === "number") {
+    params.set("totalChargeClt", String(metadata.totalChargeClt));
+  }
+
   return `om?${params.toString()}`;
 }
 
@@ -229,9 +237,11 @@ function parseOnChainMemo(value: string) {
     plan: params.get("plan") ?? "",
     launchOption: params.get("launchOption") ?? "",
     username: params.get("username") ?? "",
+    token: params.get("token") ?? "usdc",
     amountUsdc: Number(params.get("amountUsdc") ?? 0),
     reserveFeeUsdc: Number(params.get("reserveFeeUsdc") ?? 0),
     totalPaidUsdc: Number(params.get("totalPaidUsdc") ?? 0),
+    totalChargeClt: Number(params.get("totalChargeClt") ?? 0),
   };
 }
 
