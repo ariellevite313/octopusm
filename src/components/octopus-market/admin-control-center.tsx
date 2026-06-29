@@ -75,6 +75,9 @@ type AdminWalletSummary = {
   totalReceivedUsdc: number;
   totalApprovedUsdc: number;
   totalPendingUsdc: number;
+  totalReceivedClt: number;
+  totalApprovedClt: number;
+  totalPendingClt: number;
   reviewedPaymentsCount: number;
   resolvedMarketsCount: number;
 };
@@ -369,12 +372,23 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
       pendingReceivedCount: receivedNotifications.filter((notification) => notification.status === "pending").length,
       approvedReceivedCount: receivedNotifications.filter((notification) => notification.status === "approved").length,
       rejectedReceivedCount: receivedNotifications.filter((notification) => notification.status === "rejected").length,
-      totalReceivedUsdc: receivedNotifications.reduce((total, notification) => total + notification.totalPaidUsdc, 0),
+      totalReceivedUsdc: receivedNotifications
+        .filter((n) => n.token !== "clawdtrust")
+        .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
       totalApprovedUsdc: receivedNotifications
-        .filter((notification) => notification.status === "approved")
+        .filter((notification) => notification.status === "approved" && notification.token !== "clawdtrust")
         .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
       totalPendingUsdc: receivedNotifications
-        .filter((notification) => notification.status === "pending")
+        .filter((notification) => notification.status === "pending" && notification.token !== "clawdtrust")
+        .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
+      totalReceivedClt: receivedNotifications
+        .filter((n) => n.token === "clawdtrust")
+        .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
+      totalApprovedClt: receivedNotifications
+        .filter((notification) => notification.status === "approved" && notification.token === "clawdtrust")
+        .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
+      totalPendingClt: receivedNotifications
+        .filter((notification) => notification.status === "pending" && notification.token === "clawdtrust")
         .reduce((total, notification) => total + notification.totalPaidUsdc, 0),
       reviewedPaymentsCount: reviewedNotifications.length,
       resolvedMarketsCount,
@@ -544,12 +558,27 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                     <span>
                       Total received <strong className="text-zinc-950 dark:text-white">{formatCurrency(adminWalletSummary.totalReceivedUsdc)}</strong>
                     </span>
+                    {adminWalletSummary.totalReceivedClt > 0 && (
+                      <span>
+                        Total received <strong className="text-purple-600 dark:text-purple-300">{formatClawdTrust(adminWalletSummary.totalReceivedClt)}</strong>
+                      </span>
+                    )}
                     <span>
                       Approved received <strong className="text-emerald-600 dark:text-emerald-300">{formatCurrency(adminWalletSummary.totalApprovedUsdc)}</strong>
                     </span>
+                    {adminWalletSummary.totalApprovedClt > 0 && (
+                      <span>
+                        Approved received <strong className="text-emerald-600 dark:text-emerald-300">{formatClawdTrust(adminWalletSummary.totalApprovedClt)}</strong>
+                      </span>
+                    )}
                     <span>
                       Pending received <strong className="text-orange-600 dark:text-orange-300">{formatCurrency(adminWalletSummary.totalPendingUsdc)}</strong>
                     </span>
+                    {adminWalletSummary.totalPendingClt > 0 && (
+                      <span>
+                        Pending received <strong className="text-orange-600 dark:text-orange-300">{formatClawdTrust(adminWalletSummary.totalPendingClt)}</strong>
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -670,7 +699,8 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                             ) : null}
                           </div>
                           <div className="grid gap-2 text-right text-sm text-zinc-600 dark:text-zinc-300">
-                            <span>Stake: <strong className="text-zinc-950 dark:text-white">{formatCurrency(wallet.totalStaked)}</strong></span>
+                            <span>Stake USDC: <strong className="text-zinc-950 dark:text-white">{formatCurrency(wallet.entries.filter((e) => e.token !== "clawdtrust").reduce((s, e) => s + e.amount, 0))}</strong></span>
+                            <span>Stake CLT: <strong className="text-purple-600 dark:text-purple-300">{formatClawdTrust(wallet.entries.filter((e) => e.token === "clawdtrust").reduce((s, e) => s + e.amount, 0))}</strong></span>
                             <span>Won: <strong className="text-emerald-600 dark:text-emerald-300">{formatCurrency(wallet.totalWon)}</strong></span>
                             <span>Lost: <strong className="text-red-600 dark:text-red-300">{formatCurrency(wallet.totalLost)}</strong></span>
                           </div>
@@ -720,7 +750,11 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                     </p>
                                   </div>
                                   <div className="grid gap-1 text-right text-xs text-zinc-600 dark:text-zinc-300">
-                                    <span>{formatCurrency(entry.amount)}</span>
+                                    <span>
+                                      {entry.token === "clawdtrust"
+                                        ? formatClawdTrust(entry.amount)
+                                        : formatCurrency(entry.amount)}
+                                    </span>
                                     <span>{resultLabel}</span>
                                   </div>
                                 </div>
@@ -912,7 +946,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{participant.selectionLabel || "Pending choice"}</p>
                               </div>
                               <div className="text-right text-xs text-zinc-500 dark:text-zinc-400">
-                                <p>{formatCurrency(participant.totalPaidUsdc)}</p>
+                                <p>{formatNotificationAmount(participant)}</p>
                                 <p>{formatMoment(participant.createdAt)}</p>
                               </div>
                               <div className="w-full text-xs text-zinc-500 dark:text-zinc-400">
@@ -936,7 +970,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
               <div className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-500/20 dark:bg-black/20">
                 <p className="text-lg font-semibold text-zinc-950 dark:text-white">Claims — rewards to pay out</p>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  Users who won a bet and clicked Claim appear here. Mark each one as Paid once you have sent the USDC to their wallet.
+                  Users who won a bet and clicked Claim appear here. Mark each one as Paid once you have sent the USDC or ClawdTrust to their wallet.
                 </p>
                 <div className="mt-5 space-y-3">
                   {claimsHistory.length > 0 ? (
@@ -956,7 +990,15 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                                 Selection: <span className="font-medium text-zinc-700 dark:text-zinc-300">{entry.selectionLabel}</span>
                               </p>
                               <p className="text-zinc-500 dark:text-zinc-400">
-                                Net reward: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(entry.netReward)}</span>
+                                Net reward:{" "}
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  {entry.token === "clawdtrust"
+                                    ? formatClawdTrust(entry.netReward)
+                                    : formatCurrency(entry.netReward)}
+                                </span>
+                                {entry.token === "clawdtrust" && (
+                                  <span className="ml-1.5 inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-600 dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-300">CLT</span>
+                                )}
                               </p>
                               {entry.claimedAt ? (
                                 <p className="text-xs text-zinc-400 dark:text-zinc-500">
@@ -1142,7 +1184,6 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                           {listing.planId === "starter" ? "Starter" : "Builder"}
                         </Badge>
                       </div>
-                      <p className="mt-3 text-sm leading-7 text-zinc-700 dark:text-zinc-300">{listing.description}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
                         <span>Submitted {formatMoment(listing.submittedAt)}</span>
                         <span>Wallet {formatWalletAddress(listing.walletAddress)}</span>

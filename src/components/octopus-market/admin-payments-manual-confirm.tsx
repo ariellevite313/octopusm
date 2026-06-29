@@ -211,7 +211,9 @@ export function AdminPaymentsManualConfirm({
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-zinc-950 dark:text-white">
-                      {payment.totalPaidUsdc.toFixed(2)} USDC
+                      {payment.token === "clawdtrust"
+                        ? `${new Intl.NumberFormat("en-US").format(payment.amountUsdc)} CLT`
+                        : `${payment.totalPaidUsdc.toFixed(2)} USDC`}
                     </span>
                     <Button
                       type="button"

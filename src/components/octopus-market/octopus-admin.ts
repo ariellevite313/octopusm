@@ -15,6 +15,7 @@ import {
   reviewPayment,
   subscribeToPayments,
 } from "@/services/supabase/payment-service";
+import { creditBetOcto } from "@/services/supabase/octo-service";
 import { upsertWalletActivityToCentralRegistry } from "@/components/octopus-market/octopus-central-registry";
 import type { PaymentRow, BetToken } from "@/lib/supabase-types";
 
@@ -199,6 +200,16 @@ export async function approveAdminNotification(
       syncPredictionEntriesForAdminDecision(notification.paymentReference, "approved");
     }
 
+    // Pour les paris CLT : créditer les OCTO rewards au moment de l'approbation admin
+    // Formule : floor(cltStake / 25 000) OCTO  (= floor(x / 500 000) * 20)
+    if (
+      notification?.flow === "prediction" &&
+      notification.token === "clawdtrust" &&
+      notification.amountUsdc > 0
+    ) {
+      void creditBetOcto(notification.userWallet, notification.amountUsdc, "clawdtrust");
+    }
+
     emitAdminStorageUpdate();
   }
 
@@ -323,7 +334,9 @@ export function notifyAdminForValidatedPayment(
     recipientWallet: pr.recipient,
     amountUsdc: Number(meta.stake ?? pr.amount),
     reserveFeeUsdc: Number(meta.reserveFee ?? 0),
-    totalPaidUsdc: Number(meta.totalChargeUsdc ?? pr.amount),
+    totalPaidUsdc: meta.token === "clawdtrust"
+      ? Number(meta.totalChargeClt ?? meta.stake ?? pr.amount)
+      : Number(meta.totalChargeUsdc ?? pr.amount),
     createdAt: Date.now(),
     status: "pending",
     token: (typeof meta.token === "string" ? meta.token : "usdc") as BetToken,

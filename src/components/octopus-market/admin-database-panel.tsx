@@ -36,6 +36,14 @@ function formatAmount(value?: number) {
   }).format(value ?? 0);
 }
 
+function formatClt(value?: number) {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value ?? 0)} CLT`;
+}
+
+function formatTokenAmount(value: number, token?: string) {
+  return token === "clawdtrust" ? formatClt(value) : formatAmount(value);
+}
+
 type AdminDatabasePanelProps = {
   walletAddress: string | null;
 };
@@ -95,15 +103,20 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
   }, [isAdminWallet]);
 
   const totals = useMemo(() => {
-    const approvedVolume = snapshot.payments
-      .filter((payment) => payment.status === "approved")
-      .reduce((total, payment) => total + payment.totalPaidUsdc, 0);
+    const approved = snapshot.payments.filter((p) => p.status === "approved");
+    const approvedVolumeUsdc = approved
+      .filter((p) => p.token !== "clawdtrust")
+      .reduce((total, p) => total + p.totalPaidUsdc, 0);
+    const approvedVolumeClt = approved
+      .filter((p) => p.token === "clawdtrust")
+      .reduce((total, p) => total + p.totalPaidUsdc, 0);
 
     return {
       wallets: snapshot.wallets.length,
       payments: snapshot.payments.length,
       history: snapshot.history.length,
-      approvedVolume,
+      approvedVolumeUsdc,
+      approvedVolumeClt,
     };
   }, [snapshot]);
 
@@ -129,7 +142,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
           <CardHeader className="pb-3">
             <CardDescription>Total wallets</CardDescription>
@@ -150,8 +163,14 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
         </Card>
         <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
           <CardHeader className="pb-3">
-            <CardDescription>Approved volume</CardDescription>
-            <CardTitle className="text-2xl">{formatAmount(totals.approvedVolume)}</CardTitle>
+            <CardDescription>Approved volume USDC</CardDescription>
+            <CardTitle className="text-2xl">{formatAmount(totals.approvedVolumeUsdc)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-900/80">
+          <CardHeader className="pb-3">
+            <CardDescription>Approved volume CLT</CardDescription>
+            <CardTitle className="text-2xl text-purple-600 dark:text-purple-300">{formatClt(totals.approvedVolumeClt)}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -222,7 +241,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                         <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{formatMoment(payment.createdAt)}</div>
                       </td>
                       <td className="px-4 py-3 align-top capitalize text-zinc-600 dark:text-zinc-300">{payment.flow}</td>
-                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(payment.totalPaidUsdc)}</td>
+                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatTokenAmount(payment.totalPaidUsdc, payment.token)}</td>
                       <td className="px-4 py-3 align-top capitalize text-zinc-600 dark:text-zinc-300">{payment.status}</td>
                     </tr>
                   ))}
@@ -258,6 +277,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                     <th className="px-4 py-3 font-medium">Market</th>
                     <th className="px-4 py-3 font-medium">Section</th>
                     <th className="px-4 py-3 font-medium">Choice</th>
+                    <th className="px-4 py-3 font-medium">Token</th>
                     <th className="px-4 py-3 font-medium">Bet</th>
                     <th className="px-4 py-3 font-medium">Total paid</th>
                     <th className="px-4 py-3 font-medium">Admin</th>
@@ -281,8 +301,14 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                         <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{bet.market_title}</td>
                         <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{bet.category_label}</td>
                         <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">{bet.selection_label}</td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(Number(bet.amount))}</td>
-                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(Number(bet.total_charged))}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">
+                          {bet.token === "clawdtrust"
+                            ? <span className="rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-600 dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-300">CLT</span>
+                            : <span className="rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">USDC</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatTokenAmount(Number(bet.amount), bet.token)}</td>
+                        <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatTokenAmount(Number(bet.total_charged), bet.token)}</td>
                         <td className="px-4 py-3 align-top capitalize text-zinc-600 dark:text-zinc-300">{bet.admin_decision_status ?? "pending"}</td>
                         <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">
                           <div className="font-medium text-zinc-950 dark:text-white">{bet.result_status ?? "open"}</div>
@@ -296,7 +322,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                   })}
                   {!snapshot.history.length ? (
                     <tr>
-                      <td colSpan={11} className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400">
+                      <td colSpan={12} className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400">
                         {isLoading ? "Loading bets..." : "No user bets stored yet."}
                       </td>
                     </tr>
@@ -319,7 +345,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                   <tr className="text-left text-zinc-500 dark:text-zinc-400">
                     <th className="px-4 py-3 font-medium">User</th>
                     <th className="px-4 py-3 font-medium">Market</th>
-                    <th className="px-4 py-3 font-medium">Net reward</th>
+                                       <th className="px-4 py-3 font-medium">Net reward</th>
                     <th className="px-4 py-3 font-medium">Result</th>
                     <th className="px-4 py-3 font-medium">Reported</th>
                   </tr>
@@ -329,7 +355,7 @@ export function AdminDatabasePanel({ walletAddress }: AdminDatabasePanelProps) {
                     <tr key={entry.id} className="border-t border-orange-100 dark:border-white/10">
                       <td className="px-4 py-3 align-top text-zinc-950 dark:text-white">{formatWalletAddress(entry.wallet_address)}</td>
                       <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{entry.market_title}</td>
-                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatAmount(Number(entry.net_reward))}</td>
+                      <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatTokenAmount(Number(entry.net_reward), entry.token)}</td>
                       <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{entry.result_status ?? "open"}</td>
                       <td className="px-4 py-3 align-top text-zinc-600 dark:text-zinc-300">{formatMoment(new Date(entry.reported_at ?? entry.created_at).getTime())}</td>
                     </tr>

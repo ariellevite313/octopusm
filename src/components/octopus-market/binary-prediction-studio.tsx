@@ -728,15 +728,17 @@ export function BinaryPredictionStudio({
       if (validatedPaymentRequest?.status === "validated") {
         handleReportValidatedPayment(validatedPaymentRequest);
         // Credit OCTO + referral commission in recovery path (fire-and-forget)
+        // CLT bets: OCTO deferred to admin approval — only credit for USDC here
         if (walletAddress) {
           const meta = (latestPaymentRequest.metadata ?? {}) as Record<string, unknown>;
           const stake = typeof meta["stake"] === "number" ? meta["stake"] : 0;
           const recoveredReserveFee = typeof meta["reserveFee"] === "number" ? meta["reserveFee"] : 0;
-          if (stake > 0) {
+          const recoveredToken = (meta["token"] as BetToken | undefined) ?? "usdc";
+          if (stake > 0 && recoveredToken !== "clawdtrust") {
             void creditBetOcto(walletAddress, stake);
           }
           if (recoveredReserveFee > 0) {
-            void creditReferralCommission(walletAddress, "bet_fee", recoveredReserveFee, validatedPaymentRequest.reference, (meta["token"] as BetToken | undefined) ?? "usdc");
+            void creditReferralCommission(walletAddress, "bet_fee", recoveredReserveFee, validatedPaymentRequest.reference, recoveredToken);
           }
         }
       }
@@ -1249,8 +1251,11 @@ export function BinaryPredictionStudio({
       handleReportValidatedPayment(storedValidatedTransfer);
 
       // Credit OCTO for the confirmed bet (fire-and-forget, never blocks the user)
+      // CLT bets: OCTO is credited on admin approval (not here), to apply the 500k CLT = 20 OCTO formula
       if (connectedWallet) {
-        void creditBetOcto(connectedWallet, amount, selectedToken);
+        if (selectedToken !== "clawdtrust") {
+          void creditBetOcto(connectedWallet, amount, selectedToken);
+        }
         // Credit 5% of reserve fee to referrer (if any)
         void creditReferralCommission(connectedWallet, "bet_fee", reserveFee, storedValidatedTransfer.reference, selectedToken);
       }

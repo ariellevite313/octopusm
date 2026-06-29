@@ -1505,6 +1505,18 @@ export function OctopusMarketPage() {
             >
               <Menu className="size-5" />
             </Button>
+            {isDedicatedUserPage && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                aria-label="Back to home"
+                onClick={() => { window.location.hash = ""; setActiveUserPage("home"); }}
+              >
+                <ArrowLeft className="size-5" />
+              </Button>
+            )}
             <OctopusBrand compact />
           </div>
 
@@ -1580,6 +1592,23 @@ export function OctopusMarketPage() {
                     <LayoutDashboard className="mr-2 size-4" />
                     Wallet Dashboard
                   </DropdownMenuItem>
+                  {isAdminWallet && (
+                    <>
+                      <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/10" />
+                      <DropdownMenuItem
+                        onClick={() => setIsAdminCenterOpen(true)}
+                        className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
+                      >
+                        <ShieldCheck className="mr-2 size-4" /> Admin Center
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setIsDatabaseOpen(true)}
+                        className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
+                      >
+                        <Database className="mr-2 size-4" /> Data Base
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem
                     onClick={toggleTheme}
                     className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
