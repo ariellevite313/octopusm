@@ -87,6 +87,16 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function formatClawdTrust(amount: number) {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(amount)} ClawdTrust`;
+}
+
+function formatNotificationAmount(notification: { totalPaidUsdc: number; token?: string }) {
+  return notification.token === "clawdtrust"
+    ? formatClawdTrust(notification.totalPaidUsdc)
+    : `${formatCurrency(notification.totalPaidUsdc)} USDC`;
+}
+
 function formatMoment(timestamp: number) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -748,7 +758,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                             <p className="font-semibold text-zinc-950 dark:text-white">{notification.title}</p>
                             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{notification.subtitle || notification.categoryLabel || "Waiting for admin review"}</p>
                           </div>
-                          <p className="text-sm font-semibold text-zinc-950 dark:text-white">{formatCurrency(notification.totalPaidUsdc)} USDC</p>
+                          <p className="text-sm font-semibold text-zinc-950 dark:text-white">{formatNotificationAmount(notification)}</p>
                         </div>
                         <Separator className="my-3 bg-orange-100 dark:bg-white/10" />
                         <div className="grid gap-3 text-sm text-zinc-700 xl:grid-cols-[minmax(0,2.2fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(140px,0.8fr)] dark:text-zinc-300">
@@ -775,11 +785,10 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                         <div className="mt-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-xs text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
                           <p className="font-medium text-zinc-950 dark:text-white">User activity snapshot</p>
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-                            <span>Total stake {formatCurrency(walletSummaryByAddress[notification.userWallet]?.totalStaked ?? 0)}</span>
+                            <span>Bets {walletSummaryByAddress[notification.userWallet]?.predictionCount ?? 0}</span>
                             <span>Pending {walletSummaryByAddress[notification.userWallet]?.pendingCount ?? 0}</span>
                             <span>Approved {walletSummaryByAddress[notification.userWallet]?.approvedCount ?? 0}</span>
-                            <span>Won {formatCurrency(walletSummaryByAddress[notification.userWallet]?.totalWon ?? 0)}</span>
-                            <span>Lost {formatCurrency(walletSummaryByAddress[notification.userWallet]?.totalLost ?? 0)}</span>
+                            <span>Rejected {walletSummaryByAddress[notification.userWallet]?.rejectedCount ?? 0}</span>
                           </div>
                         </div>
                         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -851,7 +860,7 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                             <p className="font-semibold text-zinc-950 dark:text-white">{notification.title}</p>
                             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{notification.subtitle || "Approved by admin"}</p>
                           </div>
-                          <p className="text-sm font-semibold text-zinc-950 dark:text-white">{formatCurrency(notification.totalPaidUsdc)} USDC</p>
+                          <p className="text-sm font-semibold text-zinc-950 dark:text-white">{formatNotificationAmount(notification)}</p>
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-500 dark:text-zinc-400">
                           <span>
@@ -860,9 +869,9 @@ export function AdminControlCenter({ walletAddress }: AdminControlCenterProps) {
                               : formatWalletAddress(notification.userWallet)}
                           </span>
                           <span>Approved {notification.reviewedAt ? formatMoment(notification.reviewedAt) : formatMoment(notification.createdAt)}</span>
-                          <span>Total stake {formatCurrency(walletSummaryByAddress[notification.userWallet]?.totalStaked ?? 0)}</span>
-                          <span>Wins {formatCurrency(walletSummaryByAddress[notification.userWallet]?.totalWon ?? 0)}</span>
-                          <span>Losses {formatCurrency(walletSummaryByAddress[notification.userWallet]?.totalLost ?? 0)}</span>
+                          <span>Bets {walletSummaryByAddress[notification.userWallet]?.predictionCount ?? 0}</span>
+                          <span>Approved {walletSummaryByAddress[notification.userWallet]?.approvedCount ?? 0}</span>
+                          <span>Rejected {walletSummaryByAddress[notification.userWallet]?.rejectedCount ?? 0}</span>
                         </div>
                       </div>
                     ))

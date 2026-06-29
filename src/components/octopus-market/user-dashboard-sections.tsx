@@ -53,6 +53,10 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function formatClawdTrust(amount: number) {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(amount)} ClawdTrust`;
+}
+
 function formatMoment(timestamp: number) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -289,68 +293,106 @@ export function UserDashboardSections({
   }
 
   return (
-    <section className="border-y border-orange-100 bg-orange-50/70 py-20 dark:border-white/10 dark:bg-zinc-900/70">
-      <div className="mx-auto max-w-7xl space-y-10 px-4 sm:px-6 lg:px-8">
+    <section className="border-y border-orange-100 bg-orange-50/70 py-4 sm:py-8 dark:border-white/10 dark:bg-zinc-900/70">
+      <div className="mx-auto max-w-7xl space-y-6 px-3 sm:px-6 lg:px-8">
         {showSection("wallet") ? (
           <div id="wallet-dashboard" className="scroll-mt-28">
-            <Card className="border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              <CardHeader className="pb-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
-                    Wallet dashboard
-                  </Badge>
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-zinc-200 dark:border-white/10">
+                <div>
+                  <p className="text-base font-semibold text-zinc-950 dark:text-white">{walletRecord?.displayName || walletRecord?.username || "Unnamed"}</p>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400 font-mono break-all mt-0.5">{walletAddress}</p>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  {walletRecord?.twitterHandle && (
+                    <span className="text-xs text-zinc-700 dark:text-zinc-400">@{walletRecord.twitterHandle.replace(/^@/, "")}</span>
+                  )}
                   <Badge className="border border-orange-200 bg-white text-zinc-700 hover:bg-white dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-900">
                     {walletRecord?.status === "suspended" ? "Suspended" : "Active"}
                   </Badge>
                 </div>
-                <CardTitle className="text-2xl">Wallet Dashboard</CardTitle>
-                <div className="mt-4 grid gap-3 md:grid-cols-4">
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Pseudo</p>
-                    <p className="mt-2 font-semibold text-zinc-950 dark:text-white">{walletRecord?.displayName || walletRecord?.username || "Unnamed"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">X profile</p>
-                    <p className="mt-2 font-semibold text-zinc-950 dark:text-white">{walletRecord?.twitterHandle || "Not added"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20 md:col-span-2">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Solana wallet</p>
-                    <p className="mt-2 break-all font-semibold text-zinc-950 dark:text-white">{walletAddress}</p>
-                  </div>
-                </div>
-              </CardHeader>
+              </div>
 
-              <CardContent className="space-y-6">
+              <div className="space-y-6">
                 {/* ── Stats row ── */}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total wagered</p>
-                    <p className="mt-2 text-xl font-bold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
+                <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                  <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total wagered</p>
+                    {(totals.totalBets > 0 || totals.totalBetsClt > 0) ? (
+                      <>
+                        {totals.totalBets > 0 && (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                            <p className="min-w-0 truncate text-lg font-bold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
+                          </div>
+                        )}
+                        {totals.totalBetsClt > 0 && (
+                          <div className={`${totals.totalBets > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
+                            <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                            <p className="min-w-0 truncate text-sm font-bold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalBetsClt)}</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
+                          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
+                          <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
+                          <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total won</p>
+                    {(totals.totalWins > 0 || totals.totalWinsClt > 0) ? (
+                      <>
+                        {totals.totalWins > 0 && (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                            <p className="min-w-0 truncate text-lg font-bold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
+                          </div>
+                        )}
+                        {totals.totalWinsClt > 0 && (
+                          <div className={`${totals.totalWins > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
+                            <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                            <p className="min-w-0 truncate text-sm font-bold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalWinsClt)}</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
+                          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
+                          <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
+                          <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total won</p>
-                    <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">OCTO balance</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">OCTO balance</p>
                     <div className="mt-2 flex items-center gap-2">
                       <img src="/octo-coin.png" alt="OCTO" className="size-6 object-contain" />
                       <p className="text-xl font-bold text-orange-600 dark:text-orange-300">{octoBreakdown.total.toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">USDC commissions</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <img src="/usdc-coin.png" alt="USDC" className="size-6 object-contain" />
-                      <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
+                  <div className="col-span-2 lg:col-span-1 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Commissions</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                      <p className="min-w-0 truncate text-lg font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
                     </div>
-                  </div>
-                  <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 dark:border-purple-500/20 dark:bg-purple-500/10">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">ClawdTrust commissions</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Coins className="size-6 shrink-0 text-purple-500 dark:text-purple-300" />
-                      <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                        {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} CLT
+                    <div className="mt-1 flex items-center gap-1.5 border-t border-emerald-100 pt-1 dark:border-emerald-500/20">
+                      <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                      <p className="min-w-0 truncate text-sm font-bold text-purple-700 dark:text-purple-300">
+                        {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} ClawdTrust
                       </p>
                     </div>
                   </div>
@@ -384,7 +426,7 @@ export function UserDashboardSections({
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-400">
                                 {entry.categoryLabel} · {entry.selectionLabel} · {formatMoment(entry.createdAt)}
                               </p>
                             </div>
@@ -406,20 +448,16 @@ export function UserDashboardSections({
                               </Badge>
                             </div>
                           </div>
-                          <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 xl:grid-cols-4">
-                            <div>Bet amount: {formatCurrency(entry.amount)}</div>
-                            <div>Reserve fee: {formatCurrency(entry.reserveFee)}</div>
-                            <div>Total paid: {formatCurrency(entry.totalCharged)}</div>
+                          <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 grid-cols-2 xl:grid-cols-4">
+                            <div>Bet amount: {entry.token === "clawdtrust" ? formatClawdTrust(entry.amount) : formatCurrency(entry.amount)}</div>
+                            <div>Reserve fee: {entry.token === "clawdtrust" ? formatClawdTrust(entry.reserveFee) : formatCurrency(entry.reserveFee)}</div>
+                            <div>Total paid: {entry.token === "clawdtrust" ? formatClawdTrust(entry.totalCharged) : formatCurrency(entry.totalCharged)}</div>
                             <div>Odds: x{entry.payoutMultiple}</div>
-                            <div>Admin decision: {entry.adminDecisionStatus ?? "pending"}</div>
-                            <div>Result from database: {entry.statusLabel}</div>
-                            <div>Resolved at: {entry.resolvedAt ? formatMoment(entry.resolvedAt) : "Awaiting result"}</div>
-                            <div>Winning choice: {entry.winningChoiceLabel ?? "Not a winning bet"}</div>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                      <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                         No bets recorded yet.
                       </div>
                     )}
@@ -429,33 +467,125 @@ export function UserDashboardSections({
                 {/* ── Winnings tab ── */}
                 {activeTab === "winnings" && (
                   <div className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
-                        <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
-                        {totals.totalBetsClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalBetsClt.toFixed(4)} ClawdTrust</p>
+                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total bet volume</p>
+                        {(totals.totalBets > 0 || totals.totalBetsClt > 0) ? (
+                          <>
+                            {totals.totalBets > 0 && (
+                              <div className="mt-2 flex items-center gap-1.5">
+                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-lg font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.totalBets)}</p>
+                              </div>
+                            )}
+                            {totals.totalBetsClt > 0 && (
+                              <div className={`${totals.totalBets > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
+                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalBetsClt)}</p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
+                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            </div>
+                          </>
                         )}
                       </div>
-                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total win</p>
-                        <p className="mt-2 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
-                        {totals.totalWinsClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalWinsClt.toFixed(4)} ClawdTrust</p>
+                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total win</p>
+                        {(totals.totalWins > 0 || totals.totalWinsClt > 0) ? (
+                          <>
+                            {totals.totalWins > 0 && (
+                              <div className="mt-2 flex items-center gap-1.5">
+                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-lg font-semibold text-emerald-600 dark:text-emerald-300">{formatCurrency(totals.totalWins)}</p>
+                              </div>
+                            )}
+                            {totals.totalWinsClt > 0 && (
+                              <div className={`${totals.totalWins > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
+                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalWinsClt)}</p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
+                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            </div>
+                          </>
                         )}
                       </div>
-                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Total loss</p>
-                        <p className="mt-2 text-xl font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
-                        {totals.totalLossesClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.totalLossesClt.toFixed(4)} ClawdTrust</p>
+                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Total loss</p>
+                        {(totals.totalLosses > 0 || totals.totalLossesClt > 0) ? (
+                          <>
+                            {totals.totalLosses > 0 && (
+                              <div className="mt-2 flex items-center gap-1.5">
+                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-lg font-semibold text-red-600 dark:text-red-300">{formatCurrency(totals.totalLosses)}</p>
+                              </div>
+                            )}
+                            {totals.totalLossesClt > 0 && (
+                              <div className={`${totals.totalLosses > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
+                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.totalLossesClt)}</p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
+                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            </div>
+                          </>
                         )}
                       </div>
-                      <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Claimable now</p>
-                        <p className="mt-2 text-xl font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
-                        {totals.claimableClt > 0 && (
-                          <p className="mt-1 text-sm font-medium text-purple-600 dark:text-purple-300">{totals.claimableClt.toFixed(4)} ClawdTrust</p>
+                      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-orange-50 p-4 dark:border-white/10 dark:bg-black/20">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-700 dark:text-zinc-400">Claimable now</p>
+                        {(totals.claimable > 0 || totals.claimableClt > 0) ? (
+                          <>
+                            {totals.claimable > 0 && (
+                              <div className="mt-2 flex items-center gap-1.5">
+                                <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-lg font-semibold text-zinc-950 dark:text-white">{formatCurrency(totals.claimable)}</p>
+                              </div>
+                            )}
+                            {totals.claimableClt > 0 && (
+                              <div className={`${totals.claimable > 0 ? "mt-1 border-t border-orange-100 pt-1 dark:border-white/10" : "mt-2"} flex items-center gap-1.5`}>
+                                <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain" />
+                                <p className="min-w-0 truncate text-sm font-semibold text-purple-600 dark:text-purple-300">{formatClawdTrust(totals.claimableClt)}</p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <img src="/usdc-coin.png" alt="USDC" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">0 USDC</p>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 border-t border-orange-100 pt-1 dark:border-white/10">
+                              <img src="/clawdtrust-coin.png" alt="CLT" className="size-4 shrink-0 object-contain opacity-40" />
+                              <p className="min-w-0 truncate text-sm font-medium text-zinc-600 dark:text-zinc-400">0 ClawdTrust</p>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -467,8 +597,8 @@ export function UserDashboardSections({
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
                                 <p className="font-semibold text-zinc-950 dark:text-white">{entry.marketTitle}</p>
-                                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                  Net reward {formatCurrency(entry.netReward)} · Won on {entry.winningChoiceLabel ?? entry.selectionLabel} · {formatMoment(entry.resolvedAt ?? entry.createdAt)}
+                                <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-400">
+                                  Net reward {entry.token === "clawdtrust" ? formatClawdTrust(entry.netReward) : formatCurrency(entry.netReward)} · Won on {entry.winningChoiceLabel ?? entry.selectionLabel} · {formatMoment(entry.resolvedAt ?? entry.createdAt)}
                                 </p>
                               </div>
                               {entry.canClaim ? (
@@ -493,7 +623,7 @@ export function UserDashboardSections({
                           </div>
                         ))
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                      <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                         No winnings are available yet.
                       </div>
                     )}
@@ -503,25 +633,25 @@ export function UserDashboardSections({
                 {/* ── Rewards tab ── */}
                 {activeTab === "rewards" && (
                   <div className="space-y-8">
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
                       <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
                         <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
                         <div>
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">From referrals</p>
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">From referrals</p>
                           <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.referral.toLocaleString()} OCTO</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-white/10 dark:bg-black/20">
                         <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
                         <div>
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">From bets</p>
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">From bets</p>
                           <p className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">{octoBreakdown.bet.toLocaleString()} OCTO</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
                         <img src="/usdc-coin.png" alt="USDC" className="size-5 shrink-0 object-contain" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">USDC commissions</p>
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">USDC commissions</p>
                           <p className="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300">${usdcBalance.total_earned.toFixed(4)}</p>
                           {usdcBalance.pending_claim > 0 ? (
                             <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">${usdcBalance.pending_claim.toFixed(4)} pending payment</p>
@@ -535,20 +665,23 @@ export function UserDashboardSections({
                               {isClaiming ? "Submitting…" : `Claim $${usdcBalance.available.toFixed(4)}`}
                             </button>
                           ) : (
-                            <p className="mt-0.5 text-xs text-zinc-400">No available balance</p>
+                            <p className="mt-0.5 text-xs text-zinc-600">No available balance</p>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 rounded-2xl border border-purple-100 bg-purple-50 px-4 py-4 dark:border-purple-500/20 dark:bg-purple-500/10">
                         <Coins className="size-5 shrink-0 text-purple-500 dark:text-purple-300" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">ClawdTrust commissions</p>
-                          <p className="mt-1 text-xl font-bold text-purple-700 dark:text-purple-300">
-                            {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} CLT
-                          </p>
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-400">ClawdTrust commissions</p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <img src="/clawdtrust-coin.png" alt="CLT" className="size-5 shrink-0 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display="none"; }} />
+                            <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.total_earned_clt)} ClawdTrust
+                            </p>
+                          </div>
                           {usdcBalance.pending_claim_clt > 0 ? (
                             <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} CLT pending payment
+                              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.pending_claim_clt)} ClawdTrust pending payment
                             </p>
                           ) : usdcBalance.available_clt > 0 ? (
                             <button
@@ -557,10 +690,10 @@ export function UserDashboardSections({
                               disabled={isClaiming}
                               className="mt-1.5 rounded-xl bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
                             >
-                              {isClaiming ? "Submitting…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)} CLT`}
+                              {isClaiming ? "Submitting…" : `Claim ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usdcBalance.available_clt)} ClawdTrust`}
                             </button>
                           ) : (
-                            <p className="mt-0.5 text-xs text-zinc-400">No available balance</p>
+                            <p className="mt-0.5 text-xs text-zinc-600">No available balance</p>
                           )}
                         </div>
                       </div>
@@ -591,7 +724,7 @@ export function UserDashboardSections({
                           )}
                         </button>
                       </div>
-                      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-400">
                         You earn <span className="font-semibold text-orange-600 dark:text-orange-300">10 OCTO</span> for each friend who connects their wallet via your link.
                       </p>
                     </div>
@@ -609,11 +742,11 @@ export function UserDashboardSections({
                           <Table>
                             <TableHeader>
                               <TableRow className="border-orange-200 bg-orange-50 dark:border-white/10 dark:bg-zinc-900">
-                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">User</TableHead>
-                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Joined</TableHead>
-                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">OCTO earned</TableHead>
-                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">USDC earned</TableHead>
-                                <TableHead className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">CLT earned</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-800 dark:text-zinc-400">User</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-800 dark:text-zinc-400">Joined</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-800 dark:text-zinc-400">OCTO earned</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-800 dark:text-zinc-400">USDC earned</TableHead>
+                                <TableHead className="text-xs font-semibold text-zinc-800 dark:text-zinc-400">ClawdTrust earned</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -636,16 +769,16 @@ export function UserDashboardSections({
                                         +${commissionsByReferred[row.referred_wallet]!.usdc.toFixed(4)} USDC
                                       </span>
                                     ) : (
-                                      <span className="text-xs text-zinc-400">—</span>
+                                      <span className="text-xs text-zinc-600">—</span>
                                     )}
                                   </TableCell>
                                   <TableCell className="py-3">
                                     {(commissionsByReferred[row.referred_wallet]?.clt ?? 0) > 0 ? (
                                       <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-500/15 dark:text-purple-300">
-                                        +{new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(commissionsByReferred[row.referred_wallet]!.clt)} CLT
+                                        +{new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(commissionsByReferred[row.referred_wallet]!.clt)} ClawdTrust
                                       </span>
                                     ) : (
-                                      <span className="text-xs text-zinc-400">—</span>
+                                      <span className="text-xs text-zinc-600">—</span>
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -658,8 +791,8 @@ export function UserDashboardSections({
                   </div>
                 )}
 
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -691,7 +824,7 @@ export function UserDashboardSections({
                           <img src={listing.iconSrc} alt={listing.displayName} className="size-12 rounded-2xl object-cover" />
                           <div>
                             <p className="font-semibold text-zinc-950 dark:text-white">{listing.displayName}</p>
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{listing.twitterHandle}</p>
+                            <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-400">{listing.twitterHandle}</p>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -703,14 +836,14 @@ export function UserDashboardSections({
                           </Badge>
                         </div>
                       </div>
-                      <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 grid-cols-2 xl:grid-cols-4">
                         <div>Billing: {listing.billingLabel}</div>
                         <div>Visitors: {listing.visitorCount}</div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                  <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                     No AI submitted yet. Use the button above to start Step 1 and Step 2 of the listing flow.
                   </div>
                 )}
@@ -741,12 +874,12 @@ export function UserDashboardSections({
                       )}
                       <div>
                         <p className="font-semibold text-zinc-950 dark:text-white">{token.name}</p>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{token.ticker}</p>
+                        <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-400">{token.ticker}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                  <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
                     No token launch recorded yet.
                   </div>
                 )}

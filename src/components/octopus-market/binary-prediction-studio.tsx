@@ -262,8 +262,9 @@ function buildOptionSummaries(
       return paymentNotification?.status !== "rejected";
     });
 
+    const initialVolume = token === "clawdtrust" ? 0 : (option.initialVolumeUsd ?? 0);
     const liveVolumeUsd = Number(
-      ((option.initialVolumeUsd ?? 0) + relevantEntries.reduce((total, entry) => total + entry.amount, 0)).toFixed(2)
+      (initialVolume + relevantEntries.reduce((total, entry) => total + entry.amount, 0)).toFixed(2)
     );
     const grossReturnUsd = Number((amount * option.oddsMultiplier).toFixed(2));
     const netReturnUsd = Number((grossReturnUsd * (1 - predictionMarketFeeRate / 100)).toFixed(2));
@@ -371,7 +372,10 @@ function buildPredictionHistoryEntryFromPaymentRequest(paymentRequest: PaymentRe
     selectionLabel: readStringMetadataValue(metadata.selectionLabel, paymentRequest.memo || "Market side"),
     amount: readNumberMetadataValue(metadata.stake, paymentRequest.amount),
     reserveFee: readNumberMetadataValue(metadata.reserveFee),
-    totalCharged: readNumberMetadataValue(metadata.totalChargeUsdc, paymentRequest.amount),
+    totalCharged: readNumberMetadataValue(
+      metadata.token === "clawdtrust" ? metadata.totalChargeClt : metadata.totalChargeUsdc,
+      paymentRequest.amount
+    ),
     claimFeeRate: readNumberMetadataValue(metadata.claimFeeRate, predictionMarketFeeRate),
     payoutMultiple: readNumberMetadataValue(metadata.payoutMultiple, 1),
     grossReward: readNumberMetadataValue(metadata.grossReward),
@@ -826,7 +830,7 @@ export function BinaryPredictionStudio({
               className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
             />
           ) : null}
-          <span className="min-w-0 flex-1 truncate">{market.leftCompetitorName ?? "Team A"}</span>
+          <span className="min-w-0 flex-1 line-clamp-2">{market.leftCompetitorName ?? "Team A"}</span>
           <span className="shrink-0 text-zinc-400 dark:text-zinc-500">vs</span>
           {market.rightCompetitorImageSrc ? (
             <img
@@ -835,7 +839,7 @@ export function BinaryPredictionStudio({
               className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
             />
           ) : null}
-          <span className="min-w-0 flex-1 truncate">{market.rightCompetitorName ?? "Team B"}</span>
+          <span className="min-w-0 flex-1 line-clamp-2">{market.rightCompetitorName ?? "Team B"}</span>
         </div>
       );
     }
@@ -849,7 +853,7 @@ export function BinaryPredictionStudio({
             className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
           />
         ) : null}
-        <span className="min-w-0 truncate">{market.singleName ?? market.title}</span>
+        <span className="min-w-0 line-clamp-2">{market.singleName ?? market.title}</span>
       </div>
     );
   };
@@ -861,10 +865,9 @@ export function BinaryPredictionStudio({
     }
 
     const trimmedTitle = adminMarketDraft.title.trim();
-    const trimmedResolution = adminMarketDraft.resolutionLabel.trim();
 
-    if (!trimmedTitle || !trimmedResolution) {
-      toast.error("Champs manquants", { description: "Ajoutez un titre et une règle de résolution avant de publier." });
+    if (!trimmedTitle) {
+      toast.error("Champs manquants", { description: "Ajoutez un titre avant de publier." });
       return;
     }
 
@@ -912,7 +915,7 @@ export function BinaryPredictionStudio({
         adminMarketDraft.mode === "simple" && adminMarketDraft.singleImageSrc.trim()
           ? adminMarketDraft.singleImageSrc.trim()
           : undefined,
-      resolutionLabel: trimmedResolution,
+      resolutionLabel: adminMarketDraft.resolutionLabel,
       eventStartAt: adminMarketDraft.eventStartAt.trim()
         ? new Date(adminMarketDraft.eventStartAt.trim()).toISOString()
         : null,
@@ -1512,13 +1515,6 @@ export function BinaryPredictionStudio({
                           </p>
                         </div>
 
-                        <Textarea
-                          value={adminMarketDraft.resolutionLabel}
-                          onChange={(event) => handleAdminDraftChange("resolutionLabel", event.target.value)}
-                          placeholder="Resolution details"
-                          className="min-h-24 border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
-                        />
-
                         <div className="space-y-3 rounded-2xl border border-orange-100 bg-orange-50/70 p-4 dark:border-white/10 dark:bg-black/20">
                           <div>
                             <p className="text-sm font-semibold text-zinc-950 dark:text-white">Market format</p>
@@ -1812,7 +1808,7 @@ export function BinaryPredictionStudio({
                             <TableCell className="py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                               {Number(claim.total_usdc) > 0 ? `$${Number(claim.total_usdc).toFixed(4)}` : null}
                               {Number(claim.total_usdc) > 0 && Number(claim.total_clt ?? 0) > 0 ? " + " : null}
-                              {Number(claim.total_clt ?? 0) > 0 ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(claim.total_clt))} CLT` : null}
+                              {Number(claim.total_clt ?? 0) > 0 ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(claim.total_clt))} ClawdTrust` : null}
                             </TableCell>
                             <TableCell className="py-3 text-xs text-zinc-500 dark:text-zinc-400">
                               {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(claim.created_at))}
@@ -1867,31 +1863,7 @@ export function BinaryPredictionStudio({
           </>
         ) : (
         <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
-                Prediction market sections
-              </Badge>
-              <Badge className="border border-orange-200 bg-white text-zinc-700 hover:bg-white dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-900">
-                Wallet approval required
-              </Badge>
-            </div>
-            <CardTitle className="text-2xl">Take positions by section inside Octopus Market</CardTitle>
-            <CardDescription className="text-base leading-7 text-zinc-600 dark:text-zinc-400">
-              Choose one section at a time, pick a prediction, enter a stake between {formatCurrency(predictionMarketMinStakeUsd)} and {formatCurrency(predictionMarketMaxStakeUsd)}, then confirm the {paymentTokenSymbol} debit in Phantom.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert className="border-orange-200 bg-orange-50/70 text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              {isWalletConnected ? <CheckCircle2 className="size-4" /> : <Wallet className="size-4" />}
-              <AlertTitle>{isWalletConnected ? "Wallet unlocked for utilities" : "Connect wallet to unlock utilities"}</AlertTitle>
-              <AlertDescription>
-                {isWalletConnected
-                  ? `Connected wallet: ${formatWalletAddress(walletAddress)}${readCachedCentralWalletRecord(walletAddress ?? "")?.status === "suspended" ? " · suspended" : ""}`
-                  : "Prediction positions, launch actions, and assistant interactions are gated until a Solana wallet is connected."}
-              </AlertDescription>
-            </Alert>
-
+          <CardContent className="space-y-6 pt-6">
             <div className="space-y-3">
               <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Choose a market section</p>
               <div className="flex flex-wrap gap-3">
@@ -1910,10 +1882,6 @@ export function BinaryPredictionStudio({
                     {category.label}
                   </Button>
                 ))}
-              </div>
-              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm leading-6 text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
-                <p className="font-medium text-zinc-950 dark:text-white">{activeCategory?.label}</p>
-                <p className="mt-1">{activeCategory?.description}</p>
               </div>
             </div>
 
@@ -2063,7 +2031,7 @@ export function BinaryPredictionStudio({
                                 step={selectedToken === "clawdtrust" ? "1" : "0.01"}
                                 value={amountValue}
                                 onChange={(event) => handleAmountChange(market.id, event.target.value)}
-                                placeholder={selectedToken === "clawdtrust" ? `Min. ${predictionMarketMinStakeClt.toLocaleString("en-US")} CLT` : `Min. ${predictionMarketMinStakeUsd} – max. ${predictionMarketMaxStakeUsd}`}
+                                placeholder={selectedToken === "clawdtrust" ? `Min. ${predictionMarketMinStakeClt.toLocaleString("en-US")} ClawdTrust` : `Min. ${predictionMarketMinStakeUsd} – max. ${predictionMarketMaxStakeUsd}`}
                                 className="min-w-0 flex-1 border-orange-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-950 dark:text-white"
                               />
                             </div>
