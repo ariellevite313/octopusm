@@ -293,10 +293,9 @@ export async function initPredictionStore(walletAddress?: string | null): Promis
   activeWalletAddress = walletAddress ?? null;
 
   // ── Stratégie de chargement ───────────────────────────────────────────────
-  // 0. Lire le cache localStorage → affichage instantané (<1ms)
-  // 1. Lancer Supabase + historique EN PARALLÈLE en arrière-plan
-  // 2. Dès que Supabase répond : mettre à jour le cache + re-émettre
-  // 3. L'historique wallet arrive ensuite → second emit
+  // 0. Cache localStorage → affichage instantané (<1ms)
+  // 1. Marchés Supabase → emit dès réception (sans attendre l'historique)
+  // 2. Historique wallet → emit séparé en arrière-plan
 
   // Étape 0 : seed instantané depuis le cache local
   const cached = readMarketsFromLocalStorage();
@@ -316,15 +315,9 @@ export async function initPredictionStore(walletAddress?: string | null): Promis
     emitUpdate(); // UI visible immédiatement
   }
 
-  // Étape 1 : fetch Supabase + historique en parallèle
-  const historyPromise: Promise<typeof predictionHistoryCache> = walletAddress
-    ? getPredictionHistory(walletAddress).then((rows) => rows.map(historyRowToApp))
-    : Promise.resolve([]);
+  // Étape 1 : fetch marchés — SANS attendre l'historique wallet
+  const markets = await getActiveMarkets();
 
-  const marketsPromise = getActiveMarkets();
-  const [markets] = await Promise.all([marketsPromise, historyPromise.catch(() => [])]);
-
-  // Étape 2 : appliquer les marchés frais
   predictionMarketsCache = markets.map(marketRowToApp);
   predictionResolutionsCache = {};
   for (const market of markets) {
@@ -337,23 +330,24 @@ export async function initPredictionStore(walletAddress?: string | null): Promis
     }
   }
 
-  // Persister dans localStorage pour le prochain chargement
+  // Marchés disponibles → persister + notifier immédiatement
   writeMarketsToLocalStorage(predictionMarketsCache);
-
   hasHydrated = true;
   emitUpdate();
 
-  // Subscriptions Realtime
+  // Subscriptions Realtime (démarre en parallèle du fetch historique)
   startRealtimeSync(walletAddress ?? null);
 
-  // Étape 3 : historique wallet
+  // Étape 2 : historique wallet en arrière-plan (n'impacte plus l'affichage des marchés)
   if (walletAddress) {
-    historyPromise.then((history) => {
-      predictionHistoryCache = history;
-      emitUpdate();
-    }).catch((err) => {
-      console.warn("[prediction-store] getPredictionHistory failed:", err);
-    });
+    getPredictionHistory(walletAddress)
+      .then((rows) => {
+        predictionHistoryCache = rows.map(historyRowToApp);
+        emitUpdate();
+      })
+      .catch((err) => {
+        console.warn("[prediction-store] getPredictionHistory failed:", err);
+      });
   }
 }
 
