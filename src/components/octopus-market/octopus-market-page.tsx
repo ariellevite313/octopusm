@@ -1765,7 +1765,7 @@ export function OctopusMarketPage() {
         open={isUserAccessOpen}
         onClose={() => setIsUserAccessOpen(false)}
         side="left"
-        title="Mon compte"
+        title="My account"
         className="w-[18.5rem] max-w-[88vw] bg-zinc-100 p-0 dark:bg-zinc-950"
       >
         <div className="max-h-[calc(100vh-7rem)] overflow-y-auto px-4 py-4">

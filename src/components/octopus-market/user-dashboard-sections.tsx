@@ -46,7 +46,8 @@ type UserDashboardSectionsProps = {
 };
 
 function formatCurrency(amount: number) {
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(amount)} USDC`;
+  const decimals = amount > 0 && amount < 0.01 ? 4 : 2;
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: decimals, minimumFractionDigits: decimals }).format(amount)} USDC`;
 }
 
 function formatClawdTrust(amount: number) {

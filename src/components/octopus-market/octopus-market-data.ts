@@ -553,8 +553,8 @@ export const octopusTokensSeed: OctopusTokenBoardItem[] = [
 ];
 
 export const contactItems: HighlightItem[] = [
-  { icon: Globe, label: "Website · octopusmarket.fun", href: "#hero" },
-  { icon: Globe, label: "X / Twitter · @octopusmarketai", href: "https://x.com/octopusmarketai" },
+  { icon: Globe, label: "Website · octomarket.fun", href: "https://octomarket.fun" },
+  { icon: Globe, label: "X / Twitter · @octomarketfun", href: "https://x.com/octomarketfun" },
   { icon: Wallet, label: `Official token · $${officialTokenName} on BagsApp` },
   { icon: Shield, label: `CA · ${officialTokenAddress}` },
 ];
