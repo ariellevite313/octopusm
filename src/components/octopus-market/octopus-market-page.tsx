@@ -2096,7 +2096,7 @@ export function OctopusMarketPage() {
                                     className="rounded-full bg-orange-500 text-white hover:bg-orange-400"
                                     onClick={() => openPredictionMarketSection(market.categoryId, market.id)}
                                   >
-                                    Place a bet
+                                    Predict
                                   </Button>
                                 )}
                               </div>
@@ -2115,44 +2115,7 @@ export function OctopusMarketPage() {
 
       <footer id="footer" className="relative z-20 border-t border-orange-200 bg-zinc-100 py-12 shadow-[0_-18px_40px_rgba(249,115,22,0.08)] dark:border-white/10 dark:bg-zinc-900/95 sm:py-14 lg:py-16">
         <div className="mx-auto max-w-[92rem] px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10 [transform-style:preserve-3d]">
-            <div className="min-w-0 overflow-hidden rounded-[2rem] border border-orange-200 bg-white/96 p-5 shadow-[0_18px_45px_rgba(249,115,22,0.08)] backdrop-blur-md transition-transform duration-500 md:[transform:perspective(1800px)_rotateY(-2deg)_rotateX(3deg)] dark:border-white/10 dark:bg-zinc-900/92 dark:shadow-[0_18px_45px_rgba(0,0,0,0.28)] sm:p-7 lg:p-8">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="inline-flex max-w-full whitespace-normal border border-orange-200 bg-orange-100 px-3 py-1 text-left text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
-                  Ready to become an AI reference?
-                </Badge>
-                <Badge className="border border-zinc-200 bg-zinc-100 px-3 py-1 text-zinc-500 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/5">
-                  <Lock className="mr-1 size-3" />
-                  Coming Soon
-                </Badge>
-              </div>
-              <h2 className="mt-5 break-words text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white sm:text-3xl lg:text-5xl">
-                Launch your presence on Octopus Market now.
-              </h2>
-              <p className="mt-4 max-w-full text-sm leading-7 text-zinc-600 dark:text-zinc-400 sm:text-base lg:max-w-2xl lg:text-lg lg:leading-8">
-                Launch Token, Prediction Market, AI listing, official platform references, and wallet validation all work together in one Octopus Market flow.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
-                <Button
-                  type="button"
-                  disabled
-                  className="h-11 w-full cursor-not-allowed rounded-2xl bg-orange-300 px-5 text-sm text-white opacity-60 sm:w-auto sm:px-8 sm:text-base"
-                >
-                  <Lock className="size-4" />
-                  List my AI
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled
-                  className="h-11 w-full cursor-not-allowed rounded-2xl border-orange-200 bg-white px-5 text-sm text-zinc-950 opacity-60 sm:w-auto sm:px-8 sm:text-base dark:border-white/15 dark:bg-transparent dark:text-white"
-                >
-                  Browse open markets
-                </Button>
-              </div>
-            </div>
-
+          <div className="[transform-style:preserve-3d]">
             <Card className="min-w-0 border-orange-200 bg-orange-50/95 text-zinc-950 shadow-[0_18px_45px_rgba(249,115,22,0.08)] backdrop-blur-md transition-transform duration-500 md:[transform:perspective(1800px)_rotateY(2deg)_rotateX(3deg)] dark:border-white/10 dark:bg-zinc-800/95 dark:text-white">
               <CardHeader>
                 <CardTitle className="text-2xl">Key information</CardTitle>
@@ -2335,7 +2298,7 @@ export function OctopusMarketPage() {
         onClose={() => setIsAdminCenterOpen(false)}
         side="right"
         title="Admin Control Center"
-        description="This admin area now opens only from the dedicated admin button above My Bets."
+        description="This admin area now opens only from the dedicated admin button above My Predictions."
         badge="Admin only"
       >
         <OctopusRuntimeBoundary fallbackTitle="Admin center recovered safely." fallbackDescription="This admin window hit a browser-specific issue, so only the admin area was isolated while the rest of Octopus Market stays available.">

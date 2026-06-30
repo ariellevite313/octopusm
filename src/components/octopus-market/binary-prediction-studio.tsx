@@ -1126,7 +1126,7 @@ export function BinaryPredictionStudio({
 
     // Bloquer les paris une fois l'événement démarré
     if (market.eventStartAt && Date.now() >= new Date(market.eventStartAt).getTime()) {
-      toast.error("Market closed", { description: "Bets are locked — the event is underway." });
+      toast.error("Market closed", { description: "Predictions are locked — the event is underway." });
       return;
     }
 
@@ -1994,7 +1994,7 @@ export function BinaryPredictionStudio({
                       {/* Action zone or Event in progress pill */}
                       {isMarketLive ? (
                         <>
-                          <p className="text-sm leading-6 text-zinc-500 dark:text-zinc-400">Bets are closed during the event.</p>
+                          <p className="text-sm leading-6 text-zinc-500 dark:text-zinc-400">Predictions are closed during the event.</p>
                           <div className="flex justify-end">
                             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                               <span className="relative flex size-1.5">

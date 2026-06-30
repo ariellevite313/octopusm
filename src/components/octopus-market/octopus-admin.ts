@@ -209,13 +209,23 @@ export async function approveAdminNotification(
     }
 
     // Pour les paris CLT : créditer les OCTO rewards au moment de l'approbation admin
-    // Formule : floor(cltStake / 25 000) OCTO  (= floor(x / 500 000) * 20)
+    // Formule : floor(cltStake / 25 000) OCTO
     if (
       notification?.flow === "prediction" &&
       notification.token === "clawdtrust" &&
       notification.amountUsdc > 0
     ) {
       void creditBetOcto(notification.userWallet, notification.amountUsdc, "clawdtrust");
+    }
+
+    // Pour les paris USDC : créditer les OCTO rewards au moment de l'approbation admin
+    // Formule : floor(stake / 2) × 10 OCTO  (ex: 2 USDC → 10 OCTO, 10 USDC → 50 OCTO)
+    if (
+      notification?.flow === "prediction" &&
+      notification.token === "usdc" &&
+      notification.amountUsdc > 0
+    ) {
+      void creditBetOcto(notification.userWallet, notification.amountUsdc, "usdc");
     }
 
     // Créditer 5% des frais de réserve au parrain (dans le token du pari)

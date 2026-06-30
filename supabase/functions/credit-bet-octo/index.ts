@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      // 25 000 CLT = 1 OCTO
-      octo_amount = Math.floor(amount_clt / 25000);
+      // 25 000 CLT = 1 OCTO, minimum 1 OCTO par transaction
+      octo_amount = Math.max(1, Math.floor(amount_clt / 25000));
     } else {
       // USDC par défaut
       if (amount_usd == null || amount_usd <= 0) {
@@ -58,15 +58,8 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      octo_amount = Math.floor(amount_usd / 2) * 10;
-    }
-
-    // Montant trop faible pour gagner des OCTO
-    if (octo_amount === 0) {
-      return new Response(
-        JSON.stringify({ success: true, octo_credited: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // floor(mise / 2) × 10, minimum 1 OCTO par transaction
+      octo_amount = Math.max(1, Math.floor(amount_usd / 2) * 10);
     }
 
     const supabase = createClient(

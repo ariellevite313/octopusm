@@ -209,19 +209,27 @@ export function UserDashboardSections({
     void getReferralCommissionsByReferred(walletAddress).then((map) => setCommissionsByReferred(map));
   }, [walletAddress]);
 
-  // Realtime : rafraîchir les commissions dès qu'un enregistrement est ajouté
+  // Realtime : rafraîchir les récompenses dès qu'un enregistrement est ajouté
   useEffect(() => {
     if (!walletAddress) return;
 
+    const refreshAll = () => {
+      void getReferralCommissionBalance(walletAddress).then((bal) => setUsdcBalance(bal));
+      void getReferralCommissionsByReferred(walletAddress).then((map) => setCommissionsByReferred(map));
+      void getOctoBreakdown(walletAddress).then((bd) => setOctoBreakdown(bd));
+    };
+
     const channel = supabase
-      .channel(`referral-commissions-${walletAddress}`)
+      .channel(`rewards-realtime-${walletAddress}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "referral_commissions", filter: `referrer_wallet=eq.${walletAddress}` },
-        () => {
-          void getReferralCommissionBalance(walletAddress).then((bal) => setUsdcBalance(bal));
-          void getReferralCommissionsByReferred(walletAddress).then((map) => setCommissionsByReferred(map));
-        }
+        refreshAll
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "octo_transactions", filter: `wallet_address=eq.${walletAddress}` },
+        refreshAll
       )
       .subscribe();
 
@@ -295,7 +303,7 @@ export function UserDashboardSections({
             <CardHeader>
               <CardTitle className="text-2xl">Connect your wallet to open your dashboard</CardTitle>
               <CardDescription>
-                My Bets, My Winnings, My Listed AI, and Wallet Dashboard become available after the wallet is connected.
+                My Predictions, My Winnings, My Listed AI, and Wallet Dashboard become available after the wallet is connected.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -371,7 +379,7 @@ export function UserDashboardSections({
                           : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
                       ].join(" ")}
                     >
-                      {tab === "bets" ? "My Bets" : tab === "winnings" ? "My Winnings" : "Rewards"}
+                      {tab === "bets" ? "My Predictions" : tab === "winnings" ? "My Winnings" : "Rewards"}
                     </button>
                   ))}
                 </div>
@@ -408,7 +416,7 @@ export function UserDashboardSections({
                             </div>
                           </div>
                           <div className="mt-3 grid gap-2 text-sm text-zinc-700 dark:text-zinc-300 grid-cols-2 xl:grid-cols-4">
-                            <div>Bet amount: {entry.token === "clawdtrust" ? formatClawdTrust(entry.amount) : formatCurrency(entry.amount)}</div>
+                            <div>Prediction amount: {entry.token === "clawdtrust" ? formatClawdTrust(entry.amount) : formatCurrency(entry.amount)}</div>
                             <div>Reserve fee: {entry.token === "clawdtrust" ? formatClawdTrust(entry.reserveFee) : formatCurrency(entry.reserveFee)}</div>
                             <div>Total paid: {entry.token === "clawdtrust" ? formatClawdTrust(entry.totalCharged) : formatCurrency(entry.totalCharged)}</div>
                             <div>Odds: x{entry.payoutMultiple}</div>
@@ -417,7 +425,7 @@ export function UserDashboardSections({
                       ))
                     ) : (
                       <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-4 text-sm text-zinc-700 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                        No bets recorded yet.
+                        No predictions recorded yet.
                       </div>
                     )}
                   </div>
@@ -429,9 +437,9 @@ export function UserDashboardSections({
                     {/* ── Stat rows ── */}
                     <div className="space-y-4">
 
-                      {/* Total bet volume */}
+                      {/* Total prediction volume */}
                       <div>
-                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Total bet volume</p>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Total prediction volume</p>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
                             <div className="flex items-center gap-2">
@@ -551,9 +559,9 @@ export function UserDashboardSections({
                         </div>
                       </div>
 
-                      {/* OCTO from bets */}
+                      {/* OCTO from predictions */}
                       <div>
-                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">OCTO from bets</p>
+                        <p className="mb-2 text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">OCTO from predictions</p>
                         <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 dark:border-white/10 dark:bg-black/20">
                           <div className="flex items-center gap-2">
                             <img src="/octo-coin.png" alt="OCTO" className="size-5 shrink-0 object-contain" />
