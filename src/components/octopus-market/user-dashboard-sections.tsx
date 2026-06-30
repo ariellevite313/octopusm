@@ -33,6 +33,7 @@ import {
   claimReferralCommissions,
 } from "@/services/supabase/octo-service";
 import type { ReferralRow } from "@/lib/supabase-types";
+import { supabase } from "@/lib/supabase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type DashboardSectionId = "wallet" | "bets" | "gains" | "listed-ai" | "token-launch";
@@ -206,6 +207,25 @@ export function UserDashboardSections({
     void getReferrals(walletAddress).then((rows) => setReferrals(rows));
     void getReferralCommissionBalance(walletAddress).then((bal) => setUsdcBalance(bal));
     void getReferralCommissionsByReferred(walletAddress).then((map) => setCommissionsByReferred(map));
+  }, [walletAddress]);
+
+  // Realtime : rafraîchir les commissions dès qu'un enregistrement est ajouté
+  useEffect(() => {
+    if (!walletAddress) return;
+
+    const channel = supabase
+      .channel(`referral-commissions-${walletAddress}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "referral_commissions", filter: `referrer_wallet=eq.${walletAddress}` },
+        () => {
+          void getReferralCommissionBalance(walletAddress).then((bal) => setUsdcBalance(bal));
+          void getReferralCommissionsByReferred(walletAddress).then((map) => setCommissionsByReferred(map));
+        }
+      )
+      .subscribe();
+
+    return () => { void channel.unsubscribe(); };
   }, [walletAddress]);
 
   const allowedSections = useMemo<DashboardSectionId[]>(() => {
