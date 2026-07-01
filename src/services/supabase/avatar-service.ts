@@ -8,37 +8,77 @@
 import { supabase } from "@/lib/supabase";
 
 const BUCKET = "avatars";
+const AVATAR_SIZE_PX = 256;
+const AVATAR_QUALITY = 0.85;
+
+/**
+ * Redimensionne et compresse une image côté client avant upload.
+ * Centre-crop carré → JPEG 256×256 ~20-50 KB.
+ */
+function resizeImageForAvatar(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const size = Math.min(img.width, img.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = AVATAR_SIZE_PX;
+      canvas.height = AVATAR_SIZE_PX;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas not supported")); return; }
+      const sx = (img.width - size) / 2;
+      const sy = (img.height - size) / 2;
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, AVATAR_SIZE_PX, AVATAR_SIZE_PX);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("Compression failed"))),
+        "image/jpeg",
+        AVATAR_QUALITY
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
+    img.src = objectUrl;
+  });
+}
 
 /**
  * Upload un fichier image et met à jour wallets.avatar_src.
- * Retourne l'URL publique ou null en cas d'erreur.
+ * Compresse côté client avant upload (JPEG 256×256).
+ * Retourne l'URL publique ou une erreur.
  */
 export async function uploadAvatar(
   walletAddress: string,
   file: File
 ): Promise<{ url: string } | { error: string }> {
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `${walletAddress}/avatar.${ext}`;
+  // Toujours .jpg après compression Canvas → JPEG
+  const path = `${walletAddress}/avatar.jpg`;
+
+  let compressed: Blob;
+  try {
+    compressed = await resizeImageForAvatar(file);
+  } catch {
+    compressed = file; // fallback sur le fichier original si Canvas échoue
+  }
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, compressed, { upsert: true, contentType: "image/jpeg" });
 
   if (uploadError) {
     console.error("[avatar-service] upload failed:", uploadError.message);
     return { error: uploadError.message };
   }
 
-  // URL publique avec cache-busting : même path = même URL sans le parametre,
-  // le navigateur servirait l'ancienne image depuis son cache.
+  // URL publique avec cache-busting : même path stocké = même URL brute,
+  // le navigateur servirait l'ancienne image depuis son cache au rechargement.
+  // On stocke donc l'URL avec le timestamp en DB pour que le rechargement
+  // reçoive toujours l'URL de la dernière version uploadée.
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
 
-  // Persister dans wallets.avatar_src (sans le cache-buster pour l'URL en DB)
-  const cleanUrl = data.publicUrl;
   const { error: updateError } = await supabase
     .from("wallets")
-    .update({ avatar_src: cleanUrl })
+    .update({ avatar_src: publicUrl })
     .eq("address", walletAddress);
 
   if (updateError) {

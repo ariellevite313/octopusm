@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUpToLine, Check, ChevronDown, Clock3, Copy, Database, ExternalLink, Globe, Home, Lock, LogOut, LayoutDashboard, Menu, Moon, Receipt, Rocket, Search, ShieldCheck, Sun, Trophy, Wallet, X } from "lucide-react";
+import { ArrowLeft, ArrowUpToLine, Check, ChevronDown, Clock3, Copy, Database, ExternalLink, Globe, Home, Lock, LogOut, LayoutDashboard, Menu, Moon, Pencil, Receipt, Rocket, Search, ShieldCheck, Sun, Trophy, Wallet, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,9 @@ import {
 } from "@/components/octopus-market/solana-wallet";
 import { registerReferral } from "@/services/supabase/octo-service";
 import { uploadAvatar } from "@/services/supabase/avatar-service";
+import { updateWalletProfile } from "@/services/supabase/wallet-service";
+import { getWalletLeaderboardRank } from "@/services/supabase/leaderboard-service";
+import { OctoBadge, AdminBadge } from "@/components/octopus-market/octo-tier-badge";
 import { useLegacyBrowser } from "@/hooks/use-legacy-browser";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeMode } from "@/hooks/use-theme-mode";
@@ -564,6 +568,8 @@ export function OctopusMarketPage() {
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [isUserAccessOpen, setIsUserAccessOpen] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState("");
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
   const [isAdminCenterOpen, setIsAdminCenterOpen] = useState(false);
@@ -574,6 +580,15 @@ export function OctopusMarketPage() {
   const isMobile = useIsMobile();
   const reduceVisualLoad = isLegacyBrowser;
   const isWalletConnected = Boolean(walletAddress);
+
+  // Total OCTO de l'utilisateur connecte (pour le badge de palier)
+  const { data: myLeaderboardEntry } = useQuery({
+    queryKey: ["leaderboard-octo-me", walletAddress],
+    queryFn: () => walletAddress ? getWalletLeaderboardRank(walletAddress) : null,
+    enabled: !!walletAddress,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
   const isAdminWallet = walletAddress === predictionMarketTreasuryAddress;
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [clockDisplay, setClockDisplay] = useState(() => {
@@ -1592,16 +1607,20 @@ export function OctopusMarketPage() {
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file || !walletAddress) return;
-                    if (file.size > 2 * 1024 * 1024) {
-                      toast.error("File too large", { description: "Max 2 MB." });
+                    if (file.size > 10 * 1024 * 1024) {
+                      toast.error("File too large", { description: "Max 10 MB." });
                       return;
                     }
+                    // Preview optimiste : affiche la nouvelle image immédiatement
+                    const localPreview = URL.createObjectURL(file);
+                    setWalletAvatarSrc(localPreview);
                     setIsUploadingAvatar(true);
                     const result = await uploadAvatar(walletAddress, file);
                     if ("url" in result) {
                       setWalletAvatarSrc(result.url);
                       toast.success("Avatar updated");
                     } else {
+                      setWalletAvatarSrc(null);
                       toast.error("Upload failed", { description: result.error });
                     }
                     setIsUploadingAvatar(false);
@@ -1612,9 +1631,68 @@ export function OctopusMarketPage() {
 
               {/* Nom + wallet */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
-                  {walletUsername ?? walletTwitterHandle ?? "Wallet"}
-                </p>
+                {isEditingUsername ? (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const trimmed = usernameInput.trim();
+                      if (!trimmed || !walletAddress) { setIsEditingUsername(false); return; }
+                      setIsSavingUsername(true);
+                      const result = await updateWalletProfile(walletAddress, { username: trimmed });
+                      if (result.success) {
+                        setWalletUsername(trimmed);
+                        toast.success("Username updated");
+                      } else {
+                        toast.error("Update failed", { description: result.error });
+                      }
+                      setIsSavingUsername(false);
+                      setIsEditingUsername(false);
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      value={usernameInput}
+                      onChange={(e) => setUsernameInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setIsEditingUsername(false); }}
+                      maxLength={32}
+                      placeholder="Username"
+                      className="w-full min-w-0 rounded-md border border-orange-300 bg-transparent px-2 py-0.5 text-sm font-semibold text-zinc-950 outline-none focus:border-orange-500 dark:border-white/20 dark:text-white dark:focus:border-orange-400"
+                    />
+                    <button type="submit" disabled={isSavingUsername} className="shrink-0 text-orange-500 hover:text-orange-600 disabled:opacity-50">
+                      {isSavingUsername
+                        ? <span className="block size-3.5 animate-spin rounded-full border-2 border-orange-300 border-t-orange-500" />
+                        : <Check className="size-3.5" />}
+                    </button>
+                    <button type="button" onClick={() => setIsEditingUsername(false)} className="shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                      <X className="size-3.5" />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!isWalletConnected}
+                    onClick={() => {
+                      setUsernameInput(walletUsername ?? "");
+                      setIsEditingUsername(true);
+                    }}
+                    className="group flex items-center gap-1.5 disabled:cursor-default"
+                  >
+                    <span className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
+                      {walletUsername ?? walletTwitterHandle ?? "Wallet"}
+                    </span>
+                    {isAdminWallet
+                      ? <AdminBadge size={14} />
+                      : myLeaderboardEntry && (
+                          <OctoBadge totalOcto={myLeaderboardEntry.total_octo} size={14} />
+                        )
+                    }
+                    {isWalletConnected && (
+                      <Pencil className="size-3 shrink-0 text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-500" />
+                    )}
+                  </button>
+                )}
                 <p className="truncate font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                   {walletAddress ? formatWalletAddress(walletAddress) : "Not connected"}
                 </p>
