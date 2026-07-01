@@ -29,20 +29,23 @@ export async function uploadAvatar(
     return { error: uploadError.message };
   }
 
-  // URL publique
+  // URL publique avec cache-busting : même path = même URL sans le parametre,
+  // le navigateur servirait l'ancienne image depuis son cache.
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  const publicUrl = data.publicUrl;
+  const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
 
-  // Persister dans wallets.avatar_src
+  // Persister dans wallets.avatar_src (sans le cache-buster pour l'URL en DB)
+  const cleanUrl = data.publicUrl;
   const { error: updateError } = await supabase
     .from("wallets")
-    .update({ avatar_src: publicUrl })
+    .update({ avatar_src: cleanUrl })
     .eq("address", walletAddress);
 
   if (updateError) {
     console.error("[avatar-service] wallets update failed:", updateError.message);
   }
 
+  // Retourner l'URL avec cache-buster pour la session courante
   return { url: publicUrl };
 }
 

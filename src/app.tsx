@@ -12,28 +12,32 @@ try {
 
 import { SnErrorBoundary } from "../supernova/helpers/snErrorBoundary";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OctopusLocaleProvider } from "@/components/octopus-market/octopus-locale";
 import { OctopusMarketPage } from "@/components/octopus-market/octopus-market-page";
 import { ArchivePage } from "@/components/octopus-market/archive-page";
 import { SupabaseProvider } from "@/providers/supabase-provider";
 import { Toaster } from "@/components/ui/sonner";
 
+const queryClient = new QueryClient();
+
 export default function App() {
   return (
-    <SupabaseProvider>
-      <OctopusLocaleProvider>
-        <SnErrorBoundary>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<OctopusMarketPage />} />
-              <Route path="/archive" element={<ArchivePage />} />
-              {/* Catch-all : toute URL inconnue revient à l accueil */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
-          <Toaster />
-        </SnErrorBoundary>
-      </OctopusLocaleProvider>
-    </SupabaseProvider>
+    <QueryClientProvider client={queryClient}>
+      <SupabaseProvider>
+        <OctopusLocaleProvider>
+          <SnErrorBoundary>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<OctopusMarketPage />} />
+                <Route path="/archive" element={<ArchivePage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+            <Toaster />
+          </SnErrorBoundary>
+        </OctopusLocaleProvider>
+      </SupabaseProvider>
+    </QueryClientProvider>
   );
 }

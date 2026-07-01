@@ -18,6 +18,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { initPredictionStore } from "@/components/octopus-market/prediction-market-store";
+import { useMarketsRefresh } from "@/hooks/use-markets-refresh";
 import { initAIListingStore } from "@/components/octopus-market/ai-listing-store";
 import { initCentralRegistry } from "@/components/octopus-market/octopus-central-registry";
 import { initAdminNotifications } from "@/components/octopus-market/octopus-admin";
@@ -53,6 +54,11 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Stale-while-revalidate + refetchOnWindowFocus pour les marchés.
+  // Ne déclenche pas de double fetch si initPredictionStore vient de tourner
+  // (initialDataUpdatedAt = timestamp localStorage → React Query sait que c'est frais).
+  useMarketsRefresh();
 
   // ── Init stores publics (visiteur anonyme) ────────────────────────────────
   const initPublicStores = useCallback(async () => {

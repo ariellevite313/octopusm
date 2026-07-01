@@ -99,7 +99,7 @@ let activeWalletAddress: string | null = null;
 
 // ─── Cache localStorage ───────────────────────────────────────────────────────
 const LS_MARKETS_KEY = "octopus-markets-cache-v1";
-const LS_MARKETS_TTL_MS = 60_000; // 60 secondes
+const LS_MARKETS_TTL_MS = 300_000; // 5 minutes
 
 type MarketsLocalCache = {
   ts: number;
@@ -283,6 +283,35 @@ function entryToDbRow(
   };
 }
 
+// ─── Refresh marchés depuis Supabase ─────────────────────────────────────────
+
+/**
+ * Recharge les marchés actifs depuis Supabase, met à jour le cache mémoire +
+ * localStorage, et notifie tous les abonnés.
+ * Appelé par initPredictionStore ET par React Query (refetchOnWindowFocus).
+ */
+export async function refreshMarketsFromDB(): Promise<AdminCreatedPredictionMarket[]> {
+  const rows = await getActiveMarkets();
+
+  predictionMarketsCache = rows.map(marketRowToApp);
+  predictionResolutionsCache = {};
+  for (const row of rows) {
+    if (row.is_resolved && row.resolution_outcome_id) {
+      predictionResolutionsCache[row.id] = {
+        outcomeId: row.resolution_outcome_id,
+        resolvedAt: row.resolved_at ? new Date(row.resolved_at).getTime() : Date.now(),
+        resolvedByWallet: row.resolved_by_wallet ?? "",
+      };
+    }
+  }
+
+  writeMarketsToLocalStorage(predictionMarketsCache);
+  hasHydrated = true;
+  emitUpdate();
+
+  return predictionMarketsCache;
+}
+
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
 /**
@@ -316,24 +345,7 @@ export async function initPredictionStore(walletAddress?: string | null): Promis
   }
 
   // Étape 1 : fetch marchés — SANS attendre l'historique wallet
-  const markets = await getActiveMarkets();
-
-  predictionMarketsCache = markets.map(marketRowToApp);
-  predictionResolutionsCache = {};
-  for (const market of markets) {
-    if (market.is_resolved && market.resolution_outcome_id) {
-      predictionResolutionsCache[market.id] = {
-        outcomeId: market.resolution_outcome_id,
-        resolvedAt: market.resolved_at ? new Date(market.resolved_at).getTime() : Date.now(),
-        resolvedByWallet: market.resolved_by_wallet ?? "",
-      };
-    }
-  }
-
-  // Marchés disponibles → persister + notifier immédiatement
-  writeMarketsToLocalStorage(predictionMarketsCache);
-  hasHydrated = true;
-  emitUpdate();
+  await refreshMarketsFromDB();
 
   // Subscriptions Realtime (démarre en parallèle du fetch historique)
   startRealtimeSync(walletAddress ?? null);
