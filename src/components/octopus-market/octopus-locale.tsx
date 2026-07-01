@@ -69,7 +69,7 @@ const translationEntries: Array<[string, string]> = [
   ["The launch token flow now opens only inside this dedicated window, separate from the main platform page.", "Le flux de lancement de token s’ouvre maintenant uniquement dans cette fenêtre dédiée, séparée de la page principale."],
   ["The AI listing flow now opens only inside this dedicated window, separate from the main platform page.", "Le flux de listing IA s’ouvre maintenant uniquement dans cette fenêtre dédiée, séparée de la page principale."],
   ["Explore AI now opens only inside this dedicated window, separate from the main platform page.", "Explore AI s’ouvre maintenant uniquement dans cette fenêtre dédiée, séparée de la page principale."],
-  ["No prediction market is open yet in this section. Select another section to see its live markets.", "Aucun marché de prédiction n’est encore ouvert dans cette section. Sélectionnez une autre section pour voir ses marchés en direct."],
+  ["No prediction market is open yet in this section. Select another section to see its live markets.", "Chargement des marchés en cours..."],
   ["3 choices open", "3 choix ouverts"],
   ["2 choices open", "2 choix ouverts"],
   ["Predict", "Prédire"],

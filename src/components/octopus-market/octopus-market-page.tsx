@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUpToLine, Check, ChevronDown, Clock3, Copy, Database, ExternalLink, Globe, Home, Lock, LogOut, LayoutDashboard, Menu, Moon, Receipt, Rocket, Search, ShieldCheck, Sun, Wallet, X } from "lucide-react";
+import { ArrowLeft, ArrowUpToLine, Check, ChevronDown, Clock3, Copy, Database, ExternalLink, Globe, Home, Lock, LogOut, LayoutDashboard, Menu, Moon, Receipt, Rocket, Search, ShieldCheck, Sun, Trophy, Wallet, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ import {
   readAdminCreatedPredictionMarkets,
   readPredictionResolutions,
   subscribeToPredictionMarketStorage,
+  isStoreHydrated,
   type AdminCreatedPredictionMarket,
   type PredictionResolutionRecord,
 } from "@/components/octopus-market/prediction-market-store";
@@ -238,6 +239,12 @@ const LazyClawdTrustHolderPage = lazy(() =>
 const LazyBinaryPredictionStudio = lazy(() =>
   import("@/components/octopus-market/binary-prediction-studio").then((module) => ({
     default: module.BinaryPredictionStudio,
+  }))
+);
+
+const LazyLeaderboardPage = lazy(() =>
+  import("@/components/octopus-market/leaderboard-page").then((module) => ({
+    default: module.LeaderboardPage,
   }))
 );
 
@@ -435,7 +442,7 @@ function InlinePanel({
   );
 }
 
-type UserPageRoute = "home" | "wallet-dashboard" | "octopus-market" | "prediction-market";
+type UserPageRoute = "home" | "wallet-dashboard" | "octopus-market" | "prediction-market" | "leaderboard";
 
 const marketSectionShortcuts = [
   { id: "sports", label: "Sports" },
@@ -456,6 +463,8 @@ function resolveUserPageRoute(hashValue: string): UserPageRoute {
       return "octopus-market";
     case "#prediction-market":
       return "prediction-market";
+    case "#leaderboard":
+      return "leaderboard";
     default:
       return "home";
   }
@@ -579,6 +588,7 @@ export function OctopusMarketPage() {
   const [adminCreatedMarkets, setAdminCreatedMarkets] = useState<AdminCreatedPredictionMarket[]>(() =>
     readAdminCreatedPredictionMarkets()
   );
+  const [storeHydrated, setStoreHydrated] = useState(() => isStoreHydrated());
   const adminCreatedMarketsStateRef = useRef(JSON.stringify(readAdminCreatedPredictionMarkets()));
   const [resolvedMarkets, setResolvedMarkets] = useState<AdminCreatedPredictionMarket[]>([]);
   const [isLoadingResolved, setIsLoadingResolved] = useState(false);
@@ -687,6 +697,7 @@ export function OctopusMarketPage() {
       }
 
       setHomeResolutions(readPredictionResolutions());
+      setStoreHydrated(isStoreHydrated());
     });
   }, []);
 
@@ -1501,7 +1512,7 @@ export function OctopusMarketPage() {
                   {item.label}
                 </a>
               ))}
-              {marketSectionShortcuts.map((item, idx) => {
+              {(activeUserPage === "home" || activeUserPage === "prediction-market") && marketSectionShortcuts.map((item, idx) => {
                 const isActiveShortcut = item.id === selectedPredictionCategoryId;
 
                 return (
@@ -1686,6 +1697,16 @@ export function OctopusMarketPage() {
                   Prediction Market
                 </button>
 
+                {/* Leaderboard */}
+                <button
+                  type="button"
+                  className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                  onClick={() => { setIsUserAccessOpen(false); handleOpenUserRoute("#leaderboard"); }}
+                >
+                  <Trophy className="size-4 text-zinc-400" />
+                  Leaderboard
+                </button>
+
                 {/* Octopus Token */}
                 <button
                   type="button"
@@ -1818,6 +1839,8 @@ export function OctopusMarketPage() {
                           selectedCategoryId={selectedPredictionCategoryId}
                           selectedMarketId={selectedPredictionMarketId}
                         />
+                      ) : activeUserPage === "leaderboard" ? (
+                        <LazyLeaderboardPage walletAddress={walletAddress} />
                       ) : (
                         <LazyUserDashboardSections
                           walletAddress={walletAddress}
@@ -1898,15 +1921,84 @@ export function OctopusMarketPage() {
                   <div className="mx-auto max-w-[92rem] px-4 sm:px-6 lg:px-8">
                       <div className={`${visiblePredictionMarkets.length >= 6 ? "grid gap-4 lg:grid-cols-3" : visiblePredictionMarkets.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}`}>
                         {isLoadingResolved && selectedPredictionCategoryId === "previous" ? (
-                          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-5 py-6 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                            Loading previous markets…
+                          <div className="space-y-4">
+                            {[0, 1, 2].map((i) => (
+                              <div key={i} className="rounded-2xl border border-orange-100 bg-orange-50/40 p-5 dark:border-white/10 dark:bg-white/5">
+                                <div className="mb-3 flex items-start justify-between gap-3">
+                                  <div className="h-2.5 w-36 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80}ms` }} />
+                                  <div className="h-5 w-14 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 20}ms` }} />
+                                </div>
+                                <div className="mb-4 flex items-center gap-2">
+                                  <div className="size-6 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 40}ms` }} />
+                                  <div className="h-3.5 w-20 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 50}ms` }} />
+                                  <div className="h-2.5 w-3 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" />
+                                  <div className="h-3.5 w-20 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 60}ms` }} />
+                                  <div className="size-6 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 70}ms` }} />
+                                </div>
+                                <div className="mb-4 grid grid-cols-2 gap-2">
+                                  {[0, 1].map((j) => (
+                                    <div key={j} className="rounded-2xl border border-orange-100 bg-white p-3 dark:border-white/10 dark:bg-zinc-950/80">
+                                      <div className="mb-2 flex items-center justify-between">
+                                        <div className="size-5 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + j * 40}ms` }} />
+                                        <div className="h-2.5 w-7 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + j * 40 + 20}ms` }} />
+                                      </div>
+                                      <div className="h-2.5 w-full animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + j * 40 + 30}ms` }} />
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="flex justify-end">
+                                  <div className="h-8 w-24 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 90}ms` }} />
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         ) : visiblePredictionMarkets.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
-                            {selectedPredictionCategoryId === "previous"
-                              ? "No resolved markets yet."
-                              : "No prediction market is open yet in this section. Select another section to see its live markets."}
-                          </div>
+                          selectedPredictionCategoryId === "previous" ? (
+                            <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                              No resolved markets yet.
+                            </div>
+                          ) : !storeHydrated ? (
+                            /* Skeleton carte marche — visible tant que le store n'est pas hydrate */
+                            <div className="space-y-4">
+                              {[0, 1, 2].map((i) => (
+                                <div key={i} className="rounded-2xl border border-orange-100 bg-orange-50/40 p-5 dark:border-white/10 dark:bg-white/5">
+                                  {/* Titre + badge */}
+                                  <div className="mb-3 flex items-start justify-between gap-3">
+                                    <div className="h-2.5 w-36 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80}ms` }} />
+                                    <div className="h-5 w-14 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 20}ms` }} />
+                                  </div>
+                                  {/* Headline matchup */}
+                                  <div className="mb-4 flex items-center gap-2">
+                                    <div className="size-6 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 40}ms` }} />
+                                    <div className="h-3.5 w-20 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 50}ms` }} />
+                                    <div className="h-2.5 w-3 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" />
+                                    <div className="h-3.5 w-20 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 60}ms` }} />
+                                    <div className="size-6 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 70}ms` }} />
+                                  </div>
+                                  {/* Colonnes options */}
+                                  <div className="mb-4 grid grid-cols-2 gap-2">
+                                    {[0, 1].map((j) => (
+                                      <div key={j} className="rounded-2xl border border-orange-100 bg-white p-3 dark:border-white/10 dark:bg-zinc-950/80">
+                                        <div className="mb-2 flex items-center justify-between">
+                                          <div className="size-5 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + j * 40}ms` }} />
+                                          <div className="h-2.5 w-7 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + j * 40 + 20}ms` }} />
+                                        </div>
+                                        <div className="h-2.5 w-full animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + j * 40 + 30}ms` }} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {/* CTA */}
+                                  <div className="flex justify-end">
+                                    <div className="h-8 w-24 animate-pulse rounded-full bg-orange-100 dark:bg-white/10" style={{ animationDelay: `${i * 80 + 90}ms` }} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-sm leading-7 text-zinc-600 dark:border-white/10 dark:bg-black/20 dark:text-zinc-400">
+                              No prediction market is open yet in this section. Select another section to see its live markets.
+                            </div>
+                          )
                         ) : null}
 
                         {visiblePredictionMarkets.map((market) => {

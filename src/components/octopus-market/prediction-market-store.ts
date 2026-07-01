@@ -451,6 +451,11 @@ export function readAdminCreatedPredictionMarkets(): AdminCreatedPredictionMarke
   return predictionMarketsCache;
 }
 
+/** Vrai dès que le premier fetch Supabase (ou cache localStorage) a populé le store. */
+export function isStoreHydrated(): boolean {
+  return hasHydrated;
+}
+
 // ─── Historique : écriture ────────────────────────────────────────────────────
 
 export async function appendPredictionHistoryEntry(
