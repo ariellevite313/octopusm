@@ -1864,28 +1864,7 @@ export function BinaryPredictionStudio({
             </Card>
           </>
         ) : (
-        <Card className="border-orange-200 bg-white text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
-          <CardContent className="space-y-6 pt-6">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Choose a market section</p>
-              <div className="flex flex-wrap gap-3">
-                {predictionMarketCategories.map((category) => (
-                  <Button
-                    key={category.id}
-                    type="button"
-                    variant={category.id === activeCategoryId ? "default" : "outline"}
-                    className={
-                      category.id === activeCategoryId
-                        ? "rounded-2xl bg-orange-500 text-white hover:bg-orange-400"
-                        : "rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
-                    }
-                    onClick={() => setActiveCategoryId(category.id)}
-                  >
-                    {category.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
+        <div className="space-y-6">
 
             <div className={visibleQuestions.length >= 6 ? "grid gap-4 lg:grid-cols-3" : visibleQuestions.length >= 4 ? "grid gap-4 lg:grid-cols-2" : "space-y-4"}>
               {visibleQuestions.length === 0 ? (
@@ -1941,7 +1920,7 @@ export function BinaryPredictionStudio({
                       {/* Market header + pill */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
+                          <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
                             {market.title}
                           </p>
                           <div className="mt-1.5">{renderMarketHeadline(market)}</div>
@@ -2077,8 +2056,7 @@ export function BinaryPredictionStudio({
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+        </div>
         )}
 
       </div>

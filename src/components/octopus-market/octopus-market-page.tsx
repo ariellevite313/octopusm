@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUpToLine, Check, ChevronDown, Clock3, Copy, Database, ExternalLink, Globe, Lock, LogOut, LayoutDashboard, Menu, Moon, Receipt, Rocket, Search, ShieldCheck, Sun, Wallet, X } from "lucide-react";
+import { ArrowLeft, ArrowUpToLine, Check, ChevronDown, Clock3, Copy, Database, ExternalLink, Globe, Home, Lock, LogOut, LayoutDashboard, Menu, Moon, Receipt, Rocket, Search, ShieldCheck, Sun, Wallet, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,7 @@ import {
   type SolanaWalletBalanceSnapshot,
 } from "@/components/octopus-market/solana-wallet";
 import { registerReferral } from "@/services/supabase/octo-service";
+import { uploadAvatar } from "@/services/supabase/avatar-service";
 import { useLegacyBrowser } from "@/hooks/use-legacy-browser";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeMode } from "@/hooks/use-theme-mode";
@@ -434,7 +435,7 @@ function InlinePanel({
   );
 }
 
-type UserPageRoute = "home" | "wallet-dashboard" | "octopus-market";
+type UserPageRoute = "home" | "wallet-dashboard" | "octopus-market" | "prediction-market";
 
 const marketSectionShortcuts = [
   { id: "sports", label: "Sports" },
@@ -453,6 +454,8 @@ function resolveUserPageRoute(hashValue: string): UserPageRoute {
       return "wallet-dashboard";
     case "#octopus-market":
       return "octopus-market";
+    case "#prediction-market":
+      return "prediction-market";
     default:
       return "home";
   }
@@ -550,8 +553,9 @@ export function OctopusMarketPage() {
   const walletBalanceRefreshIdRef = useRef(0);
   const walletRestoredRef = useRef(false);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserAccessOpen, setIsUserAccessOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
   const [isAdminCenterOpen, setIsAdminCenterOpen] = useState(false);
   const [isAidoOpen, setIsAidoOpen] = useState(false);
@@ -583,7 +587,6 @@ export function OctopusMarketPage() {
   const [homeResolutions, setHomeResolutions] = useState<Record<string, PredictionResolutionRecord>>(
     () => readPredictionResolutions()
   );
-  const [isPredictionMarketOpen, setIsPredictionMarketOpen] = useState(false);
   const [isLaunchStudioOpen, setIsLaunchStudioOpen] = useState(false);
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [isListingPricingOpen, setIsListingPricingOpen] = useState(false);
@@ -651,7 +654,6 @@ export function OctopusMarketPage() {
 
     const syncRouteFromHash = () => {
       setActiveUserPage(resolveUserPageRoute(window.location.hash));
-      setIsPredictionMarketOpen(window.location.hash === "#prediction-market");
       setIsLaunchStudioOpen(
         window.location.hash === "#launch-token" || window.location.hash === "#list-my-ai"
       );
@@ -1076,8 +1078,7 @@ export function OctopusMarketPage() {
     if (typeof window !== "undefined" && window.location.hash !== "#prediction-market") {
       window.history.replaceState(null, "", "#prediction-market");
     }
-
-    setIsPredictionMarketOpen(true);
+    setActiveUserPage("prediction-market");
   }, []);
 
   const openPredictionMarketSection = useCallback(
@@ -1134,15 +1135,6 @@ export function OctopusMarketPage() {
     }
 
     setIsListingPricingOpen(true);
-  }, []);
-
-  const closePredictionMarket = useCallback((nextOpen: boolean) => {
-    setIsPredictionMarketOpen(nextOpen);
-
-    if (!nextOpen && typeof window !== "undefined" && window.location.hash === "#prediction-market") {
-      setSelectedPredictionMarketId(null);
-      window.history.replaceState(null, "", "#hero");
-    }
   }, []);
 
   const closeLaunchStudio = useCallback((nextOpen: boolean) => {
@@ -1494,34 +1486,12 @@ export function OctopusMarketPage() {
         }`}
       >
         <div className="mx-auto flex w-full max-w-[112rem] items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:gap-4 lg:px-8 2xl:px-10">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-              aria-label="Open navigation"
-              onClick={() => setIsMobileMenuOpen(true)}
-            >
-              <Menu className="size-5" />
-            </Button>
-            {isDedicatedUserPage && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-                aria-label="Back to home"
-                onClick={() => { window.location.hash = ""; setActiveUserPage("home"); }}
-              >
-                <ArrowLeft className="size-5" />
-              </Button>
-            )}
+          <div className="flex min-w-0 items-center">
             <OctopusBrand compact />
           </div>
 
           <nav className="hidden min-w-0 flex-1 justify-center lg:flex">
-            <div className="flex w-full max-w-[76rem] items-center justify-center gap-2 overflow-x-auto rounded-[1.75rem] border border-orange-100 bg-orange-50/80 p-2 shadow-[0_16px_40px_rgba(249,115,22,0.12)] md:[transform:perspective(1600px)_rotateX(6deg)] dark:border-white/10 dark:bg-white/5 dark:shadow-[0_22px_55px_rgba(0,0,0,0.3)]">
+            <div className="flex w-full max-w-[76rem] items-center justify-center gap-2 overflow-x-auto">
               {headerNavigationItems.map((item) => (
                 <a
                   key={item.label}
@@ -1558,294 +1528,276 @@ export function OctopusMarketPage() {
             </div>
           </nav>
 
-          <div className="hidden shrink-0 items-center gap-3 lg:flex">
-            {isLegacyBrowser ? (
-              <Badge className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-300 dark:hover:bg-orange-500/15">
-                Windows 7 compatibility mode
-              </Badge>
-            ) : null}
-            {isWalletConnected ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-                  >
-                    <Wallet className="size-4" />
-                    {walletHeaderLabel}
-                    <ChevronDown className="ml-1 size-3.5 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 border-zinc-200 bg-white text-zinc-950 dark:border-white/10 dark:bg-zinc-900 dark:text-white"
-                >
-                  <DropdownMenuLabel className="break-all whitespace-normal font-mono text-xs text-zinc-700 dark:text-zinc-400">
-                    {walletAddress}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/10" />
-                  <DropdownMenuItem
-                    onClick={() => { window.location.hash = "#wallet-dashboard"; }}
-                    className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
-                  >
-                    <LayoutDashboard className="mr-2 size-4" />
-                    Wallet Dashboard
-                  </DropdownMenuItem>
-                  {isAdminWallet && (
-                    <>
-                      <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/10" />
-                      <DropdownMenuItem
-                        onClick={() => setIsAdminCenterOpen(true)}
-                        className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
-                      >
-                        <ShieldCheck className="mr-2 size-4" /> Admin Center
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setIsDatabaseOpen(true)}
-                        className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
-                      >
-                        <Database className="mr-2 size-4" /> Data Base
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuItem
-                    onClick={toggleTheme}
-                    className="cursor-pointer hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-white/10 dark:focus:bg-white/10"
-                  >
-                    {isDark ? <Sun className="mr-2 size-4" /> : <Moon className="mr-2 size-4" />}
-                    {isDark ? "Light mode" : "Dark mode"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/10" />
-                  <DropdownMenuItem
-                    onClick={() => void handleDisconnectWallet()}
-                    className="cursor-pointer text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:focus:bg-red-500/10 dark:focus:text-red-400"
-                  >
-                    <LogOut className="mr-2 size-4" />
-                    Disconnect
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-                  onClick={() => void handleConnectWallet()}
-                >
-                  <Wallet className="size-4" />
-                  {isConnectingWallet ? "Connecting..." : "Connect wallet"}
-                </Button>
-                <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
-              </>
-            )}
-          </div>
-
-          <Button className="lg:hidden" variant="ghost" size="icon" aria-label="Open account" onClick={() => setIsUserAccessOpen(true)}>
-            <Wallet className="size-5" />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+            aria-label="Open menu"
+            onClick={() => setIsUserAccessOpen(true)}
+          >
+            <Menu className="size-5" />
           </Button>
         </div>
       </header>
 
-      {/* Drawer 1 — Navigation (☰ gauche) */}
-      <InlinePanel
-        open={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-        side="left"
-        title="Navigation"
-        className="bg-zinc-100 dark:bg-zinc-950"
-      >
-        <div className="max-h-[calc(100vh-7rem)] overflow-y-auto px-4 py-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Catégories</p>
-          <div className="space-y-2">
-            {marketSectionShortcuts.map((item) => {
-              const isActiveShortcut = item.id === selectedPredictionCategoryId;
-              return (
+      {/* Drawer unifié — Menu + Compte */}
+      {isUserAccessOpen && (
+        <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-sm">
+          <div className="flex h-full w-full max-w-[18rem] flex-col overflow-hidden border-r border-orange-200 bg-white shadow-2xl dark:border-white/10 dark:bg-zinc-950">
+
+            {/* ── Header profil ─────────────────────────────────────── */}
+            <div className="flex items-center gap-3 border-b border-orange-100 px-4 py-4 dark:border-white/10">
+              {/* Avatar + upload */}
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  aria-label="Change avatar"
+                  className="group relative block size-11 overflow-hidden rounded-full border-2 border-orange-400"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar || !isWalletConnected}
+                >
+                  {walletAvatarSrc ? (
+                    <img src={walletAvatarSrc} alt="Avatar" className="size-full object-cover" />
+                  ) : (
+                    <span className="flex size-full items-center justify-center bg-gradient-to-br from-orange-500 to-pink-600 text-sm font-semibold text-white">
+                      {walletAddress ? walletAddress.slice(0, 2).toUpperCase() : "?"}
+                    </span>
+                  )}
+                  {isWalletConnected && (
+                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                      {isUploadingAvatar
+                        ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        : <ArrowUpToLine className="size-3.5 text-white" />
+                      }
+                    </span>
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !walletAddress) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error("File too large", { description: "Max 2 MB." });
+                      return;
+                    }
+                    setIsUploadingAvatar(true);
+                    const result = await uploadAvatar(walletAddress, file);
+                    if ("url" in result) {
+                      setWalletAvatarSrc(result.url);
+                      toast.success("Avatar updated");
+                    } else {
+                      toast.error("Upload failed", { description: result.error });
+                    }
+                    setIsUploadingAvatar(false);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
+              {/* Nom + wallet */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
+                  {walletUsername ?? walletTwitterHandle ?? "Wallet"}
+                </p>
+                <p className="truncate font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                  {walletAddress ? formatWalletAddress(walletAddress) : "Not connected"}
+                </p>
+              </div>
+
+              {/* Pills langue + close */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setLocale("en")}
+                  className={`rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${locale === "en" ? "bg-orange-500 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLocale("fr")}
+                  className={`rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${locale === "fr" ? "bg-orange-500 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}
+                >
+                  FR
+                </button>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="ml-0.5 flex size-7 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                  onClick={() => setIsUserAccessOpen(false)}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Navigation ────────────────────────────────────────── */}
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <div className="space-y-0.5">
+
+                {/* Home */}
+                <button
+                  type="button"
+                  className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                  onClick={() => { setIsUserAccessOpen(false); window.location.hash = ""; setActiveUserPage("home"); }}
+                >
+                  <Home className="size-4 text-zinc-400" />
+                  Home
+                </button>
+
+                <div className="my-1.5 h-px bg-orange-100 dark:bg-white/10" />
+
+                {/* Connect wallet si non connecté */}
+                {!isWalletConnected && (
+                  <button
+                    type="button"
+                    className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                    onClick={() => { setIsUserAccessOpen(false); void handleConnectWallet(); }}
+                  >
+                    <Wallet className="size-4 text-zinc-400" />
+                    Connect wallet
+                  </button>
+                )}
+
+                {/* Wallet Dashboard */}
+                {isWalletConnected && (
+                  <button
+                    type="button"
+                    className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                    onClick={() => { setIsUserAccessOpen(false); handleOpenUserRoute("#wallet-dashboard"); }}
+                  >
+                    <LayoutDashboard className="size-4 text-zinc-400" />
+                    Wallet Dashboard
+                  </button>
+                )}
+
+                {/* Prediction Market */}
+                <button
+                  type="button"
+                  className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                  onClick={() => { setIsUserAccessOpen(false); openPredictionMarketSection("sports", null); }}
+                >
+                  <Search className="size-4 text-zinc-400" />
+                  Prediction Market
+                </button>
+
+                {/* Octopus Token */}
+                <button
+                  type="button"
+                  className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                  onClick={() => { setIsUserAccessOpen(false); handleOpenUserRoute("#octopus-market"); }}
+                >
+                  <Globe className="size-4 text-zinc-400" />
+                  Octopus Token
+                </button>
+
+                {/* Admin */}
+                {isAdminWallet && (
+                  <>
+                    <div className="my-1.5 h-px bg-orange-100 dark:bg-white/10" />
+                    <button
+                      type="button"
+                      className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                      onClick={() => { setIsUserAccessOpen(false); setIsAdminCenterOpen(true); }}
+                    >
+                      <ShieldCheck className="size-4 text-zinc-400" />
+                      Admin Control Center
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-700 hover:bg-orange-50 dark:text-zinc-200 dark:hover:bg-white/5"
+                      onClick={() => { setIsUserAccessOpen(false); setIsDatabaseOpen(true); }}
+                    >
+                      <Database className="size-4 text-zinc-400" />
+                      Data Base
+                    </button>
+                  </>
+                )}
+
+                <div className="my-1.5 h-px bg-orange-100 dark:bg-white/10" />
+
+                {/* Coming soon */}
+                {[
+                  { label: "List My AI" },
+                  { label: "Launch Token" },
+                  { label: "Explore AI" },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-zinc-300 dark:text-zinc-600"
+                  >
+                    <Lock className="size-4" />
+                    {item.label}
+                    <Badge className="ml-auto border border-orange-200 bg-orange-50 px-2 py-0 text-[10px] text-orange-500 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-400">
+                      Soon
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Footer : Dark + Disconnect ────────────────────────── */}
+            {isWalletConnected && (
+              <div className="flex gap-2 border-t border-orange-100 px-3 py-3 dark:border-white/10">
                 <Button
-                  key={item.id}
                   type="button"
                   variant="outline"
-                  className={
-                    isActiveShortcut
-                      ? "h-9 w-full justify-start rounded-xl border-orange-400 bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-400 sm:text-sm"
-                      : "h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:border-orange-300 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5"
-                  }
-                  onClick={() => { focusPredictionCategoryOnPage(item.id); setIsMobileMenuOpen(false); }}
+                  className="h-9 flex-1 rounded-xl border-orange-200 bg-white px-2 text-xs text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                  onClick={toggleTheme}
                 >
-                  {item.label}
+                  {isDark ? <Sun className="mr-1.5 size-3.5" /> : <Moon className="mr-1.5 size-3.5" />}
+                  {isDark ? "Light" : "Dark"}
                 </Button>
-              );
-            })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 flex-1 rounded-xl border-red-200 bg-white px-2 text-xs text-red-600 hover:bg-red-50 dark:border-red-500/20 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-500/10"
+                  onClick={() => { setIsUserAccessOpen(false); void handleDisconnectWallet(); }}
+                >
+                  <LogOut className="mr-1.5 size-3.5" />
+                  Disconnect
+                </Button>
+              </div>
+            )}
           </div>
 
-          <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">App</p>
-          <div className="space-y-2">
-            {headerNavigationItems.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:border-orange-300 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5"
+          {/* Overlay cliquable pour fermer */}
+          <button
+            type="button"
+            className="flex-1 cursor-default"
+            aria-label="Close menu"
+            onClick={() => setIsUserAccessOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* Barre de catégories mobile — visible sur home + prediction-market, masquée sur lg+ */}
+      {(activeUserPage === "home" || activeUserPage === "prediction-market") && (
+        <div className="sticky top-[3.75rem] z-40 flex gap-2 overflow-x-auto border-b border-orange-100 bg-white/95 px-3 py-2 backdrop-blur-sm lg:hidden dark:border-white/10 dark:bg-zinc-950/95">
+          {marketSectionShortcuts.map((item) => {
+            const isActive = item.id === selectedPredictionCategoryId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => focusPredictionCategoryOnPage(item.id)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  isActive
+                    ? "bg-orange-500 text-white"
+                    : "bg-orange-50 text-zinc-600 hover:bg-orange-100 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10"
+                }`}
               >
                 {item.label}
-              </a>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:border-orange-300 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5"
-              onClick={() => { setIsMobileMenuOpen(false); openPredictionMarketSection("sports", null); }}
-            >
-              <Search className="mr-2 size-4" />
-              Prediction Market
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 w-full justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:border-orange-300 hover:bg-orange-50 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-white/5"
-              onClick={() => { setIsMobileMenuOpen(false); handleOpenUserRoute("#octopus-market"); }}
-            >
-              <Globe className="mr-2 size-4" />
-              Octopus Token
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled
-              className="h-9 w-full cursor-not-allowed justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 opacity-60 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
-            >
-              <Lock className="mr-2 size-4" />
-              List My AI
-              <Badge className="ml-auto border border-orange-200 bg-orange-50 px-2 py-0 text-[10px] text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-400">Soon</Badge>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled
-              className="h-9 w-full cursor-not-allowed justify-start rounded-xl border-orange-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 opacity-60 sm:text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
-            >
-              <Lock className="mr-2 size-4" />
-              Launch Token
-              <Badge className="ml-auto border border-orange-200 bg-orange-50 px-2 py-0 text-[10px] text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-400">Soon</Badge>
-            </Button>
-          </div>
-
-          <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Langue</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className={locale === "en"
-                ? "h-9 rounded-xl border-orange-400 bg-orange-500 px-3 text-xs font-semibold text-white hover:bg-orange-400"
-                : "h-9 rounded-xl border-orange-200 bg-white px-3 text-xs font-medium text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-              }
-              onClick={() => setLocale("en")}
-            >
-              English
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={locale === "fr"
-                ? "h-9 rounded-xl border-orange-400 bg-orange-500 px-3 text-xs font-semibold text-white hover:bg-orange-400"
-                : "h-9 rounded-xl border-orange-200 bg-white px-3 text-xs font-medium text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-              }
-              onClick={() => setLocale("fr")}
-            >
-              Français
-            </Button>
-          </div>
+              </button>
+            );
+          })}
         </div>
-      </InlinePanel>
-
-
-      {/* Drawer 2 — Compte (👤 droite) */}
-      <InlinePanel
-        open={isUserAccessOpen}
-        onClose={() => setIsUserAccessOpen(false)}
-        side="left"
-        title="My account"
-        className="w-[18.5rem] max-w-[88vw] bg-zinc-100 p-0 dark:bg-zinc-950"
-      >
-        <div className="max-h-[calc(100vh-7rem)] overflow-y-auto px-4 py-4">
-          <div className="space-y-2.5">
-            {/* Wallet card */}
-            {isWalletConnected ? (
-              <div className="rounded-2xl border border-orange-200 bg-orange-50/80 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-                <p className="break-all font-mono text-[10px] text-zinc-500 dark:text-zinc-400">{walletAddress}</p>
-                <div className="mt-2.5 flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 flex-1 rounded-xl border-orange-200 bg-white px-2 text-xs text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-                    onClick={toggleTheme}
-                  >
-                    {isDark ? <Sun className="mr-1.5 size-3.5" /> : <Moon className="mr-1.5 size-3.5" />}
-                    {isDark ? "Light" : "Dark"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 flex-1 rounded-xl border-red-200 bg-white px-2 text-xs text-red-600 hover:bg-red-50 dark:border-red-500/20 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-500/10"
-                    onClick={() => void handleDisconnectWallet()}
-                  >
-                    <LogOut className="mr-1.5 size-3.5" />
-                    Disconnect
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className={userAccessButtonClassName}
-                onClick={() => { setIsUserAccessOpen(false); void handleConnectWallet(); }}
-              >
-                <Wallet className="size-4" />
-                Connect wallet
-              </Button>
-            )}
-
-            {/* Wallet Dashboard */}
-            {isWalletConnected && (
-              <Button
-                type="button"
-                variant="outline"
-                className={userAccessButtonClassName}
-                onClick={() => handleOpenUserRoute("#wallet-dashboard")}
-              >
-                <LayoutDashboard className="size-4" />
-                Wallet Dashboard
-              </Button>
-            )}
-
-            {/* Admin */}
-            {isAdminWallet && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={userAccessButtonClassName}
-                  onClick={() => { setIsUserAccessOpen(false); setIsAdminCenterOpen(true); }}
-                >
-                  <ShieldCheck className="size-4" />
-                  Admin Control Center
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={userAccessButtonClassName}
-                  onClick={() => { setIsUserAccessOpen(false); setIsDatabaseOpen(true); }}
-                >
-                  <Database className="size-4" />
-                  Data Base
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </InlinePanel>
+      )}
 
       <main className="relative z-10 [perspective:1800px]">
         <div className="mx-auto w-full max-w-[112rem] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 2xl:px-10">
@@ -1857,6 +1809,15 @@ export function OctopusMarketPage() {
                     <Suspense fallback={<InlineLazyFallback label="Loading user page..." />}>
                       {activeUserPage === "octopus-market" ? (
                         <LazyClawdTrustHolderPage />
+                      ) : activeUserPage === "prediction-market" ? (
+                        <LazyBinaryPredictionStudio
+                          isWalletConnected={isWalletConnected}
+                          walletAddress={walletAddress}
+                          walletUsername={walletUsername}
+                          onConnectWallet={handleConnectWallet}
+                          selectedCategoryId={selectedPredictionCategoryId}
+                          selectedMarketId={selectedPredictionMarketId}
+                        />
                       ) : (
                         <LazyUserDashboardSections
                           walletAddress={walletAddress}
@@ -1957,23 +1918,22 @@ export function OctopusMarketPage() {
                             return (
                               <Card
                                 key={market.id}
-                                className="border border-zinc-200 bg-zinc-50 text-zinc-950 dark:border-white/5 dark:bg-zinc-900/50 dark:text-white"
+                                className="overflow-hidden border-orange-200 bg-orange-50/60 text-zinc-950 shadow-none dark:border-white/10 dark:bg-black/20 dark:text-white"
                               >
                                 <CardContent className="space-y-4 p-5">
-                                  <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-600 dark:text-zinc-400">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
                                         {market.title}
                                       </p>
-                                      {renderPredictionPreviewHeadline(market)}
-                                      <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-400">{market.resolutionLabel}</p>
+                                      <div className="mt-1.5">{renderPredictionPreviewHeadline(market)}</div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-2">
-                                      <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
+                                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                                         ✓ Resolved
-                                      </Badge>
+                                      </span>
                                       {resolvedTimestamp ? (
-                                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
                                           {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(resolvedTimestamp))}
                                         </p>
                                       ) : null}
@@ -1981,41 +1941,34 @@ export function OctopusMarketPage() {
                                   </div>
 
                                   {market.options?.length ? (
-                                    <div className={`grid gap-3 ${market.options.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                                    <div className={`grid gap-2 ${market.options.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                                       {market.options.map((option) => {
                                         const isWinner = option.id === winningOptionId;
                                         return (
                                           <div
                                             key={option.id}
                                             className={isWinner
-                                              ? "rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-4 dark:border-emerald-500/30 dark:bg-emerald-500/10"
-                                              : "rounded-2xl border border-zinc-200 bg-white px-4 py-4 opacity-50 dark:border-white/5 dark:bg-zinc-950/80"
+                                              ? "flex flex-col gap-2 overflow-hidden rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                                              : "flex flex-col gap-2 overflow-hidden rounded-xl border border-orange-200/60 bg-orange-50/40 px-3 py-2.5 opacity-50 dark:border-white/5 dark:bg-white/5"
                                             }
                                           >
-                                            <div className="flex items-center justify-between gap-3">
-                                              <div className="flex items-center gap-3">
-                                                {option.logoSrc ? (
-                                                  <SafeImage
-                                                    src={option.logoSrc}
-                                                    alt={`${option.label} logo`}
-                                                    className="size-8 rounded-full border border-white/60 object-cover"
-                                                  />
-                                                ) : null}
-                                                <div>
-                                                  <p className={`text-sm font-semibold ${isWinner ? "text-emerald-800 dark:text-emerald-300" : "text-zinc-950 dark:text-white"}`}>
-                                                    {option.label}
-                                                  </p>
-                                                  {option.description ? (
-                                                    <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-400">{option.description}</p>
-                                                  ) : null}
-                                                </div>
-                                              </div>
+                                            <div className="flex items-center justify-between gap-2">
+                                              {option.logoSrc ? (
+                                                <SafeImage
+                                                  src={option.logoSrc}
+                                                  alt={`${option.label} logo`}
+                                                  className="size-5 shrink-0 rounded-full border border-white/60 object-cover"
+                                                />
+                                              ) : <span className="size-5 shrink-0" />}
                                               {isWinner ? (
-                                                <span className="text-lg">🏆</span>
+                                                <span className="shrink-0 text-sm">🏆</span>
                                               ) : (
-                                                <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">x{option.oddsMultiplier}</span>
+                                                <span className="shrink-0 text-sm font-bold text-zinc-950 dark:text-white">×{option.oddsMultiplier}</span>
                                               )}
                                             </div>
+                                            <p className={`line-clamp-2 text-xs font-semibold leading-tight ${isWinner ? "text-emerald-800 dark:text-emerald-300" : "text-zinc-700 dark:text-zinc-300"}`}>
+                                              {option.label}
+                                            </p>
                                           </div>
                                         );
                                       })}
@@ -2036,7 +1989,7 @@ export function OctopusMarketPage() {
                               {/* Header + pill */}
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
+                                  <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">
                                     {market.title}
                                   </p>
                                   <div className="mt-1.5">{renderPredictionPreviewHeadline(market)}</div>
@@ -2308,42 +2261,6 @@ export function OctopusMarketPage() {
         </OctopusRuntimeBoundary>
       </InlinePanel>
 
-      {isPredictionMarketOpen ? (
-        <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-sm">
-          <div className="ml-auto flex h-full w-full max-w-[1320px] flex-col overflow-hidden border-l border-orange-200 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_12%,#fff7ed_100%)] text-zinc-950 shadow-2xl dark:border-white/10 dark:bg-[linear-gradient(180deg,#09090b_0%,#18181b_18%,#09090b_100%)] dark:text-white">
-            <div className="flex items-start justify-between gap-4 border-b border-orange-100 bg-white/90 px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-5 dark:border-white/10 dark:bg-zinc-950/85">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">Dedicated view</p>
-                <h2 className="mt-2 text-left text-xl font-semibold text-zinc-950 dark:text-white">Prediction Market</h2>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0 rounded-2xl border-orange-200 bg-white text-zinc-950 hover:bg-orange-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
-                onClick={() => closePredictionMarket(false)}
-              >
-                <X className="size-4" />
-                Close
-              </Button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
-              <OctopusRuntimeBoundary fallbackTitle="Prediction market recovered safely." fallbackDescription="This window hit a browser-specific issue, so only the prediction market view was isolated while the rest of Octopus Market stays available.">
-                <Suspense fallback={<InlineLazyFallback label="Loading prediction market..." />}>
-                  <LazyBinaryPredictionStudio
-                    isWalletConnected={isWalletConnected}
-                    walletAddress={walletAddress}
-                    walletUsername={walletUsername}
-                    onConnectWallet={handleConnectWallet}
-                    selectedCategoryId={selectedPredictionCategoryId}
-                    selectedMarketId={selectedPredictionMarketId}
-                  />
-                </Suspense>
-              </OctopusRuntimeBoundary>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <InlinePanel
         open={isExploreOpen}
