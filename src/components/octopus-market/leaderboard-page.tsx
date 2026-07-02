@@ -5,19 +5,73 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, RefreshCw, AlertCircle, Medal } from "lucide-react";
+import { RefreshCw, AlertCircle, Medal } from "lucide-react";
 import { formatWalletAddress } from "@/components/octopus-market/solana-wallet";
 import { OctoBadge, AdminBadge } from "@/components/octopus-market/octo-tier-badge";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
+import { octopusLogoSrc } from "@/components/octopus-market/octopus-brand";
 import {
   getLeaderboard,
   getWalletLeaderboardRank,
   type LeaderboardEntry,
 } from "@/services/supabase/leaderboard-service";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Config saison ────────────────────────────────────────────────────────────
+
+/** Date de fin de la saison courante (affichee dans le decompte). */
+const SEASON_END = new Date("2026-09-30T00:00:00.000Z");
 
 const MIN_SKELETON_MS = 600;
+
+// ─── Countdown ────────────────────────────────────────────────────────────────
+
+function useCountdown(target: Date) {
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, target.getTime() - Date.now())
+  );
+
+  useEffect(() => {
+    const tick = () => setRemaining(Math.max(0, target.getTime() - Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [target]);
+
+  const total = Math.floor(remaining / 1000);
+  return {
+    days:    Math.floor(total / 86400),
+    hours:   Math.floor((total % 86400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+  };
+}
+
+function SeasonCountdown() {
+  const { days, hours, minutes, seconds } = useCountdown(SEASON_END);
+
+  const unit = (value: number, label: string) => (
+    <div className="flex items-baseline gap-0.5">
+      <span className="tabular-nums text-base font-bold text-zinc-900 dark:text-white">
+        {String(value).padStart(2, "0")}
+      </span>
+      <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{label}</span>
+    </div>
+  );
+
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-xl border border-orange-100 bg-orange-50/60 px-4 py-2.5 dark:border-orange-400/20 dark:bg-orange-500/10">
+      {unit(days, "j")}
+      <span className="text-zinc-300 dark:text-zinc-600">·</span>
+      {unit(hours, "h")}
+      <span className="text-zinc-300 dark:text-zinc-600">·</span>
+      {unit(minutes, "min")}
+      <span className="text-zinc-300 dark:text-zinc-600">·</span>
+      {unit(seconds, "sec")}
+    </div>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function MedalBadge({ rank }: { rank: 2 | 3 }) {
   const isSecond = rank === 2;
@@ -41,7 +95,6 @@ function formatOcto(value: number): string {
   if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
   return value.toFixed(2);
 }
-
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
@@ -117,9 +170,16 @@ function LeaderboardRow({
         </p>
       </div>
 
+      {/* Montant OCTO + logo */}
       <div className="shrink-0 text-right">
-        <p className="text-sm font-bold text-orange-600 dark:text-orange-400">
+        <p className="flex items-center justify-end gap-1 text-sm font-bold text-orange-600 dark:text-orange-400">
           {formatOcto(entry.total_octo)}
+          <img
+            src={octopusLogoSrc}
+            alt=""
+            aria-hidden="true"
+            className="size-3.5 shrink-0 rounded-full object-cover"
+          />
         </p>
         <p className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
           OCTO
@@ -159,7 +219,6 @@ export function LeaderboardPage({
 }: {
   walletAddress: string | null;
 }) {
-  // Skeleton minimum pour eviter le flash sur fetch rapide
   const [minLoading, setMinLoading] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setMinLoading(false), MIN_SKELETON_MS);
@@ -197,10 +256,17 @@ export function LeaderboardPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+
       {/* En-tete */}
       <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-500/15">
-          <Trophy className="size-5 text-orange-500" />
+        {/* Logo Octo a la place du Trophy */}
+        <div className="size-10 shrink-0 overflow-hidden rounded-xl border border-orange-200 dark:border-orange-400/30">
+          <img
+            src={octopusLogoSrc}
+            alt="Octopus Market"
+            className="h-full w-full object-cover"
+            loading="eager"
+          />
         </div>
         <div className="flex-1">
           <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
@@ -210,17 +276,18 @@ export function LeaderboardPage({
             Total OCTO earned (trading + referrals) — all-time
           </p>
         </div>
-        {/* Indicateur de rafraichissement en arriere-plan */}
         {isFetching && !showSkeleton && (
           <RefreshCw className="size-3.5 animate-spin text-orange-400" />
         )}
       </div>
 
+      {/* Decompte saison */}
+      <SeasonCountdown />
+
       {/* Corps */}
       {showSkeleton ? (
         <LeaderboardSkeleton />
       ) : isError ? (
-        /* Etat erreur avec retry */
         <div className="rounded-xl border border-red-100 bg-red-50/50 py-10 text-center dark:border-red-400/20 dark:bg-red-500/10">
           <AlertCircle className="mx-auto mb-3 size-8 text-red-400 dark:text-red-500" />
           <p className="text-sm font-medium text-red-600 dark:text-red-400">
@@ -239,7 +306,6 @@ export function LeaderboardPage({
           </button>
         </div>
       ) : entries.length === 0 ? (
-        /* Etat vide */
         <div className="rounded-xl border border-orange-100 bg-orange-50/50 py-12 text-center dark:border-white/10 dark:bg-white/5">
           <Medal className="mx-auto mb-3 size-8 text-zinc-300 dark:text-zinc-600" />
           <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -250,7 +316,6 @@ export function LeaderboardPage({
           </p>
         </div>
       ) : (
-        /* Liste */
         <div className="space-y-1">
           {entries.map((entry) => (
             <LeaderboardRow
