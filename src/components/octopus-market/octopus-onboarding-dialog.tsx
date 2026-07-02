@@ -27,6 +27,10 @@ export function OctopusOnboardingDialog({
   onProfileSaved,
 }: OctopusOnboardingDialogProps) {
   const [isDismissed, setIsDismissed] = useState(false);
+  // Guard: don't show dialog until we've read localStorage for this wallet.
+  // Without this, the dialog briefly flashes before the useEffect fires,
+  // because isDismissed starts as false even for returning users.
+  const [isDismissedChecked, setIsDismissedChecked] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -36,6 +40,7 @@ export function OctopusOnboardingDialog({
   useEffect(() => {
     if (!walletAddress) {
       setIsDismissed(false);
+      setIsDismissedChecked(false);
       return;
     }
     const storageKey = `octopus-market-onboarding-dismissed-${walletAddress}`;
@@ -44,13 +49,16 @@ export function OctopusOnboardingDialog({
     } catch {
       setIsDismissed(false);
     }
+    setIsDismissedChecked(true);
   }, [walletAddress]);
 
   const isVisible = useMemo(() => {
+    // Attendre que localStorage soit lu pour éviter le flash
+    if (!isDismissedChecked) return false;
     // Si le profil existe en DB, jamais visible
     if (walletRecord?.displayName || walletRecord?.username) return false;
     return Boolean(walletAddress) && !isDismissed;
-  }, [isDismissed, walletAddress, walletRecord?.displayName, walletRecord?.username]);
+  }, [isDismissed, isDismissedChecked, walletAddress, walletRecord?.displayName, walletRecord?.username]);
 
   const handleSaveProfile = async () => {
     if (!walletAddress || isSaving) {

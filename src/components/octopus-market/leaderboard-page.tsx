@@ -9,7 +9,7 @@ import { RefreshCw, AlertCircle, Medal } from "lucide-react";
 import { formatWalletAddress } from "@/components/octopus-market/solana-wallet";
 import { OctoBadge, AdminBadge } from "@/components/octopus-market/octo-tier-badge";
 import { predictionMarketTreasuryAddress } from "@/components/octopus-market/octopus-market-data";
-import { octopusLogoSrc } from "@/components/octopus-market/octopus-brand";
+const octoCoinSrc = "/octo-coin.png";
 import {
   getLeaderboard,
   getWalletLeaderboardRank,
@@ -175,7 +175,7 @@ function LeaderboardRow({
         <p className="flex items-center justify-end gap-1 text-sm font-bold text-orange-600 dark:text-orange-400">
           {formatOcto(entry.total_octo)}
           <img
-            src={octopusLogoSrc}
+            src={octoCoinSrc}
             alt=""
             aria-hidden="true"
             className="size-3.5 shrink-0 rounded-full object-cover"
@@ -262,7 +262,7 @@ export function LeaderboardPage({
         {/* Logo Octo a la place du Trophy */}
         <div className="size-10 shrink-0 overflow-hidden rounded-xl border border-orange-200 dark:border-orange-400/30">
           <img
-            src={octopusLogoSrc}
+            src={octoCoinSrc}
             alt="Octopus Market"
             className="h-full w-full object-cover"
             loading="eager"
