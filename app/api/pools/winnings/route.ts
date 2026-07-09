@@ -31,7 +31,7 @@ export async function GET() {
       payout_amount,
       paid_at,
       created_at,
-      mutuel_markets ( id, title, slug, status, winning_option_id, options, admin_notes, bet_token )
+      mutuel_markets ( id, title, slug, status, winning_option_id, options, admin_notes, bet_token, is_refund )
     `)
     .eq("wallet_address", wallet)
     .not("payout_amount", "is", null)
@@ -42,8 +42,7 @@ export async function GET() {
   // Enrich each bet with isRefund flag + net_payout after 5% fee on refunds
   const enriched = (data ?? []).map((bet: Record<string, unknown>) => {
     const market = bet.mutuel_markets as Record<string, unknown> | null;
-    const isRefund = market?.status === "cancelled"
-      || (market?.status === "resolved" && market?.admin_notes === "REFUND: all bettors chose the winning option, no commission taken");
+    const isRefund = !!(market?.is_refund);
     const payout = Number(bet.payout_amount);
     const net_payout = isRefund
       ? Math.floor(payout * 0.95 * 1_000_000) / 1_000_000

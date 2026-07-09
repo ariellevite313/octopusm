@@ -39,6 +39,7 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <WalletButton />
             <button
               onClick={() => setOpen(true)}
               aria-label="Open navigation menu"
@@ -46,7 +47,6 @@ export function Header() {
             >
               <Menu className="size-5" />
             </button>
-            <WalletButton />
           </div>
         </div>
       </header>

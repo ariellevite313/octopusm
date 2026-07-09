@@ -12,7 +12,7 @@ export async function GET(
   const supabase = await createClient() as any;
   const { data, error } = await supabase
     .from("mutuel_bets")
-    .select("option_id, amount, token, wallet_address, created_at")
+    .select("option_id, amount, token, created_at")
     .eq("market_id", id)
     .order("created_at", { ascending: false })
     .limit(200);

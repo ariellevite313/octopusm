@@ -577,6 +577,7 @@ export interface MutuelMarketRow {
   admin_notes: string | null;
   fee_refunded_at: string | null;
   fee_refund_tx: string | null;
+  is_refund: boolean;
   resolved_by_wallet: string | null;
   winning_option_id: string | null;
   resolved_at: string | null;
