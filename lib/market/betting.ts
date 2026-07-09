@@ -81,7 +81,6 @@ export function computeReward(amount: number, multiplier: number): RewardBreakdo
 
 type Web3 = typeof import("@solana/web3.js");
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPK = any;
 
 function serializeU64(value: number): Uint8Array {
@@ -138,7 +137,6 @@ function createTransferCheckedIx(
   data[0] = 12;
   Buffer.from(serializeU64(amountBaseUnits)).copy(data, 1);
   data[9] = decimals;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const keys: any[] = [
     { pubkey: source,      isSigner: false, isWritable: true  },
     { pubkey: mint,        isSigner: false, isWritable: false },
@@ -280,7 +278,6 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
   // 5. Persist to Supabase payments table (admin reviews -> creates prediction_history)
   const supabase = createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: dbError } = await supabase.from("payments").insert({
     payment_request_id: `req-${Date.now().toString(36)}`,
     payment_reference:  reference,
@@ -298,7 +295,6 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
     total_paid_usdc:    token === "usdc" ? totalCharged : 0,
     token,
     status:             "pending",
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   if (dbError) {

@@ -74,7 +74,7 @@ function getToken(): string | null {
   return process.env.WORLDCUP_API_TOKEN ?? null;
 }
 
-async function apiFetch<T>(path: string, ttlOverride?: number): Promise<T | null> {
+async function apiFetch<T>(path: string, _ttlOverride?: number): Promise<T | null> {
   const token = getToken();
   if (!token) {
     console.error("[worldcup] WORLDCUP_API_TOKEN manquant dans les variables d'environnement");

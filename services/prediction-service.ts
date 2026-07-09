@@ -151,7 +151,7 @@ export async function getMarketComments(marketId: string): Promise<MarketComment
   let myWallet: string | null = null;
   try {
     const { data: w } = await supabase.rpc("get_wallet_address");
-    myWallet = (w as string) ?? null;
+    myWallet = (w as unknown as string) ?? null;
   } catch { /* not authenticated */ }
 
   // Build like maps

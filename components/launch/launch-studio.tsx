@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   CheckCircle2,
@@ -54,7 +54,6 @@ import {
   CHART_RANGE_OPTIONS,
   LAUNCH_BENEFITS,
   LAUNCH_OPTIONS,
-  OFFICIAL_DEX_PAIR,
   OFFICIAL_TOKEN_ADDRESS,
   OFFICIAL_TOKEN_GOLD_BADGE_SRC,
   SOLANA_PAYMENT_ADDRESS,
@@ -66,7 +65,6 @@ import {
   type OctopusTokenBoardItem,
   FREE_LAUNCH_FEE_SOL,
   BASE_LAUNCH_FEE_SOL,
-  DISCOUNT_LAUNCH_FEE_SOL,
 } from "@/lib/launch/launch-data";
 import {
   createFallbackChartPoints,
@@ -928,7 +926,7 @@ export function LaunchStudio() {
                 {/* Benefits */}
                 <Card className="border-orange-200 bg-white dark:border-white/10 dark:bg-white/5">
                   <CardHeader>
-                    <CardTitle className="text-base">What's included</CardTitle>
+                    <CardTitle className="text-base">What&apos;s included</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {LAUNCH_BENEFITS.map((b) => (

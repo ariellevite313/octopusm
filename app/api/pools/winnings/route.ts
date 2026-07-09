@@ -14,12 +14,10 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
  */
 export async function GET() {
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   const { data, error } = await admin

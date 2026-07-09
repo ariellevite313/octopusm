@@ -4,7 +4,6 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 export const revalidate = 0;
 
 export async function GET() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any;
   const { data, error } = await supabase
     .from("mutuel_markets")
@@ -18,7 +17,6 @@ export async function GET() {
 
 export async function POST(req: Request) {
   // Auth check with user client (respects session cookies)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userClient = await createClient() as any;
   const { data: { user } } = await userClient.auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
@@ -62,7 +60,6 @@ export async function POST(req: Request) {
   }));
 
   // Use admin client to bypass RLS for the insert (auth already verified above)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data: inserted, error } = await admin
     .from("mutuel_markets")

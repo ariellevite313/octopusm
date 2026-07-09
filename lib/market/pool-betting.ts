@@ -45,7 +45,6 @@ export type PoolBetResult =
 // ─── Helpers (duplicated from betting.ts to keep client-only) ─────────────────
 
 type Web3 = typeof import("@solana/web3.js");
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPK = any;
 
 function serializeU64(value: number): Uint8Array {
@@ -102,7 +101,6 @@ function createTransferCheckedIx(
   data[0] = 12;
   Buffer.from(serializeU64(amountBaseUnits)).copy(data, 1);
   data[9] = decimals;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const keys: any[] = [
     { pubkey: source,      isSigner: false, isWritable: true  },
     { pubkey: mint,        isSigner: false, isWritable: false },
@@ -207,7 +205,6 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
 
   // 5. Persist to payments table (pending → admin validates → mutuel_bet inserted)
   const supabase = createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: dbError } = await (supabase as any).from("payments").insert({
     payment_request_id: `pool-req-${Date.now().toString(36)}`,
     payment_reference:  reference,

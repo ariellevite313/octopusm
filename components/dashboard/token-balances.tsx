@@ -220,8 +220,7 @@ function TokenRow({
         className="flex w-full items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
       >
         <div className="size-9 shrink-0 rounded-full overflow-hidden bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logo} alt={symbol} className="size-9 object-cover" />
+          <Image src={logo} alt={symbol} width={36} height={36} className="size-9 object-cover" unoptimized />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground leading-tight">{name}</p>

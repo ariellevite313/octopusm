@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock, Loader2 } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";

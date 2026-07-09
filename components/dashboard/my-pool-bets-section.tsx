@@ -42,10 +42,6 @@ interface PendingBet {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function tokenLabel(token: string) {
-  return token === "usdc" ? "USDC" : "ClawdTrust";
-}
-
 function dec(token: string) {
   return token === "usdc" ? 2 : 0;
 }

@@ -279,7 +279,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const commByReferred = new Map<string, { usdc: number; clt: number }>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const c of commissions as any[]) {
-    const key = (c.referred_wallet as string) ?? "";
+    const key = (c.referred_wallet as unknown as string) ?? "";
     const cur = commByReferred.get(key) ?? { usdc: 0, clt: 0 };
     cur.usdc += (c.amount_usdc as number) ?? 0;
     cur.clt  += (c.amount_clt  as number) ?? 0;

@@ -575,6 +575,8 @@ export interface MutuelMarketRow {
   betting_closes_at: string;
   status: MutuelMarketStatus;
   admin_notes: string | null;
+  fee_refunded_at: string | null;
+  fee_refund_tx: string | null;
   resolved_by_wallet: string | null;
   winning_option_id: string | null;
   resolved_at: string | null;

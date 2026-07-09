@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any).rpc("is_admin");
   return !!data;
 }
@@ -17,7 +16,6 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const marketId = url.searchParams.get("marketId");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   const query = admin
@@ -46,7 +44,6 @@ export async function POST(req: Request) {
 
   if (!paymentId) return NextResponse.json({ error: "paymentId required" }, { status: 400 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   // Fetch the payment

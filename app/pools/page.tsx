@@ -1,11 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
+import { MutuelMarketRow } from "@/lib/supabase/types";
 import { PoolsClient } from "@/components/pools/pools-client";
 
 export const revalidate = 30;
 
 async function getActivePools(): Promise<MutuelMarketRow[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any;
   const { data, error } = await supabase
     .from("mutuel_markets")

@@ -14,7 +14,6 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
  */
 export async function POST(req: Request) {
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -24,7 +23,6 @@ export async function POST(req: Request) {
   if (!betId || typeof betId !== "string")
     return NextResponse.json({ error: "betId required" }, { status: 400 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   // Verify the bet belongs to this wallet and has a payout

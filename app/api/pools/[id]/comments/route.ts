@@ -10,7 +10,6 @@ export async function GET(
   const url = new URL(req.url);
   const wallet = url.searchParams.get("wallet") ?? null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   const { data: rows, error } = await admin
@@ -71,7 +70,6 @@ export async function POST(
   const { id: marketId } = await params;
 
   // Auth via session client
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userClient = await createClient() as any;
   const { data: { user } } = await userClient.auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
@@ -84,7 +82,6 @@ export async function POST(
   if (!content || content.length < 1 || content.length > 1000)
     return NextResponse.json({ error: "Content must be 1–1000 characters" }, { status: 400 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   // Verify market exists

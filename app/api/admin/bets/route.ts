@@ -16,15 +16,10 @@ export async function POST(req: Request) {
   if (!betId || !["approve", "reject"].includes(action))
     return NextResponse.json({ error: "betId and action required" }, { status: 400 });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const adminWallet = user?.user_metadata?.wallet_address ?? null;
   const now = new Date().toISOString();
 
   // Update prediction_history admin_decision_status
   const newStatus = action === "approve" ? "approved" : "rejected";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from("prediction_history")
     .update({
