@@ -475,10 +475,12 @@ function CommentsSection({
   marketId,
   initialComments,
   isAuthenticated,
+  onRequestConnect,
 }: {
   marketId: string;
   initialComments: MarketCommentEnriched[];
   isAuthenticated: boolean;
+  onRequestConnect?: () => void;
 }) {
   const [comments, setComments]   = useState<MarketCommentEnriched[]>(initialComments);
   const [text, setText]           = useState("");
@@ -500,7 +502,8 @@ function CommentsSection({
 
   async function postComment() {
     const trimmed = text.trim();
-    if (!trimmed || !isAuthenticated) return;
+    if (!isAuthenticated) { onRequestConnect?.(); return; }
+    if (!trimmed) return;
     setPosting(true);
     try {
       const res  = await fetch(`/api/markets/${marketId}/comments`, {
@@ -521,7 +524,7 @@ function CommentsSection({
   }
 
   function handleLike(commentId: string, isReply: boolean, parentId?: string) {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) { onRequestConnect?.(); return; }
 
     // Optimistic toggle
     function toggle(c: MarketCommentEnriched): MarketCommentEnriched {
@@ -578,59 +581,53 @@ function CommentsSection({
       </h2>
 
       {/* Input area */}
-      {isAuthenticated ? (
-        <div className="mb-5 flex gap-2">
-          <div className="relative flex-1">
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void postComment();
-              }}
-              placeholder="Share your analysis…"
-              disabled={posting}
-              rows={2}
-              maxLength={1000}
-              className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2 pb-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-400/40 disabled:opacity-50"
-            />
-            {/* Emoji button */}
-            <div className="absolute bottom-2 left-2" ref={emojiRef}>
-              <button
-                type="button"
-                onClick={() => setShowEmoji((v) => !v)}
-                className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity"
-                aria-label="Add emoji"
-              >
-                😊
-              </button>
-              {showEmoji && (
-                <EmojiPicker
-                  onSelect={(e) => {
-                    setText((t) => t + e);
-                    setShowEmoji(false);
-                  }}
-                />
-              )}
-            </div>
-            {text.length > 800 && (
-              <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-                {text.length}/1000
-              </span>
+      <div className="mb-5 flex gap-2">
+        <div className="relative flex-1">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void postComment();
+            }}
+            placeholder="Share your analysis…"
+            disabled={posting}
+            rows={2}
+            maxLength={1000}
+            className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2 pb-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-400/40 disabled:opacity-50"
+          />
+          {/* Emoji button */}
+          <div className="absolute bottom-2 left-2" ref={emojiRef}>
+            <button
+              type="button"
+              onClick={() => setShowEmoji((v) => !v)}
+              className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity"
+              aria-label="Add emoji"
+            >
+              😊
+            </button>
+            {showEmoji && (
+              <EmojiPicker
+                onSelect={(e) => {
+                  setText((t) => t + e);
+                  setShowEmoji(false);
+                }}
+              />
             )}
           </div>
-          <button
-            onClick={() => void postComment()}
-            disabled={!text.trim() || posting}
-            className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {posting ? "…" : "Post"}
-          </button>
+          {text.length > 800 && (
+            <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">
+              {text.length}/1000
+            </span>
+          )}
         </div>
-      ) : (
-        <div className="mb-5 rounded-xl border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground">
-          Connect your wallet to comment
-        </div>
-      )}
+        <button
+          onClick={() => void postComment()}
+          disabled={posting}
+          className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {posting ? "…" : "Post"}
+        </button>
+      </div>
 
       {/* Comments list */}
       {comments.length === 0 ? (
@@ -958,7 +955,7 @@ export function PredictionDetail({
           {/* 6 — Submit */}
           <button
             type="button"
-            onClick={() => void handleSubmit()}
+            onClick={() => { if (!isAuthenticated) { setShowWallet(true); } else { void handleSubmit(); } }}
             disabled={isAuthenticated && !canSubmit}
             className={[
               "w-full rounded-2xl px-5 py-3.5 text-sm font-bold transition-all",
@@ -967,9 +964,7 @@ export function PredictionDetail({
                 : "bg-orange-500 text-white shadow-md hover:bg-orange-400 active:scale-[0.98]",
             ].join(" ")}
           >
-            {!isAuthenticated ? (
-              "Connect wallet to predict"
-            ) : submitState === "signing" || submitState === "submitting" ? (
+            {submitState === "signing" || submitState === "submitting" ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -981,12 +976,6 @@ export function PredictionDetail({
               "Confirm prediction"
             )}
           </button>
-
-          {!isAuthenticated && (
-            <p className="text-center text-xs text-zinc-400 dark:text-zinc-500">
-              You need a Solana wallet to place a prediction
-            </p>
-          )}
 
           {/* 7 — Resolution criteria */}
           {market.resolution_criteria && (
@@ -1009,6 +998,7 @@ export function PredictionDetail({
           marketId={market.id}
           initialComments={initialComments}
           isAuthenticated={isAuthenticated}
+          onRequestConnect={() => setShowWallet(true)}
         />
       </div>
     </>

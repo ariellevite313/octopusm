@@ -54,12 +54,13 @@ function CommentAvatar({ user, size = "md" }: {
   );
 }
 
-function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply }: {
+function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRequestConnect }: {
   comment: MarketCommentEnriched;
   marketId: string;
   isAuthenticated: boolean;
   onLike: (commentId: string, isReply: boolean) => void;
   onReply: (parentId: string, content: string) => Promise<void>;
+  onRequestConnect?: () => void;
 }) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText]         = useState("");
@@ -112,13 +113,11 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply }: {
               <Heart className={`size-3.5 ${comment.liked_by_me ? "fill-orange-500" : ""}`} />
               {comment.like_count > 0 && <span>{comment.like_count}</span>}
             </button>
-            {isAuthenticated && (
-              <button type="button" onClick={() => setShowReplyForm(v => !v)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-400 transition-colors">
-                <MessageCircle className="size-3.5" />
-                Reply
-              </button>
-            )}
+            <button type="button" onClick={() => { if (!isAuthenticated) { onRequestConnect?.(); return; } setShowReplyForm(v => !v); }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-400 transition-colors">
+              <MessageCircle className="size-3.5" />
+              Reply
+            </button>
           </div>
         </div>
       </div>
@@ -147,7 +146,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply }: {
         </div>
       )}
 
-      {showReplyForm && isAuthenticated && (
+      {showReplyForm && (
         <div className="ml-11 mt-3 flex gap-2">
           <div className="relative flex-1">
             <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
@@ -178,10 +177,11 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply }: {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export function CommentsSection({ marketId, initialComments, isAuthenticated, apiBase = "/api/markets" }: {
+export function CommentsSection({ marketId, initialComments, isAuthenticated, onRequestConnect, apiBase = "/api/markets" }: {
   marketId: string;
   initialComments: MarketCommentEnriched[];
   isAuthenticated: boolean;
+  onRequestConnect?: () => void;
   apiBase?: string;
 }) {
   const [comments, setComments] = useState<MarketCommentEnriched[]>(initialComments);
@@ -203,7 +203,8 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, ap
 
   async function postComment() {
     const trimmed = text.trim();
-    if (!trimmed || !isAuthenticated) return;
+    if (!isAuthenticated) { onRequestConnect?.(); return; }
+    if (!trimmed) return;
     setPosting(true);
     try {
       const res = await fetch(`${apiBase}/${marketId}/comments`, {
@@ -222,7 +223,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, ap
   }
 
   function handleLike(commentId: string, isReply: boolean, parentId?: string) {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) { onRequestConnect?.(); return; }
     function toggle(c: MarketCommentEnriched): MarketCommentEnriched {
       if (!isReply && c.id === commentId)
         return { ...c, liked_by_me: !c.liked_by_me, like_count: c.liked_by_me ? c.like_count - 1 : c.like_count + 1 };
@@ -257,32 +258,26 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, ap
         Comments {totalCount > 0 && `(${totalCount})`}
       </h2>
 
-      {isAuthenticated ? (
-        <div className="mb-5 flex gap-2">
-          <div className="relative flex-1">
-            <textarea value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void postComment(); }}
-              placeholder="Share your analysis..." disabled={posting} rows={2} maxLength={1000}
-              className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2 pb-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-400/40 disabled:opacity-50" />
-            <div className="absolute bottom-2 left-2" ref={emojiRef}>
-              <button type="button" onClick={() => setShowEmoji(v => !v)}
-                className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity" aria-label="Add emoji">😊</button>
-              {showEmoji && <EmojiPicker onSelect={e => { setText(t => t + e); setShowEmoji(false); }} />}
-            </div>
-            {text.length > 800 && (
-              <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">{text.length}/1000</span>
-            )}
+      <div className="mb-5 flex gap-2">
+        <div className="relative flex-1">
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void postComment(); }}
+            placeholder="Share your analysis..." disabled={posting} rows={2} maxLength={1000}
+            className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2 pb-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-400/40 disabled:opacity-50" />
+          <div className="absolute bottom-2 left-2" ref={emojiRef}>
+            <button type="button" onClick={() => setShowEmoji(v => !v)}
+              className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity" aria-label="Add emoji">😊</button>
+            {showEmoji && <EmojiPicker onSelect={e => { setText(t => t + e); setShowEmoji(false); }} />}
           </div>
-          <button onClick={() => void postComment()} disabled={!text.trim() || posting}
-            className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            {posting ? "..." : "Post"}
-          </button>
+          {text.length > 800 && (
+            <span className="absolute bottom-2 right-2 text-xs text-muted-foreground">{text.length}/1000</span>
+          )}
         </div>
-      ) : (
-        <div className="mb-5 rounded-xl border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground">
-          Connect your wallet to comment
-        </div>
-      )}
+        <button onClick={() => void postComment()} disabled={posting}
+          className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          {posting ? "..." : "Post"}
+        </button>
+      </div>
 
       {comments.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">No comments yet — be the first!</p>
@@ -291,7 +286,8 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, ap
           {comments.map(c => (
             <CommentItem key={c.id} comment={c} marketId={marketId} isAuthenticated={isAuthenticated}
               onLike={(id, isReply) => handleLike(id, isReply, c.id)}
-              onReply={handleReply} />
+              onReply={handleReply}
+              onRequestConnect={onRequestConnect} />
           ))}
         </div>
       )}

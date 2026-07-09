@@ -3,7 +3,21 @@ import Image from "next/image";
 import { getLeaderboard } from "@/services/leaderboard-service";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
-export const metadata: Metadata = { title: "Leaderboard — Octo Market" };
+export const metadata: Metadata = {
+  title: "Leaderboard",
+  description: "Top OCTO holders on Octo Market. Rank up by winning prediction markets and pool bets on Solana.",
+  openGraph: {
+    title: "Octo Market — Leaderboard",
+    description: "Top OCTO holders ranked by winnings on Solana prediction markets.",
+    url: "/leaderboard",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Octo Market — Leaderboard",
+    description: "Top OCTO holders ranked by winnings.",
+  },
+};
 
 // ISR : revalidation toutes les 5 minutes
 export const revalidate = 300;

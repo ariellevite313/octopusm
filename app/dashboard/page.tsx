@@ -12,7 +12,10 @@ import { MyPoolsSection } from "@/components/dashboard/my-pools-section";
 import { PoolWinningsSection } from "@/components/dashboard/pool-winnings-section";
 import { MyPoolBetsSection } from "@/components/dashboard/my-pool-bets-section";
 
-export const metadata: Metadata = { title: "Dashboard - Octo Market" };
+export const metadata: Metadata = {
+  title: "Dashboard",
+  robots: { index: false, follow: false },
+};
 export const revalidate = 0;
 
 function fmtAddr(addr: string) {

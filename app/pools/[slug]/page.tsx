@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -18,6 +19,34 @@ async function getPoolBySlug(slug: string): Promise<MutuelMarketRow | null> {
   return {
     ...data,
     options: typeof data.options === "string" ? JSON.parse(data.options) : data.options,
+  };
+}
+
+type Props = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const pool = await getPoolBySlug(slug);
+  if (!pool) return { title: "Pool not found" };
+
+  const ogImage = `/api/og/market/${slug}`;
+
+  return {
+    title: pool.title,
+    description: pool.description ?? "Pari mutuel pool on Octo Market. Pick your outcome and share the winnings.",
+    openGraph: {
+      title: pool.title,
+      description: pool.description ?? "Pari mutuel pool on Octo Market.",
+      url: `/pools/${slug}`,
+      type: "website",
+      images: [{ url: ogImage, width: 1200, height: 630, alt: pool.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pool.title,
+      description: pool.description ?? "Pari mutuel pool on Octo Market.",
+      images: [ogImage],
+    },
   };
 }
 
@@ -83,7 +112,7 @@ async function getInitialComments(marketId: string, wallet: string | null): Prom
 }
 
 export default async function PoolDetailPage(
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: Props
 ) {
   const { slug } = await params;
 
@@ -105,7 +134,6 @@ export default async function PoolDetailPage(
       market={market}
       initialBets={bets}
       initialComments={comments}
-      walletAddress={wallet}
     />
   );
 }
