@@ -1,0 +1,26 @@
+# supabase/config.toml — configuration CLI Supabase
+# Le project ID est lié via : supabase link --project-ref uswgrdqkftjlhlilhgfp
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+max_rows = 1000
+
+[functions.wallet-auth]
+verify_jwt = false
+
+[functions.admin-review-payment]
+verify_jwt = true
+
+[functions.admin-mark-paid]
+verify_jwt = true
+
+[functions.admin-resolve-market]
+verify_jwt = true
+
+[functions.admin-delete-market]
+verify_jwt = true
+
+[functions.admin-create-market]
+verify_jwt = true
