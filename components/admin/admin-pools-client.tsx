@@ -153,12 +153,12 @@ function ResolveModal({ market, onConfirm, onCancel }: {
 
 export function CreationFeeRefundSection({ market, onRefunded }: {
   market: MutuelMarketRow;
-  onRefunded: (marketId: string, notes: string) => void;
+  onRefunded: (marketId: string) => void;
 }) {
   const [acting, setActing] = useState(false);
   const [localRefunded, setLocalRefunded] = useState(false);
 
-  const isAlreadyRefunded = localRefunded || !!(market.admin_notes && market.admin_notes.includes("FEE_REFUNDED:"));
+  const isAlreadyRefunded = localRefunded || !!market.fee_refunded_at;
 
   const dec = market.creation_fee_token === "usdc" ? 2 : 0;
   const tokenName = market.creation_fee_token === "usdc" ? "USDC" : "ClawdTrust";
@@ -178,10 +178,10 @@ export function CreationFeeRefundSection({ market, onRefunded }: {
           fee_refund_tx: tx.trim() || null,
         }),
       });
-      const data = await res.json() as { error?: string; notes?: string };
+      const data = await res.json() as { error?: string };
       if (!res.ok) { alert(data.error ?? "Error"); return; }
       setLocalRefunded(true);
-      onRefunded(market.id, data.notes ?? "");
+      onRefunded(market.id);
     } finally {
       setActing(false);
     }
@@ -258,7 +258,7 @@ function PoolCard({
   onReject?: () => void;
   onResolve?: () => void;
   onCancel?: () => void;
-  onFeeRefunded?: (marketId: string, notes: string) => void;
+  onFeeRefunded?: (marketId: string) => void;
 }) {
   const options = (market.options ?? []) as MutuelOption[];
 
@@ -505,8 +505,8 @@ export function AdminPoolsClient({
     });
   }
 
-  function handleFeeRefunded(marketId: string, notes: string) {
-    patchMarket(marketId, "rejected", { admin_notes: notes });
+  function handleFeeRefunded(marketId: string) {
+    patchMarket(marketId, "rejected", { fee_refunded_at: new Date().toISOString() });
   }
 
   const TABS: { key: Tab; label: string; badge?: number }[] = [

@@ -43,8 +43,7 @@ export async function POST(req: Request) {
       .slice(0, 80)
       + "-" + Date.now().toString(36);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).from("prediction_markets").insert({
+      const { error } = await (supabase as any).from("prediction_markets").insert({
       slug,
       title,
       category_id: category_id ?? "other",
@@ -74,8 +73,7 @@ export async function POST(req: Request) {
     const { outcomeId } = body;
     if (!marketId || !outcomeId)
       return NextResponse.json({ error: "marketId and outcomeId required" }, { status: 400 });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+      const { error } = await (supabase as any)
       .from("prediction_markets")
       .update({ is_resolved: true, resolution_outcome_id: outcomeId, resolved_at: new Date().toISOString() })
       .eq("id", marketId);
@@ -87,8 +85,7 @@ export async function POST(req: Request) {
   if (action === "toggle_active") {
     const { isActive } = body;
     if (!marketId) return NextResponse.json({ error: "marketId required" }, { status: 400 });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+      const { error } = await (supabase as any)
       .from("prediction_markets")
       .update({ is_active: isActive })
       .eq("id", marketId);
@@ -99,8 +96,7 @@ export async function POST(req: Request) {
   // ── Delete ───────────────────────────────────────────────────────────────────
   if (action === "delete") {
     if (!marketId) return NextResponse.json({ error: "marketId required" }, { status: 400 });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+      const { error } = await (supabase as any)
       .from("prediction_markets")
       .delete()
       .eq("id", marketId);

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any).rpc("is_admin");
   return !!data;
 }
@@ -15,7 +14,6 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const statusFilter = url.searchParams.get("status") ?? "pending";
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data, error } = await admin
     .from("mutuel_markets")
@@ -38,7 +36,6 @@ export async function POST(req: Request) {
   if (!marketId || typeof marketId !== "string")
     return NextResponse.json({ error: "marketId required" }, { status: 400 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = createAdminClient() as any;
 
   if (action === "approve") {
@@ -220,31 +217,30 @@ export async function POST(req: Request) {
   }
 
   if (action === "mark_fee_refunded") {
-    // Append FEE_REFUNDED marker to admin_notes
     const { fee_refund_tx } = body;
 
-    // Fetch current market to get admin_notes
     const { data: market, error: mErr } = await sb
       .from("mutuel_markets")
-      .select("id, status, admin_notes")
+      .select("id, status, fee_refunded_at")
       .eq("id", marketId)
       .single();
 
     if (mErr || !market) return NextResponse.json({ error: "Market not found" }, { status: 404 });
     if (market.status !== "rejected")
       return NextResponse.json({ error: "Only rejected markets can have fee refunded" }, { status: 400 });
-
-    const existing = market.admin_notes ?? "";
-    const txPart = fee_refund_tx ? ` tx:${String(fee_refund_tx).slice(0, 88)}` : "";
-    const notes = existing + (existing ? " | " : "") + `FEE_REFUNDED:${new Date().toISOString()}${txPart}`;
+    if (market.fee_refunded_at)
+      return NextResponse.json({ error: "Fee already marked as refunded" }, { status: 400 });
 
     const { error } = await sb
       .from("mutuel_markets")
-      .update({ admin_notes: notes.slice(0, 500) })
+      .update({
+        fee_refunded_at: new Date().toISOString(),
+        fee_refund_tx: fee_refund_tx ? String(fee_refund_tx).slice(0, 120) : null,
+      })
       .eq("id", marketId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, notes: notes.slice(0, 500) });
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

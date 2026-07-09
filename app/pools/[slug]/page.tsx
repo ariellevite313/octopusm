@@ -7,7 +7,6 @@ import { notFound } from "next/navigation";
 export const revalidate = 0;
 
 async function getPoolBySlug(slug: string): Promise<MutuelMarketRow | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any;
   const { data } = await supabase
     .from("mutuel_markets")
@@ -23,7 +22,6 @@ async function getPoolBySlug(slug: string): Promise<MutuelMarketRow | null> {
 }
 
 async function getInitialBets(marketId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any;
   const { data } = await supabase
     .from("mutuel_bets")
@@ -35,7 +33,6 @@ async function getInitialBets(marketId: string) {
 }
 
 async function getInitialComments(marketId: string, wallet: string | null): Promise<MarketCommentEnriched[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   const { data: rows } = await admin
@@ -92,7 +89,6 @@ export default async function PoolDetailPage(
 
   // Auth — get wallet for liked_by_me
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
 

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { Check, Copy, Share2, Heart, MessageCircle } from "lucide-react";
+import { Check, Share2, Heart, MessageCircle } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets } from "@/lib/wallet/adapters";

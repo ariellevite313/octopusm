@@ -12,6 +12,8 @@ export async function POST(
 ) {
   const { id: marketId } = await params;
   const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
 
   // Auth check
   const { data: walletAddress } = await supabase.rpc("get_wallet_address");
@@ -26,43 +28,45 @@ export async function POST(
   }
 
   // Verify comment belongs to this market
-  const { data: comment } = await supabase
+  const commentRes = await db
     .from("market_comments")
     .select("id, market_id")
     .eq("id", commentId)
     .maybeSingle();
+  const comment = commentRes.data as { id: string; market_id: string } | null;
 
   if (!comment || comment.market_id !== marketId) {
     return NextResponse.json({ error: "Comment not found" }, { status: 404 });
   }
 
   // Check if already liked
-  const { data: existing } = await supabase
+  const existingRes = await db
     .from("market_comment_likes")
     .select("id")
     .eq("comment_id", commentId)
     .eq("wallet_address", walletAddress)
     .maybeSingle();
+  const existing = existingRes.data as { id: string } | null;
 
   let liked: boolean;
 
   if (existing) {
     // Unlike
-    await supabase
+    await db
       .from("market_comment_likes")
       .delete()
       .eq("id", existing.id);
     liked = false;
   } else {
     // Like
-    await supabase
+    await db
       .from("market_comment_likes")
       .insert({ comment_id: commentId, wallet_address: walletAddress });
     liked = true;
   }
 
   // Return updated like count
-  const { count } = await supabase
+  const { count } = await db
     .from("market_comment_likes")
     .select("*", { count: "exact", head: true })
     .eq("comment_id", commentId);

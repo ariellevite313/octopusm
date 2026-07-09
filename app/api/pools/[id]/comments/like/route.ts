@@ -7,7 +7,6 @@ export async function POST(
 ) {
   const { id: marketId } = await params;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userClient = await createClient() as any;
   const { data: { user } } = await userClient.auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
@@ -17,7 +16,6 @@ export async function POST(
   const commentId = body.comment_id;
   if (!commentId) return NextResponse.json({ error: "comment_id required" }, { status: 400 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   // Verify comment belongs to this market

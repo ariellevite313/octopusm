@@ -9,7 +9,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "wallet required" }, { status: 400 });
 
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("mutuel_markets")
     .select("*")

@@ -6,7 +6,6 @@ import { AdminPoolsClient } from "@/components/admin/admin-pools-client";
 export const revalidate = 0;
 
 async function getPools(status: string): Promise<MutuelMarketRow[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data } = await admin
     .from("mutuel_markets")
@@ -22,7 +21,6 @@ async function getPools(status: string): Promise<MutuelMarketRow[]> {
 export default async function AdminPoolsPage() {
   // Guard: must be admin
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: isAdmin } = await (supabase as any).rpc("is_admin");
   if (!isAdmin) redirect("/");
 

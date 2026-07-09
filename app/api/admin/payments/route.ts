@@ -17,7 +17,6 @@ async function handleManual(
   const paymentReference = `manual-${Date.now()}`;
   const id = `manual-${paymentReference}`;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).from("payments").insert({
     id,
     payment_request_id: paymentReference,
@@ -55,7 +54,6 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   const adminWallet = user?.user_metadata?.wallet_address ?? null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from("payments")
     .update({ status, reviewed_at: new Date().toISOString(), reviewed_by_wallet: adminWallet })

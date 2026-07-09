@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
   );
   if (uuids.length === 0) return NextResponse.json({});
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = await createClient() as any;
   const { data, error } = await supabase
     .from("mutuel_bets")

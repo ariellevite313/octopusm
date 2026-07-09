@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Clock } from "lucide-react";
-import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
