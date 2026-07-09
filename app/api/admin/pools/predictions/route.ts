@@ -68,6 +68,17 @@ export async function POST(req: Request) {
   }
 
   if (action === "approve") {
+    // 0. Dedup check: reject if tx_signature already has an approved payment
+    if (payment.tx_signature) {
+      const { count: dupCount } = await admin
+        .from("payments")
+        .select("*", { count: "exact", head: true })
+        .eq("tx_signature", payment.tx_signature)
+        .eq("status", "approved");
+      if ((dupCount ?? 0) > 0)
+        return NextResponse.json({ error: "This transaction has already been approved" }, { status: 409 });
+    }
+
     // 1. Fetch market to get bet_token and validate option
     const { data: market, error: mErr } = await admin
       .from("mutuel_markets")
@@ -106,13 +117,13 @@ export async function POST(req: Request) {
     if (betErr)
       return NextResponse.json({ error: betErr.message }, { status: 500 });
 
-    // 3. Update pool total
-    const poolField = token === "usdc" ? "total_pool_usdc" : "total_pool_clt";
-    const currentTotal = token === "usdc" ? market.total_pool_usdc : market.total_pool_clt;
+    // 3. Update pool total — atomic increment to avoid race conditions
     await admin
-      .from("mutuel_markets")
-      .update({ [poolField]: currentTotal + amount, bet_count: (market.bet_count ?? 0) + 1 })
-      .eq("id", payment.market_id)
+      .rpc("increment_pool_total", {
+        p_market_id: payment.market_id,
+        p_token:     token,
+        p_amount:    amount,
+      })
       .catch(() => null);
 
     // 4. Mark payment as approved

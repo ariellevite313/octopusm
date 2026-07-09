@@ -29,7 +29,15 @@ type Props = {
 export function MarketGrid({ markets, volumes }: Props) {
   const [active, setActive] = useState<string>("all");
   const categories = getCategories(markets);
-  const filtered = active === "all" ? markets : markets.filter((m) => m.category_id === active);
+  // Live = event_start_at dans le passé (même logique que useIsMarketLive)
+  const isLiveMarket = (m: PredictionMarketRow) =>
+    !!m.event_start_at && Date.now() >= new Date(m.event_start_at).getTime();
+  const sortLiveFirst = (list: PredictionMarketRow[]) =>
+    [...list].sort((a, b) => Number(isLiveMarket(b)) - Number(isLiveMarket(a)));
+
+  const filtered = sortLiveFirst(
+    active === "all" ? markets : markets.filter((m) => m.category_id === active)
+  );
 
   return (
     <div className="space-y-6">

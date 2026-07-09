@@ -86,7 +86,7 @@ export async function POST(req: Request) {
 
     const { error } = await sb
       .from("mutuel_markets")
-      .update({ status: "cancelled", admin_notes: "Market cancelled by admin, all stakes refunded" })
+      .update({ status: "cancelled", is_refund: true, admin_notes: "Market cancelled by admin, all stakes refunded" })
       .eq("id", marketId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, refunded: (allBets ?? []).length });
@@ -169,6 +169,7 @@ export async function POST(req: Request) {
         winning_option_id,
         resolved_at: new Date().toISOString(),
         resolved_by_wallet: adminWallet,
+        is_refund: allBetOnWinner,
         ...(notes ? { admin_notes: notes } : {}),
       })
       .eq("id", marketId);

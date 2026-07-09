@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const wallet = url.searchParams.get("wallet");
-
-  if (!wallet || typeof wallet !== "string")
-    return NextResponse.json({ error: "wallet required" }, { status: 400 });
-
+export async function GET() {
   const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   const { data, error } = await (supabase as any)
     .from("mutuel_markets")
     .select("*")

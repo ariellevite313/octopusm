@@ -154,7 +154,11 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
     return () => clearInterval(interval);
   }, [fetchTotals]);
 
-  const filtered = filter === "all" ? markets : markets.filter(m => m.status === filter);
+  const sortActiveFirst = (list: MutuelMarketRow[]) =>
+    [...list].sort((a, b) => Number(b.status === "active") - Number(a.status === "active"));
+  const filtered = sortActiveFirst(
+    filter === "all" ? markets : markets.filter(m => m.status === filter)
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">

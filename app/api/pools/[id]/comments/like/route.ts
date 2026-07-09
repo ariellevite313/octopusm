@@ -44,7 +44,7 @@ export async function POST(
       .eq("wallet_address", wallet);
     liked = false;
     await admin.from("mutuel_market_comments")
-      .update({ like_count: Math.max(0, (comment as { like_count?: number }).like_count ?? 0 - 1) })
+      .update({ like_count: Math.max(0, ((comment as { like_count?: number }).like_count ?? 0) - 1) })
       .eq("id", commentId).catch(() => null);
   } else {
     await admin
