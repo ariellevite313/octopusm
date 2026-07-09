@@ -1,7 +1,24 @@
+import type { Metadata } from "next";
 import { getActiveMarkets, getMarketVolumes } from "@/services/prediction-service";
 import { MarketGrid } from "@/components/market/market-grid";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Prediction Markets",
+  description: "Trade on the outcome of sports, crypto, and world events. Decentralized prediction markets on Solana powered by USDC and ClawdTrust.",
+  openGraph: {
+    title: "Octo Market — Prediction Markets on Solana",
+    description: "Trade on the outcome of sports, crypto, and world events. Decentralized prediction markets powered by USDC and ClawdTrust.",
+    url: "/",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Octo Market — Prediction Markets on Solana",
+    description: "Trade on the outcome of sports, crypto, and world events.",
+  },
+};
 
 export default async function HomePage() {
   const [markets, volumes] = await Promise.all([
@@ -11,12 +28,6 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      {/* <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Prediction Markets</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {markets.length} active market{markets.length !== 1 ? "s" : ""}
-        </p>
-      </div> */}
       {markets.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
           <span className="text-5xl">🐙</span>

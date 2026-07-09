@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { X, Plus, Trash2, Loader2, CheckCircle } from "lucide-react";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
@@ -49,16 +50,14 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     if (options.some(o => !o.label.trim())) { setError("All options must have a label."); return; }
     if (!closesAt) { setError("Prediction close date is required."); return; }
 
-    // Get wallet from localStorage
-    const walletAddress = typeof window !== "undefined"
-      ? localStorage.getItem("walletAddress") ?? ""
-      : "";
-    const walletType = (typeof window !== "undefined"
-      ? localStorage.getItem("walletType") ?? "phantom"
-      : "phantom") as Parameters<typeof submitPoolCreation>[0]["walletType"];
+    // Get wallet from Supabase session
+    const supabase = createClient();
+    const { data: { user } } = await (supabase as any).auth.getUser();
+    const walletAddress: string = user?.user_metadata?.wallet_address ?? "";
+    const walletType = (localStorage.getItem("walletType") ?? "phantom") as Parameters<typeof submitPoolCreation>[0]["walletType"];
 
     if (!walletAddress) {
-      setError("Wallet not connected.");
+      setError("Wallet not connected. Please sign in first.");
       return;
     }
 

@@ -9,6 +9,11 @@ import { CommentsSection } from "@/components/shared/comments-section";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { submitPoolBet } from "@/lib/market/pool-betting";
 import type { PoolBetToken } from "@/lib/market/pool-betting";
+import { useAuth } from "@/providers/auth-provider";
+import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
+import { connectWalletAndAuth, disconnectWallet as _disconnect } from "@/lib/wallet/auth";
+import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
+import { toast } from "sonner";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,10 +102,11 @@ interface PredictFormProps {
   market: MutuelMarketRow;
   options: MutuelOption[];
   pcts: Record<string, number>;
-  walletAddress: string | null;
+  onRequestConnect: () => void;
 }
 
-function PredictForm({ market, options, pcts, walletAddress }: PredictFormProps) {
+function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormProps) {
+  const { walletAddress } = useAuth();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<PredictStep>("idle");
@@ -121,7 +127,7 @@ function PredictForm({ market, options, pcts, walletAddress }: PredictFormProps)
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!walletAddress) { setError("Connect your wallet first."); return; }
+    if (!walletAddress) { onRequestConnect(); return; }
     if (!selectedOption) { setError("Select an option."); return; }
     const numAmt = parseFloat(amount);
     if (!numAmt || numAmt <= 0) { setError("Enter a valid amount."); return; }
@@ -254,20 +260,14 @@ function PredictForm({ market, options, pcts, walletAddress }: PredictFormProps)
         </div>
       )}
 
-      {!walletAddress ? (
-        <div className="rounded-xl bg-muted px-4 py-3 text-center text-sm text-muted-foreground">
-          Connect your wallet to predict
-        </div>
-      ) : (
-        <button
-          type="submit"
-          disabled={isBusy}
-          className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-        >
-          {isBusy && <Loader2 className="size-4 animate-spin" />}
-          {isBusy ? (step === "signing" ? "Approve in wallet…" : "Sending…") : "Predict"}
-        </button>
-      )}
+      <button
+        type="submit"
+        disabled={isBusy}
+        className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+      >
+        {isBusy && <Loader2 className="size-4 animate-spin" />}
+        {isBusy ? (step === "signing" ? "Approve in wallet…" : "Sending…") : "Predict"}
+      </button>
 
       <p className="mt-3 text-center text-[11px] text-muted-foreground">
         Your prediction is validated by an admin before appearing in live odds.
@@ -282,10 +282,30 @@ interface Props {
   market: MutuelMarketRow;
   initialBets: RawBet[];
   initialComments: MarketCommentEnriched[];
-  walletAddress: string | null;
 }
 
-export function PoolDetailClient({ market, initialBets, initialComments, walletAddress }: Props) {
+export function PoolDetailClient({ market, initialBets, initialComments }: Props) {
+  const { walletAddress, setWalletType } = useAuth();
+  const [showWalletDialog, setShowWalletDialog] = useState(false);
+
+  async function handleSelectWallet(type: WalletType) {
+    setShowWalletDialog(false);
+    try {
+      const result = await connectWalletAndAuth(type);
+      if (result.success) {
+        setWalletType(type);
+        toast.success("Wallet connected");
+      } else {
+        toast.error(result.error ?? "Connection failed");
+      }
+    } catch {
+      toast.error("Connection failed");
+    }
+  }
+
+  function openWalletConnect() {
+    setShowWalletDialog(true);
+  }
   const options = (market.options ?? []) as MutuelOption[];
   const [bets, setBets] = useState<RawBet[]>(initialBets);
 
@@ -309,6 +329,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, walletA
   }, [market.id, market.status]);
 
   return (
+    <>
     <div className="mx-auto max-w-3xl px-4 py-10">
       <Link
         href="/pools"
@@ -411,7 +432,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, walletA
           market={market}
           options={options}
           pcts={pcts}
-          walletAddress={walletAddress}
+          onRequestConnect={openWalletConnect}
         />
       </div>
 
@@ -454,9 +475,19 @@ export function PoolDetailClient({ market, initialBets, initialComments, walletA
           marketId={market.id}
           initialComments={initialComments}
           isAuthenticated={!!walletAddress}
+          onRequestConnect={openWalletConnect}
           apiBase="/api/pools"
         />
       </div>
     </div>
+
+      {showWalletDialog && (
+        <WalletSelectDialog
+          wallets={getAvailableWallets()}
+          onSelect={handleSelectWallet}
+          onClose={() => setShowWalletDialog(false)}
+        />
+      )}
+    </>
   );
 }

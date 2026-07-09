@@ -1,8 +1,25 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import { PoolsClient } from "@/components/pools/pools-client";
 
 export const revalidate = 30;
+
+export const metadata: Metadata = {
+  title: "Pools",
+  description: "Pari mutuel prediction pools on Solana. Join a pool, pick your outcome, and share the winnings with other correct predictors.",
+  openGraph: {
+    title: "Octo Market — Prediction Pools",
+    description: "Pari mutuel prediction pools on Solana. Join a pool, pick your outcome, and share the winnings.",
+    url: "/pools",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Octo Market — Prediction Pools",
+    description: "Pari mutuel prediction pools on Solana.",
+  },
+};
 
 async function getActivePools(): Promise<MutuelMarketRow[]> {
   const supabase = await createClient() as any;
