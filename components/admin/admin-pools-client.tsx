@@ -331,18 +331,20 @@ function PoolCard({
         </div>
       )}
 
-      {/* Pending predictions (active/closed pools) */}
+      {/* Pending predictions (active/closed pools) — payment validation + individual approval */}
       {["active", "closed"].includes(market.status) && (
-        <div className="mb-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-            Predictions awaiting validation
-          </p>
+        <>
           <PendingPredictionsSection
             marketId={market.id}
             marketTitle={market.title}
             betToken={market.bet_token}
           />
-        </div>
+          <PendingBetsSection
+            marketId={market.id}
+            options={(market.options ?? []) as MutuelOption[]}
+            betToken={market.bet_token}
+          />
+        </>
       )}
 
       {/* Actions */}
@@ -794,17 +796,16 @@ export function PendingPredictionsSection({ marketId, betToken }: {
     }
   }
 
-  if (loading) {
-    return <p className="text-xs text-muted-foreground animate-pulse">Loading predictions...</p>;
-  }
-  if (predictions.length === 0) {
-    return <p className="text-xs text-muted-foreground">No pending predictions.</p>;
-  }
+  if (loading || predictions.length === 0) return null;
 
   const decimals = betToken === "usdc" ? 2 : 0;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="mb-4">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+        Predictions awaiting validation
+      </p>
+      <div className="flex flex-col gap-2">
       {predictions.map(p => (
         <div
           key={p.id}
@@ -846,6 +847,134 @@ export function PendingPredictionsSection({ marketId, betToken }: {
           </div>
         </div>
       ))}
+      </div>
+    </div>
+  );
+}
+
+// Pending predictions section (individual bet approval after payment validated)
+
+interface PendingBet {
+  id: string;
+  market_id: string;
+  wallet_address: string;
+  option_id: string;
+  amount: number;
+  token: string;
+  tx_signature: string | null;
+  status: string;
+  created_at: string;
+}
+
+export function PendingBetsSection({ marketId, options, betToken }: {
+  marketId: string;
+  options: MutuelOption[];
+  betToken: string;
+}) {
+  const [bets, setBets] = useState<PendingBet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<string | null>(null);
+
+  function optionLabel(optId: string) {
+    return options.find(o => o.id === optId)?.label ?? optId;
+  }
+
+  useEffect(() => {
+    fetch(`/api/admin/pools/bets?marketId=${marketId}&status=pending`)
+      .then(async r => {
+        const data = await r.json();
+        if (r.ok && Array.isArray(data)) setBets(data);
+        else setBets([]);
+      })
+      .catch(() => setBets([]))
+      .finally(() => setLoading(false));
+  }, [marketId]);
+
+  async function approveBet(bet: PendingBet) {
+    setActing(bet.id);
+    try {
+      const res = await fetch("/api/admin/pools/bets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve", betId: bet.id }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) { alert(data.error ?? "Error"); return; }
+      setBets(prev => prev.filter(b => b.id !== bet.id));
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function rejectBet(bet: PendingBet) {
+    if (!confirm("Reject this bet?")) return;
+    setActing(bet.id);
+    try {
+      const res = await fetch("/api/admin/pools/bets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject", betId: bet.id }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) { alert(data.error ?? "Error"); return; }
+      setBets(prev => prev.filter(b => b.id !== bet.id));
+    } finally {
+      setActing(null);
+    }
+  }
+
+  if (loading || bets.length === 0) return null;
+
+  const decimals = betToken === "usdc" ? 2 : 0;
+
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+        Predictions awaiting approval
+      </p>
+      <div className="flex flex-col gap-2">
+        {bets.map(bet => (
+          <div
+            key={bet.id}
+            className={`flex items-center justify-between gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 dark:border-orange-800 dark:bg-orange-950/20 ${acting === bet.id ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-foreground">{optionLabel(bet.option_id)}</p>
+              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <TokenLogo token={bet.token} className="size-3" />
+                {Number(bet.amount).toFixed(decimals)}
+                {" . "}{bet.wallet_address.slice(0, 6)}{"..."}{bet.wallet_address.slice(-4)}
+              </p>
+              {bet.tx_signature && (
+                <a
+                  href={`https://solscan.io/tx/${bet.tx_signature}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 block truncate font-mono text-[10px] text-blue-500 hover:underline"
+                >
+                  {bet.tx_signature.slice(0, 24)}{"..."}
+                </a>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={() => void approveBet(bet)}
+                disabled={!!acting}
+                className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-400 disabled:opacity-50"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => void rejectBet(bet)}
+                disabled={!!acting}
+                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/20"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -68,7 +68,6 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
   const [showEmoji, setShowEmoji]         = useState(false);
   const emojiRef = useRef<HTMLDivElement>(null);
 
-  // suppress unused warning
   void marketId;
 
   useEffect(() => {
@@ -177,10 +176,11 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export function CommentsSection({ marketId, initialComments, isAuthenticated, onRequestConnect, apiBase = "/api/markets" }: {
+export function CommentsSection({ marketId, initialComments, isAuthenticated, walletAddress, onRequestConnect, apiBase = "/api/markets" }: {
   marketId: string;
   initialComments: MarketCommentEnriched[];
   isAuthenticated: boolean;
+  walletAddress?: string | null;
   onRequestConnect?: () => void;
   apiBase?: string;
 }) {
@@ -211,12 +211,12 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, on
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: trimmed }),
       });
-      const data = await res.json() as MarketCommentEnriched;
-      if (!res.ok) throw new Error();
+      const data = await res.json() as MarketCommentEnriched & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setComments(prev => [{ ...data, like_count: 0, liked_by_me: false, replies: [] }, ...prev]);
       setText("");
-    } catch {
-      toast.error("Failed to post comment");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to post comment");
     } finally {
       setPosting(false);
     }
@@ -224,6 +224,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, on
 
   function handleLike(commentId: string, isReply: boolean, parentId?: string) {
     if (!isAuthenticated) { onRequestConnect?.(); return; }
+    // Optimistic update
     function toggle(c: MarketCommentEnriched): MarketCommentEnriched {
       if (!isReply && c.id === commentId)
         return { ...c, liked_by_me: !c.liked_by_me, like_count: c.liked_by_me ? c.like_count - 1 : c.like_count + 1 };
@@ -234,10 +235,26 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, on
       return c;
     }
     setComments(prev => prev.map(toggle));
+    // Sync with server — use actual like_count from DB
     fetch(`${apiBase}/${marketId}/comments/like`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment_id: commentId }),
-    }).catch(() => setComments(prev => prev.map(toggle)));
+      body: JSON.stringify({ comment_id: commentId, wallet_address: walletAddress }),
+    })
+      .then(async res => {
+        if (!res.ok) { setComments(prev => prev.map(toggle)); return; }
+        const data = await res.json() as { liked: boolean; like_count: number };
+        // Apply server-confirmed like_count
+        setComments(prev => prev.map(c => {
+          if (!isReply && c.id === commentId)
+            return { ...c, liked_by_me: data.liked, like_count: data.like_count };
+          if (isReply && c.id === parentId)
+            return { ...c, replies: c.replies.map(r =>
+              r.id === commentId ? { ...r, liked_by_me: data.liked, like_count: data.like_count } : r
+            )};
+          return c;
+        }));
+      })
+      .catch(() => setComments(prev => prev.map(toggle)));
   }
 
   async function handleReply(parentId: string, content: string) {

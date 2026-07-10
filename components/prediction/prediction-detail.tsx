@@ -475,11 +475,13 @@ function CommentsSection({
   marketId,
   initialComments,
   isAuthenticated,
+  walletAddress,
   onRequestConnect,
 }: {
   marketId: string;
   initialComments: MarketCommentEnriched[];
   isAuthenticated: boolean;
+  walletAddress?: string | null;
   onRequestConnect?: () => void;
 }) {
   const [comments, setComments]   = useState<MarketCommentEnriched[]>(initialComments);
@@ -549,11 +551,25 @@ function CommentsSection({
     fetch(`/api/markets/${marketId}/comments/like`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ comment_id: commentId }),
-    }).catch(() => {
-      // Revert on failure
-      setComments((prev) => prev.map(toggle));
-    });
+      body:    JSON.stringify({ comment_id: commentId, wallet_address: walletAddress }),
+    })
+      .then(async (res) => {
+        if (!res.ok) { setComments((prev) => prev.map(toggle)); return; }
+        const data = await res.json() as { liked: boolean; like_count: number };
+        setComments((prev) => prev.map((c) => {
+          if (!isReply && c.id === commentId)
+            return { ...c, liked_by_me: data.liked, like_count: data.like_count };
+          if (isReply && c.id === parentId)
+            return { ...c, replies: c.replies.map((r) =>
+              r.id === commentId ? { ...r, liked_by_me: data.liked, like_count: data.like_count } : r
+            )};
+          return c;
+        }));
+      })
+      .catch(() => {
+        // Revert on failure
+        setComments((prev) => prev.map(toggle));
+      });
   }
 
   async function handleReply(parentId: string, content: string) {
@@ -998,6 +1014,7 @@ export function PredictionDetail({
           marketId={market.id}
           initialComments={initialComments}
           isAuthenticated={isAuthenticated}
+          walletAddress={walletAddress}
           onRequestConnect={() => setShowWallet(true)}
         />
       </div>

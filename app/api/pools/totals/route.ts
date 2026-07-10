@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("mutuel_bets")
     .select("market_id, option_id, amount, token")
-    .in("market_id", uuids);
+    .in("market_id", uuids)
+    .eq("status", "approved");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
