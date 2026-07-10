@@ -7,6 +7,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: marketId } = await params;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(marketId))
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+
   const url = new URL(req.url);
   const wallet = url.searchParams.get("wallet") ?? null;
 
@@ -68,6 +72,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: marketId } = await params;
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(marketId))
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
   // Auth via session client
   const userClient = await createClient() as any;

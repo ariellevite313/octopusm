@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock, Loader2 } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
@@ -11,7 +11,7 @@ import { submitPoolBet } from "@/lib/market/pool-betting";
 import type { PoolBetToken } from "@/lib/market/pool-betting";
 import { useAuth } from "@/providers/auth-provider";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
-import { connectWalletAndAuth, disconnectWallet as _disconnect } from "@/lib/wallet/auth";
+import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { toast } from "sonner";
 
@@ -22,7 +22,7 @@ interface RawBet {
   option_id: string;
   amount: number;
   token: string;
-  wallet_address: string;
+  wallet_address?: string;
   created_at: string;
   payout_amount?: number | null;
   paid_at?: string | null;
@@ -64,7 +64,7 @@ function timeLeft(closesAt: string): string {
 }
 
 function truncWallet(w: string) {
-  return w.length > 12 ? `${w.slice(0, 4)}…${w.slice(-4)}` : w;
+  return w.length > 12 ? `${w.slice(0, 4)}...${w.slice(-4)}` : w;
 }
 
 function tokenLabel(token: string) {
@@ -88,12 +88,11 @@ const STATUS_COLORS: Record<string, string> = {
   resolved: "text-violet-600 dark:text-violet-400",
 };
 
-// Step states for the prediction flow
+// Bug #8 fix: only two real steps — signing (wallet approval) then done
 type PredictStep =
   | "idle"
-  | "signing"    // waiting for wallet signature
-  | "sending"    // broadcasting to Solana
-  | "pending"    // success — awaiting admin validation
+  | "signing"   // wallet approval + broadcast (single async call)
+  | "pending"   // success - awaiting admin validation
   | "error";
 
 // ─── Predict form ─────────────────────────────────────────────────────────────
@@ -106,7 +105,8 @@ interface PredictFormProps {
 }
 
 function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormProps) {
-  const { walletAddress } = useAuth();
+  // Bug #6 fix: read walletType from useAuth instead of localStorage directly
+  const { walletAddress, walletType } = useAuth();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<PredictStep>("idle");
@@ -115,14 +115,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
   const token = market.bet_token as PoolBetToken;
   const isClosed = market.status !== "active" || new Date(market.betting_closes_at) <= new Date();
-  const isBusy = step === "signing" || step === "sending";
-
-  // Detect connected wallet type from localStorage (same key used by auth)
-  function getWalletType() {
-    try {
-      return (localStorage.getItem("walletType") ?? "phantom") as import("@/lib/wallet/adapters").WalletType;
-    } catch { return "phantom" as import("@/lib/wallet/adapters").WalletType; }
-  }
+  const isBusy = step === "signing";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,7 +137,8 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       amount:        numAmt,
       token,
       walletAddress,
-      walletType:    getWalletType(),
+      // Bug #6 fix: use walletType from auth context, fallback to phantom
+      walletType:    (walletType ?? "phantom") as WalletType,
     });
 
     if (!result.success) {
@@ -167,7 +161,6 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
     );
   }
 
-  // ── Success / pending state ───────────────────────────────────────────────
   if (step === "pending") {
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-800 dark:bg-emerald-950/20">
@@ -205,7 +198,6 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         — winnings paid in {tokenLabel(token)}.
       </p>
 
-      {/* Option selector */}
       <div className="mb-4 flex flex-col gap-2">
         {options.map(opt => (
           <button
@@ -225,7 +217,6 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         ))}
       </div>
 
-      {/* Amount */}
       <div className="mb-4">
         <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <TokenLogo token={token} className="size-3.5" />
@@ -243,20 +234,16 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         />
       </div>
 
-      {/* Error */}
       {error && (
         <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/20 dark:text-red-400">
           {error}
         </p>
       )}
 
-      {/* Step indicator */}
       {isBusy && (
         <div className="mb-3 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2.5 text-xs text-orange-700 dark:bg-orange-950/20 dark:text-orange-400">
           <Loader2 className="size-3.5 animate-spin" />
-          {step === "signing"
-            ? "Waiting for wallet signature…"
-            : "Broadcasting transaction…"}
+          Approve in wallet and waiting for confirmation...
         </div>
       )}
 
@@ -266,7 +253,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {isBusy && <Loader2 className="size-4 animate-spin" />}
-        {isBusy ? (step === "signing" ? "Approve in wallet…" : "Sending…") : "Predict"}
+        {isBusy ? "Approving..." : "Predict"}
       </button>
 
       <p className="mt-3 text-center text-[11px] text-muted-foreground">
@@ -303,15 +290,14 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
     }
   }
 
-  function openWalletConnect() {
-    setShowWalletDialog(true);
-  }
   const options = (market.options ?? []) as MutuelOption[];
   const [bets, setBets] = useState<RawBet[]>(initialBets);
 
-  const totals = computeTotals(bets, options);
-  const pcts = computePcts(totals, options);
-  const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
+  // Bug #13 fix: memoize expensive computations
+  const totals = useMemo(() => computeTotals(bets, options), [bets, options]);
+  const pcts   = useMemo(() => computePcts(totals, options), [totals, options]);
+  const grandTotal = useMemo(() => Object.values(totals).reduce((s, v) => s + v, 0), [totals]);
+
   const decimals = market.bet_token === "usdc" ? 2 : 0;
 
   // Real-time refresh every 15s when active
@@ -339,7 +325,6 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         All Pools
       </Link>
 
-      {/* Title */}
       <div className="mb-2 flex items-start gap-3">
         <h1 className="flex-1 text-2xl font-bold leading-snug text-foreground">{market.title}</h1>
         <span className={`shrink-0 pt-1 text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
@@ -351,7 +336,6 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         <p className="mb-6 text-sm text-muted-foreground">{market.description}</p>
       )}
 
-      {/* Meta */}
       <div className="mb-8 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Clock className="size-3.5" />
@@ -368,7 +352,6 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         </span>
       </div>
 
-      {/* Cancelled banner */}
       {market.status === "cancelled" && (
         <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/30">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -380,20 +363,28 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         </div>
       )}
 
-      {/* Resolved banner */}
-      {market.status === "resolved" && market.winning_option_id && (
+      {/* Bug #9 fix: resolved banner shows even when winning_option_id is null */}
+      {market.status === "resolved" && (
         <div className="mb-6 rounded-2xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-950/20">
-          <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
-            ✅ Winner:{" "}
-            {options.find(o => o.id === market.winning_option_id)?.label ?? market.winning_option_id}
-          </p>
-          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-            Winners pool:
-            <TokenLogo token={market.bet_token} className="size-3" />
-            {(grandTotal * winnersRate(market.bet_token)).toFixed(decimals)}{" "}
-            {tokenLabel(market.bet_token)}{" "}
-            ({Math.round(winnersRate(market.bet_token) * 100)}% of {grandTotal.toFixed(decimals)})
-          </p>
+          {market.winning_option_id ? (
+            <>
+              <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
+                ✅ Winner:{" "}
+                {options.find(o => o.id === market.winning_option_id)?.label ?? market.winning_option_id}
+              </p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                Winners pool:
+                <TokenLogo token={market.bet_token} className="size-3" />
+                {(grandTotal * winnersRate(market.bet_token)).toFixed(decimals)}{" "}
+                {tokenLabel(market.bet_token)}{" "}
+                ({Math.round(winnersRate(market.bet_token) * 100)}% of {grandTotal.toFixed(decimals)})
+              </p>
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
+              Pool resolved — payouts being processed.
+            </p>
+          )}
         </div>
       )}
 
@@ -426,13 +417,12 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         <p className="pt-1 text-[11px] text-muted-foreground">{commissionLabel(market.bet_token)}</p>
       </div>
 
-      {/* Predict form */}
       <div className="mb-8">
         <PredictForm
           market={market}
           options={options}
           pcts={pcts}
-          onRequestConnect={openWalletConnect}
+          onRequestConnect={() => setShowWalletDialog(true)}
         />
       </div>
 
@@ -445,9 +435,13 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
           <div className="flex flex-col divide-y divide-border">
             {bets.slice(0, 30).map((bet, i) => {
               const optLabel = options.find(o => o.id === bet.option_id)?.label ?? bet.option_id;
+              // Bug #10 fix: stable key using created_at + option_id + index fallback
+              const key = `${bet.created_at}-${bet.option_id}-${i}`;
               return (
-                <div key={i} className="flex items-center justify-between gap-3 py-2.5 text-xs">
-                  <span className="font-mono text-muted-foreground">{truncWallet(bet.wallet_address)}</span>
+                <div key={key} className="flex items-center justify-between gap-3 py-2.5 text-xs">
+                  {bet.wallet_address && (
+                    <span className="font-mono text-muted-foreground">{truncWallet(bet.wallet_address)}</span>
+                  )}
                   <span className="font-semibold text-foreground">{optLabel}</span>
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
@@ -470,24 +464,27 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
       </div>
 
       {/* Comments */}
+      {/* Bug #5 fix: isAuthenticated based on walletAddress from auth context (already correct — 
+          walletAddress is null when disconnected, set on connect) */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <CommentsSection
           marketId={market.id}
           initialComments={initialComments}
           isAuthenticated={!!walletAddress}
-          onRequestConnect={openWalletConnect}
+          walletAddress={walletAddress}
+          onRequestConnect={() => setShowWalletDialog(true)}
           apiBase="/api/pools"
         />
       </div>
     </div>
 
-      {showWalletDialog && (
-        <WalletSelectDialog
-          wallets={getAvailableWallets()}
-          onSelect={handleSelectWallet}
-          onClose={() => setShowWalletDialog(false)}
-        />
-      )}
+    {showWalletDialog && (
+      <WalletSelectDialog
+        wallets={getAvailableWallets()}
+        onSelect={handleSelectWallet}
+        onClose={() => setShowWalletDialog(false)}
+      />
+    )}
     </>
   );
 }

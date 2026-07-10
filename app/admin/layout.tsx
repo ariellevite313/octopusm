@@ -19,7 +19,7 @@ const NAV = [
   { href: "/admin",          label: "Overview",  icon: LayoutDashboard },
   { href: "/admin/markets",  label: "Markets",   icon: BarChart3 },
   { href: "/admin/pools",    label: "Pools",     icon: Layers },
-  { href: "/admin/bets",     label: "Bets",      icon: Gavel },
+  { href: "/admin/bets",     label: "Predicts",  icon: Gavel },
   { href: "/admin/payments", label: "Payments",  icon: CreditCard },
   { href: "/admin/launches", label: "Launches",  icon: Rocket },
   { href: "/admin/tasks",    label: "Tasks",     icon: CheckSquare },

@@ -3,7 +3,6 @@
  * Same pattern as betting.ts: on-chain transfer → payments INSERT (pending) → admin validates.
  */
 
-import { createClient } from "@/lib/supabase/client";
 import type { WalletType } from "@/lib/wallet/adapters";
 
 // ─── Constants (same treasury as prediction markets) ──────────────────────────
@@ -203,31 +202,30 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
     return { success: false, error: msg };
   }
 
-  // 5. Persist to payments table (pending → admin validates → mutuel_bet inserted)
-  const supabase = createClient();
-  const { error: dbError } = await (supabase as any).from("payments").insert({
-    payment_request_id: `pool-req-${Date.now().toString(36)}`,
-    payment_reference:  reference,
-    flow:               "pool_prediction",
-    title:              marketTitle,
-    subtitle:           optionLabel,
-    category_label:     "pool",
-    market_id:          marketId,
-    selection_id:       optionId,
-    selection_label:    optionLabel,
-    user_wallet:        walletAddress,
-    recipient_wallet:   TREASURY_ADDRESS,
-    amount_usdc:        amount,
-    reserve_fee_usdc:   0,
-    total_paid_usdc:    amount,
-    token,
-    status:             "pending",
-    tx_signature:       signature,
+  // 5. Persist to payments table via API route (admin client bypasses RLS)
+  const apiRes = await fetch("/api/pools/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      payment_request_id: `pool-req-${Date.now().toString(36)}`,
+      payment_reference:  reference,
+      title:              marketTitle,
+      subtitle:           optionLabel,
+      market_id:          marketId,
+      selection_id:       optionId,
+      selection_label:    optionLabel,
+      amount_usdc:        amount,
+      token,
+      tx_signature:       signature,
+      wallet_address:     walletAddress,
+    }),
   });
 
-  if (dbError) {
-    console.error("[pool-betting] payments insert:", dbError.message);
-    // On-chain OK — return success but log error. Admin can reconcile from chain.
+  if (!apiRes.ok) {
+    const err = await apiRes.json().catch(() => ({})) as { error?: string };
+    const msg = err.error ?? `HTTP ${apiRes.status}`;
+    console.error("[pool-betting] payments insert:", msg);
+    return { success: false, error: `On-chain OK but registration failed: ${msg}. Contact support with TX: ${signature.slice(0,16)}` };
   }
 
   return { success: true, reference, signature };

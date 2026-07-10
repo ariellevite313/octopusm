@@ -19,7 +19,7 @@ import {
 const PRIMARY = [
   { href: "/admin",          label: "Overview",  icon: LayoutDashboard },
   { href: "/admin/markets",  label: "Markets",   icon: BarChart3 },
-  { href: "/admin/bets",     label: "Bets",      icon: Gavel },
+  { href: "/admin/bets",     label: "Predicts",  icon: Gavel },
   { href: "/admin/payments", label: "Payments",  icon: CreditCard },
   { href: "/admin/launches", label: "Launches",  icon: Rocket },
 ];

@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     // We use amount_usdc as the canonical amount field regardless of token
     const amount = Number(payment.amount_usdc);
 
-    // 2. Insert mutuel_bet
+    // 2. Insert mutuel_bet with status=pending (admin must approve individually)
     const { error: betErr } = await admin
       .from("mutuel_bets")
       .insert({
@@ -112,21 +112,15 @@ export async function POST(req: Request) {
         amount,
         token,
         tx_signature:   payment.tx_signature ?? null,
+        status:         "pending",
       });
 
     if (betErr)
       return NextResponse.json({ error: betErr.message }, { status: 500 });
 
-    // 3. Update pool total — atomic increment to avoid race conditions
-    await admin
-      .rpc("increment_pool_total", {
-        p_market_id: payment.market_id,
-        p_token:     token,
-        p_amount:    amount,
-      })
-      .catch(() => null);
+    // Note: increment_pool_total is called only when admin approves the individual bet
 
-    // 4. Mark payment as approved
+    // 3. Mark payment as approved
     const { error: updErr } = await admin
       .from("payments")
       .update({ status: "approved" })

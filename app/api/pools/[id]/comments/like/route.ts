@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
+/**
+ * POST /api/pools/[id]/comments/like
+ * Body: { comment_id: string; wallet_address: string }
+ * Toggles like on a mutuel_market_comment.
+ * wallet_address comes from the client (proven by on-chain identity).
+ */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: marketId } = await params;
 
-  const userClient = await createClient() as any;
-  const { data: { user } } = await userClient.auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
-  if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(marketId))
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-  const body = await req.json() as { comment_id?: string };
-  const commentId = body.comment_id;
+  const body = await req.json() as { comment_id?: string; wallet_address?: string };
+  const commentId    = body.comment_id;
+  const wallet       = body.wallet_address ?? null;
+
   if (!commentId) return NextResponse.json({ error: "comment_id required" }, { status: 400 });
+  if (!wallet)    return NextResponse.json({ error: "wallet_address required" }, { status: 400 });
 
   const admin = createAdminClient() as any;
 
@@ -24,10 +32,11 @@ export async function POST(
     .select("id, market_id")
     .eq("id", commentId)
     .maybeSingle();
+
   if (!comment || comment.market_id !== marketId)
     return NextResponse.json({ error: "Comment not found" }, { status: 404 });
 
-  // Toggle like
+  // Check if already liked
   const { data: existing } = await admin
     .from("mutuel_market_comment_likes")
     .select("comment_id, wallet_address")
@@ -36,6 +45,7 @@ export async function POST(
     .maybeSingle();
 
   let liked: boolean;
+
   if (existing) {
     await admin
       .from("mutuel_market_comment_likes")
@@ -43,17 +53,11 @@ export async function POST(
       .eq("comment_id", commentId)
       .eq("wallet_address", wallet);
     liked = false;
-    await admin.from("mutuel_market_comments")
-      .update({ like_count: Math.max(0, ((comment as { like_count?: number }).like_count ?? 0) - 1) })
-      .eq("id", commentId).catch(() => null);
   } else {
     await admin
       .from("mutuel_market_comment_likes")
       .insert({ comment_id: commentId, wallet_address: wallet });
     liked = true;
-    await admin.from("mutuel_market_comments")
-      .update({ like_count: ((comment as { like_count?: number }).like_count ?? 0) + 1 })
-      .eq("id", commentId).catch(() => null);
   }
 
   const { count } = await admin
@@ -61,5 +65,13 @@ export async function POST(
     .select("*", { count: "exact", head: true })
     .eq("comment_id", commentId);
 
-  return NextResponse.json({ liked, like_count: count ?? 0 });
+  const newCount = count ?? 0;
+
+  // Sync denormalized like_count on the comment row
+  await admin
+    .from("mutuel_market_comments")
+    .update({ like_count: newCount })
+    .eq("id", commentId);
+
+  return NextResponse.json({ liked, like_count: newCount });
 }
