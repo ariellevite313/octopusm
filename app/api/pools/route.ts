@@ -4,8 +4,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 export const revalidate = 0;
 
 export async function GET() {
-  const supabase = await createClient() as any;
-  const { data, error } = await supabase
+  const admin = createAdminClient() as any;
+  const { data, error } = await admin
     .from("mutuel_markets")
     .select("*")
     .in("status", ["active", "closed", "resolved"])
