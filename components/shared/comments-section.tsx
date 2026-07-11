@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Heart, MessageCircle } from "lucide-react";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
+import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,10 +100,11 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
       <div className="flex gap-3">
         <CommentAvatar user={comment} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2 mb-0.5">
+          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
               {comment.username ?? shortAddr(comment.wallet_address)}
             </span>
+            {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
             <span className="text-xs text-muted-foreground">{timeAgo(comment.created_at)}</span>
           </div>
           <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">{comment.content}</p>
@@ -127,10 +129,11 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
             <div key={reply.id} className="flex gap-3">
               <CommentAvatar user={reply} size="sm" />
               <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 mb-0.5">
+                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                   <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                     {reply.username ?? shortAddr(reply.wallet_address)}
                   </span>
+                  {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
                   <span className="text-xs text-muted-foreground">{timeAgo(reply.created_at)}</span>
                 </div>
                 <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">{reply.content}</p>
@@ -209,7 +212,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
     try {
       const res = await fetch(`${apiBase}/${marketId}/comments`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed }),
+        body: JSON.stringify({ content: trimmed, wallet_address: walletAddress }),
       });
       const data = await res.json() as MarketCommentEnriched & { error?: string };
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -260,7 +263,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
   async function handleReply(parentId: string, content: string) {
     const res = await fetch(`${apiBase}/${marketId}/comments`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, parent_id: parentId }),
+      body: JSON.stringify({ content, parent_id: parentId, wallet_address: walletAddress }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Error");

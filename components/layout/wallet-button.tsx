@@ -431,12 +431,14 @@ export function WalletButton() {
           <span className="size-2 rounded-full bg-emerald-500" />
           {shortAddr(walletAddress)}
         </button>
-        <ProfileDrawer
-          walletAddress={walletAddress}
-          open={showProfile}
-          onClose={() => setShowProfile(false)}
-          onDisconnect={handleDisconnect}
-        />
+        {showProfile && (
+          <ProfileDrawer
+            walletAddress={walletAddress}
+            open={showProfile}
+            onClose={() => setShowProfile(false)}
+            onDisconnect={handleDisconnect}
+          />
+        )}
       </>
     );
   }

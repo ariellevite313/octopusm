@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 
 export async function GET(
@@ -37,6 +37,19 @@ export async function GET(
   }
 
   // Build threaded structure (top-level + replies)
+  // Fetch OCTO balances for all commenters from leaderboard_octo view
+  const uniqueWallets = [...new Set(comments.map((c) => c.wallet_address as string))];
+  const octoMap: Record<string, number> = {};
+  if (uniqueWallets.length > 0) {
+    const { data: octoRows } = await admin
+      .from("leaderboard_octo")
+      .select("wallet_address, total_octo")
+      .in("wallet_address", uniqueWallets);
+    for (const w of (octoRows ?? []) as { wallet_address: string; total_octo: number | null }[]) {
+      octoMap[w.wallet_address] = w.total_octo ?? 0;
+    }
+  }
+
   const topLevel: MarketCommentEnriched[] = [];
   const byId: Record<string, MarketCommentEnriched> = {};
 
@@ -52,6 +65,7 @@ export async function GET(
       like_count:     c.like_count as number,
       created_at:     c.created_at as string,
       liked_by_me:    likedSet.has(c.id as string),
+      octo_balance:   octoMap[c.wallet_address as string] ?? 0,
       replies:        [],
     };
     byId[enriched.id] = enriched;
@@ -77,13 +91,10 @@ export async function POST(
   if (!UUID_RE.test(marketId))
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-  // Auth via session client
-  const userClient = await createClient() as any;
-  const { data: { user } } = await userClient.auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const body = await req.json() as { content?: string; parent_id?: string; wallet_address?: string };
+  const wallet: string | null = body.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const body = await req.json() as { content?: string; parent_id?: string };
   const content = (body.content ?? "").trim();
   const parent_id = body.parent_id ?? null;
 
@@ -134,5 +145,14 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+
+  // Fetch octo_balance so badge renders immediately without reload
+  const octoRes = await admin
+    .from("leaderboard_octo")
+    .select("total_octo")
+    .eq("wallet_address", wallet)
+    .maybeSingle();
+  const octo_balance: number = (octoRes.data as { total_octo: number | null } | null)?.total_octo ?? 0;
+
+  return NextResponse.json({ ...data, octo_balance, like_count: 0, liked_by_me: false, replies: [] }, { status: 201 });
 }

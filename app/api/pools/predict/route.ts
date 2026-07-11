@@ -26,6 +26,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const minAmt = body.token === "usdc" ? 2 : 500_000;
+  if (body.amount_usdc < minAmt) {
+    return NextResponse.json({ error: "Amount below minimum stake" }, { status: 400 });
+  }
+
   const admin = createAdminClient() as any;
 
   const { error } = await admin.from("payments").insert({

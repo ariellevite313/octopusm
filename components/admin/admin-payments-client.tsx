@@ -24,7 +24,7 @@ function shortAddr(s: string) {
 }
 
 const STATUS_FILTERS = ["all", "pending", "approved", "rejected"] as const;
-const FLOWS = ["prediction", "launch", "listing"] as const;
+const FLOWS = ["launch", "listing"] as const;
 const TOKENS = ["usdc", "clawdtrust"] as const;
 const PAGE_SIZE = 10;
 
@@ -34,7 +34,7 @@ const DEFAULT_MANUAL = {
   amount: "",
   token: "usdc" as "usdc" | "clawdtrust",
   txSignature: "",
-  flow: "prediction" as typeof FLOWS[number],
+  flow: "launch" as typeof FLOWS[number],
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -48,9 +48,13 @@ function StatusBadge({ status }: { status: string }) {
 export function AdminPaymentsClient({
   payments,
   currentFilter,
+  currentFlow,
+  pendingCount,
 }: {
   payments: PaymentRow[];
   currentFilter?: string;
+  currentFlow?: string; // "launch" | "listing" | undefined
+  pendingCount?: number;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -105,25 +109,52 @@ export function AdminPaymentsClient({
     }
   }
 
+  function buildHref(status: string | undefined, flow: string | undefined) {
+    const params = new URLSearchParams();
+    if (status && status !== "all") params.set("status", status);
+    if (flow && flow !== "all") params.set("flow", flow);
+    const qs = params.toString();
+    return qs ? `/admin/payments?${qs}` : "/admin/payments";
+  }
+
   return (
     <>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map((f) => (
-            <Link
-              key={f}
-              href={f === "all" ? "/admin/payments" : `/admin/payments?status=${f}`}
-              onClick={changeFilter}
-              className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
-                (f === "all" && !currentFilter) || currentFilter === f
-                  ? "border-orange-400 bg-orange-500 text-white"
-                  : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground"
-              }`}
-            >
-              {f === "all" ? "All" : f}
-            </Link>
-          ))}
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {STATUS_FILTERS.map((f) => (
+              <Link
+                key={f}
+                href={buildHref(f, currentFlow)}
+                onClick={changeFilter}
+                className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                  (f === "all" && !currentFilter) || currentFilter === f
+                    ? "border-orange-400 bg-orange-500 text-white"
+                    : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground"
+                }`}
+              >
+                {f === "all" ? "All" : f}
+                {f === "pending" && pendingCount && pendingCount > 0 ? ` (${pendingCount})` : ""}
+              </Link>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(["all", ...FLOWS] as const).map((f) => (
+              <Link
+                key={f}
+                href={buildHref(currentFilter, f)}
+                onClick={changeFilter}
+                className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                  (f === "all" && !currentFlow) || currentFlow === f
+                    ? "border-zinc-600 bg-zinc-700 text-white"
+                    : "border-border text-muted-foreground hover:border-zinc-400 hover:text-foreground"
+                }`}
+              >
+                {f === "all" ? "All flows" : f}
+              </Link>
+            ))}
+          </div>
         </div>
         <Button
           size="sm"

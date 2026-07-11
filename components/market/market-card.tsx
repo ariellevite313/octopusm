@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useIsMarketLive, MarketCountdownBadge } from "./market-countdown";
+import { MarketCountdownBadge } from "./market-countdown";
 import { useFakeLiveBets, FakeBetOverlay } from "./market-fake-bets";
 import { parseMarketOptions, type MarketVolumes } from "@/lib/market/utils";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
@@ -12,13 +12,13 @@ type Props = {
 };
 
 export function MarketCard({ market, volumes }: Props) {
-  const isLive = useIsMarketLive(market.event_start_at);
   const options = parseMarketOptions(market.options);
   const vol = volumes?.[market.id];
-  const fakeBets = useFakeLiveBets(options.length, isLive);
+  const fakeBets = useFakeLiveBets(options.length, false);
+  const href = `/prediction/${market.slug ?? market.id}`;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none dark:border-orange-900/30 dark:bg-orange-950/5">
+    <Link href={href} className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5">
       <div className="space-y-4 p-5">
 
         {/* Header */}
@@ -77,29 +77,11 @@ export function MarketCard({ market, volumes }: Props) {
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3">
-          {market.category_id === "sports" ? (
+        {market.category_id === "sports" && (
+          <div className="flex items-center">
             <img src="/fifa-logo.png" alt="FIFA" className="size-16 shrink-0 object-contain dark:opacity-80" />
-          ) : (
-            <span />
-          )}
-          {isLive ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-400">
-              <span className="relative flex size-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-              </span>
-              Event in progress
-            </span>
-          ) : (
-            <Link
-              href={`/prediction/${market.slug ?? market.id}`}
-              className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-400"
-            >
-              Predict
-            </Link>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Volume */}
         {vol && (vol.usdc > 0 || vol.clt > 0) && (
@@ -113,7 +95,7 @@ export function MarketCard({ market, volumes }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 

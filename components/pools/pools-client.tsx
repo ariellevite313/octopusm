@@ -36,8 +36,9 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
   const decimals = market.bet_token === "usdc" ? 2 : 0;
   const isActive = market.status === "active";
 
+  const href = `/pools/${market.slug}`;
   return (
-    <div className="overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none dark:border-orange-900/30 dark:bg-orange-950/5">
+    <Link href={href} className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5">
       <div className="space-y-4 p-5">
 
         {/* Header */}
@@ -100,7 +101,7 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
             💰 <span className="font-semibold text-zinc-700 dark:text-zinc-300">
               {pool.toFixed(decimals)} {tokenLabel(market.bet_token)}
             </span>
-            <span className="ml-1 text-zinc-400">· {market.bet_count} bets</span>
+            <span className="ml-1 text-zinc-400">· {market.bet_count} predictions</span>
           </span>
           <div className="flex items-center gap-2">
             {isActive && (
@@ -109,16 +110,11 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
                 {timeLeft(market.betting_closes_at)}
               </span>
             )}
-            <Link
-              href={`/pools/${market.slug}`}
-              className="rounded-full bg-orange-500 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orange-400"
-            >
-              {isActive ? "Predict" : "View"}
-            </Link>
+
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -163,7 +159,7 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Prediction Pools</h1>
+        <h1 className="text-2xl font-bold text-foreground">PrediMarket</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Community-created pari-mutuel markets — odds update in real time.
         </p>

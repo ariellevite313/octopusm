@@ -37,13 +37,29 @@ export function useAuth() {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
+const LS_WALLET_TYPE_KEY = "octo_wallet_type";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [walletType, setWalletType] = useState<WalletType | null>(null);
+  const [walletType, setWalletTypeState] = useState<WalletType | null>(() => {
+    if (typeof window === "undefined") return null;
+    return (localStorage.getItem(LS_WALLET_TYPE_KEY) as WalletType | null) ?? null;
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const supabase = createClient();
+
+  const setWalletType = useCallback((type: WalletType | null) => {
+    setWalletTypeState(type);
+    if (typeof window !== "undefined") {
+      if (type) {
+        localStorage.setItem(LS_WALLET_TYPE_KEY, type);
+      } else {
+        localStorage.removeItem(LS_WALLET_TYPE_KEY);
+      }
+    }
+  }, []);
 
   const checkAdmin = useCallback(async () => {
     const admin = await isAdminWallet();
@@ -57,6 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (address) {
         setWalletAddress(address);
         void checkAdmin();
+      } else {
+        // No session — clear persisted wallet type
+        setWalletType(null);
       }
       setIsLoading(false);
     });
@@ -71,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setWalletAddress(null);
           setIsAdmin(false);
+          setWalletType(null);
         }
       }
     );

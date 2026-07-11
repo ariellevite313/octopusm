@@ -11,11 +11,13 @@ export const metadata: Metadata = {
     description: "Top OCTO holders ranked by winnings on Solana prediction markets.",
     url: "/leaderboard",
     type: "website",
+    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "Octo Market" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Octo Market — Leaderboard",
     description: "Top OCTO holders ranked by winnings.",
+    images: ["/branding-logo.jpeg"],
   },
 };
 

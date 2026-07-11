@@ -73,11 +73,26 @@ export async function POST(req: Request) {
     const { outcomeId } = body;
     if (!marketId || !outcomeId)
       return NextResponse.json({ error: "marketId and outcomeId required" }, { status: 400 });
-      const { error } = await (supabase as any)
+
+    const now = new Date().toISOString();
+    const admin = (await import("@/lib/supabase/server")).createAdminClient() as any;
+
+    // 1. Mark the market as resolved
+    const { error: marketErr } = await admin
       .from("prediction_markets")
-      .update({ is_resolved: true, resolution_outcome_id: outcomeId, resolved_at: new Date().toISOString() })
+      .update({ is_resolved: true, resolution_outcome_id: outcomeId, resolved_at: now })
       .eq("id", marketId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (marketErr) return NextResponse.json({ error: marketErr.message }, { status: 500 });
+
+    // 2. Propagate outcome to all approved prediction_history rows for this market
+    //    This makes result_status compute correctly (win/lose) in the view
+    const { error: histErr } = await admin
+      .from("prediction_history")
+      .update({ resolution_outcome_id: outcomeId, resolved_at: now })
+      .eq("market_id", marketId)
+      .not("admin_decision_status", "eq", "rejected");
+    if (histErr) console.error("[resolve] prediction_history update:", histErr.message);
+
     return NextResponse.json({ ok: true });
   }
 

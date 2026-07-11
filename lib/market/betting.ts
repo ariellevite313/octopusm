@@ -3,8 +3,7 @@
  * No server imports — safe to import from "use client" components.
  */
 
-import { createClient } from "@/lib/supabase/client";
-import type { WalletType } from "@/lib/wallet/adapters";
+import type { WalletType, SolanaProvider } from "@/lib/wallet/adapters";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -182,10 +181,23 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
   } = params;
 
   // 1. Grab wallet provider
-  const { getProviderByType } = await import("@/lib/wallet/adapters");
-  const provider = getProviderByType(walletType);
+  const adapters = await import("@/lib/wallet/adapters");
+  let provider = adapters.getProviderByType(walletType);
+
+  // Fallback: if walletType lookup fails, try window.solana (injected by most wallets)
+  if (!provider && typeof window !== "undefined") {
+    const w = window as unknown as { solana?: SolanaProvider };
+    const s = w.solana;
+    if (s && (s.signAndSendTransaction || s.signTransaction)) {
+      provider = s;
+    }
+  }
+
   if (!provider?.signAndSendTransaction && !provider?.signTransaction) {
-    return { success: false, error: "Wallet is not connected or does not support transactions." };
+    return {
+      success: false,
+      error: "Wallet not found. Please disconnect and reconnect your wallet, then try again.",
+    };
   }
 
   const { reserveFee, totalCharged } = computeReward(amount, optionMultiplier);
@@ -275,31 +287,34 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
     return { success: false, error: msg };
   }
 
-  // 5. Persist to Supabase payments table (admin reviews -> creates prediction_history)
-  const supabase = createClient();
-
-  const { error: dbError } = await supabase.from("payments").insert({
-    payment_request_id: `req-${Date.now().toString(36)}`,
-    payment_reference:  reference,
-    flow:               "prediction",
-    title:              marketTitle,
-    subtitle:           optionLabel,
-    category_label:     categoryId,
-    market_id:          marketId,
-    selection_id:       optionId,
-    selection_label:    optionLabel,
-    user_wallet:        walletAddress,
-    recipient_wallet:   TREASURY_ADDRESS,
-    amount_usdc:        token === "usdc" ? amount : 0,
-    reserve_fee_usdc:   token === "usdc" ? reserveFee : 0,
-    total_paid_usdc:    token === "usdc" ? totalCharged : 0,
-    token,
-    status:             "pending",
-  } as any);
-
-  if (dbError) {
-    // On-chain tx succeeded — log but do not surface to user (admin can reconcile)
-    console.error("[betting] payments insert:", dbError.message);
+  // 5. Persist via server route (bypasses RLS — admin reviews -> creates prediction_history)
+  try {
+    const res = await fetch("/api/markets/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        payment_request_id: `req-${Date.now().toString(36)}`,
+        payment_reference:  reference,
+        title:              marketTitle,
+        subtitle:           optionLabel,
+        category_label:     categoryId,
+        market_id:          marketId,
+        selection_id:       optionId,
+        selection_label:    optionLabel,
+        amount_usdc:        token === "usdc" ? amount : 0,
+        reserve_fee_usdc:   token === "usdc" ? reserveFee : 0,
+        total_paid_usdc:    token === "usdc" ? totalCharged : 0,
+        token,
+        tx_signature:       signature,
+        wallet_address:     walletAddress,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json() as { error?: string };
+      console.error("[betting] predict API:", body.error);
+    }
+  } catch (e) {
+    console.error("[betting] predict API fetch:", e);
   }
 
   // 6. Fire-and-forget OCTO credit (USDC only — CLT credited on admin approval)

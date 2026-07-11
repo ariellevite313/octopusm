@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://octomarket.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://octomarket.fun";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

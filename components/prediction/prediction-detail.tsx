@@ -22,6 +22,24 @@ import {
 import type { PredictionMarketRow, MarketCommentEnriched } from "@/lib/supabase/types";
 import type { WalletType } from "@/lib/wallet/adapters";
 import type { MarketVolumeDetail } from "@/services/prediction-service";
+import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+
+// ─── Option Colors ────────────────────────────────────────────────────────────────────
+
+const OPTION_COLORS = [
+  { bar: "bg-blue-500",   border: "border-blue-500",   bg: "bg-blue-500",   text: "text-white", probText: "text-blue-100",   volText: "text-blue-200",   barBg: "bg-blue-400/40",   barFill: "bg-white/70", idle: "border-blue-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/40 dark:bg-zinc-900 dark:hover:border-blue-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-red-500",    border: "border-red-500",    bg: "bg-red-500",    text: "text-white", probText: "text-red-100",    volText: "text-red-200",    barBg: "bg-red-400/40",    barFill: "bg-white/70", idle: "border-red-200 bg-white hover:border-red-300 hover:bg-red-50 dark:border-red-900/40 dark:bg-zinc-900 dark:hover:border-red-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-green-500",  border: "border-green-500",  bg: "bg-green-500",  text: "text-white", probText: "text-green-100",  volText: "text-green-200",  barBg: "bg-green-400/40",  barFill: "bg-white/70", idle: "border-green-200 bg-white hover:border-green-300 hover:bg-green-50 dark:border-green-900/40 dark:bg-zinc-900 dark:hover:border-green-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-orange-500", border: "border-orange-500", bg: "bg-orange-500", text: "text-white", probText: "text-orange-100", volText: "text-orange-200", barBg: "bg-orange-400/40", barFill: "bg-white/70", idle: "border-orange-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-orange-900/40 dark:bg-zinc-900 dark:hover:border-orange-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-purple-500", border: "border-purple-500", bg: "bg-purple-500", text: "text-white", probText: "text-purple-100", volText: "text-purple-200", barBg: "bg-purple-400/40", barFill: "bg-white/70", idle: "border-purple-200 bg-white hover:border-purple-300 hover:bg-purple-50 dark:border-purple-900/40 dark:bg-zinc-900 dark:hover:border-purple-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-yellow-500", border: "border-yellow-500", bg: "bg-yellow-500", text: "text-white", probText: "text-yellow-100", volText: "text-yellow-200", barBg: "bg-yellow-400/40", barFill: "bg-white/70", idle: "border-yellow-200 bg-white hover:border-yellow-300 hover:bg-yellow-50 dark:border-yellow-900/40 dark:bg-zinc-900 dark:hover:border-yellow-700/60 dark:hover:bg-zinc-800" },
+];
+function optionColor(index: number, label?: string) {
+  const l = label?.trim().toLowerCase();
+  if (l === "yes") return OPTION_COLORS[2]; // green
+  if (l === "no")  return OPTION_COLORS[1]; // red
+  return OPTION_COLORS[index % OPTION_COLORS.length];
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────────────
 
@@ -210,7 +228,7 @@ function SuccessBanner({ reference }: { reference: string }) {
           </svg>
         </span>
       </div>
-      <p className="text-base font-semibold text-emerald-900 dark:text-emerald-300">Bet submitted!</p>
+      <p className="text-base font-semibold text-emerald-900 dark:text-emerald-300">Prediction submitted!</p>
       <p className="text-sm text-emerald-700 dark:text-emerald-400">
         Your prediction is pending admin review. You&apos;ll be credited once confirmed.
       </p>
@@ -335,10 +353,11 @@ function CommentItem({
       <div className="flex gap-3">
         <CommentAvatar user={comment} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2 mb-0.5">
+          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
               {comment.username ?? shortAddr(comment.wallet_address)}
             </span>
+            {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
             <span className="text-xs text-muted-foreground">{timeAgo(comment.created_at)}</span>
           </div>
           <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">
@@ -382,10 +401,11 @@ function CommentItem({
             <div key={reply.id} className="flex gap-3">
               <CommentAvatar user={reply} size="sm" />
               <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 mb-0.5">
+                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                   <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                     {reply.username ?? shortAddr(reply.wallet_address)}
                   </span>
+                  {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
                   <span className="text-xs text-muted-foreground">{timeAgo(reply.created_at)}</span>
                 </div>
                 <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">
@@ -511,15 +531,15 @@ function CommentsSection({
       const res  = await fetch(`/api/markets/${marketId}/comments`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ content: trimmed }),
+        body:    JSON.stringify({ content: trimmed, wallet_address: walletAddress }),
       });
-      const data = await res.json() as MarketCommentEnriched;
-      if (!res.ok) throw new Error();
+      const data = await res.json() as MarketCommentEnriched & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       const enriched: MarketCommentEnriched = { ...data, like_count: 0, liked_by_me: false, replies: [] };
       setComments((prev) => [enriched, ...prev]);
       setText("");
-    } catch {
-      toast.error("Failed to post comment");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to post comment");
     } finally {
       setPosting(false);
     }
@@ -576,7 +596,7 @@ function CommentsSection({
     const res = await fetch(`/api/markets/${marketId}/comments`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ content, parent_id: parentId }),
+      body:    JSON.stringify({ content, parent_id: parentId, wallet_address: walletAddress }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Error");
@@ -827,6 +847,7 @@ export function PredictionDetail({
                 const prob        = probs[idx];
                 const optVol      = volumeDetail.byOption[opt.id];
                 const optVolLabel = optVol ? fmtVol(optVol.usdc, optVol.clt) : null;
+                const color       = optionColor(idx, opt.label);
                 return (
                   <button
                     key={opt.id}
@@ -836,8 +857,8 @@ export function PredictionDetail({
                       "flex flex-col gap-1.5 rounded-2xl border px-3 py-3 text-left transition-all",
                       options.length === 3 ? "min-w-[130px] shrink-0 sm:min-w-0 sm:shrink" : "",
                       isSelected
-                        ? "border-orange-500 bg-orange-500 shadow-md"
-                        : "border-orange-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-orange-900/40 dark:bg-zinc-900 dark:hover:border-orange-700/60 dark:hover:bg-zinc-800",
+                        ? `${color.border} ${color.bg} shadow-md`
+                        : color.idle,
                     ].join(" ")}
                   >
                     {/* Logo + multiplier */}
@@ -852,29 +873,29 @@ export function PredictionDetail({
                       ) : (
                         <span className="size-5 shrink-0" />
                       )}
-                      <span className={`shrink-0 text-sm font-bold ${isSelected ? "text-white" : "text-zinc-900 dark:text-zinc-100"}`}>
-                        ×{opt.oddsMultiplier}
+                      <span className={`shrink-0 text-sm font-bold ${isSelected ? color.text : "text-zinc-900 dark:text-zinc-100"}`}>
+                        x{opt.oddsMultiplier}
                       </span>
                     </div>
                     {/* Label */}
-                    <span className={`line-clamp-2 text-xs font-semibold leading-tight ${isSelected ? "text-white" : "text-zinc-800 dark:text-zinc-200"}`}>
+                    <span className={`line-clamp-2 text-xs font-semibold leading-tight ${isSelected ? color.text : "text-zinc-800 dark:text-zinc-200"}`}>
                       {opt.label}
                     </span>
                     {/* Probability % */}
                     <div className="flex items-center justify-between gap-1 mt-0.5">
-                      <span className={`text-xs font-bold ${isSelected ? "text-orange-100" : "text-orange-600 dark:text-orange-400"}`}>
+                      <span className={`text-xs font-bold ${isSelected ? color.probText : "text-zinc-600 dark:text-zinc-400"}`}>
                         {prob}%
                       </span>
                       {optVolLabel && (
-                        <span className={`text-[10px] truncate ${isSelected ? "text-orange-200" : "text-zinc-400 dark:text-zinc-500"}`}>
+                        <span className={`text-[10px] truncate ${isSelected ? color.volText : "text-zinc-400 dark:text-zinc-500"}`}>
                           {optVolLabel}
                         </span>
                       )}
                     </div>
                     {/* Probability bar */}
-                    <div className={`h-1 w-full rounded-full overflow-hidden ${isSelected ? "bg-orange-400/40" : "bg-orange-100 dark:bg-orange-950/40"}`}>
+                    <div className={`h-1 w-full rounded-full overflow-hidden ${isSelected ? color.barBg : "bg-zinc-100 dark:bg-zinc-800"}`}>
                       <div
-                        className={`h-full rounded-full transition-all ${isSelected ? "bg-white/70" : "bg-orange-400 dark:bg-orange-500"}`}
+                        className={`h-full rounded-full transition-all ${isSelected ? color.barFill : color.bar}`}
                         style={{ width: `${prob}%` }}
                       />
                     </div>
