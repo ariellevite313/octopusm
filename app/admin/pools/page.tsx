@@ -1,46 +1,42 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { MutuelMarketRow } from "@/lib/supabase/types";
+import type { MutuelMarketRow } from "@/lib/supabase/types";
 import { AdminPoolsClient } from "@/components/admin/admin-pools-client";
 
+export const metadata: Metadata = { title: "Pools -- Admin" };
 export const revalidate = 0;
 
-async function getPools(status: string): Promise<MutuelMarketRow[]> {
-  const admin = createAdminClient() as any;
-  const { data } = await admin
-    .from("mutuel_markets")
-    .select("*")
-    .eq("status", status)
-    .order("created_at", { ascending: false });
-  return (data ?? []).map((m: MutuelMarketRow) => ({
-    ...m,
-    options: typeof m.options === "string" ? JSON.parse(m.options) : m.options,
-  }));
-}
-
 export default async function AdminPoolsPage() {
-  // Guard: must be admin
   const supabase = await createClient();
   const { data: isAdmin } = await (supabase as any).rpc("is_admin");
   if (!isAdmin) redirect("/");
 
-  const [pending, active, closed, resolved, rejected, cancelled] = await Promise.all([
-    getPools("pending"),
-    getPools("active"),
-    getPools("closed"),
-    getPools("resolved"),
-    getPools("rejected"),
-    getPools("cancelled"),
-  ]);
+  const admin = createAdminClient() as any;
+  const { data } = await admin
+    .from("mutuel_markets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const pools: MutuelMarketRow[] = (data ?? []).map((m: MutuelMarketRow) => ({
+    ...m,
+    options: typeof m.options === "string" ? JSON.parse(m.options) : m.options,
+  }));
+
+  const pendingCount = pools.filter((p) => p.status === "pending").length;
+  const activeCount  = pools.filter((p) => p.status === "active").length;
 
   return (
-    <AdminPoolsClient
-      initialPending={pending}
-      initialActive={active}
-      initialClosed={closed}
-      initialResolved={resolved}
-      initialRejected={rejected}
-      initialCancelled={cancelled}
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold">PrediMarket Pools</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {pools.length} total
+          {pendingCount > 0 && ` · ${pendingCount} pending approval`}
+          {activeCount > 0 && ` · ${activeCount} active`}
+        </p>
+      </div>
+      <AdminPoolsClient pools={pools} />
+    </div>
   );
 }

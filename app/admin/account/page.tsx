@@ -77,7 +77,7 @@ export default async function AdminAccountPage() {
         />
       </section>
 
-      <BetHistory bets={data.bets} />
+      <BetHistory bets={data.bets} walletAddress={wallet} />
       <TasksSection tasks={data.tasks} walletAddress={wallet} />
       <ReferralSection
         referralCode={data.referralCode}

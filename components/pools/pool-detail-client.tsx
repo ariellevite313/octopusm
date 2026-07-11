@@ -15,6 +15,23 @@ import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { toast } from "sonner";
 
+// ─── Option color palette ─────────────────────────────────────────────────────
+// Used for progress bars and selected-option highlights (cycles through options)
+const OPTION_COLORS = [
+  { bar: "bg-blue-500",   selected: "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400",   hover: "hover:border-blue-300",   winner: "text-blue-600 dark:text-blue-400" },
+  { bar: "bg-red-500",    selected: "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400",       hover: "hover:border-red-300",    winner: "text-red-600 dark:text-red-400" },
+  { bar: "bg-green-500",  selected: "border-green-500 bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400", hover: "hover:border-green-300",  winner: "text-green-600 dark:text-green-400" },
+  { bar: "bg-orange-500", selected: "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-400", hover: "hover:border-orange-300", winner: "text-orange-600 dark:text-orange-400" },
+  { bar: "bg-purple-500", selected: "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/20 dark:text-purple-400", hover: "hover:border-purple-300", winner: "text-purple-600 dark:text-purple-400" },
+  { bar: "bg-yellow-500", selected: "border-yellow-500 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-400", hover: "hover:border-yellow-300", winner: "text-yellow-600 dark:text-yellow-400" },
+];
+function optionColor(index: number, label?: string) {
+  const l = label?.trim().toLowerCase();
+  if (l === "yes") return OPTION_COLORS[2]; // green
+  if (l === "no")  return OPTION_COLORS[1]; // red
+  return OPTION_COLORS[index % OPTION_COLORS.length];
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 interface RawBet {
@@ -124,6 +141,8 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
     if (!selectedOption) { setError("Select an option."); return; }
     const numAmt = parseFloat(amount);
     if (!numAmt || numAmt <= 0) { setError("Enter a valid amount."); return; }
+    const minAmt = token === "usdc" ? 2 : 500_000;
+    if (numAmt < minAmt) { setError(`Minimum stake is ${token === "usdc" ? "2 USDC" : "500,000 ClawdTrust"}.`); return; }
 
     const opt = options.find(o => o.id === selectedOption);
     if (!opt) return;
@@ -199,22 +218,25 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       </p>
 
       <div className="mb-4 flex flex-col gap-2">
-        {options.map(opt => (
-          <button
-            key={opt.id}
-            type="button"
-            disabled={isBusy}
-            onClick={() => { setSelectedOption(opt.id); setError(null); }}
-            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed ${
-              selectedOption === opt.id
-                ? "border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400"
-                : "border-border text-foreground hover:border-orange-300"
-            }`}
-          >
-            <span>{opt.label}</span>
-            <span className="text-xs text-muted-foreground tabular-nums">{pcts[opt.id]}%</span>
-          </button>
-        ))}
+        {options.map((opt, idx) => {
+          const col = optionColor(idx, opt.label);
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              disabled={isBusy}
+              onClick={() => { setSelectedOption(opt.id); setError(null); }}
+              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed ${
+                selectedOption === opt.id
+                  ? col.selected
+                  : `border-border text-foreground ${col.hover}`
+              }`}
+            >
+              <span>{opt.label}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{pcts[opt.id]}%</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="mb-4">
@@ -322,7 +344,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        All Pools
+        All PrediMarkets
       </Link>
 
       <div className="mb-2 flex items-start gap-3">
@@ -391,12 +413,13 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
       {/* Odds bars */}
       <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">Live Odds</h2>
-        {options.map(opt => {
+        {options.map((opt, idx) => {
           const isWinner = market.status === "resolved" && market.winning_option_id === opt.id;
+          const col = optionColor(idx, opt.label);
           return (
             <div key={opt.id} className={`flex flex-col gap-1 ${market.status === "resolved" && !isWinner ? "opacity-50" : ""}`}>
               <div className="flex justify-between text-sm">
-                <span className={`font-medium ${isWinner ? "font-bold text-orange-600 dark:text-orange-400" : "text-foreground"}`}>
+                <span className={`font-medium ${isWinner ? `font-bold ${col.winner}` : "text-foreground"}`}>
                   {opt.label} {isWinner && "🏆"}
                 </span>
                 <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
@@ -407,7 +430,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className={`h-full rounded-full transition-all duration-700 ${isWinner ? "bg-orange-500" : "bg-primary/70"}`}
+                  className={`h-full rounded-full transition-all duration-700 ${col.bar}`}
                   style={{ width: `${pcts[opt.id]}%` }}
                 />
               </div>

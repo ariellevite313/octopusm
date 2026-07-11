@@ -24,7 +24,7 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  // 2. Pending payments (not yet validated by admin)
+  // 2. Pending pool payments (not yet validated by admin)
   const { data: pending } = await admin
     .from("payments")
     .select("id, market_id, selection_id, selection_label, amount_usdc, token, created_at")
@@ -34,8 +34,19 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  // 3. Pending prediction market payments (not yet validated by admin)
+  const { data: pendingPredictions } = await admin
+    .from("payments")
+    .select("id, market_id, selection_id, selection_label, amount_usdc, token, title, created_at")
+    .eq("user_wallet", wallet)
+    .eq("flow", "prediction")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
   return NextResponse.json({
-    bets:    bets    ?? [],
-    pending: pending ?? [],
+    bets:               bets               ?? [],
+    pending:            pending            ?? [],
+    pendingPredictions: pendingPredictions ?? [],
   });
 }

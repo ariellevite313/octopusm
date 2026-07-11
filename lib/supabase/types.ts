@@ -122,6 +122,7 @@ export interface MarketCommentLikeRow {
 export interface MarketCommentEnriched extends MarketCommentRow {
   like_count: number;
   liked_by_me: boolean;
+  octo_balance: number;
   replies: MarketCommentEnriched[];
 }
 

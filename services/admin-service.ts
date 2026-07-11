@@ -28,35 +28,64 @@ export async function getAllMarkets(): Promise<PredictionMarketRow[]> {
   return data ?? [];
 }
 
-// ─── Payments ─────────────────────────────────────────────────────────────────
+// ─── Payments (claims only) ───────────────────────────────────────────────────
 
 export async function getAllPayments(
-  status?: "pending" | "approved" | "rejected"
+  status?: "pending" | "approved" | "rejected",
+  flow?: "claim" | "launch" | "listing"
 ): Promise<PaymentRow[]> {
   const supabase = await createClient();
-  let query = supabase
+  // Only show claim/launch/listing flows — prediction bets go to /admin/bets
+  let query = (supabase as any)
     .from("payments")
     .select("*")
+    .not("flow", "in", '("prediction","pool_prediction")')
     .order("created_at", { ascending: false });
   if (status) query = query.eq("status", status);
+  if (flow) query = query.eq("flow", flow);
   const { data, error } = await query;
   if (error) { console.error("[admin] getAllPayments:", error.message); return []; }
   return data ?? [];
 }
 
-// ─── Bets (prediction_history) ────────────────────────────────────────────────
+export async function getPendingPaymentsCount(): Promise<number> {
+  const supabase = await createClient();
+  const { data, error } = await (supabase as any)
+    .from("payments")
+    .select("id")
+    .eq("status", "pending")
+    .not("flow", "in", '("prediction","pool_prediction")');
+  if (error) return 0;
+  return (data ?? []).length;
+}
+
+// ─── Pending bets (prediction markets + pools) ────────────────────────────────
 
 export type BetWithStatus = PredictionHistoryRow & { result_status: PredictionResultStatus };
 
-export async function getPendingBets(): Promise<BetWithStatus[]> {
+/** Pending prediction market payments (not yet turned into prediction_history rows) */
+export async function getPendingPredictionPayments(): Promise<PaymentRow[]> {
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
-    .from("prediction_history_with_status")
+    .from("payments")
     .select("*")
-    .eq("result_status", "pending_review")
+    .eq("flow", "prediction")
+    .eq("status", "pending")
     .order("created_at", { ascending: false });
-  if (error) { console.error("[admin] getPendingBets:", error.message); return []; }
+  if (error) { console.error("[admin] getPendingPredictionPayments:", error.message); return []; }
+  return data ?? [];
+}
+
+/** Pending pool prediction payments (not yet turned into mutuel_bets rows) */
+export async function getPendingPoolPayments(): Promise<PaymentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await (supabase as any)
+    .from("payments")
+    .select("*")
+    .eq("flow", "pool_prediction")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("[admin] getPendingPoolPayments:", error.message); return []; }
   return data ?? [];
 }
 
@@ -85,7 +114,6 @@ export async function getAllTasks(): Promise<TaskRow[]> {
   return data ?? [];
 }
 
-
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 export interface AdminStats {
@@ -103,13 +131,16 @@ export interface AdminStats {
 export async function getAdminStats(): Promise<AdminStats> {
   const supabase = await createClient();
 
-  const [markets, payments, launches, bets, pools] = await Promise.all([
+  const [markets, payments, launches, predPending, poolPending, pools] = await Promise.all([
     supabase.from("prediction_markets").select("is_resolved, is_active"),
-    supabase.from("payments").select("status"),
+    (supabase as any)
+      .from("payments")
+      .select("status")
+      .not("flow", "in", '("prediction","pool_prediction")'),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from("token_launches").select("status"),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("prediction_history_with_status").select("result_status").eq("result_status", "pending_review"),
+    (supabase as any).from("payments").select("id").eq("flow", "prediction").eq("status", "pending"),
+    (supabase as any).from("payments").select("id").eq("flow", "pool_prediction").eq("status", "pending"),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from("mutuel_markets").select("status"),
   ]);
@@ -125,14 +156,14 @@ export async function getAdminStats(): Promise<AdminStats> {
 
   return {
     totalMarkets: marketRows.length,
-    activeMarkets: marketRows.filter((m) => m.is_active && !m.is_resolved).length,
-    resolvedMarkets: marketRows.filter((m) => m.is_resolved).length,
-    pendingPayments: paymentRows.filter((p) => p.status === "pending").length,
+    activeMarkets: marketRows.filter((m: any) => m.is_active && !m.is_resolved).length,
+    resolvedMarkets: marketRows.filter((m: any) => m.is_resolved).length,
+    pendingPayments: paymentRows.filter((p: any) => p.status === "pending").length,
     totalPayments: paymentRows.length,
-    pendingLaunches: launchRows.filter((l) => l.status === "pending").length,
-    pendingBets: bets.data?.length ?? 0,
-    pendingPools: poolRows.filter((p) => p.status === "pending").length,
-    activePools: poolRows.filter((p) => p.status === "active").length,
+    pendingLaunches: launchRows.filter((l: any) => l.status === "pending").length,
+    pendingBets: (predPending.data ?? []).length,
+    pendingPools: (poolPending.data ?? []).length,
+    activePools: poolRows.filter((p: any) => p.status === "active").length,
   };
 }
 

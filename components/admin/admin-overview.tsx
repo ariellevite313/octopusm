@@ -31,12 +31,12 @@ export async function AdminOverview() {
       color: stats.pendingLaunches > 0 ? "text-orange-500" : "text-emerald-500",
     },
     {
-      label: "Pools to approve",
-      value: stats.pendingPools,
-      sub: `${stats.activePools} active pools`,
-      href: "/admin/pools",
+      label: "Predictions to validate",
+      value: stats.pendingBets + stats.pendingPools,
+      sub: `${stats.pendingBets} markets · ${stats.pendingPools} pools`,
+      href: "/admin/bets",
       icon: Layers,
-      color: stats.pendingPools > 0 ? "text-orange-500" : "text-emerald-500",
+      color: (stats.pendingBets + stats.pendingPools) > 0 ? "text-orange-500" : "text-emerald-500",
     },
   ];
 

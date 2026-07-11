@@ -97,6 +97,7 @@ async function getInitialComments(marketId: string, wallet: string | null): Prom
       like_count:     c.like_count as number,
       created_at:     c.created_at as string,
       liked_by_me:    likedSet.has(c.id as string),
+      octo_balance:   0,
       replies:        [],
     };
     byId[enriched.id] = enriched;

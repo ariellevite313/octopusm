@@ -1,60 +1,62 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: marketId } = await params;
-  const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
 
-  // Auth check
-  const { data: walletData } = await supabase.rpc("get_wallet_address");
-  if (!walletData) {
+  if (!marketId || marketId.length < 3)
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  const body = await req.json() as { content?: string; parent_id?: string; wallet_address?: string };
+  const content       = (body.content ?? "").trim();
+  const parent_id     = body.parent_id ?? null;
+  const walletAddress = body.wallet_address ?? null;
+
+  if (!walletAddress)
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
 
-  const body = await req.json() as { content?: string; parent_id?: string };
-  const content = (body.content ?? "").trim();
-  const parent_id = body.parent_id ?? null;
-
-  if (!content || content.length < 1 || content.length > 1000) {
+  if (!content || content.length < 1 || content.length > 1000)
     return NextResponse.json({ error: "Content must be 1-1000 characters" }, { status: 400 });
-  }
+
+  const admin = createAdminClient() as any;
 
   // If replying, verify the parent comment belongs to this market
   if (parent_id) {
-    const parentRes = await db
+    if (!UUID_RE.test(parent_id))
+      return NextResponse.json({ error: "Invalid parent_id" }, { status: 400 });
+
+    const parentRes = await admin
       .from("market_comments")
       .select("id, market_id, parent_id")
       .eq("id", parent_id)
       .maybeSingle();
     const parent = parentRes.data as { id: string; market_id: string; parent_id: string | null } | null;
 
-    if (!parent || parent.market_id !== marketId) {
+    if (!parent || parent.market_id !== marketId)
       return NextResponse.json({ error: "Invalid parent comment" }, { status: 400 });
-    }
-    if (parent.parent_id) {
+    if (parent.parent_id)
       return NextResponse.json({ error: "Cannot reply to a reply" }, { status: 400 });
-    }
   }
 
   // Fetch username + avatar for denormalization
-  const walletRes = await db
+  const walletRes = await admin
     .from("wallets")
     .select("username, avatar_src")
-    .eq("address", walletData)
+    .eq("address", walletAddress)
     .maybeSingle();
   const wallet = walletRes.data as { username: string | null; avatar_src: string | null } | null;
 
-  const insertRes = await db
+  const insertRes = await admin
     .from("market_comments")
     .insert({
       market_id:      marketId,
       parent_id:      parent_id,
-      wallet_address: walletData,
+      wallet_address: walletAddress,
       username:       wallet?.username ?? null,
       avatar_src:     wallet?.avatar_src ?? null,
       content,
@@ -64,8 +66,16 @@ export async function POST(
 
   if (insertRes.error) {
     console.error("[comments] insert:", insertRes.error.message);
-    return NextResponse.json({ error: "Failed to post comment" }, { status: 500 });
+    return NextResponse.json({ error: insertRes.error.message }, { status: 500 });
   }
 
-  return NextResponse.json(insertRes.data, { status: 201 });
+  // Fetch octo_balance so the badge renders immediately without reload
+  const octoRes = await admin
+    .from("leaderboard_octo")
+    .select("total_octo")
+    .eq("wallet_address", walletAddress)
+    .maybeSingle();
+  const octo_balance: number = (octoRes.data as { total_octo: number | null } | null)?.total_octo ?? 0;
+
+  return NextResponse.json({ ...insertRes.data, octo_balance, like_count: 0, liked_by_me: false, replies: [] }, { status: 201 });
 }

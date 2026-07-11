@@ -162,11 +162,25 @@ export async function getMarketComments(marketId: string): Promise<MarketComment
     if (myWallet && like.wallet_address === myWallet) likedByMeSet.add(like.comment_id);
   }
 
+  // Fetch OCTO balances for all commenters from leaderboard_octo view
+  const uniqueWallets = [...new Set((comments as MarketCommentRow[]).map((c) => c.wallet_address))];
+  const octoMap: Record<string, number> = {};
+  if (uniqueWallets.length > 0) {
+    const { data: octoRows } = await (supabase as any)
+      .from("leaderboard_octo")
+      .select("wallet_address, total_octo")
+      .in("wallet_address", uniqueWallets);
+    for (const w of (octoRows ?? []) as { wallet_address: string; total_octo: number | null }[]) {
+      octoMap[w.wallet_address] = w.total_octo ?? 0;
+    }
+  }
+
   // Build enriched flat list
   const enriched: MarketCommentEnriched[] = (comments as MarketCommentRow[]).map((c) => ({
     ...c,
     like_count: likeCountMap[c.id] ?? 0,
     liked_by_me: likedByMeSet.has(c.id),
+    octo_balance: octoMap[c.wallet_address] ?? 0,
     replies: [],
   }));
 

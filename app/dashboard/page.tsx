@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/services/dashboard-service";
 import { TokenBalances } from "@/components/dashboard/token-balances";
@@ -9,8 +11,6 @@ import { TasksSection } from "@/components/dashboard/tasks-section";
 import { ReferralSection } from "@/components/dashboard/referral-section";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { MyPoolsSection } from "@/components/dashboard/my-pools-section";
-import { PoolWinningsSection } from "@/components/dashboard/pool-winnings-section";
-import { MyPoolBetsSection } from "@/components/dashboard/my-pool-bets-section";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -47,6 +47,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 space-y-6">
+
+      {/* Back to Home */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to Markets
+      </Link>
 
       {/* Identity */}
       <div className="flex items-center gap-4">
@@ -103,13 +112,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* Bet history */}
-      <BetHistory bets={data.bets} />
-
-      {/* Pool Winnings */}
-      <PoolWinningsSection walletAddress={wallet} />
-
-      {/* My Pool Bets */}
-      <MyPoolBetsSection walletAddress={wallet} />
+      <BetHistory bets={data.bets} walletAddress={wallet} />
 
       {/* My Pools */}
       <MyPoolsSection walletAddress={wallet} />
