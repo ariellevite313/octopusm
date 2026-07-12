@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -65,6 +66,8 @@ export async function POST(req: Request) {
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/");
+    revalidatePath("/archive");
     return NextResponse.json({ ok: true });
   }
 
@@ -92,7 +95,8 @@ export async function POST(req: Request) {
       .eq("market_id", marketId)
       .not("admin_decision_status", "eq", "rejected");
     if (histErr) console.error("[resolve] prediction_history update:", histErr.message);
-
+    revalidatePath("/");
+    revalidatePath("/archive");
     return NextResponse.json({ ok: true });
   }
 
@@ -105,6 +109,7 @@ export async function POST(req: Request) {
       .update({ is_active: isActive })
       .eq("id", marketId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/");
     return NextResponse.json({ ok: true });
   }
 
@@ -116,6 +121,7 @@ export async function POST(req: Request) {
       .delete()
       .eq("id", marketId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/");
     return NextResponse.json({ ok: true });
   }
 

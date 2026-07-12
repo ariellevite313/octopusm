@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
       .eq("id", marketId)
       .eq("status", "pending");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/pools");
     return NextResponse.json({ ok: true });
   }
 
@@ -59,6 +61,7 @@ export async function POST(req: Request) {
       .eq("id", marketId)
       .eq("status", "pending");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/pools");
     return NextResponse.json({ ok: true });
   }
 
@@ -184,6 +187,7 @@ export async function POST(req: Request) {
       });
     }
 
+    revalidatePath("/pools");
     return NextResponse.json({
       ok: true,
       refund: false,

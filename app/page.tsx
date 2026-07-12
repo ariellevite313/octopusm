@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getActiveMarkets, getMarketVolumes } from "@/services/prediction-service";
 import { MarketGrid } from "@/components/market/market-grid";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Prediction Markets",
