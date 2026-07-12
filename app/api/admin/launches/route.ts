@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase.rpc("is_admin");
-  return !!data;
-}
+import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/server";
 
 // POST /api/admin/launches  — update launch status
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const body = await req.json();
   const { launchId, status } = body;
@@ -18,7 +13,8 @@ export async function POST(req: Request) {
   if (!launchId || !["pending", "paid", "submitted", "rejected"].includes(status))
     return NextResponse.json({ error: "launchId and valid status required" }, { status: 400 });
 
-  const { error } = await (supabase as any)
+  const admin = createAdminClient() as any;
+  const { error } = await admin
     .from("token_launches")
     .update({ status })
     .eq("id", launchId);

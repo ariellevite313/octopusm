@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/server";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase.rpc("is_admin");
-  return !!data;
-}
 
 // POST /api/admin/tasks  — create or toggle a task
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const body = await req.json();
   const { action } = body;
@@ -20,7 +16,8 @@ export async function POST(req: Request) {
     if (!title || !rewardOcto || !taskType)
       return NextResponse.json({ error: "title, rewardOcto, taskType required" }, { status: 400 });
 
-    const { error } = await (supabase as any).from("tasks").insert({
+    const admin = createAdminClient() as any;
+    const { error } = await admin.from("tasks").insert({
       title,
       description: description ?? null,
       external_link: externalLink ?? null,
@@ -36,7 +33,8 @@ export async function POST(req: Request) {
   if (action === "toggle") {
     const { taskId, isActive } = body;
     if (!taskId) return NextResponse.json({ error: "taskId required" }, { status: 400 });
-    const { error } = await (supabase as any)
+    const admin = createAdminClient() as any;
+    const { error } = await admin
       .from("tasks")
       .update({ is_active: isActive })
       .eq("id", taskId);
@@ -47,7 +45,8 @@ export async function POST(req: Request) {
   if (action === "delete") {
     const { taskId } = body;
     if (!taskId) return NextResponse.json({ error: "taskId required" }, { status: 400 });
-    const { error } = await (supabase as any).from("tasks").delete().eq("id", taskId);
+    const admin = createAdminClient() as any;
+    const { error } = await admin.from("tasks").delete().eq("id", taskId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }

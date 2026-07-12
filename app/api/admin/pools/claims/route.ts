@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/server";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await (supabase as any).rpc("is_admin");
-  return !!data;
-}
 
 /**
  * GET /api/admin/pools/claims
@@ -12,9 +9,8 @@ async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
  * These are the winnings the user has requested — admin needs to send tokens.
  */
 export async function GET() {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const admin = createAdminClient() as any;
   const { data, error } = await admin
@@ -45,9 +41,8 @@ export async function GET() {
  * Marks a claimed bet as paid (admin confirms they sent the tokens).
  */
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const { betId, payout_tx } = await req.json();
   if (!betId) return NextResponse.json({ error: "betId required" }, { status: 400 });

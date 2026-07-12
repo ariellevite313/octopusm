@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { FEE_RATE, RESERVE_FEE_RATE, computeReward } from "@/lib/market/betting";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase.rpc("is_admin");
-  return !!data;
-}
-
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const { paymentId, action } = await req.json() as { paymentId: string; action: string };
 
@@ -31,6 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payment not found or already processed" }, { status: 404 });
 
   const now = new Date().toISOString();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const adminWallet = user?.user_metadata?.wallet_address ?? null;
 
@@ -74,7 +70,9 @@ export async function POST(req: Request) {
       .eq("id", payment.market_id)
       .maybeSingle();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const options: any[] = market?.options ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const option = options.find((o: any) => o.id === payment.selection_id);
     const multiplier = option?.multiplier ?? 2;
     const { reserveFee, totalCharged, grossReward, netReward } = computeReward(amount, multiplier);
@@ -114,7 +112,6 @@ export async function POST(req: Request) {
 
   // ── Pool prediction: create mutuel_bet (approved directly) ────────────────
   if (payment.flow === "pool_prediction" && payment.market_id && payment.selection_id) {
-    // Fetch market to validate
     const { data: market, error: mErr } = await admin
       .from("mutuel_markets")
       .select("id, status, options, bet_token, total_pool_usdc, total_pool_clt, bet_count")
@@ -134,7 +131,6 @@ export async function POST(req: Request) {
     const token: string = market.bet_token;
     const amount = Number(payment.amount_usdc);
 
-    // Check no existing approved bet for this tx
     const { data: existingBet } = await admin
       .from("mutuel_bets")
       .select("id")
@@ -143,7 +139,6 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (!existingBet) {
-      // Insert bet directly as approved
       const { error: betErr } = await admin.from("mutuel_bets").insert({
         market_id:      payment.market_id,
         wallet_address: payment.user_wallet,
@@ -155,7 +150,6 @@ export async function POST(req: Request) {
       });
       if (betErr) return NextResponse.json({ error: betErr.message }, { status: 500 });
 
-      // Atomically increment pool total
       const { error: rpcErr } = await admin.rpc("increment_pool_total", {
         p_market_id: payment.market_id,
         p_token:     token.toLowerCase(),
@@ -166,6 +160,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   }
+
+  // Suppress unused import warning
+  void RESERVE_FEE_RATE;
 
   return NextResponse.json({ ok: true });
 }

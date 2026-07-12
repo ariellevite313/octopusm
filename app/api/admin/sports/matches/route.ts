@@ -11,24 +11,15 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { getAllMatchesWithTeams } from "@/lib/worldcup/client";
+import { requireAdminApi } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   // ── Auth admin ────────────────────────────────────────────────────────────
-  const supabase = await createClient();
-
-  const { data: walletData } = await supabase.rpc("get_wallet_address");
-  if (!walletData) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin");
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   // ── Données des matchs ────────────────────────────────────────────────────
   const matches = await getAllMatchesWithTeams();

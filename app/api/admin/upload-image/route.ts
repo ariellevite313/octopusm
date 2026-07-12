@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
 
 export async function POST(req: Request) {
-  // Auth check — admin only
-  const supabase = await createClient();
-  const { data: isAdmin } = await supabase.rpc("is_admin");
-  if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;

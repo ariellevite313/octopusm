@@ -44,6 +44,7 @@ export async function middleware(request: NextRequest) {
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/";
+    redirectUrl.searchParams.set("returnTo", path);
     return NextResponse.redirect(redirectUrl);
   }
 

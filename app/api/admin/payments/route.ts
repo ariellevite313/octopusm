@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { FEE_RATE, RESERVE_FEE_RATE, computeReward } from "@/lib/market/betting";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase.rpc("is_admin");
-  return !!data;
-}
 
 async function handleManual(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -39,12 +36,12 @@ async function handleManual(
 }
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const body = await req.json() as Record<string, unknown>;
 
+  const supabase = await createClient();
   if (body.action === "manual") return handleManual(supabase, body);
 
   // approve / reject
