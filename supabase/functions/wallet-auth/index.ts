@@ -106,21 +106,14 @@ serve(async (req: Request) => {
         if (!r.data?.session) throw new Error(`Sign in failed: ${r.error?.message}`);
         session = r.data;
       } else {
-        // User existant avec ancien password → trouver + mettre à jour
-        let userId = "";
-        for (let page = 1; page <= 20 && !userId; page++) {
-          const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 50 });
-          if (!list?.users?.length) break;
-          // deno-lint-ignore no-explicit-any
-          const match = list.users.find((u: any) => u.email === fakeEmail);
-          if (match) userId = match.id;
-        }
-        if (!userId) throw new Error("Utilisateur introuvable.");
+        // User existant avec ancien password → recherche directe par email
+        const { data: found } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        // deno-lint-ignore no-explicit-any
+        const match = found?.users?.find((u: any) => u.email === fakeEmail);
+        if (!match) throw new Error("Utilisateur introuvable.");
 
-        // Mise à jour du password vers le nouveau schéma déterministe
-        await admin.auth.admin.updateUserById(userId, { password });
+        await admin.auth.admin.updateUserById(match.id, { password });
 
-        // Sign in avec le nouveau password
         const r = await anon.auth.signInWithPassword({ email: fakeEmail, password });
         if (!r.data?.session) throw new Error(`Sign in failed after update: ${r.error?.message}`);
         session = r.data;

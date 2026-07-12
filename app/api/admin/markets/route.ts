@@ -24,7 +24,6 @@ export async function POST(req: Request) {
       visual_type,
       resolution_label,
       resolution_criteria,
-      event_date_label,
       event_start_at,
       options,
       left_competitor_name,
@@ -52,7 +51,6 @@ export async function POST(req: Request) {
       visual_type: visual_type ?? "simple",
       resolution_label: resolution_label ?? title,
       resolution_criteria: resolution_criteria ?? null,
-      event_date_label: event_date_label ?? null,
       event_start_at: event_start_at ?? null,
       options: JSON.stringify(options ?? []),
       left_competitor_name: left_competitor_name ?? null,
@@ -116,12 +114,23 @@ export async function POST(req: Request) {
   // ── Delete ───────────────────────────────────────────────────────────────────
   if (action === "delete") {
     if (!marketId) return NextResponse.json({ error: "marketId required" }, { status: 400 });
-      const { error } = await (supabase as any)
-      .from("prediction_markets")
-      .delete()
-      .eq("id", marketId);
+    const admin = (await import("@/lib/supabase/server")).createAdminClient() as any;
+
+    // Delete dependent rows first to avoid FK constraint violations
+    // 1. Get comment IDs to delete their likes first
+    const { data: comments } = await admin.from("market_comments").select("id").eq("market_id", marketId);
+    if (comments?.length) {
+      const commentIds = comments.map((c: { id: string }) => c.id);
+      await admin.from("market_comment_likes").delete().in("comment_id", commentIds);
+    }
+    await admin.from("market_comments").delete().eq("market_id", marketId);
+    await admin.from("prediction_history").delete().eq("market_id", marketId);
+    await admin.from("payments").delete().eq("market_id", marketId);
+
+    const { error } = await admin.from("prediction_markets").delete().eq("id", marketId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     revalidatePath("/");
+    revalidatePath("/archive");
     return NextResponse.json({ ok: true });
   }
 

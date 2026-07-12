@@ -10,16 +10,7 @@ export interface WalletAuthResult {
 }
 
 function buildSignMessage(address: string, nonce: string): Uint8Array {
-  const message = [
-    "Sign in to Octo Market",
-    "",
-    `Adresse : ${address}`,
-    `Nonce   : ${nonce}`,
-    `Heure   : ${new Date().toISOString()}`,
-    "",
-    "En signant ce message, tu confirmes que tu es proprietaire de ce wallet.",
-    "No transaction will be executed.",
-  ].join("\n");
+  const message = `Sign in to Octo Market\nAddress: ${address}\nNonce: ${nonce}`;
   return new TextEncoder().encode(message);
 }
 
@@ -63,6 +54,7 @@ export async function connectWalletAndAuth(
 
     const nonce = generateNonce();
     const message = buildSignMessage(address, nonce);
+
     const { signature } = await provider.signMessage(message, "utf8");
 
     const { data, error } = await supabase.functions.invoke("wallet-auth", {

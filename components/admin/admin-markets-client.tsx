@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ExternalLink, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import { Camera, CheckCircle2, ExternalLink, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,7 @@ type CreateForm = {
   visual_type: "simple" | "vs";
   resolution_label: string;
   resolution_criteria: string;
-  event_date_label: string;
+
   event_start_at: string;
   options: { id: string; label: string; oddsMultiplier: number }[];
   // vs mode
@@ -53,7 +54,7 @@ const DEFAULT_FORM: CreateForm = {
   visual_type: "simple",
   resolution_label: "",
   resolution_criteria: "",
-  event_date_label: "",
+
   event_start_at: "",
   options: [
     { id: "yes", label: "Yes", oddsMultiplier: 2 },
@@ -63,6 +64,78 @@ const DEFAULT_FORM: CreateForm = {
   right_name: "", right_image: "",
   single_name: "", single_image: "",
 };
+
+// ─── Image upload widget ──────────────────────────────────────────────────────
+
+function ImageUpload({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Upload failed");
+      onChange(body.url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div>
+      <label className="mb-1 block font-semibold text-muted-foreground">{label}</label>
+      <div
+        className="relative flex h-24 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 transition-colors hover:bg-muted/50"
+        onClick={() => fileRef.current?.click()}
+      >
+        {value ? (
+          <>
+            <img src={value} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+              <Camera className="size-5 text-white" />
+            </div>
+          </>
+        ) : uploading ? (
+          <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-muted-foreground">
+            <Camera className="size-5" />
+            <span className="text-xs">Click to upload</span>
+          </div>
+        )}
+        {value && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onChange(""); }}
+            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+          >
+            <X className="size-3" />
+          </button>
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
+
+// ─── Create market form ───────────────────────────────────────────────────────
 
 function CreateMarketDialog({
   open,
@@ -128,7 +201,7 @@ function CreateMarketDialog({
           visual_type: form.visual_type,
           resolution_label: form.resolution_label.trim() || form.title.trim(),
           resolution_criteria: form.resolution_criteria.trim() || null,
-          event_date_label: form.event_date_label.trim() || null,
+
           event_start_at: form.event_start_at || null,
           options: form.options.map((o) => ({
             id: o.id,
@@ -230,14 +303,8 @@ function CreateMarketDialog({
                 <label className="mb-1 block font-semibold text-muted-foreground">Right name</label>
                 <input className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="Team B" value={form.right_name} onChange={(e) => set("right_name", e.target.value)} />
               </div>
-              <div>
-                <label className="mb-1 block font-semibold text-muted-foreground">Left image URL</label>
-                <input className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="https://..." value={form.left_image} onChange={(e) => set("left_image", e.target.value)} />
-              </div>
-              <div>
-                <label className="mb-1 block font-semibold text-muted-foreground">Right image URL</label>
-                <input className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="https://..." value={form.right_image} onChange={(e) => set("right_image", e.target.value)} />
-              </div>
+              <ImageUpload label="Left image" value={form.left_image} onChange={(url) => set("left_image", url)} />
+              <ImageUpload label="Right image" value={form.right_image} onChange={(url) => set("right_image", url)} />
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -245,23 +312,14 @@ function CreateMarketDialog({
                 <label className="mb-1 block font-semibold text-muted-foreground">Subject name</label>
                 <input className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="Bitcoin" value={form.single_name} onChange={(e) => set("single_name", e.target.value)} />
               </div>
-              <div>
-                <label className="mb-1 block font-semibold text-muted-foreground">Subject image URL</label>
-                <input className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="https://..." value={form.single_image} onChange={(e) => set("single_image", e.target.value)} />
-              </div>
+              <ImageUpload label="Subject image" value={form.single_image} onChange={(url) => set("single_image", url)} />
             </div>
           )}
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block font-semibold text-muted-foreground">Event date label</label>
-              <input className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="June 15, 2025" value={form.event_date_label} onChange={(e) => set("event_date_label", e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block font-semibold text-muted-foreground">Event start (ISO)</label>
-              <input type="datetime-local" className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" value={form.event_start_at} onChange={(e) => set("event_start_at", e.target.value)} />
-            </div>
+          {/* Date */}
+          <div>
+            <label className="mb-1 block font-semibold text-muted-foreground">Event date</label>
+            <input type="datetime-local" className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" value={form.event_start_at} onChange={(e) => set("event_start_at", e.target.value)} />
           </div>
 
           {/* Resolution label */}
@@ -385,11 +443,13 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Error");
-      router.refresh();
+      toast.success(action === "resolve" ? "Market resolved" : "Market updated");
       setResolving(null);
       setSelectedOutcome("");
+      window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
+      toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -407,10 +467,12 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Error");
+      toast.success("Market deleted");
       setDeleteTarget(null);
-      router.refresh();
+      window.location.reload();
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : "Error");
+      toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setDeleting(false);
     }
@@ -616,7 +678,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       <CreateMarketDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={() => router.refresh()}
+        onCreated={() => window.location.reload()}
       />
     </>
   );

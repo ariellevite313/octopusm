@@ -5,7 +5,7 @@ import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { PoolDetailClient } from "@/components/pools/pool-detail-client";
 import { notFound } from "next/navigation";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 async function getPoolBySlug(slug: string): Promise<MutuelMarketRow | null> {
   const supabase = await createClient() as any;

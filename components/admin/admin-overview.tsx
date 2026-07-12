@@ -17,7 +17,7 @@ export async function AdminOverview() {
     {
       label: "Pending payments",
       value: stats.pendingPayments,
-      sub: `${stats.totalPayments} total`,
+      sub: "Pool winnings waiting to be sent",
       href: "/admin/payments",
       icon: CreditCard,
       color: stats.pendingPayments > 0 ? "text-orange-500" : "text-emerald-500",

@@ -19,7 +19,7 @@ export async function getMarketBySlug(slug: string): Promise<PredictionMarketRow
 
   const { data, error } = await supabase
     .from("prediction_markets")
-    .select("*")
+    .select("id, slug, title, category_id, market_type, visual_type, options, is_active, is_resolved, resolution_outcome_id, resolution_label, resolution_criteria, event_start_at, resolved_at, created_at, left_competitor_name, left_competitor_image_src, right_competitor_name, right_competitor_image_src, single_name, single_image_src")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -27,7 +27,7 @@ export async function getMarketBySlug(slug: string): Promise<PredictionMarketRow
 
   const { data: byId } = await supabase
     .from("prediction_markets")
-    .select("*")
+    .select("id, slug, title, category_id, market_type, visual_type, options, is_active, is_resolved, resolution_outcome_id, resolution_label, resolution_criteria, event_start_at, resolved_at, created_at, left_competitor_name, left_competitor_image_src, right_competitor_name, right_competitor_image_src, single_name, single_image_src")
     .eq("id", slug)
     .maybeSingle();
 
@@ -38,7 +38,7 @@ export async function getActiveMarkets(): Promise<PredictionMarketRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("prediction_markets")
-    .select("*")
+    .select("id, slug, title, category_id, market_type, visual_type, options, is_active, is_resolved, resolution_outcome_id, resolution_label, resolution_criteria, event_start_at, resolved_at, created_at, left_competitor_name, left_competitor_image_src, right_competitor_name, right_competitor_image_src, single_name, single_image_src")
     .eq("is_active", true)
     .eq("is_resolved", false)
     .order("created_at", { ascending: false });
@@ -54,7 +54,7 @@ export async function getResolvedMarkets(limit = 100): Promise<PredictionMarketR
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("prediction_markets")
-    .select("*")
+    .select("id, slug, title, category_id, market_type, visual_type, options, is_active, is_resolved, resolution_outcome_id, resolution_label, resolution_criteria, event_start_at, resolved_at, created_at, left_competitor_name, left_competitor_image_src, right_competitor_name, right_competitor_image_src, single_name, single_image_src")
     .eq("is_resolved", true)
     .order("resolved_at", { ascending: false })
     .limit(limit);
@@ -128,7 +128,7 @@ export async function getMarketComments(marketId: string): Promise<MarketComment
   // Fetch all comments (roots + replies)
   const { data: comments, error: commentsError } = await supabase
     .from("market_comments")
-    .select("*")
+    .select("id, slug, title, category_id, market_type, visual_type, options, is_active, is_resolved, resolution_outcome_id, resolution_label, resolution_criteria, event_start_at, resolved_at, created_at, left_competitor_name, left_competitor_image_src, right_competitor_name, right_competitor_image_src, single_name, single_image_src")
     .eq("market_id", marketId)
     .order("created_at", { ascending: true })
     .limit(500);

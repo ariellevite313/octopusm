@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type {
   PredictionMarketRow,
   PaymentRow,
@@ -28,18 +28,16 @@ export async function getAllMarkets(): Promise<PredictionMarketRow[]> {
   return data ?? [];
 }
 
-// ─── Payments (claims only) ───────────────────────────────────────────────────
+// ─── Payments ─────────────────────────────────────────────────────────────────
 
 export async function getAllPayments(
   status?: "pending" | "approved" | "rejected",
-  flow?: "claim" | "launch" | "listing"
+  flow?: string
 ): Promise<PaymentRow[]> {
-  const supabase = await createClient();
-  // Only show claim/launch/listing flows — prediction bets go to /admin/bets
-  let query = (supabase as any)
+  const supabase = createAdminClient() as any;
+  let query = supabase
     .from("payments")
     .select("*")
-    .not("flow", "in", '("prediction","pool_prediction")')
     .order("created_at", { ascending: false });
   if (status) query = query.eq("status", status);
   if (flow) query = query.eq("flow", flow);
@@ -48,15 +46,57 @@ export async function getAllPayments(
   return data ?? [];
 }
 
+/** Pool winnings claims — from mutuel_bets, normalized to PaymentRow shape */
+export async function getPoolClaims(
+  status?: "pending" | "approved" | "rejected"
+): Promise<PaymentRow[]> {
+  const supabase = createAdminClient() as any;
+  // pending = claimed_at set, paid_at null
+  // approved = paid_at set
+  let query = supabase
+    .from("mutuel_bets")
+    .select("id, wallet_address, amount, token, payout_amount, claimed_at, paid_at, created_at, mutuel_markets(title, slug)")
+    .not("claimed_at", "is", null)
+    .order("claimed_at", { ascending: false });
+
+  if (status === "pending") query = query.is("paid_at", null);
+  else if (status === "approved") query = query.not("paid_at", "is", null);
+
+  const { data, error } = await query;
+  if (error) { console.error("[admin] getPoolClaims:", error.message); return []; }
+
+  return (data ?? []).map((b: any) => ({
+    id: b.id,
+    payment_request_id: b.id,
+    payment_reference: null,
+    flow: "pool_claim",
+    title: b.mutuel_markets?.title ?? "Pool Claim",
+    subtitle: null,
+    user_wallet: b.wallet_address,
+    recipient_wallet: b.wallet_address,
+    amount_usdc: b.payout_amount ?? b.amount,
+    reserve_fee_usdc: 0,
+    total_paid_usdc: b.payout_amount ?? b.amount,
+    token: b.token,
+    status: b.paid_at ? "approved" : "pending",
+    market_id: null,
+    selection_id: null,
+    selection_label: null,
+    category_label: null,
+    reviewed_at: b.paid_at ?? null,
+    reviewed_by_wallet: null,
+    created_at: b.claimed_at ?? b.created_at,
+    updated_at: null,
+  } as PaymentRow));
+}
+
 export async function getPendingPaymentsCount(): Promise<number> {
-  const supabase = await createClient();
-  const { data, error } = await (supabase as any)
-    .from("payments")
-    .select("id")
-    .eq("status", "pending")
-    .not("flow", "in", '("prediction","pool_prediction")');
-  if (error) return 0;
-  return (data ?? []).length;
+  const supabase = createAdminClient() as any;
+  const [{ data: p1 }, { data: p2 }] = await Promise.all([
+    supabase.from("payments").select("id").eq("status", "pending"),
+    supabase.from("mutuel_bets").select("id").not("claimed_at", "is", null).is("paid_at", null),
+  ]);
+  return ((p1 ?? []).length) + ((p2 ?? []).length);
 }
 
 // ─── Pending bets (prediction markets + pools) ────────────────────────────────
@@ -65,8 +105,8 @@ export type BetWithStatus = PredictionHistoryRow & { result_status: PredictionRe
 
 /** Pending prediction market payments (not yet turned into prediction_history rows) */
 export async function getPendingPredictionPayments(): Promise<PaymentRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await (supabase as any)
+  const supabase = createAdminClient() as any;
+  const { data, error } = await supabase
     .from("payments")
     .select("*")
     .eq("flow", "prediction")
@@ -78,8 +118,8 @@ export async function getPendingPredictionPayments(): Promise<PaymentRow[]> {
 
 /** Pending pool prediction payments (not yet turned into mutuel_bets rows) */
 export async function getPendingPoolPayments(): Promise<PaymentRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await (supabase as any)
+  const supabase = createAdminClient() as any;
+  const { data, error } = await supabase
     .from("payments")
     .select("*")
     .eq("flow", "pool_prediction")
@@ -121,7 +161,9 @@ export interface AdminStats {
   activeMarkets: number;
   resolvedMarkets: number;
   pendingPayments: number;
-  totalPayments: number;
+  pendingPaymentsPrediction: number;
+  pendingPaymentsPools: number;
+  pendingPaymentsPoolClaims: number;
   pendingLaunches: number;
   pendingBets: number;
   pendingPools: number;
@@ -131,16 +173,17 @@ export interface AdminStats {
 export async function getAdminStats(): Promise<AdminStats> {
   const supabase = await createClient();
 
-  const [markets, payments, launches, predPending, poolPending, pools] = await Promise.all([
+  const adminSupa = createAdminClient() as any;
+  const [markets, allPendingPayments, launches, predPending, poolPending, poolClaims, pools] = await Promise.all([
     supabase.from("prediction_markets").select("is_resolved, is_active"),
-    (supabase as any)
-      .from("payments")
-      .select("status")
-      .not("flow", "in", '("prediction","pool_prediction")'),
+    // all pending rows in payments table (any flow)
+    adminSupa.from("payments").select("id").eq("status", "pending"),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from("token_launches").select("status"),
-    (supabase as any).from("payments").select("id").eq("flow", "prediction").eq("status", "pending"),
-    (supabase as any).from("payments").select("id").eq("flow", "pool_prediction").eq("status", "pending"),
+    adminSupa.from("payments").select("id").eq("flow", "prediction").eq("status", "pending"),
+    adminSupa.from("payments").select("id").eq("flow", "pool_prediction").eq("status", "pending"),
+    // pool claims pending = claimed_at set, paid_at null
+    adminSupa.from("mutuel_bets").select("id").not("claimed_at", "is", null).is("paid_at", null),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from("mutuel_markets").select("status"),
   ]);
@@ -148,18 +191,19 @@ export async function getAdminStats(): Promise<AdminStats> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const marketRows = (markets.data ?? []) as any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const paymentRows = (payments.data ?? []) as any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const launchRows = (launches.data ?? []) as any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const poolRows = (pools.data ?? []) as any[];
+  const poolClaimsCount = (poolClaims.data ?? []).length;
 
   return {
     totalMarkets: marketRows.length,
     activeMarkets: marketRows.filter((m: any) => m.is_active && !m.is_resolved).length,
     resolvedMarkets: marketRows.filter((m: any) => m.is_resolved).length,
-    pendingPayments: paymentRows.filter((p: any) => p.status === "pending").length,
-    totalPayments: paymentRows.length,
+    pendingPayments: poolClaimsCount,
+    pendingPaymentsPrediction: (predPending.data ?? []).length,
+    pendingPaymentsPools: (poolPending.data ?? []).length,
+    pendingPaymentsPoolClaims: poolClaimsCount,
     pendingLaunches: launchRows.filter((l: any) => l.status === "pending").length,
     pendingBets: (predPending.data ?? []).length,
     pendingPools: (poolPending.data ?? []).length,
