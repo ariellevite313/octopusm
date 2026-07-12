@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/services/admin-service";
 import { getDashboardData } from "@/services/dashboard-service";
 import { TokenBalances } from "@/components/dashboard/token-balances";
 import { BetHistory } from "@/components/dashboard/bet-history";
@@ -13,6 +14,9 @@ export const metadata: Metadata = { title: "My account - Admin" };
 export const revalidate = 0;
 
 export default async function AdminAccountPage() {
+  const isAdmin = await requireAdmin();
+  if (!isAdmin) redirect("/");
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const wallet = user?.user_metadata?.wallet_address as string | undefined;

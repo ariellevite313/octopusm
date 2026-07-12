@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase.rpc("is_admin");
-  return !!data;
-}
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const body = await req.json();
   const { action, marketId } = body;
@@ -43,7 +39,8 @@ export async function POST(req: Request) {
       .slice(0, 80)
       + "-" + Date.now().toString(36);
 
-      const { error } = await (supabase as any).from("prediction_markets").insert({
+    const adminCreate = createAdminClient() as any;
+    const { error } = await adminCreate.from("prediction_markets").insert({
       slug,
       title,
       category_id: category_id ?? "other",
@@ -102,7 +99,8 @@ export async function POST(req: Request) {
   if (action === "toggle_active") {
     const { isActive } = body;
     if (!marketId) return NextResponse.json({ error: "marketId required" }, { status: 400 });
-      const { error } = await (supabase as any)
+    const adminToggle = createAdminClient() as any;
+    const { error } = await adminToggle
       .from("prediction_markets")
       .update({ is_active: isActive })
       .eq("id", marketId);

@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { MutuelMarketRow } from "@/lib/supabase/types";
 import { AdminPoolsClient } from "@/components/admin/admin-pools-client";
 
@@ -8,10 +7,7 @@ export const metadata: Metadata = { title: "Pools -- Admin" };
 export const revalidate = 0;
 
 export default async function AdminPoolsPage() {
-  const supabase = await createClient();
-  const { data: isAdmin } = await (supabase as any).rpc("is_admin");
-  if (!isAdmin) redirect("/");
-
+  // Auth handled by app/admin/layout.tsx (requireAdmin)
   const admin = createAdminClient() as any;
   const { data } = await admin
     .from("mutuel_markets")

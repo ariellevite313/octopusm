@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await (supabase as any).rpc("is_admin");
-  return !!data;
-}
 
 export async function GET(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const url = new URL(req.url);
   const statusFilter = url.searchParams.get("status") ?? "pending";
@@ -27,9 +23,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const body = await req.json();
   const { action, marketId } = body;
@@ -158,7 +153,8 @@ export async function POST(req: Request) {
     }
     // else winningTotal === 0 with losers: house keeps pool, no payouts
 
-    const { data: { user: adminUser } } = await supabase.auth.getUser();
+    const userClient = await (await import("@/lib/supabase/server")).createClient();
+    const { data: { user: adminUser } } = await userClient.auth.getUser();
     const adminWallet: string | null = (adminUser as { user_metadata?: { wallet_address?: string } } | null)?.user_metadata?.wallet_address ?? null;
 
     const notes = allBetOnWinner

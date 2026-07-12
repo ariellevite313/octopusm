@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient } from "@/lib/supabase/server";
 
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await (supabase as any).rpc("is_admin");
-  return !!data;
-}
 
 // GET /api/admin/pools/predictions?marketId=xxx
 // Returns pending payments for a specific pool
 export async function GET(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const url = new URL(req.url);
   const marketId = url.searchParams.get("marketId");
@@ -35,9 +31,8 @@ export async function GET(req: Request) {
 // POST /api/admin/pools/predictions
 // body: { action: "approve"|"reject", paymentId: string }
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  if (!(await isAdmin(supabase)))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const body = await req.json() as { action: string; paymentId: string };
   const { action, paymentId } = body;

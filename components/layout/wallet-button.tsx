@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -388,11 +389,12 @@ function ProfileDrawer({
   );
 }
 
-// Main button
+// Main button (inner — needs useSearchParams)
 
-export function WalletButton() {
+function WalletButtonInner() {
   const { walletAddress, walletType, isAuthenticated, isLoading, setWalletType } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showDialog, setShowDialog] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -405,6 +407,11 @@ export function WalletButton() {
       if (result.success) {
         setWalletType(type);
         toast.success("Wallet connected");
+        // Redirect to the page the user was trying to access
+        const returnTo = searchParams.get("returnTo");
+        if (returnTo && returnTo.startsWith("/")) {
+          router.push(returnTo);
+        }
       } else {
         toast.error(result.error ?? "Connection failed");
       }
@@ -466,5 +473,13 @@ export function WalletButton() {
         />
       )}
     </>
+  );
+}
+
+export function WalletButton() {
+  return (
+    <Suspense fallback={<div className="h-9 w-36 animate-pulse rounded-md bg-muted" />}>
+      <WalletButtonInner />
+    </Suspense>
   );
 }

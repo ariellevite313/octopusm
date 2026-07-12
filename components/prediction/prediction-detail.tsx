@@ -1035,6 +1035,7 @@ export function PredictionDetail({
           marketId={market.id}
           initialComments={initialComments}
           isAuthenticated={isAuthenticated}
+          walletAddress={walletAddress}
         />
       </div>
     </>
