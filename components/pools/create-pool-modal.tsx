@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { X, Plus, Trash2, Loader2, CheckCircle } from "lucide-react";
+import { Camera, X, Plus, Trash2, Loader2, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import { submitPoolCreation } from "@/lib/market/pool-betting";
@@ -18,9 +19,73 @@ interface OptionDraft {
 
 type CreateStep = "idle" | "signing" | "sending" | "done" | "error";
 
+// ─── Image upload widget ──────────────────────────────────────────────────────
+function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Upload failed");
+      onChange(body.url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Cover image (optional)
+      </label>
+      <div
+        className="relative flex h-24 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 transition-colors hover:bg-muted/50"
+        onClick={() => fileRef.current?.click()}
+      >
+        {value ? (
+          <>
+            <img src={value} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+              <Camera className="size-5 text-white" />
+            </div>
+          </>
+        ) : uploading ? (
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-muted-foreground">
+            <Camera className="size-5" />
+            <span className="text-xs">Click to upload</span>
+          </div>
+        )}
+        {value && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onChange(""); }}
+            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+          >
+            <X className="size-3" />
+          </button>
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
+
 export function CreatePoolModal({ onClose, onCreated }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [coverImage, setCoverImage] = useState("");
   const [options, setOptions] = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
   const [closesAt, setClosesAt] = useState("");
   const [feeToken, setFeeToken] = useState<"usdc" | "clawdtrust">("usdc");
@@ -85,6 +150,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || null,
+          cover_image_src: coverImage || null,
           options: options.map(o => ({ label: o.label.trim() })),
           betting_closes_at: new Date(closesAt).toISOString(),
           creation_fee_token: feeToken,
@@ -152,6 +218,9 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
+
+          {/* Cover image */}
+          <ImageUpload value={coverImage} onChange={setCoverImage} />
 
           {/* Options */}
           <div className="flex flex-col gap-2">

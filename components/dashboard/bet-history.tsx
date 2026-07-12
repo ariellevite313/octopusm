@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, Clock } from "lucide-react";
+import { ExternalLink, Clock, Loader2 } from "lucide-react";
 import type { BetHistoryRow } from "@/services/dashboard-service";
 import type { PredictionResultStatus } from "@/lib/supabase/types";
 
@@ -27,6 +27,7 @@ interface PoolBet {
   amount: number;
   token: string;
   payout_amount: number | null;
+  claimed_at: string | null;
   paid_at: string | null;
   created_at: string;
   mutuel_markets: PoolMarket | null;
@@ -119,19 +120,29 @@ function poolBetStatus(bet: PoolBet): { label: string; cls: string } {
   if (!m) return { label: "Unknown", cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
   if (m.status === "cancelled") {
     if (bet.paid_at) return { label: "Refunded", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
-    if (bet.payout_amount !== null) return { label: "Refund pending", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
+    if (bet.claimed_at) return { label: "Claim sent", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
+    if (bet.payout_amount !== null) return { label: "Claim refund", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
     return { label: "Cancelled", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
   }
   if (m.status === "resolved") {
     const won = m.winning_option_id === bet.option_id;
     if (!won) return { label: "Lost", cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
     if (bet.paid_at) return { label: "Paid", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" };
+    if (bet.claimed_at) return { label: "Claim sent", cls: "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400" };
     if (bet.payout_amount !== null) return { label: "Claim ready", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
     return { label: "Won", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   }
   if (m.status === "closed") return { label: "Awaiting result", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
   if (m.status === "active")  return { label: "Active", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   return { label: m.status, cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
+}
+
+function isClaimable(bet: PoolBet): boolean {
+  const m = bet.mutuel_markets;
+  if (!m || bet.claimed_at || bet.paid_at || bet.payout_amount === null) return false;
+  if (m.status === "resolved") return m.winning_option_id === bet.option_id;
+  if (m.status === "cancelled") return true;
+  return false;
 }
 
 function StatusBadge({ label, cls }: { label: string; cls: string }) {
@@ -161,25 +172,44 @@ export function BetHistory({
   const [poolPending, setPoolPending]             = useState<PendingPoolBet[]>([]);
   const [marketPending, setMarketPending]         = useState<PendingMarketBet[]>([]);
   const [loadingPool, setLoadingPool]             = useState(true);
+  const [claiming, setClaiming]                   = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
-  useEffect(() => {
+  const loadBets = useCallback(async () => {
     if (!walletAddress) { setLoadingPool(false); return; }
-    fetch("/api/pools/my-bets")
-      .then((r) => r.ok ? r.json() : { bets: [], pending: [] })
-      .then((d: { bets: PoolBet[]; pending: PendingPoolBet[]; pendingPredictions: PendingMarketBet[] }) => {
-        setPoolBets(d.bets.map((b) => ({
-          ...b,
-          mutuel_markets: b.mutuel_markets
-            ? { ...b.mutuel_markets, options: typeof b.mutuel_markets.options === "string" ? JSON.parse(b.mutuel_markets.options) : b.mutuel_markets.options }
-            : null,
-        })));
-        setPoolPending(d.pending ?? []);
-        setMarketPending(d.pendingPredictions ?? []);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingPool(false));
+    try {
+      const r = await fetch("/api/pools/my-bets");
+      if (!r.ok) return;
+      const d = await r.json() as { bets: PoolBet[]; pending: PendingPoolBet[]; pendingPredictions: PendingMarketBet[] };
+      setPoolBets(d.bets.map((b) => ({
+        ...b,
+        mutuel_markets: b.mutuel_markets
+          ? { ...b.mutuel_markets, options: typeof b.mutuel_markets.options === "string" ? JSON.parse(b.mutuel_markets.options) : b.mutuel_markets.options }
+          : null,
+      })));
+      setPoolPending(d.pending ?? []);
+      setMarketPending(d.pendingPredictions ?? []);
+    } catch { /* silent */ }
+    finally { setLoadingPool(false); }
   }, [walletAddress]);
+
+  useEffect(() => { loadBets(); }, [loadBets]);
+
+  async function handleClaim(betId: string) {
+    setClaiming(betId);
+    try {
+      const res = await fetch("/api/pools/winnings/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ betId }),
+      });
+      if (res.ok) {
+        setPoolBets(prev => prev.map(b =>
+          b.id === betId ? { ...b, claimed_at: new Date().toISOString() } : b
+        ));
+      }
+    } finally { setClaiming(null); }
+  }
 
   // Build unified sorted list
   const rows: UnifiedRow[] = [
@@ -269,6 +299,7 @@ export function BetHistory({
               const m = b.mutuel_markets;
               const optLabel = m?.options?.find((o) => o.id === b.option_id)?.label ?? b.option_id;
               const { label, cls } = poolBetStatus(b);
+              const canClaim = isClaimable(b);
               return (
                 <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-1">
                   <div className="flex items-start justify-between gap-2">
@@ -284,6 +315,16 @@ export function BetHistory({
                     {m?.slug && <Link href={`/pools/${m.slug}`} className="text-muted-foreground hover:text-foreground"><ExternalLink className="size-3" /></Link>}
                     <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
                   </div>
+                  {canClaim && (
+                    <button
+                      onClick={() => handleClaim(b.id)}
+                      disabled={claiming === b.id}
+                      className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {claiming === b.id ? <Loader2 className="size-3 animate-spin" /> : null}
+                      Claim winnings
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -356,6 +397,7 @@ export function BetHistory({
                   const m = b.mutuel_markets;
                   const optLabel = m?.options?.find((o) => o.id === b.option_id)?.label ?? b.option_id;
                   const { label, cls } = poolBetStatus(b);
+                  const canClaim = isClaimable(b);
                   return (
                     <tr key={b.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3"><TypeBadge kind="pool" /></td>
@@ -368,7 +410,20 @@ export function BetHistory({
                       <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate">{optLabel}</td>
                       <td className="px-4 py-3 whitespace-nowrap"><TokenAmount token={b.token} amount={b.amount} /></td>
                       <td className="px-4 py-3 text-muted-foreground">-</td>
-                      <td className="px-4 py-3"><StatusBadge label={label} cls={cls} /></td>
+                      <td className="px-4 py-3">
+                        {canClaim ? (
+                          <button
+                            onClick={() => handleClaim(b.id)}
+                            disabled={claiming === b.id}
+                            className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                          >
+                            {claiming === b.id ? <Loader2 className="size-3 animate-spin" /> : null}
+                            Claim
+                          </button>
+                        ) : (
+                          <StatusBadge label={label} cls={cls} />
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{fmtDate(b.created_at)}</td>
                     </tr>
                   );

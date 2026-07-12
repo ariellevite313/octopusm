@@ -35,7 +35,9 @@ export async function GET(
 
   const totalInv = options.reduce((s, o) => s + 1 / o.oddsMultiplier, 0);
 
-  const dateLabel = market?.event_date_label ?? null;
+  const dateLabel = market?.event_start_at
+    ? new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(new Date(market.event_start_at))
+    : null;
 
   return new ImageResponse(
     (
@@ -149,10 +151,13 @@ export async function GET(
           borderTop: "1px solid #1e293b",
         }}>
           <span style={{ fontSize: 14, color: "#334155" }}>octomarket.app</span>
-          <span style={{ fontSize: 13, color: "#334155" }}>Place your prediction</span>
+          <span style={{ fontSize: 14, color: "#57534e" }}>octomarket.app</span>
         </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    {
+      width: 1200,
+      height: 630,
+    }
   );
 }

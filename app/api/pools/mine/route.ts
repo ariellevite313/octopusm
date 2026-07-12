@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data, error } = await (supabase as any)
     .from("mutuel_markets")
-    .select("*")
+    .select("id, slug, title, description, cover_image_src, options, category, status, bet_token, creation_fee_token, creation_fee_amount, creator_wallet, betting_closes_at, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, admin_notes, created_at")
     .eq("creator_wallet", wallet)
     .order("created_at", { ascending: false })
     .limit(50);

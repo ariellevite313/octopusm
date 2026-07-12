@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getAllPayments, getPendingPaymentsCount } from "@/services/admin-service";
+import { getAllPayments, getPoolClaims, getPendingPaymentsCount } from "@/services/admin-service";
 import { AdminPaymentsClient } from "@/components/admin/admin-payments-client";
 
 export const metadata: Metadata = { title: "Payments -- Admin" };
@@ -13,14 +13,21 @@ export default async function AdminPaymentsPage({
   const { status, flow } = await searchParams;
   const filter =
     status === "approved" || status === "rejected" || status === "pending" ? status : undefined;
-  // Only claim/launch/listing — prediction bets are in /admin/bets
-  const flowFilter =
-    flow === "claim" || flow === "launch" || flow === "listing" ? flow : undefined;
+  const flowFilter = flow || undefined;
 
-  const [payments, pendingCount] = await Promise.all([
-    getAllPayments(filter, flowFilter),
+  // "pools" = pool_prediction (payments table) + pool_claim (mutuel_bets)
+  const showPools = !flowFilter || flowFilter === "pools";
+  const [paymentsRaw, poolClaims, pendingCount] = await Promise.all([
+    flowFilter === "pools"
+      ? getAllPayments(filter, "pool_prediction")
+      : getAllPayments(filter, flowFilter),
+    showPools ? getPoolClaims(filter) : [],
     getPendingPaymentsCount(),
   ]);
+
+  const payments = [...paymentsRaw, ...poolClaims].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   return (
     <div className="space-y-6">

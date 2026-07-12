@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -391,6 +392,7 @@ function ProfileDrawer({
 
 export function WalletButton() {
   const { walletAddress, walletType, isAuthenticated, isLoading, setWalletType } = useAuth();
+  const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -416,6 +418,7 @@ export function WalletButton() {
     setWalletType(null);
     setShowProfile(false);
     toast.success("Disconnected");
+    router.push("/");
   }
 
   if (isLoading) return <div className="h-9 w-36 animate-pulse rounded-md bg-muted" />;

@@ -12,7 +12,7 @@ export type OctoTransactionType = "referral" | "bet" | "task";
 export type WalletStatus = "active" | "suspended";
 export type BetToken = "usdc" | "clawdtrust";
 
-export type PaymentFlow = "prediction" | "launch" | "listing" | "pool_prediction" | "pool_creation";
+export type PaymentFlow = "prediction" | "launch" | "listing" | "pool_prediction" | "pool_creation" | "pool_claim";
 export type PaymentStatus = "pending" | "approved" | "rejected";
 export type MarketType = "yes-no" | "threshold" | "three-way";
 export type VisualType = "vs" | "simple";
@@ -80,7 +80,6 @@ export interface PredictionMarketRow {
   market_type: MarketType;
   resolution_label: string;
   resolution_criteria: string | null;
-  event_date_label: string | null;
   visual_type: VisualType;
   single_name: string | null;
   single_image_src: string | null;
@@ -129,7 +128,7 @@ export interface MarketCommentEnriched extends MarketCommentRow {
 export interface PaymentRow {
   id: string;
   payment_request_id: string;
-  payment_reference: string;
+  payment_reference: string | null;
   flow: PaymentFlow;
   title: string;
   subtitle: string | null;
@@ -148,7 +147,7 @@ export interface PaymentRow {
   reviewed_at: string | null;
   reviewed_by_wallet: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 export interface PredictionHistoryRow {
@@ -567,6 +566,7 @@ export interface MutuelMarketRow {
   creator_wallet: string;
   title: string;
   description: string | null;
+  cover_image_src: string | null;
   options: MutuelOption[];
   category: string;
   creation_fee_token: 'usdc' | 'clawdtrust';
@@ -599,6 +599,7 @@ export interface MutuelBetRow {
   tx_signature: string | null;
   payout_amount: number | null;
   payout_tx: string | null;
+  claimed_at: string | null;
   paid_at: string | null;
   created_at: string;
 }
@@ -610,4 +611,3 @@ export interface MutuelMarketEnriched extends MutuelMarketRow {
   /** Map option_id -> pourcentage (0-100) */
   option_pcts: Record<string, number>;
 }
-

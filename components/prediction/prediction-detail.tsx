@@ -818,8 +818,8 @@ export function PredictionDetail({
               <span className="font-semibold text-zinc-600 dark:text-zinc-400">Vol:</span> {totalVol}
             </span>
           )}
-          {market.event_date_label && (
-            <span>{market.event_date_label}</span>
+          {market.event_start_at && (
+            <span>{new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(market.event_start_at))}</span>
           )}
         </div>
       </div>
@@ -1035,8 +1035,6 @@ export function PredictionDetail({
           marketId={market.id}
           initialComments={initialComments}
           isAuthenticated={isAuthenticated}
-          walletAddress={walletAddress}
-          onRequestConnect={() => setShowWallet(true)}
         />
       </div>
     </>

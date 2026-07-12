@@ -11,8 +11,7 @@ export const metadata: Metadata = {
   description: "All resolved prediction markets on Octo Market.",
 };
 
-// ISR: revalidate every 10 minutes
-export const revalidate = 600;
+export const revalidate = 60;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

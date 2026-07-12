@@ -19,7 +19,7 @@ export async function GET() {
   // 1. Validated bets from mutuel_bets
   const { data: bets } = await admin
     .from("mutuel_bets")
-    .select("id, market_id, option_id, amount, token, payout_amount, paid_at, created_at, mutuel_markets(id, title, slug, status, options, bet_token, winning_option_id, admin_notes)")
+    .select("id, market_id, option_id, amount, token, payout_amount, claimed_at, paid_at, created_at, mutuel_markets(id, title, slug, status, options, bet_token, winning_option_id, admin_notes)")
     .eq("wallet_address", wallet)
     .order("created_at", { ascending: false })
     .limit(100);

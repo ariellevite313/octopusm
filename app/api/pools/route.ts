@@ -7,7 +7,7 @@ export async function GET() {
   const admin = createAdminClient() as any;
   const { data, error } = await admin
     .from("mutuel_markets")
-    .select("*")
+    .select("id, slug, title, description, cover_image_src, options, category, status, bet_token, creation_fee_token, creation_fee_amount, creator_wallet, betting_closes_at, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
     .in("status", ["active", "closed", "resolved"])
     .order("created_at", { ascending: false })
     .limit(50);
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, options, category, creation_fee_token, creation_tx, betting_closes_at, bet_token } = body;
+  const { title, description, cover_image_src, options, category, creation_fee_token, creation_tx, betting_closes_at, bet_token } = body;
 
   if (!title || typeof title !== "string" || title.trim().length < 5)
     return NextResponse.json({ error: "Title must be at least 5 characters" }, { status: 400 });
@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       creator_wallet: wallet,
       title: title.trim().slice(0, 200),
       description: description ? String(description).slice(0, 1000) : null,
+      cover_image_src: cover_image_src ? String(cover_image_src).slice(0, 500) : null,
       options: safeOptions,
       category: category ? String(category).slice(0, 50) : "general",
       creation_fee_token,
