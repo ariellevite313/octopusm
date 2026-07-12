@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import { PoolsClient } from "@/components/pools/pools-client";
 
-export const revalidate = 30;
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Pools",
