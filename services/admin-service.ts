@@ -72,6 +72,7 @@ export async function getPoolClaims(
     flow: "pool_claim",
     title: b.mutuel_markets?.title ?? "Pool Claim",
     subtitle: null,
+    username: null,
     user_wallet: b.wallet_address,
     recipient_wallet: b.wallet_address,
     amount_usdc: b.payout_amount ?? b.amount,
@@ -87,7 +88,7 @@ export async function getPoolClaims(
     reviewed_by_wallet: null,
     created_at: b.claimed_at ?? b.created_at,
     updated_at: null,
-  } as PaymentRow));
+  } as unknown as PaymentRow));
 }
 
 /** Up/Down winnings claims — from updown_bets, normalized to PaymentRow shape */
@@ -116,6 +117,7 @@ export async function getUpdownClaims(
       ? `${b.updown_markets.symbol.replace("USDT", "")} ${b.updown_markets.duration_min}m — ${b.direction === "up" ? "↑ UP" : "↓ DOWN"}`
       : "Up/Down Claim",
     subtitle: null,
+    username: null,
     user_wallet: b.wallet_address,
     recipient_wallet: b.wallet_address,
     amount_usdc: b.payout ?? b.amount,
@@ -131,7 +133,7 @@ export async function getUpdownClaims(
     reviewed_by_wallet: null,
     created_at: b.claimed_at ?? b.created_at,
     updated_at: null,
-  } as PaymentRow));
+  } as unknown as PaymentRow));
 }
 
 export async function getPendingPaymentsCount(): Promise<number> {
