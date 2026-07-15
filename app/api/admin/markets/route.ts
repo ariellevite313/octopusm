@@ -28,6 +28,8 @@ export async function POST(req: Request) {
       right_competitor_image_src,
       single_name,
       single_image_src,
+      price_ticker,
+      price_target,
     } = body;
 
     if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
@@ -41,6 +43,7 @@ export async function POST(req: Request) {
 
     const adminCreate = createAdminClient() as any;
     const { error } = await adminCreate.from("prediction_markets").insert({
+      id: crypto.randomUUID(),
       slug,
       title,
       category_id: category_id ?? "other",
@@ -49,13 +52,15 @@ export async function POST(req: Request) {
       resolution_label: resolution_label ?? title,
       resolution_criteria: resolution_criteria ?? null,
       event_start_at: event_start_at ?? null,
-      options: JSON.stringify(options ?? []),
+      options: options ?? [],
       left_competitor_name: left_competitor_name ?? null,
       left_competitor_image_src: left_competitor_image_src ?? null,
       right_competitor_name: right_competitor_name ?? null,
       right_competitor_image_src: right_competitor_image_src ?? null,
       single_name: single_name ?? null,
       single_image_src: single_image_src ?? null,
+      price_ticker: price_ticker ?? null,
+      price_target: price_target != null ? Number(price_target) : null,
       is_active: true,
       is_resolved: false,
     });
@@ -128,7 +133,7 @@ export async function POST(req: Request) {
     const { error } = await admin.from("prediction_markets").delete().eq("id", marketId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     revalidatePath("/");
-    revalidatePath("/archive");
+       revalidatePath("/archive");
     return NextResponse.json({ ok: true });
   }
 

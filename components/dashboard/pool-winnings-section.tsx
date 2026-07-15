@@ -129,9 +129,6 @@ export function PoolWinningsSection({ walletAddress }: Props) {
                   <span className="text-base font-bold text-amber-700 dark:text-amber-400">
                     {bet.net_payout.toFixed(dec)} {tokenLabel(bet.token)}
                   </span>
-                  {bet.is_refund && (
-                    <span className="ml-1 text-xs text-muted-foreground">(after 5% fee)</span>
-                  )}
                 </div>
 
                 <p className="text-xs text-amber-600 dark:text-amber-400">

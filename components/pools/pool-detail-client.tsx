@@ -88,12 +88,7 @@ function tokenLabel(token: string) {
   return token === "usdc" ? "USDC" : "ClawdTrust";
 }
 
-function commissionLabel(betToken: string) {
-  if (betToken === "clawdtrust") {
-    return "Commission: 16% (10% platform + 6% creator). Winners share 84% of the pool in ClawdTrust.";
-  }
-  return "Commission: 20% (15% platform + 5% creator). Winners share 80% of the pool in USDC.";
-}
+
 
 function winnersRate(betToken: string) {
   return betToken === "clawdtrust" ? 0.84 : 0.80;
@@ -437,7 +432,6 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
             </div>
           );
         })}
-        <p className="pt-1 text-[11px] text-muted-foreground">{commissionLabel(market.bet_token)}</p>
       </div>
 
       <div className="mb-8">

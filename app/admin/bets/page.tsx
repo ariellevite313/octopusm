@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { getPendingPredictionPayments, getPendingPoolPayments } from "@/services/admin-service";
+import { getPendingPredictionPayments, getPendingPoolPayments, getPendingUpdownBets } from "@/services/admin-service";
 import { AdminBetsClient } from "@/components/admin/admin-bets-client";
 
 export const metadata: Metadata = { title: "Predictions Validation -- Admin" };
 export const revalidate = 0;
 
 export default async function AdminBetsPage() {
-  const [predictionPayments, poolPayments] = await Promise.all([
+  const [predictionPayments, poolPayments, updownBets] = await Promise.all([
     getPendingPredictionPayments(),
     getPendingPoolPayments(),
+    getPendingUpdownBets(),
   ]);
 
-  const total = predictionPayments.length + poolPayments.length;
+  const total = predictionPayments.length + poolPayments.length + updownBets.length;
 
   return (
     <div className="space-y-6">
@@ -24,6 +25,7 @@ export default async function AdminBetsPage() {
       <AdminBetsClient
         predictionPayments={predictionPayments}
         poolPayments={poolPayments}
+        updownBets={updownBets}
       />
     </div>
   );

@@ -90,13 +90,58 @@ export async function getPoolClaims(
   } as PaymentRow));
 }
 
+/** Up/Down winnings claims — from updown_bets, normalized to PaymentRow shape */
+export async function getUpdownClaims(
+  status?: "pending" | "approved" | "rejected"
+): Promise<PaymentRow[]> {
+  const supabase = createAdminClient() as any;
+  let query = supabase
+    .from("updown_bets")
+    .select("id, wallet_address, amount, payout, direction, claimed_at, paid_at, created_at, updown_markets(symbol, duration_min)")
+    .not("claimed_at", "is", null)
+    .order("claimed_at", { ascending: false });
+
+  if (status === "pending") query = query.is("paid_at", null);
+  else if (status === "approved") query = query.not("paid_at", "is", null);
+
+  const { data, error } = await query;
+  if (error) { console.error("[admin] getUpdownClaims:", error.message); return []; }
+
+  return (data ?? []).map((b: any) => ({
+    id: b.id,
+    payment_request_id: b.id,
+    payment_reference: null,
+    flow: "updown_claim",
+    title: b.updown_markets
+      ? `${b.updown_markets.symbol.replace("USDT", "")} ${b.updown_markets.duration_min}m — ${b.direction === "up" ? "↑ UP" : "↓ DOWN"}`
+      : "Up/Down Claim",
+    subtitle: null,
+    user_wallet: b.wallet_address,
+    recipient_wallet: b.wallet_address,
+    amount_usdc: b.payout ?? b.amount,
+    reserve_fee_usdc: 0,
+    total_paid_usdc: b.payout ?? b.amount,
+    token: "USDC",
+    status: b.paid_at ? "approved" : "pending",
+    market_id: null,
+    selection_id: null,
+    selection_label: null,
+    category_label: null,
+    reviewed_at: b.paid_at ?? null,
+    reviewed_by_wallet: null,
+    created_at: b.claimed_at ?? b.created_at,
+    updated_at: null,
+  } as PaymentRow));
+}
+
 export async function getPendingPaymentsCount(): Promise<number> {
   const supabase = createAdminClient() as any;
-  const [{ data: p1 }, { data: p2 }] = await Promise.all([
+  const [{ data: p1 }, { data: p2 }, { data: p3 }] = await Promise.all([
     supabase.from("payments").select("id").eq("status", "pending"),
     supabase.from("mutuel_bets").select("id").not("claimed_at", "is", null).is("paid_at", null),
+    supabase.from("updown_bets").select("id").not("claimed_at", "is", null).is("paid_at", null),
   ]);
-  return ((p1 ?? []).length) + ((p2 ?? []).length);
+  return ((p1 ?? []).length) + ((p2 ?? []).length) + ((p3 ?? []).length);
 }
 
 // ─── Pending bets (prediction markets + pools) ────────────────────────────────
@@ -126,6 +171,37 @@ export async function getPendingPoolPayments(): Promise<PaymentRow[]> {
     .eq("status", "pending")
     .order("created_at", { ascending: false });
   if (error) { console.error("[admin] getPendingPoolPayments:", error.message); return []; }
+  return data ?? [];
+}
+
+// ─── Updown bets ─────────────────────────────────────────────────────────────
+
+export interface UpdownBetAdmin {
+  id: string;
+  market_id: string;
+  wallet_address: string;
+  direction: "up" | "down";
+  amount: number;
+  tx_signature: string;
+  status: string;
+  created_at: string;
+  updown_markets: {
+    symbol: string;
+    duration_min: number;
+    strike_price: number;
+    closes_at: string;
+    status: string;
+  } | null;
+}
+
+export async function getPendingUpdownBets(): Promise<UpdownBetAdmin[]> {
+  const supabase = createAdminClient() as any;
+  const { data, error } = await supabase
+    .from("updown_bets")
+    .select("*, updown_markets(symbol, duration_min, strike_price, closes_at, status)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("[admin] getPendingUpdownBets:", error.message); return []; }
   return data ?? [];
 }
 

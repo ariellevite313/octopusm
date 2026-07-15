@@ -45,6 +45,9 @@ type CreateForm = {
   // simple mode
   single_name: string;
   single_image: string;
+  // crypto chart
+  price_ticker: "" | "BTCUSDT" | "SOLUSDT" | "ETHUSDT";
+  price_target: string;
 };
 
 const DEFAULT_FORM: CreateForm = {
@@ -63,6 +66,8 @@ const DEFAULT_FORM: CreateForm = {
   left_name: "", left_image: "",
   right_name: "", right_image: "",
   single_name: "", single_image: "",
+  price_ticker: "",
+  price_target: "",
 };
 
 // ─── Image upload widget ──────────────────────────────────────────────────────
@@ -214,6 +219,8 @@ function CreateMarketDialog({
           right_competitor_image_src: form.right_image.trim() || null,
           single_name: form.single_name.trim() || null,
           single_image_src: form.single_image.trim() || null,
+          price_ticker: form.price_ticker || null,
+          price_target: form.price_target ? Number(form.price_target) : null,
         }),
       });
       const body = await res.json();
@@ -341,6 +348,45 @@ function CreateMarketDialog({
               onChange={(e) => set("resolution_criteria", e.target.value)}
             />
           </div>
+
+          {/* Crypto chart — only relevant for crypto category */}
+          {form.category_id === "crypto" && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col gap-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Graphique crypto (optionnel)
+              </p>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-muted-foreground">Actif suivi</label>
+                <select
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  value={form.price_ticker}
+                  onChange={(e) => set("price_ticker", e.target.value as CreateForm["price_ticker"])}
+                >
+                  <option value="">— No chart —</option>
+                  <option value="BTCUSDT">Bitcoin (BTC/USDT)</option>
+                  <option value="ETHUSDT">Ethereum (ETH/USDT)</option>
+                  <option value="SOLUSDT">Solana (SOL/USDT)</option>
+                </select>
+              </div>
+              {form.price_ticker && (
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-muted-foreground">Prix cible (USDT)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="ex: 70000"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    value={form.price_target}
+                    onChange={(e) => set("price_target", e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    La ligne cible pointillée sera affichée sur le graphique.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Options */}
           <div>
@@ -603,6 +649,13 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
         </div>
       )}
 
+      {/* Create market dialog */}
+      <CreateMarketDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={() => { setShowCreate(false); router.refresh(); }}
+      />
+
       {/* Resolve dialog */}
       <Dialog open={!!resolving} onOpenChange={(o) => { if (!o) { setResolving(null); setError(""); } }}>
         <DialogContent className="max-w-md border-border">
@@ -651,35 +704,22 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This action is irreversible. All bets and history associated with this market will also be deleted.
+              This will permanently delete the market and all associated bets, comments, and payments. This action cannot be undone.
             </p>
             {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setDeleteTarget(null); setDeleteError(""); }}>Cancel</Button>
               <Button
-                variant="outline"
-                className="flex-1 rounded-xl"
-                onClick={() => { setDeleteTarget(null); setDeleteError(""); }}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 rounded-xl bg-red-500 text-white hover:bg-red-400"
+                className="flex-1 rounded-xl bg-destructive text-white hover:bg-destructive/90"
                 disabled={deleting}
-                onClick={handleDelete}
+                onClick={() => deleteTarget && handleDelete()}
               >
-                {deleting ? <LoaderCircle className="size-4 animate-spin" /> : "Delete Market"}
+                {deleting ? <LoaderCircle className="size-4 animate-spin" /> : "Delete"}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Create dialog */}
-      <CreateMarketDialog
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => window.location.reload()}
-      />
     </>
   );
 }

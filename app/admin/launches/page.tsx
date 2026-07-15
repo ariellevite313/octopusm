@@ -12,7 +12,7 @@ export default async function AdminLaunchesPage() {
       <div>
         <h1 className="text-xl font-bold">Token Launches</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {launches.length} demandes · {launches.filter((l) => l.status === "pending").length} en attente
+          {launches.length} requests · {launches.filter((l) => l.status === "pending").length} pending
         </p>
       </div>
       <AdminLaunchesClient launches={launches} />

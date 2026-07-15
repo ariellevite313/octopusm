@@ -13,8 +13,13 @@ export type MarketOption = {
 export type MarketVolumes = Record<string, { usdc: number; clt: number }>;
 
 export function parseMarketOptions(raw: unknown): MarketOption[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(
+  // Guard against double-serialization: DB stored a JSON string instead of a JSON array
+  let data = raw;
+  if (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { return []; }
+  }
+  if (!Array.isArray(data)) return [];
+  return data.filter(
     (o): o is MarketOption =>
       typeof o === "object" &&
       o !== null &&

@@ -23,6 +23,12 @@ import type { PredictionMarketRow, MarketCommentEnriched } from "@/lib/supabase/
 import type { WalletType } from "@/lib/wallet/adapters";
 import type { MarketVolumeDetail } from "@/services/prediction-service";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import dynamic from "next/dynamic";
+
+const CryptoPriceChart = dynamic(
+  () => import("@/components/prediction/crypto-price-chart").then(m => m.CryptoPriceChart),
+  { ssr: false }
+);
 
 // ─── Option Colors ────────────────────────────────────────────────────────────────────
 
@@ -811,6 +817,17 @@ export function PredictionDetail({
 
         <MarketVisual market={market} />
 
+        {/* Crypto price chart — shown only when ticker + target are set */}
+        {market.price_ticker && market.price_target != null && (
+          <div className="mt-4">
+            <CryptoPriceChart
+              ticker={market.price_ticker as "BTCUSDT" | "SOLUSDT" | "ETHUSDT"}
+              priceTarget={market.price_target}
+              marketCloseAt={market.event_start_at}
+            />
+          </div>
+        )}
+
         {/* Volume + date row */}
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
           {totalVol !== "—" && (
@@ -1018,26 +1035,23 @@ export function PredictionDetail({
           {market.resolution_criteria && (
             <section className="rounded-2xl border border-border bg-muted/30 px-4 py-4 space-y-2">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Resolution criteria
+                 Resolution criteria
               </h2>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {market.resolution_criteria}
               </p>
             </section>
           )}
 
+          {/* 8 — Comments */}
+          <CommentsSection
+            marketId={market.id}
+            initialComments={initialComments}
+            isAuthenticated={isAuthenticated}
+            walletAddress={walletAddress}
+          />
         </div>
       )}
-
-      {/* 8 — Comments (always visible) */}
-      <div className="mt-8 border-t border-border pt-6">
-        <CommentsSection
-          marketId={market.id}
-          initialComments={initialComments}
-          isAuthenticated={isAuthenticated}
-          walletAddress={walletAddress}
-        />
-      </div>
     </>
   );
 }

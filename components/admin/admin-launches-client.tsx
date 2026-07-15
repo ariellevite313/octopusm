@@ -10,8 +10,8 @@ import type { TokenLaunchRow } from "@/lib/supabase/types";
 type LaunchStatus = "pending" | "paid" | "submitted" | "rejected";
 
 const STATUS_LABELS: Record<LaunchStatus, string> = {
-  pending: "En attente",
-  paid: "Payé",
+  pending: "Pending",
+  paid: "Paid",
   submitted: "Submitted",
   rejected: "Rejeté",
 };
@@ -119,7 +119,7 @@ export function AdminLaunchesClient({ launches }: { launches: TokenLaunchRow[] }
                           {loading === l.id + "paid" ? (
                             <LoaderCircle className="size-3 animate-spin" />
                           ) : (
-                            "Payé"
+                            "Mark paid"
                           )}
                         </Button>
                         <Button

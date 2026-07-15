@@ -95,6 +95,8 @@ export interface PredictionMarketRow {
   resolved_by_wallet: string | null;
   event_start_at: string | null;
   is_active: boolean;
+  price_ticker: string | null;
+  price_target: number | null;
   created_at: string;
   updated_at: string;
 }

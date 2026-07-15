@@ -322,9 +322,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Fee is {feeLabel}. Refunded if rejected by admin.
-            </p>
           </div>
 
           {/* Step feedback */}
@@ -360,7 +357,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             {step === "signing" ? "Waiting for signature…"
               : step === "sending" ? "Submitting…"
               : step === "done"    ? "Pool submitted!"
-              : `Submit Pool · ${feeLabel}`}
+              : "Submit Pool"}
           </button>
         </form>
       </div>
