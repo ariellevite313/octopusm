@@ -11,6 +11,7 @@ import {
   User,
   Gavel,
   Users,
+  TrendingUp,
 } from "lucide-react";
 import { requireAdmin } from "@/services/admin-service";
 import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
@@ -24,6 +25,7 @@ const NAV = [
   { href: "/admin/launches", label: "Launches",  icon: Rocket },
   { href: "/admin/tasks",    label: "Tasks",     icon: CheckSquare },
   { href: "/admin/wallets",  label: "Wallets",   icon: Users },
+  { href: "/admin/updown",   label: "Up/Down",   icon: TrendingUp },
   { href: "/admin/account",  label: "My account",icon: User },
 ];
 

@@ -9,6 +9,7 @@ import { WalletButton } from "./wallet-button";
 const NAV_LINKS = [
   { href: "/", label: "Markets" },
   { href: "/pools", label: "PrediMarket" },
+  { href: "/crypto", label: "Crypto" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/launch", label: "Launch" },
   { href: "/archive", label: "Archive" },
@@ -54,38 +55,21 @@ export function Header() {
       {/* Mobile nav drawer */}
       {open && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm md:hidden"
             onClick={() => setOpen(false)}
           />
-
-          {/* Panel */}
-          <div className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-card md:hidden">
+          <div className="fixed inset-y-0 right-0 z-50 w-72 bg-card shadow-xl md:hidden flex flex-col">
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
-              <Link
-                href="/"
-                className="flex items-center gap-2 font-semibold text-foreground"
-                onClick={() => setOpen(false)}
-              >
-                <Image
-                  src="/octomarket-logo.png"
-                  alt="Octo Market"
-                  width={32}
-                  height={32}
-                  className="rounded-xl"
-                />
-                <span>Octo Market</span>
-              </Link>
+              <span className="text-sm font-semibold text-foreground">Menu</span>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="Close navigation menu"
-                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted"
+                aria-label="Close menu"
+                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
               >
                 <X className="size-4" />
               </button>
             </div>
-
             <nav className="flex flex-col gap-1 p-3">
               {NAV_LINKS.map(({ href, label }) => (
                 <Link

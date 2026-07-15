@@ -314,3 +314,55 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     tasks,
   };
 }
+
+// ─── Up/Down Bets ─────────────────────────────────────────────────────────────
+
+export interface UpdownBetHistory {
+  id: string;
+  market_id: string;
+  wallet_address: string;
+  direction: "up" | "down";
+  amount: number;
+  status: "pending" | "approved" | "rejected" | "won" | "lost" | "refunded" | "claimed" | "paid";
+  payout: number | null;
+  created_at: string;
+  updown_markets: {
+    symbol: string;
+    duration_min: number;
+    strike_price: number;
+    status: string;
+    outcome: string | null;
+  } | null;
+}
+
+export async function getUpdownBets(walletAddress: string): Promise<UpdownBetHistory[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("updown_bets")
+    .select(`
+      id,
+      market_id,
+      wallet_address,
+      direction,
+      amount,
+      status,
+      payout,
+      created_at,
+      updown_markets (
+        symbol,
+        duration_min,
+        strike_price,
+        status,
+        outcome
+      )
+    `)
+    .eq("wallet_address", walletAddress)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[getUpdownBets]", error.message);
+    return [];
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []) as any;
+}

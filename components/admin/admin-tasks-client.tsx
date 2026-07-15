@@ -165,7 +165,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
               className="rounded-full"
               onClick={() => { setShowForm(false); setFormError(""); }}
             >
-              Annuler
+              Cancel
             </Button>
             <Button
               size="sm"
@@ -173,7 +173,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
               disabled={creating}
               onClick={handleCreate}
             >
-              {creating ? <LoaderCircle className="size-4 animate-spin" /> : "Créer"}
+              {creating ? <LoaderCircle className="size-4 animate-spin" /> : "Create"}
             </Button>
           </div>
         </div>
