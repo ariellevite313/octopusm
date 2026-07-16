@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/updown/claim
@@ -7,8 +7,19 @@ import { createAdminClient } from "@/lib/supabase/server";
  * Admin will then manually transfer and mark as "paid".
  */
 export async function POST(req: Request) {
+  // 1. Auth: session Supabase requise
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  const sessionWallet = user.user_metadata?.wallet_address as string | undefined;
+  if (!sessionWallet) {
+    return NextResponse.json({ error: "No wallet in session" }, { status: 401 });
+  }
+
   const body = await req.json() as {
-    bet_id: string;
+    bet_id:         string;
     wallet_address: string;
   };
 
@@ -16,6 +27,11 @@ export async function POST(req: Request) {
 
   if (!bet_id || !wallet_address) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // 2. Wallet dans le body doit correspondre à la session
+  if (wallet_address !== sessionWallet) {
+    return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
   }
 
   const admin = createAdminClient() as any;
@@ -29,10 +45,12 @@ export async function POST(req: Request) {
   if (betErr || !bet) {
     return NextResponse.json({ error: "Bet not found" }, { status: 404 });
   }
-  if (bet.wallet_address !== wallet_address) {
+
+  // 3. Vérification ownership via session (pas via body)
+  if (bet.wallet_address !== sessionWallet) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
-  if (bet.status !== "won") {
+  if (bet.status !== "won" && bet.status !== "refunded") {
     return NextResponse.json({ error: `Cannot claim bet with status: ${bet.status}` }, { status: 409 });
   }
 

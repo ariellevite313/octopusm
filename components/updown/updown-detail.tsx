@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TrendingUp, TrendingDown, Clock, ArrowLeft } from "lucide-react";
+import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import {
   AreaChart, Area, XAxis, YAxis, ReferenceLine, Tooltip, ResponsiveContainer,
@@ -31,10 +32,10 @@ interface UpDownBet {
 
 interface PricePoint { time: number; price: number; }
 
-const COIN_META: Record<string, { label: string; symbol: string; color: string }> = {
-  BTCUSDT: { label: "Bitcoin",  symbol: "BTC", color: "#f59e0b" },
-  ETHUSDT: { label: "Ethereum", symbol: "ETH", color: "#3b82f6" },
-  SOLUSDT: { label: "Solana",   symbol: "SOL", color: "#9333ea" },
+const COIN_META: Record<string, { label: string; symbol: string; color: string; img: string }> = {
+  BTCUSDT: { label: "Bitcoin",  symbol: "BTC", color: "#f59e0b", img: "/bitcoin.png" },
+  ETHUSDT: { label: "Ethereum", symbol: "ETH", color: "#3b82f6", img: "/ethereum.png" },
+  SOLUSDT: { label: "Solana",   symbol: "SOL", color: "#9333ea", img: "/solana.png" },
 };
 
 const QUICK_AMOUNTS = [5, 25, 100, 500];
@@ -95,7 +96,7 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
   const [loading, setLoading] = useState(true);
   const realtimeActiveRef = useRef(false);
   const supabaseRef = useRef(getSupabase());
-  const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888" };
+  const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
 
   const pushPoint = useCallback((price: number, time: number) => {
     setCurrentPrice(price);
@@ -107,32 +108,63 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
 
   useEffect(() => {
     setLoading(true);
-    supabaseRef.current
-      .from("crypto_prices")
-      .select("price, recorded_at")
-      .eq("symbol", ticker)
-      .order("recorded_at", { ascending: false })
-      .limit(60)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          const pts: PricePoint[] = (data as { price: number; recorded_at: string }[])
-            .reverse()
-            .map(r => ({ time: new Date(r.recorded_at).getTime(), price: Number(r.price) }));
-          setPoints(pts);
-          setCurrentPrice(pts[pts.length - 1].price);
-        } else {
-          fetch(`/api/crypto/klines?symbol=${ticker}`)
-            .then(r => r.json())
-            .then((pts: PricePoint[]) => {
-              if (Array.isArray(pts) && pts.length > 0) {
-                setPoints(pts);
-                setCurrentPrice(pts[pts.length - 1].price);
-              }
-            })
-            .catch(() => {});
+    setPoints([]);
+    setCurrentPrice(null);
+
+    // Race: klines (Binance) et Supabase en parallele — le premier qui repond gagne
+    // Si Supabase est vide, klines prend le relai
+    let resolved = false;
+
+    const applyPoints = (pts: PricePoint[]) => {
+      if (pts.length === 0) return false;
+      setPoints(pts.slice(-MAX_POINTS));
+      setCurrentPrice(pts[pts.length - 1].price);
+      setLoading(false);
+      resolved = true;
+      return true;
+    };
+
+    // Source 1a: klines Binance directement depuis le browser (pas de blocage IP serveur)
+    const klinesBrowserFetch = fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`
+    )
+      .then(r => r.json())
+      .then((data: [number, string, string, string, string, ...unknown[]][]) => {
+        if (!resolved && Array.isArray(data) && data.length > 0) {
+          const pts: PricePoint[] = data.map(k => ({ time: k[0], price: parseFloat(k[4]) }));
+          applyPoints(pts);
         }
-        setLoading(false);
-      });
+      })
+      .catch(() => {});
+
+    // Source 1b: klines via API route (fallback si Binance CORS bloque)
+    const klinesFetch = fetch(`/api/crypto/klines?symbol=${ticker}`)
+      .then(r => r.json())
+      .then((data: PricePoint[]) => {
+        if (!resolved && Array.isArray(data) && data.length > 0) applyPoints(data);
+      })
+      .catch(() => {});
+
+    // Source 2: Supabase crypto_prices (donnees historiques plus riches si disponibles)
+    const supabaseFetch = Promise.resolve(
+      supabaseRef.current
+        .from("crypto_prices")
+        .select("price, recorded_at")
+        .eq("symbol", ticker)
+        .order("recorded_at", { ascending: false })
+        .limit(60)
+    ).then(({ data }) => {
+      if (!data || data.length === 0) return;
+      const pts: PricePoint[] = (data as { price: number; recorded_at: string }[])
+        .reverse()
+        .map(r => ({ time: new Date(r.recorded_at).getTime(), price: Number(r.price) }));
+      applyPoints(pts);
+    }).catch(() => {});
+
+    // Timeout securite: si les deux echouent apres 8s, on arrete le loading
+    const timeout = setTimeout(() => { if (!resolved) setLoading(false); }, 8000);
+
+    void Promise.all([klinesBrowserFetch, klinesFetch, supabaseFetch]).finally(() => clearTimeout(timeout));
   }, [ticker]);
 
   useEffect(() => {
@@ -153,16 +185,41 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
 
   useEffect(() => {
     let pollId: ReturnType<typeof setInterval> | null = null;
+    let earlyId: ReturnType<typeof setTimeout> | null = null;
+
     const poll = async () => {
-      if (realtimeActiveRef.current) { if (pollId) clearInterval(pollId); return; }
       try {
         const r = await fetch(`/api/crypto/price?symbol=${ticker}`);
         const d: { price: string } = await r.json();
-        if (d.price) { pushPoint(parseFloat(d.price), Date.now()); setLive(true); }
+        if (d.price) {
+          pushPoint(parseFloat(d.price), Date.now());
+          setLive(true);
+          realtimeActiveRef.current = false; // keep polling si Realtime absent
+        }
       } catch { /* ignore */ }
     };
-    const startId = setTimeout(() => { poll(); pollId = setInterval(poll, POLL_INTERVAL_MS); }, 35_000);
-    return () => { clearTimeout(startId); if (pollId) clearInterval(pollId); };
+
+    // Si apres 3s on na toujours pas de donnees, on demarre le polling immediat
+    earlyId = setTimeout(async () => {
+      if (points.length === 0) {
+        await poll();
+        pollId = setInterval(poll, 10_000); // toutes les 10s
+      } else {
+        // Donnees presentes, polling de secours seulement apres 35s
+        setTimeout(() => {
+          if (!realtimeActiveRef.current) {
+            poll();
+            pollId = setInterval(poll, POLL_INTERVAL_MS);
+          }
+        }, 32_000);
+      }
+    }, 3_000);
+
+    return () => {
+      if (earlyId) clearTimeout(earlyId);
+      if (pollId) clearInterval(pollId);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, pushPoint]);
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
@@ -266,14 +323,45 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   const walletAddressRef = useRef(walletAddress);
   useEffect(() => { walletAddressRef.current = walletAddress; }, [walletAddress]);
 
-  // Countdown jusqu'à la fin des paris (closes_at) — affiché tant que les paris sont ouverts
-  const _bettingStillOpen = market?.status === "open" && new Date(market.closes_at) > new Date();
-  const countdown = useCountdown(
-    _bettingStillOpen ? market!.closes_at : null
+  // Ratios betting/live par durée totale du round
+  const BETTING_MINUTES: Record<number, number> = { 5: 3, 15: 10, 30: 20 };
+
+  // bettingClosesAt: calculé depuis opens_at + ratio betting
+  // Si le marché a resolve_at, closes_at est déjà le vrai closes_at
+  // Sinon (vieux marchés), on recalcule depuis opens_at
+  const bettingClosesAt = market
+    ? market.resolve_at
+      ? market.closes_at  // nouveau marché: closes_at = fin des paris
+      : new Date(
+          new Date(market.opens_at).getTime() +
+          (BETTING_MINUTES[market.duration_min] ?? 3) * 60_000
+        ).toISOString()  // vieux marché: recalcul depuis opens_at
+    : null;
+
+  const resolveTarget = market
+    ? market.resolve_at
+      ?? new Date(
+           new Date(market.opens_at).getTime() +
+           (market.duration_min) * 60_000
+         ).toISOString()
+    : null;
+
+  // isBettingOpen: true tant que bettingClosesAt n'est pas atteint
+  const [isBettingOpen, setIsBettingOpen] = useState(
+    () => !!bettingClosesAt && new Date(bettingClosesAt) > new Date()
   );
-  // Countdown jusqu'à la résolution (resolve_at) — affiché pendant la phase LIVE
+  useEffect(() => {
+    if (!bettingClosesAt || market?.status !== "open") { setIsBettingOpen(false); return; }
+    const msUntilClose = new Date(bettingClosesAt).getTime() - Date.now();
+    if (msUntilClose <= 0) { setIsBettingOpen(false); return; }
+    setIsBettingOpen(true);
+    const id = setTimeout(() => setIsBettingOpen(false), msUntilClose);
+    return () => clearTimeout(id);
+  }, [bettingClosesAt, market?.status]);
+
+  const countdown = useCountdown(isBettingOpen ? bettingClosesAt : null);
   const liveCountdown = useCountdown(
-    market?.status === "open" && !_bettingStillOpen ? (market.resolve_at ?? null) : null
+    market?.status === "open" && !isBettingOpen ? resolveTarget : null
   );
 
   const fetchMarket = useCallback(async () => {
@@ -461,10 +549,9 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
   const isOpen      = market.status === "open";
   const isResolved  = market.status === "resolved";
-  // Block bets as soon as closes_at is reached, even if cron hasn't resolved yet
-  const isBettingOpen = isOpen && new Date(market.closes_at) > new Date();
+  // isBettingOpen est géré par le useState + timer ci-dessus (re-render automatique à closes_at)
   const totalPool  = (market.pool_up ?? 0) + (market.pool_down ?? 0);
-  const meta       = COIN_META[market.symbol] ?? { label: market.symbol, symbol: market.symbol, color: "#888" };
+  const meta       = COIN_META[market.symbol] ?? { label: market.symbol, symbol: market.symbol, color: "#888", img: "" };
 
   // Paris du round actuel uniquement
   const currentRoundBets = myBets.filter(b => b.market_id === marketId);
@@ -486,10 +573,10 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
       {/* Header */}
       <div className="rounded-2xl border border-border bg-card px-5 py-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex size-10 items-center justify-center rounded-full text-sm font-bold text-white"
-            style={{ background: meta.color }}>
-            {meta.symbol[0]}
-          </div>
+          {meta.img
+            ? <Image src={meta.img} alt={meta.symbol} width={40} height={40} className="rounded-full bg-white p-0.5 shrink-0" />
+            : <div className="flex size-10 items-center justify-center rounded-full text-sm font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+          }
           <div>
             <h1 className="text-base font-bold text-foreground">{meta.label} Up/Down</h1>
             <p className="text-xs text-muted-foreground">{market.duration_min} min round · Strike ${formatPrice(market.strike_price)}</p>
@@ -503,14 +590,14 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                 </p>
               </>
             ) : isOpen ? (
-              <div className="flex flex-col items-end gap-1">
-                <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 flex items-center gap-1.5">
-                  <span className="inline-block size-1.5 rounded-full bg-orange-500 animate-pulse" />
+              <div className="flex flex-col items-end gap-1.5">
+                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1.5">
+                  <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   LIVE — Bets closed
                 </span>
-                {liveCountdown && (
-                  <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1">
-                    <Clock className="size-3 text-muted-foreground" />Resolves in {liveCountdown}
+                {liveCountdown && liveCountdown !== "Termine" && (
+                  <p className="text-base font-bold tabular-nums text-foreground flex items-center gap-1">
+                    <Clock className="size-3.5 text-muted-foreground" />{liveCountdown}
                   </p>
                 )}
               </div>
@@ -653,10 +740,13 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         <WalletSelectDialog
           wallets={getAvailableWallets()}
           onClose={() => setShowWalletDialog(false)}
-          onSelect={async (type: WalletType) => {
+          onSelect={async (walletType: WalletType) => {
             setShowWalletDialog(false);
-            try { await connectWalletAndAuth(type); }
-            catch (e: any) { toast.error(e?.message ?? 'Connection failed'); }
+            try {
+              await connectWalletAndAuth(walletType);
+            } catch (e) {
+              toast.error("Connection failed");
+            }
           }}
         />
       )}

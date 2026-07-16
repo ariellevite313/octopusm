@@ -105,7 +105,7 @@ function updownStatus(bet: UpdownBetHistory): { label: string; cls: string } {
 }
 
 function updownCanClaim(bet: UpdownBetHistory): boolean {
-  return bet.status === "won";
+  return bet.status === "won" || bet.status === "refunded";
 }
 
 function isClaimable(bet: PoolBet): boolean {
