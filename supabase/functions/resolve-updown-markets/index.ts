@@ -10,12 +10,13 @@ Deno.serve(async (_req) => {
 
   const now = new Date().toISOString();
 
-  // Find all open markets that have expired
+  // Find all open markets whose resolve_at has passed
+  // (resolve_at = fin totale du round, closes_at = fin des paris)
   const { data: expired, error: fetchErr } = await supabase
     .from("updown_markets")
     .select("*")
     .eq("status", "open")
-    .lte("closes_at", now);
+    .lte("resolve_at", now);
 
   if (fetchErr) {
     return new Response(JSON.stringify({ error: fetchErr.message }), { status: 500 });

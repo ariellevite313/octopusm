@@ -18,7 +18,8 @@ import type { WalletType } from "@/lib/wallet/adapters";
 
 interface UpDownMarket {
   id: string; symbol: string; duration_min: number; strike_price: number;
-  opens_at: string; closes_at: string; status: "open" | "resolved" | "cancelled";
+  opens_at: string; closes_at: string; resolve_at: string | null;
+  status: "open" | "resolved" | "cancelled";
   outcome: "up" | "down" | null; pool_up: number; pool_down: number;
   fee_rate: number; open_price: number | null;
 }
@@ -265,7 +266,15 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   const walletAddressRef = useRef(walletAddress);
   useEffect(() => { walletAddressRef.current = walletAddress; }, [walletAddress]);
 
-  const countdown = useCountdown(market?.status === "open" ? market.closes_at : null);
+  // Countdown jusqu'à la fin des paris (closes_at) — affiché tant que les paris sont ouverts
+  const _bettingStillOpen = market?.status === "open" && new Date(market.closes_at) > new Date();
+  const countdown = useCountdown(
+    _bettingStillOpen ? market!.closes_at : null
+  );
+  // Countdown jusqu'à la résolution (resolve_at) — affiché pendant la phase LIVE
+  const liveCountdown = useCountdown(
+    market?.status === "open" && !_bettingStillOpen ? (market.resolve_at ?? null) : null
+  );
 
   const fetchMarket = useCallback(async () => {
     const { data } = await supabase.current.from("updown_markets").select("*").eq("id", marketId).single();
@@ -450,8 +459,10 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     return <div className="py-20 text-center text-sm text-muted-foreground">Market not found.</div>;
   }
 
-  const isOpen     = market.status === "open";
-  const isResolved = market.status === "resolved";
+  const isOpen      = market.status === "open";
+  const isResolved  = market.status === "resolved";
+  // Block bets as soon as closes_at is reached, even if cron hasn't resolved yet
+  const isBettingOpen = isOpen && new Date(market.closes_at) > new Date();
   const totalPool  = (market.pool_up ?? 0) + (market.pool_down ?? 0);
   const meta       = COIN_META[market.symbol] ?? { label: market.symbol, symbol: market.symbol, color: "#888" };
 
@@ -484,13 +495,25 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             <p className="text-xs text-muted-foreground">{market.duration_min} min round · Strike ${formatPrice(market.strike_price)}</p>
           </div>
           <div className="ml-auto text-right">
-            {isOpen ? (
+            {isBettingOpen ? (
               <>
                 <p className="text-xs text-muted-foreground">Closes in</p>
                 <p className="text-base font-bold tabular-nums text-foreground flex items-center gap-1">
                   <Clock className="size-3.5 text-muted-foreground" />{countdown}
                 </p>
               </>
+            ) : isOpen ? (
+              <div className="flex flex-col items-end gap-1">
+                <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 flex items-center gap-1.5">
+                  <span className="inline-block size-1.5 rounded-full bg-orange-500 animate-pulse" />
+                  LIVE — Bets closed
+                </span>
+                {liveCountdown && (
+                  <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1">
+                    <Clock className="size-3 text-muted-foreground" />Resolves in {liveCountdown}
+                  </p>
+                )}
+              </div>
             ) : (
               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                 isResolved ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" : "bg-amber-100 text-amber-700"
@@ -566,8 +589,8 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         </div>
       )}
 
-      {/* Formulaire de pari — toujours visible si le marché est ouvert */}
-      {isOpen && (
+      {/* Formulaire de pari — visible uniquement si les paris sont ouverts */}
+      {isBettingOpen && (
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <h2 className="text-sm font-bold text-foreground">Place a bet</h2>
           <div className="flex gap-2">
@@ -633,7 +656,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           onSelect={async (type: WalletType) => {
             setShowWalletDialog(false);
             try { await connectWalletAndAuth(type); }
-            catch (e: any) { toast.error(e?.message ?? "Connection failed"); }
+            catch (e: any) { toast.error(e?.message ?? 'Connection failed'); }
           }}
         />
       )}
