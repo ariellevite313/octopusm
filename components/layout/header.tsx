@@ -9,7 +9,6 @@ import { WalletButton } from "./wallet-button";
 const NAV_LINKS = [
   { href: "/", label: "Markets" },
   { href: "/pools", label: "PrediMarket" },
-  { href: "/crypto", label: "Crypto" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/launch", label: "Launch" },
   { href: "/archive", label: "Archive" },

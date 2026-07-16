@@ -12,11 +12,32 @@ export interface UpDownMarket {
   status: "open" | "resolved" | "cancelled";
   closes_at: string;
   opens_at: string;
+  resolve_at: string | null;
   outcome: "up" | "down" | null;
   open_price: number | null;
   pool_up: number;
   pool_down: number;
   fee_rate: number;
+}
+
+// Durées de la phase de paris (en minutes) par durée totale de round
+const BETTING_MINUTES: Record<number, number> = { 5: 3, 15: 10, 30: 20 };
+
+// Calcule la fin des paris (bettingClosesAt) depuis le marché
+// Pour nouveaux marchés: closes_at = fin des paris (resolve_at présent)
+// Pour vieux marchés: on recalcule depuis opens_at + ratio betting
+export function getBettingClosesAt(market: UpDownMarket): string {
+  if (market.resolve_at) return market.closes_at;
+  return new Date(
+    new Date(market.opens_at).getTime() +
+    (BETTING_MINUTES[market.duration_min] ?? 3) * 60_000
+  ).toISOString();
+}
+
+// Calcule la fin du round (resolveAt)
+export function getResolveAt(market: UpDownMarket): string {
+  return market.resolve_at
+    ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 60_000).toISOString();
 }
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
@@ -49,7 +70,26 @@ export function useCountdown(closeAt: string | null | undefined): string {
 }
 
 export function UpDownCard({ market }: { market: UpDownMarket }) {
-  const countdown = useCountdown(market.status === "open" ? market.closes_at : null);
+  const bettingClosesAt = getBettingClosesAt(market);
+  const resolveAt       = getResolveAt(market);
+
+  // isBettingOpen: re-évalué par timer au moment exact de la fermeture des paris
+  const [isBettingOpen, setIsBettingOpen] = useState(
+    () => market.status === "open" && new Date(bettingClosesAt) > new Date()
+  );
+  useEffect(() => {
+    if (market.status !== "open") { setIsBettingOpen(false); return; }
+    const ms = new Date(bettingClosesAt).getTime() - Date.now();
+    if (ms <= 0) { setIsBettingOpen(false); return; }
+    setIsBettingOpen(true);
+    const id = setTimeout(() => setIsBettingOpen(false), ms);
+    return () => clearTimeout(id);
+  }, [bettingClosesAt, market.status]);
+
+  const isLive     = market.status === "open" && !isBettingOpen;
+  const countdown  = useCountdown(isBettingOpen ? bettingClosesAt : null);
+  const liveCountdown = useCountdown(isLive ? resolveAt : null);
+
   const poolUp   = Number(market.pool_up);
   const poolDown = Number(market.pool_down);
   const total    = poolUp + poolDown;
@@ -73,10 +113,21 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
               <p className="text-xs text-muted-foreground">{market.duration_min} Min &middot; Strike ${formatPrice(market.strike_price)}</p>
             </div>
           </div>
-          {market.status === "open" && (
+          {/* Badge phase betting: countdown orange */}
+          {isBettingOpen && (
             <span className="shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
               {countdown}
             </span>
+          )}
+          {/* Badge phase LIVE: vert + countdown */}
+          {isLive && (
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                LIVE
+              </span>
+              <span className="text-xs tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+            </div>
           )}
           {isResolved && (
             <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${market.outcome === "up" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"}`}>

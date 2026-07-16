@@ -106,32 +106,44 @@ export function AdminUpDownClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {claimed.map(bet => (
-            <div key={bet.id} className="rounded-2xl border border-amber-400/40 bg-amber-50/30 dark:bg-amber-950/10 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-foreground">
-                  {bet.updown_markets.symbol.replace("USDT", "")} {bet.updown_markets.duration_min}m
-                  {" — "}{bet.direction === "up" ? "↑ UP" : "↓ DOWN"}
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">{bet.wallet_address}</p>
-                <p className="text-xs text-muted-foreground">
-                  Stake: ${bet.amount} · Payout: <span className="font-bold text-emerald-600">${bet.payout.toFixed(4)} USDC</span>
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  Claimed on {new Date(bet.claimed_at).toLocaleString("en-US")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => markPaid(bet)}
-                disabled={paying === bet.id}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
-              >
-                <CheckCircle className="size-4" />
-                {paying === bet.id ? "..." : "Mark as paid"}
-              </button>
-            </div>
-          ))}
+          {claimed.map(bet => {
+              const isRefund = !bet.payout || bet.payout === 0;
+              return (
+                <div key={bet.id} className={`rounded-2xl border px-4 py-3 flex items-center justify-between gap-4 flex-wrap ${isRefund ? "border-slate-300/40 bg-slate-50/30 dark:bg-slate-950/10" : "border-amber-400/40 bg-amber-50/30 dark:bg-amber-950/10"}`}>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {bet.updown_markets.symbol.replace("USDT", "")} {bet.updown_markets.duration_min}m
+                        {" — "}{bet.direction === "up" ? "↑ UP" : "↓ DOWN"}
+                      </p>
+                      {isRefund && (
+                        <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">REFUND</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono">{bet.wallet_address}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Stake: ${bet.amount} ·{" "}
+                      {isRefund
+                        ? <span className="font-bold text-slate-600 dark:text-slate-300">Refund: ${bet.amount.toFixed(4)} USDC</span>
+                        : <span className="font-bold text-emerald-600">Payout: ${bet.payout.toFixed(4)} USDC</span>
+                      }
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Claimed on {new Date(bet.claimed_at).toLocaleString("en-US")}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => markPaid(bet)}
+                    disabled={paying === bet.id}
+                    className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60 ${isRefund ? "bg-slate-500 hover:bg-slate-600" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                  >
+                    <CheckCircle className="size-4" />
+                    {paying === bet.id ? "..." : isRefund ? "Mark refunded" : "Mark as paid"}
+                  </button>
+                </div>
+              );
+            })}
         </div>
       )}
 
@@ -155,7 +167,12 @@ export function AdminUpDownClient() {
                   <tr key={bet.id} className="border-b border-border/40 last:border-0">
                     <td className="px-3 py-2 font-mono text-muted-foreground">{bet.wallet_address.slice(0, 8)}...{bet.wallet_address.slice(-4)}</td>
                     <td className="px-3 py-2">{bet.updown_markets.symbol.replace("USDT", "")} {bet.updown_markets.duration_min}m {bet.direction === "up" ? "↑" : "↓"}</td>
-                    <td className="px-3 py-2 font-semibold text-emerald-600">${bet.payout.toFixed(4)}</td>
+                    <td className="px-3 py-2 font-semibold">
+                      {!bet.payout || bet.payout === 0
+                        ? <span className="text-slate-500">Refund ${bet.amount.toFixed(4)}</span>
+                        : <span className="text-emerald-600">${bet.payout.toFixed(4)}</span>
+                      }
+                    </td>
                     <td className="px-3 py-2 text-muted-foreground">{bet.paid_at ? new Date(bet.paid_at).toLocaleString("en-US") : "—"}</td>
                   </tr>
                 ))}

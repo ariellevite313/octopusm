@@ -1,5 +1,135 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
+
+const RPC_URLS = [
+  "https://solana-rpc.publicnode.com",
+  "https://api.mainnet-beta.solana.com",
+  "https://rpc.ankr.com/solana",
+];
+
+/**
+ * Verifies on-chain that tx_signature:
+ *  1. Is confirmed
+ *  2. Transferred at least `expectedUsdc` USDC (6 decimals)
+ *  3. Destination is TREASURY_ADDRESS
+ * Returns null on success, error string on failure.
+ */
+async function verifyUsdcTransfer(
+  txSignature: string,
+  expectedUsdc: number,
+): Promise<string | null> {
+  const expectedLamports = Math.round(expectedUsdc * 1_000_000);
+
+  for (const rpc of RPC_URLS) {
+    try {
+      const res = await fetch(rpc, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getTransaction",
+          params: [
+            txSignature,
+            { encoding: "jsonParsed", commitment: "confirmed", maxSupportedTransactionVersion: 0 },
+          ],
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!res.ok) continue;
+      const json = await res.json() as { result: any; error?: any };
+      if (json.error || !json.result) continue;
+
+      const tx = json.result;
+
+      // Must be confirmed (no err)
+      if (tx.meta?.err !== null && tx.meta?.err !== undefined && tx.meta.err !== null) {
+        // err is null when successful
+        if (tx.meta.err !== null) return "Transaction failed on-chain";
+      }
+
+      // Look for a token transfer instruction to treasury
+      const instructions: any[] = tx.transaction?.message?.instructions ?? [];
+      const innerInstructions: any[] = (tx.meta?.innerInstructions ?? [])
+        .flatMap((ii: any) => ii.instructions ?? []);
+      const allInstructions = [...instructions, ...innerInstructions];
+
+      let found = false;
+      for (const ix of allInstructions) {
+        const parsed = ix.parsed;
+        if (!parsed) continue;
+
+        // SPL Token transfer or transferChecked
+        if (
+          (parsed.type === "transfer" || parsed.type === "transferChecked") &&
+          ix.program === "spl-token"
+        ) {
+          const info = parsed.info ?? {};
+          const dest: string = info.destination ?? info.account ?? "";
+          const mintAddr: string = info.mint ?? "";
+          const rawAmount: number =
+            parsed.type === "transferChecked"
+              ? Number(info.tokenAmount?.amount ?? 0)
+              : Number(info.amount ?? 0);
+
+          // Check mint is USDC and destination is treasury ATA or treasury itself
+          const isUsdc = mintAddr === USDC_MINT || mintAddr === "";
+          const isDest =
+            dest.toLowerCase().includes(TREASURY_ADDRESS.toLowerCase()) ||
+            dest === TREASURY_ADDRESS;
+
+          if (isUsdc && isDest && rawAmount >= expectedLamports) {
+            found = true;
+            break;
+          }
+          // Also accept if destination account owner is treasury (via postTokenBalances)
+          const postBalances: any[] = tx.meta?.postTokenBalances ?? [];
+          for (const bal of postBalances) {
+            if (
+              bal.owner === TREASURY_ADDRESS &&
+              bal.mint === USDC_MINT
+            ) {
+              const preBalances: any[] = tx.meta?.preTokenBalances ?? [];
+              const pre = preBalances.find((b: any) => b.accountIndex === bal.accountIndex);
+              const preAmt = Number(pre?.uiTokenAmount?.amount ?? 0);
+              const postAmt = Number(bal.uiTokenAmount?.amount ?? 0);
+              if (postAmt - preAmt >= expectedLamports) {
+                found = true;
+                break;
+              }
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      // Fallback: check via postTokenBalances delta (most reliable)
+      if (!found) {
+        const postBalances: any[] = tx.meta?.postTokenBalances ?? [];
+        const preBalances: any[] = tx.meta?.preTokenBalances ?? [];
+        for (const bal of postBalances) {
+          if (bal.owner === TREASURY_ADDRESS && bal.mint === USDC_MINT) {
+            const pre = preBalances.find((b: any) => b.accountIndex === bal.accountIndex);
+            const preAmt = Number(pre?.uiTokenAmount?.amount ?? 0);
+            const postAmt = Number(bal.uiTokenAmount?.amount ?? 0);
+            if (postAmt - preAmt >= expectedLamports) {
+              found = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!found) return `No USDC transfer of $${expectedUsdc} to treasury found in transaction`;
+      return null; // success
+    } catch {
+      // try next RPC
+    }
+  }
+  return "Could not verify transaction (RPC unavailable)";
+}
 
 /**
  * POST /api/updown/bet
@@ -7,12 +137,23 @@ import { createAdminClient } from "@/lib/supabase/server";
  * Inserts bet + atomically increments pool_up or pool_down.
  */
 export async function POST(req: Request) {
+  // 1. Auth: session Supabase requise
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  const sessionWallet = user.user_metadata?.wallet_address as string | undefined;
+  if (!sessionWallet) {
+    return NextResponse.json({ error: "No wallet in session" }, { status: 401 });
+  }
+
   const body = await req.json() as {
-    market_id:     string;
+    market_id:      string;
     wallet_address: string;
-    direction:     "up" | "down";
-    amount:        number;
-    tx_signature:  string;
+    direction:      "up" | "down";
+    amount:         number;
+    tx_signature:   string;
   };
 
   const { market_id, wallet_address, direction, amount, tx_signature } = body;
@@ -27,9 +168,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
+  // 2. Wallet dans le body doit correspondre à la session
+  if (wallet_address !== sessionWallet) {
+    return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
+  }
+
   const admin = createAdminClient() as any;
 
-  // Verify market is still open
+  // 3. Verify market is still open for betting
   const { data: market, error: mErr } = await admin
     .from("updown_markets")
     .select("id, status, closes_at")
@@ -43,10 +189,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Market is closed" }, { status: 409 });
   }
   if (new Date(market.closes_at) <= new Date()) {
-    return NextResponse.json({ error: "Market has expired" }, { status: 409 });
+    return NextResponse.json({ error: "Betting phase has ended" }, { status: 409 });
   }
 
-  // Insert bet
+  // 4. Verify on-chain: tx really transferred `amount` USDC to treasury
+  const verifyError = await verifyUsdcTransfer(tx_signature, amount);
+  if (verifyError) {
+    return NextResponse.json({ error: `Transaction invalid: ${verifyError}` }, { status: 422 });
+  }
+
+  // 5. Insert bet (tx_signature unique prevents double-submit)
   const { error: betErr } = await admin.from("updown_bets").insert({
     id:             crypto.randomUUID(),
     market_id,
@@ -64,7 +216,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: betErr.message }, { status: 500 });
   }
 
-  // Incrémenter le pool immédiatement pour que le volume soit visible
+  // 6. Incrémenter le pool atomiquement
   const poolCol = direction === "up" ? "pool_up" : "pool_down";
   await admin.rpc("increment_updown_pool", {
     p_market_id: market_id,

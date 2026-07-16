@@ -77,12 +77,6 @@ Deno.serve(async (_req) => {
     const feeRate     = Number(market.fee_rate) / 100;
     const netPool     = totalPool * (1 - feeRate);
 
-    // Update market
-    await supabase
-      .from("updown_markets")
-      .update({ status: "resolved", outcome, open_price: closePrice })
-      .eq("id", market.id);
-
     // Get all bets for this market (pending ET approved — les deux comptent)
     const { data: bets } = await supabase
       .from("updown_bets")
@@ -91,9 +85,37 @@ Deno.serve(async (_req) => {
       .in("status", ["pending", "approved"]);
 
     if (!bets || bets.length === 0) {
+      await supabase
+        .from("updown_markets")
+        .update({ status: "resolved", outcome, open_price: closePrice })
+        .eq("id", market.id);
       resolved.push(`${market.symbol} ${market.duration_min}m → ${outcome} (no bets)`);
       continue;
     }
+
+    // Si tout le monde est du même côté (poolLosers = 0) → refund total, 0% de frais
+    // Personne à redistributer donc on annule le round côté payout
+    if (poolLosers === 0) {
+      await supabase
+        .from("updown_markets")
+        .update({ status: "cancelled", open_price: closePrice })
+        .eq("id", market.id);
+
+      await supabase
+        .from("updown_bets")
+        .update({ status: "refunded" })
+        .eq("market_id", market.id)
+        .in("status", ["pending", "approved"]);
+
+      resolved.push(`${market.symbol} ${market.duration_min}m → ${outcome} (one-sided, refunded)`);
+      continue;
+    }
+
+    // Update market
+    await supabase
+      .from("updown_markets")
+      .update({ status: "resolved", outcome, open_price: closePrice })
+      .eq("id", market.id);
 
     // Update each bet
     for (const bet of bets) {
@@ -101,7 +123,7 @@ Deno.serve(async (_req) => {
       const betAmount = Number(bet.amount);
 
       let payout = 0;
-      if (isWinner && poolWinners > 0) {
+      if (isWinner) {
         // Proportional share of net pool
         payout = (betAmount / poolWinners) * netPool;
         payout = Math.round(payout * 1_000_000) / 1_000_000; // 6 decimals USDC
