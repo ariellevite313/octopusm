@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
+const COINGECKO_IDS: Record<string, string> = {
+  BTCUSDT: "bitcoin",
+  ETHUSDT: "ethereum",
+  SOLUSDT: "solana",
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol")?.toUpperCase();
@@ -10,16 +16,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
   }
 
+  const coinId = COINGECKO_IDS[symbol];
+
   try {
-    // Last 30 x 1-minute candles → 30 price points
+    // CoinGecko: 1 hour of data at minute granularity (no API key needed)
     const res = await fetch(
-      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=30`,
-      { next: { revalidate: 0 } }
+      `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=0.1&interval=minutely`,
+      {
+        headers: { "Accept": "application/json" },
+        next: { revalidate: 0 },
+      }
     );
-    if (!res.ok) throw new Error(`Binance ${res.status}`);
-    const data: [number, string, string, string, string, ...unknown[]][] = await res.json();
-    // Return [{time, price}] using close price of each candle
-    const points = data.map((k) => ({ time: k[0], price: parseFloat(k[4]) }));
+    if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
+    const data: { prices: [number, number][] } = await res.json();
+    // Return [{time, price}] — last 60 points max
+    const points = data.prices.slice(-60).map(([time, price]) => ({ time, price }));
     return NextResponse.json(points);
   } catch (e) {
     return NextResponse.json(

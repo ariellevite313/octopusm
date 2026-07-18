@@ -1,7 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-const BINANCE_URL = "https://api.binance.com/api/v3/ticker/price";
+const COINGECKO_IDS: Record<string, string> = {
+  BTCUSDT: "bitcoin",
+  ETHUSDT: "ethereum",
+  SOLUSDT: "solana",
+};
 
 Deno.serve(async (_req) => {
   const supabase = createClient(
@@ -9,30 +13,36 @@ Deno.serve(async (_req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Fetch all 3 prices in parallel from Binance
-  const results = await Promise.allSettled(
-    SYMBOLS.map(async (symbol) => {
-      const res = await fetch(`${BINANCE_URL}?symbol=${symbol}`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (!res.ok) throw new Error(`Binance ${res.status} for ${symbol}`);
-      const data: { symbol: string; price: string } = await res.json();
-      return { symbol, price: parseFloat(data.price) };
-    })
-  );
+  // Fetch all 3 prices in one CoinGecko call
+  const ids = SYMBOLS.map((s) => COINGECKO_IDS[s]).join(",");
+  let rows: { symbol: string; price: number; recorded_at: string }[] = [];
 
-  const rows = results
-    .filter((r): r is PromiseFulfilledResult<{ symbol: string; price: number }> =>
-      r.status === "fulfilled"
-    )
-    .map((r) => ({
-      symbol: r.value.symbol,
-      price: r.value.price,
-      recorded_at: new Date().toISOString(),
-    }));
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
+    const data: Record<string, { usd: number }> = await res.json();
+
+    const now = new Date().toISOString();
+    rows = SYMBOLS
+      .map((symbol) => {
+        const coinId = COINGECKO_IDS[symbol];
+        const price = data[coinId]?.usd;
+        if (!price) return null;
+        return { symbol, price, recorded_at: now };
+      })
+      .filter((r): r is { symbol: string; price: number; recorded_at: string } => r !== null);
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: `CoinGecko fetch failed: ${e instanceof Error ? e.message : e}` }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   if (rows.length === 0) {
-    return new Response(JSON.stringify({ error: "All Binance fetches failed" }), {
+    return new Response(JSON.stringify({ error: "No prices returned" }), {
       status: 502,
       headers: { "Content-Type": "application/json" },
     });
