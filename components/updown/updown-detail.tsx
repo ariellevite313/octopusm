@@ -94,7 +94,6 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
-  const realtimeActiveRef = useRef(false);
   const supabaseRef = useRef(getSupabase());
   const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
 
@@ -110,116 +109,86 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
     setLoading(true);
     setPoints([]);
     setCurrentPrice(null);
-
-    // Race: klines (Binance) et Supabase en parallele — le premier qui repond gagne
-    // Si Supabase est vide, klines prend le relai
     let resolved = false;
 
     const applyPoints = (pts: PricePoint[]) => {
-      if (pts.length === 0) return false;
+      if (pts.length === 0 || resolved) return;
       setPoints(pts.slice(-MAX_POINTS));
       setCurrentPrice(pts[pts.length - 1].price);
       setLoading(false);
       resolved = true;
-      return true;
     };
 
-    // Source 1a: klines Binance directement depuis le browser (pas de blocage IP serveur)
-    const klinesBrowserFetch = fetch(
-      `https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`
-    )
-      .then(r => r.json())
+    // Timeout securite: 4s max puis on cache le loading
+    const timeout = setTimeout(() => setLoading(false), 4000);
+
+    // Source 1: Binance directement depuis le browser (rapide, pas de proxy)
+    fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`)
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: [number, string, string, string, string, ...unknown[]][]) => {
-        if (!resolved && Array.isArray(data) && data.length > 0) {
-          const pts: PricePoint[] = data.map(k => ({ time: k[0], price: parseFloat(k[4]) }));
-          applyPoints(pts);
+        if (Array.isArray(data) && data.length > 0) {
+          applyPoints(data.map(k => ({ time: k[0], price: parseFloat(k[4]) })));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Source 2: API route fallback (CoinGecko via serveur)
+        fetch(`/api/crypto/klines?symbol=${ticker}`)
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then((data: PricePoint[]) => {
+            if (Array.isArray(data) && data.length > 0) applyPoints(data);
+          })
+          .catch(() => {});
+      });
 
-    // Source 1b: klines via API route (fallback si Binance CORS bloque)
-    const klinesFetch = fetch(`/api/crypto/klines?symbol=${ticker}`)
-      .then(r => r.json())
-      .then((data: PricePoint[]) => {
-        if (!resolved && Array.isArray(data) && data.length > 0) applyPoints(data);
-      })
-      .catch(() => {});
-
-    // Source 2: Supabase crypto_prices (donnees historiques plus riches si disponibles)
-    const supabaseFetch = Promise.resolve(
-      supabaseRef.current
-        .from("crypto_prices")
-        .select("price, recorded_at")
-        .eq("symbol", ticker)
-        .order("recorded_at", { ascending: false })
-        .limit(60)
-    ).then(({ data }) => {
-      if (!data || data.length === 0) return;
-      const pts: PricePoint[] = (data as { price: number; recorded_at: string }[])
-        .reverse()
-        .map(r => ({ time: new Date(r.recorded_at).getTime(), price: Number(r.price) }));
-      applyPoints(pts);
-    }).catch(() => {});
-
-    // Timeout securite: si les deux echouent apres 8s, on arrete le loading
-    const timeout = setTimeout(() => { if (!resolved) setLoading(false); }, 8000);
-
-    void Promise.all([klinesBrowserFetch, klinesFetch, supabaseFetch]).finally(() => clearTimeout(timeout));
+    return () => clearTimeout(timeout);
   }, [ticker]);
 
+  // WebSocket Binance — updates à la seconde
   useEffect(() => {
-    const sb = supabaseRef.current;
-    const channel = sb
-      .channel(`updown-chart-${ticker}`)
-      .on("postgres_changes" as const, {
-        event: "INSERT", schema: "public", table: "crypto_prices", filter: `symbol=eq.${ticker}`,
-      }, (payload: { new: Record<string, unknown> }) => {
-        const row = payload.new as { price: number; recorded_at: string };
-        realtimeActiveRef.current = true;
-        pushPoint(Number(row.price), new Date(row.recorded_at).getTime());
-        setLive(true);
-      })
-      .subscribe((status: string) => { if (status === "SUBSCRIBED") setLive(true); });
-    return () => { void sb.removeChannel(channel); };
-  }, [ticker, pushPoint]);
-
-  useEffect(() => {
+    let ws: WebSocket | null = null;
     let pollId: ReturnType<typeof setInterval> | null = null;
-    let earlyId: ReturnType<typeof setTimeout> | null = null;
+    let wsTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    const poll = async () => {
-      try {
-        const r = await fetch(`/api/crypto/price?symbol=${ticker}`);
-        const d: { price: string } = await r.json();
-        if (d.price) {
-          pushPoint(parseFloat(d.price), Date.now());
-          setLive(true);
-          realtimeActiveRef.current = false; // keep polling si Realtime absent
-        }
-      } catch { /* ignore */ }
+    const startPolling = () => {
+      if (pollId) return;
+      const poll = async () => {
+        try {
+          const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${ticker}`);
+          if (r.ok) { const d: { price: string } = await r.json(); if (d.price) { pushPoint(parseFloat(d.price), Date.now()); setLive(true); return; } }
+        } catch { /* ignore */ }
+        try {
+          const r = await fetch(`/api/crypto/price?symbol=${ticker}`);
+          const d: { price: string } = await r.json();
+          if (d.price) { pushPoint(parseFloat(d.price), Date.now()); setLive(true); }
+        } catch { /* ignore */ }
+      };
+      void poll();
+      pollId = setInterval(poll, 3_000);
     };
 
-    // Si apres 3s on na toujours pas de donnees, on demarre le polling immediat
-    earlyId = setTimeout(async () => {
-      if (points.length === 0) {
-        await poll();
-        pollId = setInterval(poll, 10_000); // toutes les 10s
-      } else {
-        // Donnees presentes, polling de secours seulement apres 35s
-        setTimeout(() => {
-          if (!realtimeActiveRef.current) {
-            poll();
-            pollId = setInterval(poll, POLL_INTERVAL_MS);
-          }
-        }, 32_000);
-      }
-    }, 3_000);
+    const startWs = () => {
+      try {
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${ticker.toLowerCase()}@aggTrade`);
+        wsTimeout = setTimeout(() => {
+          if (ws && ws.readyState !== WebSocket.OPEN) { ws.close(); startPolling(); }
+        }, 3000);
+        ws.onopen = () => { if (wsTimeout) clearTimeout(wsTimeout); };
+        ws.onmessage = (e) => {
+          const d = JSON.parse(e.data as string) as { p: string; T: number };
+          pushPoint(parseFloat(d.p), d.T);
+          setLive(true);
+        };
+        ws.onerror = () => { ws?.close(); startPolling(); };
+        ws.onclose = () => { if (pollId === null) startPolling(); };
+      } catch { startPolling(); }
+    };
 
+    startWs();
     return () => {
-      if (earlyId) clearTimeout(earlyId);
+      if (wsTimeout) clearTimeout(wsTimeout);
+      if (ws) ws.close();
       if (pollId) clearInterval(pollId);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, pushPoint]);
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
@@ -234,10 +203,10 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
-        <div className="flex size-8 items-center justify-center rounded-full text-xs font-bold text-white shrink-0"
-          style={{ background: meta.color }}>
-          {meta.symbol[0]}
-        </div>
+        {meta.img
+          ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-full bg-white p-0.5 shrink-0" />
+          : <div className="flex size-8 items-center justify-center rounded-full text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+        }
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-foreground">{meta.label} / USDT</p>
           <p className="text-[10px] text-muted-foreground">{meta.symbol}USDT · Real-time</p>
