@@ -90,14 +90,24 @@ function tokenLabel(token: string) {
 
 
 
-function winnersRate(betToken: string) {
-  return betToken === "clawdtrust" ? 0.84 : 0.80;
+// BUG-23 fix: read the actual rates applied during resolution from admin_notes
+// (stored as "RATES:{...}" by the resolve action). Fall back to defaults if not present.
+function parseResolutionRates(adminNotes: string | null, betToken: string): { house: number; creator: number; winners: number } {
+  if (adminNotes?.startsWith("RATES:")) {
+    try {
+      return JSON.parse(adminNotes.slice(6));
+    } catch { /* fall through to defaults */ }
+  }
+  return betToken === "clawdtrust"
+    ? { house: 0.10, creator: 0.06, winners: 0.84 }
+    : { house: 0.15, creator: 0.05, winners: 0.80 };
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active:   "text-emerald-600 dark:text-emerald-400",
-  closed:   "text-amber-600 dark:text-amber-400",
-  resolved: "text-violet-600 dark:text-violet-400",
+  active:    "text-emerald-600 dark:text-emerald-400",
+  closed:    "text-amber-600 dark:text-amber-400",
+  resolved:  "text-violet-600 dark:text-violet-400",
+  cancelled: "text-red-500 dark:text-red-400",  // BUG-20 fix
 };
 
 // Bug #8 fix: only two real steps — signing (wallet approval) then done
@@ -122,7 +132,6 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<PredictStep>("idle");
-  const [error, setError] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
 
   const token = market.bet_token as PoolBetToken;
@@ -131,13 +140,12 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!walletAddress) { onRequestConnect(); return; }
-    if (!selectedOption) { setError("Select an option."); return; }
+    if (!selectedOption) { toast.error("Select an option."); return; }
     const numAmt = parseFloat(amount);
-    if (!numAmt || numAmt <= 0) { setError("Enter a valid amount."); return; }
+    if (!numAmt || numAmt <= 0) { toast.error("Enter a valid amount."); return; }
     const minAmt = token === "usdc" ? 2 : 500_000;
-    if (numAmt < minAmt) { setError(`Minimum stake is ${token === "usdc" ? "2 USDC" : "500,000 ClawdTrust"}.`); return; }
+    if (numAmt < minAmt) { toast.error(`Minimum stake is ${token === "usdc" ? "2 USDC" : "500,000 ClawdTrust"}.`); return; }
 
     const opt = options.find(o => o.id === selectedOption);
     if (!opt) return;
@@ -157,7 +165,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
     if (!result.success) {
       setStep("error");
-      setError(result.error);
+      toast.error(result.error);
       return;
     }
 
@@ -220,7 +228,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
               key={opt.id}
               type="button"
               disabled={isBusy}
-              onClick={() => { setSelectedOption(opt.id); setError(null); }}
+              onClick={() => { setSelectedOption(opt.id); }}
               className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed ${
                 selectedOption === opt.id
                   ? col.selected
@@ -250,12 +258,6 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
           className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 disabled:opacity-50"
         />
       </div>
-
-      {error && (
-        <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/20 dark:text-red-400">
-          {error}
-        </p>
-      )}
 
       {isBusy && (
         <div className="mb-3 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2.5 text-xs text-orange-700 dark:bg-orange-950/20 dark:text-orange-400">
@@ -342,6 +344,17 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         All PrediMarkets
       </Link>
 
+      {/* Cover image — hero banner */}
+      {market.cover_image_src && (
+        <div className="mb-6 overflow-hidden rounded-2xl border border-border">
+          <img
+            src={market.cover_image_src}
+            alt={market.title}
+            className="h-48 w-full object-cover sm:h-64"
+          />
+        </div>
+      )}
+
       <div className="mb-2 flex items-start gap-3">
         <h1 className="flex-1 text-2xl font-bold leading-snug text-foreground">{market.title}</h1>
         <span className={`shrink-0 pt-1 text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
@@ -392,9 +405,9 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 Winners pool:
                 <TokenLogo token={market.bet_token} className="size-3" />
-                {(grandTotal * winnersRate(market.bet_token)).toFixed(decimals)}{" "}
+                {(grandTotal * parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners).toFixed(decimals)}{" "}
                 {tokenLabel(market.bet_token)}{" "}
-                ({Math.round(winnersRate(market.bet_token) * 100)}% of {grandTotal.toFixed(decimals)})
+                ({Math.round(parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners * 100)}% of {grandTotal.toFixed(decimals)})
               </p>
             </>
           ) : (

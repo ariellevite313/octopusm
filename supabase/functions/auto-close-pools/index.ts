@@ -9,10 +9,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * Secured by SUPABASE_SERVICE_ROLE_KEY — never call this from the client.
  */
 serve(async (req: Request) => {
-  // Optional: verify a secret header to prevent unauthorized calls
+  // BUG-26 fix: CRON_SECRET is now required — if not set, the function is disabled for safety.
+  // Without this, anyone could POST to the function URL and force-close all active pools.
   const authHeader = req.headers.get("Authorization");
   const cronSecret = Deno.env.get("CRON_SECRET");
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

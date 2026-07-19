@@ -7,7 +7,10 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const { paymentId, action } = await req.json() as { paymentId: string; action: string };
+  let _body: { paymentId: string; action: string };
+  try { _body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const { paymentId, action } = _body;
 
   if (!paymentId || !["approve", "reject"].includes(action))
     return NextResponse.json({ error: "paymentId and action required" }, { status: 400 });

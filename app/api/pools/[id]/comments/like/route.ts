@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/pools/[id]/comments/like
- * Body: { comment_id: string; wallet_address: string }
+ * Body: { comment_id: string }
  * Toggles like on a mutuel_market_comment.
- * wallet_address comes from the client (proven by on-chain identity).
+ * wallet is derived from the authenticated session (not the body).
  */
 export async function POST(
   req: Request,
@@ -17,12 +17,21 @@ export async function POST(
   if (!UUID_RE.test(marketId))
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-  const body = await req.json() as { comment_id?: string; wallet_address?: string };
-  const commentId    = body.comment_id;
-  const wallet       = body.wallet_address ?? null;
+  // BUG-16 fix: verify session server-side
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  let body: { comment_id?: string };
+
+  try { body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  const commentId = body.comment_id;
 
   if (!commentId) return NextResponse.json({ error: "comment_id required" }, { status: 400 });
-  if (!wallet)    return NextResponse.json({ error: "wallet_address required" }, { status: 400 });
 
   const admin = createAdminClient() as any;
 

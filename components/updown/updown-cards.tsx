@@ -21,7 +21,7 @@ export interface UpDownMarket {
 }
 
 // Durées de la phase de paris (en minutes) par durée totale de round
-const BETTING_MINUTES: Record<number, number> = { 5: 3, 15: 10, 30: 20 };
+const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
 
 // Calcule la fin des paris (bettingClosesAt) depuis le marché
 // Pour nouveaux marchés: closes_at = fin des paris (resolve_at présent)
@@ -37,7 +37,7 @@ export function getBettingClosesAt(market: UpDownMarket): string {
 // Calcule la fin du round (resolveAt)
 export function getResolveAt(market: UpDownMarket): string {
   return market.resolve_at
-    ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 60_000).toISOString();
+    ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 2 * 60_000).toISOString();
 }
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
@@ -156,10 +156,12 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Volume</span>
-          <span className="font-semibold text-foreground">${total.toFixed(2)} USDC</span>
-        </div>
+        {total > 0 && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Volume</span>
+            <span className="font-semibold text-foreground">${total.toFixed(2)} USDC</span>
+          </div>
+        )}
       </div>
     </Link>
   );

@@ -54,7 +54,7 @@ async function getInitialBets(marketId: string) {
   const supabase = await createClient() as any;
   const { data } = await supabase
     .from("mutuel_bets")
-    .select("option_id, amount, token, created_at, payout_amount, paid_at")
+    .select("option_id, amount, token, wallet_address, created_at, payout_amount, paid_at")
     .eq("market_id", marketId)
     .eq("status", "approved")
     .order("created_at", { ascending: false })

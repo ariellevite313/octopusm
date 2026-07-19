@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getActiveMarkets, getMarketVolumes, getDistinctCategories } from "@/services/prediction-service";
 import { MarketGrid } from "@/components/market/market-grid";
-import { CategoryNav } from "@/components/layout/category-nav";
 
 export const revalidate = 60;
 
@@ -32,7 +31,6 @@ export default async function HomePage() {
 
   return (
     <>
-      <CategoryNav categories={categories} active="all" />
       <div className="mx-auto max-w-7xl px-4 py-10">
         {markets.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
@@ -46,3 +44,4 @@ export default async function HomePage() {
     </>
   );
 }
+

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface ClaimBet {
   id: string;
@@ -62,9 +63,10 @@ export function AdminPoolClaimsClient() {
       });
       if (res.ok) {
         setClaims(prev => prev.filter(c => c.id !== betId));
+        toast.success("Marked as paid");
       } else {
         const d = await res.json();
-        alert(d.error ?? "Error");
+        toast.error(d.error ?? "Error marking as paid");
       }
     } finally { setPaying(null); }
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 
 export async function GET(
@@ -91,9 +91,16 @@ export async function POST(
   if (!UUID_RE.test(marketId))
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-  const body = await req.json() as { content?: string; parent_id?: string; wallet_address?: string };
-  const wallet: string | null = body.wallet_address ?? null;
-  if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  // BUG-16 fix: verify session server-side — wallet_address from body alone is not trustworthy
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const sessionWallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!sessionWallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  let body: { content?: string; parent_id?: string; wallet_address?: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const wallet = sessionWallet; // always use session wallet, ignore body.wallet_address
 
   const content = (body.content ?? "").trim();
   const parent_id = body.parent_id ?? null;

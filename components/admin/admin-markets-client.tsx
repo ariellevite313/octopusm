@@ -153,7 +153,6 @@ function CreateMarketDialog({
 }) {
   const [form, setForm] = useState<CreateForm>(DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   function set<K extends keyof CreateForm>(key: K, val: CreateForm[K]) {
     setForm((f) => ({ ...f, [key]: val }));
@@ -188,12 +187,11 @@ function CreateMarketDialog({
   }
 
   async function handleCreate() {
-    if (!form.title.trim()) { setError("Title is required."); return; }
-    if (form.options.length < 2) { setError("At least 2 options required."); return; }
-    if (form.options.some((o) => !o.label.trim())) { setError("All options need a label."); return; }
+    if (!form.title.trim()) { toast.error("Title is required."); return; }
+    if (form.options.length < 2) { toast.error("At least 2 options required."); return; }
+    if (form.options.some((o) => !o.label.trim())) { toast.error("All options need a label."); return; }
 
     setLoading(true);
-    setError("");
     try {
       const res = await fetch("/api/admin/markets", {
         method: "POST",
@@ -229,7 +227,7 @@ function CreateMarketDialog({
       onCreated();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -424,8 +422,6 @@ function CreateMarketDialog({
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
-
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
             <Button
@@ -451,13 +447,11 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
   const [resolving, setResolving] = useState<PredictionMarketRow | null>(null);
   const [selectedOutcome, setSelectedOutcome] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "resolved">("all");
   const [showCreate, setShowCreate] = useState(false);
   const [page, setPage] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<PredictionMarketRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
 
   const filtered = markets.filter((m) => {
     if (filter === "active") return m.is_active && !m.is_resolved;
@@ -480,7 +474,6 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
     extra?: object
   ) {
     setLoading(true);
-    setError("");
     try {
       const res = await fetch("/api/admin/markets", {
         method: "POST",
@@ -494,7 +487,6 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       setSelectedOutcome("");
       window.location.reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
@@ -504,7 +496,6 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    setDeleteError("");
     try {
       const res = await fetch("/api/admin/markets", {
         method: "POST",
@@ -517,7 +508,6 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       setDeleteTarget(null);
       window.location.reload();
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : "Error");
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setDeleting(false);
@@ -590,7 +580,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
                         <Button
                           size="sm" variant="outline"
                           className="rounded-full border-emerald-300 text-emerald-700 text-xs hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300"
-                          onClick={() => { setResolving(market); setSelectedOutcome(""); setError(""); }}
+                          onClick={() => { setResolving(market); setSelectedOutcome(""); }}
                         >
                           <CheckCircle2 className="mr-1 size-3" /> Resolve
                         </Button>
@@ -611,7 +601,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
                     <Button
                       size="sm" variant="ghost"
                       className="rounded-full px-2 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
-                      onClick={() => { setDeleteTarget(market); setDeleteError(""); }}
+                      onClick={() => { setDeleteTarget(market); }}
                     >
                       <Trash2 className="size-3" />
                     </Button>
@@ -657,7 +647,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       />
 
       {/* Resolve dialog */}
-      <Dialog open={!!resolving} onOpenChange={(o) => { if (!o) { setResolving(null); setError(""); } }}>
+      <Dialog open={!!resolving} onOpenChange={(o) => { if (!o) { setResolving(null); } }}>
         <DialogContent className="max-w-md border-border">
           <DialogHeader>
             <DialogTitle>Resolve Market</DialogTitle>
@@ -680,9 +670,8 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
                   {opt.label}
                 </button>
               ))}
-            {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setResolving(null); setError(""); }}>Cancel</Button>
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setResolving(null); }}>Cancel</Button>
               <Button
                 className="flex-1 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400"
                 disabled={!selectedOutcome || loading}
@@ -696,7 +685,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
       </Dialog>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteError(""); } }}>
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); } }}>
         <DialogContent className="max-w-md border-border">
           <DialogHeader>
             <DialogTitle>Delete Market</DialogTitle>
@@ -706,9 +695,8 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
             <p className="text-sm text-muted-foreground">
               This will permanently delete the market and all associated bets, comments, and payments. This action cannot be undone.
             </p>
-            {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setDeleteTarget(null); setDeleteError(""); }}>Cancel</Button>
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setDeleteTarget(null); }}>Cancel</Button>
               <Button
                 className="flex-1 rounded-xl bg-destructive text-white hover:bg-destructive/90"
                 disabled={deleting}

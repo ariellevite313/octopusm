@@ -34,7 +34,14 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const { bet_id } = await req.json() as { bet_id: string };
+  let _body: { bet_id: string };
+
+  try { _body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  
+  const { bet_id } = _body;
+
   if (!bet_id) return NextResponse.json({ error: "bet_id required" }, { status: 400 });
 
   const admin = createAdminClient() as any;

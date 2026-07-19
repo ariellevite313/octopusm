@@ -8,7 +8,12 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const body = await req.json();
+  let body;
+
+  try { body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
   const { action } = body;
 
   if (action === "create") {

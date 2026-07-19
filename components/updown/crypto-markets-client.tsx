@@ -24,6 +24,7 @@ interface UpDownMarket {
   open_price: number | null;
   opens_at: string;
   closes_at: string;
+  resolve_at: string | null;
   status: "open" | "resolved" | "cancelled";
   outcome: Direction | null;
   pool_up: number;
@@ -38,6 +39,23 @@ interface UpDownBet {
   amount: number;
   payout: number | null;
   status: string;
+}
+
+// ── Helpers timing ───────────────────────────────────────────────────────────
+
+const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
+
+function getBettingClosesAt(market: UpDownMarket): string {
+  if (market.resolve_at) return market.closes_at;
+  return new Date(
+    new Date(market.opens_at).getTime() +
+    (BETTING_MINUTES[market.duration_min] ?? 5) * 60_000
+  ).toISOString();
+}
+
+function getResolveAt(market: UpDownMarket): string {
+  return market.resolve_at
+    ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 2 * 60_000).toISOString();
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -68,11 +86,11 @@ function formatPrice(p: number): string {
 function useCountdown(closeAt: string | null | undefined): string {
   const [remaining, setRemaining] = useState("");
   useEffect(() => {
-    if (!closeAt) return;
+    if (!closeAt) { setRemaining(""); return; }
     const target = new Date(closeAt).getTime();
     const tick = () => {
       const diff = target - Date.now();
-      if (diff <= 0) { setRemaining("00:00"); return; }
+      if (diff <= 0) { setRemaining(""); return; }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setRemaining(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
@@ -96,7 +114,32 @@ function RoundCard({
   walletType: WalletType | null;
   onNeedWallet: () => void;
 }) {
-  const countdown = useCountdown(market.status === "open" ? market.closes_at : null);
+  const bettingClosesAt = getBettingClosesAt(market);
+  const resolveAt = getResolveAt(market);
+
+  // Prochain opens_at = resolveAt + pause (5min pour 5m, 15min pour 15m, 30min pour 30m)
+  // = resolve_at + betting_minutes (même durée que la phase betting)
+  const pauseMs = (BETTING_MINUTES[market.duration_min] ?? market.duration_min) * 60_000;
+  const nextOpensAt = new Date(new Date(resolveAt).getTime() + pauseMs).toISOString();
+
+  const [isBettingOpen, setIsBettingOpen] = useState(
+    () => market.status === "open" && new Date(bettingClosesAt) > new Date()
+  );
+  useEffect(() => {
+    if (market.status !== "open") { setIsBettingOpen(false); return; }
+    const ms = new Date(bettingClosesAt).getTime() - Date.now();
+    if (ms <= 0) { setIsBettingOpen(false); return; }
+    setIsBettingOpen(true);
+    const id = setTimeout(() => setIsBettingOpen(false), ms);
+    return () => clearTimeout(id);
+  }, [bettingClosesAt, market.status]);
+
+  const isLive = market.status === "open" && !isBettingOpen;
+  const isResolvingPause = market.status === "resolved";
+  const countdown = useCountdown(isBettingOpen ? bettingClosesAt : null);
+  const liveCountdown = useCountdown(isLive ? resolveAt : null);
+  const nextRoundCountdown = useCountdown(isResolvingPause ? nextOpensAt : null);
+
   const [amount, setAmount] = useState(5);
   const [submitting, setSubmitting] = useState(false);
   const [activeDir, setActiveDir] = useState<Direction | null>(null);
@@ -119,12 +162,10 @@ function RoundCard({
 
   const handleBet = async (dir: Direction) => {
     if (!walletAddress || !walletType) { onNeedWallet(); return; }
-    if (amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
-      toast.error(`Montant entre $${MIN_AMOUNT} et $${MAX_AMOUNT} USDC`);
+    if (amount < MIN_AMOUNT) {
+      toast.error(`Minimum $${MIN_AMOUNT} USDC`);
       return;
     }
-    if (myBet) { toast.error("Vous avez déjà parié sur ce round"); return; }
-
     setSubmitting(true);
     setActiveDir(dir);
     try {
@@ -235,21 +276,6 @@ function RoundCard({
     }
   };
 
-  const handleClaim = async () => {
-    if (!myBet || myBet.status !== "won" || !walletAddress) return;
-    const res = await fetch("/api/updown/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bet_id: myBet.id, wallet_address: walletAddress }),
-    });
-    if (res.ok) {
-      toast.success(`$${myBet.payout?.toFixed(2)} USDC claimed! Payment will be processed by admin.`);
-      onBetPlaced();
-    } else {
-      toast.error("Claim failed");
-    }
-  };
-
   return (
     <div className={`rounded-2xl border bg-card overflow-hidden ${isResolved ? "border-border/50 opacity-90" : "border-border"}`}>
       {/* Header */}
@@ -258,18 +284,33 @@ function RoundCard({
           <Clock className="size-3.5 text-muted-foreground" />
           <span className="text-xs font-semibold text-foreground">{market.duration_min} minutes</span>
         </div>
-        {market.status === "open" && (
-          <span className="font-mono text-sm font-bold tabular-nums text-foreground">{countdown}</span>
+        {isBettingOpen && countdown && (
+          <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+            {countdown}
+          </span>
+        )}
+        {isLive && (
+          <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+            LIVE
+          </span>
         )}
         {isResolved && market.outcome && (
-          <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
-            market.outcome === "up"
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-          }`}>
-            {market.outcome === "up" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-            {market.outcome === "up" ? "UP" : "DOWN"}
-          </span>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+              market.outcome === "up"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+            }`}>
+              {market.outcome === "up" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+              {market.outcome === "up" ? "UP" : "DOWN"}
+            </span>
+            {nextRoundCountdown && (
+              <span className="text-[10px] tabular-nums text-muted-foreground">
+                Next round in <span className="font-semibold text-foreground">{nextRoundCountdown}</span>
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -317,14 +358,14 @@ function RoundCard({
             My bet: <strong>${myBet.amount} {myBet.direction === "up" ? "↑ UP" : "↓ DOWN"}</strong>
             {myBet.payout && myBet.status !== "lost" ? ` → $${myBet.payout.toFixed(2)}` : ""}
           </span>
-          {myBet.status === "won"     && <button onClick={handleClaim} className="ml-2 rounded-lg bg-emerald-600 px-2 py-0.5 text-white text-[10px] font-bold hover:bg-emerald-700">Claim</button>}
+          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-emerald-600">🏆 Claim in dashboard</span>}
           {myBet.status === "claimed" && <span className="text-[10px]">⏳ Pending</span>}
           {myBet.status === "paid"    && <span className="text-[10px]">✅ Paid</span>}
         </div>
       )}
 
       {/* Bet controls */}
-      {market.status === "open" && !myBet && (
+      {isBettingOpen && !myBet && (
         <div className="px-4 pb-4 space-y-3">
           <div className="flex gap-2">
             {QUICK_AMOUNTS.map(q => (
@@ -337,8 +378,8 @@ function RoundCard({
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
             <span className="text-xs text-muted-foreground">$</span>
-            <input type="number" min={MIN_AMOUNT} max={MAX_AMOUNT} value={amount}
-              onChange={e => setAmount(Math.max(MIN_AMOUNT, Math.min(MAX_AMOUNT, Number(e.target.value))))}
+            <input type="number" min={MIN_AMOUNT} value={amount}
+              onChange={e => setAmount(Math.max(MIN_AMOUNT, Number(e.target.value)))}
               className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none"
             />
             <span className="text-[10px] text-muted-foreground">USDC</span>
@@ -479,7 +520,7 @@ export function CryptoMarketsClient() {
           <p className="font-semibold text-foreground text-sm mb-2">How it works</p>
           <p>Predict whether the price will be <strong>UP</strong> or <strong>DOWN</strong> at the end of the round.</p>
           <p>The strike price is locked at open. Winners share the pool minus 5% fee.</p>
-          <p>USDC only. Min $2 — Max $50 per round.</p>
+          <p>USDC only. Min $2 per bet. Multiple bets allowed per round.</p>
         </div>
       </div>
 

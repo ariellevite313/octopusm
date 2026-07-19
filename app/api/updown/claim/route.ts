@@ -18,10 +18,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No wallet in session" }, { status: 401 });
   }
 
-  const body = await req.json() as {
+  let body: {
     bet_id:         string;
     wallet_address: string;
   };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const { bet_id, wallet_address } = body;
 
@@ -54,16 +56,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Cannot claim bet with status: ${bet.status}` }, { status: 409 });
   }
 
+  // Garde atomique: ne met à jour que si status est encore 'won' ou 'refunded'
+  // Évite le double-claim si deux requêtes arrivent en parallèle
   const { data: updated, error: updateErr } = await admin
     .from("updown_bets")
     .update({ status: "claimed", claimed_at: new Date().toISOString() })
     .eq("id", bet_id)
+    .in("status", ["won", "refunded"]) // garde atomique
     .select("id, status, claimed_at")
-    .single();
+    .maybeSingle();
 
   if (updateErr) {
     console.error("[updown/claim] update error:", updateErr);
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  }
+  if (!updated) {
+    // Déjà claimed par une autre requête
+    return NextResponse.json({ error: "Already claimed" }, { status: 409 });
   }
 
   console.log("[updown/claim] claimed:", updated);

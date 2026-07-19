@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, LoaderCircle, Trophy, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -145,14 +146,12 @@ function ResolveDialog({
 export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const [rejectTarget, setRejectTarget] = useState<MutuelMarketRow | null>(null);
   const [resolveTarget, setResolveTarget] = useState<MutuelMarketRow | null>(null);
 
   async function callApi(body: Record<string, unknown>) {
     setLoading(true);
-    setError("");
     try {
       const res = await fetch("/api/admin/pools", {
         method: "POST",
@@ -161,11 +160,12 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
+      toast.success("Done");
       router.refresh();
       setRejectTarget(null);
       setResolveTarget(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -178,8 +178,6 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
 
   return (
     <>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-
       {/* Filter chips */}
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => {

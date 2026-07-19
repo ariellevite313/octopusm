@@ -15,15 +15,16 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient() as any;
 
-  // Get open markets (status=open inclut betting + LIVE phase)
-  // Pas de filtre par date: la phase LIVE a closes_at passe mais resolve_at futur
-  // La cron resolve-updown-markets ferme les marches sur resolve_at
+  // Get open markets dont resolve_at est dans le futur
+  // Trié par opens_at ascending pour prendre le plus proche (slot courant)
+  const now = new Date().toISOString();
   const { data: openData } = await admin
     .from("updown_markets")
     .select("*")
     .eq("symbol", symbol)
     .eq("status", "open")
-    .order("closes_at", { ascending: true });
+    .gt("resolve_at", now)
+    .order("opens_at", { ascending: true });
 
   // Get last resolved per duration (descending = most recent first)
   const { data: resolvedData, error } = await admin

@@ -12,7 +12,9 @@ export async function POST(
 
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const body = await req.json() as { content?: string; parent_id?: string; wallet_address?: string };
+  let body: { content?: string; parent_id?: string; wallet_address?: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const content       = (body.content ?? "").trim();
   const parent_id     = body.parent_id ?? null;
   const walletAddress = body.wallet_address ?? null;

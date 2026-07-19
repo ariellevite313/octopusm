@@ -38,27 +38,29 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
 
   const href = `/pools/${market.slug}`;
   return (
-    <Link href={href} className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5">
+    <Link href={href} className="group block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5">
+      {/* Cover image — full-width thumbnail at the top of the card */}
+      {market.cover_image_src && (
+        <div className="overflow-hidden">
+          <img
+            src={market.cover_image_src}
+            alt=""
+            className="h-36 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
+      )}
+
       <div className="space-y-4 p-5">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            {market.cover_image_src && (
-              <img
-                src={market.cover_image_src}
-                alt=""
-                className="size-10 shrink-0 rounded-lg object-cover"
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">
-                {market.category}
-              </p>
-              <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100">
-                {market.title}
-              </p>
-            </div>
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">
+              {market.category}
+            </p>
+            <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100">
+              {market.title}
+            </p>
           </div>
           {isActive && (
             <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_BADGE["active"]}`}>

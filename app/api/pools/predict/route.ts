@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/pools/predict
  * Called by pool-betting.ts after on-chain transfer succeeds.
  * Inserts a pending payment row using the admin client (bypasses RLS).
- * wallet_address comes from the request body (signed by the user on-chain).
+ * wallet_address is verified against the authenticated session.
  */
 export async function POST(req: Request) {
-  const body = await req.json() as {
+  // BUG-03 fix: verify authenticated session before accepting any body data
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const sessionWallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!sessionWallet) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  let body: {
     payment_request_id: string;
     payment_reference:  string;
     title:              string;
@@ -21,9 +29,16 @@ export async function POST(req: Request) {
     tx_signature:       string;
     wallet_address:     string;
   };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   if (!body.market_id || !body.selection_id || !body.amount_usdc || !body.tx_signature || !body.wallet_address) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // BUG-03 fix: wallet in body must match authenticated session
+  if (body.wallet_address !== sessionWallet) {
+    return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
   }
 
   const minAmt = body.token === "usdc" ? 2 : 500_000;
@@ -32,6 +47,28 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient() as any;
+
+  // BUG-11 fix: validate market exists, is active, and betting window is open
+  const { data: market, error: mErr } = await admin
+    .from("mutuel_markets")
+    .select("id, status, betting_closes_at, options")
+    .eq("id", body.market_id)
+    .maybeSingle();
+
+  if (mErr || !market) {
+    return NextResponse.json({ error: "Market not found" }, { status: 404 });
+  }
+  if (market.status !== "active") {
+    return NextResponse.json({ error: "Market is not accepting bets" }, { status: 400 });
+  }
+  if (market.betting_closes_at && new Date(market.betting_closes_at) < new Date()) {
+    return NextResponse.json({ error: "Betting window has closed" }, { status: 400 });
+  }
+  const options = typeof market.options === "string" ? JSON.parse(market.options) : market.options;
+  const validOption = (options ?? []).some((o: { id: string }) => o.id === body.selection_id);
+  if (!validOption) {
+    return NextResponse.json({ error: "Invalid selection" }, { status: 400 });
+  }
 
   const { error } = await admin.from("payments").insert({
     id:                 crypto.randomUUID(),

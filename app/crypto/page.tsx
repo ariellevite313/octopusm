@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getActiveMarkets, getMarketVolumes, getDistinctCategories } from "@/services/prediction-service";
 import { CryptoPageClient } from "@/components/updown/crypto-page-client";
-import { CategoryNav } from "@/components/layout/category-nav";
 
 export const metadata: Metadata = {
   title: "Crypto Markets | Octo Market",
@@ -21,10 +20,5 @@ export default async function CryptoPage() {
   // Les Up/Down sont dans updown_markets, pas ici
   const hitPriceMarkets = allMarkets.filter((m) => m.category_id === "crypto");
 
-  return (
-    <>
-      <CategoryNav categories={categories} active="crypto" />
-      <CryptoPageClient hitPriceMarkets={hitPriceMarkets} volumes={volumes} />
-    </>
-  );
+  return <CryptoPageClient hitPriceMarkets={hitPriceMarkets} volumes={volumes} />;
 }

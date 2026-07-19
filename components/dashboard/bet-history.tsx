@@ -144,7 +144,7 @@ export function BetHistory({ bets, walletAddress }: {
     try {
       const [poolRes, updownRes] = await Promise.all([
         fetch("/api/pools/my-bets"),
-        fetch(`/api/updown/my-bets?wallet=${encodeURIComponent(walletAddress)}`),
+        fetch("/api/updown/my-bets"),
       ]);
       if (poolRes.ok) {
         const d = await poolRes.json() as { bets: PoolBet[]; pending: PendingPoolBet[]; pendingPredictions: PendingMarketBet[] };

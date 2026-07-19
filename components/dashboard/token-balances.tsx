@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { ChevronDown, ArrowUpRight } from "lucide-react";
 import type { TokenActivity, OctoActivity, TokenStats, OctoStats } from "@/services/dashboard-service";
+import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -67,10 +68,11 @@ function ActivityRow({ label, sub, amount, date }: {
 
 // ─── USDC accordion ───────────────────────────────────────────────────────────
 
-function UsdcDropdown({ stats, activity, balance }: {
+function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
   stats: TokenStats;
   activity: TokenActivity[];
   balance: number;
+  onWithdraw: () => void;
 }) {
   return (
     <div className="border-t border-border bg-muted/30 px-4 py-4 space-y-4">
@@ -102,10 +104,11 @@ function UsdcDropdown({ stats, activity, balance }: {
       {balance >= 2 && (
         <button
           type="button"
+          onClick={onWithdraw}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 transition-colors"
         >
           <ArrowUpRight className="size-4" />
-          Withdraw ${fmtUsdc(balance)} USDC
+          Withdraw USDC
         </button>
       )}
     </div>
@@ -114,10 +117,11 @@ function UsdcDropdown({ stats, activity, balance }: {
 
 // ─── CLT accordion ────────────────────────────────────────────────────────────
 
-function CltDropdown({ stats, activity, balance }: {
+function CltDropdown({ stats, activity, balance, onWithdraw }: {
   stats: TokenStats;
   activity: TokenActivity[];
   balance: number;
+  onWithdraw: () => void;
 }) {
   return (
     <div className="border-t border-border bg-muted/30 px-4 py-4 space-y-4">
@@ -149,10 +153,11 @@ function CltDropdown({ stats, activity, balance }: {
       {balance >= 500_000 && (
         <button
           type="button"
+          onClick={onWithdraw}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 transition-colors"
         >
           <ArrowUpRight className="size-4" />
-          Withdraw {fmtClt(balance)} CLT
+          Withdraw CLT
         </button>
       )}
     </div>
@@ -260,43 +265,65 @@ export function TokenBalances({
   octoActivity: OctoActivity[];
 }) {
   const [open, setOpen] = useState<"usdc" | "clt" | "octo" | null>(null);
+  const [withdrawToken, setWithdrawToken] = useState<"usdc" | "clawdtrust" | null>(null);
+
   const toggle = (tok: "usdc" | "clt" | "octo") =>
     setOpen((prev) => (prev === tok ? null : tok));
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
-      <TokenRow
-        logo="/usdc-coin.png"
-        name="USD Coin"
-        symbol="USDC"
-        balance={`$${fmtUsdc(usdcBalance)}`}
-        open={open === "usdc"}
-        onToggle={() => toggle("usdc")}
-      >
-        <UsdcDropdown stats={usdcStats} activity={usdcActivity} balance={usdcBalance} />
-      </TokenRow>
+    <>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+        <TokenRow
+          logo="/usdc-coin.png"
+          name="USD Coin"
+          symbol="USDC"
+          balance={`$${fmtUsdc(usdcBalance)}`}
+          open={open === "usdc"}
+          onToggle={() => toggle("usdc")}
+        >
+          <UsdcDropdown
+            stats={usdcStats}
+            activity={usdcActivity}
+            balance={usdcBalance}
+            onWithdraw={() => setWithdrawToken("usdc")}
+          />
+        </TokenRow>
 
-      <TokenRow
-        logo="/clawdtrust-coin.png"
-        name="ClawdTrust"
-        symbol="CLT"
-        balance={fmtClt(cltBalance)}
-        open={open === "clt"}
-        onToggle={() => toggle("clt")}
-      >
-        <CltDropdown stats={cltStats} activity={cltActivity} balance={cltBalance} />
-      </TokenRow>
+        <TokenRow
+          logo="/clawdtrust-coin.png"
+          name="ClawdTrust"
+          symbol="CLT"
+          balance={fmtClt(cltBalance)}
+          open={open === "clt"}
+          onToggle={() => toggle("clt")}
+        >
+          <CltDropdown
+            stats={cltStats}
+            activity={cltActivity}
+            balance={cltBalance}
+            onWithdraw={() => setWithdrawToken("clawdtrust")}
+          />
+        </TokenRow>
 
-      <TokenRow
-        logo="/octo-coin.png"
-        name="Octo Points"
-        symbol="OCTO"
-        balance={octoBalance.toLocaleString("en-US")}
-        open={open === "octo"}
-        onToggle={() => toggle("octo")}
-      >
-        <OctoDropdown stats={octoStats} activity={octoActivity} />
-      </TokenRow>
-    </div>
+        <TokenRow
+          logo="/octo-coin.png"
+          name="Octo Points"
+          symbol="OCTO"
+          balance={octoBalance.toLocaleString("en-US")}
+          open={open === "octo"}
+          onToggle={() => toggle("octo")}
+        >
+          <OctoDropdown stats={octoStats} activity={octoActivity} />
+        </TokenRow>
+      </div>
+
+      {withdrawToken && (
+        <WithdrawModal
+          token={withdrawToken}
+          balance={withdrawToken === "usdc" ? usdcBalance : cltBalance}
+          onClose={() => setWithdrawToken(null)}
+        />
+      )}
+    </>
   );
 }
