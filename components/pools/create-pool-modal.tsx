@@ -91,7 +91,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
   const [feeToken, setFeeToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [betToken, setBetToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [step, setStep] = useState<CreateStep>("idle");
-  const [error, setError] = useState<string | null>(null);
 
   const submitting = step === "signing" || step === "sending";
 
@@ -109,11 +108,10 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
 
-    if (title.trim().length < 5) { setError("Title must be at least 5 characters."); return; }
-    if (options.some(o => !o.label.trim())) { setError("All options must have a label."); return; }
-    if (!closesAt) { setError("Prediction close date is required."); return; }
+    if (title.trim().length < 5) { toast.error("Title must be at least 5 characters."); return; }
+    if (options.some(o => !o.label.trim())) { toast.error("All options must have a label."); return; }
+    if (!closesAt) { toast.error("Prediction close date is required."); return; }
 
     // Get wallet from Supabase session
     const supabase = createClient();
@@ -122,7 +120,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     const walletType = (localStorage.getItem("walletType") ?? "phantom") as Parameters<typeof submitPoolCreation>[0]["walletType"];
 
     if (!walletAddress) {
-      setError("Wallet not connected. Please sign in first.");
+      toast.error("Wallet not connected. Please sign in first.");
       return;
     }
 
@@ -137,7 +135,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
 
     if (!txResult.success) {
       setStep("error");
-      setError(txResult.error);
+      toast.error(txResult.error);
       return;
     }
 
@@ -161,14 +159,14 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       const data = await res.json();
       if (!res.ok) {
         setStep("error");
-        setError(data.error ?? "Something went wrong.");
+        toast.error(data.error ?? "Something went wrong.");
         return;
       }
       setStep("done");
       setTimeout(() => onCreated(data as MutuelMarketRow), 1200);
     } catch {
       setStep("error");
-      setError("Network error, please try again.");
+      toast.error("Network error, please try again.");
     }
   }
 
@@ -343,12 +341,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               Pool submitted! Pending admin review.
             </div>
           )}
-          {step === "error" && error && (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
           <button
             type="submit"
             disabled={submitting || step === "done"}

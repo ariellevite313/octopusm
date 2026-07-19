@@ -25,6 +25,8 @@ interface ValidatedBet {
   amount: number;
   token: string;
   payout_amount: number | null;
+  net_payout: number | null;
+  is_refund: boolean;
   paid_at: string | null;
   created_at: string;
   mutuel_markets: PoolMarket | null;
@@ -124,10 +126,13 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
 
   if (bets.length === 0 && pending.length === 0) return null;
 
+  // BUG-24 fix: also include cancelled markets with a pending refund (payout_amount set but not paid)
   const claimReady = bets.filter(b => {
     const m = b.mutuel_markets;
     if (!m) return false;
-    return m.status === "resolved" && m.winning_option_id === b.option_id && b.payout_amount !== null && !b.paid_at;
+    if (b.payout_amount === null || b.paid_at) return false;
+    if (m.status === "cancelled") return true;
+    return m.status === "resolved" && m.winning_option_id === b.option_id;
   });
 
   return (
@@ -170,13 +175,8 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
           const market = bet.mutuel_markets;
           const optLabel = market?.options?.find(o => o.id === bet.option_id)?.label ?? bet.option_id;
           const status = betStatus(bet);
-          const isRefund = market?.status === "cancelled"
-            || market?.admin_notes === "REFUND: all bettors chose the winning option, no commission taken";
-          const netPayout = bet.payout_amount !== null
-            ? isRefund
-              ? Math.floor(Number(bet.payout_amount) * 0.95 * 1_000_000) / 1_000_000
-              : Number(bet.payout_amount)
-            : null;
+          // BUG-07 fix: use net_payout pre-calculated by the API (no more double 5% deduction)
+          const netPayout = bet.net_payout;
 
           return (
             <div

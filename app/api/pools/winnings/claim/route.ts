@@ -13,7 +13,14 @@ export async function POST(req: Request) {
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const { betId } = await req.json();
+  let _body: Record<string, unknown>;
+
+  try { _body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  
+  const { betId } = _body;
+
   if (!betId || typeof betId !== "string")
     return NextResponse.json({ error: "betId required" }, { status: 400 });
 
@@ -21,7 +28,7 @@ export async function POST(req: Request) {
 
   const { data: bet, error: fetchErr } = await admin
     .from("mutuel_bets")
-    .select("id, wallet_address, payout_amount, claimed_at, paid_at")
+    .select("id, wallet_address, payout_amount, claimed_at, paid_at, market_id")
     .eq("id", betId)
     .single();
 
@@ -35,6 +42,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Already claimed" }, { status: 400 });
   if (bet.paid_at)
     return NextResponse.json({ error: "Already paid" }, { status: 400 });
+
+  // BUG-12 fix: verify the market is actually resolved or cancelled before allowing claim
+  const { data: market, error: mErr } = await admin
+    .from("mutuel_markets")
+    .select("status")
+    .eq("id", bet.market_id)
+    .single();
+
+  if (mErr || !market)
+    return NextResponse.json({ error: "Market not found" }, { status: 404 });
+  if (!["resolved", "cancelled"].includes(market.status))
+    return NextResponse.json({ error: "Market is not resolved yet" }, { status: 400 });
 
   const { error } = await admin
     .from("mutuel_bets")

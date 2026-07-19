@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
 
-const RPC_URLS = [
-  "https://solana-rpc.publicnode.com",
-  "https://api.mainnet-beta.solana.com",
-  "https://rpc.ankr.com/solana",
-];
+// M-01 fix: prefer SOLANA_RPC_URL env var (Helius/QuickNode) to avoid rate limits.
+// Same priority logic as app/api/solana/rpc/route.ts.
+function getRpcUrls(): string[] {
+  const envUrl = process.env.SOLANA_RPC_URL;
+  const fallbacks = [
+    "https://solana-rpc.publicnode.com",
+    "https://api.mainnet-beta.solana.com",
+    "https://rpc.ankr.com/solana",
+  ];
+  return envUrl ? [envUrl, ...fallbacks] : fallbacks;
+}
 
 /**
  * Verifies on-chain that tx_signature:
@@ -21,7 +27,7 @@ async function verifyUsdcTransfer(
 ): Promise<string | null> {
   const expectedLamports = Math.round(expectedUsdc * 1_000_000);
 
-  for (const rpc of RPC_URLS) {
+  for (const rpc of getRpcUrls()) {
     try {
       const res = await fetch(rpc, {
         method: "POST",
@@ -44,11 +50,8 @@ async function verifyUsdcTransfer(
 
       const tx = json.result;
 
-      // Must be confirmed (no err)
-      if (tx.meta?.err !== null && tx.meta?.err !== undefined && tx.meta.err !== null) {
-        // err is null when successful
-        if (tx.meta.err !== null) return "Transaction failed on-chain";
-      }
+      // Must be confirmed (err is null when successful, non-null = failed)
+      if (tx.meta?.err != null) return "Transaction failed on-chain";
 
       // Look for a token transfer instruction to treasury
       const instructions: any[] = tx.transaction?.message?.instructions ?? [];
@@ -168,6 +171,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
+
   // 2. Wallet dans le body doit correspondre à la session
   if (wallet_address !== sessionWallet) {
     return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
@@ -216,13 +220,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: betErr.message }, { status: 500 });
   }
 
-  // 6. Incrémenter le pool atomiquement
+  // 6. Incrémenter le pool atomiquement via RPC SQL (voir supabase/migrations/increment_updown_pool.sql)
   const poolCol = direction === "up" ? "pool_up" : "pool_down";
-  await admin.rpc("increment_updown_pool", {
+  const { error: poolErr } = await admin.rpc("increment_updown_pool", {
     p_market_id: market_id,
     p_column:    poolCol,
     p_amount:    Number(amount),
   });
+  if (poolErr) {
+    console.error("[updown/bet] increment_updown_pool RPC error:", poolErr.message);
+    // Le pari est déjà inséré — on retourne quand même ok mais on log l'erreur
+    // Pour appliquer le RPC : exécuter supabase/migrations/increment_updown_pool.sql dans Supabase SQL Editor
+  }
 
   return NextResponse.json({ ok: true });
 }

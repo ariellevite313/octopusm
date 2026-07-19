@@ -89,7 +89,15 @@ export function MyPoolsSection({ walletAddress }: Props) {
               : market.total_pool_clt;
 
             return (
-              <div key={market.id} className="rounded-2xl border border-border bg-card p-4">
+              <div key={market.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+                {market.cover_image_src && (
+                  <img
+                    src={market.cover_image_src}
+                    alt=""
+                    className="h-24 w-full object-cover"
+                  />
+                )}
+                <div className="p-4">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <p className="flex-1 text-sm font-semibold leading-snug text-foreground line-clamp-2">
                     {market.title}
@@ -134,6 +142,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
                     <ExternalLink className="size-3" />
                   </Link>
                 )}
+                </div>
               </div>
             );
           })}

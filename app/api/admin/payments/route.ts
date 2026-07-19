@@ -39,7 +39,12 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const body = await req.json() as Record<string, unknown>;
+  let body: Record<string, unknown>;
+
+  try { body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
 
   const supabase = await createClient();
   if (body.action === "manual") return handleManual(supabase, body);

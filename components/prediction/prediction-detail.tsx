@@ -714,7 +714,6 @@ export function PredictionDetail({
   const [token,         setToken]         = useState<BetToken>("usdc");
   const [rawAmount,     setRawAmount]     = useState("");
   const [submitState,   setSubmitState]   = useState<SubmitState>("idle");
-  const [errorMsg,      setErrorMsg]      = useState("");
   const [successRef,    setSuccessRef]    = useState("");
   const [showWallet,    setShowWallet]    = useState(false);
 
@@ -758,7 +757,6 @@ export function PredictionDetail({
     }
 
     setSubmitState("signing");
-    setErrorMsg("");
 
     const result = await submitBet({
       marketId:         market.id,
@@ -778,7 +776,7 @@ export function PredictionDetail({
       setSuccessRef(result.reference);
     } else {
       setSubmitState("error");
-      setErrorMsg(result.error);
+      toast.error(result.error);
     }
   }
 
@@ -999,14 +997,7 @@ export function PredictionDetail({
             <RewardSummary amount={amount} option={selectedOpt} token={token} />
           )}
 
-          {/* 5 — Error message */}
-          {submitState === "error" && errorMsg && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">
-              {errorMsg}
-            </div>
-          )}
-
-          {/* 6 — Submit */}
+          {/* 5 — Submit */}
           <button
             type="button"
             onClick={() => { if (!isAuthenticated) { setShowWallet(true); } else { void handleSubmit(); } }}

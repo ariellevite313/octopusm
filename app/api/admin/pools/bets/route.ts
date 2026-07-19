@@ -18,12 +18,13 @@ export async function GET(req: Request) {
 
   // withPayout=1 mode: return all bets that have a payout amount set (for PayoutsSection)
   if (withPayout === "1") {
-    const query = admin
+    // BUG-10 fix: reassign query so the marketId filter is actually applied
+    let query = admin
       .from("mutuel_bets")
       .select("id, market_id, wallet_address, option_id, amount, token, payout_amount, payout_tx, paid_at, status, created_at")
       .not("payout_amount", "is", null)
       .order("created_at", { ascending: true });
-    if (marketId) query.eq("market_id", marketId);
+    if (marketId) query = query.eq("market_id", marketId);
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data ?? []);
@@ -32,13 +33,14 @@ export async function GET(req: Request) {
   // default mode: filter by status
   const status = url.searchParams.get("status") ?? "pending";
 
-  const query = admin
+  // BUG-10 fix: reassign query so the marketId filter is actually applied
+  let query = admin
     .from("mutuel_bets")
     .select("id, market_id, wallet_address, option_id, amount, token, tx_signature, status, created_at")
     .eq("status", status)
     .order("created_at", { ascending: true });
 
-  if (marketId) query.eq("market_id", marketId);
+  if (marketId) query = query.eq("market_id", marketId);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,7 +53,9 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const body = await req.json() as { action: string; betId: string };
+  let body: { action: string; betId: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const { action, betId } = body;
 
   if (!betId) return NextResponse.json({ error: "betId required" }, { status: 400 });
@@ -79,13 +83,19 @@ export async function POST(req: Request) {
   }
 
   if (action === "approve") {
-    // 1. Mark bet as approved
-    const { error: updErr } = await admin
+    // BUG-08 fix: atomic optimistic lock — update only if still "pending" and check rows affected.
+    // This prevents two admins approving the same bet simultaneously (double pool increment).
+    const { data: atomicLock, error: lockErr } = await admin
       .from("mutuel_bets")
       .update({ status: "approved" })
-      .eq("id", betId);
+      .eq("id", betId)
+      .eq("status", "pending")
+      .select("id");
 
-    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+    if (lockErr) return NextResponse.json({ error: lockErr.message }, { status: 500 });
+    if (!atomicLock || atomicLock.length === 0) {
+      return NextResponse.json({ error: "Bet already processed by another admin" }, { status: 409 });
+    }
 
     // 2. Atomically increment pool total now that bet is approved
     const { error: rpcErr } = await admin

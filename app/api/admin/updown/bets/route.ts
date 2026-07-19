@@ -26,7 +26,10 @@ export async function POST(req: Request) {
   const isAdmin = await requireAdmin();
   if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { bet_id, action } = await req.json() as { bet_id: string; action: "approve" | "reject" };
+  let _body: { bet_id: string; action: "approve" | "reject" };
+  try { _body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const { bet_id, action } = _body;
   if (!bet_id || !["approve", "reject"].includes(action)) {
     return NextResponse.json({ error: "Missing bet_id or action" }, { status: 400 });
   }

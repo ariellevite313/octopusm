@@ -26,7 +26,12 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const body = await req.json();
+  let body;
+
+  try { body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
   const { action, marketId } = body;
 
   if (!marketId || typeof marketId !== "string")
@@ -71,15 +76,24 @@ export async function POST(req: Request) {
     if (!["active", "closed"].includes(market.status))
       return NextResponse.json({ error: "Only active or closed markets can be cancelled" }, { status: 400 });
 
+    // BUG-05 fix: only refund bets that were actually validated (approved)
+    // pending/rejected bets never had real funds transferred
     const { data: allBets } = await sb
       .from("mutuel_bets")
       .select("id, amount")
-      .eq("market_id", marketId);
+      .eq("market_id", marketId)
+      .eq("status", "approved");
 
+    // M-02 fix: log errors on individual bet updates so partial failures are visible
+    const cancelErrors: string[] = [];
     for (const bet of (allBets ?? [])) {
-      await sb.from("mutuel_bets")
+      const { error: updateErr } = await sb.from("mutuel_bets")
         .update({ payout_amount: Number(bet.amount) })
         .eq("id", bet.id);
+      if (updateErr) cancelErrors.push(`bet ${bet.id}: ${updateErr.message}`);
+    }
+    if (cancelErrors.length > 0) {
+      console.error("[pools/cancel] Some bet refunds failed:", cancelErrors);
     }
 
     const { error } = await sb
@@ -102,8 +116,11 @@ export async function POST(req: Request) {
       .single();
 
     if (mErr || !market) return NextResponse.json({ error: "Market not found" }, { status: 404 });
-    if (!["active", "closed"].includes(market.status))
-      return NextResponse.json({ error: "Market cannot be resolved in its current state" }, { status: 400 });
+    // BUG-22 fix: only allow resolution from "closed" status.
+    // Resolving an "active" market would leave pending on-chain payments orphaned
+    // (admin can't approve them since market.status !== "active" after resolution).
+    if (market.status !== "closed")
+      return NextResponse.json({ error: "Market must be closed before it can be resolved" }, { status: 400 });
 
     const options = typeof market.options === "string" ? JSON.parse(market.options) : market.options;
     const validOption = options.some((o: { id: string }) => o.id === winning_option_id);
@@ -137,29 +154,40 @@ export async function POST(req: Request) {
     // so commission would come out of winners' own pockets. Refund everyone instead.
     const allBetOnWinner = losingBets.length === 0 && winningBets.length > 0;
 
+    // M-02 fix: log errors on individual payout updates so partial failures are visible
+    const resolveErrors: string[] = [];
+
     if (allBetOnWinner) {
       for (const bet of winningBets) {
-        await sb.from("mutuel_bets")
+        const { error: updateErr } = await sb.from("mutuel_bets")
           .update({ payout_amount: Number(bet.amount) })
           .eq("id", bet.id);
+        if (updateErr) resolveErrors.push(`bet ${bet.id}: ${updateErr.message}`);
       }
     } else if (winningTotal > 0) {
       // Normal: winners split the winners pool proportionally
       for (const bet of winningBets) {
         const share = Number(bet.amount) / winningTotal;
         const payout = Math.floor(share * winnersPool * 1_000_000) / 1_000_000;
-        await sb.from("mutuel_bets").update({ payout_amount: payout }).eq("id", bet.id);
+        const { error: updateErr } = await sb.from("mutuel_bets").update({ payout_amount: payout }).eq("id", bet.id);
+        if (updateErr) resolveErrors.push(`bet ${bet.id}: ${updateErr.message}`);
       }
     }
     // else winningTotal === 0 with losers: house keeps pool, no payouts
+
+    if (resolveErrors.length > 0) {
+      console.error("[pools/resolve] Some payout updates failed:", resolveErrors);
+    }
 
     const userClient = await (await import("@/lib/supabase/server")).createClient();
     const { data: { user: adminUser } } = await userClient.auth.getUser();
     const adminWallet: string | null = (adminUser as { user_metadata?: { wallet_address?: string } } | null)?.user_metadata?.wallet_address ?? null;
 
-    const notes = allBetOnWinner
+    // BUG-23 fix: store the applied rates on the market so the frontend can read them
+    // instead of hardcoding the same values in two separate places.
+    const ratesNote = allBetOnWinner
       ? "REFUND: all bettors chose the winning option, no commission taken"
-      : undefined;
+      : `RATES:${JSON.stringify({ house: houseRate, creator: creatorRate, winners: winnersRate })}`;
 
     const { error: resolveErr } = await sb
       .from("mutuel_markets")
@@ -169,7 +197,7 @@ export async function POST(req: Request) {
         resolved_at: new Date().toISOString(),
         resolved_by_wallet: adminWallet,
         is_refund: allBetOnWinner,
-        ...(notes ? { admin_notes: notes } : {}),
+        admin_notes: ratesNote,
       })
       .eq("id", marketId);
 
@@ -204,16 +232,23 @@ export async function POST(req: Request) {
     const { betId, payout_tx } = body;
     if (!betId) return NextResponse.json({ error: "betId required" }, { status: 400 });
 
-    const { error } = await sb
+    // BUG-06 fix: only pay if user has claimed AND not already paid
+    const { data: updatedRows, error } = await sb
       .from("mutuel_bets")
       .update({
         paid_at: new Date().toISOString(),
         payout_tx: payout_tx ? String(payout_tx).slice(0, 120) : null,
       })
       .eq("id", betId)
-      .not("payout_amount", "is", null);
+      .not("payout_amount", "is", null)
+      .not("claimed_at", "is", null)
+      .is("paid_at", null)
+      .select("id");
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!updatedRows || updatedRows.length === 0) {
+      return NextResponse.json({ error: "Bet not found, not claimed yet, or already paid" }, { status: 409 });
+    }
     return NextResponse.json({ ok: true });
   }
 

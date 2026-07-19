@@ -12,7 +12,9 @@ export async function POST(
 ) {
   const { id: marketId } = await params;
 
-  const body = await req.json() as { comment_id?: string; wallet_address?: string };
+  let body: { comment_id?: string; wallet_address?: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const commentId = body.comment_id;
   const wallet    = body.wallet_address ?? null;
 

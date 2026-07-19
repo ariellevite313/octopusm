@@ -22,7 +22,12 @@ export async function POST(req: Request) {
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const body = await req.json();
+  let body;
+
+  try { body = await req.json(); }
+
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
   const { title, description, cover_image_src, options, category, creation_fee_token, creation_tx, betting_closes_at, bet_token } = body;
 
   if (!title || typeof title !== "string" || title.trim().length < 5)
@@ -36,8 +41,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "All options must have a non-empty label" }, { status: 400 });
   }
 
-  if (!betting_closes_at || new Date(betting_closes_at) <= new Date())
-    return NextResponse.json({ error: "Betting close date must be in the future" }, { status: 400 });
+  // BUG-18 fix: require at least 1 hour from now — prevents pools that close before anyone can bet
+  const closesAtMs = new Date(betting_closes_at).getTime();
+  if (!betting_closes_at || isNaN(closesAtMs) || closesAtMs < Date.now() + 60 * 60 * 1000)
+    return NextResponse.json({ error: "Betting close date must be at least 1 hour from now" }, { status: 400 });
 
   const allowedTokens = ["usdc", "clawdtrust"];
   if (!allowedTokens.includes(creation_fee_token))

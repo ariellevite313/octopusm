@@ -44,19 +44,30 @@ export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
-  const { betId, payout_tx } = await req.json();
+  let _body: Record<string, unknown>;
+  try { _body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const { betId, payout_tx } = _body;
+
   if (!betId) return NextResponse.json({ error: "betId required" }, { status: 400 });
 
   const admin = createAdminClient() as any;
-  const { error } = await admin
+
+  // H-03 fix: atomic guard — only update if claimed_at IS NOT NULL and paid_at IS NULL.
+  // Prevents two admins double-paying the same claim simultaneously.
+  const { data: updated, error } = await admin
     .from("mutuel_bets")
     .update({
       paid_at: new Date().toISOString(),
       payout_tx: payout_tx ? String(payout_tx).slice(0, 120) : null,
     })
     .eq("id", betId)
-    .not("claimed_at", "is", null);
+    .not("claimed_at", "is", null)
+    .is("paid_at", null)
+    .select("id");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!updated || updated.length === 0)
+    return NextResponse.json({ error: "Bet not found, not claimed, or already paid" }, { status: 409 });
   return NextResponse.json({ ok: true });
 }

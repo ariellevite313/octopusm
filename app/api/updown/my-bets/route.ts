@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 /**
- * GET /api/updown/my-bets?wallet=Y
+ * GET /api/updown/my-bets
  * Retourne tous les paris updown du wallet (pour le dashboard).
+ *
+ * C-02 fix: wallet_address now comes from the authenticated session,
+ * not from a query param (which could be spoofed to read any user's bets).
  */
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const wallet = searchParams.get("wallet");
-
+export async function GET() {
+  // C-02 fix: verify authenticated session
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ bets: [] });
 
   const admin = createAdminClient() as any;

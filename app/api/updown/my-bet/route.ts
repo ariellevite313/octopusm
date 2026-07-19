@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 /**
- * GET /api/updown/my-bet?market_id=X&wallet=Y
+ * GET /api/updown/my-bet?market_id=X
+ *
+ * C-02 fix: wallet_address now comes from the authenticated session,
+ * not from a query param (which could be spoofed to read any user's bets).
  *
  * Retourne bets[] - tous les paris du round actuel
  * + paris won sur rounds precedents non encore claims.
  */
 export async function GET(req: Request) {
+  // C-02 fix: verify authenticated session
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!wallet) return NextResponse.json({ bets: [] });
+
   const { searchParams } = new URL(req.url);
   const market_id = searchParams.get("market_id");
-  const wallet    = searchParams.get("wallet");
 
-  if (!market_id || !wallet) {
+  if (!market_id) {
     return NextResponse.json({ bets: [] });
   }
 
@@ -44,7 +52,7 @@ export async function GET(req: Request) {
       .eq("duration_min", market.duration_min)
       .eq("status", "resolved")
       .order("closes_at", { ascending: false })
-      .limit(10);
+      .limit(50);
 
     if (relatedMarkets && relatedMarkets.length > 0) {
       const marketIds = (relatedMarkets as { id: string }[]).map((m: { id: string }) => m.id);
@@ -53,9 +61,9 @@ export async function GET(req: Request) {
         .select("id, market_id, direction, amount, payout, status")
         .eq("wallet_address", wallet)
         .in("market_id", marketIds)
-        .eq("status", "won")
+        .in("status", ["won", "refunded"])
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (pendingClaims && pendingClaims.length > 0) {
         bets.push(...pendingClaims);

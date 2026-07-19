@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, LoaderCircle, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { PaymentRow, PaymentFlow } from "@/lib/supabase/types";
 import type { UpdownBetAdmin } from "@/services/admin-service";
@@ -65,7 +66,6 @@ export function AdminBetsClient({
 }) {
   const router = useRouter();
   const [processing, setProcessing] = useState<string | null>(null);
-  const [error, setError] = useState("");
 
   const all: UnifiedBet[] = [
     ...predictionPayments.map((p) => ({ kind: "payment" as const, data: { ...p, flow: "prediction" as PaymentFlow } })),
@@ -75,7 +75,6 @@ export function AdminBetsClient({
 
   async function handleAction(id: string, action: "approve" | "reject", kind: "payment" | "updown") {
     setProcessing(id);
-    setError("");
     try {
       const endpoint = kind === "updown" ? "/api/admin/updown/bets" : "/api/admin/bets";
       const body = kind === "updown"
@@ -88,9 +87,10 @@ export function AdminBetsClient({
       });
       const responseBody = await res.json();
       if (!res.ok) throw new Error(responseBody.error ?? "Error");
+      toast.success(action === "approve" ? "Approved" : "Rejected");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setProcessing(null);
     }
@@ -107,8 +107,6 @@ export function AdminBetsClient({
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-sm text-red-500">{error}</p>}
-
       {/* Mobile cards */}
       <div className="space-y-3 sm:hidden">
         {all.map((item) => {

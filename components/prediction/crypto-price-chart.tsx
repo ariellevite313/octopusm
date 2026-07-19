@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, ReferenceLine, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, ResponsiveContainer,
 } from "recharts";
 
 type Ticker = "BTCUSDT" | "SOLUSDT" | "ETHUSDT";
-interface PricePoint { time: number; price: number; }
+interface PricePoint { time: number; price: number; open: number; high: number; low: number; }
 interface Props {
   ticker: Ticker;
   priceTarget: number;
@@ -20,15 +19,7 @@ const COIN_META: Record<Ticker, { label: string; symbol: string; color: string }
   ETHUSDT: { label: "Ethereum", symbol: "ETH", color: "#3b82f6" },
 };
 
-const MAX_POINTS = 120;
-const POLL_INTERVAL_MS = 30_000;
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+const MAX_POINTS = 60;
 
 function formatPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -78,111 +69,172 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
-  const realtimeActiveRef = useRef(false);
   const countdown = useCountdown(marketCloseAt);
   const meta = COIN_META[ticker];
-  const supabaseRef = useRef(getSupabase());
 
-  const pushPoint = (price: number, time: number) => {
-    setCurrentPrice(price);
-    setPoints((prev) => {
-      const next = [...prev, { time, price }];
-      return next.length > MAX_POINTS ? next.slice(next.length - MAX_POINTS) : next;
+  // ── Agrégateur bougie 1s ────────────────────────────────────────────────────
+  const candleRef = useRef<{ time: number; open: number; high: number; low: number; close: number } | null>(null);
+
+  const flushCandle = useCallback(() => {
+    const c = candleRef.current;
+    if (!c) return;
+    candleRef.current = null;
+    setCurrentPrice(c.close);
+    setPoints(prev => {
+      const pt: PricePoint = { time: c.time, price: c.close, open: c.open, high: c.high, low: c.low };
+      if (prev.length > 0 && prev[prev.length - 1].time === c.time) {
+        const next = [...prev];
+        next[next.length - 1] = pt;
+        return next;
+      }
+      const next = [...prev, pt];
+      return next.length > MAX_POINTS ? next.slice(-MAX_POINTS) : next;
     });
-  };
+  }, []);
 
-  // ── 1. Initial load: klines + Supabase in parallel, first one wins ─────────
+  // Flush une bougie par seconde
+  useEffect(() => {
+    const id = setInterval(flushCandle, 1000);
+    return () => clearInterval(id);
+  }, [flushCandle]);
+
+  const pushPrice = useCallback((price: number) => {
+    const sec = Math.floor(Date.now() / 1000) * 1000;
+    candleRef.current = candleRef.current && candleRef.current.time === sec
+      ? { ...candleRef.current, high: Math.max(candleRef.current.high, price), low: Math.min(candleRef.current.low, price), close: price }
+      : { time: sec, open: price, high: price, low: price, close: price };
+  }, []);
+
+  // ── Chargement initial : klines 1s ─────────────────────────────────────────
   useEffect(() => {
     let settled = false;
+    setLoading(true);
+    setPoints([]);
+    setCurrentPrice(null);
 
     const applyPoints = (pts: PricePoint[]) => {
-      if (pts.length === 0) return;
-      setPoints(pts);
+      if (pts.length === 0 || settled) return;
+      settled = true;
+      setPoints(pts.slice(-MAX_POINTS));
       setCurrentPrice(pts[pts.length - 1].price);
       setLoading(false);
-      settled = true;
     };
 
-    // Fast path: Binance klines via edge proxy (usually <300ms)
-    fetch(`/api/crypto/klines?symbol=${ticker}`)
-      .then((r) => r.json())
-      .then((pts: PricePoint[]) => {
-        if (!settled && Array.isArray(pts) && pts.length > 0) applyPoints(pts);
+    const timeout = setTimeout(() => setLoading(false), 4000);
+
+    fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1s&limit=60`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: [number, string, string, string, string, ...unknown[]][]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          applyPoints(data.map(k => ({
+            time:  k[0] as number,
+            price: parseFloat(k[4] as string),
+            open:  parseFloat(k[1] as string),
+            high:  parseFloat(k[2] as string),
+            low:   parseFloat(k[3] as string),
+          })));
+        } else return Promise.reject();
       })
-      .catch(() => {});
+      .catch(() =>
+        fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`)
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then((data: [number, string, string, string, string, ...unknown[]][]) => {
+            if (Array.isArray(data) && data.length > 0) {
+              applyPoints(data.map(k => ({
+                time:  k[0] as number,
+                price: parseFloat(k[4] as string),
+                open:  parseFloat(k[1] as string),
+                high:  parseFloat(k[2] as string),
+                low:   parseFloat(k[3] as string),
+              })));
+            }
+          })
+          .catch(() => {})
+      );
 
-    // Parallel: Supabase historical data (may have more recent rows)
-    supabaseRef.current
-      .from("crypto_prices")
-      .select("price, recorded_at")
-      .eq("symbol", ticker)
-      .order("recorded_at", { ascending: false })
-      .limit(60)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          const pts: PricePoint[] = (data as { price: number; recorded_at: string }[])
-            .reverse()
-            .map((r) => ({ time: new Date(r.recorded_at).getTime(), price: Number(r.price) }));
-          // Always apply Supabase data if it has more recent points
-          if (!settled || pts[pts.length - 1].time > (points[points.length - 1]?.time ?? 0)) {
-            applyPoints(pts);
-          }
-        } else if (!settled) {
-          setLoading(false);
-        }
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => clearTimeout(timeout);
   }, [ticker]);
 
-  // ── 2. Supabase Realtime subscription ─────────────────────────────────────
+  // ── WebSocket Binance aggTrade ──────────────────────────────────────────────
   useEffect(() => {
-    const sb = supabaseRef.current;
-    const channel = sb
-      .channel(`crypto-prices-${ticker}`)
-      .on(
-        "postgres_changes" as const,
-        { event: "INSERT", schema: "public", table: "crypto_prices", filter: `symbol=eq.${ticker}` },
-        (payload: { new: Record<string, unknown> }) => {
-          const row = payload.new as { price: number; recorded_at: string };
-          realtimeActiveRef.current = true;
-          pushPoint(Number(row.price), new Date(row.recorded_at).getTime());
-          setLive(true);
-        }
-      )
-      .subscribe((status: string) => {
-        if (status === "SUBSCRIBED") setLive(true);
-      });
-    return () => { void sb.removeChannel(channel); };
-  }, [ticker]);
-
-  // ── 3. Fallback polling every 30s when Realtime has no data ───────────────
-  useEffect(() => {
+    let ws: WebSocket | null = null;
     let pollId: ReturnType<typeof setInterval> | null = null;
-    const poll = async () => {
-      if (realtimeActiveRef.current) { if (pollId) clearInterval(pollId); return; }
-      try {
-        const r = await fetch(`/api/crypto/price?symbol=${ticker}`);
-        const d: { price: string } = await r.json();
-        if (d.price) { pushPoint(parseFloat(d.price), Date.now()); setLive(true); }
-      } catch { /* ignore */ }
-    };
-    // Start after 35s (give Realtime time to connect)
-    const startId = setTimeout(() => {
-      poll();
-      pollId = setInterval(poll, POLL_INTERVAL_MS);
-    }, 35_000);
-    return () => { clearTimeout(startId); if (pollId) clearInterval(pollId); };
-  }, [ticker]);
+    let wsTimeout: ReturnType<typeof setTimeout> | null = null;
+    let destroyed = false;
 
-  const pctFromTarget =
-    currentPrice != null ? ((currentPrice - priceTarget) / priceTarget) * 100 : null;
+    const stopAll = () => {
+      if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; }
+      if (ws) { ws.onclose = null; ws.onerror = null; ws.onmessage = null; ws.close(); ws = null; }
+      if (pollId) { clearInterval(pollId); pollId = null; }
+    };
+
+    const startPolling = () => {
+      if (pollId || destroyed) return;
+      const poll = async () => {
+        try {
+          const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${ticker}`);
+          if (r.ok) { const d: { price: string } = await r.json(); if (d.price) { pushPrice(parseFloat(d.price)); setLive(true); return; } }
+        } catch { /* ignore */ }
+        try {
+          const r = await fetch(`/api/crypto/price?symbol=${ticker}`);
+          const d: { price: string } = await r.json();
+          if (d.price) { pushPrice(parseFloat(d.price)); setLive(true); }
+        } catch { /* ignore */ }
+      };
+      void poll();
+      pollId = setInterval(poll, 200);
+    };
+
+    const startWs = () => {
+      if (destroyed) return;
+      stopAll();
+      let lastMsgAt = Date.now();
+      const watchdog = setInterval(() => {
+        if (destroyed) { clearInterval(watchdog); return; }
+        if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > 5000) {
+          ws.close();
+        }
+      }, 5000);
+      try {
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${ticker.toLowerCase()}@aggTrade`);
+        wsTimeout = setTimeout(() => {
+          if (ws && ws.readyState !== WebSocket.OPEN) { clearInterval(watchdog); ws.close(); startPolling(); }
+        }, 3000);
+        ws.onopen = () => { if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; } lastMsgAt = Date.now(); };
+        ws.onmessage = (e) => {
+          lastMsgAt = Date.now();
+          const d = JSON.parse(e.data as string) as { p: string };
+          pushPrice(parseFloat(d.p));
+          setLive(true);
+        };
+        ws.onerror = () => { clearInterval(watchdog); ws?.close(); if (!destroyed) startPolling(); };
+        ws.onclose = () => { clearInterval(watchdog); if (!destroyed && pollId === null) startPolling(); };
+      } catch { startPolling(); }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") startWs();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    startWs();
+    return () => {
+      destroyed = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      stopAll();
+    };
+  }, [ticker, pushPrice]);
+
+  const pctFromTarget = currentPrice != null ? ((currentPrice - priceTarget) / priceTarget) * 100 : null;
   const isAbove = pctFromTarget != null && pctFromTarget >= 0;
 
-  const allPrices = points.map((p) => p.price);
-  if (priceTarget) allPrices.push(priceTarget);
-  const minP = allPrices.length ? Math.min(...allPrices) : 0;
-  const maxP = allPrices.length ? Math.max(...allPrices) : 0;
-  const pad = (maxP - minP) * 0.1 || priceTarget * 0.005;
+  const recentPrices = points.slice(-20).map(p => p.price);
+  const allPrices = recentPrices.length > 0 ? [...recentPrices, priceTarget] : [priceTarget];
+  const minP = Math.min(...allPrices);
+  const maxP = Math.max(...allPrices);
+  const spread = maxP - minP;
+  const minPad = ticker === "BTCUSDT" ? 0.5 : ticker === "ETHUSDT" ? 0.05 : 0.001;
+  const pad = Math.max(minPad, spread * 0.2);
   const yDomain: [number, number] = [minP - pad, maxP + pad];
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
 
@@ -261,10 +313,11 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
                   <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} vertical={false} />
               <XAxis
                 dataKey="time"
                 tickFormatter={formatTime}
-                tick={{ fontSize: 9, fill: "var(--text-muted)" }}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
@@ -272,13 +325,11 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
               />
               <YAxis
                 domain={yDomain}
-                tickFormatter={(v: number) =>
-                  `$${v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(2)}`
-                }
-                tick={{ fontSize: 9, fill: "var(--text-muted)" }}
+                tickFormatter={(v: number) => `$${v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(3)}`}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
-                width={48}
+                width={72}
               />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine
@@ -286,20 +337,23 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
                 stroke="#60a5fa"
                 strokeDasharray="5 3"
                 strokeWidth={1.5}
-                label={{
-                  value: `Target $${formatPrice(priceTarget)}`,
-                  position: "insideTopRight",
-                  fontSize: 8,
-                  fill: "#60a5fa",
-                }}
+                label={{ value: `Target $${formatPrice(priceTarget)}`, position: "insideTopRight", fontSize: 8, fill: "#60a5fa" }}
               />
               <Area
-                type="monotone"
+                type="linear"
                 dataKey="price"
                 stroke={lineColor}
-                strokeWidth={1.5}
+                strokeWidth={2}
                 fill={`url(#fill-${ticker})`}
-                dot={false}
+                dot={(props: any) => {
+                  const { cx, cy, index } = props;
+                  if (index !== points.length - 1) return <g key={index} />;
+                  return (
+                    <g key={index}>
+                      <circle cx={cx} cy={cy} r={4} fill={lineColor} stroke="white" strokeWidth={2} />
+                    </g>
+                  );
+                }}
                 isAnimationActive={false}
               />
             </AreaChart>

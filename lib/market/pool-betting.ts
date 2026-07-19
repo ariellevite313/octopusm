@@ -14,13 +14,13 @@ const TOKEN_PROGRAM    = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const ASSOC_TOKEN_PROG = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const MEMO_PROGRAM     = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
-const RPC_URLS = [
-  "https://solana-rpc.publicnode.com",
-  "https://api.mainnet-beta.solana.com",
-  "https://rpc.ankr.com/solana",
-  "https://solana.drpc.org",
-  "https://1rpc.io/sol",
-];
+// All Solana RPC calls go through our server-side proxy to avoid CORS blocks,
+// 403s, and rate limits that affect direct browser-to-RPC connections.
+// We use an absolute URL because @solana/web3.js Connection requires one.
+function getRpcUrls(): string[] {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return [`${origin}/api/solana/rpc`];
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,15 +46,22 @@ export type PoolBetResult =
 type Web3 = typeof import("@solana/web3.js");
 type AnyPK = any;
 
-function serializeU64(value: number): Uint8Array {
+// BUG-15 fix: use BigInt to avoid 32-bit integer overflow on large CLT amounts.
+// e.g. 500,000 CLT * 10^9 = 5e14 base units, well above 2^31 which breaks bitwise ops on numbers.
+function serializeU64(value: bigint): Uint8Array {
   const buf = new Uint8Array(8);
   let v = value;
-  for (let i = 0; i < 8; i++) { buf[i] = v & 0xff; v = Math.floor(v / 256); }
+  for (let i = 0; i < 8; i++) { buf[i] = Number(v & 0xffn); v >>= 8n; }
   return buf;
 }
 
-function uiToBaseUnits(amount: number, decimals: number): number {
-  return Math.round(amount * Math.pow(10, decimals));
+// BUG-14 fix: use BigInt to avoid IEEE 754 precision loss on large amounts.
+// Returns a bigint in base units (e.g. 500000 USDC = 500000_000000n).
+function uiToBaseUnits(amount: number, decimals: number): bigint {
+  // Multiply by 10^decimals safely using BigInt arithmetic.
+  // We round to avoid floating point artifacts before converting.
+  const factor = BigInt(Math.pow(10, decimals));
+  return BigInt(Math.round(amount)) * factor;
 }
 
 function findATA(web3: Web3, owner: AnyPK, mint: AnyPK): AnyPK {
@@ -93,7 +100,7 @@ function createATAIx(web3: Web3, payer: AnyPK, owner: AnyPK, mint: AnyPK, ata: A
 function createTransferCheckedIx(
   web3: Web3,
   source: AnyPK, destination: AnyPK, mint: AnyPK, owner: AnyPK,
-  amountBaseUnits: number, decimals: number
+  amountBaseUnits: bigint, decimals: number
 ) {
   const { PublicKey, TransactionInstruction } = web3;
   const data = Buffer.alloc(10);
@@ -155,7 +162,7 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
   const rpcErrors: string[] = [];
   let signature = "";
 
-  for (const rpcUrl of RPC_URLS) {
+  for (const rpcUrl of getRpcUrls()) {
     try {
       const connection = new Connection(rpcUrl, "confirmed");
       const { blockhash } = await connection.getLatestBlockhash("confirmed");
@@ -280,7 +287,7 @@ export async function submitPoolCreation(params: PoolCreationParams): Promise<Po
   const rpcErrors: string[] = [];
   let signature = "";
 
-  for (const rpcUrl of RPC_URLS) {
+  for (const rpcUrl of getRpcUrls()) {
     try {
       const connection = new Connection(rpcUrl, "confirmed");
       const { blockhash } = await connection.getLatestBlockhash("confirmed");

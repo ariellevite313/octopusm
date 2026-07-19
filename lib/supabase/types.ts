@@ -21,6 +21,23 @@ export type AIListingStatus = "pending" | "approved" | "rejected";
 export type AIListingBadge = "none" | "blue" | "gold";
 export type ToolReactionType = "heart" | "thumbs-up" | "flame";
 export type PayoutStatus = "claimed" | "paid";
+export type WithdrawalStatus = "pending" | "approved" | "rejected" | "paid";
+export type WithdrawalToken  = "usdc" | "clawdtrust";
+
+export interface WithdrawalRow {
+  id: string;
+  wallet_address: string;
+  token: WithdrawalToken;
+  amount: number;
+  status: WithdrawalStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  paid_tx: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export type PredictionResultStatus =
   | "open"

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TrendingUp, TrendingDown, Clock, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import {
-  AreaChart, Area, XAxis, YAxis, ReferenceLine, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth } from "@/lib/wallet/auth";
@@ -30,7 +30,7 @@ interface UpDownBet {
   amount: number; payout: number | null; status: string;
 }
 
-interface PricePoint { time: number; price: number; }
+interface PricePoint { time: number; price: number; open: number; high: number; low: number; }
 
 const COIN_META: Record<string, { label: string; symbol: string; color: string; img: string }> = {
   BTCUSDT: { label: "Bitcoin",  symbol: "BTC", color: "#f59e0b", img: "/bitcoin.png" },
@@ -40,7 +40,7 @@ const COIN_META: Record<string, { label: string; symbol: string; color: string; 
 
 const QUICK_AMOUNTS = [5, 25, 100, 500];
 const MIN_AMOUNT = 2;
-const MAX_POINTS = 120;
+const MAX_POINTS = 60;
 const POLL_INTERVAL_MS = 30_000;
 
 function getSupabase() {
@@ -89,7 +89,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
   );
 }
 
-function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: number }) {
+const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string }) {
   const [points, setPoints] = useState<PricePoint[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
@@ -97,12 +97,62 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
   const supabaseRef = useRef(getSupabase());
   const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
 
-  const pushPoint = useCallback((price: number, time: number) => {
-    setCurrentPrice(price);
+  // Betting open state — triggers re-render exactly at bettingClosesAt
+  const [isBettingOpen, setIsBettingOpen] = useState(
+    () => new Date(bettingClosesAt) > new Date()
+  );
+  useEffect(() => {
+    const ms = new Date(bettingClosesAt).getTime() - Date.now();
+    if (ms <= 0) { setIsBettingOpen(false); return; }
+    setIsBettingOpen(true);
+    const id = setTimeout(() => setIsBettingOpen(false), ms);
+    return () => clearTimeout(id);
+  }, [bettingClosesAt]);
+
+  const bettingCountdown = useCountdown(isBettingOpen ? bettingClosesAt : null);
+
+  // Format opensAt as a readable date+time
+  const opensAtFormatted = (() => {
+    try {
+      const d = new Date(opensAt);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " +
+        d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    } catch { return opensAt; }
+  })();
+
+  // Agrégateur de bougie 1s — accumule les trades et flush une fois par seconde
+  const candleRef = useRef<{ time: number; open: number; high: number; low: number; close: number } | null>(null);
+
+  const flushCandle = useCallback(() => {
+    const c = candleRef.current;
+    if (!c) return;
+    candleRef.current = null;
+    setCurrentPrice(c.close);
     setPoints(prev => {
-      const next = [...prev, { time, price }];
-      return next.length > MAX_POINTS ? next.slice(next.length - MAX_POINTS) : next;
+      const pt: PricePoint = { time: c.time, price: c.close, open: c.open, high: c.high, low: c.low };
+      // Met à jour la bougie courante si même seconde, sinon ajoute
+      if (prev.length > 0 && prev[prev.length - 1].time === c.time) {
+        const next = [...prev];
+        next[next.length - 1] = pt;
+        return next;
+      }
+      const next = [...prev, pt];
+      return next.length > MAX_POINTS ? next.slice(-MAX_POINTS) : next;
     });
+  }, []);
+
+  // Tick 1s — flush la bougie en cours toutes les secondes
+  useEffect(() => {
+    const id = setInterval(flushCandle, 1000);
+    return () => clearInterval(id);
+  }, [flushCandle]);
+
+  // Reçoit un prix brut et l'agrège dans la bougie de la seconde courante
+  const pushPrice = useCallback((price: number) => {
+    const sec = Math.floor(Date.now() / 1000) * 1000; // timestamp arrondi à la seconde
+    candleRef.current = candleRef.current && candleRef.current.time === sec
+      ? { ...candleRef.current, high: Math.max(candleRef.current.high, price), low: Math.min(candleRef.current.low, price), close: price }
+      : { time: sec, open: price, high: price, low: price, close: price };
   }, []);
 
   useEffect(() => {
@@ -122,20 +172,34 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
     // Timeout securite: 4s max puis on cache le loading
     const timeout = setTimeout(() => setLoading(false), 4000);
 
-    // Source 1: Binance directement depuis le browser (rapide, pas de proxy)
-    fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`)
+    // Klines 1s — 60 bougies d'historique au démarrage
+    fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1s&limit=60`)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: [number, string, string, string, string, ...unknown[]][]) => {
         if (Array.isArray(data) && data.length > 0) {
-          applyPoints(data.map(k => ({ time: k[0], price: parseFloat(k[4]) })));
-        }
+          applyPoints(data.map(k => ({
+            time: k[0] as number,
+            price: parseFloat(k[4] as string),
+            open:  parseFloat(k[1] as string),
+            high:  parseFloat(k[2] as string),
+            low:   parseFloat(k[3] as string),
+          })));
+        } else return Promise.reject();
       })
       .catch(() => {
-        // Source 2: API route fallback (CoinGecko via serveur)
-        fetch(`/api/crypto/klines?symbol=${ticker}`)
+        // Fallback 1m si klines 1s indisponible
+        fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`)
           .then(r => r.ok ? r.json() : Promise.reject())
-          .then((data: PricePoint[]) => {
-            if (Array.isArray(data) && data.length > 0) applyPoints(data);
+          .then((data: [number, string, string, string, string, ...unknown[]][]) => {
+            if (Array.isArray(data) && data.length > 0) {
+              applyPoints(data.map(k => ({
+                time: k[0] as number,
+                price: parseFloat(k[4] as string),
+                open:  parseFloat(k[1] as string),
+                high:  parseFloat(k[2] as string),
+                low:   parseFloat(k[3] as string),
+              })));
+            }
           })
           .catch(() => {});
       });
@@ -144,78 +208,119 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
   }, [ticker]);
 
   // WebSocket Binance — updates à la seconde
+  // Se reconnecte automatiquement si la page reprend le focus (tab throttling navigateur)
   useEffect(() => {
     let ws: WebSocket | null = null;
     let pollId: ReturnType<typeof setInterval> | null = null;
     let wsTimeout: ReturnType<typeof setTimeout> | null = null;
+    let destroyed = false;
+
+    const stopAll = () => {
+      if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; }
+      if (ws) { ws.onclose = null; ws.onerror = null; ws.onmessage = null; ws.close(); ws = null; }
+      if (pollId) { clearInterval(pollId); pollId = null; }
+    };
 
     const startPolling = () => {
-      if (pollId) return;
+      if (pollId || destroyed) return;
       const poll = async () => {
         try {
           const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${ticker}`);
-          if (r.ok) { const d: { price: string } = await r.json(); if (d.price) { pushPoint(parseFloat(d.price), Date.now()); setLive(true); return; } }
+          if (r.ok) { const d: { price: string } = await r.json(); if (d.price) { pushPrice(parseFloat(d.price)); setLive(true); return; } }
         } catch { /* ignore */ }
         try {
           const r = await fetch(`/api/crypto/price?symbol=${ticker}`);
           const d: { price: string } = await r.json();
-          if (d.price) { pushPoint(parseFloat(d.price), Date.now()); setLive(true); }
+          if (d.price) { pushPrice(parseFloat(d.price)); setLive(true); }
         } catch { /* ignore */ }
       };
       void poll();
-      pollId = setInterval(poll, 3_000);
+      pollId = setInterval(poll, 200); // poll rapide pour alimenter l'agrégateur 1s
     };
 
     const startWs = () => {
+      if (destroyed) return;
+      stopAll();
+      let lastMsgAt = Date.now();
+      // Watchdog: si le WS est ouvert mais silencieux >5s, reconnecter
+      const watchdog = setInterval(() => {
+        if (destroyed) { clearInterval(watchdog); return; }
+        if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > 5000) {
+          ws.close(); // déclenche onclose → startWs via visibilityChange ou startPolling
+        }
+      }, 5000);
       try {
         ws = new WebSocket(`wss://stream.binance.com:9443/ws/${ticker.toLowerCase()}@aggTrade`);
         wsTimeout = setTimeout(() => {
-          if (ws && ws.readyState !== WebSocket.OPEN) { ws.close(); startPolling(); }
+          if (ws && ws.readyState !== WebSocket.OPEN) { clearInterval(watchdog); ws.close(); startPolling(); }
         }, 3000);
-        ws.onopen = () => { if (wsTimeout) clearTimeout(wsTimeout); };
+        ws.onopen = () => { if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; } lastMsgAt = Date.now(); };
         ws.onmessage = (e) => {
+          lastMsgAt = Date.now();
           const d = JSON.parse(e.data as string) as { p: string; T: number };
-          pushPoint(parseFloat(d.p), d.T);
+          pushPrice(parseFloat(d.p)); // agrégé dans la bougie 1s courante
           setLive(true);
         };
-        ws.onerror = () => { ws?.close(); startPolling(); };
-        ws.onclose = () => { if (pollId === null) startPolling(); };
-      } catch { startPolling(); }
+        ws.onerror = () => { clearInterval(watchdog); ws?.close(); if (!destroyed) startPolling(); };
+        ws.onclose = () => { clearInterval(watchdog); if (!destroyed && pollId === null) startPolling(); };
+      } catch { clearInterval(watchdog); startPolling(); }
     };
+
+    // Reconnecte le WS quand l'onglet redevient visible
+    // (les navigateurs throttlent/coupent les WS en arrière-plan)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") startWs();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     startWs();
     return () => {
-      if (wsTimeout) clearTimeout(wsTimeout);
-      if (ws) ws.close();
-      if (pollId) clearInterval(pollId);
+      destroyed = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      stopAll();
     };
-  }, [ticker, pushPoint]);
+  }, [ticker, pushPrice]);
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
-  const allPrices = [...points.map(p => p.price), strikePrice];
+
+  // Domaine Y serré sur les prix réels + strike pour maximiser la visibilité des mouvements
+  // On utilise les 20 derniers points pour que le moindre mouvement soit visible
+  const recentPrices = points.slice(-20).map(p => p.price);
+  const allPrices = recentPrices.length > 0
+    ? [...recentPrices, strikePrice]
+    : [strikePrice];
   const minP = Math.min(...allPrices);
   const maxP = Math.max(...allPrices);
-  const pad = (maxP - minP) * 0.1 || strikePrice * 0.005;
+  const spread = maxP - minP;
+  // Pad = 20% du spread, minimum ultra-serré pour amplifier les micro-mouvements
+  const minPad = ticker === "BTCUSDT" ? 0.5 : ticker === "ETHUSDT" ? 0.05 : 0.001;
+  const pad = Math.max(minPad, spread * 0.2);
   const yDomain: [number, number] = [minP - pad, maxP + pad];
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
   const pctDiff = currentPrice != null ? ((currentPrice - strikePrice) / strikePrice) * 100 : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         {meta.img
           ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-full bg-white p-0.5 shrink-0" />
           : <div className="flex size-8 items-center justify-center rounded-full text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
         }
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-foreground">{meta.label} / USDT</p>
-          <p className="text-[10px] text-muted-foreground">{meta.symbol}USDT · Real-time</p>
+          <p className="text-xs font-semibold text-foreground">{meta.label} Up or Down {durationMin}m</p>
+          <p className="text-[10px] text-muted-foreground">{opensAtFormatted}</p>
         </div>
         <div className="flex flex-col items-end gap-0.5">
-          <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
-            <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
-            {live ? "Live" : "Connecting..."}
-          </span>
+          {isBettingOpen ? (
+            <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+              {bettingCountdown}
+            </span>
+          ) : (
+            <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
+              <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
+              {live ? "Live" : "Connecting..."}
+            </span>
+          )}
         </div>
       </div>
 
@@ -250,33 +355,50 @@ function LiveChart({ ticker, strikePrice }: { ticker: string; strikePrice: numbe
             </span>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={160}>
-            <AreaChart data={points} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={points} margin={{ top: 8, right: 56, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`fill-updown-${ticker}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={lineColor} stopOpacity={0.2} />
+                  <stop offset="5%"  stopColor={lineColor} stopOpacity={0.15} />
                   <stop offset="95%" stopColor={lineColor} stopOpacity={0}   />
                 </linearGradient>
               </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} vertical={false} />
               <XAxis dataKey="time" tickFormatter={formatTime}
-                tick={{ fontSize: 9, fill: "var(--text-muted)" }}
-                tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={40} />
-              <YAxis domain={yDomain}
-                tickFormatter={(v: number) => `$${v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(2)}`}
-                tick={{ fontSize: 9, fill: "var(--text-muted)" }}
-                tickLine={false} axisLine={false} width={52} />
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={50} />
+              <YAxis
+                domain={yDomain}
+                orientation="right"
+                tickFormatter={(v: number) => `$${v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(3)}`}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+                width={80}
+                tickCount={10}
+              />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine y={strikePrice} stroke="#60a5fa" strokeDasharray="5 3" strokeWidth={1.5}
-                label={{ value: `Strike $${formatPrice(strikePrice)}`, position: "insideTopRight", fontSize: 8, fill: "#60a5fa" }} />
-              <Area type="monotone" dataKey="price" stroke={lineColor} strokeWidth={2}
-                fill={`url(#fill-updown-${ticker})`} dot={false} isAnimationActive={false} />
+                label={{ value: "Strike", position: "insideTopLeft", fontSize: 9, fill: "#60a5fa" }} />
+              <Area type="monotoneX" dataKey="price" stroke={lineColor} strokeWidth={2}
+                fill={`url(#fill-updown-${ticker})`}
+                dot={(props: any) => {
+                  const { cx, cy, index } = props;
+                  if (index !== points.length - 1) return <g key={index} />;
+                  return (
+                    <g key={index}>
+                      <circle cx={cx} cy={cy} r={5} fill={lineColor} stroke="white" strokeWidth={2} />
+                    </g>
+                  );
+                }}
+                isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
         )}
       </div>
     </div>
   );
-}
+});
 
 export function UpDownDetail({ marketId }: { marketId: string }) {
   const router = useRouter();
@@ -293,7 +415,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   useEffect(() => { walletAddressRef.current = walletAddress; }, [walletAddress]);
 
   // Ratios betting/live par durée totale du round
-  const BETTING_MINUTES: Record<number, number> = { 5: 3, 15: 10, 30: 20 };
+  const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
 
   // bettingClosesAt: calculé depuis opens_at + ratio betting
   // Si le marché a resolve_at, closes_at est déjà le vrai closes_at
@@ -311,7 +433,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     ? market.resolve_at
       ?? new Date(
            new Date(market.opens_at).getTime() +
-           (market.duration_min) * 60_000
+           (market.duration_min * 2) * 60_000
          ).toISOString()
     : null;
 
@@ -344,7 +466,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     if (!addr) return;
     try {
       const res = await fetch(
-        `/api/updown/my-bet?market_id=${encodeURIComponent(marketId)}&wallet=${encodeURIComponent(addr)}`
+        `/api/updown/my-bet?market_id=${encodeURIComponent(marketId)}`
       );
       if (!res.ok) return;
       const data = await res.json() as { bets?: UpDownBet[]; bet?: UpDownBet | null };
@@ -528,182 +650,182 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   function estPayout(dir: "up" | "down"): number {
     const myPool = dir === "up" ? (market!.pool_up ?? 0) : (market!.pool_down ?? 0);
     const oppPool = dir === "up" ? (market!.pool_down ?? 0) : (market!.pool_up ?? 0);
-    const fee = market!.fee_rate ?? 0.05;
+    // fee_rate est stocké en pourcentage (ex: 5 = 5%) → diviser par 100
+    const feeRate = (market!.fee_rate ?? 5) / 100;
     if (myPool + amount <= 0) return amount;
-    return amount + (amount / (myPool + amount)) * oppPool * (1 - fee);
+    return amount + (amount / (myPool + amount)) * oppPool * (1 - feeRate);
   }
 
-  return (
-    <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="size-4" /><span>Back</span>
-      </button>
+  // Pool bar percentages
+  const upPct   = totalPool > 0 ? Math.round(((market.pool_up ?? 0) / totalPool) * 100) : 50;
+  const downPct = 100 - upPct;
 
-      {/* Header */}
-      <div className="rounded-2xl border border-border bg-card px-5 py-4">
-        <div className="flex items-center gap-3 mb-3">
-          {meta.img
-            ? <Image src={meta.img} alt={meta.symbol} width={40} height={40} className="rounded-full bg-white p-0.5 shrink-0" />
-            : <div className="flex size-10 items-center justify-center rounded-full text-sm font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
-          }
-          <div>
-            <h1 className="text-base font-bold text-foreground">{meta.label} Up/Down</h1>
-            <p className="text-xs text-muted-foreground">{market.duration_min} min round · Strike ${formatPrice(market.strike_price)}</p>
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Main 2-col layout */}
+      <div className="flex flex-col lg:flex-row lg:items-start">
+
+        {/* LEFT — chart + metrics */}
+        <div className="flex-1 min-w-0 p-4 space-y-3">
+
+          {/* Chart */}
+          <LiveChart
+            ticker={market.symbol}
+            strikePrice={market.strike_price}
+            durationMin={market.duration_min}
+            opensAt={market.opens_at}
+            bettingClosesAt={bettingClosesAt ?? new Date(market.opens_at).toISOString()}
+          />
+
+          {/* Round result */}
+          {isResolved && market.outcome && (
+            <div className={`rounded-2xl px-4 py-3 text-center text-sm font-bold border ${
+              market.outcome === "up"
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                : "bg-red-500/10 text-red-400 border-red-500/30"
+            }`}>
+              {market.outcome === "up" ? "↑ UP won this round" : "↓ DOWN won this round"}
+            </div>
+          )}
+
+          {/* My bets */}
+          {currentRoundBets.length > 0 && (
+            <div className="space-y-2">
+              {currentRoundBets.map(bet => (
+                <div key={bet.id} className={`rounded-2xl px-4 py-3 flex items-center justify-between text-sm border ${
+                  bet.status === "won"     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                  bet.status === "lost"    ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                  bet.status === "claimed" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                  bet.status === "paid"    ? "bg-violet-500/10 text-violet-400 border-violet-500/20" :
+                  "bg-muted/40 text-muted-foreground border-border"
+                }`}>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide opacity-60 mb-0.5">My bet</p>
+                    <p className="font-bold">${bet.amount} USDC · {bet.direction === "up" ? "↑ UP" : "↓ DOWN"}</p>
+                    {bet.status === "won" && bet.payout != null && (
+                      <p className="text-xs mt-0.5 font-semibold">Win: ${Number(bet.payout).toFixed(2)} USDC</p>
+                    )}
+                    {bet.status === "refunded" && (
+                      <p className="text-xs mt-0.5 font-semibold">Refund: ${Number(bet.amount).toFixed(2)} USDC</p>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold shrink-0">
+                    {(bet.status === "won" || bet.status === "refunded") && "🏆 Claim in dashboard"}
+                    {bet.status === "claimed" && "⏳ Pending"}
+                    {bet.status === "paid"    && "✅ Paid"}
+                    {bet.status === "lost"    && "❌ Lost"}
+                    {(bet.status === "pending" || bet.status === "approved") && "⏳ In progress"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Comments desktop */}
+          <div className="hidden lg:block">
+            <CommentsSection
+              marketId={marketId}
+              initialComments={[]}
+              isAuthenticated={!!walletAddress}
+              walletAddress={walletAddress ?? undefined}
+              onRequestConnect={() => setShowWalletDialog(true)}
+              apiBase="/api/markets"
+            />
           </div>
-          <div className="ml-auto text-right">
+        </div>
+
+        {/* RIGHT — bet panel sticky */}
+        <div className="w-full lg:w-80 lg:shrink-0 lg:sticky lg:top-0 p-4">
+          <div className="rounded-2xl border border-border overflow-hidden">
+            {/* Panel header */}
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
+              {meta.img
+                ? <Image src={meta.img} alt={meta.symbol} width={28} height={28} className="rounded-lg bg-white p-0.5 shrink-0" />
+                : <div className="flex size-7 items-center justify-center rounded-lg text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+              }
+              <div>
+                <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>
+                {isBettingOpen
+                  ? <p className="text-[10px] text-orange-500 font-semibold">Betting open</p>
+                  : isOpen
+                    ? <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live</p>
+                    : <p className="text-[10px] text-muted-foreground">{market.status}</p>
+                }
+              </div>
+            </div>
+
             {isBettingOpen ? (
-              <>
-                <p className="text-xs text-muted-foreground">Closes in</p>
-                <p className="text-base font-bold tabular-nums text-foreground flex items-center gap-1">
-                  <Clock className="size-3.5 text-muted-foreground" />{countdown}
-                </p>
-              </>
+              <div className="p-4 space-y-4">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Quick bet</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {QUICK_AMOUNTS.map(q => (
+                      <button key={q} type="button" onClick={() => setAmount(q)}
+                        className={`rounded-xl border py-2.5 text-sm font-bold transition-colors ${
+                          amount === q ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground hover:border-primary/40 bg-muted/30"
+                        }`}>
+                        ${q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
+                  <span className="text-sm text-muted-foreground font-semibold">$</span>
+                  <input
+                    type="number" min={MIN_AMOUNT} step="1" value={amount}
+                    onChange={e => setAmount(Number(e.target.value))}
+                    className="flex-1 bg-transparent text-sm font-bold text-foreground focus:outline-none"
+                    placeholder="Custom amount"
+                  />
+                  <span className="text-xs text-muted-foreground">USDC</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => handleBet("up")} disabled={submitting}
+                    className={`rounded-2xl py-4 font-bold transition-all active:scale-95 disabled:opacity-60 ${
+                      submitting && activeDir === "up" ? "bg-emerald-600 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-white"
+                    }`}>
+                    {submitting && activeDir === "up" ? "..." : "UP"}
+                  </button>
+                  <button onClick={() => handleBet("down")} disabled={submitting}
+                    className={`rounded-2xl py-4 font-bold transition-all active:scale-95 disabled:opacity-60 ${
+                      submitting && activeDir === "down" ? "bg-red-600 text-white" : "bg-red-500 hover:bg-red-400 text-white"
+                    }`}>
+                    {submitting && activeDir === "down" ? "..." : "DOWN"}
+                  </button>
+                </div>
+                <p className="text-center text-[10px] text-muted-foreground">Min $2 · USDC · Multiple bets allowed</p>
+              </div>
             ) : isOpen ? (
-              <div className="flex flex-col items-end gap-1.5">
-                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center gap-1.5">
-                  <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  LIVE — Bets closed
-                </span>
-                {liveCountdown && liveCountdown !== "Termine" && (
-                  <p className="text-base font-bold tabular-nums text-foreground flex items-center gap-1">
-                    <Clock className="size-3.5 text-muted-foreground" />{liveCountdown}
+              <div className="p-6 text-center space-y-1">
+                <p className="text-2xl">🔒</p>
+                <p className="text-sm font-semibold text-foreground">Bets are closed</p>
+                <p className="text-xs text-muted-foreground">Waiting for resolution…</p>
+              </div>
+            ) : (
+              <div className="p-6 text-center space-y-1">
+                <p className="text-sm font-semibold text-foreground">{market.status === "resolved" ? "Round resolved" : "Round cancelled"}</p>
+                {market.outcome && (
+                  <p className={`text-sm font-bold ${market.outcome === "up" ? "text-emerald-400" : "text-red-400"}`}>
+                    {market.outcome === "up" ? "↑ UP won" : "↓ DOWN won"}
                   </p>
                 )}
               </div>
-            ) : (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                isResolved ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" : "bg-amber-100 text-amber-700"
-              }`}>
-                {market.status === "resolved" ? "Resolved" : "Cancelled"}
-              </span>
             )}
           </div>
         </div>
-
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 py-2.5">
-            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wide">Pool UP</p>
-            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">${(market.pool_up ?? 0).toFixed(0)}</p>
-          </div>
-          <div className="rounded-xl bg-muted/60 py-2.5">
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total</p>
-            <p className="text-sm font-bold text-foreground">${totalPool.toFixed(0)}</p>
-          </div>
-          <div className="rounded-xl bg-red-50 dark:bg-red-950/20 py-2.5">
-            <p className="text-[10px] text-red-600 dark:text-red-400 font-medium uppercase tracking-wide">Pool DOWN</p>
-            <p className="text-sm font-bold text-red-700 dark:text-red-300">${(market.pool_down ?? 0).toFixed(0)}</p>
-          </div>
-        </div>
-
-        {isResolved && market.outcome && (
-          <div className={`mt-3 rounded-xl px-4 py-2.5 text-center text-sm font-bold ${
-            market.outcome === "up"
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-          }`}>
-            {market.outcome === "up" ? "↑ UP won this round" : "↓ DOWN won this round"}
-          </div>
-        )}
-
-        {isResolved && market.open_price && (
-          <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3 text-sm mt-3">
-            <span className="text-muted-foreground">Close price</span>
-            <span className={`font-bold ${Number(market.open_price) > market.strike_price ? "text-emerald-600" : "text-red-500"}`}>
-              ${formatPrice(Number(market.open_price))}
-            </span>
-          </div>
-        )}
       </div>
 
-      <LiveChart ticker={market.symbol} strikePrice={market.strike_price} />
-
-      {/* Paris du round actuel */}
-      {currentRoundBets.length > 0 && (
-        <div className="space-y-2">
-          {currentRoundBets.map(bet => (
-            <div key={bet.id} className={`rounded-2xl px-5 py-4 flex items-center justify-between ${
-              bet.status === "won"     ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" :
-              bet.status === "lost"    ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" :
-              bet.status === "claimed" ? "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400" :
-              bet.status === "paid"    ? "bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400" :
-              "bg-muted text-muted-foreground"
-            }`}>
-              <div>
-                <p className="text-xs uppercase tracking-wide opacity-70 mb-0.5">My bet</p>
-                <p className="font-bold">${bet.amount} USDC · {bet.direction === "up" ? "UP ↑" : "DOWN ↓"}</p>
-                {bet.status === "won" && bet.payout && (
-                  <p className="text-xs mt-0.5 font-semibold">Winnings: ${bet.payout.toFixed(2)} USDC</p>
-                )}
-              </div>
-              {bet.status === "won"     && <span className="text-sm font-bold">🏆 Won — claim in your history</span>}
-              {bet.status === "claimed" && <span className="text-sm font-medium">⏳ Payment pending</span>}
-              {bet.status === "paid"    && <span className="text-sm font-medium">✅ Paid</span>}
-              {bet.status === "lost"    && <span className="text-sm font-medium">❌ Lost</span>}
-              {(bet.status === "pending" || bet.status === "approved") && <span className="text-sm font-medium">⏳ In progress...</span>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Formulaire de pari — visible uniquement si les paris sont ouverts */}
-      {isBettingOpen && (
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-          <h2 className="text-sm font-bold text-foreground">Place a bet</h2>
-          <div className="flex gap-2">
-            {QUICK_AMOUNTS.map(q => (
-              <button key={q} type="button" onClick={() => setAmount(q)}
-                className={`flex-1 rounded-xl border py-2 text-sm font-bold transition-colors ${
-                  amount === q ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
-                }`}>
-                ${q}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">$</span>
-            <input
-              type="number" min={MIN_AMOUNT} step="1" value={amount}
-              onChange={e => setAmount(Number(e.target.value))}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <span className="text-sm text-muted-foreground">USDC</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => handleBet("up")} disabled={submitting}
-              className={`flex flex-col items-center gap-1 rounded-2xl py-4 font-bold transition-all active:scale-95 disabled:opacity-60 ${
-                submitting && activeDir === "up"
-                  ? "bg-emerald-700 text-white"
-                  : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
-              }`}>
-              <TrendingUp className="size-5" />
-              <span className="text-sm">{submitting && activeDir === "up" ? "Processing..." : "UP"}</span>
-              <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80">~${estPayout("up").toFixed(2)}</span>
-            </button>
-            <button onClick={() => handleBet("down")} disabled={submitting}
-              className={`flex flex-col items-center gap-1 rounded-2xl py-4 font-bold transition-all active:scale-95 disabled:opacity-60 ${
-                submitting && activeDir === "down"
-                  ? "bg-red-700 text-white"
-                  : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40"
-              }`}>
-              <TrendingDown className="size-5" />
-              <span className="text-sm">{submitting && activeDir === "down" ? "Processing..." : "DOWN"}</span>
-              <span className="text-xs text-red-600/80 dark:text-red-400/80">~${estPayout("down").toFixed(2)}</span>
-            </button>
-          </div>
-          <p className="text-center text-xs text-muted-foreground">
-            Min $2 · Multiple bets allowed · USDC only
-          </p>
-        </div>
-      )}
-
-      <CommentsSection
-        marketId={marketId}
-        initialComments={[]}
-        isAuthenticated={!!walletAddress}
-        walletAddress={walletAddress ?? undefined}
-        onRequestConnect={() => setShowWalletDialog(true)}
-        apiBase="/api/markets"
-      />
+      {/* Comments mobile */}
+      <div className="lg:hidden px-4 pb-6">
+        <CommentsSection
+          marketId={marketId}
+          initialComments={[]}
+          isAuthenticated={!!walletAddress}
+          walletAddress={walletAddress ?? undefined}
+          onRequestConnect={() => setShowWalletDialog(true)}
+          apiBase="/api/markets"
+        />
+      </div>
 
       {showWalletDialog && (
         <WalletSelectDialog

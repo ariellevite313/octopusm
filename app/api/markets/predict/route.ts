@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/markets/predict
  * Called by betting.ts after on-chain transfer succeeds.
  * Inserts a pending payment row using the admin client (bypasses RLS).
- * wallet_address comes from the request body (signed by the user on-chain).
+ * wallet_address is verified against the authenticated session (C-01 fix).
  */
 export async function POST(req: Request) {
-  const body = await req.json() as {
+  // C-01 fix: verify authenticated session before accepting any body data
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const sessionWallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!sessionWallet) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  let body: {
     payment_request_id: string;
     payment_reference:  string;
     title:              string;
@@ -24,12 +32,22 @@ export async function POST(req: Request) {
     tx_signature?:      string;
     wallet_address:     string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   if (
     !body.market_id || !body.selection_id || !body.wallet_address ||
     !body.payment_reference || body.amount_usdc === undefined
   ) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // C-01 fix: wallet in body must match authenticated session
+  if (body.wallet_address !== sessionWallet) {
+    return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
   }
 
   const admin = createAdminClient() as any;
