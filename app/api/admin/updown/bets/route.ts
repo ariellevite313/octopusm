@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/services/admin-service";
 
+const OCTO_PER_BET = 5;
+
 /**
  * GET  /api/admin/updown/bets  — list pending updown bets
  * POST /api/admin/updown/bets  — approve or reject a bet
@@ -50,23 +52,35 @@ export async function POST(req: Request) {
 
   if (action === "reject") {
     await admin.from("updown_bets").update({ status: "rejected" }).eq("id", bet_id);
-    // Décrémenter le pool (le montant avait été ajouté dès la soumission du pari)
-    const poolCol = bet.direction === "up" ? "pool_up" : "pool_down";
-    await admin.rpc("increment_updown_pool", {
-      p_market_id: bet.market_id,
-      p_column:    poolCol,
-      p_amount:    -Number(bet.amount),
-    });
+    // BUG-UD-4 FIX: pool n'est plus incrémenté à la soumission → pas de décrémentation ici
     return NextResponse.json({ ok: true, action: "rejected" });
   }
 
-  // Approve: marquer comme approuvé (pool déjà incrémenté à la soumission)
+  // BUG-UD-4 FIX: Approve → incrémenter le pool maintenant (pas à la soumission)
+  const poolCol = bet.direction === "up" ? "pool_up" : "pool_down";
+  const { error: poolErr } = await admin.rpc("increment_updown_pool", {
+    p_market_id: bet.market_id,
+    p_column:    poolCol,
+    p_amount:    Number(bet.amount),
+  });
+  if (poolErr) console.error("[admin/updown/bets] increment_updown_pool error:", poolErr.message);
+
   const { error: updateErr } = await admin
     .from("updown_bets")
     .update({ status: "approved" })
     .eq("id", bet_id);
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+  // Attribuer OCTO au parieur
+  const { error: octoErr } = await admin.from("octo_transactions").insert({
+    wallet_address: bet.wallet_address,
+    type:           "bet",
+    amount:         OCTO_PER_BET,
+    label:          `Up/Down bet — ${bet.updown_markets?.symbol ?? "crypto"}`,
+    ref_id:         bet_id,
+  });
+  if (octoErr) console.error("[updown/bets] octo_transactions insert:", octoErr.message);
 
   return NextResponse.json({ ok: true, action: "approved" });
 }

@@ -98,6 +98,9 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     referralsRes,
     tasksRes,
     completionsRes,
+    updownBetsRes,
+    mutuelBetsRes,
+    withdrawalsRes,
   ] = await Promise.all([
     supabase.from("wallets").select("*").eq("address", walletAddress).maybeSingle(),
 
@@ -112,13 +115,15 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .from("referral_commissions")
       .select("id, amount_usdc, amount_clt, referred_wallet, created_at")
       .eq("referrer_wallet", walletAddress)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(50),
 
     db
       .from("octo_transactions")
-      .select("id, type, amount, created_at")
+      .select("id, type, amount, label, created_at")
       .eq("wallet_address", walletAddress)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(100),
 
     db
       .from("referral_codes")
@@ -142,6 +147,32 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .from("user_task_completions")
       .select("task_id, completed_at")
       .eq("wallet_address", walletAddress),
+
+    // Up/Down bets won (payout = net gain)
+    db
+      .from("updown_bets")
+      .select("id, direction, amount, payout, token, created_at, updown_markets(symbol)")
+      .eq("wallet_address", walletAddress)
+      .in("status", ["won", "claimed", "paid"])
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // Mutuel pool bets with a payout (won or refunded)
+    db
+      .from("mutuel_bets")
+      .select("id, amount, token, payout_amount, paid_at, created_at, mutuel_markets(title)")
+      .eq("wallet_address", walletAddress)
+      .not("payout_amount", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // Paid withdrawals (to deduct from balance)
+    db
+      .from("withdrawal_requests")
+      .select("id, token, amount, status, created_at")
+      .eq("wallet_address", walletAddress)
+      .eq("status", "paid")
+      .order("created_at", { ascending: false }),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,6 +187,12 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const rawTasks: any[]         = tasksRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const completions: any[]      = completionsRes.data ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updownWins: any[]       = updownBetsRes.data ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mutuelWins: any[]       = mutuelBetsRes.data ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const paidWithdrawals: any[]  = withdrawalsRes.data ?? [];
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
   const completionMap = new Map<string, string>(
@@ -180,7 +217,22 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const commUsdc = commissions.reduce((s: number, r: any) => s + (r.amount_usdc ?? 0), 0);
-  const usdcBalance = usdcStats.gains + commUsdc;
+  // Up/Down wins in USDC (payout = net gain already net of fees)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updownUsdcGains = updownWins
+    .filter((b: any) => isUsdc(b.token ?? "usdc"))
+    .reduce((s: number, b: any) => s + (b.payout ?? 0), 0);
+  // Mutuel pool wins in USDC
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mutuelUsdcGains = mutuelWins
+    .filter((b: any) => isUsdc(b.token ?? "usdc"))
+    .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
+  // Deduct paid withdrawals in USDC
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const usdcWithdrawn = paidWithdrawals
+    .filter((w: any) => w.token === "usdc")
+    .reduce((s: number, w: any) => s + (w.amount ?? 0), 0);
+  const usdcBalance = Math.max(0, usdcStats.gains + commUsdc + updownUsdcGains + mutuelUsdcGains - usdcWithdrawn);
 
   // ── CLT stats & balance ───────────────────────────────────────────────────
   const cltBets = bets.filter((b) => isClt(b.token));
@@ -191,7 +243,22 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const commClt = commissions.reduce((s: number, r: any) => s + (r.amount_clt ?? 0), 0);
-  const cltBalance = cltStats.gains + commClt;
+  // Up/Down wins in CLT
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updownCltGains = updownWins
+    .filter((b: any) => isClt(b.token ?? ""))
+    .reduce((s: number, b: any) => s + (b.payout ?? 0), 0);
+  // Mutuel pool wins in CLT
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mutuelCltGains = mutuelWins
+    .filter((b: any) => isClt(b.token ?? ""))
+    .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
+  // Deduct paid withdrawals in CLT
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cltWithdrawn = paidWithdrawals
+    .filter((w: any) => w.token === "clawdtrust")
+    .reduce((s: number, w: any) => s + (w.amount ?? 0), 0);
+  const cltBalance = Math.max(0, cltStats.gains + commClt + updownCltGains + mutuelCltGains - cltWithdrawn);
 
   // ── OCTO stats & balance ──────────────────────────────────────────────────
   const octoStats: OctoStats = {
@@ -201,7 +268,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   };
   const octoBalance = octoTxns.reduce((s: number, t: any) => s + (t.amount ?? 0), 0);
 
-  // ── USDC activity (wins + commissions merged, sorted desc) ────────────────
+  // ── USDC activity (prediction wins + updown wins + mutuel wins + commissions) ─
   const usdcActivity: TokenActivity[] = [
     ...usdcBets
       .filter((b) => isWin(b.result_status))
@@ -213,6 +280,32 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
         amount: b.net_reward ?? 0,
         direction: "in" as const,
         created_at: b.created_at,
+      })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...updownWins
+      .filter((b: any) => isUsdc(b.token ?? "usdc"))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((b: any) => ({
+        id: b.id as string,
+        type: "win" as const,
+        label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
+        sub: "Won",
+        amount: b.payout as number ?? 0,
+        direction: "in" as const,
+        created_at: b.created_at as string,
+      })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...mutuelWins
+      .filter((b: any) => isUsdc(b.token ?? "usdc"))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((b: any) => ({
+        id: b.id as string,
+        type: "win" as const,
+        label: (b.mutuel_markets as any)?.title ?? "Pool win",
+        sub: "Pool payout",
+        amount: b.payout_amount as number ?? 0,
+        direction: "in" as const,
+        created_at: b.created_at as string,
       })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...commissions
@@ -229,7 +322,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  // ── CLT activity (wins + commissions merged, sorted desc) ─────────────────
+  // ── CLT activity (prediction wins + updown wins + mutuel wins + commissions) ──
   const cltActivity: TokenActivity[] = [
     ...cltBets
       .filter((b) => isWin(b.result_status))
@@ -241,6 +334,32 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
         amount: b.net_reward ?? 0,
         direction: "in" as const,
         created_at: b.created_at,
+      })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...updownWins
+      .filter((b: any) => isClt(b.token ?? ""))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((b: any) => ({
+        id: b.id as string,
+        type: "win" as const,
+        label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
+        sub: "Won",
+        amount: b.payout as number ?? 0,
+        direction: "in" as const,
+        created_at: b.created_at as string,
+      })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...mutuelWins
+      .filter((b: any) => isClt(b.token ?? ""))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((b: any) => ({
+        id: b.id as string,
+        type: "win" as const,
+        label: (b.mutuel_markets as any)?.title ?? "Pool win",
+        sub: "Pool payout",
+        amount: b.payout_amount as number ?? 0,
+        direction: "in" as const,
+        created_at: b.created_at as string,
       })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...commissions
@@ -258,7 +377,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // ── OCTO activity ─────────────────────────────────────────────────────────
-  const OCTO_LABELS: Record<string, string> = {
+  const OCTO_TYPE_LABELS: Record<string, string> = {
     referral: "Referral bonus",
     bet:      "Bet reward",
     task:     "Task reward",
@@ -268,9 +387,10 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     (t: any) => ({
       id: t.id as string,
       type: (t.type as "referral" | "bet" | "task") ?? "bet",
-      label: OCTO_LABELS[t.type as string] ?? "Reward",
-      sub: "",
-      amount: t.amount as number ?? 0,
+      label: OCTO_TYPE_LABELS[t.type as string] ?? "Reward",
+      // Show the stored label (market title, referral wallet, task name) as sub-text
+      sub: (t.label as string | null) ?? "",
+      amount: (t.amount as number) ?? 0,
       created_at: t.created_at as string,
     })
   );

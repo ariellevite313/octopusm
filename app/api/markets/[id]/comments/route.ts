@@ -71,13 +71,14 @@ export async function POST(
     return NextResponse.json({ error: insertRes.error.message }, { status: 500 });
   }
 
-  // Fetch octo_balance so the badge renders immediately without reload
-  const octoRes = await admin
-    .from("leaderboard_octo")
-    .select("total_octo")
-    .eq("wallet_address", walletAddress)
-    .maybeSingle();
-  const octo_balance: number = (octoRes.data as { total_octo: number | null } | null)?.total_octo ?? 0;
+  // Fetch octo_balance directly from octo_transactions (source of truth)
+  const { data: octoRows } = await admin
+    .from("octo_transactions")
+    .select("amount")
+    .eq("wallet_address", walletAddress);
+  const octo_balance: number = ((octoRows ?? []) as { amount: number }[]).reduce(
+    (sum, r) => sum + (r.amount ?? 0), 0
+  );
 
   return NextResponse.json({ ...insertRes.data, octo_balance, like_count: 0, liked_by_me: false, replies: [] }, { status: 201 });
 }

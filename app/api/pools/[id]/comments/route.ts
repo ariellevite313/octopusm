@@ -37,16 +37,16 @@ export async function GET(
   }
 
   // Build threaded structure (top-level + replies)
-  // Fetch OCTO balances for all commenters from leaderboard_octo view
+  // Fetch OCTO balances directly from octo_transactions (source of truth)
   const uniqueWallets = [...new Set(comments.map((c) => c.wallet_address as string))];
   const octoMap: Record<string, number> = {};
   if (uniqueWallets.length > 0) {
     const { data: octoRows } = await admin
-      .from("leaderboard_octo")
-      .select("wallet_address, total_octo")
+      .from("octo_transactions")
+      .select("wallet_address, amount")
       .in("wallet_address", uniqueWallets);
-    for (const w of (octoRows ?? []) as { wallet_address: string; total_octo: number | null }[]) {
-      octoMap[w.wallet_address] = w.total_octo ?? 0;
+    for (const row of (octoRows ?? []) as { wallet_address: string; amount: number }[]) {
+      octoMap[row.wallet_address] = (octoMap[row.wallet_address] ?? 0) + (row.amount ?? 0);
     }
   }
 
@@ -153,13 +153,14 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Fetch octo_balance so badge renders immediately without reload
-  const octoRes = await admin
-    .from("leaderboard_octo")
-    .select("total_octo")
-    .eq("wallet_address", wallet)
-    .maybeSingle();
-  const octo_balance: number = (octoRes.data as { total_octo: number | null } | null)?.total_octo ?? 0;
+  // Fetch octo_balance directly from octo_transactions (source of truth)
+  const { data: octoRows } = await admin
+    .from("octo_transactions")
+    .select("amount")
+    .eq("wallet_address", wallet);
+  const octo_balance: number = ((octoRows ?? []) as { amount: number }[]).reduce(
+    (sum, r) => sum + (r.amount ?? 0), 0
+  );
 
   return NextResponse.json({ ...data, octo_balance, like_count: 0, liked_by_me: false, replies: [] }, { status: 201 });
 }

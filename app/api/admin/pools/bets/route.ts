@@ -111,6 +111,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: rpcErr.message }, { status: 500 });
     }
 
+    // 3. Attribuer OCTO au parieur
+    const { error: octoErr } = await admin.from("octo_transactions").insert({
+      wallet_address: bet.wallet_address,
+      type:           "bet",
+      amount:         5,
+      label:          "Pool bet",
+      ref_id:         betId,
+    });
+    if (octoErr) console.error("[pools/bets] octo_transactions insert:", octoErr.message);
+
     return NextResponse.json({ ok: true });
   }
 

@@ -31,6 +31,12 @@ export async function connectWalletAndAuth(
 ): Promise<WalletAuthResult> {
   const supabase = createClient();
 
+  // Capture the referral code from the URL query string (e.g. ?ref=<code>)
+  const refCode =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("ref") ?? undefined
+      : undefined;
+
   try {
     const provider = getProviderByType(walletType);
     if (!provider) {
@@ -63,6 +69,7 @@ export async function connectWalletAndAuth(
         signature: toBase64(signature),
         nonce,
         message: toBase64(message),
+        ...(refCode ? { ref_code: refCode } : {}),
       },
     });
 

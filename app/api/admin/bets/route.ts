@@ -3,6 +3,25 @@ import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { FEE_RATE, RESERVE_FEE_RATE, computeReward } from "@/lib/market/betting";
 
+// OCTO points awarded per approved bet (any token, any flow)
+const OCTO_PER_BET = 5;
+
+async function awardOcto(
+  admin: ReturnType<typeof createAdminClient>,
+  walletAddress: string,
+  label: string,
+  refId: string,
+) {
+  const { error } = await (admin as any).from("octo_transactions").insert({
+    wallet_address: walletAddress,
+    type: "bet",
+    amount: OCTO_PER_BET,
+    label,
+    ref_id: refId,
+  });
+  if (error) console.error("[bets] octo_transactions insert:", error.message);
+}
+
 export async function POST(req: Request) {
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -109,6 +128,7 @@ export async function POST(req: Request) {
         admin_decision_status: "approved",
       });
       if (histErr) console.error("[bets] prediction_history insert:", histErr.message);
+      else await awardOcto(admin, payment.user_wallet, payment.title ?? "Prediction bet", payment.id);
     }
     return NextResponse.json({ ok: true });
   }
@@ -159,6 +179,7 @@ export async function POST(req: Request) {
         p_amount:    amount,
       });
       if (rpcErr) console.error("[bets] increment_pool_total:", rpcErr.message);
+      await awardOcto(admin, payment.user_wallet, payment.title ?? "Pool bet", payment.id);
     }
 
     return NextResponse.json({ ok: true });
