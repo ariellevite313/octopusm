@@ -203,6 +203,8 @@ export async function POST(req: Request) {
   }
 
   // 5. Insert bet (tx_signature unique prevents double-submit)
+  // BUG-UD-4 FIX: insérer en "pending" — l'admin approuve via /api/admin/updown/bets.
+  // Le pool est incrémenté à l'approbation (cohérent avec les autres marchés).
   const { error: betErr } = await admin.from("updown_bets").insert({
     id:             crypto.randomUUID(),
     market_id,
@@ -210,7 +212,7 @@ export async function POST(req: Request) {
     direction,
     amount,
     tx_signature,
-    status:         "approved",
+    status:         "pending",
   });
 
   if (betErr) {
@@ -218,19 +220,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Transaction already submitted" }, { status: 409 });
     }
     return NextResponse.json({ error: betErr.message }, { status: 500 });
-  }
-
-  // 6. Incrémenter le pool atomiquement via RPC SQL (voir supabase/migrations/increment_updown_pool.sql)
-  const poolCol = direction === "up" ? "pool_up" : "pool_down";
-  const { error: poolErr } = await admin.rpc("increment_updown_pool", {
-    p_market_id: market_id,
-    p_column:    poolCol,
-    p_amount:    Number(amount),
-  });
-  if (poolErr) {
-    console.error("[updown/bet] increment_updown_pool RPC error:", poolErr.message);
-    // Le pari est déjà inséré — on retourne quand même ok mais on log l'erreur
-    // Pour appliquer le RPC : exécuter supabase/migrations/increment_updown_pool.sql dans Supabase SQL Editor
   }
 
   return NextResponse.json({ ok: true });

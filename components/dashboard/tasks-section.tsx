@@ -4,14 +4,31 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Circle, ExternalLink } from "lucide-react";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 import type { TaskWithCompletion } from "@/lib/supabase/types";
 
-async function claimTaskClient(taskId: string, walletAddress: string): Promise<{ error?: string }> {
+/**
+ * Claim a task reward.
+ * Security: passes the Supabase JWT in Authorization header.
+ * The Edge Function reads the wallet from the JWT — never from the body.
+ */
+async function claimTaskClient(taskId: string): Promise<{ error?: string }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+  // Get the current session JWT
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    return { error: "Not authenticated" };
+  }
+
   const res = await fetch(`${supabaseUrl}/functions/v1/complete-task`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ task_id: taskId, wallet_address: walletAddress }),
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ task_id: taskId }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string };
@@ -22,10 +39,9 @@ async function claimTaskClient(taskId: string, walletAddress: string): Promise<{
 
 export function TasksSection({
   tasks,
-  walletAddress,
 }: {
   tasks: TaskWithCompletion[];
-  walletAddress: string;
+  walletAddress: string; // kept for API compatibility but JWT is now the auth source
 }) {
   const [claiming, setClaiming] = useState<string | null>(null);
   const [localDone, setLocalDone] = useState<Set<string>>(new Set());
@@ -35,7 +51,7 @@ export function TasksSection({
   async function handleClaim(task: TaskWithCompletion) {
     if (isDone(task) || claiming) return;
     setClaiming(task.id);
-    const { error } = await claimTaskClient(task.id, walletAddress);
+    const { error } = await claimTaskClient(task.id);
     setClaiming(null);
     if (error) {
       toast.error(error);

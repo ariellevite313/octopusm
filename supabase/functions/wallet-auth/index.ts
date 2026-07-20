@@ -41,7 +41,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { walletAddress, signature, nonce, message } = await req.json();
+    const { walletAddress, signature, nonce, message, ref_code } = await req.json();
 
     // ── Validation ────────────────────────────────────────────────────────
     if (!walletAddress || !signature || !nonce || !message) {
@@ -105,6 +105,51 @@ serve(async (req: Request) => {
         const r = await anon.auth.signInWithPassword({ email: fakeEmail, password });
         if (!r.data?.session) throw new Error(`Sign in failed: ${r.error?.message}`);
         session = r.data;
+
+        // ── Référral : attribuer 10 OCTO au parrain (nouveau user seulement) ──
+        if (ref_code) {
+          try {
+            // Résoudre le code → wallet du parrain
+            const { data: codeRow } = await admin
+              .from("referral_codes")
+              .select("wallet_address")
+              .eq("code", ref_code)
+              .maybeSingle();
+
+            const referrerWallet: string | null = codeRow?.wallet_address ?? null;
+
+            // Éviter l'auto-référral
+            if (referrerWallet && referrerWallet !== walletAddress) {
+              // Vérifier qu'aucune relation n'existe déjà (idempotent)
+              const { data: existing } = await admin
+                .from("referrals")
+                .select("id")
+                .eq("referrer_wallet", referrerWallet)
+                .eq("referred_wallet", walletAddress)
+                .maybeSingle();
+
+              if (!existing) {
+                // Insérer la relation referral
+                await admin.from("referrals").insert({
+                  referrer_wallet: referrerWallet,
+                  referred_wallet: walletAddress,
+                });
+
+                // Attribuer 10 OCTO au parrain
+                await admin.from("octo_transactions").insert({
+                  wallet_address: referrerWallet,
+                  type: "referral",
+                  amount: 10,
+                  label: `Referral: ${walletAddress.slice(0, 8)}…`,
+                  ref_id: walletAddress,
+                });
+              }
+            }
+          } catch (refErr) {
+            // Ne pas faire échouer l'auth si le referral plante
+            console.error("[wallet-auth] referral error:", refErr);
+          }
+        }
       } else {
         // User existant avec ancien password → recherche directe par email
         const { data: found } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });

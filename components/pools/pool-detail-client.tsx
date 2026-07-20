@@ -344,22 +344,22 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         All PrediMarkets
       </Link>
 
-      {/* Cover image — hero banner */}
-      {market.cover_image_src && (
-        <div className="mb-6 overflow-hidden rounded-2xl border border-border">
-          <img
-            src={market.cover_image_src}
-            alt={market.title}
-            className="h-48 w-full object-cover sm:h-64"
-          />
+      <div className="mb-2 flex items-start gap-4">
+        {market.cover_image_src && (
+          <div className="size-14 shrink-0 overflow-hidden rounded-xl border border-border">
+            <img
+              src={market.cover_image_src}
+              alt={market.title}
+              className="size-14 object-cover"
+            />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <h1 className="flex-1 text-2xl font-bold leading-snug text-foreground">{market.title}</h1>
+          <span className={`shrink-0 pt-1 text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
+            {market.status}
+          </span>
         </div>
-      )}
-
-      <div className="mb-2 flex items-start gap-3">
-        <h1 className="flex-1 text-2xl font-bold leading-snug text-foreground">{market.title}</h1>
-        <span className={`shrink-0 pt-1 text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
-          {market.status}
-        </span>
       </div>
 
       {market.description && (

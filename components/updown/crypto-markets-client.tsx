@@ -45,12 +45,10 @@ interface UpDownBet {
 
 const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
 
+// BUG-UD-2 FIX: closes_at en DB = opens_at + betting_min, toujours défini.
+// On l'utilise directement — le fallback par calcul était trompeur.
 function getBettingClosesAt(market: UpDownMarket): string {
-  if (market.resolve_at) return market.closes_at;
-  return new Date(
-    new Date(market.opens_at).getTime() +
-    (BETTING_MINUTES[market.duration_min] ?? 5) * 60_000
-  ).toISOString();
+  return market.closes_at;
 }
 
 function getResolveAt(market: UpDownMarket): string {
@@ -90,7 +88,8 @@ function useCountdown(closeAt: string | null | undefined): string {
     const target = new Date(closeAt).getTime();
     const tick = () => {
       const diff = target - Date.now();
-      if (diff <= 0) { setRemaining(""); return; }
+      // UX-UD-1 FIX: afficher "00:00" plutôt que "" pour éviter le saut visuel
+      if (diff <= 0) { setRemaining("00:00"); return; }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setRemaining(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);

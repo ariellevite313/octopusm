@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { verifyTokenTransfer } from "@/lib/solana/verify-transfer";
 
 export const revalidate = 0;
 
@@ -54,12 +55,37 @@ export async function POST(req: Request) {
 
   const fee_amount = creation_fee_token === "usdc" ? 5 : 500_000;
 
-  const slug = title.trim()
+  // ── Vérifier la transaction on-chain ────────────────────────────────────
+  if (!creation_tx || typeof creation_tx !== "string" || creation_tx.trim().length < 10)
+    return NextResponse.json({ error: "Transaction signature is required" }, { status: 400 });
+
+  const txError = await verifyTokenTransfer(
+    creation_tx.trim(),
+    creation_fee_token as "usdc" | "clawdtrust",
+    fee_amount,
+  );
+  if (txError) return NextResponse.json({ error: txError }, { status: 400 });
+
+  // ── Anti-replay : une tx ne peut créer qu'un seul marché ────────────────
+  const admin = createAdminClient() as any;
+  const { data: txUsed } = await admin
+    .from("mutuel_markets")
+    .select("id")
+    .eq("creation_tx", creation_tx.trim())
+    .maybeSingle();
+  if (txUsed) return NextResponse.json({ error: "This transaction has already been used to create a pool" }, { status: 409 });
+
+  const baseSlug = title.trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 80)
-    + "-" + Date.now().toString(36);
+    .slice(0, 80);
+
+  // Generate a unique slug — suffix with random hex to avoid collisions
+  const randomSuffix = () =>
+    Array.from(crypto.getRandomValues(new Uint8Array(4)))
+      .map(b => b.toString(16).padStart(2, "0")).join("");
+  const slug = `${baseSlug}-${randomSuffix()}`;
 
   const safeOptions = options.map((opt: { label: string }, i: number) => ({
     id: `opt_${i}`,
@@ -67,7 +93,6 @@ export async function POST(req: Request) {
   }));
 
   // Use admin client to bypass RLS for the insert (auth already verified above)
-  const admin = createAdminClient() as any;
   const { data: inserted, error } = await admin
     .from("mutuel_markets")
     .insert({

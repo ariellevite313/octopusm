@@ -1,12 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Camera, X, Plus, Trash2, Loader2, CheckCircle } from "lucide-react";
+import { Camera, X, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import { submitPoolCreation } from "@/lib/market/pool-betting";
+import { useAuth } from "@/providers/auth-provider";
+
+const CATEGORIES = [
+  "general", "sports", "crypto", "politics", "entertainment", "science", "gaming", "other",
+] as const;
+type Category = typeof CATEGORIES[number];
 
 interface Props {
   onClose: () => void;
@@ -83,14 +88,18 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 }
 
 export function CreatePoolModal({ onClose, onCreated }: Props) {
+  const { walletAddress, walletType } = useAuth();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [coverImage, setCoverImage] = useState("");
   const [options, setOptions] = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
   const [closesAt, setClosesAt] = useState("");
+  const [category, setCategory] = useState<Category>("general");
   const [feeToken, setFeeToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [betToken, setBetToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [step, setStep] = useState<CreateStep>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const submitting = step === "signing" || step === "sending";
 
@@ -103,26 +112,47 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     setOptions(prev => prev.filter((_, idx) => idx !== i));
   };
   const updateOption = (i: number, label: string) => {
+    // Reset error state when user edits
+    if (step === "error") { setStep("idle"); setErrorMsg(null); }
     setOptions(prev => prev.map((o, idx) => idx === i ? { label } : o));
   };
 
+  function resetError() {
+    if (step === "error") { setStep("idle"); setErrorMsg(null); }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg(null);
 
+    // ── Client-side validation ────────────────────────────────────────────
     if (title.trim().length < 5) { toast.error("Title must be at least 5 characters."); return; }
-    if (options.some(o => !o.label.trim())) { toast.error("All options must have a label."); return; }
-    if (!closesAt) { toast.error("Prediction close date is required."); return; }
 
-    // Get wallet from Supabase session
-    const supabase = createClient();
-    const { data: { user } } = await (supabase as any).auth.getUser();
-    const walletAddress: string = user?.user_metadata?.wallet_address ?? "";
-    const walletType = (localStorage.getItem("walletType") ?? "phantom") as Parameters<typeof submitPoolCreation>[0]["walletType"];
+    // Options: non-empty, min 2 chars, unique
+    for (const o of options) {
+      if (!o.label.trim() || o.label.trim().length < 2) {
+        toast.error("Each option must be at least 2 characters."); return;
+      }
+    }
+    const labels = options.map(o => o.label.trim().toLowerCase());
+    if (new Set(labels).size !== labels.length) {
+      toast.error("Options must be unique."); return;
+    }
+
+    if (!closesAt) { toast.error("Prediction close date is required."); return; }
+    // Validate at least 1h from now (client-side hint — server also enforces)
+    const closesAtDate = new Date(closesAt);
+    if (isNaN(closesAtDate.getTime()) || closesAtDate.getTime() < Date.now() + 60 * 60 * 1000) {
+      toast.error("Closing date must be at least 1 hour from now."); return;
+    }
 
     if (!walletAddress) {
       toast.error("Wallet not connected. Please sign in first.");
       return;
     }
+
+    // walletType from auth context — never localStorage
+    const resolvedWalletType = walletType ?? "phantom";
 
     // Step 1: Request wallet signature for creation fee
     setStep("signing");
@@ -130,11 +160,12 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       title: title.trim(),
       feeToken,
       walletAddress,
-      walletType,
+      walletType: resolvedWalletType,
     });
 
     if (!txResult.success) {
       setStep("error");
+      setErrorMsg(txResult.error);
       toast.error(txResult.error);
       return;
     }
@@ -142,6 +173,9 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     // Step 2: POST to API with tx signature
     setStep("sending");
     try {
+      // datetime-local gives local time — convert to UTC ISO explicitly
+      const closesAtUtc = new Date(closesAt).toISOString();
+
       const res = await fetch("/api/pools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,7 +184,8 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           description: description.trim() || null,
           cover_image_src: coverImage || null,
           options: options.map(o => ({ label: o.label.trim() })),
-          betting_closes_at: new Date(closesAt).toISOString(),
+          category,
+          betting_closes_at: closesAtUtc,
           creation_fee_token: feeToken,
           creation_tx: txResult.signature,
           bet_token: betToken,
@@ -159,14 +194,20 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       const data = await res.json();
       if (!res.ok) {
         setStep("error");
-        toast.error(data.error ?? "Something went wrong.");
+        const msg = data.error ?? "Something went wrong.";
+        setErrorMsg(msg);
+        toast.error(msg);
         return;
       }
       setStep("done");
-      setTimeout(() => onCreated(data as MutuelMarketRow), 1200);
+      // Use a ref-guarded callback to avoid setState on unmounted component
+      const market = data as MutuelMarketRow;
+      setTimeout(() => { onCreated(market); }, 1200);
     } catch {
       setStep("error");
-      toast.error("Network error, please try again.");
+      const msg = "Network error, please try again.";
+      setErrorMsg(msg);
+      toast.error(msg);
     }
   }
 
@@ -195,7 +236,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             </label>
             <input
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={e => { resetError(); setTitle(e.target.value); }}
               placeholder="e.g. Who will win the 2026 World Cup?"
               maxLength={200}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -266,9 +307,26 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               type="datetime-local"
               value={closesAt}
               min={new Date(Date.now() + 3_600_000).toISOString().slice(0, 16)}
-              onChange={e => setClosesAt(e.target.value)}
+              onChange={e => { resetError(); setClosesAt(e.target.value); }}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
+            <p className="text-[10px] text-muted-foreground">Time is interpreted in your local timezone.</p>
+          </div>
+
+          {/* Category */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value as Category)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 capitalize"
+            >
+              {CATEGORIES.map(c => (
+                <option key={c} value={c} className="capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+              ))}
+            </select>
           </div>
 
           {/* Bet token */}
@@ -341,6 +399,12 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               Pool submitted! Pending admin review.
             </div>
           )}
+          {step === "error" && errorMsg && (
+            <div className="flex items-start gap-2 rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+              <AlertCircle className="size-4 mt-0.5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
           <button
             type="submit"
             disabled={submitting || step === "done"}
@@ -349,6 +413,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             {step === "signing" ? "Waiting for signature…"
               : step === "sending" ? "Submitting…"
               : step === "done"    ? "Pool submitted!"
+              : step === "error"   ? "Try again"
               : "Submit Pool"}
           </button>
         </form>

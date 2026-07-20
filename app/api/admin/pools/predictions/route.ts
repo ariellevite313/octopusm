@@ -146,6 +146,16 @@ export async function POST(req: Request) {
     // Note: increment_pool_total is called only when admin approves the individual bet
     // Payment was already marked approved by the atomic lock above
 
+    // Attribuer OCTO au parieur
+    const { error: octoErr } = await admin.from("octo_transactions").insert({
+      wallet_address: payment.user_wallet,
+      type:           "bet",
+      amount:         5,
+      label:          payment.title ?? "Pool bet",
+      ref_id:         paymentId,
+    });
+    if (octoErr) console.error("[pools/predictions] octo_transactions insert:", octoErr.message);
+
     return NextResponse.json({ ok: true });
   }
 

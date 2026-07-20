@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (!alreadyExists.data) {
-      await admin.from("prediction_history").insert({
+      const { error: histErr } = await admin.from("prediction_history").insert({
         id:                   crypto.randomUUID(),
         market_id:            payment.market_id,
         market_title:         payment.title ?? "",
@@ -121,6 +121,18 @@ export async function POST(req: Request) {
         token:                payment.token ?? "usdc",
         reported_at:          payment.created_at ?? new Date().toISOString(),
       });
+
+      if (!histErr) {
+        // Attribuer OCTO au parieur
+        const { error: octoErr } = await admin.from("octo_transactions").insert({
+          wallet_address: payment.user_wallet,
+          type:           "bet",
+          amount:         5,
+          label:          payment.title ?? "Prediction bet",
+          ref_id:         payment.id,
+        });
+        if (octoErr) console.error("[payments] octo_transactions insert:", octoErr.message);
+      }
     }
   }
 

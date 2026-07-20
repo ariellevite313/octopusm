@@ -89,7 +89,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
   );
 }
 
-const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string }) {
+const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt, resolveAt, marketStatus }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string; resolveAt: string | null; marketStatus: string }) {
   const [points, setPoints] = useState<PricePoint[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
@@ -207,9 +207,20 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     return () => clearTimeout(timeout);
   }, [ticker]);
 
-  // WebSocket Binance — updates à la seconde
-  // Se reconnecte automatiquement si la page reprend le focus (tab throttling navigateur)
+  // Marché terminé = résolu ou annulé, OU resolve_at dépassé
+  const isMarketOver = marketStatus === "resolved" || marketStatus === "cancelled" ||
+    (resolveAt != null && Date.now() >= new Date(resolveAt).getTime());
+
+  // WebSocket Binance — actif seulement pendant la durée du round (jusqu'à resolve_at).
+  // Si le marché est déjà terminé au montage, on ne connecte rien.
   useEffect(() => {
+    // Ne pas ouvrir le WS/poll si le marché est déjà fini
+    if (isMarketOver) {
+      setLive(false);
+      setLoading(false);
+      return;
+    }
+
     let ws: WebSocket | null = null;
     let pollId: ReturnType<typeof setInterval> | null = null;
     let wsTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -219,6 +230,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; }
       if (ws) { ws.onclose = null; ws.onerror = null; ws.onmessage = null; ws.close(); ws = null; }
       if (pollId) { clearInterval(pollId); pollId = null; }
+      setLive(false);
     };
 
     const startPolling = () => {
@@ -235,18 +247,18 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         } catch { /* ignore */ }
       };
       void poll();
-      pollId = setInterval(poll, 200); // poll rapide pour alimenter l'agrégateur 1s
+      pollId = setInterval(poll, 200);
     };
 
     const startWs = () => {
       if (destroyed) return;
       stopAll();
+      setLive(false);
       let lastMsgAt = Date.now();
-      // Watchdog: si le WS est ouvert mais silencieux >5s, reconnecter
       const watchdog = setInterval(() => {
         if (destroyed) { clearInterval(watchdog); return; }
         if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > 5000) {
-          ws.close(); // déclenche onclose → startWs via visibilityChange ou startPolling
+          ws.close();
         }
       }, 5000);
       try {
@@ -258,7 +270,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         ws.onmessage = (e) => {
           lastMsgAt = Date.now();
           const d = JSON.parse(e.data as string) as { p: string; T: number };
-          pushPrice(parseFloat(d.p)); // agrégé dans la bougie 1s courante
+          pushPrice(parseFloat(d.p));
           setLive(true);
         };
         ws.onerror = () => { clearInterval(watchdog); ws?.close(); if (!destroyed) startPolling(); };
@@ -266,35 +278,52 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       } catch { clearInterval(watchdog); startPolling(); }
     };
 
-    // Reconnecte le WS quand l'onglet redevient visible
-    // (les navigateurs throttlent/coupent les WS en arrière-plan)
+    // Arrêt automatique à resolve_at — coupe proprement le WS quand le round se termine
+    let resolveTimer: ReturnType<typeof setTimeout> | null = null;
+    if (resolveAt) {
+      const msUntilResolve = new Date(resolveAt).getTime() - Date.now();
+      if (msUntilResolve > 0) {
+        resolveTimer = setTimeout(() => {
+          destroyed = true;
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+          stopAll();
+        }, msUntilResolve);
+      }
+    }
+
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") startWs();
+      if (document.visibilityState === "visible" && !destroyed) startWs();
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     startWs();
     return () => {
       destroyed = true;
+      if (resolveTimer) clearTimeout(resolveTimer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       stopAll();
     };
-  }, [ticker, pushPrice]);
+  }, [ticker, pushPrice, isMarketOver, resolveAt]);
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
 
-  // Domaine Y serré sur les prix réels + strike pour maximiser la visibilité des mouvements
-  // On utilise les 20 derniers points pour que le moindre mouvement soit visible
-  const recentPrices = points.slice(-20).map(p => p.price);
+  // Domaine Y réactif : calculé depuis les prix réels de la fenêtre visible.
+  // Plus le prix est stable → fenêtre se resserre → chaque centime devient visible.
+  // Plus le prix bouge → fenêtre s'élargit automatiquement.
+  // Le strike est toujours inclus dans la fenêtre.
+  const recentPrices = points.slice(-MAX_POINTS).map(p => p.price);
   const allPrices = recentPrices.length > 0
     ? [...recentPrices, strikePrice]
     : [strikePrice];
-  const minP = Math.min(...allPrices);
-  const maxP = Math.max(...allPrices);
+  const minP  = Math.min(...allPrices);
+  const maxP  = Math.max(...allPrices);
   const spread = maxP - minP;
-  // Pad = 20% du spread, minimum ultra-serré pour amplifier les micro-mouvements
-  const minPad = ticker === "BTCUSDT" ? 0.5 : ticker === "ETHUSDT" ? 0.05 : 0.001;
-  const pad = Math.max(minPad, spread * 0.2);
+  // Pad = 15% du spread observé — amplifie les micro-mouvements quand le marché est calme,
+  // s'étire naturellement quand ça bouge. Minimum absolu = 1 tick par asset.
+  const MIN_SPREAD: Record<string, number> = { BTCUSDT: 0.5, ETHUSDT: 0.05, SOLUSDT: 0.005 };
+  const minSpread = MIN_SPREAD[ticker] ?? 0.5;
+  const effectiveSpread = Math.max(spread, minSpread);
+  const pad = effectiveSpread * 0.15;
   const yDomain: [number, number] = [minP - pad, maxP + pad];
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
   const pctDiff = currentPrice != null ? ((currentPrice - strikePrice) / strikePrice) * 100 : null;
@@ -339,13 +368,17 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         )}
       </div>
 
-      <div className="mx-4 mb-3 flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
+      <div className="mx-4 mb-1 flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
         <span className="text-xs text-muted-foreground">Strike price</span>
         <span className="text-xs font-semibold text-foreground">${formatPrice(strikePrice)}</span>
         <span className={`text-xs font-semibold ${isAbove ? "text-emerald-500" : "text-red-500"}`}>
           {isAbove ? "Above ↑" : "Below ↓"}
         </span>
       </div>
+      {/* S-05: informer que la résolution utilise le close klines 1min, pas le prix live */}
+      <p className="mx-4 mb-3 text-[10px] text-muted-foreground">
+        📌 Le prix live (graphique) est indicatif. La résolution utilise le <strong>close Binance 1min</strong> à l&apos;heure de fin du round.
+      </p>
 
       <div className="px-2 pb-4">
         {loading || points.length === 0 ? (
@@ -675,6 +708,8 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             durationMin={market.duration_min}
             opensAt={market.opens_at}
             bettingClosesAt={bettingClosesAt ?? new Date(market.opens_at).toISOString()}
+            resolveAt={resolveTarget}
+            marketStatus={market.status}
           />
 
           {/* Round result */}
