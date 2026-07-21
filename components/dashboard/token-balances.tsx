@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { ChevronDown, ArrowUpRight } from "lucide-react";
 import type { TokenActivity, OctoActivity, TokenStats, OctoStats } from "@/services/dashboard-service";
 import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
+import { createClient } from "@/lib/supabase/client";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -43,23 +44,27 @@ function StatBox({ label, value, variant = "neutral" }: {
 
 // ─── Activity row ─────────────────────────────────────────────────────────────
 
-function ActivityRow({ label, sub, amount, date }: {
+function ActivityRow({ label, sub, amount, date, direction = "in" }: {
   label: string;
   sub: string;
   amount: string;
   date: string;
+  direction?: "in" | "out";
 }) {
+  const isOut = direction === "out";
   return (
     <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+        <span className={`size-2 rounded-full shrink-0 ${isOut ? "bg-red-400" : "bg-emerald-500"}`} />
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground truncate">{label}</p>
           {sub && <p className="text-[10px] text-muted-foreground truncate">{sub}</p>}
         </div>
       </div>
       <div className="shrink-0 text-right ml-3">
-        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{amount}</p>
+        <p className={`text-xs font-semibold ${isOut ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+          {amount}
+        </p>
         <p className="text-[10px] text-muted-foreground">{date}</p>
       </div>
     </div>
@@ -92,8 +97,9 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
                 key={a.id}
                 label={a.label}
                 sub={a.sub}
-                amount={`+$${fmtUsdc(a.amount)}`}
+                amount={a.direction === "out" ? `-$${fmtUsdc(a.amount)}` : `+$${fmtUsdc(a.amount)}`}
                 date={fmtDate(a.created_at)}
+                direction={a.direction}
               />
             ))}
           </div>
@@ -101,7 +107,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
       ) : (
         <p className="text-xs text-muted-foreground">No activity yet.</p>
       )}
-      {balance >= 2 && (
+      {balance >= 2 ? (
         <button
           type="button"
           onClick={onWithdraw}
@@ -110,7 +116,11 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
           <ArrowUpRight className="size-4" />
           Withdraw USDC
         </button>
-      )}
+      ) : balance > 0 ? (
+        <p className="text-center text-xs text-muted-foreground">
+          Minimum withdrawal: <span className="font-semibold text-foreground">$2.00 USDC</span>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -141,8 +151,9 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
                 key={a.id}
                 label={a.label}
                 sub={a.sub}
-                amount={`+${fmtClt(a.amount)} CLT`}
+                amount={a.direction === "out" ? `-${fmtClt(a.amount)} CLT` : `+${fmtClt(a.amount)} CLT`}
                 date={fmtDate(a.created_at)}
+                direction={a.direction}
               />
             ))}
           </div>
@@ -150,7 +161,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
       ) : (
         <p className="text-xs text-muted-foreground">No activity yet.</p>
       )}
-      {balance >= 500_000 && (
+      {balance >= 500_000 ? (
         <button
           type="button"
           onClick={onWithdraw}
@@ -159,7 +170,11 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
           <ArrowUpRight className="size-4" />
           Withdraw CLT
         </button>
-      )}
+      ) : balance > 0 ? (
+        <p className="text-center text-xs text-muted-foreground">
+          Minimum withdrawal: <span className="font-semibold text-foreground">500K CLT</span>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -244,14 +259,14 @@ function TokenRow({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TokenBalances({
-  usdcBalance,
-  cltBalance,
+  usdcBalance: initialUsdcBalance,
+  cltBalance: initialCltBalance,
   octoBalance,
   usdcStats,
   cltStats,
   octoStats,
-  usdcActivity,
-  cltActivity,
+  usdcActivity: initialUsdcActivity,
+  cltActivity: initialCltActivity,
   octoActivity,
 }: {
   usdcBalance: number;
@@ -266,9 +281,66 @@ export function TokenBalances({
 }) {
   const [open, setOpen] = useState<"usdc" | "clt" | "octo" | null>(null);
   const [withdrawToken, setWithdrawToken] = useState<"usdc" | "clawdtrust" | null>(null);
+  const [usdcBalance, setUsdcBalance]     = useState(initialUsdcBalance);
+  const [cltBalance, setCltBalance]       = useState(initialCltBalance);
+  const [usdcActivity, setUsdcActivity]   = useState<TokenActivity[]>(initialUsdcActivity);
+  const [cltActivity, setCltActivity]     = useState<TokenActivity[]>(initialCltActivity);
 
   const toggle = (tok: "usdc" | "clt" | "octo") =>
     setOpen((prev) => (prev === tok ? null : tok));
+
+  // Re-fetch balances from the API
+  const refreshBalances = useCallback(async () => {
+    try {
+      const res = await fetch("/api/balance");
+      if (!res.ok) return;
+      const { usdcBalance: u, cltBalance: c } = await res.json() as { usdcBalance: number; cltBalance: number };
+      setUsdcBalance(u);
+      setCltBalance(c);
+    } catch {
+      // silent — stale values remain
+    }
+  }, []);
+
+  // Re-fetch activity list from the API (wins + commissions + withdrawals)
+  const refreshActivity = useCallback(async () => {
+    try {
+      const res = await fetch("/api/activity");
+      if (!res.ok) return;
+      const { usdcActivity: ua, cltActivity: ca } = await res.json() as {
+        usdcActivity: TokenActivity[];
+        cltActivity: TokenActivity[];
+      };
+      setUsdcActivity(ua);
+      setCltActivity(ca);
+    } catch {
+      // silent — stale values remain
+    }
+  }, []);
+
+  // Refresh both balance and activity together
+  const refreshAll = useCallback(() => {
+    void refreshBalances();
+    void refreshActivity();
+  }, [refreshBalances, refreshActivity]);
+
+  // Supabase Realtime: listen for bet resolutions and withdrawal changes
+  useEffect(() => {
+    const sb = createClient();
+    const channel = sb
+      .channel("balance-and-activity-updates")
+      // Withdrawal changes (any status: pending/approved/paid/rejected)
+      .on("postgres_changes" as const, { event: "INSERT", schema: "public", table: "withdrawal_requests" }, refreshAll)
+      .on("postgres_changes" as const, { event: "UPDATE", schema: "public", table: "withdrawal_requests" }, refreshAll)
+      .on("postgres_changes" as const, { event: "DELETE", schema: "public", table: "withdrawal_requests" }, refreshAll)
+      // Up/Down bets: status flips to "won" when market resolves → payout credited
+      .on("postgres_changes" as const, { event: "UPDATE", schema: "public", table: "updown_bets" }, refreshAll)
+      // Pool bets: payout_amount is set automatically when admin resolves the market
+      .on("postgres_changes" as const, { event: "UPDATE", schema: "public", table: "mutuel_bets" }, refreshAll)
+      .subscribe();
+
+    return () => { void sb.removeChannel(channel); };
+  }, [refreshAll]);
 
   return (
     <>
@@ -321,7 +393,7 @@ export function TokenBalances({
         <WithdrawModal
           token={withdrawToken}
           balance={withdrawToken === "usdc" ? usdcBalance : cltBalance}
-          onClose={() => setWithdrawToken(null)}
+          onClose={() => { setWithdrawToken(null); refreshAll(); }}
         />
       )}
     </>

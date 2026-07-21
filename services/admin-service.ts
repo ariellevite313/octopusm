@@ -136,14 +136,62 @@ export async function getUpdownClaims(
   } as unknown as PaymentRow));
 }
 
+/** Withdrawal requests — normalized to PaymentRow shape for the payments page */
+export async function getWithdrawalRequests(
+  status?: "pending" | "approved" | "rejected"
+): Promise<PaymentRow[]> {
+  const supabase = createAdminClient() as any;
+  // Show pending + approved (awaiting mark_paid) unless a specific status is requested
+  let query = supabase
+    .from("withdrawal_requests")
+    .select("id, wallet_address, token, amount, status, reviewed_by, reviewed_at, created_at, updated_at")
+    .order("created_at", { ascending: false });
+
+  if (status === "pending")  query = query.eq("status", "pending");
+  else if (status === "approved") query = query.eq("status", "approved");
+  else if (status === "rejected") query = query.eq("status", "rejected");
+  else query = query.in("status", ["pending", "approved"]); // default: only actionable
+
+  const { data, error } = await query;
+  if (error) { console.error("[admin] getWithdrawalRequests:", error.message); return []; }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((w: any) => ({
+    id: w.id,
+    payment_request_id: w.id,
+    payment_reference: null,
+    flow: "withdrawal",
+    title: `Withdrawal — ${(w.token as string).toUpperCase()}`,
+    subtitle: null,
+    category_label: null,
+    market_id: null,
+    selection_id: null,
+    selection_label: null,
+    username: null,
+    user_wallet: w.wallet_address,
+    recipient_wallet: w.wallet_address,
+    amount_usdc: w.amount,
+    reserve_fee_usdc: 0,
+    total_paid_usdc: w.amount,
+    token: w.token,
+    // approved withdrawal = waiting for mark_paid → keep as "approved" so button differs
+    status: (w.status === "rejected" ? "rejected" : w.status) as "pending" | "approved" | "rejected",
+    reviewed_at: w.reviewed_at ?? null,
+    reviewed_by_wallet: w.reviewed_by ?? null,
+    created_at: w.created_at,
+    updated_at: w.updated_at ?? null,
+  } as unknown as PaymentRow));
+}
+
 export async function getPendingPaymentsCount(): Promise<number> {
   const supabase = createAdminClient() as any;
-  const [{ data: p1 }, { data: p2 }, { data: p3 }] = await Promise.all([
+  const [{ data: p1 }, { data: p2 }, { data: p3 }, { data: p4 }] = await Promise.all([
     supabase.from("payments").select("id").eq("status", "pending"),
     supabase.from("mutuel_bets").select("id").not("claimed_at", "is", null).is("paid_at", null),
     supabase.from("updown_bets").select("id").not("claimed_at", "is", null).is("paid_at", null),
+    supabase.from("withdrawal_requests").select("id").in("status", ["pending", "approved"]),
   ]);
-  return ((p1 ?? []).length) + ((p2 ?? []).length) + ((p3 ?? []).length);
+  return ((p1 ?? []).length) + ((p2 ?? []).length) + ((p3 ?? []).length) + ((p4 ?? []).length);
 }
 
 // ─── Pending bets (prediction markets + pools) ────────────────────────────────

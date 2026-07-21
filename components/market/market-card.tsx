@@ -76,13 +76,6 @@ export function MarketCard({ market, volumes }: Props) {
           </div>
         )}
 
-        {/* Footer */}
-        {market.category_id === "sports" && (
-          <div className="flex items-center">
-            <img src="/fifa-logo.png" alt="FIFA" className="size-16 shrink-0 object-contain dark:opacity-80" />
-          </div>
-        )}
-
         {/* Volume */}
         {vol && (vol.usdc > 0 || vol.clt > 0) && (
           <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-zinc-500 dark:border-orange-900/30 dark:text-zinc-400">

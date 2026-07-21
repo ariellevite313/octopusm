@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
-import { requireAdminApi } from "@/lib/auth/require-admin";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  const denied = await requireAdminApi();
-  if (denied) return denied;
+  // Any authenticated user can upload a market icon (not admin-only)
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;

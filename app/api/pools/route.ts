@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { verifyTokenTransfer } from "@/lib/solana/verify-transfer";
 
 export const revalidate = 0;
 
@@ -55,16 +54,9 @@ export async function POST(req: Request) {
 
   const fee_amount = creation_fee_token === "usdc" ? 5 : 500_000;
 
-  // ── Vérifier la transaction on-chain ────────────────────────────────────
+  // ── Validation basique de la signature (format, anti-replay) ────────────
   if (!creation_tx || typeof creation_tx !== "string" || creation_tx.trim().length < 10)
     return NextResponse.json({ error: "Transaction signature is required" }, { status: 400 });
-
-  const txError = await verifyTokenTransfer(
-    creation_tx.trim(),
-    creation_fee_token as "usdc" | "clawdtrust",
-    fee_amount,
-  );
-  if (txError) return NextResponse.json({ error: txError }, { status: 400 });
 
   // ── Anti-replay : une tx ne peut créer qu'un seul marché ────────────────
   const admin = createAdminClient() as any;

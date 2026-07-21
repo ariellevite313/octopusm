@@ -14,7 +14,6 @@ import {
   Users,
   MoreHorizontal,
   X,
-  ArrowUpRight,
 } from "lucide-react";
 
 const PRIMARY = [
@@ -26,11 +25,10 @@ const PRIMARY = [
 ];
 
 const MORE_ITEMS = [
-  { href: "/admin/pools",        label: "PrediMarket",  icon: Layers },
-  { href: "/admin/tasks",        label: "Tasks",        icon: CheckSquare },
-  { href: "/admin/wallets",      label: "Wallets",      icon: Users },
-  { href: "/admin/withdrawals",  label: "Withdrawals",  icon: ArrowUpRight },
-  { href: "/admin/account",      label: "My account",   icon: User },
+  { href: "/admin/pools",    label: "PrediMarket", icon: Layers },
+  { href: "/admin/tasks",    label: "Tasks",       icon: CheckSquare },
+  { href: "/admin/wallets",  label: "Wallets",     icon: Users },
+  { href: "/admin/account",  label: "My account",  icon: User },
 ];
 
 export function AdminMobileNav() {

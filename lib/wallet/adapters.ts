@@ -39,7 +39,7 @@ export type SolanaProvider = {
   ) => void;
 };
 
-export type WalletType = "phantom" | "solflare" | "backpack" | "trustwallet";
+export type WalletType = "phantom" | "solflare" | "backpack" | "trustwallet" | "robinhood";
 
 export type WalletInfo = {
   type: WalletType;
@@ -58,6 +58,7 @@ type WindowWithWallets = Window & {
   solflare?: SolanaProvider & { isSolflare?: boolean };
   backpack?: SolanaProvider & { isBackpack?: boolean };
   trustwallet?: { solana?: SolanaProvider };
+  robinhood?: { solana?: SolanaProvider };
 };
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
@@ -95,6 +96,14 @@ const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
     mobileDeepLink: (url) =>
       `https://link.trustwallet.com/open_url?coin_id=501&url=${encodeURIComponent(url)}`,
   },
+  {
+    type: "robinhood",
+    name: "Robinhood",
+    icon: "/robinhood-logo.png",
+    downloadUrl: "https://robinhood.com/web3",
+    mobileDeepLink: (url) =>
+      `https://robinhood.com/web3?redirect=${encodeURIComponent(url)}`,
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,6 +120,8 @@ export function getProviderByType(type: WalletType): SolanaProvider | null {
       return w.backpack ?? null;
     case "trustwallet":
       return w.trustwallet?.solana ?? null;
+    case "robinhood":
+      return w.robinhood?.solana ?? null;
     default:
       return null;
   }
@@ -124,8 +135,9 @@ export function getAvailableWallets(): WalletInfo[] {
 }
 
 export const WALLET_COLORS: Record<WalletType, string> = {
-  phantom: "bg-[#4e44ce]",
-  solflare: "bg-[#fc5a20]",
-  backpack: "bg-[#e33e3f]",
+  phantom:     "bg-[#4e44ce]",
+  solflare:    "bg-[#fc5a20]",
+  backpack:    "bg-[#e33e3f]",
   trustwallet: "bg-[#3375bb]",
+  robinhood:   "bg-[#00c805]",
 };

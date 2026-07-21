@@ -22,6 +22,41 @@ export async function GET() {
   return NextResponse.json({ withdrawals: data ?? [] });
 }
 
+/** DELETE /api/withdraw — cancel own pending withdrawal */
+export async function DELETE(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  let body: { id: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  const { id } = body;
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const admin = createAdminClient() as any;
+
+  // Only allow deleting own pending requests (never approved/paid)
+  const { data, error } = await admin
+    .from("withdrawal_requests")
+    .delete()
+    .eq("id", id)
+    .eq("wallet_address", wallet)
+    .eq("status", "pending")
+    .select("id");
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data || data.length === 0)
+    return NextResponse.json(
+      { error: "Request not found or cannot be cancelled (only pending requests can be cancelled)" },
+      { status: 404 }
+    );
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: Request) {
   // Auth
   const supabase = await createClient();
@@ -85,12 +120,12 @@ export async function POST(req: Request) {
       .eq("wallet_address", wallet)
       .not("payout_amount", "is", null),
 
-    // Already paid withdrawals (deduct)
+    // Deduct all non-rejected withdrawals (paid + in-flight)
     admin
       .from("withdrawal_requests")
       .select("token, amount")
       .eq("wallet_address", wallet)
-      .eq("status", "paid"),
+      .in("status", ["paid", "pending", "approved"]),
   ]);
 
   const isWin = (s: string) => ["win", "claimed", "paid"].includes(s);
@@ -127,6 +162,8 @@ export async function POST(req: Request) {
 
   const availableBalance = Math.max(0, predGains + commGains + updownGains + mutuelGains - withdrawn);
 
+  console.log(`[withdraw] wallet=${wallet} token=${token} requested=${parsed} available=${availableBalance}`);
+
   if (parsed > availableBalance)
     return NextResponse.json(
       { error: `Insufficient balance. Available: ${isUsdc ? `$${availableBalance.toFixed(2)} USDC` : `${Math.floor(availableBalance).toLocaleString("en-US")} CLT`}` },
@@ -136,17 +173,19 @@ export async function POST(req: Request) {
   // ── Check pour retrait en attente (un à la fois par token) ───────────────
   const { data: existing } = await admin
     .from("withdrawal_requests")
-    .select("id")
+    .select("id, status")
     .eq("wallet_address", wallet)
     .eq("token", token)
-    .eq("status", "pending")
+    .in("status", ["pending", "approved"])
     .limit(1);
 
-  if (existing && existing.length > 0)
+  if (existing && existing.length > 0) {
+    const st = existing[0].status === "approved" ? "approuvée" : "en attente";
     return NextResponse.json(
-      { error: "You already have a pending withdrawal request for this token. Please wait for it to be processed." },
+      { error: `Une demande de retrait ${st} existe déjà pour ce token. L'admin doit la marquer comme payée avant d'en soumettre une nouvelle.` },
       { status: 409 }
     );
+  }
 
   // Insert
   const { error } = await admin.from("withdrawal_requests").insert({

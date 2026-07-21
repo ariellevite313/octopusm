@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Camera, CheckCircle2, ExternalLink, LoaderCircle, Plus, Trash2, X } from "lucide-react";
@@ -23,13 +23,24 @@ function formatDate(d: string | null) {
 
 // ─── Create market form ───────────────────────────────────────────────────────
 
-const CATEGORIES = ["sports", "crypto", "politics", "entertainment", "science", "other"];
+const CATEGORIES = ["sports", "crypto", "politics", "entertainment", "cinema", "science", "other"];
 const MARKET_TYPES = ["yes-no", "threshold", "three-way"] as const;
 const VISUAL_TYPES = ["simple", "vs"] as const;
+
+const SUBCATEGORIES: Record<string, string[]> = {
+  sports:        ["Football", "Basketball", "Tennis", "MMA/UFC", "NFL", "F1", "Esports", "Boxe", "Baseball", "Hockey"],
+  crypto:        ["Bitcoin", "Ethereum", "Solana", "Altcoins", "DeFi", "NFT", "Memecoins", "Exchanges", "Régulation"],
+  politics:      ["USA", "France", "Europe", "Élections", "Géopolitique", "Économie mondiale"],
+  entertainment: ["Musique", "Célébrités", "Awards", "Réseaux sociaux", "Streaming"],
+  cinema:        ["Films", "Séries", "Oscars", "Box-office", "Animé"],
+  science:       ["Espace", "IA & Tech", "Médecine", "Environnement", "Physique"],
+  other:         ["Tendances", "Divers"],
+};
 
 type CreateForm = {
   title: string;
   category_id: string;
+  subcategory: string;
   market_type: "yes-no" | "threshold" | "three-way";
   visual_type: "simple" | "vs";
   resolution_label: string;
@@ -53,6 +64,7 @@ type CreateForm = {
 const DEFAULT_FORM: CreateForm = {
   title: "",
   category_id: "crypto",
+  subcategory: "",
   market_type: "yes-no",
   visual_type: "simple",
   resolution_label: "",
@@ -142,6 +154,8 @@ function ImageUpload({
 
 // ─── Create market form ───────────────────────────────────────────────────────
 
+const MAX_OPTIONS = 6;
+
 function CreateMarketDialog({
   open,
   onClose,
@@ -153,6 +167,13 @@ function CreateMarketDialog({
 }) {
   const [form, setForm] = useState<CreateForm>(DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
+
+  // F-04 — Reset form whenever the dialog opens
+  const prevOpen = useRef(false);
+  useEffect(() => {
+    if (open && !prevOpen.current) setForm(DEFAULT_FORM);
+    prevOpen.current = open;
+  }, [open]);
 
   function set<K extends keyof CreateForm>(key: K, val: CreateForm[K]) {
     setForm((f) => ({ ...f, [key]: val }));
@@ -190,6 +211,26 @@ function CreateMarketDialog({
     if (!form.title.trim()) { toast.error("Title is required."); return; }
     if (form.options.length < 2) { toast.error("At least 2 options required."); return; }
     if (form.options.some((o) => !o.label.trim())) { toast.error("All options need a label."); return; }
+    // F-03 — oddsMultiplier must be ≥ 1
+    if (form.options.some((o) => !Number.isFinite(Number(o.oddsMultiplier)) || Number(o.oddsMultiplier) < 1)) {
+      toast.error("All options must have a multiplier ≥ 1."); return;
+    }
+
+    // F-01 — Convert datetime-local to ISO string with UTC offset so the server
+    // stores the correct moment regardless of the browser's timezone.
+    const eventStartAt = form.event_start_at
+      ? new Date(form.event_start_at).toISOString()
+      : null;
+
+    // price_target: reject non-numeric / negative values
+    let priceTarget: number | null = null;
+    if (form.price_target !== "") {
+      const parsed = Number(form.price_target);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        toast.error("Price target must be a positive number."); return;
+      }
+      priceTarget = parsed;
+    }
 
     setLoading(true);
     try {
@@ -200,12 +241,12 @@ function CreateMarketDialog({
           action: "create",
           title: form.title.trim(),
           category_id: form.category_id,
+          subcategory: form.subcategory || null,
           market_type: form.market_type,
           visual_type: form.visual_type,
           resolution_label: form.resolution_label.trim() || form.title.trim(),
           resolution_criteria: form.resolution_criteria.trim() || null,
-
-          event_start_at: form.event_start_at || null,
+          event_start_at: eventStartAt,
           options: form.options.map((o) => ({
             id: o.id,
             label: o.label.trim(),
@@ -218,14 +259,13 @@ function CreateMarketDialog({
           single_name: form.single_name.trim() || null,
           single_image_src: form.single_image.trim() || null,
           price_ticker: form.price_ticker || null,
-          price_target: form.price_target ? Number(form.price_target) : null,
+          price_target: priceTarget,
         }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Error");
-      setForm(DEFAULT_FORM);
+      // F-05 — onCreated already closes the dialog (setShowCreate(false)) — don't call onClose() too
       onCreated();
-      onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
@@ -259,7 +299,7 @@ function CreateMarketDialog({
               <select
                 className="w-full rounded-xl border border-border bg-card px-3 py-2 capitalize focus:outline-none focus:ring-2 focus:ring-orange-400"
                 value={form.category_id}
-                onChange={(e) => set("category_id", e.target.value)}
+                onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value, subcategory: "" }))}
               >
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -274,6 +314,21 @@ function CreateMarketDialog({
                 {MARKET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Subcategory */}
+          <div>
+            <label className="mb-1 block font-semibold text-muted-foreground">Sous-catégorie</label>
+            <select
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              value={form.subcategory}
+              onChange={(e) => set("subcategory", e.target.value)}
+            >
+              <option value="">— Aucune —</option>
+              {(SUBCATEGORIES[form.category_id] ?? []).map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
 
           {/* Visual type */}
@@ -390,9 +445,11 @@ function CreateMarketDialog({
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="font-semibold text-muted-foreground">Options</label>
-              <button type="button" onClick={addOption} className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-400">
-                <Plus className="size-3" /> Add option
-              </button>
+              {form.options.length < MAX_OPTIONS && (
+                <button type="button" onClick={addOption} className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-400">
+                  <Plus className="size-3" /> Add option
+                </button>
+              )}
             </div>
             <div className="space-y-2">
               {form.options.map((opt, i) => (
@@ -410,7 +467,10 @@ function CreateMarketDialog({
                     min="1"
                     step="0.1"
                     value={opt.oddsMultiplier}
-                    onChange={(e) => setOption(i, "oddsMultiplier", parseFloat(e.target.value) || 2)}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setOption(i, "oddsMultiplier", Number.isFinite(v) && v >= 1 ? v : 1);
+                    }}
                   />
                   {form.options.length > 2 && (
                     <button type="button" onClick={() => removeOption(i)} className="text-muted-foreground hover:text-destructive">

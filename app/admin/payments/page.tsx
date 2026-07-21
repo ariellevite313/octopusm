@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getAllPayments, getPoolClaims, getUpdownClaims, getPendingPaymentsCount } from "@/services/admin-service";
-import { AdminPaymentsClient } from "@/components/admin/admin-payments-client";
+import { getAllPayments, getPoolClaims, getUpdownClaims, getWithdrawalRequests, getPendingPaymentsCount } from "@/services/admin-service";
+import { AdminPaymentsLoader } from "@/components/admin/admin-payments-loader";
 
 export const metadata: Metadata = { title: "Payments -- Admin" };
 export const revalidate = 0;
@@ -15,20 +15,23 @@ export default async function AdminPaymentsPage({
     status === "approved" || status === "rejected" || status === "pending" ? status : undefined;
   const flowFilter = flow || undefined;
 
-  const showPools  = !flowFilter || flowFilter === "pools";
-  const showUpdown = !flowFilter || flowFilter === "updown";
-  const [paymentsRaw, poolClaims, updownClaims, pendingCount] = await Promise.all([
+  const showPools       = !flowFilter || flowFilter === "pools";
+  const showUpdown      = !flowFilter || flowFilter === "updown";
+  const showWithdrawals = !flowFilter || flowFilter === "withdrawals";
+
+  const [paymentsRaw, poolClaims, updownClaims, withdrawals, pendingCount] = await Promise.all([
     flowFilter === "pools"
       ? getAllPayments(filter, "pool_prediction")
-      : flowFilter === "updown"
+      : flowFilter === "updown" || flowFilter === "withdrawals"
       ? Promise.resolve([])
       : getAllPayments(filter, flowFilter),
-    showPools  ? getPoolClaims(filter)   : [],
-    showUpdown ? getUpdownClaims(filter) : [],
+    showPools       ? getPoolClaims(filter)          : [],
+    showUpdown      ? getUpdownClaims(filter)        : [],
+    showWithdrawals ? getWithdrawalRequests(filter)  : [],
     getPendingPaymentsCount(),
   ]);
 
-  const payments = [...paymentsRaw, ...poolClaims, ...updownClaims].sort(
+  const payments = [...paymentsRaw, ...poolClaims, ...updownClaims, ...withdrawals].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
@@ -47,7 +50,7 @@ export default async function AdminPaymentsPage({
           {payments.length} payment{payments.length !== 1 ? "s" : ""}
         </p>
       </div>
-      <AdminPaymentsClient
+      <AdminPaymentsLoader
         payments={payments}
         currentFilter={filter}
         currentFlow={flowFilter}

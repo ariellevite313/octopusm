@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type {
   PredictionHistoryRow,
   PredictionResultStatus,
@@ -12,11 +12,11 @@ export type BetHistoryRow = PredictionHistoryRow & { result_status: PredictionRe
 
 export type TokenActivity = {
   id: string;
-  type: "win" | "commission";
+  type: "win" | "commission" | "withdrawal";
   label: string;
   sub: string;
   amount: number;
-  direction: "in";
+  direction: "in" | "out";
   created_at: string;
 };
 
@@ -88,6 +88,10 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
+  // Admin client bypasses RLS — used for withdrawal_requests which may not have
+  // user-facing RLS policies set up.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminDb = createAdminClient() as any;
 
   const [
     walletRes,
@@ -166,12 +170,11 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .order("created_at", { ascending: false })
       .limit(100),
 
-    // Paid withdrawals (to deduct from balance)
-    db
+    // All withdrawal requests — used for balance deduction AND activity feed
+    adminDb
       .from("withdrawal_requests")
       .select("id, token, amount, status, created_at")
       .eq("wallet_address", walletAddress)
-      .eq("status", "paid")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -227,10 +230,10 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const mutuelUsdcGains = mutuelWins
     .filter((b: any) => isUsdc(b.token ?? "usdc"))
     .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
-  // Deduct paid withdrawals in USDC
+  // Deduct all non-rejected withdrawals in USDC (pending + approved + paid)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const usdcWithdrawn = paidWithdrawals
-    .filter((w: any) => w.token === "usdc")
+    .filter((w: any) => w.token === "usdc" && w.status !== "rejected")
     .reduce((s: number, w: any) => s + (w.amount ?? 0), 0);
   const usdcBalance = Math.max(0, usdcStats.gains + commUsdc + updownUsdcGains + mutuelUsdcGains - usdcWithdrawn);
 
@@ -253,10 +256,10 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const mutuelCltGains = mutuelWins
     .filter((b: any) => isClt(b.token ?? ""))
     .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
-  // Deduct paid withdrawals in CLT
+  // Deduct all non-rejected withdrawals in CLT (pending + approved + paid)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cltWithdrawn = paidWithdrawals
-    .filter((w: any) => w.token === "clawdtrust")
+    .filter((w: any) => w.token === "clawdtrust" && w.status !== "rejected")
     .reduce((s: number, w: any) => s + (w.amount ?? 0), 0);
   const cltBalance = Math.max(0, cltStats.gains + commClt + updownCltGains + mutuelCltGains - cltWithdrawn);
 
@@ -320,6 +323,29 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
         direction: "in" as const,
         created_at: r.created_at as string,
       })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...paidWithdrawals
+      .filter((w: any) => w.token === "usdc")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((w: any) => {
+        const statusLabel: Record<string, string> = {
+          pending:  "Withdrawal pending",
+          approved: "Withdrawal approved",
+          paid:     "Withdrawal paid",
+          rejected: "Withdrawal rejected",
+        };
+        return {
+          id: w.id as string,
+          type: "withdrawal" as const,
+          label: statusLabel[w.status as string] ?? "Withdrawal",
+          sub: w.status === "paid" ? "Sent to your wallet" :
+               w.status === "rejected" ? "Declined" :
+               w.status === "approved" ? "Payment in progress" : "Awaiting admin review",
+          amount: w.amount as number,
+          direction: "out" as const,
+          created_at: w.created_at as string,
+        };
+      }),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // ── CLT activity (prediction wins + updown wins + mutuel wins + commissions) ──
@@ -374,6 +400,29 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
         direction: "in" as const,
         created_at: r.created_at as string,
       })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...paidWithdrawals
+      .filter((w: any) => w.token === "clawdtrust")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((w: any) => {
+        const statusLabel: Record<string, string> = {
+          pending:  "Withdrawal pending",
+          approved: "Withdrawal approved",
+          paid:     "Withdrawal paid",
+          rejected: "Withdrawal rejected",
+        };
+        return {
+          id: w.id as string,
+          type: "withdrawal" as const,
+          label: statusLabel[w.status as string] ?? "Withdrawal",
+          sub: w.status === "paid" ? "Sent to your wallet" :
+               w.status === "rejected" ? "Declined" :
+               w.status === "approved" ? "Payment in progress" : "Awaiting admin review",
+          amount: w.amount as number,
+          direction: "out" as const,
+          created_at: w.created_at as string,
+        };
+      }),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // ── OCTO activity ─────────────────────────────────────────────────────────

@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { X, ArrowUpRight, Loader2, CheckCircle, Clock } from "lucide-react";
+import { X, ArrowUpRight, Loader2, CheckCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Token = "usdc" | "clawdtrust";
+
+interface WithdrawalRequest {
+  id: string;
+  token: string;
+  amount: number;
+  status: "pending" | "approved" | "paid" | "rejected";
+  created_at: string;
+}
 
 interface Props {
   token: Token;
@@ -30,32 +38,74 @@ function fmtClt(n: number) {
 function fmtBalance(token: Token, n: number) {
   return token === "usdc" ? `$${fmtUsdc(n)} USDC` : `${fmtClt(n)} CLT`;
 }
+function fmtAmount(token: Token, n: number) {
+  return token === "usdc" ? `$${fmtUsdc(n)} USDC` : `${fmtClt(n)} CLT`;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function WithdrawModal({ token, balance, onClose }: Props) {
-  const [rawAmount, setRawAmount] = useState("");
-  const [step, setStep] = useState<"idle" | "loading" | "done">("idle");
+  const [rawAmount, setRawAmount]     = useState("");
+  const [step, setStep]               = useState<"checking" | "idle" | "done">("checking");
+  const [submitting, setSubmitting]   = useState(false);
+  const [existing, setExisting]       = useState<WithdrawalRequest | null>(null);
+  const [cancelling, setCancelling]   = useState(false);
 
-  const isUsdc   = token === "usdc";
-  const logoSrc  = isUsdc ? "/usdc-coin.png" : "/clawdtrust-coin.png";
-  const symbol   = isUsdc ? "USDC" : "CLT";
-  const accent   = isUsdc ? "orange" : "purple";
-  const min      = MIN[token];
+  const isUsdc  = token === "usdc";
+  const logoSrc = isUsdc ? "/usdc-coin.png" : "/clawdtrust-coin.png";
+  const symbol  = isUsdc ? "USDC" : "CLT";
+  const accent  = isUsdc ? "orange" : "purple";
+  const min     = MIN[token];
 
-  // Parse the raw input — USDC is decimal, CLT is integer
-  const parsed   = isUsdc ? parseFloat(rawAmount) : parseInt(rawAmount, 10);
-  const valid    = Number.isFinite(parsed) && parsed >= min && parsed <= balance;
+  const parsed = isUsdc ? parseFloat(rawAmount) : parseInt(rawAmount, 10);
+  const valid  = Number.isFinite(parsed) && parsed >= min && parsed <= balance;
+
+  // On mount, check for existing pending/approved request for this token
+  useEffect(() => {
+    fetch("/api/withdraw")
+      .then((r) => r.json())
+      .then(({ withdrawals }: { withdrawals: WithdrawalRequest[] }) => {
+        const blocked = (withdrawals ?? []).find(
+          (w) => w.token === token && (w.status === "pending" || w.status === "approved")
+        );
+        setExisting(blocked ?? null);
+        setStep("idle");
+      })
+      .catch(() => setStep("idle"));
+  }, [token]);
 
   function handleMax() {
     setRawAmount(isUsdc ? balance.toFixed(2) : String(Math.floor(balance)));
+  }
+
+  async function handleCancel() {
+    if (!existing || existing.status !== "pending") return;
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/withdraw", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: existing.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not cancel request.");
+        return;
+      }
+      toast.success("Withdrawal request cancelled.");
+      setExisting(null);
+    } catch {
+      toast.error("Network error, please try again.");
+    } finally {
+      setCancelling(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
 
-    setStep("loading");
+    setSubmitting(true);
     try {
       const res = await fetch("/api/withdraw", {
         method: "POST",
@@ -65,17 +115,16 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error ?? "Withdrawal request failed.");
-        setStep("idle");
         return;
       }
       setStep("done");
     } catch {
       toast.error("Network error, please try again.");
-      setStep("idle");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  // ── Accent helpers ────────────────────────────────────────────────────────
   const btnClass =
     accent === "orange"
       ? "bg-orange-500 hover:bg-orange-400 disabled:opacity-50"
@@ -110,8 +159,15 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
           </div>
         </div>
 
+        {/* Loading state */}
+        {step === "checking" && (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
         {/* Done state */}
-        {step === "done" ? (
+        {step === "done" && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
               <CheckCircle className="size-7 text-emerald-500" />
@@ -120,7 +176,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             <p className="text-xs text-muted-foreground max-w-xs">
               Your withdrawal of{" "}
               <span className="font-medium text-foreground">
-                {isUsdc ? `$${fmtUsdc(parsed)} USDC` : `${fmtClt(parsed)} CLT`}
+                {fmtAmount(token, parsed)}
               </span>{" "}
               has been sent to the team for review.
             </p>
@@ -135,7 +191,56 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               Close
             </button>
           </div>
-        ) : (
+        )}
+
+        {/* Existing pending/approved request blocker */}
+        {step === "idle" && existing && (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertCircle className="size-4 shrink-0" />
+                <p className="text-xs font-semibold">
+                  {existing.status === "approved" ? "Request approved — payment in progress" : "Pending request"}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                You have a{" "}
+                <span className="font-semibold text-foreground">
+                  {fmtAmount(token, existing.amount)}
+                </span>{" "}
+                withdrawal{" "}
+                <span className={existing.status === "approved" ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-amber-600 dark:text-amber-400 font-semibold"}>
+                  {existing.status === "approved" ? "approved" : "pending"}
+                </span>
+                {". "}
+                {existing.status === "approved"
+                  ? "The admin has approved it — payment will arrive soon."
+                  : "Cancel it to submit a new request."}
+              </p>
+            </div>
+
+            {existing.status === "pending" && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
+              >
+                {cancelling ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                Cancel pending request
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        )}
+
+        {/* Normal form — no blocking request */}
+        {step === "idle" && !existing && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Amount input */}
             <div className="flex flex-col gap-1.5">
@@ -172,13 +277,11 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
                 </div>
               </div>
 
-              {/* Min hint */}
               <p className="text-[10px] text-muted-foreground">
                 Minimum:{" "}
                 {isUsdc ? `$${fmtUsdc(min)} USDC` : `${fmtClt(min)} CLT`}
               </p>
 
-              {/* Validation feedback */}
               {rawAmount && !Number.isNaN(parsed) && parsed > balance && (
                 <p className="text-xs text-destructive">Exceeds your available balance.</p>
               )}
@@ -203,10 +306,10 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             {/* Submit */}
             <button
               type="submit"
-              disabled={!valid || step === "loading"}
+              disabled={!valid || submitting}
               className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-colors ${btnClass}`}
             >
-              {step === "loading" ? (
+              {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   Submitting…

@@ -4,7 +4,7 @@ import type { WithdrawalRow } from "@/lib/supabase/types";
 import { AdminWithdrawalsClient } from "@/components/admin/admin-withdrawals-client";
 
 export const metadata: Metadata = { title: "Withdrawals — Admin" };
-export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 export default async function AdminWithdrawalsPage() {
   const admin = createAdminClient() as any;
