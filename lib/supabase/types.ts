@@ -12,7 +12,7 @@ export type OctoTransactionType = "referral" | "bet" | "task";
 export type WalletStatus = "active" | "suspended";
 export type BetToken = "usdc" | "clawdtrust";
 
-export type PaymentFlow = "prediction" | "launch" | "listing" | "pool_prediction" | "pool_creation" | "pool_claim";
+export type PaymentFlow = "prediction" | "launch" | "listing" | "pool_prediction" | "pool_creation" | "pool_claim" | "updown_claim" | "withdrawal";
 export type PaymentStatus = "pending" | "approved" | "rejected";
 export type MarketType = "yes-no" | "threshold" | "three-way";
 export type VisualType = "vs" | "simple";

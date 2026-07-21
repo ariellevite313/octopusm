@@ -4,13 +4,15 @@ const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 const DURATIONS = [5, 15, 30]; // minutes (durée totale du round)
 const BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines";
 
-// Phase de paris = duration_min, phase live = duration_min aussi (total = 2× duration_min)
-// 5min  → 5min paris + 5min live  = 10min total
-// 15min → 15min paris + 15min live = 30min total
-// 30min → 30min paris + 30min live = 60min total
+// Option A — suppression de la pause entre rounds.
+// Le round suivant commence immédiatement après la résolution du précédent.
+// Cycle : paris (duration_min) + live (duration_min) = 2× duration_min total.
+// 5min  → 5min paris + 5min live  = 10min total (anciennement 15min)
+// 15min → 15min paris + 15min live = 30min total (anciennement 45min)
+// 30min → 30min paris + 30min live = 60min total (anciennement 90min)
 const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
 const TOTAL_MINUTES:   Record<number, number> = { 5: 10, 15: 30, 30: 60 };
-const PAUSE_MINUTES:   Record<number, number> = { 5: 5,  15: 15, 30: 30 };
+const PAUSE_MINUTES:   Record<number, number> = { 5: 0,  15: 0,  30: 0  };
 
 // Précision d'arrondi du strike par asset (décimales)
 const STRIKE_DECIMALS: Record<string, number> = {

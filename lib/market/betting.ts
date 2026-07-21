@@ -256,19 +256,21 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
         )
       );
 
-      // Sign + send
-      if (provider.signAndSendTransaction) {
+      // Sign + broadcast. No server-side verification — admin approves all bets.
+      if (provider.signTransaction) {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(
+          (signed as unknown as { serialize(): Uint8Array }).serialize(),
+          { maxRetries: 5, preflightCommitment: "confirmed" }
+        );
+      } else if (provider.signAndSendTransaction) {
         const res = await provider.signAndSendTransaction(tx, {
           maxRetries: 3,
           preflightCommitment: "confirmed",
         });
         signature = res.signature;
       } else {
-        const signed = await provider.signTransaction!(tx);
-        signature = await connection.sendRawTransaction(
-          (signed as unknown as { serialize(): Uint8Array }).serialize(),
-          { maxRetries: 3 }
-        );
+        throw new Error("Wallet does not support signing transactions.");
       }
 
       break; // success — exit RPC loop

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, Banknote, LoaderCircle, Clock, Check } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { CheckCircle2, XCircle, Banknote, LoaderCircle, Clock, Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,26 @@ import type { WithdrawalRow, WithdrawalToken, WithdrawalStatus } from "@/lib/sup
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function shortAddr(addr: string) { return `${addr.slice(0, 4)}…${addr.slice(-4)}`; }
+
+function CopyAddr({ addr }: { addr: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    void navigator.clipboard.writeText(addr).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  return (
+    <button
+      onClick={copy}
+      title={addr}
+      className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+    >
+      {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+      {shortAddr(addr)}
+    </button>
+  );
+}
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -108,8 +128,13 @@ function MarkPaidDialog({
       <DialogContent className="max-w-sm border-border">
         <DialogHeader>
           <DialogTitle>Mark as Paid</DialogTitle>
-          <DialogDescription>
-            {row ? `${fmtAmount(row.token, row.amount)} → ${shortAddr(row.wallet_address)}` : ""}
+          <DialogDescription className="flex items-center gap-1.5 flex-wrap">
+            {row ? (
+              <>
+                <span>{fmtAmount(row.token, row.amount)} →</span>
+                <CopyAddr addr={row.wallet_address} />
+              </>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
@@ -142,12 +167,43 @@ function MarkPaidDialog({
 
 const FILTERS = ["all", "pending", "approved", "rejected", "paid"] as const;
 
-export function AdminWithdrawalsClient({ withdrawals }: { withdrawals: WithdrawalRow[] }) {
-  const router = useRouter();
+export function AdminWithdrawalsClient({ withdrawals: initialWithdrawals }: { withdrawals: WithdrawalRow[] }) {
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>(initialWithdrawals);
   const [filter, setFilter] = useState<typeof FILTERS[number]>("all");
   const [loading, setLoading] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<WithdrawalRow | null>(null);
   const [paidTarget, setPaidTarget] = useState<WithdrawalRow | null>(null);
+
+  // Client-side fetch — bypasses SSR caching issues entirely
+  const fetchWithdrawals = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/withdrawals", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json() as { withdrawals: WithdrawalRow[] };
+      if (data.withdrawals) setWithdrawals(data.withdrawals);
+    } catch { /* silent — keep previous data */ }
+  }, []);
+
+  // Poll every 15 s
+  useEffect(() => {
+    const interval = setInterval(fetchWithdrawals, 15_000);
+    return () => clearInterval(interval);
+  }, [fetchWithdrawals]);
+
+  // Realtime (instant) — requires: ALTER PUBLICATION supabase_realtime ADD TABLE withdrawal_requests;
+  useEffect(() => {
+    const sb = createClient();
+    const channel = sb
+      .channel("admin-withdrawal-updates")
+      .on("postgres_changes" as const, { event: "INSERT", schema: "public", table: "withdrawal_requests" }, () => {
+        void fetchWithdrawals();
+      })
+      .on("postgres_changes" as const, { event: "UPDATE", schema: "public", table: "withdrawal_requests" }, () => {
+        void fetchWithdrawals();
+      })
+      .subscribe();
+    return () => { void sb.removeChannel(channel); };
+  }, [fetchWithdrawals]);
 
   const filtered = filter === "all" ? withdrawals : withdrawals.filter((w) => w.status === filter);
 
@@ -162,7 +218,7 @@ export function AdminWithdrawalsClient({ withdrawals }: { withdrawals: Withdrawa
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
       toast.success("Done");
-      router.refresh();
+      await fetchWithdrawals();
       setRejectTarget(null);
       setPaidTarget(null);
     } catch (e) {
@@ -204,7 +260,7 @@ export function AdminWithdrawalsClient({ withdrawals }: { withdrawals: Withdrawa
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-semibold text-foreground">{fmtAmount(w.token, w.amount)}</p>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">{shortAddr(w.wallet_address)}</p>
+                <CopyAddr addr={w.wallet_address} />
               </div>
               <StatusBadge status={w.status} />
             </div>
@@ -263,7 +319,7 @@ export function AdminWithdrawalsClient({ withdrawals }: { withdrawals: Withdrawa
             )}
             {filtered.map((w) => (
               <tr key={w.id} className="hover:bg-muted/20">
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{shortAddr(w.wallet_address)}</td>
+                <td className="px-4 py-3"><CopyAddr addr={w.wallet_address} /></td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold uppercase">
                     {w.token === "usdc" ? "USDC" : "CLT"}

@@ -1,0 +1,191 @@
+import { NextResponse } from "next/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+
+/**
+ * GET /api/activity
+ * Returns usdcActivity and cltActivity for the authenticated user.
+ * Used by token-balances.tsx to refresh the Recent Activity panel in real-time
+ * when bets resolve (Realtime UPDATE events on updown_bets / mutuel_bets).
+ */
+
+const isClt  = (t: string) => t === "clawdtrust" || t === "clt";
+const isUsdc = (t: string) => t === "usdc";
+const isWin  = (s: string) => ["win", "claimed", "paid"].includes(s);
+
+function fmtAddr(addr: string): string {
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+const WITHDRAWAL_LABEL: Record<string, string> = {
+  pending:  "Withdrawal pending",
+  approved: "Withdrawal approved",
+  paid:     "Withdrawal paid",
+  rejected: "Withdrawal rejected",
+};
+const WITHDRAWAL_SUB: Record<string, string> = {
+  pending:  "Awaiting admin review",
+  approved: "Payment in progress",
+  paid:     "Sent to your wallet",
+  rejected: "Declined",
+};
+
+export async function GET() {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const admin = createAdminClient() as any;
+
+  const [betsRes, commissionsRes, updownBetsRes, mutuelBetsRes, withdrawalsRes] = await Promise.all([
+    // Regular prediction wins
+    admin
+      .from("prediction_history_with_status")
+      .select("id, token, net_reward, result_status, market_title, payout_multiple, created_at")
+      .eq("wallet_address", wallet)
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // Referral commissions
+    admin
+      .from("referral_commissions")
+      .select("id, amount_usdc, amount_clt, referred_wallet, created_at")
+      .eq("referrer_wallet", wallet)
+      .order("created_at", { ascending: false })
+      .limit(50),
+
+    // Up/Down wins (status won/claimed/paid → payout already set by resolver)
+    admin
+      .from("updown_bets")
+      .select("id, direction, amount, payout, token, created_at, updown_markets(symbol)")
+      .eq("wallet_address", wallet)
+      .in("status", ["won", "claimed", "paid"])
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // Pool wins (payout_amount set automatically at market resolution)
+    admin
+      .from("mutuel_bets")
+      .select("id, amount, token, payout_amount, paid_at, created_at, mutuel_markets(title)")
+      .eq("wallet_address", wallet)
+      .not("payout_amount", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // All withdrawals for the outgoing activity feed
+    admin
+      .from("withdrawal_requests")
+      .select("id, token, amount, status, created_at")
+      .eq("wallet_address", wallet)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bets: any[]        = betsRes.data        ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const commissions: any[] = commissionsRes.data  ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updownWins: any[]  = updownBetsRes.data   ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mutuelWins: any[]  = mutuelBetsRes.data   ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withdrawals: any[] = withdrawalsRes.data  ?? [];
+
+  const usdcBets = bets.filter((b) => isUsdc(b.token));
+  const cltBets  = bets.filter((b) => isClt(b.token));
+
+  const usdcActivity = [
+    // Regular prediction market wins
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...usdcBets.filter((b) => isWin(b.result_status)).map((b: any) => ({
+      id: b.id as string, type: "win" as const,
+      label: (b.market_title as string) ?? "Prediction win",
+      sub: `Won · x${(b.payout_multiple as string) ?? "?"}`,
+      amount: (b.net_reward as number) ?? 0, direction: "in" as const,
+      created_at: b.created_at as string,
+    })),
+    // Up/Down wins in USDC
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...updownWins.filter((b: any) => isUsdc(b.token ?? "usdc")).map((b: any) => ({
+      id: b.id as string, type: "win" as const,
+      label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
+      sub: "Won", amount: (b.payout as number) ?? 0, direction: "in" as const,
+      created_at: b.created_at as string,
+    })),
+    // Pool wins in USDC
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...mutuelWins.filter((b: any) => isUsdc(b.token ?? "usdc")).map((b: any) => ({
+      id: b.id as string, type: "win" as const,
+      label: (b.mutuel_markets as any)?.title ?? "Pool win",
+      sub: "Pool payout", amount: (b.payout_amount as number) ?? 0, direction: "in" as const,
+      created_at: b.created_at as string,
+    })),
+    // Referral commissions in USDC
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...commissions.filter((r: any) => (r.amount_usdc ?? 0) > 0).map((r: any, i: number) => ({
+      id: (r.id as string) ?? `comm-usdc-${i}`, type: "commission" as const,
+      label: "Referral commission",
+      sub: r.referred_wallet ? fmtAddr(r.referred_wallet as string) : "",
+      amount: r.amount_usdc as number, direction: "in" as const,
+      created_at: r.created_at as string,
+    })),
+    // Withdrawals in USDC (outgoing)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...withdrawals.filter((w: any) => w.token === "usdc").map((w: any) => ({
+      id: w.id as string, type: "withdrawal" as const,
+      label: WITHDRAWAL_LABEL[w.status as string] ?? "Withdrawal",
+      sub:   WITHDRAWAL_SUB[w.status as string]   ?? "Awaiting admin review",
+      amount: w.amount as number, direction: "out" as const,
+      created_at: w.created_at as string,
+    })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const cltActivity = [
+    // Regular prediction market wins
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...cltBets.filter((b) => isWin(b.result_status)).map((b: any) => ({
+      id: b.id as string, type: "win" as const,
+      label: (b.market_title as string) ?? "Prediction win",
+      sub: `Won · x${(b.payout_multiple as string) ?? "?"}`,
+      amount: (b.net_reward as number) ?? 0, direction: "in" as const,
+      created_at: b.created_at as string,
+    })),
+    // Up/Down wins in CLT
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...updownWins.filter((b: any) => isClt(b.token ?? "")).map((b: any) => ({
+      id: b.id as string, type: "win" as const,
+      label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
+      sub: "Won", amount: (b.payout as number) ?? 0, direction: "in" as const,
+      created_at: b.created_at as string,
+    })),
+    // Pool wins in CLT
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...mutuelWins.filter((b: any) => isClt(b.token ?? "")).map((b: any) => ({
+      id: b.id as string, type: "win" as const,
+      label: (b.mutuel_markets as any)?.title ?? "Pool win",
+      sub: "Pool payout", amount: (b.payout_amount as number) ?? 0, direction: "in" as const,
+      created_at: b.created_at as string,
+    })),
+    // Referral commissions in CLT
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...commissions.filter((r: any) => (r.amount_clt ?? 0) > 0).map((r: any, i: number) => ({
+      id: (r.id as string) ?? `comm-clt-${i}`, type: "commission" as const,
+      label: "Referral commission",
+      sub: r.referred_wallet ? fmtAddr(r.referred_wallet as string) : "",
+      amount: r.amount_clt as number, direction: "in" as const,
+      created_at: r.created_at as string,
+    })),
+    // Withdrawals in CLT (outgoing)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...withdrawals.filter((w: any) => w.token === "clawdtrust").map((w: any) => ({
+      id: w.id as string, type: "withdrawal" as const,
+      label: WITHDRAWAL_LABEL[w.status as string] ?? "Withdrawal",
+      sub:   WITHDRAWAL_SUB[w.status as string]   ?? "Awaiting admin review",
+      amount: w.amount as number, direction: "out" as const,
+      created_at: w.created_at as string,
+    })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return NextResponse.json({ usdcActivity, cltActivity });
+}

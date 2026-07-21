@@ -3,6 +3,7 @@ import { Providers } from "@/providers/providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
+import { getDistinctCategories } from "@/services/prediction-service";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://octomarket.fun";
@@ -36,18 +37,20 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const categories = await getDistinctCategories();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <CategoryNavWrapper />
+            <CategoryNavWrapper categories={categories} />
             <main className="flex-1">{children}</main>
             <Footer />
           </div>

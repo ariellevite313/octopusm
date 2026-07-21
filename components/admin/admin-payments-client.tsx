@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, LoaderCircle, Plus, XCircle } from "lucide-react";
+import { CheckCircle2, LoaderCircle, Plus, XCircle, Banknote } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +25,13 @@ function shortAddr(s: string) {
 }
 
 const STATUS_FILTERS = ["all", "pending", "approved", "rejected"] as const;
-const FLOWS = ["prediction", "pools", "updown", "launch", "listing"] as const;
+const FLOWS = ["prediction", "pools", "updown", "withdrawals", "launch", "listing"] as const;
 
 function flowLabel(flow: string | null | undefined): string {
   if (!flow) return "";
   if (flow === "pool_prediction" || flow === "pool_claim" || flow === "pools") return "Pools";
   if (flow === "updown_claim" || flow === "updown") return "Up/Down";
+  if (flow === "withdrawal" || flow === "withdrawals") return "Withdrawal";
   return flow.replace(/_/g, " ");
 }
 const MANUAL_FLOWS = ["launch", "listing"] as const;
@@ -65,7 +67,10 @@ export function AdminPaymentsClient({
   pendingCount?: number;
 }) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
+  const [withdrawMarkPaid, setWithdrawMarkPaid] = useState<{ id: string; label: string } | null>(null);
+  const [withdrawTx, setWithdrawTx] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [manual, setManual] = useState(DEFAULT_MANUAL);
   const [manualLoading, setManualLoading] = useState(false);
@@ -80,24 +85,67 @@ export function AdminPaymentsClient({
   async function review(paymentId: string, status: "approved" | "rejected", flow?: string | null) {
     setLoading(paymentId + status);
     try {
+      let res: Response;
+
       if (flow === "updown_claim") {
-        if (status === "approved") {
-          const res = await fetch("/api/admin/updown", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bet_id: paymentId }),
-          });
-          if (!res.ok) throw new Error();
-        }
+        if (status !== "approved") { startTransition(() => router.refresh()); return; }
+        res = await fetch("/api/admin/updown", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bet_id: paymentId }),
+        });
+      } else if (flow === "pool_claim") {
+        if (status !== "approved") { startTransition(() => router.refresh()); return; }
+        res = await fetch("/api/admin/pools/claims", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ betId: paymentId }),
+        });
+      } else if (flow === "withdrawal") {
+        res = await fetch("/api/admin/withdrawals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: status === "approved" ? "approve" : "reject", id: paymentId }),
+        });
       } else {
-        const res = await fetch("/api/admin/payments", {
+        res = await fetch("/api/admin/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ paymentId, status }),
         });
-        if (!res.ok) throw new Error();
       }
-      router.refresh();
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+
+      toast.success(status === "approved" ? "Approved" : "Rejected");
+      startTransition(() => router.refresh());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function markWithdrawalPaid() {
+    if (!withdrawMarkPaid) return;
+    setLoading("markpaid" + withdrawMarkPaid.id);
+    try {
+      const res = await fetch("/api/admin/withdrawals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_paid", id: withdrawMarkPaid.id, paid_tx: withdrawTx.trim() || undefined }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      toast.success("Marked as paid");
+      setWithdrawMarkPaid(null);
+      setWithdrawTx("");
+      startTransition(() => router.refresh());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(null);
     }
@@ -120,7 +168,7 @@ export function AdminPaymentsClient({
       if (!res.ok) throw new Error(body.error ?? "Error");
       setShowManual(false);
       setManual(DEFAULT_MANUAL);
-      router.refresh();
+      startTransition(() => router.refresh());
     } catch (e) {
       setManualError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -137,7 +185,7 @@ export function AdminPaymentsClient({
   }
 
   return (
-    <>
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
@@ -199,11 +247,22 @@ export function AdminPaymentsClient({
                   {loading === p.id + "approved" ? <LoaderCircle className="size-3 animate-spin mr-1" /> : <CheckCircle2 className="size-3 mr-1" />}
                   Approve
                 </Button>
+                {p.flow !== "pool_claim" && p.flow !== "updown_claim" && (
+                  <Button size="sm" variant="outline" disabled={!!loading}
+                    className="flex-1 rounded-full border-red-300 text-red-600 text-xs hover:bg-red-50 dark:border-red-700 dark:text-red-400"
+                    onClick={() => review(p.id, "rejected", p.flow)}>
+                    {loading === p.id + "rejected" ? <LoaderCircle className="size-3 animate-spin mr-1" /> : <XCircle className="size-3 mr-1" />}
+                    Reject
+                  </Button>
+                )}
+              </div>
+            )}
+            {p.status === "approved" && p.flow === "withdrawal" && (
+              <div className="flex items-center gap-2 pt-1">
                 <Button size="sm" variant="outline" disabled={!!loading}
-                  className="flex-1 rounded-full border-red-300 text-red-600 text-xs hover:bg-red-50 dark:border-red-700 dark:text-red-400"
-                  onClick={() => review(p.id, "rejected", p.flow)}>
-                  {loading === p.id + "rejected" ? <LoaderCircle className="size-3 animate-spin mr-1" /> : <XCircle className="size-3 mr-1" />}
-                  Reject
+                  className="flex-1 rounded-full border-blue-300 text-blue-700 text-xs hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+                  onClick={() => { setWithdrawMarkPaid({ id: p.id, label: p.title }); setWithdrawTx(""); }}>
+                  <Banknote className="size-3 mr-1" />Mark Paid
                 </Button>
               </div>
             )}
@@ -242,12 +301,21 @@ export function AdminPaymentsClient({
                         onClick={() => review(p.id, "approved", p.flow)}>
                         {loading === p.id + "approved" ? <LoaderCircle className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
                       </Button>
-                      <Button size="sm" variant="outline" disabled={!!loading}
-                        className="rounded-full border-red-300 text-red-600 text-xs hover:bg-red-50 dark:border-red-700 dark:text-red-400"
-                        onClick={() => review(p.id, "rejected", p.flow)}>
-                        {loading === p.id + "rejected" ? <LoaderCircle className="size-3 animate-spin" /> : <XCircle className="size-3" />}
-                      </Button>
+                      {p.flow !== "pool_claim" && p.flow !== "updown_claim" && (
+                        <Button size="sm" variant="outline" disabled={!!loading}
+                          className="rounded-full border-red-300 text-red-600 text-xs hover:bg-red-50 dark:border-red-700 dark:text-red-400"
+                          onClick={() => review(p.id, "rejected", p.flow)}>
+                          {loading === p.id + "rejected" ? <LoaderCircle className="size-3 animate-spin" /> : <XCircle className="size-3" />}
+                        </Button>
+                      )}
                     </div>
+                  )}
+                  {p.status === "approved" && p.flow === "withdrawal" && (
+                    <Button size="sm" variant="outline" disabled={!!loading}
+                      className="rounded-full border-blue-300 text-blue-700 text-xs hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+                      onClick={() => { setWithdrawMarkPaid({ id: p.id, label: p.title }); setWithdrawTx(""); }}>
+                      {loading === "markpaid" + p.id ? <LoaderCircle className="size-3 animate-spin" /> : <Banknote className="size-3" />}
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -351,6 +419,36 @@ export function AdminPaymentsClient({
           </div>
         </DialogContent>
       </Dialog>
-    </>
+
+      {/* Mark Paid dialog — withdrawal */}
+      <Dialog open={!!withdrawMarkPaid} onOpenChange={(o) => { if (!o) { setWithdrawMarkPaid(null); setWithdrawTx(""); } }}>
+        <DialogContent className="max-w-sm border-border">
+          <DialogHeader>
+            <DialogTitle>Mark as Paid</DialogTitle>
+            <DialogDescription>{withdrawMarkPaid?.label}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Transaction signature (optional)
+            </label>
+            <input
+              value={withdrawTx}
+              onChange={(e) => setWithdrawTx(e.target.value)}
+              placeholder="5Xk3… (Solana tx)"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setWithdrawMarkPaid(null); setWithdrawTx(""); }} disabled={!!loading}>
+              Cancel
+            </Button>
+            <Button className="flex-1 rounded-xl bg-blue-500 text-white hover:bg-blue-400" disabled={!!loading} onClick={markWithdrawalPaid}>
+              {loading ? <LoaderCircle className="size-4 animate-spin mr-1" /> : <Banknote className="size-4 mr-1" />}
+              Confirm Paid
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 // Priority order: env var first (Helius / QuickNode), then reliable public fallbacks
 // that work from a server (no CORS issues server-side).
 function getRpcUrls(): string[] {
-  const envUrl = process.env.SOLANA_RPC_URL;
+  const envUrl = process.env.SOLANA_RPC_URL ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
   const fallbacks = [
     "https://api.mainnet-beta.solana.com",
     "https://solana-rpc.publicnode.com",

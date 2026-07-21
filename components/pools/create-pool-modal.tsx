@@ -51,36 +51,48 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Cover image (optional)
+        Icon image (optional)
       </label>
-      <div
-        className="relative flex h-24 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 transition-colors hover:bg-muted/50"
-        onClick={() => fileRef.current?.click()}
-      >
-        {value ? (
-          <>
-            <img src={value} alt="" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
-              <Camera className="size-5 text-white" />
-            </div>
-          </>
-        ) : uploading ? (
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        ) : (
-          <div className="flex flex-col items-center gap-1 text-muted-foreground">
-            <Camera className="size-5" />
-            <span className="text-xs">Click to upload</span>
-          </div>
-        )}
-        {value && (
+      <div className="flex items-center gap-3">
+        {/* Square icon preview */}
+        <div
+          className="relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 transition-colors hover:bg-muted/50 flex items-center justify-center"
+          onClick={() => fileRef.current?.click()}
+        >
+          {value ? (
+            <>
+              <img src={value} alt="" className="size-full object-cover" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                <Camera className="size-4 text-white" />
+              </div>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onChange(""); }}
+                className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+              >
+                <X className="size-3" />
+              </button>
+            </>
+          ) : uploading ? (
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          ) : (
+            <Camera className="size-5 text-muted-foreground" />
+          )}
+        </div>
+        {/* Helper text */}
+        <div className="flex flex-col gap-0.5">
+          <p className="text-xs text-muted-foreground">
+            Square icon displayed beside your pool title.
+          </p>
+          <p className="text-[10px] text-muted-foreground">JPG, PNG, WEBP or GIF · max 2MB</p>
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onChange(""); }}
-            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+            onClick={() => fileRef.current?.click()}
+            className="mt-1 self-start rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
           >
-            <X className="size-3" />
+            {value ? "Change icon" : "Upload icon"}
           </button>
-        )}
+        </div>
       </div>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>

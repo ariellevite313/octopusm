@@ -179,15 +179,19 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
         uiToBaseUnits(amount, decimals), decimals
       ));
 
-      if (provider.signAndSendTransaction) {
+      // Sign + broadcast via our proxy RPC (no server-side verification needed —
+      // admin approves all bets manually).
+      if (provider.signTransaction) {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(
+          (signed as unknown as { serialize(): Uint8Array }).serialize(),
+          { maxRetries: 5, preflightCommitment: "confirmed" }
+        );
+      } else if (provider.signAndSendTransaction) {
         const res = await provider.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
         signature = res.signature;
       } else {
-        const signed = await provider.signTransaction!(tx);
-        signature = await connection.sendRawTransaction(
-          (signed as unknown as { serialize(): Uint8Array }).serialize(),
-          { maxRetries: 3 }
-        );
+        throw new Error("Wallet does not support signing transactions.");
       }
 
       break;
@@ -304,15 +308,17 @@ export async function submitPoolCreation(params: PoolCreationParams): Promise<Po
         uiToBaseUnits(feeAmount, decimals), decimals
       ));
 
-      if (provider.signAndSendTransaction) {
+      if (provider.signTransaction) {
+        const signed = await provider.signTransaction(tx);
+        signature = await connection.sendRawTransaction(
+          (signed as unknown as { serialize(): Uint8Array }).serialize(),
+          { maxRetries: 5, preflightCommitment: "confirmed" }
+        );
+      } else if (provider.signAndSendTransaction) {
         const res = await provider.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
         signature = res.signature;
       } else {
-        const signed = await provider.signTransaction!(tx);
-        signature = await connection.sendRawTransaction(
-          (signed as unknown as { serialize(): Uint8Array }).serialize(),
-          { maxRetries: 3 }
-        );
+        throw new Error("Wallet does not support signing transactions.");
       }
 
       break;

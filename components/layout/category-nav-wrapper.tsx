@@ -3,23 +3,22 @@
 import { usePathname } from "next/navigation";
 import { CategoryNav } from "./category-nav";
 
-const MARKET_PREFIXES = ["/", "/crypto", "/sports", "/politics", "/entertainment", "/market", "/updown"];
-const CATEGORIES = ["crypto", "sports", "politics", "entertainment"];
+type Props = { categories: string[] };
 
-export function CategoryNavWrapper() {
+export function CategoryNavWrapper({ categories }: Props) {
   const pathname = usePathname();
 
   // Affiche uniquement sur les pages market
   const isMarketPage =
     pathname === "/" ||
-    CATEGORIES.some((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ||
+    categories.some((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ||
     pathname.startsWith("/market") ||
     pathname.startsWith("/updown");
 
   if (!isMarketPage) return null;
 
   // Détermine la catégorie active
-  const active = CATEGORIES.find((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ?? "all";
+  const active = categories.find((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ?? "all";
 
-  return <CategoryNav categories={CATEGORIES} active={active} />;
+  return <CategoryNav categories={categories} active={active} />;
 }
