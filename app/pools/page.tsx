@@ -8,6 +8,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Pools",
   description: "Pari mutuel prediction pools on Solana. Join a pool, pick your outcome, and share the winnings with other correct predictors.",
+  alternates: { canonical: "https://omdot.fun/pools" },
   openGraph: {
     title: "OMdotfun — Prediction Pools",
     description: "Pari mutuel prediction pools on Solana. Join a pool, pick your outcome, and share the winnings.",

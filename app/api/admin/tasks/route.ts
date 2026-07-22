@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const { action } = body;
 
   if (action === "create") {
-    const { title, description, externalLink, rewardOcto, taskType, icon } = body;
+    const { title, description, externalLink, rewardOcto, taskType, icon, sortOrder } = body;
     if (!title || !rewardOcto || !taskType)
       return NextResponse.json({ error: "title, rewardOcto, taskType required" }, { status: 400 });
 
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       reward_octo: Number(rewardOcto),
       task_type: taskType,
       icon: icon ?? null,
+      sort_order: Number(sortOrder) || 0,
       is_active: true,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

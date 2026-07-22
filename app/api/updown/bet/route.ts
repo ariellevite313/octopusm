@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { awardOcto, OCTO_PER_BET } from "@/lib/octo";
 
 /**
  * POST /api/updown/bet
@@ -82,6 +83,9 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ error: betErr.message }, { status: 500 });
   }
+
+  // Award OCTO for placing an Up/Down bet (fire and forget)
+  awardOcto(wallet_address, OCTO_PER_BET, "bet", "Up/Down bet placed").catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

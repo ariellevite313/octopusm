@@ -114,7 +114,7 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
   if (loading) {
     return (
       <section>
-        <h2 className="mb-3 text-base font-bold text-foreground">My Pool Bets</h2>
+        <h2 className="mb-3 text-base font-bold text-foreground">My Pool Predictions</h2>
         <div className="flex flex-col gap-2">
           {[1, 2, 3].map(i => (
             <div key={i} className="h-14 rounded-2xl bg-muted animate-pulse" />
@@ -138,7 +138,7 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-base font-bold text-foreground">My Pool Bets</h2>
+        <h2 className="text-base font-bold text-foreground">My Pool Predictions</h2>
         {claimReady.length > 0 && (
           <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-bold text-white">
             {claimReady.length} to claim

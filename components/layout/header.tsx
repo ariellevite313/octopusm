@@ -8,7 +8,7 @@ import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
   { href: "/", label: "Markets" },
-  { href: "/pools", label: "Bookmaker" },
+  { href: "/pools", label: "Bookmake" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/launch", label: "Launch" },
   { href: "/archive", label: "Archive" },

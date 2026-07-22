@@ -5,7 +5,6 @@ import { Camera, X, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "luci
 import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
-import { submitPoolCreation } from "@/lib/market/pool-betting";
 import { useAuth } from "@/providers/auth-provider";
 
 const CATEGORIES = [
@@ -22,7 +21,7 @@ interface OptionDraft {
   label: string;
 }
 
-type CreateStep = "idle" | "signing" | "sending" | "done" | "error";
+type CreateStep = "idle" | "sending" | "done" | "error";
 
 // ─── Image upload widget ──────────────────────────────────────────────────────
 function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
@@ -100,7 +99,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 }
 
 export function CreatePoolModal({ onClose, onCreated }: Props) {
-  const { walletAddress, walletType } = useAuth();
+  const { walletAddress } = useAuth();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -108,12 +107,11 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
   const [options, setOptions] = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
   const [closesAt, setClosesAt] = useState("");
   const [category, setCategory] = useState<Category>("general");
-  const [feeToken, setFeeToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [betToken, setBetToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [step, setStep] = useState<CreateStep>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const submitting = step === "signing" || step === "sending";
+  const submitting = step === "sending";
 
   const addOption = () => {
     if (options.length >= 8) return;
@@ -163,26 +161,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       return;
     }
 
-    // walletType from auth context — never localStorage
-    const resolvedWalletType = walletType ?? "phantom";
-
-    // Step 1: Request wallet signature for creation fee
-    setStep("signing");
-    const txResult = await submitPoolCreation({
-      title: title.trim(),
-      feeToken,
-      walletAddress,
-      walletType: resolvedWalletType,
-    });
-
-    if (!txResult.success) {
-      setStep("error");
-      setErrorMsg(txResult.error);
-      toast.error(txResult.error);
-      return;
-    }
-
-    // Step 2: POST to API with tx signature
+    // Création gratuite — on POST directement sans transaction on-chain
     setStep("sending");
     try {
       // datetime-local gives local time — convert to UTC ISO explicitly
@@ -198,8 +177,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           options: options.map(o => ({ label: o.label.trim() })),
           category,
           betting_closes_at: closesAtUtc,
-          creation_fee_token: feeToken,
-          creation_tx: txResult.signature,
           bet_token: betToken,
         }),
       });
@@ -223,7 +200,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     }
   }
 
-  const feeLabel = feeToken === "usdc" ? "5 USDC" : "500,000 ClawdTrust";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
@@ -368,37 +344,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             </p>
           </div>
 
-          {/* Creation fee token */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Creation fee
-            </label>
-            <div className="flex gap-2">
-              {(["usdc", "clawdtrust"] as const).map(token => (
-                <button
-                  key={token}
-                  type="button"
-                  onClick={() => setFeeToken(token)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2 text-sm font-semibold transition-colors ${
-                    feeToken === token
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/40"
-                  }`}
-                >
-                  <TokenLogo token={token} className="size-4" />
-                  {token === "usdc" ? "5 USDC" : "500K ClawdTrust"}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Step feedback */}
-          {step === "signing" && (
-            <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-sm text-amber-500">
-              <Loader2 className="size-4 animate-spin" />
-              Waiting for wallet signature…
-            </div>
-          )}
           {step === "sending" && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 px-3 py-2.5 text-sm text-blue-500">
               <Loader2 className="size-4 animate-spin" />
@@ -422,10 +368,9 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             disabled={submitting || step === "done"}
             className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {step === "signing" ? "Waiting for signature…"
-              : step === "sending" ? "Submitting…"
-              : step === "done"    ? "Pool submitted!"
-              : step === "error"   ? "Try again"
+            {step === "sending" ? "Submitting…"
+              : step === "done"  ? "Pool submitted!"
+              : step === "error" ? "Try again"
               : "Submit Pool"}
           </button>
         </form>

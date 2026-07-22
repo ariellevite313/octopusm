@@ -50,21 +50,21 @@ const T = {
     avatarUpdated: "Avatar updated",
   },
   fr: {
-    myWallet: "Mon portefeuille",
-    editProfile: "Modifier le profil",
-    username: "Nom d'utilisateur",
-    displayName: "Nom d'affichage",
-    twitterHandle: "Compte Twitter / X",
-    cancel: "Annuler",
-    save: "Enregistrer",
-    saving: "Enregistrement…",
-    overview: "Aperçu",
-    octoBalance: "Solde OCTO",
+    myWallet: "My wallet",
+    editProfile: "Edit profile",
+    username: "Username",
+    displayName: "Display name",
+    twitterHandle: "Twitter / X handle",
+    cancel: "Cancel",
+    save: "Save",
+    saving: "Saving…",
+    overview: "Overview",
+    octoBalance: "OCTO balance",
     twitter: "Twitter / X",
-    adminPanel: "Panneau admin",
-    disconnect: "Déconnexion",
-    profileUpdated: "Profil mis à jour",
-    avatarUpdated: "Avatar mis à jour",
+    adminPanel: "Admin Panel",
+    disconnect: "Disconnect",
+    profileUpdated: "Profile updated",
+    avatarUpdated: "Avatar updated",
   },
 } as const;
 
@@ -357,17 +357,6 @@ function ProfileDrawer({
                       ? <Moon className="size-4 text-muted-foreground" />
                       : <Sun className="size-4 text-muted-foreground" />}
                     <span>{isDark ? "Dark mode" : "Light mode"}</span>
-                  </button>
-                  <div className="h-px bg-border" />
-                  <button
-                    type="button"
-                    onClick={() => { toggleLang(); setShowSettings(false); }}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
-                  >
-                    <span className="flex size-4 items-center justify-center text-xs font-bold text-muted-foreground">
-                      {lang === "en" ? "FR" : "EN"}
-                    </span>
-                    <span>{lang === "en" ? "Français" : "English"}</span>
                   </button>
                 </div>
               )}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { awardOcto, OCTO_PER_CREATION } from "@/lib/octo";
 
 export const revalidate = 0;
 
@@ -8,7 +9,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("mutuel_markets")
     .select("id, slug, title, description, cover_image_src, options, category, status, bet_token, creation_fee_token, creation_fee_amount, creator_wallet, betting_closes_at, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
-    .in("status", ["active", "closed", "resolved"])
+    .in("status", ["pending", "active", "closed"])
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const { title, description, cover_image_src, options, category, creation_fee_token, creation_tx, betting_closes_at, bet_token } = body;
+  const { title, description, cover_image_src, options, category, bet_token, betting_closes_at } = body;
 
   if (!title || typeof title !== "string" || title.trim().length < 5)
     return NextResponse.json({ error: "Title must be at least 5 characters" }, { status: 400 });
@@ -47,25 +48,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Betting close date must be at least 1 hour from now" }, { status: 400 });
 
   const allowedTokens = ["usdc", "clawdtrust"];
-  if (!allowedTokens.includes(creation_fee_token))
-    return NextResponse.json({ error: "Invalid creation fee token" }, { status: 400 });
   if (!allowedTokens.includes(bet_token))
     return NextResponse.json({ error: "Invalid bet token" }, { status: 400 });
 
-  const fee_amount = creation_fee_token === "usdc" ? 5 : 500_000;
-
-  // ── Validation basique de la signature (format, anti-replay) ────────────
-  if (!creation_tx || typeof creation_tx !== "string" || creation_tx.trim().length < 10)
-    return NextResponse.json({ error: "Transaction signature is required" }, { status: 400 });
-
-  // ── Anti-replay : une tx ne peut créer qu'un seul marché ────────────────
+  // Création gratuite — pas de frais ni de transaction on-chain requise
   const admin = createAdminClient() as any;
-  const { data: txUsed } = await admin
-    .from("mutuel_markets")
-    .select("id")
-    .eq("creation_tx", creation_tx.trim())
-    .maybeSingle();
-  if (txUsed) return NextResponse.json({ error: "This transaction has already been used to create a pool" }, { status: 409 });
 
   const baseSlug = title.trim()
     .toLowerCase()
@@ -95,9 +82,9 @@ export async function POST(req: Request) {
       cover_image_src: cover_image_src ? String(cover_image_src).slice(0, 500) : null,
       options: safeOptions,
       category: category ? String(category).slice(0, 50) : "general",
-      creation_fee_token,
-      creation_fee_amount: fee_amount,
-      creation_tx: creation_tx ? String(creation_tx).slice(0, 120) : null,
+      creation_fee_token: bet_token,
+      creation_fee_amount: 0,
+      creation_tx: null,
       bet_token,
       betting_closes_at,
       status: "pending",
@@ -106,5 +93,9 @@ export async function POST(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Award OCTO for creating a pool (fire and forget)
+  awardOcto(wallet, OCTO_PER_CREATION, "task", "Pool created").catch(() => {});
+
   return NextResponse.json(inserted, { status: 201 });
 }

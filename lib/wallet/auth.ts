@@ -31,24 +31,26 @@ export async function connectWalletAndAuth(
 ): Promise<WalletAuthResult> {
   const supabase = createClient();
 
-  // Capture the referral code from the URL query string (e.g. ?ref=<code>)
+  // Capture the referral code — sessionStorage first (survives navigation), fallback to URL param
   const refCode =
     typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("ref") ?? undefined
+      ? (sessionStorage.getItem("referral_code") ??
+         new URLSearchParams(window.location.search).get("ref") ??
+         undefined)
       : undefined;
 
   try {
     const provider = getProviderByType(walletType);
     if (!provider) {
-      throw new Error(`Wallet ${walletType} non detecte. Installe l'extension.`);
+      throw new Error(`Wallet ${walletType} not detected. Please install the extension.`);
     }
     if (!provider.signMessage) {
-      throw new Error(`Le wallet ${walletType} ne supporte pas la signature.`);
+      throw new Error(`Wallet ${walletType} does not support message signing.`);
     }
 
     await provider.connect();
     const address = provider.publicKey?.toString();
-    if (!address) throw new Error("Impossible d'obtenir la cle publique.");
+    if (!address) throw new Error("Could not retrieve public key from wallet.");
 
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session) {
@@ -73,6 +75,9 @@ export async function connectWalletAndAuth(
       },
     });
 
+    // Clear the stored ref code after use so it doesn't apply to future logins
+    if (typeof window !== "undefined") sessionStorage.removeItem("referral_code");
+
     if (error) {
       let errorMsg = error.message;
       if ("context" in error && error.context instanceof Response) {
@@ -84,7 +89,7 @@ export async function connectWalletAndAuth(
       throw new Error(`Edge Function : ${errorMsg}`);
     }
     if (!data?.access_token || !data?.refresh_token) {
-      throw new Error("La Edge Function n'a pas renvoye de token.");
+      throw new Error("Authentication failed: no token returned from Edge Function.");
     }
 
     const { error: sessionError } = await supabase.auth.setSession({

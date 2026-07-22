@@ -336,13 +336,13 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
   const recentPrices = points.slice(-MAX_POINTS).map(p => p.price);
   const MIN_SPREAD: Record<string, number> = { BTCUSDT: 2, ETHUSDT: 0.5, SOLUSDT: 0.05 };
   const minSpread = MIN_SPREAD[ticker] ?? 2;
-  const basePrice = recentPrices.length > 0 ? recentPrices[recentPrices.length - 1] : strikePrice;
-  const minP  = recentPrices.length > 0 ? Math.min(...recentPrices) : basePrice - minSpread;
-  const maxP  = recentPrices.length > 0 ? Math.max(...recentPrices) : basePrice + minSpread;
+  // Always include strikePrice so the reference line stays visible in the domain
+  const allValues = recentPrices.length > 0 ? [...recentPrices, strikePrice] : [strikePrice];
+  const minP  = Math.min(...allValues);
+  const maxP  = Math.max(...allValues);
   const spread = maxP - minP;
   const effectiveSpread = Math.max(spread, minSpread);
-  const pad = effectiveSpread * 0.2;
-  // Arrondir aux limites propres (entiers) pour des ticks lisibles
+  const pad = effectiveSpread * 0.15;
   const yMin = Math.floor(minP - pad);
   const yMax = Math.ceil(maxP + pad);
   const yDomain: [number, number] = [yMin, yMax];
@@ -403,7 +403,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       </div>
       {/* S-05: informer que la résolution utilise le close klines 1min, pas le prix live */}
       <p className="mx-4 mb-3 text-[10px] text-muted-foreground">
-        📌 Le prix live (graphique) est indicatif. La résolution utilise le <strong>close Binance 1min</strong> à l&apos;heure de fin du round.
+        📌 The live price (chart) is indicative. Resolution uses the <strong>Binance 1min close</strong> at the end of the round.
       </p>
 
       <div className="px-2 pb-4">
@@ -430,15 +430,17 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                 domain={yDomain}
                 orientation="right"
                 tickFormatter={(v: number) => {
-                  // Entiers propres pour BTC/ETH, une décimale pour SOL
-                  if (v >= 1_000) return `$${Math.round(v).toLocaleString("en-US")}`;
-                  return `$${v.toFixed(1)}`;
+                  if (v >= 10_000) return `$${Math.round(v).toLocaleString("en-US")}`;
+                  if (v >= 1_000) return `$${v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`;
+                  if (v >= 100)   return `$${v.toFixed(2)}`;
+                  if (v >= 10)    return `$${v.toFixed(3)}`;
+                  return `$${v.toFixed(4)}`;
                 }}
                 tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
-                width={62}
-                tickCount={6}
+                width={68}
+                tickCount={10}
               />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine y={strikePrice} stroke="#60a5fa" strokeDasharray="5 3" strokeWidth={1.5}
@@ -496,7 +498,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     ? market.resolve_at
       ?? new Date(
            new Date(market.opens_at).getTime() +
-           (market.duration_min * 2) * 60_000
+           market.duration_min * 60_000
          ).toISOString()
     : null;
 
@@ -677,7 +679,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         toast.error(err.error ?? "Server error");
         return;
       }
-      toast.success(`${dir.toUpperCase()} bet placed!`);
+      toast.success(`${dir.toUpperCase()} predict placed!`);
       void fetchMyBets();
       void fetchMarket();
     } catch (e: any) {
@@ -766,7 +768,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                   "bg-muted/40 text-muted-foreground border-border"
                 }`}>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide opacity-60 mb-0.5">My bet</p>
+                    <p className="text-[10px] uppercase tracking-wide opacity-60 mb-0.5">My predict</p>
                     <p className="font-bold">${bet.amount} USDC · {bet.direction === "up" ? "↑ UP" : "↓ DOWN"}</p>
                     {bet.status === "won" && bet.payout != null && (
                       <p className="text-xs mt-0.5 font-semibold">Win: ${Number(bet.payout).toFixed(2)} USDC</p>
@@ -812,7 +814,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <div>
                 <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>
                 {isBettingOpen
-                  ? <p className="text-[10px] text-orange-500 font-semibold">Betting open</p>
+                  ? <p className="text-[10px] text-orange-500 font-semibold">Predictions open</p>
                   : isOpen
                     ? <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live</p>
                     : <p className="text-[10px] text-muted-foreground">{market.status}</p>
@@ -823,7 +825,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             {isBettingOpen ? (
               <div className="p-4 space-y-4">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Quick bet</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Quick predict</p>
                   <div className="grid grid-cols-2 gap-2">
                     {QUICK_AMOUNTS.map(q => (
                       <button key={q} type="button" onClick={() => setAmount(q)}
@@ -845,32 +847,63 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                   />
                   <span className="text-xs text-muted-foreground">USDC</span>
                 </div>
+                {/* Pool distribution bar */}
+                {totalPool > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-semibold">
+                      <span className="text-emerald-500">↑ UP {upPct}%</span>
+                      <span className="text-red-500">{downPct}% DOWN ↓</span>
+                    </div>
+                    <div className="flex h-1.5 overflow-hidden rounded-full">
+                      <div className="bg-emerald-500 transition-all" style={{ width: `${upPct}%` }} />
+                      <div className="bg-red-500 transition-all" style={{ width: `${downPct}%` }} />
+                    </div>
+                    <p className="text-center text-[10px] text-muted-foreground">Pool: ${totalPool.toFixed(2)} USDC</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <button onClick={() => handleBet("up")} disabled={submitting}
-                    className={`rounded-2xl py-4 font-bold transition-all active:scale-95 disabled:opacity-60 ${
+                    className={`rounded-2xl py-3 font-bold transition-all active:scale-95 disabled:opacity-60 flex flex-col items-center gap-0.5 ${
                       submitting && activeDir === "up" ? "bg-emerald-600 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-white"
                     }`}>
-                    {submitting && activeDir === "up" ? "..." : "UP"}
+                    <span>{submitting && activeDir === "up" ? "..." : "UP"}</span>
+                    <span className="text-[10px] font-normal opacity-80">~${estPayout("up").toFixed(2)}</span>
                   </button>
                   <button onClick={() => handleBet("down")} disabled={submitting}
-                    className={`rounded-2xl py-4 font-bold transition-all active:scale-95 disabled:opacity-60 ${
+                    className={`rounded-2xl py-3 font-bold transition-all active:scale-95 disabled:opacity-60 flex flex-col items-center gap-0.5 ${
                       submitting && activeDir === "down" ? "bg-red-600 text-white" : "bg-red-500 hover:bg-red-400 text-white"
                     }`}>
-                    {submitting && activeDir === "down" ? "..." : "DOWN"}
+                    <span>{submitting && activeDir === "down" ? "..." : "DOWN"}</span>
+                    <span className="text-[10px] font-normal opacity-80">~${estPayout("down").toFixed(2)}</span>
                   </button>
                 </div>
                 <p className="text-center text-[10px] text-muted-foreground">Min $2 · USDC · Multiple bets allowed</p>
               </div>
             ) : isOpen ? (
-              <div className="p-6 text-center space-y-1">
-                <p className="text-2xl">🔒</p>
-                <p className="text-sm font-semibold text-foreground">Bets are closed</p>
-                {liveCountdown ? (
-                  <p className="text-xs font-semibold tabular-nums text-emerald-500">
-                    Resolution in {liveCountdown}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Waiting for resolution…</p>
+              <div className="p-4 space-y-3">
+                <div className="text-center space-y-1">
+                  <p className="text-2xl">🔒</p>
+                  <p className="text-sm font-semibold text-foreground">Predictions closed</p>
+                  {liveCountdown ? (
+                    <p className="text-xs font-semibold tabular-nums text-emerald-500">
+                      Resolution in {liveCountdown}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Waiting for resolution…</p>
+                  )}
+                </div>
+                {totalPool > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-semibold">
+                      <span className="text-emerald-500">↑ UP {upPct}%</span>
+                      <span className="text-red-500">{downPct}% DOWN ↓</span>
+                    </div>
+                    <div className="flex h-1.5 overflow-hidden rounded-full">
+                      <div className="bg-emerald-500 transition-all" style={{ width: `${upPct}%` }} />
+                      <div className="bg-red-500 transition-all" style={{ width: `${downPct}%` }} />
+                    </div>
+                    <p className="text-center text-[10px] text-muted-foreground">Pool: ${totalPool.toFixed(2)} USDC</p>
+                  </div>
                 )}
               </div>
             ) : (

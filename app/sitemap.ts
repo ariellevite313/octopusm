@@ -4,12 +4,13 @@ import { createAdminClient } from "@/lib/supabase/server";
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://octomarket.app";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
   const admin = createAdminClient() as any;
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl,                        lastModified: new Date(), changeFrequency: "hourly",  priority: 1.0 },
     { url: `${siteUrl}/pools`,             lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
+    { url: `${siteUrl}/crypto`,            lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
     { url: `${siteUrl}/archive`,           lastModified: new Date(), changeFrequency: "daily",   priority: 0.6 },
     { url: `${siteUrl}/leaderboard`,       lastModified: new Date(), changeFrequency: "hourly",  priority: 0.7 },
     { url: `${siteUrl}/launch`,            lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },

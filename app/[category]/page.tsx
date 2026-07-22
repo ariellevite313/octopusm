@@ -17,9 +17,24 @@ type Props = { params: Promise<{ category: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category } = await params;
   const cap = category.charAt(0).toUpperCase() + category.slice(1);
+  const description = `Prediction markets in the ${cap} category on OMdotfun.`;
   return {
     title: `${cap} Markets | OMdotfun`,
-    description: `Prediction markets in the ${cap} category.`,
+    description,
+    alternates: { canonical: `https://omdot.fun/${category}` },
+    openGraph: {
+      title: `${cap} Prediction Markets | OMdotfun`,
+      description,
+      url: `https://omdot.fun/${category}`,
+      type: "website",
+      images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: `${cap} Markets` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${cap} Prediction Markets | OMdotfun`,
+      description,
+      images: ["/branding-logo.jpeg"],
+    },
   };
 }
 
