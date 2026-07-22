@@ -23,10 +23,12 @@ export function ReferralSection({
   referralCode,
   referralCount,
   referrals,
+  octoEarned,
 }: {
   referralCode: string | null;
   referralCount: number;
   referrals: ReferralRow[];
+  octoEarned: number;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -80,7 +82,7 @@ export function ReferralSection({
             </p>
           </div>
           <div className="px-3 py-3 text-center">
-            <p className="text-lg font-bold text-orange-500">{referralCount * 10}</p>
+            <p className="text-lg font-bold text-orange-500">{octoEarned.toLocaleString("en-US")}</p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               OCTO earned
             </p>

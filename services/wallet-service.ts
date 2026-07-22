@@ -76,60 +76,22 @@ export async function getOctoBalance(walletAddress: string): Promise<number> {
 }
 
 /**
- * Totaux de la plateforme :
- *  - USDC : gains des paris gagnés (net_reward) + commissions de parrainage
- *  - CLT  : gains des paris gagnés (net_reward) + commissions de parrainage (raw units)
- *  - OCTO : somme des octo_transactions
+ * Totaux de la plateforme — délégués à /api/balance (REF-D fix).
+ * L'endpoint server-side utilise adminDb pour bypasser RLS sur toutes les tables
+ * et inclut tous les types de marchés (prediction, updown, mutuel).
+ * Le paramètre walletAddress est ignoré : l'endpoint lit la session côté serveur.
  */
-export async function getPlatformBalances(walletAddress: string): Promise<PlatformBalances> {
-  const supabase = createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
-
-  const [betsRes, commissionsRes, octoRes] = await Promise.all([
-    // Gains des paris (won / claimed / paid)
-    db
-      .from("prediction_history")
-      .select("token, net_reward, result_status")
-      .eq("wallet_address", walletAddress)
-      .in("result_status", ["win", "claimed", "paid"]),
-
-    // Commissions de parrainage
-    db
-      .from("referral_commissions")
-      .select("amount_usdc, amount_clt")
-      .eq("referrer_wallet", walletAddress),
-
-    // Points OCTO
-    db
-      .from("octo_transactions")
-      .select("amount")
-      .eq("wallet_address", walletAddress),
-  ]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bets: any[] = betsRes.data ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commissions: any[] = commissionsRes.data ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const octoTxns: any[] = octoRes.data ?? [];
-
-  const betsUsdc = bets
-    .filter((b) => b.token === "usdc")
-    .reduce((s: number, b: any) => s + (b.net_reward ?? 0), 0);
-
-  const betsClt = bets
-    .filter((b) => b.token === "clt" || b.token === "clawdtrust")
-    .reduce((s: number, b: any) => s + (b.net_reward ?? 0), 0);
-
-  const commUsdc = commissions.reduce((s: number, r: any) => s + (r.amount_usdc ?? 0), 0);
-  const commClt  = commissions.reduce((s: number, r: any) => s + (r.amount_clt ?? 0), 0);
-
-  const octo = octoTxns.reduce((s: number, r: any) => s + (r.amount ?? 0), 0);
-
-  return {
-    usdc: betsUsdc + commUsdc,
-    clt:  betsClt  + commClt,
-    octo,
-  };
+export async function getPlatformBalances(_walletAddress: string): Promise<PlatformBalances> {
+  try {
+    const res = await fetch("/api/balance");
+    if (!res.ok) return { usdc: 0, clt: 0, octo: 0 };
+    const { usdcBalance, cltBalance, octoBalance } = await res.json() as {
+      usdcBalance: number;
+      cltBalance: number;
+      octoBalance: number;
+    };
+    return { usdc: usdcBalance, clt: cltBalance, octo: octoBalance ?? 0 };
+  } catch {
+    return { usdc: 0, clt: 0, octo: 0 };
+  }
 }

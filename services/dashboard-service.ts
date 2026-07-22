@@ -115,14 +115,16 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .order("created_at", { ascending: false })
       .limit(100),
 
-    db
+    // adminDb bypasses RLS — safer than relying on JWT user_metadata for wallet match
+    adminDb
       .from("referral_commissions")
       .select("id, amount_usdc, amount_clt, referred_wallet, created_at")
       .eq("referrer_wallet", walletAddress)
       .order("created_at", { ascending: false })
       .limit(50),
 
-    db
+    // adminDb bypasses RLS — octo_transactions is written by service key, no user-facing RLS policy
+    adminDb
       .from("octo_transactions")
       .select("id, type, amount, label, created_at")
       .eq("wallet_address", walletAddress)
@@ -314,27 +316,27 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...updownWins
-      .filter((b: any) => isUsdc(b.token ?? "usdc"))
+      .filter((b: any) => isUsdc(b.token ?? "usdc") && isUpdownWin(b))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((b: any) => ({
         id: b.id as string,
         type: "win" as const,
         label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
         sub: "Won",
-        amount: b.payout as number ?? 0,
+        amount: (b.payout as number) ?? 0,
         direction: "in" as const,
         created_at: b.created_at as string,
       })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...mutuelWins
-      .filter((b: any) => isUsdc(b.token ?? "usdc"))
+      .filter((b: any) => isUsdc(b.token ?? "usdc") && isMutuelWin(b))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((b: any) => ({
         id: b.id as string,
         type: "win" as const,
         label: (b.mutuel_markets as any)?.title ?? "Pool win",
         sub: "Pool payout",
-        amount: b.payout_amount as number ?? 0,
+        amount: (b.payout_amount as number) ?? 0,
         direction: "in" as const,
         created_at: b.created_at as string,
       })),
@@ -391,27 +393,27 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...updownWins
-      .filter((b: any) => isClt(b.token ?? ""))
+      .filter((b: any) => isClt(b.token ?? "") && isUpdownWin(b))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((b: any) => ({
         id: b.id as string,
         type: "win" as const,
         label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
         sub: "Won",
-        amount: b.payout as number ?? 0,
+        amount: (b.payout as number) ?? 0,
         direction: "in" as const,
         created_at: b.created_at as string,
       })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...mutuelWins
-      .filter((b: any) => isClt(b.token ?? ""))
+      .filter((b: any) => isClt(b.token ?? "") && isMutuelWin(b))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((b: any) => ({
         id: b.id as string,
         type: "win" as const,
         label: (b.mutuel_markets as any)?.title ?? "Pool win",
         sub: "Pool payout",
-        amount: b.payout_amount as number ?? 0,
+        amount: (b.payout_amount as number) ?? 0,
         direction: "in" as const,
         created_at: b.created_at as string,
       })),
