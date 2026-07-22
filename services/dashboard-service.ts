@@ -98,7 +98,6 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     betsRes,
     commissionsRes,
     octoRes,
-    leaderboardOctoRes,
     refCodeRes,
     referralsRes,
     tasksRes,
@@ -130,12 +129,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .order("created_at", { ascending: false })
       .limit(100),
 
-    // Leaderboard row — used as the canonical OCTO balance source
-    db
-      .from("leaderboard_octo")
-      .select("total_octo")
-      .eq("wallet_address", walletAddress)
-      .maybeSingle(),
+    // leaderboard_octo removed — octoBalance now computed from octo_transactions (task #42)
 
     db
       .from("referral_codes")
@@ -160,23 +154,21 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .select("task_id, completed_at")
       .eq("wallet_address", walletAddress),
 
-    // Up/Down bets won (payout = net gain)
+    // ALL Up/Down bets — needed for volume, wins, and losses across all statuses
     db
       .from("updown_bets")
-      .select("id, direction, amount, payout, token, created_at, updown_markets(symbol)")
+      .select("id, direction, amount, payout, token, status, created_at, updown_markets(symbol)")
       .eq("wallet_address", walletAddress)
-      .in("status", ["won", "claimed", "paid"])
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(200),
 
-    // Mutuel pool bets with a payout (won or refunded)
+    // ALL mutuel pool bets — needed for volume, wins, losses, and balance
     db
       .from("mutuel_bets")
-      .select("id, amount, token, payout_amount, paid_at, created_at, mutuel_markets(title)")
+      .select("id, amount, token, option_id, payout_amount, status, paid_at, created_at, mutuel_markets(title, winning_option_id, status, is_refund)")
       .eq("wallet_address", walletAddress)
-      .not("payout_amount", "is", null)
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(200),
 
     // All withdrawal requests — used for balance deduction AND activity feed
     adminDb
@@ -198,6 +190,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const rawTasks: any[]         = tasksRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const completions: any[]      = completionsRes.data ?? [];
+  // All updown/mutuel bets (not filtered) — used for stats, balance, and activity
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updownWins: any[]       = updownBetsRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -219,57 +212,81 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     })
   );
 
-  // ── USDC stats & balance ──────────────────────────────────────────────────
-  const usdcBets = bets.filter((b) => isUsdc(b.token));
-  const usdcStats: TokenStats = {
-    volume: usdcBets.reduce((s, b) => s + (b.amount ?? 0), 0),
-    gains:  usdcBets.filter((b) => isWin(b.result_status)).reduce((s, b) => s + (b.net_reward ?? 0), 0),
-    losses: usdcBets.filter((b) => isLoss(b.result_status)).reduce((s, b) => s + (b.amount ?? 0), 0),
+  // ── Per-market-type breakdowns ────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isUpdownWin = (b: any) => ["won", "claimed", "paid"].includes(b.status as string);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isMutuelWin = (b: any) => (b.payout_amount ?? 0) > 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isMutuelLoss = (b: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mkt = b.mutuel_markets as any;
+    return mkt?.status === "resolved" && !mkt?.is_refund && b.option_id !== mkt?.winning_option_id;
   };
+
+  // USDC sub-totals
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commUsdc = commissions.reduce((s: number, r: any) => s + (r.amount_usdc ?? 0), 0);
-  // Up/Down wins in USDC (payout = net gain already net of fees)
+  const updownUsdc      = updownWins.filter((b: any) => isUsdc(b.token ?? "usdc"));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updownUsdcGains = updownWins
-    .filter((b: any) => isUsdc(b.token ?? "usdc"))
-    .reduce((s: number, b: any) => s + (b.payout ?? 0), 0);
-  // Mutuel pool wins in USDC
+  const mutuelUsdc      = mutuelWins.filter((b: any) => isUsdc(b.token ?? "usdc"));
+  const updownUsdcGains = updownUsdc.filter(isUpdownWin).reduce((s: number, b: any) => s + (b.payout ?? 0), 0);
+  const mutuelUsdcGains = mutuelUsdc.filter(isMutuelWin).reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mutuelUsdcGains = mutuelWins
-    .filter((b: any) => isUsdc(b.token ?? "usdc"))
-    .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
-  // Deduct all non-rejected withdrawals in USDC (pending + approved + paid)
+  const commUsdc        = commissions.reduce((s: number, r: any) => s + (r.amount_usdc ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const usdcWithdrawn = paidWithdrawals
+  const usdcWithdrawn   = paidWithdrawals
     .filter((w: any) => w.token === "usdc" && w.status !== "rejected")
     .reduce((s: number, w: any) => s + (w.amount ?? 0), 0);
-  const usdcBalance = Math.max(0, usdcStats.gains + commUsdc + updownUsdcGains + mutuelUsdcGains - usdcWithdrawn);
 
-  // ── CLT stats & balance ───────────────────────────────────────────────────
-  const cltBets = bets.filter((b) => isClt(b.token));
-  const cltStats: TokenStats = {
-    volume: cltBets.reduce((s, b) => s + (b.amount ?? 0), 0),
-    gains:  cltBets.filter((b) => isWin(b.result_status)).reduce((s, b) => s + (b.net_reward ?? 0), 0),
-    losses: cltBets.filter((b) => isLoss(b.result_status)).reduce((s, b) => s + (b.amount ?? 0), 0),
-  };
+  // CLT sub-totals
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commClt = commissions.reduce((s: number, r: any) => s + (r.amount_clt ?? 0), 0);
-  // Up/Down wins in CLT
+  const updownClt      = updownWins.filter((b: any) => isClt(b.token ?? ""));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updownCltGains = updownWins
-    .filter((b: any) => isClt(b.token ?? ""))
-    .reduce((s: number, b: any) => s + (b.payout ?? 0), 0);
-  // Mutuel pool wins in CLT
+  const mutuelClt      = mutuelWins.filter((b: any) => isClt(b.token ?? ""));
+  const updownCltGains = updownClt.filter(isUpdownWin).reduce((s: number, b: any) => s + (b.payout ?? 0), 0);
+  const mutuelCltGains = mutuelClt.filter(isMutuelWin).reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mutuelCltGains = mutuelWins
-    .filter((b: any) => isClt(b.token ?? ""))
-    .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
-  // Deduct all non-rejected withdrawals in CLT (pending + approved + paid)
+  const commClt        = commissions.reduce((s: number, r: any) => s + (r.amount_clt ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cltWithdrawn = paidWithdrawals
+  const cltWithdrawn   = paidWithdrawals
     .filter((w: any) => w.token === "clawdtrust" && w.status !== "rejected")
     .reduce((s: number, w: any) => s + (w.amount ?? 0), 0);
-  const cltBalance = Math.max(0, cltStats.gains + commClt + updownCltGains + mutuelCltGains - cltWithdrawn);
+
+  // ── USDC stats (prediction + updown + mutuel) ─────────────────────────────
+  const usdcBets = bets.filter((b) => isUsdc(b.token));
+  const usdcStats: TokenStats = {
+    volume:
+      usdcBets.reduce((s, b) => s + (b.amount ?? 0), 0) +
+      updownUsdc.reduce((s: number, b: any) => s + (b.amount ?? 0), 0) +
+      mutuelUsdc.reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
+    gains:
+      usdcBets.filter((b) => isWin(b.result_status)).reduce((s, b) => s + (b.net_reward ?? 0), 0) +
+      updownUsdcGains +
+      mutuelUsdcGains,
+    losses:
+      usdcBets.filter((b) => isLoss(b.result_status)).reduce((s, b) => s + (b.amount ?? 0), 0) +
+      updownUsdc.filter((b: any) => b.status === "lost").reduce((s: number, b: any) => s + (b.amount ?? 0), 0) +
+      mutuelUsdc.filter(isMutuelLoss).reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
+  };
+  const usdcBalance = Math.max(0, usdcStats.gains + commUsdc - usdcWithdrawn);
+
+  // ── CLT stats (prediction + updown + mutuel) ──────────────────────────────
+  const cltBets = bets.filter((b) => isClt(b.token));
+  const cltStats: TokenStats = {
+    volume:
+      cltBets.reduce((s, b) => s + (b.amount ?? 0), 0) +
+      updownClt.reduce((s: number, b: any) => s + (b.amount ?? 0), 0) +
+      mutuelClt.reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
+    gains:
+      cltBets.filter((b) => isWin(b.result_status)).reduce((s, b) => s + (b.net_reward ?? 0), 0) +
+      updownCltGains +
+      mutuelCltGains,
+    losses:
+      cltBets.filter((b) => isLoss(b.result_status)).reduce((s, b) => s + (b.amount ?? 0), 0) +
+      updownClt.filter((b: any) => b.status === "lost").reduce((s: number, b: any) => s + (b.amount ?? 0), 0) +
+      mutuelClt.filter(isMutuelLoss).reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
+  };
+  const cltBalance = Math.max(0, cltStats.gains + commClt - cltWithdrawn);
 
   // ── OCTO stats & balance ──────────────────────────────────────────────────
   const octoStats: OctoStats = {
@@ -277,11 +294,10 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     bet:      octoTxns.filter((t) => t.type === "bet").reduce((s: number, t: any) => s + (t.amount ?? 0), 0),
     task:     octoTxns.filter((t) => t.type === "task").reduce((s: number, t: any) => s + (t.amount ?? 0), 0),
   };
-  // Use leaderboard_octo as canonical balance (includes all sources).
-  // Fall back to octo_transactions sum if the user has no leaderboard row yet.
-  const leaderboardOcto = Number((leaderboardOctoRes as any).data?.total_octo ?? 0);
-  const txnOcto = octoTxns.reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
-  const octoBalance = leaderboardOcto > 0 ? leaderboardOcto : txnOcto;
+  // task #42: compute octoBalance directly from octo_transactions (source of truth).
+  // This eliminates the leaderboard_octo sync issue where a failed upsert would cause
+  // the displayed balance to lag behind actual earned OCTO.
+  const octoBalance = octoTxns.reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
   // ── USDC activity (prediction wins + updown wins + mutuel wins + commissions) ─
   const usdcActivity: TokenActivity[] = [
