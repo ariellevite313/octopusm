@@ -38,7 +38,7 @@ export async function GET() {
 
   const admin = createAdminClient() as any;
 
-  const [betsRes, commissionsRes, updownBetsRes, mutuelBetsRes, withdrawalsRes] = await Promise.all([
+  const [betsRes, commissionsRes, updownBetsRes, mutuelBetsRes, withdrawalsRes, pendingPaymentsRes] = await Promise.all([
     // Regular prediction wins
     admin
       .from("prediction_history_with_status")
@@ -79,18 +79,29 @@ export async function GET() {
       .select("id, token, amount, status, created_at")
       .eq("wallet_address", wallet)
       .order("created_at", { ascending: false }),
+
+    // Pending prediction + pool payments — visible before admin approves
+    admin
+      .from("payments")
+      .select("id, title, amount_usdc, token, status, flow, created_at")
+      .eq("user_wallet", wallet)
+      .in("flow", ["prediction", "pool_prediction"])
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bets: any[]        = betsRes.data        ?? [];
+  const bets: any[]            = betsRes.data            ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commissions: any[] = commissionsRes.data  ?? [];
+  const commissions: any[]     = commissionsRes.data      ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updownWins: any[]  = updownBetsRes.data   ?? [];
+  const updownWins: any[]      = updownBetsRes.data       ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mutuelWins: any[]  = mutuelBetsRes.data   ?? [];
+  const mutuelWins: any[]      = mutuelBetsRes.data       ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const withdrawals: any[] = withdrawalsRes.data  ?? [];
+  const withdrawals: any[]     = withdrawalsRes.data      ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingPayments: any[] = pendingPaymentsRes.data  ?? [];
 
   const usdcBets = bets.filter((b) => isUsdc(b.token));
   const cltBets  = bets.filter((b) => isClt(b.token));
@@ -139,6 +150,20 @@ export async function GET() {
       amount: w.amount as number, direction: "out" as const,
       created_at: w.created_at as string,
     })),
+    // Pending USDC predictions + pool bets (visible before admin approval)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...pendingPayments.filter((p: any) => isUsdc(p.token ?? "usdc")).map((p: any) => {
+      const isPool = p.flow === "pool_prediction";
+      return {
+        id: p.id as string, type: "prediction" as const,
+        label: (p.title as string) ?? (isPool ? "Pool bet placed" : "Prediction placed"),
+        sub: p.status === "rejected" ? "Rejected" :
+             p.status === "approved" ? (isPool ? "Pool bet confirmed" : "Prediction confirmed · Awaiting result") :
+             (isPool ? "Pool bet placed · Pending review" : "Prediction placed · Pending review"),
+        amount: (p.amount_usdc as number) ?? 0, direction: "in" as const,
+        created_at: p.created_at as string,
+      };
+    }),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const cltActivity = [
@@ -185,6 +210,20 @@ export async function GET() {
       amount: w.amount as number, direction: "out" as const,
       created_at: w.created_at as string,
     })),
+    // Pending CLT predictions + pool bets (visible before admin approval)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...pendingPayments.filter((p: any) => isClt(p.token ?? "")).map((p: any) => {
+      const isPool = p.flow === "pool_prediction";
+      return {
+        id: p.id as string, type: "prediction" as const,
+        label: (p.title as string) ?? (isPool ? "Pool bet placed" : "Prediction placed"),
+        sub: p.status === "rejected" ? "Rejected" :
+             p.status === "approved" ? (isPool ? "Pool bet confirmed" : "Prediction confirmed · Awaiting result") :
+             (isPool ? "Pool bet placed · Pending review" : "Prediction placed · Pending review"),
+        amount: (p.amount_usdc as number) ?? 0, direction: "in" as const,
+        created_at: p.created_at as string,
+      };
+    }),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return NextResponse.json({ usdcActivity, cltActivity });

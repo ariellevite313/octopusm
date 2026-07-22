@@ -145,6 +145,17 @@ export async function POST(req: Request) {
       .eq("market_id", marketId)
       .not("admin_decision_status", "eq", "rejected");
     if (histErr) console.error("[resolve] prediction_history update:", histErr.message);
+
+    // 3. M5 fix: auto-reject any payments still "pending" for this market.
+    //    They were never approved before resolution — they cannot produce a valid payout.
+    const { error: pendingErr } = await admin
+      .from("payments")
+      .update({ status: "rejected", reviewed_at: now, reviewed_by_wallet: "system:auto-resolve" })
+      .eq("market_id", marketId)
+      .eq("flow", "prediction")
+      .eq("status", "pending");
+    if (pendingErr) console.error("[resolve] auto-reject pending payments:", pendingErr.message);
+
     revalidatePath("/");
     revalidatePath("/archive");
     return NextResponse.json({ ok: true });

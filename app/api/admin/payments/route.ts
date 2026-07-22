@@ -89,8 +89,10 @@ export async function POST(req: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const options: any[] = market?.options ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const option = options.find((o: any) => o.id === payment.selection_id);
-    const multiplier = option?.multiplier ?? 2;
+    // Options are stored with "oddsMultiplier" (not "multiplier") — see admin/markets create action
+    const multiplier = option?.oddsMultiplier ?? option?.multiplier ?? 2;
 
     const { reserveFee, totalCharged, grossReward, netReward } = computeReward(amount, multiplier);
 
@@ -102,37 +104,29 @@ export async function POST(req: Request) {
 
     if (!alreadyExists.data) {
       const { error: histErr } = await admin.from("prediction_history").insert({
-        id:                   crypto.randomUUID(),
-        market_id:            payment.market_id,
-        market_title:         payment.title ?? "",
-        category_label:       payment.category_label ?? "",
-        selection_id:         payment.selection_id,
-        selection_label:      payment.selection_label ?? payment.subtitle ?? "",
+        id:                     crypto.randomUUID(),
+        market_id:              payment.market_id,
+        market_title:           payment.title ?? "",
+        category_label:         payment.category_label ?? "",
+        selection_id:           payment.selection_id,
+        selection_label:        payment.selection_label ?? payment.subtitle ?? "",
         amount,
-        reserve_fee:          reserveFee,
-        total_charged:        totalCharged,
-        claim_fee_rate:       FEE_RATE,
-        payout_multiple:      multiplier,
-        gross_reward:         grossReward,
-        net_reward:           netReward,
-        wallet_address:       payment.user_wallet,
-        payment_reference:    payment.payment_reference,
-        payment_request_id:   payment.payment_request_id,
-        token:                payment.token ?? "usdc",
-        reported_at:          payment.created_at ?? new Date().toISOString(),
+        reserve_fee:            reserveFee,
+        total_charged:          totalCharged,
+        claim_fee_rate:         FEE_RATE,
+        payout_multiple:        multiplier,
+        gross_reward:           grossReward,
+        net_reward:             netReward,
+        wallet_address:         payment.user_wallet,
+        payment_reference:      payment.payment_reference,
+        payment_request_id:     payment.payment_request_id,
+        token:                  payment.token ?? "usdc",
+        reported_at:            payment.created_at ?? new Date().toISOString(),
+        // M4 fix: without this, result_status stays "pending_review" forever in the view
+        admin_decision_status:  "approved",
       });
 
-      if (!histErr) {
-        // Attribuer OCTO au parieur
-        const { error: octoErr } = await admin.from("octo_transactions").insert({
-          wallet_address: payment.user_wallet,
-          type:           "bet",
-          amount:         5,
-          label:          payment.title ?? "Prediction bet",
-          ref_id:         payment.id,
-        });
-        if (octoErr) console.error("[payments] octo_transactions insert:", octoErr.message);
-      }
+      if (histErr) console.error("[payments] prediction_history insert:", histErr.message);
     }
   }
 

@@ -15,11 +15,17 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function fmtCltAmount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString("en-US");
+}
+
 function TokenAmount({ amount, token }: { amount: number; token: string }) {
   const isUsdc = token === "usdc";
   return (
     <span className="inline-flex items-center gap-1 font-semibold">
-      {isUsdc ? amount.toFixed(2) : (amount / 1_000_000).toFixed(1) + "M"}
+      {isUsdc ? amount.toFixed(2) : fmtCltAmount(amount)}
       <Image
         src={isUsdc ? "/usdc-coin.png" : "/clawdtrust-coin.png"}
         alt={isUsdc ? "USDC" : "CLT"}

@@ -2,7 +2,8 @@ import { ImageResponse } from "next/og";
 import { getMarketBySlug } from "@/services/prediction-service";
 import { parseMarketOptions } from "@/lib/market/utils";
 
-export const runtime = "edge";
+// ImageResponse works in Node.js runtime (Next.js 14+); edge runtime conflicts
+// with next/headers used inside getMarketBySlug → removed edge declaration.
 
 function optionChipColor(label: string, index: number): { bg: string; text: string } {
   const l = label.trim().toLowerCase();

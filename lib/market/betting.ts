@@ -157,23 +157,6 @@ async function loadWeb3(): Promise<Web3> {
   return _web3;
 }
 
-// ─── Edge Function caller ─────────────────────────────────────────────────────
-
-async function callEdgeFunction(name: string, body: Record<string, unknown>) {
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${name}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    // fire-and-forget — never block the UI
-  }
-}
-
 // ─── Main: submit a bet ───────────────────────────────────────────────────────
 
 export async function submitBet(params: BetParams): Promise<BetResult> {
@@ -306,9 +289,11 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
         market_id:          marketId,
         selection_id:       optionId,
         selection_label:    optionLabel,
-        amount_usdc:        token === "usdc" ? amount : 0,
-        reserve_fee_usdc:   token === "usdc" ? reserveFee : 0,
-        total_paid_usdc:    token === "usdc" ? totalCharged : 0,
+        // Store the actual stake regardless of token — "amount_usdc" is legacy naming.
+        // The token field tells the admin route which currency was used.
+        amount_usdc:        amount,
+        reserve_fee_usdc:   reserveFee,
+        total_paid_usdc:    totalCharged,
         token,
         tx_signature:       signature,
         wallet_address:     walletAddress,
@@ -322,14 +307,8 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
     console.error("[betting] predict API fetch:", e);
   }
 
-  // 6. Fire-and-forget OCTO credit (USDC only — CLT credited on admin approval)
-  if (token === "usdc") {
-    void callEdgeFunction("credit-bet-octo", {
-      wallet_address: walletAddress,
-      amount_usd: amount,
-      token: "usdc",
-    });
-  }
+  // Note: OCTO is awarded at admin approval time (admin/bets route, 5 OCTO per bet).
+  // No immediate fire-and-forget needed here.
 
   return { success: true, reference, signature };
 }
