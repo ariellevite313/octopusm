@@ -10,7 +10,9 @@ export interface WalletAuthResult {
 }
 
 function buildSignMessage(address: string, nonce: string): Uint8Array {
-  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}`;
+  // Timestamp is included so the Edge Function can enforce a 5-minute expiry (REF-C fix)
+  const timestamp = new Date().toISOString();
+  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
   return new TextEncoder().encode(message);
 }
 

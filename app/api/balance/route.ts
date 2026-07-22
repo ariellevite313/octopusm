@@ -14,7 +14,7 @@ export async function GET() {
 
   const admin = createAdminClient() as any;
 
-  const [predRes, commRes, updownRes, mutuelRes, withdrawnRes] = await Promise.all([
+  const [predRes, commRes, updownRes, mutuelRes, withdrawnRes, octoRes] = await Promise.all([
     admin
       .from("prediction_history_with_status")
       .select("token, net_reward, result_status")
@@ -42,6 +42,12 @@ export async function GET() {
       .select("token, amount")
       .eq("wallet_address", wallet)
       .in("status", ["paid", "pending", "approved"]),
+
+    // adminDb bypasses RLS — octo_transactions is written by service key (REF-D fix)
+    admin
+      .from("octo_transactions")
+      .select("amount")
+      .eq("wallet_address", wallet),
   ]);
 
   // ── USDC ──────────────────────────────────────────────────────────────────
@@ -96,5 +102,9 @@ export async function GET() {
 
   const cltBalance = Math.max(0, predClt + commClt + updownClt + mutuelClt - withdrawnClt);
 
-  return NextResponse.json({ usdcBalance, cltBalance });
+  // ── OCTO ──────────────────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const octoBalance = (octoRes.data ?? []).reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
+
+  return NextResponse.json({ usdcBalance, cltBalance, octoBalance });
 }

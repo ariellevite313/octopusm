@@ -63,14 +63,18 @@ serve(async (req: Request) => {
       );
     }
 
-    // ── Anti-replay < 5 min ───────────────────────────────────────────────
+    // ── Anti-replay < 5 min (REF-C fix) ─────────────────────────────────
+    // Message format: "Sign in to OMdotfun\nAddress: ...\nNonce: ...\nTimestamp: <ISO>"
     const decoded = new TextDecoder().decode(messageBytes);
-    const timeMatch = decoded.match(/Heure\s+:\s+(\S+)/);
-    if (timeMatch && Date.now() - new Date(timeMatch[1]).getTime() > 5 * 60 * 1000) {
-      return new Response(
-        JSON.stringify({ error: "Message expired. Please sign in again." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const timeMatch = decoded.match(/Timestamp:\s+(\S+)/);
+    if (timeMatch) {
+      const msgTime = new Date(timeMatch[1]).getTime();
+      if (isNaN(msgTime) || Date.now() - msgTime > 5 * 60 * 1000) {
+        return new Response(
+          JSON.stringify({ error: "Message expired. Please sign in again." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // ── Clients Supabase ──────────────────────────────────────────────────

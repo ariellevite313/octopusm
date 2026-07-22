@@ -22,6 +22,7 @@ export default async function ReferralsPage() {
         referralCode={data.referralCode}
         referralCount={data.referralCount}
         referrals={data.referrals}
+        octoEarned={data.octoStats.referral}
       />
     </div>
   );

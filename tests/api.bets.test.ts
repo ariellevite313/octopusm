@@ -15,6 +15,10 @@ vi.mock("@/lib/octo", () => ({
   awardOcto:    mockAwardOcto,
   OCTO_PER_BET: 10,
 }));
+vi.mock("@/lib/referral", () => ({
+  awardReferralCommission: vi.fn().mockResolvedValue(undefined),
+  REFERRAL_COMMISSION_RATE: 0.01,
+}));
 
 // Route handlers — imported after mocks
 const { POST: postUpDown }      = await import("../app/api/updown/bet/route");
