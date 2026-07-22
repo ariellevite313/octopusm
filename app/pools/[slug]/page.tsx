@@ -29,22 +29,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pool = await getPoolBySlug(slug);
   if (!pool) return { title: "Pool not found" };
 
-  const ogImage = `/api/og/market/${slug}`;
+  const ogImage = pool.cover_image_src ?? `/api/og/market/${slug}`;
+  const description = pool.description ?? "Prediction pool on OMdotfun. Pick your outcome and share the winnings.";
 
   return {
     title: pool.title,
-    description: pool.description ?? "Pari mutuel pool on OMdotfun. Pick your outcome and share the winnings.",
+    description,
+    alternates: { canonical: `https://omdot.fun/pools/${slug}` },
     openGraph: {
       title: pool.title,
-      description: pool.description ?? "Pari mutuel pool on OMdotfun.",
+      description,
       url: `/pools/${slug}`,
       type: "website",
-      images: [{ url: ogImage, width: 1200, height: 630, alt: pool.title }],
+      images: pool.cover_image_src
+        ? [{ url: pool.cover_image_src, alt: pool.title }]
+        : [{ url: ogImage, width: 1200, height: 630, alt: pool.title }],
     },
     twitter: {
-      card: "summary_large_image",
+      card: pool.cover_image_src ? "summary" : "summary_large_image",
       title: pool.title,
-      description: pool.description ?? "Pari mutuel pool on OMdotfun.",
+      description,
       images: [ogImage],
     },
   };

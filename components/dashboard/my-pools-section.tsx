@@ -90,18 +90,22 @@ export function MyPoolsSection({ walletAddress }: Props) {
 
             return (
               <div key={market.id} className="overflow-hidden rounded-2xl border border-border bg-card">
-                {market.cover_image_src && (
-                  <img
-                    src={market.cover_image_src}
-                    alt=""
-                    className="h-24 w-full object-cover"
-                  />
-                )}
                 <div className="p-4">
                 <div className="mb-2 flex items-start justify-between gap-2">
-                  <p className="flex-1 text-sm font-semibold leading-snug text-foreground line-clamp-2">
-                    {market.title}
-                  </p>
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    {market.cover_image_src && (
+                      <div className="size-10 shrink-0 overflow-hidden rounded-xl border border-border">
+                        <img
+                          src={market.cover_image_src}
+                          alt=""
+                          className="size-10 object-cover"
+                        />
+                      </div>
+                    )}
+                    <p className="flex-1 text-sm font-semibold leading-snug text-foreground line-clamp-2">
+                      {market.title}
+                    </p>
+                  </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase ${STATUS_PILL[market.status]}`}>
                     {market.status}
                   </span>
@@ -144,6 +148,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
                 )}
                 </div>
               </div>
+
             );
           })}
         </div>

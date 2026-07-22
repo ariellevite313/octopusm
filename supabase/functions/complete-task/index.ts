@@ -114,8 +114,23 @@ serve(async (req: Request) => {
       ref_id: task_id,
     });
     if (octoErr) {
-      // Log mais ne pas faire échouer — la complétion est déjà enregistrée
       console.error("[complete-task] octo_transactions insert:", octoErr.message);
+    }
+
+    // Update leaderboard_octo so the balance reflects the award immediately
+    try {
+      const { data: lb } = await admin
+        .from("leaderboard_octo")
+        .select("total_octo")
+        .eq("wallet_address", walletAddress)
+        .maybeSingle();
+      const current = Number(lb?.total_octo ?? 0);
+      await admin.from("leaderboard_octo").upsert(
+        { wallet_address: walletAddress, total_octo: current + task.reward_octo },
+        { onConflict: "wallet_address" },
+      );
+    } catch (lbErr) {
+      console.error("[complete-task] leaderboard_octo upsert:", lbErr);
     }
 
     return json({ ok: true, already_completed: false, octo_awarded: task.reward_octo });

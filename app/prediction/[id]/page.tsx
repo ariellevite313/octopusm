@@ -18,20 +18,22 @@ export async function generateMetadata({ params }: Props) {
 
   const slug    = market.slug ?? market.id;
   const ogImage = `/api/og/market/${slug}`;
+  const description = market.resolution_criteria ?? market.resolution_label ?? "Prediction market on OMdotfun.";
 
   return {
     title: `${market.title} — OMdotfun`,
-    description: market.resolution_criteria ?? market.resolution_label,
+    description,
+    alternates: { canonical: `https://omdot.fun/prediction/${slug}` },
     openGraph: {
       title:       market.title,
-      description: market.resolution_criteria ?? market.resolution_label,
-      url:         `/prediction/${slug}`,
+      description,
+      url:         `https://omdot.fun/prediction/${slug}`,
       images: [{ url: ogImage, width: 1200, height: 630, alt: market.title }],
     },
     twitter: {
       card:        "summary_large_image",
       title:       market.title,
-      description: market.resolution_criteria ?? market.resolution_label,
+      description,
       images:      [ogImage],
     },
   };

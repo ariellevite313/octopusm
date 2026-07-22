@@ -43,16 +43,17 @@ export function TasksSection({
   tasks: TaskWithCompletion[];
   walletAddress: string; // kept for API compatibility but JWT is now the auth source
 }) {
-  const [claiming, setClaiming] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState<Set<string>>(new Set());
   const [localDone, setLocalDone] = useState<Set<string>>(new Set());
 
   const isDone = (t: TaskWithCompletion) => t.completed || localDone.has(t.id);
+  const isClaiming = (id: string) => claiming.has(id);
 
   async function handleClaim(task: TaskWithCompletion) {
-    if (isDone(task) || claiming) return;
-    setClaiming(task.id);
+    if (isDone(task) || isClaiming(task.id)) return;
+    setClaiming((prev) => new Set(prev).add(task.id));
     const { error } = await claimTaskClient(task.id);
-    setClaiming(null);
+    setClaiming((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
     if (error) {
       toast.error(error);
       return;
@@ -97,11 +98,11 @@ export function TasksSection({
               )}
               <button
                 type="button"
-                disabled={!!claiming}
+                disabled={isClaiming(task.id)}
                 onClick={() => void handleClaim(task)}
                 className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors"
               >
-                {claiming === task.id ? "Claiming..." : "Claim"}
+                {isClaiming(task.id) ? "Claiming..." : "Claim"}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
+import { TokenAmount } from "@/components/shared/token-logo";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ function tokenLabel(token: string) {
 }
 
 const STATUS_BADGE: Record<string, string> = {
+  pending:  "border-zinc-300 bg-zinc-50 text-zinc-500 dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-400",
   active:   "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-400",
   closed:   "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-400",
   resolved: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700/60 dark:bg-violet-950/30 dark:text-violet-400",
@@ -71,7 +73,12 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
               Live
             </span>
           )}
-          {!isActive && (
+          {!isActive && market.status === "pending" && (
+            <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_BADGE["pending"]}`}>
+              Pending review
+            </span>
+          )}
+          {!isActive && market.status !== "pending" && (
             <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${STATUS_BADGE[market.status] ?? "border-border bg-muted text-muted-foreground"}`}>
               {market.status}
             </span>
@@ -108,11 +115,14 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 border-t border-orange-100 pt-3 dark:border-orange-900/30">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            💰 <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-              {pool.toFixed(decimals)} {tokenLabel(market.bet_token)}
-            </span>
-            <span className="ml-1 text-zinc-400">· {market.bet_count} predictions</span>
+          <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <TokenAmount
+              amount={pool.toFixed(decimals)}
+              token={market.bet_token}
+              logoClass="size-3.5"
+              className="font-semibold text-zinc-700 dark:text-zinc-300"
+            />
+            <span className="text-zinc-400">· {market.bet_count} predictions</span>
           </span>
           <div className="flex items-center gap-2">
             {isActive && (
@@ -134,7 +144,7 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
 export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarketRow[] }) {
   const [markets, setMarkets] = useState<MutuelMarketRow[]>(initialMarkets);
   const [betTotals, setBetTotals] = useState<Record<string, Record<string, number>>>({});
-  const [filter, setFilter] = useState<"all" | "active" | "closed" | "resolved">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "active" | "closed" | "resolved">("all");
 
   const fetchTotals = useCallback(async (ids: string[]) => {
     if (ids.length === 0) return;
@@ -161,23 +171,24 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
     return () => clearInterval(interval);
   }, [fetchTotals]);
 
-  const sortActiveFirst = (list: MutuelMarketRow[]) =>
-    [...list].sort((a, b) => Number(b.status === "active") - Number(a.status === "active"));
-  const filtered = sortActiveFirst(
+  const STATUS_ORDER: Record<string, number> = { active: 0, pending: 1, closed: 2, resolved: 3 };
+  const sortByStatus = (list: MutuelMarketRow[]) =>
+    [...list].sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+  const filtered = sortByStatus(
     filter === "all" ? markets : markets.filter(m => m.status === filter)
   );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Bookmaker</h1>
+        <h1 className="text-2xl font-bold text-foreground">Bookmake</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Community-created pari-mutuel markets — odds update in real time.
         </p>
       </div>
 
-      <div className="mb-6 flex gap-2">
-        {(["all", "active", "closed", "resolved"] as const).map(f => (
+      <div className="mb-6 flex flex-wrap gap-2">
+        {(["all", "active", "pending", "closed", "resolved"] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}

@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<LaunchStatus, string> = {
   pending: "Pending",
   paid: "Paid",
   submitted: "Submitted",
-  rejected: "Rejeté",
+  rejected: "Rejected",
 };
 
 const STATUS_COLORS: Record<LaunchStatus, string> = {
@@ -132,7 +132,7 @@ export function AdminLaunchesClient({ launches }: { launches: TokenLaunchRow[] }
                           {loading === l.id + "rejected" ? (
                             <LoaderCircle className="size-3 animate-spin" />
                           ) : (
-                            "Rejeter"
+                            "Reject"
                           )}
                         </Button>
                       </>

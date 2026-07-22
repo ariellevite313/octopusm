@@ -3,10 +3,11 @@ import { Providers } from "@/providers/providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
+import { RefCapture } from "@/components/layout/ref-capture";
 import { getDistinctCategories } from "@/services/prediction-service";
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://octomarket.fun";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
     default: "OMdotfun",
     template: "%s — OMdotfun",
   },
-  description: "Decentralized prediction markets on Solana. Bet on sports, crypto, and world events with USDC or ClawdTrust.",
-  keywords: ["prediction market", "solana", "crypto betting", "pari mutuel", "USDC", "web3"],
+  description: "Decentralized prediction markets on Solana. Predict on sports, crypto, and world events with USDC or ClawdTrust.",
+  keywords: ["prediction market", "solana", "crypto prediction", "pari mutuel", "USDC", "web3"],
   authors: [{ name: "OMdotfun" }],
   creator: "OMdotfun",
   openGraph: {
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: "OMdotfun",
     title: "OMdotfun",
-    description: "Decentralized prediction markets on Solana. Bet on sports, crypto, and world events with USDC or ClawdTrust.",
+    description: "Decentralized prediction markets on Solana. Predict on sports, crypto, and world events with USDC or ClawdTrust.",
     images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "OMdotfun" }],
   },
   twitter: {
@@ -35,6 +36,7 @@ export const metadata: Metadata = {
   },
   icons: { icon: "/og-logo.png", apple: "/og-logo.png" },
   robots: { index: true, follow: true },
+  alternates: { canonical: SITE_URL },
 };
 
 export default async function RootLayout({
@@ -48,6 +50,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
+          <RefCapture />
           <div className="flex min-h-screen flex-col">
             <Header />
             <CategoryNavWrapper categories={categories} />

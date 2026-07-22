@@ -24,6 +24,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
   const [rewardOcto, setRewardOcto] = useState("100");
   const [taskType, setTaskType] = useState("social");
   const [icon, setIcon] = useState("⭐");
+  const [sortOrder, setSortOrder] = useState("0");
   const [formError, setFormError] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -64,6 +65,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
           rewardOcto: Number(rewardOcto),
           taskType,
           icon: icon.trim() || null,
+          sortOrder: Number(sortOrder) || 0,
         }),
       });
       if (!res.ok) {
@@ -76,6 +78,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
       setRewardOcto("100");
       setTaskType("social");
       setIcon("⭐");
+      setSortOrder("0");
       setShowForm(false);
       router.refresh();
     } catch (e) {
@@ -116,14 +119,14 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description (optionnel)"
+                placeholder="Description (optional)"
                 className="min-h-16 border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
               />
             </div>
             <Input
               value={externalLink}
               onChange={(e) => setExternalLink(e.target.value)}
-              placeholder="Lien externe (optionnel)"
+              placeholder="External link (optional)"
               className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
             />
             <Input
@@ -154,6 +157,14 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
               value={icon}
               onChange={(e) => setIcon(e.target.value)}
               placeholder="Emoji icon (e.g. ⭐)"
+              className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
+            />
+            <Input
+              type="number"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              placeholder="Sort order (0 = first)"
+              min={0}
               className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
             />
           </div>
@@ -242,9 +253,10 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
                       variant="ghost"
                       disabled={!!loading}
                       className="rounded-full px-2 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
-                      onClick={() =>
-                        apiCall({ action: "delete", taskId: task.id }, task.id + "delete")
-                      }
+                      onClick={() => {
+                        if (!window.confirm("Delete this task? This cannot be undone.")) return;
+                        apiCall({ action: "delete", taskId: task.id }, task.id + "delete");
+                      }}
                     >
                       {loading === task.id + "delete" ? (
                         <LoaderCircle className="size-3.5 animate-spin" />

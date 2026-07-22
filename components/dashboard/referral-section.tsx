@@ -72,31 +72,37 @@ export function ReferralSection({
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 divide-x divide-border">
-          <div className="px-4 py-3 text-center">
+        <div className="grid grid-cols-4 divide-x divide-border">
+          <div className="px-3 py-3 text-center">
             <p className="text-lg font-bold text-foreground">{referralCount}</p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Friends referred
+              Friends
             </p>
           </div>
-          <div className="px-4 py-3 text-center">
+          <div className="px-3 py-3 text-center">
+            <p className="text-lg font-bold text-orange-500">{referralCount * 10}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              OCTO earned
+            </p>
+          </div>
+          <div className="px-3 py-3 text-center">
             <p className="text-lg font-bold text-foreground">
               {referrals.length > 0
                 ? `$${fmtUsdc(referrals.reduce((s, r) => s + r.usdc_commission, 0))}`
                 : "—"}
             </p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              USDC earned
+              USDC
             </p>
           </div>
-          <div className="px-4 py-3 text-center">
+          <div className="px-3 py-3 text-center">
             <p className="text-lg font-bold text-foreground">
               {referrals.length > 0
                 ? fmtClt(referrals.reduce((s, r) => s + r.clt_commission, 0))
                 : "—"}
             </p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              CLT earned
+              CLT
             </p>
           </div>
         </div>

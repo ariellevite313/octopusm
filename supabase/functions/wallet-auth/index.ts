@@ -46,7 +46,7 @@ serve(async (req: Request) => {
     // ── Validation ────────────────────────────────────────────────────────
     if (!walletAddress || !signature || !nonce || !message) {
       return new Response(
-        JSON.stringify({ error: "Paramètres manquants." }),
+        JSON.stringify({ error: "Missing parameters." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -58,7 +58,7 @@ serve(async (req: Request) => {
 
     if (!nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes)) {
       return new Response(
-        JSON.stringify({ error: "Signature invalide." }),
+        JSON.stringify({ error: "Invalid signature." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -68,7 +68,7 @@ serve(async (req: Request) => {
     const timeMatch = decoded.match(/Heure\s+:\s+(\S+)/);
     if (timeMatch && Date.now() - new Date(timeMatch[1]).getTime() > 5 * 60 * 1000) {
       return new Response(
-        JSON.stringify({ error: "Message expiré. Reconnecte-toi." }),
+        JSON.stringify({ error: "Message expired. Please sign in again." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -101,15 +101,29 @@ serve(async (req: Request) => {
       });
 
       if (created?.user?.id) {
-        // Nouveau user créé — sign in
+        // New user created — sign in
         const r = await anon.auth.signInWithPassword({ email: fakeEmail, password });
         if (!r.data?.session) throw new Error(`Sign in failed: ${r.error?.message}`);
         session = r.data;
 
-        // ── Référral : attribuer 10 OCTO au parrain (nouveau user seulement) ──
+        // Generate a unique referral code for the new user (REF-02)
+        try {
+          const code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+            .map((b) => b.toString(36).toUpperCase().padStart(2, "0"))
+            .join("")
+            .slice(0, 8);
+          await admin.from("referral_codes").upsert(
+            { wallet_address: walletAddress, code },
+            { onConflict: "wallet_address" },
+          );
+        } catch (codeErr) {
+          console.error("[wallet-auth] referral code generation error:", codeErr);
+        }
+
+        // Award 10 OCTO to the referrer on new user signup (REF-01)
         if (ref_code) {
           try {
-            // Résoudre le code → wallet du parrain
+            // Resolve code → referrer wallet
             const { data: codeRow } = await admin
               .from("referral_codes")
               .select("wallet_address")
@@ -118,9 +132,9 @@ serve(async (req: Request) => {
 
             const referrerWallet: string | null = codeRow?.wallet_address ?? null;
 
-            // Éviter l'auto-référral
+            // Prevent self-referral
             if (referrerWallet && referrerWallet !== walletAddress) {
-              // Vérifier qu'aucune relation n'existe déjà (idempotent)
+              // Idempotency check
               const { data: existing } = await admin
                 .from("referrals")
                 .select("id")
@@ -129,13 +143,13 @@ serve(async (req: Request) => {
                 .maybeSingle();
 
               if (!existing) {
-                // Insérer la relation referral
+                // Record the referral relationship
                 await admin.from("referrals").insert({
                   referrer_wallet: referrerWallet,
                   referred_wallet: walletAddress,
                 });
 
-                // Attribuer 10 OCTO au parrain
+                // Award 10 OCTO to the referrer
                 await admin.from("octo_transactions").insert({
                   wallet_address: referrerWallet,
                   type: "referral",
@@ -143,10 +157,22 @@ serve(async (req: Request) => {
                   label: `Referral: ${walletAddress.slice(0, 8)}…`,
                   ref_id: walletAddress,
                 });
+
+                // Update leaderboard_octo so the balance reflects the award (REF-01 fix)
+                const { data: lb } = await admin
+                  .from("leaderboard_octo")
+                  .select("total_octo")
+                  .eq("wallet_address", referrerWallet)
+                  .maybeSingle();
+                const current = Number(lb?.total_octo ?? 0);
+                await admin.from("leaderboard_octo").upsert(
+                  { wallet_address: referrerWallet, total_octo: current + 10 },
+                  { onConflict: "wallet_address" },
+                );
               }
             }
           } catch (refErr) {
-            // Ne pas faire échouer l'auth si le referral plante
+            // Don't fail auth if referral logic errors
             console.error("[wallet-auth] referral error:", refErr);
           }
         }

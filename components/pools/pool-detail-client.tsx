@@ -341,7 +341,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        All Bookmakers
+        All Bookmakes
       </Link>
 
       <div className="mb-2 flex items-start gap-4">

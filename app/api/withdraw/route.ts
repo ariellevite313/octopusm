@@ -180,9 +180,9 @@ export async function POST(req: Request) {
     .limit(1);
 
   if (existing && existing.length > 0) {
-    const st = existing[0].status === "approved" ? "approuvée" : "en attente";
+    const st = existing[0].status === "approved" ? "approved" : "pending";
     return NextResponse.json(
-      { error: `Une demande de retrait ${st} existe déjà pour ce token. L'admin doit la marquer comme payée avant d'en soumettre une nouvelle.` },
+      { error: `A ${st} withdrawal request already exists for this token. The admin must mark it as paid before submitting a new one.` },
       { status: 409 }
     );
   }

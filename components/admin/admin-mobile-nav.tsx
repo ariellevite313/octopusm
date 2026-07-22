@@ -25,7 +25,7 @@ const PRIMARY = [
 ];
 
 const MORE_ITEMS = [
-  { href: "/admin/pools",    label: "Bookmaker", icon: Layers },
+  { href: "/admin/pools",    label: "Bookmake", icon: Layers },
   { href: "/admin/tasks",    label: "Tasks",       icon: CheckSquare },
   { href: "/admin/wallets",  label: "Wallets",     icon: Users },
   { href: "/admin/account",  label: "My account",  icon: User },

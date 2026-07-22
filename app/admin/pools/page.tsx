@@ -25,7 +25,7 @@ export default async function AdminPoolsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">Bookmaker Pools</h1>
+        <h1 className="text-xl font-bold">Bookmake Pools</h1>
         <p className="text-sm text-muted-foreground mt-1">
           {pools.length} total
           {pendingCount > 0 && ` · ${pendingCount} pending approval`}

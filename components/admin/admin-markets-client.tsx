@@ -28,13 +28,13 @@ const MARKET_TYPES = ["yes-no", "threshold", "three-way"] as const;
 const VISUAL_TYPES = ["simple", "vs"] as const;
 
 const SUBCATEGORIES: Record<string, string[]> = {
-  sports:        ["Football", "Basketball", "Tennis", "MMA/UFC", "NFL", "F1", "Esports", "Boxe", "Baseball", "Hockey"],
-  crypto:        ["Bitcoin", "Ethereum", "Solana", "Altcoins", "DeFi", "NFT", "Memecoins", "Exchanges", "Régulation"],
-  politics:      ["USA", "France", "Europe", "Élections", "Géopolitique", "Économie mondiale"],
-  entertainment: ["Musique", "Célébrités", "Awards", "Réseaux sociaux", "Streaming"],
-  cinema:        ["Films", "Séries", "Oscars", "Box-office", "Animé"],
-  science:       ["Espace", "IA & Tech", "Médecine", "Environnement", "Physique"],
-  other:         ["Tendances", "Divers"],
+  sports:        ["Football", "Basketball", "Tennis", "MMA/UFC", "NFL", "F1", "Esports", "Boxing", "Baseball", "Hockey"],
+  crypto:        ["Bitcoin", "Ethereum", "Solana", "Altcoins", "DeFi", "NFT", "Memecoins", "Exchanges", "Regulation"],
+  politics:      ["USA", "France", "Europe", "Elections", "Geopolitics", "World Economy"],
+  entertainment: ["Music", "Celebrities", "Awards", "Social Media", "Streaming"],
+  cinema:        ["Movies", "Series", "Oscars", "Box Office", "Anime"],
+  science:       ["Space", "AI & Tech", "Medicine", "Environment", "Physics"],
+  other:         ["Trends", "Misc"],
 };
 
 type CreateForm = {
@@ -318,7 +318,7 @@ function CreateMarketDialog({
 
           {/* Subcategory */}
           <div>
-            <label className="mb-1 block font-semibold text-muted-foreground">Sous-catégorie</label>
+            <label className="mb-1 block font-semibold text-muted-foreground">Subcategory</label>
             <select
               className="w-full rounded-xl border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
               value={form.subcategory}
@@ -434,7 +434,7 @@ function CreateMarketDialog({
                     onChange={(e) => set("price_target", e.target.value)}
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    La ligne cible pointillée sera affichée sur le graphique.
+                    The dashed target line will be shown on the chart.
                   </p>
                 </div>
               )}

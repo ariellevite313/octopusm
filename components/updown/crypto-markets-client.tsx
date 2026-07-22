@@ -251,7 +251,7 @@ function RoundCard({
         } catch { /* try next RPC */ }
       }
 
-      if (!signature) { toast.error("Transaction échouée"); return; }
+      if (!signature) { toast.error("Transaction failed"); return; }
 
       const res = await fetch("/api/updown/bet", {
         method: "POST",
@@ -263,7 +263,7 @@ function RoundCard({
         toast.error(err.error ?? "Erreur serveur");
         return;
       }
-      toast.success(`${dir.toUpperCase()} bet placed!`);
+      toast.success(`${dir.toUpperCase()} predict placed!`);
       onBetPlaced();
     } catch (e: any) {
       const msg = (e?.message ?? "").toLowerCase();
@@ -354,7 +354,7 @@ function RoundCard({
           "bg-muted text-muted-foreground"
         }`}>
           <span>
-            My bet: <strong>${myBet.amount} {myBet.direction === "up" ? "↑ UP" : "↓ DOWN"}</strong>
+            My predict: <strong>${myBet.amount} {myBet.direction === "up" ? "↑ UP" : "↓ DOWN"}</strong>
             {myBet.payout && myBet.status !== "lost" ? ` → $${myBet.payout.toFixed(2)}` : ""}
           </span>
           {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-emerald-600">🏆 Claim in dashboard</span>}
@@ -519,7 +519,7 @@ export function CryptoMarketsClient() {
           <p className="font-semibold text-foreground text-sm mb-2">How it works</p>
           <p>Predict whether the price will be <strong>UP</strong> or <strong>DOWN</strong> at the end of the round.</p>
           <p>The strike price is locked at open. Winners share the pool minus 5% fee.</p>
-          <p>USDC only. Min $2 per bet. Multiple bets allowed per round.</p>
+          <p>USDC only. Min $2 per predict. Multiple predicts allowed per round.</p>
         </div>
       </div>
 

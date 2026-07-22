@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type { PredictionMarketRow, MarketCommentRow, MarketCommentEnriched } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 export type { MarketOption, MarketVolumes } from "@/lib/market/utils";
@@ -51,7 +51,7 @@ export async function getActiveMarkets(): Promise<PredictionMarketRow[]> {
 }
 
 export async function getResolvedMarkets(limit = 100): Promise<PredictionMarketRow[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient() as any;
   const { data, error } = await supabase
     .from("prediction_markets")
     .select("id, slug, title, category_id, market_type, visual_type, options, is_active, is_resolved, resolution_outcome_id, resolution_label, resolution_criteria, event_start_at, resolved_at, created_at, left_competitor_name, left_competitor_image_src, right_competitor_name, right_competitor_image_src, single_name, single_image_src, price_ticker, price_target")

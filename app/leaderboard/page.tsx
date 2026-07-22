@@ -5,7 +5,7 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 export const metadata: Metadata = {
   title: "Leaderboard",
-  description: "Top OCTO holders on OMdotfun. Rank up by winning prediction markets and pool bets on Solana.",
+  description: "Top OCTO holders on OMdotfun. Rank up by winning prediction markets and pool predictions on Solana.",
   openGraph: {
     title: "OMdotfun — Leaderboard",
     description: "Top OCTO holders ranked by winnings on Solana prediction markets.",
@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     description: "Top OCTO holders ranked by winnings.",
     images: ["/branding-logo.jpeg"],
   },
+  alternates: { canonical: "https://omdot.fun/leaderboard" },
 };
 
 // ISR : revalidation toutes les 5 minutes
