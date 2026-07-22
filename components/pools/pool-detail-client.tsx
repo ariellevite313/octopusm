@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Share2 } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { CommentsSection } from "@/components/shared/comments-section";
@@ -356,9 +356,23 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         )}
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <h1 className="flex-1 text-2xl font-bold leading-snug text-foreground">{market.title}</h1>
-          <span className={`shrink-0 pt-1 text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
-            {market.status}
-          </span>
+          <div className="flex shrink-0 items-center gap-2 pt-1">
+            <span className={`text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
+              {market.status}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                  toast.success("Link copied!");
+                });
+              }}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Share"
+            >
+              <Share2 className="size-4" />
+            </button>
+          </div>
         </div>
       </div>
 
