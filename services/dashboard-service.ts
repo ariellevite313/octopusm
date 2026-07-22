@@ -12,7 +12,7 @@ export type BetHistoryRow = PredictionHistoryRow & { result_status: PredictionRe
 
 export type TokenActivity = {
   id: string;
-  type: "win" | "commission" | "withdrawal";
+  type: "win" | "commission" | "withdrawal" | "prediction";
   label: string;
   sub: string;
   amount: number;
@@ -105,6 +105,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     updownBetsRes,
     mutuelBetsRes,
     withdrawalsRes,
+    pendingPaymentsRes,
   ] = await Promise.all([
     supabase.from("wallets").select("*").eq("address", walletAddress).maybeSingle(),
 
@@ -178,6 +179,15 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .select("id, token, amount, status, created_at")
       .eq("wallet_address", walletAddress)
       .order("created_at", { ascending: false }),
+
+    // Pending/recent prediction + pool payments — shown in activity before admin approval
+    adminDb
+      .from("payments")
+      .select("id, title, subtitle, amount_usdc, token, status, flow, created_at")
+      .eq("user_wallet", walletAddress)
+      .in("flow", ["prediction", "pool_prediction"])
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,6 +207,8 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const updownWins: any[]       = updownBetsRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mutuelWins: any[]       = mutuelBetsRes.data ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingPayments: any[]  = pendingPaymentsRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const paidWithdrawals: any[]  = withdrawalsRes.data ?? [];
 
@@ -376,6 +388,25 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
           created_at: w.created_at as string,
         };
       }),
+    // Pending prediction + pool payments (visible before admin approval)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...pendingPayments
+      .filter((p: any) => isUsdc(p.token ?? "usdc"))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((p: any) => {
+        const isPool = p.flow === "pool_prediction";
+        return {
+          id: p.id as string,
+          type: "prediction" as const,
+          label: (p.title as string) ?? (isPool ? "Pool bet placed" : "Prediction placed"),
+          sub: p.status === "rejected" ? "Rejected" :
+               p.status === "approved" ? (isPool ? "Pool bet confirmed" : "Prediction confirmed · Awaiting result") :
+               (isPool ? "Pool bet placed · Pending review" : "Prediction placed · Pending review"),
+          amount: (p.amount_usdc as number) ?? 0,
+          direction: "in" as const,
+          created_at: p.created_at as string,
+        };
+      }),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // ── CLT activity (prediction wins + updown wins + mutuel wins + commissions) ──
@@ -451,6 +482,25 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
           amount: w.amount as number,
           direction: "out" as const,
           created_at: w.created_at as string,
+        };
+      }),
+    // Pending CLT prediction + pool payments (visible before admin approval)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...pendingPayments
+      .filter((p: any) => isClt(p.token ?? ""))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((p: any) => {
+        const isPool = p.flow === "pool_prediction";
+        return {
+          id: p.id as string,
+          type: "prediction" as const,
+          label: (p.title as string) ?? (isPool ? "Pool bet placed" : "Prediction placed"),
+          sub: p.status === "rejected" ? "Rejected" :
+               p.status === "approved" ? (isPool ? "Pool bet confirmed" : "Prediction confirmed · Awaiting result") :
+               (isPool ? "Pool bet placed · Pending review" : "Prediction placed · Pending review"),
+          amount: (p.amount_usdc as number) ?? 0,
+          direction: "in" as const,
+          created_at: p.created_at as string,
         };
       }),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

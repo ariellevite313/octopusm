@@ -82,7 +82,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Award OCTO + referral commission for placing a market prediction (fire and forget)
+  // Award OCTO + referral commission immediately on placement (fire and forget).
+  // Same flow as up/down and pools: OCTO is earned when the bet is placed, not at admin approval.
   awardOcto(body.wallet_address, OCTO_PER_BET, "bet", "Prediction placed").catch(() => {});
   awardReferralCommission(body.wallet_address, body.amount_usdc, body.token).catch(() => {});
 

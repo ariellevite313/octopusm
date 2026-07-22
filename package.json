@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "node --max-old-space-size=4096 --stack-size=65536 node_modules/next/dist/bin/next build",
+    "build:full": "cross-env NODE_OPTIONS=--max-old-space-size=4096 tsc --noEmit && next lint && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

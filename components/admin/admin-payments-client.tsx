@@ -24,6 +24,21 @@ function shortAddr(s: string) {
   return s.length > 10 ? s.slice(0, 5) + "..." + s.slice(-4) : s;
 }
 
+function fmtAmount(amount: number, token: string | null | undefined): string {
+  const isClt = token === "clawdtrust" || token === "clt";
+  if (isClt) {
+    if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M CLT`;
+    if (amount >= 1_000)     return `${(amount / 1_000).toFixed(1)}K CLT`;
+    return `${amount.toLocaleString("en-US")} CLT`;
+  }
+  return `$${amount.toFixed(2)}`;
+}
+
+function netWithdrawal(amount: number, token: string | null | undefined): number {
+  const isClt = token === "clawdtrust" || token === "clt";
+  return isClt ? Math.floor(amount * 0.95) : Math.round(amount * 0.95 * 100) / 100;
+}
+
 const STATUS_FILTERS = ["all", "pending", "approved", "rejected"] as const;
 const FLOWS = ["prediction", "pools", "updown", "withdrawals", "launch", "listing"] as const;
 
@@ -231,7 +246,14 @@ export function AdminPaymentsClient({
               <StatusBadge status={p.status} />
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold">${p.total_paid_usdc.toFixed(2)}</span>
+              <div>
+                <span className="font-semibold">{fmtAmount(p.total_paid_usdc, p.token)}</span>
+                {p.flow === "withdrawal" && (
+                  <span className="block text-xs text-emerald-600 dark:text-emerald-400">
+                    → {fmtAmount(netWithdrawal(p.total_paid_usdc, p.token), p.token)} net (−5%)
+                  </span>
+                )}
+              </div>
               <span className="text-xs uppercase text-muted-foreground">{p.token}</span>
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{flowLabel(p.flow)}</span>
             </div>
@@ -286,7 +308,14 @@ export function AdminPaymentsClient({
                   <p className="max-w-xs font-medium leading-5 line-clamp-2">{p.title}</p>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{shortAddr(p.user_wallet)}</td>
-                <td className="px-4 py-3 font-semibold">${p.total_paid_usdc.toFixed(2)}</td>
+                <td className="px-4 py-3">
+                  <span className="block font-semibold">{fmtAmount(p.total_paid_usdc, p.token)}</span>
+                  {p.flow === "withdrawal" && (
+                    <span className="block text-xs text-emerald-600 dark:text-emerald-400">
+                      → {fmtAmount(netWithdrawal(p.total_paid_usdc, p.token), p.token)} net (−5%)
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-xs uppercase">{p.token}</td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{flowLabel(p.flow)}</span>

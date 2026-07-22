@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Type-check and lint run separately via `tsc --noEmit` / `next lint`.
+  // Running them inside the build worker causes Zone OOM on memory-constrained machines.
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
+  // Limit parallelism to avoid stack overrun (0xC0000409) on Windows build workers.
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   images: {
     remotePatterns: [
       {
