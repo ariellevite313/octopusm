@@ -86,7 +86,7 @@ export const LAUNCH_OPTIONS: Array<{
     id: "free",
     title: "Free option",
     description:
-      "Launch from Octo Market with a lightweight 0.2 SOL processing fee and direct Bags.fm submission.",
+      "Launch from OMdotfun with a lightweight 0.2 SOL processing fee and direct Bags.fm submission.",
     badge: "0.2 SOL standard fee",
   },
   {

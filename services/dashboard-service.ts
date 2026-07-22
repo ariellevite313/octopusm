@@ -98,6 +98,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     betsRes,
     commissionsRes,
     octoRes,
+    leaderboardOctoRes,
     refCodeRes,
     referralsRes,
     tasksRes,
@@ -128,6 +129,13 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .eq("wallet_address", walletAddress)
       .order("created_at", { ascending: false })
       .limit(100),
+
+    // Leaderboard row — used as the canonical OCTO balance source
+    db
+      .from("leaderboard_octo")
+      .select("total_octo")
+      .eq("wallet_address", walletAddress)
+      .maybeSingle(),
 
     db
       .from("referral_codes")
@@ -269,7 +277,11 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     bet:      octoTxns.filter((t) => t.type === "bet").reduce((s: number, t: any) => s + (t.amount ?? 0), 0),
     task:     octoTxns.filter((t) => t.type === "task").reduce((s: number, t: any) => s + (t.amount ?? 0), 0),
   };
-  const octoBalance = octoTxns.reduce((s: number, t: any) => s + (t.amount ?? 0), 0);
+  // Use leaderboard_octo as canonical balance (includes all sources).
+  // Fall back to octo_transactions sum if the user has no leaderboard row yet.
+  const leaderboardOcto = Number((leaderboardOctoRes as any).data?.total_octo ?? 0);
+  const txnOcto = octoTxns.reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
+  const octoBalance = leaderboardOcto > 0 ? leaderboardOcto : txnOcto;
 
   // ── USDC activity (prediction wins + updown wins + mutuel wins + commissions) ─
   const usdcActivity: TokenActivity[] = [

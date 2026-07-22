@@ -150,8 +150,8 @@ export async function GET(
           marginTop: 32, paddingTop: 20,
           borderTop: "1px solid #1e293b",
         }}>
-          <span style={{ fontSize: 14, color: "#334155" }}>octomarket.app</span>
-          <span style={{ fontSize: 14, color: "#57534e" }}>octomarket.app</span>
+          <span style={{ fontSize: 14, color: "#334155" }}>omdotfun.app</span>
+          <span style={{ fontSize: 14, color: "#57534e" }}>omdotfun.app</span>
         </div>
       </div>
     ),

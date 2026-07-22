@@ -89,7 +89,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
   );
 }
 
-const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt, resolveAt, marketStatus }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string; resolveAt: string | null; marketStatus: string }) {
+const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt, resolveAt, marketStatus, liveCountdown }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string; resolveAt: string | null; marketStatus: string; liveCountdown: string; }) {
   const [points, setPoints] = useState<PricePoint[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
@@ -172,8 +172,24 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     // Timeout securite: 4s max puis on cache le loading
     const timeout = setTimeout(() => setLoading(false), 4000);
 
-    // Klines 1s — 60 bougies d'historique au démarrage
-    fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1s&limit=60`)
+    // Pour un marché terminé, on charge les klines de la période du round (opensAt → resolveAt).
+    // Pour un marché en cours, on charge les 60 dernières bougies 1s.
+    const marketDone = marketStatus === "resolved" || marketStatus === "cancelled" ||
+      (resolveAt != null && Date.now() >= new Date(resolveAt).getTime());
+
+    let klinesUrl: string;
+    if (marketDone && resolveAt) {
+      const startMs = new Date(opensAt).getTime();
+      const endMs   = new Date(resolveAt).getTime();
+      // Choisir l'intervalle selon la durée totale du round
+      const durationMs = endMs - startMs;
+      const interval   = durationMs <= 5 * 60_000 ? "1s" : durationMs <= 30 * 60_000 ? "1m" : "5m";
+      klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=${interval}&startTime=${startMs}&endTime=${endMs}&limit=120`;
+    } else {
+      klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1s&limit=60`;
+    }
+
+    fetch(klinesUrl)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: [number, string, string, string, string, ...unknown[]][]) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -187,25 +203,18 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         } else return Promise.reject();
       })
       .catch(() => {
-        // Fallback 1m si klines 1s indisponible
-        fetch(`https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1m&limit=60`)
+        // Fallback: proxy serveur 1s — garde la même fenêtre (60 secondes) pour
+        // que $1 reste visible. NE PAS utiliser interval=1m (60 points = 60 min → $1 invisible).
+        fetch(`/api/crypto/klines?symbol=${ticker}&interval=1s&limit=60`)
           .then(r => r.ok ? r.json() : Promise.reject())
-          .then((data: [number, string, string, string, string, ...unknown[]][]) => {
-            if (Array.isArray(data) && data.length > 0) {
-              applyPoints(data.map(k => ({
-                time: k[0] as number,
-                price: parseFloat(k[4] as string),
-                open:  parseFloat(k[1] as string),
-                high:  parseFloat(k[2] as string),
-                low:   parseFloat(k[3] as string),
-              })));
-            }
+          .then((data: { time: number; price: number; open: number; high: number; low: number }[]) => {
+            if (Array.isArray(data) && data.length > 0) applyPoints(data);
           })
           .catch(() => {});
       });
 
     return () => clearTimeout(timeout);
-  }, [ticker]);
+  }, [ticker, marketStatus, opensAt, resolveAt]);
 
   // Marché terminé = résolu ou annulé, OU resolve_at dépassé
   const isMarketOver = marketStatus === "resolved" || marketStatus === "cancelled" ||
@@ -224,10 +233,12 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     let ws: WebSocket | null = null;
     let pollId: ReturnType<typeof setInterval> | null = null;
     let wsTimeout: ReturnType<typeof setTimeout> | null = null;
+    let watchdogId: ReturnType<typeof setInterval> | null = null;
     let destroyed = false;
 
     const stopAll = () => {
       if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; }
+      if (watchdogId) { clearInterval(watchdogId); watchdogId = null; }
       if (ws) { ws.onclose = null; ws.onerror = null; ws.onmessage = null; ws.close(); ws = null; }
       if (pollId) { clearInterval(pollId); pollId = null; }
       setLive(false);
@@ -247,16 +258,16 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         } catch { /* ignore */ }
       };
       void poll();
-      pollId = setInterval(poll, 200);
+      pollId = setInterval(poll, 2000);
     };
 
     const startWs = () => {
       if (destroyed) return;
-      stopAll();
+      stopAll(); // also clears any existing watchdogId
       setLive(false);
       let lastMsgAt = Date.now();
-      const watchdog = setInterval(() => {
-        if (destroyed) { clearInterval(watchdog); return; }
+      watchdogId = setInterval(() => {
+        if (destroyed) { clearInterval(watchdogId!); watchdogId = null; return; }
         if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > 5000) {
           ws.close();
         }
@@ -264,7 +275,10 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       try {
         ws = new WebSocket(`wss://stream.binance.com:9443/ws/${ticker.toLowerCase()}@aggTrade`);
         wsTimeout = setTimeout(() => {
-          if (ws && ws.readyState !== WebSocket.OPEN) { clearInterval(watchdog); ws.close(); startPolling(); }
+          if (ws && ws.readyState !== WebSocket.OPEN) {
+            if (watchdogId) { clearInterval(watchdogId); watchdogId = null; }
+            ws.close(); startPolling();
+          }
         }, 3000);
         ws.onopen = () => { if (wsTimeout) { clearTimeout(wsTimeout); wsTimeout = null; } lastMsgAt = Date.now(); };
         ws.onmessage = (e) => {
@@ -273,9 +287,18 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           pushPrice(parseFloat(d.p));
           setLive(true);
         };
-        ws.onerror = () => { clearInterval(watchdog); ws?.close(); if (!destroyed) startPolling(); };
-        ws.onclose = () => { clearInterval(watchdog); if (!destroyed && pollId === null) startPolling(); };
-      } catch { clearInterval(watchdog); startPolling(); }
+        ws.onerror = () => {
+          if (watchdogId) { clearInterval(watchdogId); watchdogId = null; }
+          ws?.close(); if (!destroyed) startPolling();
+        };
+        ws.onclose = () => {
+          if (watchdogId) { clearInterval(watchdogId); watchdogId = null; }
+          if (!destroyed && pollId === null) startPolling();
+        };
+      } catch {
+        if (watchdogId) { clearInterval(watchdogId); watchdogId = null; }
+        startPolling();
+      }
     };
 
     // Arrêt automatique à resolve_at — coupe proprement le WS quand le round se termine
@@ -307,24 +330,22 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
 
-  // Domaine Y réactif : calculé depuis les prix réels de la fenêtre visible.
-  // Plus le prix est stable → fenêtre se resserre → chaque centime devient visible.
-  // Plus le prix bouge → fenêtre s'élargit automatiquement.
-  // Le strike est toujours inclus dans la fenêtre.
+  // Domaine Y : basé UNIQUEMENT sur les prix réels de la fenêtre.
+  // Le strike N'EST PAS inclus — sinon quand le prix s'éloigne du strike (ex: BTC +2k),
+  // le domaine s'étend sur $2000+ et la ligne devient plate et illisible.
   const recentPrices = points.slice(-MAX_POINTS).map(p => p.price);
-  const allPrices = recentPrices.length > 0
-    ? [...recentPrices, strikePrice]
-    : [strikePrice];
-  const minP  = Math.min(...allPrices);
-  const maxP  = Math.max(...allPrices);
+  const MIN_SPREAD: Record<string, number> = { BTCUSDT: 2, ETHUSDT: 0.5, SOLUSDT: 0.05 };
+  const minSpread = MIN_SPREAD[ticker] ?? 2;
+  const basePrice = recentPrices.length > 0 ? recentPrices[recentPrices.length - 1] : strikePrice;
+  const minP  = recentPrices.length > 0 ? Math.min(...recentPrices) : basePrice - minSpread;
+  const maxP  = recentPrices.length > 0 ? Math.max(...recentPrices) : basePrice + minSpread;
   const spread = maxP - minP;
-  // Pad = 15% du spread observé — amplifie les micro-mouvements quand le marché est calme,
-  // s'étire naturellement quand ça bouge. Minimum absolu = 1 tick par asset.
-  const MIN_SPREAD: Record<string, number> = { BTCUSDT: 0.5, ETHUSDT: 0.05, SOLUSDT: 0.005 };
-  const minSpread = MIN_SPREAD[ticker] ?? 0.5;
   const effectiveSpread = Math.max(spread, minSpread);
-  const pad = effectiveSpread * 0.15;
-  const yDomain: [number, number] = [minP - pad, maxP + pad];
+  const pad = effectiveSpread * 0.2;
+  // Arrondir aux limites propres (entiers) pour des ticks lisibles
+  const yMin = Math.floor(minP - pad);
+  const yMax = Math.ceil(maxP + pad);
+  const yDomain: [number, number] = [yMin, yMax];
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
   const pctDiff = currentPrice != null ? ((currentPrice - strikePrice) / strikePrice) * 100 : null;
 
@@ -343,6 +364,11 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           {isBettingOpen ? (
             <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
               {bettingCountdown}
+            </span>
+          ) : marketStatus === "open" && liveCountdown ? (
+            <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+              <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {liveCountdown}
             </span>
           ) : (
             <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
@@ -388,8 +414,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
             </span>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={points} margin={{ top: 8, right: 56, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`fill-updown-${ticker}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={lineColor} stopOpacity={0.15} />
@@ -403,12 +429,16 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
               <YAxis
                 domain={yDomain}
                 orientation="right"
-                tickFormatter={(v: number) => `$${v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(3)}`}
+                tickFormatter={(v: number) => {
+                  // Entiers propres pour BTC/ETH, une décimale pour SOL
+                  if (v >= 1_000) return `$${Math.round(v).toLocaleString("en-US")}`;
+                  return `$${v.toFixed(1)}`;
+                }}
                 tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
-                width={80}
-                tickCount={10}
+                width={62}
+                tickCount={6}
               />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine y={strikePrice} stroke="#60a5fa" strokeDasharray="5 3" strokeWidth={1.5}
@@ -710,6 +740,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             bettingClosesAt={bettingClosesAt ?? new Date(market.opens_at).toISOString()}
             resolveAt={resolveTarget}
             marketStatus={market.status}
+            liveCountdown={liveCountdown}
           />
 
           {/* Round result */}
@@ -834,7 +865,13 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <div className="p-6 text-center space-y-1">
                 <p className="text-2xl">🔒</p>
                 <p className="text-sm font-semibold text-foreground">Bets are closed</p>
-                <p className="text-xs text-muted-foreground">Waiting for resolution…</p>
+                {liveCountdown ? (
+                  <p className="text-xs font-semibold tabular-nums text-emerald-500">
+                    Resolution in {liveCountdown}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Waiting for resolution…</p>
+                )}
               </div>
             ) : (
               <div className="p-6 text-center space-y-1">

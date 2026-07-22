@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AdminOverview } from "@/components/admin/admin-overview";
 
-export const metadata: Metadata = { title: "Admin - Octo Market" };
+export const metadata: Metadata = { title: "Admin - OMdotfun" };
 export const revalidate = 0;
 
 export default function AdminPage() {

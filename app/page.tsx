@@ -8,15 +8,15 @@ export const metadata: Metadata = {
   title: "Prediction Markets",
   description: "Trade on the outcome of sports, crypto, and world events. Decentralized prediction markets on Solana powered by USDC and ClawdTrust.",
   openGraph: {
-    title: "Octo Market — Prediction Markets on Solana",
+    title: "OMdotfun — Prediction Markets on Solana",
     description: "Trade on the outcome of sports, crypto, and world events. Decentralized prediction markets powered by USDC and ClawdTrust.",
     url: "/",
     type: "website",
-    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "Octo Market" }],
+    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "OMdotfun" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Octo Market — Prediction Markets on Solana",
+    title: "OMdotfun — Prediction Markets on Solana",
     description: "Trade on the outcome of sports, crypto, and world events.",
     images: ["/branding-logo.jpeg"],
   },

@@ -5,17 +5,17 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 export const metadata: Metadata = {
   title: "Leaderboard",
-  description: "Top OCTO holders on Octo Market. Rank up by winning prediction markets and pool bets on Solana.",
+  description: "Top OCTO holders on OMdotfun. Rank up by winning prediction markets and pool bets on Solana.",
   openGraph: {
-    title: "Octo Market — Leaderboard",
+    title: "OMdotfun — Leaderboard",
     description: "Top OCTO holders ranked by winnings on Solana prediction markets.",
     url: "/leaderboard",
     type: "website",
-    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "Octo Market" }],
+    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "OMdotfun" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Octo Market — Leaderboard",
+    title: "OMdotfun — Leaderboard",
     description: "Top OCTO holders ranked by winnings.",
     images: ["/branding-logo.jpeg"],
   },

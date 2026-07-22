@@ -10,7 +10,7 @@ export interface WalletAuthResult {
 }
 
 function buildSignMessage(address: string, nonce: string): Uint8Array {
-  const message = `Sign in to Octo Market\nAddress: ${address}\nNonce: ${nonce}`;
+  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}`;
   return new TextEncoder().encode(message);
 }
 

@@ -39,14 +39,13 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Enrich each bet with isRefund flag + net_payout after 5% fee on refunds
+  // Enrich each bet with net_payout after 5% withdrawal fee (Rule 3 — applies to all payouts)
   const enriched = (data ?? []).map((bet: Record<string, unknown>) => {
     const market = bet.mutuel_markets as Record<string, unknown> | null;
     const isRefund = !!(market?.is_refund);
     const payout = Number(bet.payout_amount);
-    const net_payout = isRefund
-      ? Math.floor(payout * 0.95 * 1_000_000) / 1_000_000
-      : payout;
+    // 5% platform fee on every withdrawal, including refunds (cancelled markets)
+    const net_payout = Math.floor(payout * 0.95 * 1_000_000) / 1_000_000;
     return { ...bet, is_refund: isRefund, net_payout };
   });
 
