@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category } = await params;
   const cap = category.charAt(0).toUpperCase() + category.slice(1);
   return {
-    title: `${cap} Markets | Octo Market`,
+    title: `${cap} Markets | OMdotfun`,
     description: `Prediction markets in the ${cap} category.`,
   };
 }

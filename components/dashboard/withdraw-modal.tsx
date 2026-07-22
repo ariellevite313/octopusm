@@ -292,6 +292,24 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               )}
             </div>
 
+            {/* Fee breakdown */}
+            {valid && (
+              <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-1.5 text-xs">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Requested amount</span>
+                  <span className="font-medium text-foreground">{fmtAmount(token, parsed)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Platform fee (5%)</span>
+                  <span className="text-red-500">− {fmtAmount(token, isUsdc ? Math.round(parsed * 0.05 * 100) / 100 : Math.floor(parsed * 0.05))}</span>
+                </div>
+                <div className="flex justify-between border-t border-border pt-1.5 font-semibold text-foreground">
+                  <span>You receive</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{fmtAmount(token, isUsdc ? Math.round(parsed * 0.95 * 100) / 100 : Math.floor(parsed * 0.95))}</span>
+                </div>
+              </div>
+            )}
+
             {/* Info box */}
             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-1">
               <p className="text-xs text-muted-foreground">

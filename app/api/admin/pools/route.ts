@@ -138,17 +138,20 @@ export async function POST(req: Request) {
     const token: string = market.bet_token;
     const totalPool: number = bets.reduce((s: number, b: { amount: number }) => s + Number(b.amount), 0);
 
-    const isClt       = token === "clawdtrust";
-    const houseRate   = isClt ? 0.10 : 0.15;
-    const creatorRate = isClt ? 0.06 : 0.05;
-    const winnersRate = isClt ? 0.84 : 0.80;
-    const commission   = totalPool * houseRate;
-    const creatorShare = totalPool * creatorRate;
-    const winnersPool  = totalPool * winnersRate;
-
     const winningBets = bets.filter((b: { option_id: string }) => b.option_id === winning_option_id);
     const losingBets  = bets.filter((b: { option_id: string }) => b.option_id !== winning_option_id);
     const winningTotal: number = winningBets.reduce((s: number, b: { amount: number }) => s + Number(b.amount), 0);
+    const losingTotal:  number = losingBets.reduce((s: number, b: { amount: number }) => s + Number(b.amount), 0);
+
+    // ── Fee structure ─────────────────────────────────────────────────────────
+    // Rule 1 : 1% du volume total → créateur du marché
+    // Rule 2 : 10% des fonds des perdants (USDC) / 8% (CLT) → plateforme
+    // Rule 3 : 5% sur chaque retrait individuel (appliqué côté /api/pools/winnings)
+    const CREATOR_RATE     = 0.01;
+    const HOUSE_LOSER_RATE = token === "clawdtrust" ? 0.08 : 0.10;
+    const creatorShare = totalPool * CREATOR_RATE;
+    const commission   = losingTotal * HOUSE_LOSER_RATE;
+    const winnersPool  = totalPool - creatorShare - commission;
 
     // Fairness rule: if nobody bet against the winner, no losers fund the pool,
     // so commission would come out of winners' own pockets. Refund everyone instead.
@@ -183,11 +186,18 @@ export async function POST(req: Request) {
     const { data: { user: adminUser } } = await userClient.auth.getUser();
     const adminWallet: string | null = (adminUser as { user_metadata?: { wallet_address?: string } } | null)?.user_metadata?.wallet_address ?? null;
 
-    // BUG-23 fix: store the applied rates on the market so the frontend can read them
-    // instead of hardcoding the same values in two separate places.
+    // Store applied rates on the market for frontend transparency (BUG-23 fix)
     const ratesNote = allBetOnWinner
       ? "REFUND: all bettors chose the winning option, no commission taken"
-      : `RATES:${JSON.stringify({ house: houseRate, creator: creatorRate, winners: winnersRate })}`;
+      : `RATES:${JSON.stringify({
+          creator_pct: CREATOR_RATE,
+          house_on_losers_pct: HOUSE_LOSER_RATE,
+          withdrawal_fee_pct: 0.05,
+          losing_pool: losingTotal,
+          creator_share: creatorShare,
+          house_share: commission,
+          winners_pool: winnersPool,
+        })}`;
 
     const { error: resolveErr } = await sb
       .from("mutuel_markets")
@@ -218,12 +228,17 @@ export async function POST(req: Request) {
       summary: {
         token,
         total_pool: totalPool,
-        house: commission,
+        losing_pool: losingTotal,
+        house_from_losers: commission,
         creator_share: creatorShare,
         winners_pool: winnersPool,
         winner_count: winningBets.length,
         loser_count: losingBets.length,
-        rates: { house: houseRate, creator: creatorRate, winners: winnersRate },
+        rates: {
+          creator_pct: CREATOR_RATE,
+          house_on_losers_pct: HOUSE_LOSER_RATE,
+          withdrawal_fee_pct: 0.05,
+        },
       },
     });
   }

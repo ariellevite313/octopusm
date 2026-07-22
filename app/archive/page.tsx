@@ -7,8 +7,8 @@ import { parseMarketOptions } from "@/lib/market/utils";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
 
 export const metadata: Metadata = {
-  title: "Archive — Octo Market",
-  description: "All resolved prediction markets on Octo Market.",
+  title: "Archive — OMdotfun",
+  description: "All resolved prediction markets on OMdotfun.",
 };
 
 export const revalidate = 60;

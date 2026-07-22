@@ -16,21 +16,30 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
   }
 
-  const coinId = COINGECKO_IDS[symbol];
+  // Primary: Binance ticker/price (real-time, sub-second)
+  try {
+    const res = await fetch(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
+      { headers: { "Accept": "application/json" }, next: { revalidate: 0 } }
+    );
+    if (res.ok) {
+      const data: { symbol: string; price: string } = await res.json();
+      if (data.price) return NextResponse.json({ price: data.price, source: "binance" });
+    }
+  } catch { /* fall through */ }
 
+  // Fallback: CoinGecko (~1-5 min delay on free plan — acceptable only as last resort)
+  const coinId = COINGECKO_IDS[symbol];
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
-      {
-        headers: { "Accept": "application/json" },
-        next: { revalidate: 0 },
-      }
+      { headers: { "Accept": "application/json" }, next: { revalidate: 0 } }
     );
     if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
     const data: Record<string, { usd: number }> = await res.json();
     const price = data[coinId]?.usd;
     if (!price) throw new Error("No price data");
-    return NextResponse.json({ price: String(price) });
+    return NextResponse.json({ price: String(price), source: "coingecko" });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "fetch failed" },

@@ -3,7 +3,7 @@ import { getActiveMarkets, getMarketVolumes, getDistinctCategories } from "@/ser
 import { CryptoPageClient } from "@/components/updown/crypto-page-client";
 
 export const metadata: Metadata = {
-  title: "Crypto Markets | Octo Market",
+  title: "Crypto Markets | OMdotfun",
   description: "Up/Down rounds and Hit Price prediction markets on crypto.",
   robots: { index: true, follow: true },
 };

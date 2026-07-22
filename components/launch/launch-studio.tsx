@@ -602,7 +602,7 @@ export function LaunchStudio() {
             Launch studio
           </div>
           <h2 className="text-3xl font-bold tracking-tight">
-            Launch a token from Octo Market
+            Launch a token from OMdotfun
           </h2>
           <p className="max-w-xl text-muted-foreground">
             Fill in the token details, choose your fee option, and submit a verified launch

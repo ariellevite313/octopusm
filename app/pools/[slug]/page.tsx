@@ -33,10 +33,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: pool.title,
-    description: pool.description ?? "Pari mutuel pool on Octo Market. Pick your outcome and share the winnings.",
+    description: pool.description ?? "Pari mutuel pool on OMdotfun. Pick your outcome and share the winnings.",
     openGraph: {
       title: pool.title,
-      description: pool.description ?? "Pari mutuel pool on Octo Market.",
+      description: pool.description ?? "Pari mutuel pool on OMdotfun.",
       url: `/pools/${slug}`,
       type: "website",
       images: [{ url: ogImage, width: 1200, height: 630, alt: pool.title }],
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: pool.title,
-      description: pool.description ?? "Pari mutuel pool on Octo Market.",
+      description: pool.description ?? "Pari mutuel pool on OMdotfun.",
       images: [ogImage],
     },
   };

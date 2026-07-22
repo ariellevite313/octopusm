@@ -8,7 +8,7 @@ import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
   { href: "/", label: "Markets" },
-  { href: "/pools", label: "PrediMarket" },
+  { href: "/pools", label: "Bookmaker" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/launch", label: "Launch" },
   { href: "/archive", label: "Archive" },
@@ -22,8 +22,8 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold text-foreground">
-            <Image src="/octomarket-logo.png" alt="Octo Market" width={40} height={40} className="rounded-xl" />
-            <span>Octo Market</span>
+            <Image src="/octomarket-logo.png" alt="OMdotfun" width={40} height={40} className="rounded-xl" />
+            <span>OMdotfun</span>
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm md:flex">

@@ -48,6 +48,12 @@ function fmtAmount(token: WithdrawalToken, amount: number) {
   return `${n} CLT`;
 }
 
+function netAmount(token: WithdrawalToken, gross: number): number {
+  return token === "usdc"
+    ? Math.round(gross * 0.95 * 100) / 100
+    : Math.floor(gross * 0.95);
+}
+
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: WithdrawalStatus }) {
@@ -128,13 +134,25 @@ function MarkPaidDialog({
       <DialogContent className="max-w-sm border-border">
         <DialogHeader>
           <DialogTitle>Mark as Paid</DialogTitle>
-          <DialogDescription className="flex items-center gap-1.5 flex-wrap">
-            {row ? (
-              <>
-                <span>{fmtAmount(row.token, row.amount)} →</span>
-                <CopyAddr addr={row.wallet_address} />
-              </>
-            ) : null}
+          <DialogDescription asChild>
+            <div className="space-y-1.5 text-sm">
+              {row && (
+                <>
+                  <div className="flex items-center gap-1.5 flex-wrap text-muted-foreground">
+                    <span>Requested:</span>
+                    <span className="font-medium text-foreground">{fmtAmount(row.token, row.amount)}</span>
+                    <span>→</span>
+                    <CopyAddr addr={row.wallet_address} />
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 px-3 py-2">
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                      <span className="font-bold">Send to user: {fmtAmount(row.token, netAmount(row.token, row.amount))}</span>
+                      <span className="ml-1 opacity-70">(after 5% platform fee)</span>
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
@@ -260,6 +278,9 @@ export function AdminWithdrawalsClient({ withdrawals: initialWithdrawals }: { wi
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-semibold text-foreground">{fmtAmount(w.token, w.amount)}</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  → {fmtAmount(w.token, netAmount(w.token, w.amount))} net
+                </p>
                 <CopyAddr addr={w.wallet_address} />
               </div>
               <StatusBadge status={w.status} />
@@ -325,7 +346,12 @@ export function AdminWithdrawalsClient({ withdrawals: initialWithdrawals }: { wi
                     {w.token === "usdc" ? "USDC" : "CLT"}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-semibold">{fmtAmount(w.token, w.amount)}</td>
+                <td className="px-4 py-3">
+                  <p className="font-semibold">{fmtAmount(w.token, w.amount)}</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    → {fmtAmount(w.token, netAmount(w.token, w.amount))} net
+                  </p>
+                </td>
                 <td className="px-4 py-3"><StatusBadge status={w.status} /></td>
                 <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{formatDate(w.created_at)}</td>
                 <td className="px-4 py-3">
