@@ -25,16 +25,24 @@ export async function getWalletProfile(address: string): Promise<WalletProfile |
 }
 
 export async function updateWalletProfile(
-  address: string,
+  _address: string,
   updates: { username?: string; display_name?: string; twitter_handle?: string }
 ): Promise<{ error?: string }> {
-  const supabase = createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from("wallets")
-    .update(updates)
-    .eq("address", address);
-  return error ? { error: (error as { message: string }).message } : {};
+  // Use server-side route to bypass RLS (anon client cannot UPDATE wallets)
+  try {
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      return { error: body.error ?? "Failed to update profile" };
+    }
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }
 
 export async function uploadAvatar(

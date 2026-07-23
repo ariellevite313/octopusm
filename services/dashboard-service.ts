@@ -233,6 +233,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
   const isMutuelWin = (b: any) => (b.payout_amount ?? 0) > 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isMutuelLoss = (b: any) => {
+    if (b.status === "creator_fee") return false; // creator fee rows are never losses
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mkt = b.mutuel_markets as any;
     return mkt?.status === "resolved" && !mkt?.is_refund && b.option_id !== mkt?.winning_option_id;
@@ -272,7 +273,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     volume:
       usdcBets.reduce((s, b) => s + (b.amount ?? 0), 0) +
       updownUsdc.reduce((s: number, b: any) => s + (b.amount ?? 0), 0) +
-      mutuelUsdc.reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
+      mutuelUsdc.filter((b: any) => b.status !== "creator_fee").reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
     gains:
       usdcBets.filter((b) => isWin(b.result_status)).reduce((s, b) => s + (b.net_reward ?? 0), 0) +
       updownUsdcGains +
@@ -290,7 +291,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     volume:
       cltBets.reduce((s, b) => s + (b.amount ?? 0), 0) +
       updownClt.reduce((s: number, b: any) => s + (b.amount ?? 0), 0) +
-      mutuelClt.reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
+      mutuelClt.filter((b: any) => b.status !== "creator_fee").reduce((s: number, b: any) => s + (b.amount ?? 0), 0),
     gains:
       cltBets.filter((b) => isWin(b.result_status)).reduce((s, b) => s + (b.net_reward ?? 0), 0) +
       updownCltGains +
@@ -347,7 +348,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
         id: b.id as string,
         type: "win" as const,
         label: (b.mutuel_markets as any)?.title ?? "Pool win",
-        sub: "Pool payout",
+        sub: b.status === "creator_fee" ? "Creator fee" : "Pool payout",
         amount: (b.payout_amount as number) ?? 0,
         direction: "in" as const,
         created_at: b.created_at as string,
@@ -443,7 +444,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
         id: b.id as string,
         type: "win" as const,
         label: (b.mutuel_markets as any)?.title ?? "Pool win",
-        sub: "Pool payout",
+        sub: b.status === "creator_fee" ? "Creator fee" : "Pool payout",
         amount: (b.payout_amount as number) ?? 0,
         direction: "in" as const,
         created_at: b.created_at as string,

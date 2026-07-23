@@ -5,7 +5,9 @@
  *   1. Vérifie la signature ed25519 du wallet
  *   2. Sign-in rapide (fast path pour les users existants)
  *   3. Si échec → createUser (nouveau) ou updateUserById (password obsolète)
- *   4. Returns { access_token, refresh_token }
+ *   4. Upsert dans la table `wallets` (création ou mise à jour last_connected_at)
+ *   5. Si nouveau user + ref_code → enregistre le parrainage + crédite OCTO
+ *   6. Returns { access_token, refresh_token }
  *
  * Déploiement :
  *   supabase functions deploy wallet-auth --no-verify-jwt
@@ -18,8 +20,7 @@ import bs58 from "https://esm.sh/bs58@5.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // Password déterministe : HMAC-SHA256(walletAddress, SERVICE_ROLE_KEY) → base64url
@@ -63,8 +64,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // ── Anti-replay < 5 min (REF-C fix) ─────────────────────────────────
-    // Message format: "Sign in to OMdotfun\nAddress: ...\nNonce: ...\nTimestamp: <ISO>"
+    // ── Anti-replay < 5 min ───────────────────────────────────────────────
     const decoded = new TextDecoder().decode(messageBytes);
     const timeMatch = decoded.match(/Timestamp:\s+(\S+)/);
     if (timeMatch) {
@@ -92,11 +92,11 @@ serve(async (req: Request) => {
     const fakeEmail = `${walletAddress.toLowerCase()}@octopus-market.wallet`;
     const password  = await derivePassword(walletAddress, serviceKey);
 
-    // ── Fast path : sign-in direct (user existant avec bon password) ──────
+    // ── Auth : fast path → new user → password reset ──────────────────────
+    let isNewUser = false;
     let { data: session } = await anon.auth.signInWithPassword({ email: fakeEmail, password });
 
     if (!session?.session) {
-      // ── Tentative de création (nouveau user) ──────────────────────────
       const { data: created } = await admin.auth.admin.createUser({
         email: fakeEmail,
         password,
@@ -105,90 +105,17 @@ serve(async (req: Request) => {
       });
 
       if (created?.user?.id) {
-        // New user created — sign in
+        isNewUser = true;
         const r = await anon.auth.signInWithPassword({ email: fakeEmail, password });
         if (!r.data?.session) throw new Error(`Sign in failed: ${r.error?.message}`);
         session = r.data;
-
-        // Generate a unique referral code for the new user (REF-02)
-        try {
-          const code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
-            .map((b) => b.toString(36).toUpperCase().padStart(2, "0"))
-            .join("")
-            .slice(0, 8);
-          await admin.from("referral_codes").upsert(
-            { wallet_address: walletAddress, code },
-            { onConflict: "wallet_address" },
-          );
-        } catch (codeErr) {
-          console.error("[wallet-auth] referral code generation error:", codeErr);
-        }
-
-        // Award 10 OCTO to the referrer on new user signup (REF-01)
-        if (ref_code) {
-          try {
-            // Resolve code → referrer wallet
-            const { data: codeRow } = await admin
-              .from("referral_codes")
-              .select("wallet_address")
-              .eq("code", ref_code)
-              .maybeSingle();
-
-            const referrerWallet: string | null = codeRow?.wallet_address ?? null;
-
-            // Prevent self-referral
-            if (referrerWallet && referrerWallet !== walletAddress) {
-              // Idempotency check
-              const { data: existing } = await admin
-                .from("referrals")
-                .select("id")
-                .eq("referrer_wallet", referrerWallet)
-                .eq("referred_wallet", walletAddress)
-                .maybeSingle();
-
-              if (!existing) {
-                // Record the referral relationship
-                await admin.from("referrals").insert({
-                  referrer_wallet: referrerWallet,
-                  referred_wallet: walletAddress,
-                });
-
-                // Award 10 OCTO to the referrer
-                await admin.from("octo_transactions").insert({
-                  wallet_address: referrerWallet,
-                  type: "referral",
-                  amount: 10,
-                  label: `Referral: ${walletAddress.slice(0, 8)}…`,
-                  ref_id: walletAddress,
-                });
-
-                // Update leaderboard_octo so the balance reflects the award (REF-01 fix)
-                const { data: lb } = await admin
-                  .from("leaderboard_octo")
-                  .select("total_octo")
-                  .eq("wallet_address", referrerWallet)
-                  .maybeSingle();
-                const current = Number(lb?.total_octo ?? 0);
-                await admin.from("leaderboard_octo").upsert(
-                  { wallet_address: referrerWallet, total_octo: current + 10 },
-                  { onConflict: "wallet_address" },
-                );
-              }
-            }
-          } catch (refErr) {
-            // Don't fail auth if referral logic errors
-            console.error("[wallet-auth] referral error:", refErr);
-          }
-        }
       } else {
-        // User existant avec ancien password → recherche directe par email
+        // Existing user with old password — find and update
         const { data: found } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
         // deno-lint-ignore no-explicit-any
         const match = found?.users?.find((u: any) => u.email === fakeEmail);
-        if (!match) throw new Error("Utilisateur introuvable.");
-
+        if (!match) throw new Error("User not found.");
         await admin.auth.admin.updateUserById(match.id, { password });
-
         const r = await anon.auth.signInWithPassword({ email: fakeEmail, password });
         if (!r.data?.session) throw new Error(`Sign in failed after update: ${r.error?.message}`);
         session = r.data;
@@ -196,6 +123,122 @@ serve(async (req: Request) => {
     }
 
     const { access_token, refresh_token } = session.session!;
+    const now = new Date().toISOString();
+
+    // ── Upsert wallet row ─────────────────────────────────────────────────
+    // Critical: all FK constraints on payments/bets reference wallets.address
+    try {
+      const { data: existingWallet } = await admin
+        .from("wallets")
+        .select("address, connection_count")
+        .eq("address", walletAddress)
+        .maybeSingle();
+
+      if (!existingWallet) {
+        // New wallet row — insert with all required defaults
+        await admin.from("wallets").insert({
+          address: walletAddress,
+          role: "user",
+          status: "active",
+          first_connected_at: now,
+          last_connected_at: now,
+          connection_count: 1,
+          latest_activity_at: now,
+          latest_activity_label: "First connection",
+          payment_count: 0,
+          approved_payment_count: 0,
+          pending_payment_count: 0,
+          rejected_payment_count: 0,
+          total_paid_usdc: 0,
+          total_won_usdc: 0,
+          total_lost_usdc: 0,
+          total_claimed_usdc: 0,
+        });
+      } else {
+        // Existing wallet — update connection tracking only
+        await admin.from("wallets").update({
+          last_connected_at: now,
+          connection_count: (existingWallet.connection_count ?? 0) + 1,
+          latest_activity_at: now,
+          latest_activity_label: "Connected",
+        }).eq("address", walletAddress);
+      }
+    } catch (walletErr) {
+      // Log but never block auth
+      console.error("[wallet-auth] wallets upsert error:", walletErr);
+    }
+
+    // ── New user only : generate referral code + handle parrainage ────────
+    if (isNewUser) {
+      // Generate unique referral code
+      try {
+        const code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+          .map((b) => b.toString(36).toUpperCase().padStart(2, "0"))
+          .join("")
+          .slice(0, 8);
+        await admin.from("referral_codes").upsert(
+          { wallet_address: walletAddress, code },
+          { onConflict: "wallet_address" },
+        );
+      } catch (codeErr) {
+        console.error("[wallet-auth] referral code generation error:", codeErr);
+      }
+
+      // Handle referral if ref_code provided
+      if (ref_code && typeof ref_code === "string") {
+        try {
+          // Resolve code → referrer wallet
+          const { data: codeRow } = await admin
+            .from("referral_codes")
+            .select("wallet_address")
+            .eq("code", ref_code)
+            .maybeSingle();
+
+          const referrerWallet: string | null = codeRow?.wallet_address ?? null;
+
+          if (referrerWallet && referrerWallet !== walletAddress) {
+            // Idempotency check
+            const { data: existing } = await admin
+              .from("referrals")
+              .select("id")
+              .eq("referrer_wallet", referrerWallet)
+              .eq("referred_wallet", walletAddress)
+              .maybeSingle();
+
+            if (!existing) {
+              // Record the referral relationship
+              const { error: refErr } = await admin.from("referrals").insert({
+                referrer_wallet: referrerWallet,
+                referred_wallet: walletAddress,
+              });
+
+              // 23505 = race condition, already inserted — still credit OCTO
+              if (!refErr || refErr.code === "23505") {
+                if (!refErr) {
+                  // +10 OCTO to referrer, +5 OCTO to new user
+                  await admin.from("octo_transactions").insert([
+                    {
+                      wallet_address: referrerWallet,
+                      type: "referral",
+                      amount: 10,
+                      ref_wallet: walletAddress,
+                    },
+                    {
+                      wallet_address: walletAddress,
+                      type: "referral",
+                      amount: 5,
+                      ref_wallet: referrerWallet,
+                    },
+                  ]);
+                }
+              }
+            }
+          }
+        } catch (refErr) {
+          console.error("[wallet-auth] referral error:", refErr);
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({ access_token, refresh_token, wallet_address: walletAddress }),

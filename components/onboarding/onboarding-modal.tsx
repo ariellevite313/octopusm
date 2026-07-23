@@ -80,7 +80,10 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
             <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-500/15">
               <Zap className="size-5 text-orange-500" />
             </div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Getting started</h2>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">OMdotfun</p>
+              <h2 className="text-lg font-semibold leading-tight text-zinc-900 dark:text-white">Getting started</h2>
+            </div>
           </div>
           <button
             type="button"

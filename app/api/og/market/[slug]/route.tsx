@@ -25,7 +25,7 @@ export async function GET(
   const { slug } = await params;
   const market = await getMarketBySlug(slug);
 
-  const title   = market?.title ?? "Octo Market";
+  const title   = market?.title ?? "OMdotfun";
   const options = market ? parseMarketOptions(market.options) : [];
 
   const isResolved = market?.is_resolved ?? false;
@@ -75,7 +75,7 @@ export async function GET(
               🐙
             </div>
             <span style={{ fontSize: 16, color: "#f97316", fontWeight: 600, letterSpacing: "0.05em" }}>
-              OCTO MARKET
+              OMdotfun
             </span>
           </div>
 
