@@ -221,6 +221,24 @@ export async function POST(req: Request) {
       });
     }
 
+    // ── Creator fee — insert a mutuel_bets row so it appears in the creator's balance ──
+    // status "creator_fee" is excluded from volume + loss stats in dashboard-service.ts
+    if (market.creator_wallet && creatorShare > 0) {
+      const { error: creatorFeeErr } = await sb.from("mutuel_bets").insert({
+        market_id:      marketId,
+        wallet_address: market.creator_wallet,
+        option_id:      "creator_fee",
+        amount:         creatorShare,
+        token:          market.bet_token,
+        payout_amount:  creatorShare,
+        status:         "creator_fee",
+      });
+      if (creatorFeeErr) {
+        // Log but don't block the response — market is already resolved
+        console.error("[pools/resolve] creator fee insert failed:", creatorFeeErr.message);
+      }
+    }
+
     revalidatePath("/pools");
     return NextResponse.json({
       ok: true,
