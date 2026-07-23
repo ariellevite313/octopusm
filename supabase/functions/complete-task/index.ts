@@ -110,8 +110,7 @@ serve(async (req: Request) => {
       wallet_address: walletAddress,
       type: "task",
       amount: task.reward_octo,
-      label: task.title,
-      ref_id: task_id,
+      task_id,
     });
     if (octoErr) {
       console.error("[complete-task] octo_transactions insert:", octoErr.message);

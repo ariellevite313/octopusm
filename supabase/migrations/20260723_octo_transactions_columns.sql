@@ -1,0 +1,3 @@
+-- OBSOLETE: columns already exist in production DB.
+-- bet_amount_usd, task_id, ref_wallet were added manually before this file was created.
+-- Kept as documentation only — safe to ignore.
