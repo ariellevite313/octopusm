@@ -42,7 +42,7 @@ export async function GET() {
     // Prediction results (wins + losses)
     admin
       .from("prediction_history_with_status")
-      .select("id, token, amount_usdc, net_reward, result_status, market_title, payout_multiple, created_at")
+      .select("id, token, amount, net_reward, result_status, market_title, payout_multiple, created_at")
       .eq("wallet_address", wallet)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -91,7 +91,7 @@ export async function GET() {
     // OCTO transactions
     admin
       .from("octo_transactions")
-      .select("id, type, amount, label, created_at")
+      .select("id, type, amount, bet_amount_usd, created_at")
       .eq("wallet_address", wallet)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -135,11 +135,11 @@ export async function GET() {
     })),
     // Prediction market losses (USDC)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...usdcBets.filter((b) => b.result_status === "loss").map((b: any) => ({
+    ...usdcBets.filter((b) => b.result_status === "lose").map((b: any) => ({
       id: `loss-${b.id as string}`, type: "loss" as const,
       label: (b.market_title as string) ?? "Prediction",
       sub: "Lost",
-      amount: (b.amount_usdc as number) ?? 0, direction: "out" as const,
+      amount: (b.amount as number) ?? 0, direction: "out" as const,
       created_at: b.created_at as string,
     })),
     // Up/Down wins in USDC
@@ -222,11 +222,11 @@ export async function GET() {
     })),
     // Prediction market losses (CLT)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...cltBets.filter((b) => b.result_status === "loss").map((b: any) => ({
+    ...cltBets.filter((b) => b.result_status === "lose").map((b: any) => ({
       id: `loss-${b.id as string}`, type: "loss" as const,
       label: (b.market_title as string) ?? "Prediction",
       sub: "Lost",
-      amount: (b.amount_usdc as number) ?? 0, direction: "out" as const,
+      amount: (b.amount as number) ?? 0, direction: "out" as const,
       created_at: b.created_at as string,
     })),
     // Up/Down wins in CLT
@@ -298,12 +298,17 @@ export async function GET() {
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const OCTO_LABELS: Record<string, string> = {
+    bet:      "Bet reward",
+    task:     "Task reward",
+    referral: "Referral bonus",
+  };
   const octoActivity = octoTxs.map((t: any) => ({
     id: t.id as string,
     type: t.type as "bet" | "task" | "referral",
     amount: Number(t.amount ?? 0),
-    label: (t.label as string) ?? "OCTO earned",
-    sub: t.type === "bet" ? "Bet placed" : t.type === "task" ? "Task completed" : "Referral",
+    label: OCTO_LABELS[t.type as string] ?? "OCTO earned",
+    sub: t.bet_amount_usd != null ? `$${Number(t.bet_amount_usd).toFixed(2)}` : "",
     created_at: t.created_at as string,
   }));
 

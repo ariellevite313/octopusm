@@ -26,18 +26,22 @@ export async function awardOcto(
   walletAddress: string,
   amount: number,
   type: "bet" | "task" | "referral",
-  label: string,
+  _label?: string,
+  betAmountUsd?: number,
 ): Promise<void> {
+  if (amount <= 0) return;
+
   const admin = createAdminClient() as any;
 
-  // 1. Record the transaction
-  await admin.from("octo_transactions").insert({
-    id:             crypto.randomUUID(),
+  // 1. Record the transaction (no `label` column — table uses `type` for display)
+  const row: Record<string, unknown> = {
     wallet_address: walletAddress,
     type,
     amount,
-    label,
-  });
+  };
+  if (betAmountUsd !== undefined) row.bet_amount_usd = betAmountUsd;
+
+  await admin.from("octo_transactions").insert(row);
 
   // 2. Increment leaderboard balance (read → upsert; good enough at current scale)
   const { data: lb } = await admin
