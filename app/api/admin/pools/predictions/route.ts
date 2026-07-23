@@ -151,8 +151,6 @@ export async function POST(req: Request) {
       wallet_address: payment.user_wallet,
       type:           "bet",
       amount:         5,
-      label:          payment.title ?? "Pool bet",
-      ref_id:         paymentId,
     });
     if (octoErr) console.error("[pools/predictions] octo_transactions insert:", octoErr.message);
 

@@ -77,7 +77,6 @@ export async function POST(req: Request) {
     wallet_address: bet.wallet_address,
     type:           "bet",
     amount:         OCTO_PER_BET,
-    label:          `Up/Down bet — ${bet.updown_markets?.symbol ?? "crypto"}`,
   });
   if (octoErr) console.error("[updown/bets] octo_transactions insert:", octoErr.message);
 
