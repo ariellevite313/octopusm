@@ -261,13 +261,13 @@ function TokenRow({
 export function TokenBalances({
   usdcBalance: initialUsdcBalance,
   cltBalance: initialCltBalance,
-  octoBalance,
+  octoBalance: initialOctoBalance,
   usdcStats,
   cltStats,
   octoStats,
   usdcActivity: initialUsdcActivity,
   cltActivity: initialCltActivity,
-  octoActivity,
+  octoActivity: initialOctoActivity,
 }: {
   usdcBalance: number;
   cltBalance: number;
@@ -283,8 +283,10 @@ export function TokenBalances({
   const [withdrawToken, setWithdrawToken] = useState<"usdc" | "clawdtrust" | null>(null);
   const [usdcBalance, setUsdcBalance]     = useState(initialUsdcBalance);
   const [cltBalance, setCltBalance]       = useState(initialCltBalance);
+  const [octoBalance, setOctoBalance]     = useState(initialOctoBalance);
   const [usdcActivity, setUsdcActivity]   = useState<TokenActivity[]>(initialUsdcActivity);
   const [cltActivity, setCltActivity]     = useState<TokenActivity[]>(initialCltActivity);
+  const [octoActivity, setOctoActivity]   = useState<OctoActivity[]>(initialOctoActivity);
 
   const toggle = (tok: "usdc" | "clt" | "octo") =>
     setOpen((prev) => (prev === tok ? null : tok));
@@ -294,9 +296,14 @@ export function TokenBalances({
     try {
       const res = await fetch("/api/balance");
       if (!res.ok) return;
-      const { usdcBalance: u, cltBalance: c } = await res.json() as { usdcBalance: number; cltBalance: number };
+      const { usdcBalance: u, cltBalance: c, octoBalance: o } = await res.json() as {
+        usdcBalance: number;
+        cltBalance: number;
+        octoBalance: number;
+      };
       setUsdcBalance(u);
       setCltBalance(c);
+      setOctoBalance(o);
     } catch {
       // silent — stale values remain
     }
@@ -318,13 +325,33 @@ export function TokenBalances({
     }
   }, []);
 
+  // Re-fetch OCTO balance + activity
+  const refreshOcto = useCallback(async () => {
+    try {
+      const [balRes, actRes] = await Promise.all([
+        fetch("/api/balance"),
+        fetch("/api/activity"),
+      ]);
+      if (balRes.ok) {
+        const { octoBalance: o } = await balRes.json() as { octoBalance: number };
+        setOctoBalance(o);
+      }
+      if (actRes.ok) {
+        const { octoActivity: oa } = await actRes.json() as { octoActivity: OctoActivity[] };
+        if (oa) setOctoActivity(oa);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
   // Refresh both balance and activity together
   const refreshAll = useCallback(() => {
     void refreshBalances();
     void refreshActivity();
   }, [refreshBalances, refreshActivity]);
 
-  // Supabase Realtime: listen for bet resolutions and withdrawal changes
+  // Supabase Realtime: listen for bet resolutions, withdrawals and OCTO awards
   useEffect(() => {
     const sb = createClient();
     const channel = sb
@@ -337,10 +364,12 @@ export function TokenBalances({
       .on("postgres_changes" as const, { event: "UPDATE", schema: "public", table: "updown_bets" }, refreshAll)
       // Pool bets: payout_amount is set automatically when admin resolves the market
       .on("postgres_changes" as const, { event: "UPDATE", schema: "public", table: "mutuel_bets" }, refreshAll)
+      // OCTO: new transaction inserted when a bet is placed
+      .on("postgres_changes" as const, { event: "INSERT", schema: "public", table: "octo_transactions" }, refreshOcto)
       .subscribe();
 
     return () => { void sb.removeChannel(channel); };
-  }, [refreshAll]);
+  }, [refreshAll, refreshOcto]);
 
   return (
     <>
