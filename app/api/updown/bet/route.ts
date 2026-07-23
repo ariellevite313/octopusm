@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { awardOcto, OCTO_PER_BET } from "@/lib/octo";
+import { awardOcto, octoForBet } from "@/lib/octo";
 import { awardReferralCommission } from "@/lib/referral";
 
 /**
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
   }
 
   // Award OCTO + referral commission for placing an Up/Down bet (fire and forget)
-  awardOcto(wallet_address, OCTO_PER_BET, "bet", "Up/Down bet placed").catch(() => {});
+  awardOcto(wallet_address, octoForBet(amount, "usdc"), "bet", "Up/Down bet placed").catch(() => {});
   // token defaults to "usdc" for updown bets (no CLT updown markets currently)
   awardReferralCommission(wallet_address, amount, "usdc").catch(() => {});
 

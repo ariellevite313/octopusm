@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { awardOcto, OCTO_PER_BET } from "@/lib/octo";
+import { awardOcto, octoForBet } from "@/lib/octo";
 import { awardReferralCommission } from "@/lib/referral";
 
 /**
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
   // Award OCTO + referral commission immediately on placement (fire and forget).
   // Same flow as up/down and pools: OCTO is earned when the bet is placed, not at admin approval.
-  awardOcto(body.wallet_address, OCTO_PER_BET, "bet", "Prediction placed").catch(() => {});
+  awardOcto(body.wallet_address, octoForBet(body.amount_usdc, body.token), "bet", "Prediction placed").catch(() => {});
   awardReferralCommission(body.wallet_address, body.amount_usdc, body.token).catch(() => {});
 
   return NextResponse.json({ ok: true });

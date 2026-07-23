@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { awardOcto, OCTO_PER_BET } from "@/lib/octo";
+import { awardOcto, octoForBet } from "@/lib/octo";
 import { awardReferralCommission } from "@/lib/referral";
 
 /**
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
   }
 
   // Award OCTO + referral commission for placing a pool bet (fire and forget)
-  awardOcto(body.wallet_address, OCTO_PER_BET, "bet", "Pool bet placed").catch(() => {});
+  awardOcto(body.wallet_address, octoForBet(body.amount_usdc, body.token), "bet", "Pool bet placed").catch(() => {});
   awardReferralCommission(body.wallet_address, body.amount_usdc, body.token).catch(() => {});
 
   return NextResponse.json({ ok: true });

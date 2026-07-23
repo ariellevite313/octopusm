@@ -1,7 +1,18 @@
 import { createAdminClient } from "@/lib/supabase/server";
 
-export const OCTO_PER_BET      = 50;
 export const OCTO_PER_CREATION = 100;
+
+/**
+ * OCTO earned for a bet, based on amount:
+ *  USDC : 10 OCTO per 2 USDC  → floor(amount / 2) * 10
+ *  CLT  : 20 OCTO per 100 000 CLT → floor(amount / 100_000) * 20
+ * Minimum 0 (returns 0 if amount is too small).
+ */
+export function octoForBet(amount: number, token: string): number {
+  const isClt = token === "clawdtrust" || token === "clt";
+  if (isClt) return Math.floor(amount / 100_000) * 20;
+  return Math.floor(amount / 2) * 10;
+}
 
 /**
  * Awards OCTO to a wallet:
