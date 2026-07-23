@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, Clock, Loader2 } from "lucide-react";
+import { ExternalLink, Clock } from "lucide-react";
 import type { BetHistoryRow, UpdownBetHistory } from "@/services/dashboard-service";
 import type { PredictionResultStatus } from "@/lib/supabase/types";
 
@@ -53,7 +53,7 @@ function TypeBadge({ kind }: { kind: "market" | "pool" | "pool_pending" | "updow
 
 const MARKET_STATUS_LABEL: Record<PredictionResultStatus, string> = {
   open: "Open", pending_review: "Reviewing", approved_pending_result: "Awaiting result",
-  win: "Won", lose: "Lost", claimed: "Claimed", paid: "Paid", rejected: "Rejected",
+  win: "Won", lose: "Lost", claimed: "Won", paid: "Won", rejected: "Rejected",
 };
 const MARKET_STATUS_CLASS: Record<PredictionResultStatus, string> = {
   open: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
@@ -61,8 +61,8 @@ const MARKET_STATUS_CLASS: Record<PredictionResultStatus, string> = {
   approved_pending_result: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
   win: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
   lose: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400",
-  claimed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  paid: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+  claimed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
+  paid: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
   rejected: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400",
 };
 
@@ -70,17 +70,12 @@ function poolBetStatus(bet: PoolBet): { label: string; cls: string } {
   const m = bet.mutuel_markets;
   if (!m) return { label: "Unknown", cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
   if (m.status === "cancelled") {
-    if (bet.paid_at) return { label: "Refunded", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
-    if (bet.claimed_at) return { label: "Claim sent", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
-    if (bet.payout_amount !== null) return { label: "Claim refund", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
+    if (bet.payout_amount !== null) return { label: "Refunded", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
     return { label: "Cancelled", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
   }
   if (m.status === "resolved") {
     const won = m.winning_option_id === bet.option_id;
     if (!won) return { label: "Lost", cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
-    if (bet.paid_at) return { label: "Paid", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" };
-    if (bet.claimed_at) return { label: "Claim sent", cls: "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400" };
-    if (bet.payout_amount !== null) return { label: "Claim ready", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
     return { label: "Won", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   }
   if (m.status === "closed") return { label: "Awaiting result", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
@@ -93,27 +88,14 @@ function updownStatus(bet: UpdownBetHistory): { label: string; cls: string } {
   if (bet.status === "rejected")  return { label: "Rejected",       cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
   if (bet.status === "lost")      return { label: "Lost",           cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
   if (bet.status === "refunded")  return { label: "Refunded",       cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
-  if (bet.status === "won")       return { label: "Won",            cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
-  if (bet.status === "claimed")   return { label: "Claim sent",     cls: "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400" };
-  if (bet.status === "paid")      return { label: "Paid",           cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" };
+  if (bet.status === "won" || bet.status === "claimed" || bet.status === "paid")
+    return { label: "Won", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   if (bet.status === "approved") {
     const m = bet.updown_markets;
     if (!m || m.status === "open") return { label: "Active",           cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
     return { label: "Awaiting result", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
   }
   return { label: bet.status, cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
-}
-
-function updownCanClaim(bet: UpdownBetHistory): boolean {
-  return bet.status === "won" || bet.status === "refunded";
-}
-
-function isClaimable(bet: PoolBet): boolean {
-  const m = bet.mutuel_markets;
-  if (!m || bet.claimed_at || bet.paid_at || bet.payout_amount === null) return false;
-  if (m.status === "resolved") return m.winning_option_id === bet.option_id;
-  if (m.status === "cancelled") return true;
-  return false;
 }
 
 function StatusBadge({ label, cls }: { label: string; cls: string }) {
@@ -135,8 +117,6 @@ export function BetHistory({ bets, walletAddress }: {
   const [marketPending, setMarketPending]     = useState<PendingMarketBet[]>([]);
   const [updownBets, setUpdownBets]           = useState<UpdownBetHistory[]>([]);
   const [loadingPool, setLoadingPool]         = useState(true);
-  const [claiming, setClaiming]               = useState<string | null>(null);
-  const [claimingUpdown, setClaimingUpdown]   = useState<string | null>(null);
   const [page, setPage]                       = useState(0);
 
   const loadBets = useCallback(async () => {
@@ -167,32 +147,6 @@ export function BetHistory({ bets, walletAddress }: {
 
   useEffect(() => { loadBets(); }, [loadBets]);
 
-  async function handleClaim(betId: string) {
-    setClaiming(betId);
-    try {
-      const res = await fetch("/api/pools/winnings/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ betId }) });
-      if (res.ok) setPoolBets(prev => prev.map(b => b.id === betId ? { ...b, claimed_at: new Date().toISOString() } : b));
-    } finally { setClaiming(null); }
-  }
-
-  async function handleClaimUpdown(betId: string) {
-    setClaimingUpdown(betId);
-    try {
-      const res = await fetch("/api/updown/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bet_id: betId, wallet_address: walletAddress }),
-      });
-      if (res.ok) {
-        // Mise à jour optimiste won → claimed
-        setUpdownBets(prev => prev.map(b => b.id === betId ? { ...b, status: "claimed" as const } : b));
-      } else {
-        const err = await res.json() as { error?: string };
-        console.error("[claim updown]", err.error);
-      }
-    } finally { setClaimingUpdown(null); }
-  }
-
   const rows: UnifiedRow[] = [
     ...bets.map((b) => ({ kind: "market" as const, data: b, date: new Date(b.created_at).getTime() })),
     ...poolBets.map((b) => ({ kind: "pool" as const, data: b, date: new Date(b.created_at).getTime() })),
@@ -220,7 +174,6 @@ export function BetHistory({ bets, walletAddress }: {
               if (row.kind === "updown") {
                 const b = row.data; const m = b.updown_markets;
                 const { label, cls } = updownStatus(b);
-                const canClaimUpdown = updownCanClaim(b);
                 return (
                   <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-1">
                     <div className="flex items-start justify-between gap-2">
@@ -235,11 +188,6 @@ export function BetHistory({ bets, walletAddress }: {
                       <span className="text-xs font-medium"><TokenAmount token="usdc" amount={b.amount} /></span>
                       <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
                     </div>
-                    {canClaimUpdown && (
-                      <button onClick={() => handleClaimUpdown(b.id)} disabled={claimingUpdown === b.id} className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                        {claimingUpdown === b.id ? <Loader2 className="size-3 animate-spin" /> : "🎉"} Claim {b.payout ? `$${b.payout.toFixed(2)}` : "winnings"}
-                      </button>
-                    )}
                   </div>
                 );
               }
@@ -299,7 +247,6 @@ export function BetHistory({ bets, walletAddress }: {
               const b = row.data; const m = b.mutuel_markets;
               const optLabel = m?.options?.find((o) => o.id === b.option_id)?.label ?? b.option_id;
               const { label, cls } = poolBetStatus(b);
-              const canClaim = isClaimable(b);
               return (
                 <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-1">
                   <div className="flex items-start justify-between gap-2">
@@ -315,11 +262,6 @@ export function BetHistory({ bets, walletAddress }: {
                     {m?.slug && <Link href={`/pools/${m.slug}`} className="text-muted-foreground hover:text-foreground"><ExternalLink className="size-3" /></Link>}
                     <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
                   </div>
-                  {canClaim && (
-                    <button onClick={() => handleClaim(b.id)} disabled={claiming === b.id} className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                      {claiming === b.id ? <Loader2 className="size-3 animate-spin" /> : null}Claim winnings
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -340,7 +282,6 @@ export function BetHistory({ bets, walletAddress }: {
                   if (row.kind === "updown") {
                     const b = row.data; const m = b.updown_markets;
                     const { label, cls } = updownStatus(b);
-                    const canClaimUpdown = updownCanClaim(b);
                     return (
                       <tr key={b.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3"><TypeBadge kind="updown" /></td>
@@ -348,15 +289,7 @@ export function BetHistory({ bets, walletAddress }: {
                         <td className="px-4 py-3 text-muted-foreground">{b.direction === "up" ? "↑ UP" : "↓ DOWN"}{m ? ` · $${m.strike_price}` : ""}</td>
                         <td className="px-4 py-3 whitespace-nowrap"><TokenAmount token="usdc" amount={b.amount} /></td>
                         <td className="px-4 py-3 text-muted-foreground">{b.payout ? `$${b.payout.toFixed(2)}` : "-"}</td>
-                        <td className="px-4 py-3">
-                          {canClaimUpdown ? (
-                            <button onClick={() => handleClaimUpdown(b.id)} disabled={claimingUpdown === b.id} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                              {claimingUpdown === b.id ? <Loader2 className="size-3 animate-spin" /> : "🎉"} Claim
-                            </button>
-                          ) : (
-                            <StatusBadge label={label} cls={cls} />
-                          )}
-                        </td>
+                        <td className="px-4 py-3"><StatusBadge label={label} cls={cls} /></td>
                         <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{fmtDate(b.created_at)}</td>
                       </tr>
                     );
@@ -406,7 +339,6 @@ export function BetHistory({ bets, walletAddress }: {
                   const b = row.data; const m = b.mutuel_markets;
                   const optLabel = m?.options?.find((o) => o.id === b.option_id)?.label ?? b.option_id;
                   const { label, cls } = poolBetStatus(b);
-                  const canClaim = isClaimable(b);
                   return (
                     <tr key={b.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3"><TypeBadge kind="pool" /></td>
@@ -419,15 +351,7 @@ export function BetHistory({ bets, walletAddress }: {
                       <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate">{optLabel}</td>
                       <td className="px-4 py-3 whitespace-nowrap"><TokenAmount token={b.token} amount={b.amount} /></td>
                       <td className="px-4 py-3 text-muted-foreground">-</td>
-                      <td className="px-4 py-3">
-                        {canClaim ? (
-                          <button onClick={() => handleClaim(b.id)} disabled={claiming === b.id} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                            {claiming === b.id ? <Loader2 className="size-3 animate-spin" /> : null}Claim
-                          </button>
-                        ) : (
-                          <StatusBadge label={label} cls={cls} />
-                        )}
-                      </td>
+                      <td className="px-4 py-3"><StatusBadge label={label} cls={cls} /></td>
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{fmtDate(b.created_at)}</td>
                     </tr>
                   );

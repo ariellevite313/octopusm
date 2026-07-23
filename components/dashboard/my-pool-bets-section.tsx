@@ -60,16 +60,13 @@ function betStatus(bet: ValidatedBet): {
   if (!market) return { label: "Unknown", color: "text-muted-foreground" };
 
   if (market.status === "cancelled") {
-    if (bet.paid_at) return { label: "Refunded", color: "text-slate-500" };
-    if (bet.payout_amount !== null) return { label: "Refund pending", color: "text-amber-500" };
+    if (bet.payout_amount !== null) return { label: "Refunded", color: "text-slate-500" };
     return { label: "Cancelled", color: "text-slate-500" };
   }
 
   if (market.status === "resolved") {
     const isWinner = market.winning_option_id === bet.option_id;
     if (!isWinner) return { label: "Lost", color: "text-red-500" };
-    if (bet.paid_at) return { label: "Paid", color: "text-emerald-500" };
-    if (bet.payout_amount !== null) return { label: "Claim ready", color: "text-emerald-500 font-semibold" };
     return { label: "Won", color: "text-emerald-500" };
   }
 
@@ -126,24 +123,10 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
 
   if (bets.length === 0 && pending.length === 0) return null;
 
-  // BUG-24 fix: also include cancelled markets with a pending refund (payout_amount set but not paid)
-  const claimReady = bets.filter(b => {
-    const m = b.mutuel_markets;
-    if (!m) return false;
-    if (b.payout_amount === null || b.paid_at) return false;
-    if (m.status === "cancelled") return true;
-    return m.status === "resolved" && m.winning_option_id === b.option_id;
-  });
-
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
         <h2 className="text-base font-bold text-foreground">My Pool Predictions</h2>
-        {claimReady.length > 0 && (
-          <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-bold text-white">
-            {claimReady.length} to claim
-          </span>
-        )}
       </div>
 
       <div className="flex flex-col gap-2">

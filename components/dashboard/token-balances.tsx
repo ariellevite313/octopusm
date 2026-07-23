@@ -91,7 +91,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recent activity
           </p>
-          <div>
+          <div className="max-h-[240px] overflow-y-auto">
             {activity.slice(0, 8).map((a) => (
               <ActivityRow
                 key={a.id}
@@ -145,7 +145,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recent activity
           </p>
-          <div>
+          <div className="max-h-[240px] overflow-y-auto">
             {activity.slice(0, 8).map((a) => (
               <ActivityRow
                 key={a.id}
@@ -197,7 +197,7 @@ function OctoDropdown({ stats, activity }: {
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recent activity
           </p>
-          <div>
+          <div className="max-h-[240px] overflow-y-auto">
             {activity.slice(0, 8).map((a) => (
               <ActivityRow
                 key={a.id}

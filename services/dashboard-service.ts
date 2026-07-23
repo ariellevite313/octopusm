@@ -127,7 +127,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     // adminDb bypasses RLS — octo_transactions is written by service key, no user-facing RLS policy
     adminDb
       .from("octo_transactions")
-      .select("id, type, amount, label, created_at")
+      .select("id, type, amount, bet_amount_usd, created_at")
       .eq("wallet_address", walletAddress)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -517,8 +517,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       id: t.id as string,
       type: (t.type as "referral" | "bet" | "task") ?? "bet",
       label: OCTO_TYPE_LABELS[t.type as string] ?? "Reward",
-      // Show the stored label (market title, referral wallet, task name) as sub-text
-      sub: (t.label as string | null) ?? "",
+      sub: t.bet_amount_usd != null ? `$${Number(t.bet_amount_usd).toFixed(2)}` : "",
       amount: (t.amount as number) ?? 0,
       created_at: t.created_at as string,
     })
