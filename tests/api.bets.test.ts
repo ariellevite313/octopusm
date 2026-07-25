@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("@/lib/octo", () => ({
   awardOcto:    mockAwardOcto,
+  octoForBet:   vi.fn().mockReturnValue(10),
   OCTO_PER_BET: 10,
 }));
 vi.mock("@/lib/referral", () => ({
@@ -318,9 +319,9 @@ describe("POST /api/markets/predict", () => {
     expect((await json(res)).ok).toBe(true);
   });
 
-  it("awards OCTO after a valid prediction", async () => {
+  it("does NOT award OCTO at placement — OCTO is deferred to admin approval", async () => {
     setupPrediction(WALLET);
     await postPrediction(makeRequest(PREDICTION_BODY));
-    expect(mockAwardOcto).toHaveBeenCalledWith(WALLET, 10, "bet", "Prediction placed");
+    expect(mockAwardOcto).not.toHaveBeenCalled();
   });
 });

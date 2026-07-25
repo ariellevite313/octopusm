@@ -27,7 +27,8 @@ const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
 // Pour nouveaux marchés: closes_at = fin des paris (resolve_at présent)
 // Pour vieux marchés: on recalcule depuis opens_at + ratio betting
 export function getBettingClosesAt(market: UpDownMarket): string {
-  if (market.resolve_at) return market.closes_at;
+  // Toujours recalculer depuis opens_at — les marchés en DB peuvent avoir
+  // closes_at = resolve_at (durée totale) au lieu de opens_at + betting time.
   return new Date(
     new Date(market.opens_at).getTime() +
     (BETTING_MINUTES[market.duration_min] ?? 3) * 60_000
@@ -113,18 +114,21 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
               <p className="text-xs text-muted-foreground">{market.duration_min} Min &middot; Strike ${formatPrice(market.strike_price)}</p>
             </div>
           </div>
-          {/* Badge phase betting: countdown orange */}
+          {/* Badge phase betting: label PREDICT + countdown */}
           {isBettingOpen && (
-            <span className="shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-              {countdown}
-            </span>
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                🎯 Predict
+              </span>
+              <span className="text-xs tabular-nums font-medium text-orange-600 dark:text-orange-400">{countdown}</span>
+            </div>
           )}
-          {/* Badge phase LIVE: vert + countdown */}
+          {/* Badge phase LIVE: label LIVE + countdown */}
           {isLive && (
             <div className="flex flex-col items-end gap-0.5">
               <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                LIVE
+                Live
               </span>
               <span className="text-xs tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
             </div>

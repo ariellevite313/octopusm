@@ -7,7 +7,7 @@ import { TrendingUp, TrendingDown, Clock, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Customized,
 } from "recharts";
 import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth } from "@/lib/wallet/auth";
@@ -91,11 +91,81 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
 
 const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt, resolveAt, marketStatus, liveCountdown }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string; resolveAt: string | null; marketStatus: string; liveCountdown: string; }) {
   const [points, setPoints] = useState<PricePoint[]>([]);
+  const [smoothData, setSmoothData] = useState<PricePoint[]>([]); // ~12fps chart data
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabaseRef = useRef(getSupabase());
   const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
+
+  // ── Smooth animation refs (no setState = no re-render overhead) ──────────
+  const displayPriceRef  = useRef<HTMLSpanElement>(null); // direct DOM update 60fps
+  const targetPriceRef   = useRef<number | null>(null);   // latest real price
+  const prevRealRef      = useRef<{ price: number; ts: number } | null>(null);
+  const pointsRef        = useRef<PricePoint[]>([]);       // mirror for RAF access
+  const noiseRef         = useRef(0);
+  const noiseVelRef      = useRef(0);
+  const rafIdRef         = useRef<number | null>(null);
+  const lastChartTickRef = useRef(0);
+
+  // Sync pointsRef with points state so RAF can read without stale closure
+  useEffect(() => { pointsRef.current = points; }, [points]);
+
+  // ── RAF: smooth 60fps price + ~12fps chart update ───────────────────────
+  useEffect(() => {
+    const INTERP_MS     = 250;  // interpolation window for each real price update
+    const CHART_TICK_MS = 80;   // ~12fps chart refresh
+
+    const tick = () => {
+      // Use Date.now() — same reference as prevRealRef.ts (set via Date.now() in pushPrice)
+      // RAF passes performance.now() which is incompatible with Date.now() timestamps
+      const now = Date.now();
+      const target = targetPriceRef.current;
+
+      if (target != null) {
+        // Smooth interpolation from previous real price to target
+        let base = target;
+        const prev = prevRealRef.current;
+        if (prev && now - prev.ts < INTERP_MS) {
+          const t = Math.max(0, Math.min(1, (now - prev.ts) / INTERP_MS));
+          const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
+          base = prev.price + (target - prev.price) * eased;
+        }
+
+        // Brownian motion micro-noise (organic, non-repetitive)
+        noiseVelRef.current += (Math.random() - 0.5) * target * 0.0000015;
+        noiseVelRef.current *= 0.93;                          // velocity damping
+        noiseRef.current    += noiseVelRef.current;
+        noiseRef.current    *= 0.9985;                        // slow decay to 0
+        const noiseCap = target * 0.00006;                    // max ±~$3.9 on BTC
+        noiseRef.current = Math.max(-noiseCap, Math.min(noiseCap, noiseRef.current));
+
+        const smooth = base + noiseRef.current;
+
+        // 60fps: update display span directly without React re-render
+        if (displayPriceRef.current) {
+          displayPriceRef.current.textContent = `$${formatPrice(smooth)}`;
+        }
+
+        // ~12fps: update chart data via state
+        if (now - lastChartTickRef.current > CHART_TICK_MS) {
+          lastChartTickRef.current = now;
+          const hist = pointsRef.current;
+          if (hist.length > 0) {
+            const lp: PricePoint = { time: now, price: smooth, open: smooth, high: smooth, low: smooth };
+            setSmoothData([...hist, lp]);
+          }
+        }
+      }
+
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+
+    rafIdRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafIdRef.current != null) { cancelAnimationFrame(rafIdRef.current); rafIdRef.current = null; }
+    };
+  }, []); // mount once — reads latest values via refs
 
   // Betting open state — triggers re-render exactly at bettingClosesAt
   const [isBettingOpen, setIsBettingOpen] = useState(
@@ -147,9 +217,17 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     return () => clearInterval(id);
   }, [flushCandle]);
 
-  // Reçoit un prix brut et l'agrège dans la bougie de la seconde courante
+  // Reçoit un prix brut — met à jour les refs d'interpolation + agrège la bougie
   const pushPrice = useCallback((price: number) => {
-    const sec = Math.floor(Date.now() / 1000) * 1000; // timestamp arrondi à la seconde
+    // Track previous real price for smooth interpolation in RAF
+    if (targetPriceRef.current != null) {
+      prevRealRef.current = { price: targetPriceRef.current, ts: Date.now() };
+    }
+    targetPriceRef.current = price;
+    setCurrentPrice(price);
+
+    // Aggregate into 1-second candle (existing behavior)
+    const sec = Math.floor(Date.now() / 1000) * 1000;
     candleRef.current = candleRef.current && candleRef.current.time === sec
       ? { ...candleRef.current, high: Math.max(candleRef.current.high, price), low: Math.min(candleRef.current.low, price), close: price }
       : { time: sec, open: price, high: price, low: price, close: price };
@@ -163,8 +241,14 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
     const applyPoints = (pts: PricePoint[]) => {
       if (pts.length === 0 || resolved) return;
-      setPoints(pts.slice(-MAX_POINTS));
-      setCurrentPrice(pts[pts.length - 1].price);
+      const sliced = pts.slice(-MAX_POINTS);
+      const lastPrice = sliced[sliced.length - 1].price;
+      setPoints(sliced);
+      setSmoothData(sliced);
+      pointsRef.current = sliced;
+      setCurrentPrice(lastPrice);
+      // Seed RAF refs so animation starts immediately without waiting for WS
+      targetPriceRef.current = lastPrice;
       setLoading(false);
       resolved = true;
     };
@@ -330,22 +414,31 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
 
-  // Domaine Y : basé UNIQUEMENT sur les prix réels de la fenêtre.
-  // Le strike N'EST PAS inclus — sinon quand le prix s'éloigne du strike (ex: BTC +2k),
-  // le domaine s'étend sur $2000+ et la ligne devient plate et illisible.
-  const recentPrices = points.slice(-MAX_POINTS).map(p => p.price);
-  const MIN_SPREAD: Record<string, number> = { BTCUSDT: 2, ETHUSDT: 0.5, SOLUSDT: 0.05 };
-  const minSpread = MIN_SPREAD[ticker] ?? 2;
-  // Always include strikePrice so the reference line stays visible in the domain
-  const allValues = recentPrices.length > 0 ? [...recentPrices, strikePrice] : [strikePrice];
-  const minP  = Math.min(...allValues);
-  const maxP  = Math.max(...allValues);
+  // ── Domaine Y tight sur les prix réels (strike exclu — géré via Customized) ──
+  const recentPrices = points.slice(-MAX_POINTS).map(p => p.price); // 1s candles = domaine stable
+  const refPrice = currentPrice ?? strikePrice;
+  const minSpread = refPrice * 0.001; // 0.1% → ticks ~$7 BTC, ~$3 ETH, ~$0.15 SOL
+  const priceValues = recentPrices.length > 0 ? recentPrices : [strikePrice];
+  const minP  = Math.min(...priceValues);
+  const maxP  = Math.max(...priceValues);
   const spread = maxP - minP;
   const effectiveSpread = Math.max(spread, minSpread);
   const pad = effectiveSpread * 0.15;
   const yMin = Math.floor(minP - pad);
   const yMax = Math.ceil(maxP + pad);
   const yDomain: [number, number] = [yMin, yMax];
+
+  // ── Smart target: visibilité + opacité de la ligne ──────────────────────
+  const strikeAboveDomain = strikePrice > yMax;
+  const strikeBelowDomain = strikePrice < yMin;
+  const strikeInDomain    = !strikeAboveDomain && !strikeBelowDomain;
+  // Fade la ligne quand le prix est très proche du target (8% du range visible)
+  const distToStrike    = currentPrice != null ? Math.abs(currentPrice - strikePrice) : Infinity;
+  const fadeZone        = effectiveSpread * 0.08;
+  const strikeLineOpacity = strikeInDomain
+    ? Math.min(1, distToStrike / Math.max(fadeZone, 0.01))
+    : 0;
+
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
   const pctDiff = currentPrice != null ? ((currentPrice - strikePrice) / strikePrice) * 100 : null;
 
@@ -362,14 +455,20 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         </div>
         <div className="flex flex-col items-end gap-0.5">
           {isBettingOpen ? (
-            <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-              {bettingCountdown}
-            </span>
+            <>
+              <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                🎯 Predict
+              </span>
+              <span className="text-[10px] tabular-nums font-medium text-orange-600 dark:text-orange-400">{bettingCountdown}</span>
+            </>
           ) : marketStatus === "open" && liveCountdown ? (
-            <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {liveCountdown}
-            </span>
+            <>
+              <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+              <span className="text-[10px] tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+            </>
           ) : (
             <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
               <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
@@ -381,7 +480,10 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
       <div className="flex items-baseline gap-3 px-4 pb-3">
         <span className="text-2xl font-bold tabular-nums text-foreground">
-          {currentPrice != null ? `$${formatPrice(currentPrice)}` : "—"}
+          {/* ref updated at 60fps via RAF without React re-render */}
+          <span ref={displayPriceRef}>
+            {currentPrice != null ? `$${formatPrice(currentPrice)}` : "—"}
+          </span>
         </span>
         {pctDiff != null && (
           <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
@@ -415,7 +517,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+            <AreaChart data={smoothData.length > 0 ? smoothData : points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`fill-updown-${ticker}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={lineColor} stopOpacity={0.15} />
@@ -443,13 +545,81 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                 tickCount={10}
               />
               <Tooltip content={<ChartTooltip />} />
-              <ReferenceLine y={strikePrice} stroke="#60a5fa" strokeDasharray="5 3" strokeWidth={1.5}
-                label={{ value: "Strike", position: "insideTopLeft", fontSize: 9, fill: "#60a5fa" }} />
+
+              {/* ── Smart Target: ligne qui fade + label permanent ── */}
+              <Customized component={(p: any) => {
+                const yAxis = p.yAxisMap?.[0];
+                if (!yAxis?.scale) return null;
+                const { height: h, width: w, margin: m } = p;
+                const mt = (m?.top  ?? 8);
+                const mb = (m?.bottom ?? 0);
+                const plotBottom = h - mb;
+
+                // Position pixel du strike
+                const rawY = yAxis.scale(strikePrice);
+                const isAboveView = rawY < mt;
+                const isBelowView = rawY > plotBottom;
+                const inView = !isAboveView && !isBelowView;
+
+                // Label clampé dans les bornes du graphique
+                const labelY = Math.max(mt + 10, Math.min(plotBottom - 10, rawY));
+
+                // Arrow si hors vue
+                const arrow = isAboveView ? ' ↑' : isBelowView ? ' ↓' : '';
+                const labelText = `$${formatPrice(strikePrice)}${arrow}`;
+
+                // X de début de l'axe Y (plot area se termine là)
+                const yAxisX = yAxis.x ?? (w - (yAxis.width ?? 68));
+                const labelW = 66;
+
+                return (
+                  <g>
+                    {/* Ligne de target — fade quand prix proche, invisible si hors vue */}
+                    {inView && (
+                      <line
+                        x1={m?.left ?? 0}
+                        y1={rawY}
+                        x2={yAxisX}
+                        y2={rawY}
+                        stroke="#60a5fa"
+                        strokeDasharray="5 3"
+                        strokeWidth={1.5}
+                        style={{ opacity: strikeLineOpacity, transition: 'opacity 0.5s ease' }}
+                      />
+                    )}
+                    {/* Label target — toujours visible, se déplace avec transition */}
+                    <g style={{ transform: `translateY(${labelY}px)`, transition: 'transform 0.3s ease' }}>
+                      <rect
+                        x={yAxisX}
+                        y={-9}
+                        width={labelW}
+                        height={18}
+                        rx={3}
+                        fill="#3b82f6"
+                        fillOpacity={0.9}
+                      />
+                      <text
+                        x={yAxisX + labelW / 2}
+                        y={4.5}
+                        textAnchor="middle"
+                        fill="white"
+                        fontSize={9}
+                        fontWeight="bold"
+                        fontFamily="ui-monospace, SFMono-Regular, monospace"
+                      >
+                        {labelText}
+                      </text>
+                    </g>
+                  </g>
+                );
+              }} />
+
               <Area type="monotoneX" dataKey="price" stroke={lineColor} strokeWidth={2}
                 fill={`url(#fill-updown-${ticker})`}
                 dot={(props: any) => {
                   const { cx, cy, index } = props;
-                  if (index !== points.length - 1) return <g key={index} />;
+                  const data = smoothData.length > 0 ? smoothData : points;
+                  if (index !== data.length - 1) return <g key={index} />;
                   return (
                     <g key={index}>
                       <circle cx={cx} cy={cy} r={5} fill={lineColor} stroke="white" strokeWidth={2} />
@@ -482,16 +652,14 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   // Ratios betting/live par durée totale du round
   const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
 
-  // bettingClosesAt: calculé depuis opens_at + ratio betting
-  // Si le marché a resolve_at, closes_at est déjà le vrai closes_at
-  // Sinon (vieux marchés), on recalcule depuis opens_at
+  // bettingClosesAt: toujours recalculé depuis opens_at + BETTING_MINUTES.
+  // Ne pas utiliser market.closes_at directement — les marchés existants en DB
+  // peuvent avoir closes_at = resolve_at (10min) au lieu de opens_at + 5min.
   const bettingClosesAt = market
-    ? market.resolve_at
-      ? market.closes_at  // nouveau marché: closes_at = fin des paris
-      : new Date(
-          new Date(market.opens_at).getTime() +
-          (BETTING_MINUTES[market.duration_min] ?? 3) * 60_000
-        ).toISOString()  // vieux marché: recalcul depuis opens_at
+    ? new Date(
+        new Date(market.opens_at).getTime() +
+        (BETTING_MINUTES[market.duration_min] ?? 3) * 60_000
+      ).toISOString()
     : null;
 
   const resolveTarget = market

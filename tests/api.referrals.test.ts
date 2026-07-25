@@ -25,6 +25,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("@/lib/octo", () => ({
   awardOcto:    mockAwardOcto,
+  octoForBet:   vi.fn().mockReturnValue(10),
   OCTO_PER_BET: 10,
 }));
 vi.mock("@/lib/referral", () => ({
@@ -223,6 +224,7 @@ describe("wallet-auth anti-replay — Timestamp field", () => {
 });
 
 // ── 3. POST /api/updown/bet — referral commission ─────────────────────────────
+// Commission is no longer awarded at placement — only at resolution (5% on loser)
 
 describe("POST /api/updown/bet — referral commission", () => {
   beforeEach(() => {
@@ -230,12 +232,11 @@ describe("POST /api/updown/bet — referral commission", () => {
     mockAwardReferralCommission.mockResolvedValue(undefined);
   });
 
-  it("calls awardReferralCommission with correct wallet, amount, token on success", async () => {
+  it("does NOT call awardReferralCommission at placement (commission deferred to resolution)", async () => {
     setupUpDown(WALLET);
     const res = await postUpDown(makeRequest(UPDOWN_BODY));
     expect(res.status).toBe(200);
-    expect(mockAwardReferralCommission).toHaveBeenCalledOnce();
-    expect(mockAwardReferralCommission).toHaveBeenCalledWith(WALLET, 100, "usdc");
+    expect(mockAwardReferralCommission).not.toHaveBeenCalled();
   });
 
   it("does NOT call commission when unauthenticated (401)", async () => {
@@ -247,7 +248,7 @@ describe("POST /api/updown/bet — referral commission", () => {
 
   it("does NOT call commission when wallet mismatch (403)", async () => {
     setupUpDown("OtherWallet999");
-    const res = await postUpDown(makeRequest(UPDOWN_BODY)); // body has WALLET
+    const res = await postUpDown(makeRequest(UPDOWN_BODY));
     expect(res.status).toBe(403);
     expect(mockAwardReferralCommission).not.toHaveBeenCalled();
   });
@@ -277,6 +278,7 @@ describe("POST /api/updown/bet — referral commission", () => {
 });
 
 // ── 4. POST /api/markets/predict — referral commission ───────────────────────
+// Commission is no longer awarded at placement — only at resolution (5% on loser)
 
 describe("POST /api/markets/predict — referral commission", () => {
   beforeEach(() => {
@@ -284,20 +286,11 @@ describe("POST /api/markets/predict — referral commission", () => {
     mockAwardReferralCommission.mockResolvedValue(undefined);
   });
 
-  it("calls commission with wallet, amount_usdc, token on success", async () => {
+  it("does NOT call awardReferralCommission at placement (commission deferred to resolution)", async () => {
     setupPredict(WALLET);
     const res = await postPredict(makeRequest(PREDICT_BODY));
     expect(res.status).toBe(200);
-    expect(mockAwardReferralCommission).toHaveBeenCalledOnce();
-    expect(mockAwardReferralCommission).toHaveBeenCalledWith(WALLET, 50, "usdc");
-  });
-
-  it("passes CLT token correctly for CLT predictions", async () => {
-    setupPredict(WALLET);
-    const cltBody = { ...PREDICT_BODY, token: "clawdtrust" };
-    const res = await postPredict(makeRequest(cltBody));
-    expect(res.status).toBe(200);
-    expect(mockAwardReferralCommission).toHaveBeenCalledWith(WALLET, 50, "clawdtrust");
+    expect(mockAwardReferralCommission).not.toHaveBeenCalled();
   });
 
   it("does NOT call commission when unauthenticated (401)", async () => {
@@ -323,6 +316,7 @@ describe("POST /api/markets/predict — referral commission", () => {
 });
 
 // ── 5. POST /api/pools/predict — referral commission ─────────────────────────
+// Commission is no longer awarded at placement — only at resolution (1% on loser)
 
 describe("POST /api/pools/predict — referral commission", () => {
   beforeEach(() => {
@@ -330,12 +324,11 @@ describe("POST /api/pools/predict — referral commission", () => {
     mockAwardReferralCommission.mockResolvedValue(undefined);
   });
 
-  it("calls commission with wallet, amount_usdc, token on success", async () => {
+  it("does NOT call awardReferralCommission at placement (commission deferred to resolution)", async () => {
     setupPool(WALLET);
     const res = await postPool(makeRequest(POOL_BODY));
     expect(res.status).toBe(200);
-    expect(mockAwardReferralCommission).toHaveBeenCalledOnce();
-    expect(mockAwardReferralCommission).toHaveBeenCalledWith(WALLET, 25, "usdc");
+    expect(mockAwardReferralCommission).not.toHaveBeenCalled();
   });
 
   it("does NOT call commission when unauthenticated (401)", async () => {

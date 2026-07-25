@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { FEE_RATE, RESERVE_FEE_RATE, computeReward } from "@/lib/market/betting";
+import { awardOcto, octoForBet } from "@/lib/octo";
 
 
 async function handleManual(
@@ -126,7 +127,12 @@ export async function POST(req: Request) {
         admin_decision_status:  "approved",
       });
 
-      if (histErr) console.error("[payments] prediction_history insert:", histErr.message);
+      if (histErr) {
+        console.error("[payments] prediction_history insert:", histErr.message);
+      } else {
+        // Award OCTO after admin approval (not at placement — anti-fraud)
+        awardOcto(payment.user_wallet, octoForBet(amount, payment.token ?? "usdc"), "bet", "Prediction approved").catch(() => {});
+      }
     }
   }
 

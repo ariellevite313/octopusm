@@ -189,7 +189,9 @@ Deno.serve(async (_req) => {
       continue;
     }
 
-    // Update each bet
+    // Update each bet + collect losers for referral commissions
+    const losingBets: { wallet_address: string; amount: number }[] = [];
+
     for (const bet of bets) {
       const isWinner = bet.direction === outcome;
       const betAmount = Number(bet.amount);
@@ -207,6 +209,52 @@ Deno.serve(async (_req) => {
           payout: isWinner ? payout : 0,
         })
         .eq("id", bet.id);
+
+      if (!isWinner) {
+        losingBets.push({ wallet_address: bet.wallet_address, amount: betAmount });
+      }
+    }
+
+    // Referral commissions — 5% of each loser's bet → their referrer (USDC only for updown)
+    if (losingBets.length > 0) {
+      const loserWallets = losingBets.map((b) => b.wallet_address);
+
+      const { data: referralRows } = await supabase
+        .from("referrals")
+        .select("referred_wallet, referrer_wallet")
+        .in("referred_wallet", loserWallets);
+
+      const referrerMap: Record<string, string> = {};
+      for (const r of (referralRows ?? [])) {
+        referrerMap[r.referred_wallet] = r.referrer_wallet;
+      }
+
+      const commissions: Array<{
+        referrer_wallet: string;
+        referred_wallet: string;
+        amount_usdc: number;
+        amount_clt: number;
+      }> = [];
+
+      for (const loser of losingBets) {
+        const referrer = referrerMap[loser.wallet_address];
+        if (!referrer) continue;
+        const commission = Math.round(loser.amount * 0.05 * 1_000_000) / 1_000_000;
+        if (commission <= 0) continue;
+        commissions.push({
+          referrer_wallet: referrer,
+          referred_wallet: loser.wallet_address,
+          amount_usdc:     commission, // updown is always USDC
+          amount_clt:      0,
+        });
+      }
+
+      if (commissions.length > 0) {
+        const { error: commErr } = await supabase
+          .from("referral_commissions")
+          .insert(commissions);
+        if (commErr) console.error(`[resolve-updown] referral_commissions insert:`, commErr.message);
+      }
     }
 
     resolved.push(

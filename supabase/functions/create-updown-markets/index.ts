@@ -98,7 +98,7 @@ Deno.serve(async (_req) => {
       // Trouve le dernier marché résolu pour chaîner les prochains slots
       const { data: lastResolved } = await supabase
         .from("updown_markets")
-        .select("opens_at, resolve_at")
+        .select("opens_at, resolve_at, open_price")
         .eq("symbol", symbol)
         .eq("duration_min", duration)
         .eq("status", "resolved")
@@ -141,15 +141,29 @@ Deno.serve(async (_req) => {
 
       if (existing) continue;
 
-      // S-01 + S-03 FIX: fetcher le strike via klines 1min juste avant opens_at.
-      // Même source que la résolution → strike et résolution comparables.
+      // Strike price: si le round précédent est résolu ET que son resolve_at correspond
+      // à l'opens_at du nouveau round, utiliser son open_price (prix de clôture de résolution).
+      // C'est la source canonique : résolution écrit ce prix → strike suivant = ce prix.
+      // Fallback: klines 1min Binance juste avant opens_at (premier round ou après gap).
       let strikePrice: number;
-      try {
-        strikePrice = await fetchStrikePrice(symbol, opensAt.getTime());
-      } catch (e) {
-        console.error(`[create-updown] Cannot fetch strike for ${symbol} ${duration}m:`, e);
-        errors.push(`${symbol} ${duration}m: strike fetch failed — ${e}`);
-        continue;
+      const prevClosePrice =
+        lastResolved?.open_price != null &&
+        lastResolved.resolve_at != null &&
+        new Date(lastResolved.resolve_at).getTime() === opensAt.getTime()
+          ? (lastResolved.open_price as number)
+          : null;
+
+      if (prevClosePrice != null) {
+        strikePrice = prevClosePrice;
+        console.log(`[create-updown] ${symbol} ${duration}m: using prev close price ${strikePrice} as strike`);
+      } else {
+        try {
+          strikePrice = await fetchStrikePrice(symbol, opensAt.getTime());
+        } catch (e) {
+          console.error(`[create-updown] Cannot fetch strike for ${symbol} ${duration}m:`, e);
+          errors.push(`${symbol} ${duration}m: strike fetch failed — ${e}`);
+          continue;
+        }
       }
 
       const { error } = await supabase.from("updown_markets").insert({
