@@ -4,15 +4,15 @@ const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 const DURATIONS = [5, 15, 30]; // minutes (durée totale du round)
 const BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines";
 
-// Option A — suppression de la pause entre rounds.
-// Le round suivant commence immédiatement après la résolution du précédent.
-// Cycle : paris (duration_min) + live (duration_min) = 2× duration_min total.
-// 5min  → 5min paris + 5min live  = 10min total (anciennement 15min)
-// 15min → 15min paris + 15min live = 30min total (anciennement 45min)
-// 30min → 30min paris + 30min live = 60min total (anciennement 90min)
-const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
-const TOTAL_MINUTES:   Record<number, number> = { 5: 10, 15: 30, 30: 60 };
-const PAUSE_MINUTES:   Record<number, number> = { 5: 0,  15: 0,  30: 0  };
+// Modèle Limitless — fenêtre unifiée : paris et live simultanés.
+// Pas de phase de paris séparée : on parie pendant toute la durée du round.
+// Strike = prix à opens_at (chainé depuis le round précédent).
+// Résolution = prix à resolve_at = opens_at + duration_min.
+// 5min  → fenêtre 5min  = 5min total
+// 15min → fenêtre 15min = 15min total
+// 30min → fenêtre 30min = 30min total
+const TOTAL_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
+const PAUSE_MINUTES: Record<number, number> = { 5: 0, 15: 0,  30: 0  };
 
 // Précision d'arrondi du strike par asset (décimales)
 const STRIKE_DECIMALS: Record<string, number> = {
@@ -80,8 +80,7 @@ Deno.serve(async (_req) => {
 
   for (const symbol of SYMBOLS) {
     for (const duration of DURATIONS) {
-      const bettingMs = (BETTING_MINUTES[duration] ?? duration) * 60 * 1000;
-      const totalMs   = (TOTAL_MINUTES[duration]   ?? duration * 2) * 60 * 1000;
+      const totalMs   = (TOTAL_MINUTES[duration] ?? duration) * 60 * 1000;
       const pauseMs   = (PAUSE_MINUTES[duration]   ?? duration) * 60 * 1000;
 
       // Trouve le dernier marché open pour ce symbol+duration
@@ -120,8 +119,8 @@ Deno.serve(async (_req) => {
       }
 
       const opensAt   = new Date(anchorMs);
-      const closesAt  = new Date(anchorMs + bettingMs);
       const resolveAt = new Date(anchorMs + totalMs);
+      const closesAt  = resolveAt; // Modèle Limitless : closes_at = resolve_at (fenêtre unifiée)
 
       // Skip si opens_at déjà passé
       if (opensAt.getTime() < nowMs) continue;
