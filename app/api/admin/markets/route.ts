@@ -156,6 +156,61 @@ export async function POST(req: Request) {
       .eq("status", "pending");
     if (pendingErr) console.error("[resolve] auto-reject pending payments:", pendingErr.message);
 
+    // 4. Referral commissions — 5% of each loser's bet → their referrer
+    {
+      // Fetch all losing prediction_history rows (selection_id ≠ outcomeId, not rejected)
+      const { data: losingRows } = await admin
+        .from("prediction_history")
+        .select("wallet_address, amount, token")
+        .eq("market_id", marketId)
+        .neq("selection_id", outcomeId)
+        .not("admin_decision_status", "eq", "rejected");
+
+      const losers: { wallet_address: string; amount: number; token: string }[] = losingRows ?? [];
+
+      if (losers.length > 0) {
+        const loserWallets = losers.map((r) => r.wallet_address);
+
+        const { data: referralRows } = await admin
+          .from("referrals")
+          .select("referred_wallet, referrer_wallet")
+          .in("referred_wallet", loserWallets);
+
+        const referrerMap: Record<string, string> = {};
+        for (const r of referralRows ?? []) {
+          referrerMap[r.referred_wallet] = r.referrer_wallet;
+        }
+
+        const commissions: Array<{
+          referrer_wallet: string;
+          referred_wallet: string;
+          amount_usdc: number;
+          amount_clt: number;
+        }> = [];
+
+        for (const loser of losers) {
+          const referrer = referrerMap[loser.wallet_address];
+          if (!referrer) continue;
+          const isClt = loser.token === "clawdtrust" || loser.token === "clt";
+          const commission = Math.round(Number(loser.amount) * 0.05 * 1_000_000) / 1_000_000;
+          if (commission <= 0) continue;
+          commissions.push({
+            referrer_wallet: referrer,
+            referred_wallet: loser.wallet_address,
+            amount_usdc:     isClt ? 0 : commission,
+            amount_clt:      isClt ? commission : 0,
+          });
+        }
+
+        if (commissions.length > 0) {
+          const { error: commErr } = await admin
+            .from("referral_commissions")
+            .insert(commissions);
+          if (commErr) console.error("[resolve] referral_commissions insert:", commErr.message);
+        }
+      }
+    }
+
     revalidatePath("/");
     revalidatePath("/archive");
     return NextResponse.json({ ok: true });

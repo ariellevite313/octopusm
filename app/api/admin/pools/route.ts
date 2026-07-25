@@ -239,6 +239,79 @@ export async function POST(req: Request) {
       }
     }
 
+    // ── Referral commissions ───────────────────────────────────────────────
+    // Rule A: 1% of each loser's bet amount → referrer of that loser
+    // Rule B: 1% of the creator's fee       → referrer of the creator
+    // One batch query then one batch insert — no N+1.
+    {
+      const isClt = token === "clawdtrust" || token === "clt";
+
+      // Collect unique wallets to look up in one query
+      const walletsToCheck: string[] = [
+        ...losingBets.map((b: any) => b.wallet_address as string),
+        ...(market.creator_wallet ? [market.creator_wallet as string] : []),
+      ].filter(Boolean);
+
+      if (walletsToCheck.length > 0) {
+        const { data: referralRows } = await sb
+          .from("referrals")
+          .select("referred_wallet, referrer_wallet")
+          .in("referred_wallet", walletsToCheck);
+
+        // Build a map: referred_wallet → referrer_wallet
+        const referrerMap: Record<string, string> = {};
+        for (const r of referralRows ?? []) {
+          referrerMap[r.referred_wallet] = r.referrer_wallet;
+        }
+
+        const commissionInserts: Array<{
+          referrer_wallet: string;
+          referred_wallet: string;
+          amount_usdc: number;
+          amount_clt: number;
+        }> = [];
+
+        // Rule A — loser commissions
+        for (const bet of losingBets as any[]) {
+          const referrer: string | undefined = referrerMap[bet.wallet_address];
+          if (!referrer) continue;
+          const commission = Math.round(Number(bet.amount) * 0.01 * 1_000_000) / 1_000_000;
+          if (commission <= 0) continue;
+          commissionInserts.push({
+            referrer_wallet: referrer,
+            referred_wallet: bet.wallet_address,
+            amount_usdc:     isClt ? 0 : commission,
+            amount_clt:      isClt ? commission : 0,
+          });
+        }
+
+        // Rule B — creator fee commission
+        if (market.creator_wallet && creatorShare > 0) {
+          const creatorReferrer: string | undefined = referrerMap[market.creator_wallet];
+          if (creatorReferrer) {
+            const commission = Math.round(creatorShare * 0.01 * 1_000_000) / 1_000_000;
+            if (commission > 0) {
+              commissionInserts.push({
+                referrer_wallet: creatorReferrer,
+                referred_wallet: market.creator_wallet,
+                amount_usdc:     isClt ? 0 : commission,
+                amount_clt:      isClt ? commission : 0,
+              });
+            }
+          }
+        }
+
+        if (commissionInserts.length > 0) {
+          const { error: commErr } = await sb
+            .from("referral_commissions")
+            .insert(commissionInserts);
+          if (commErr) {
+            console.error("[pools/resolve] referral_commissions insert failed:", commErr.message);
+          }
+        }
+      }
+    }
+
     revalidatePath("/pools");
     return NextResponse.json({
       ok: true,
