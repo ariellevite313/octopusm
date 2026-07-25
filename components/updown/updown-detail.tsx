@@ -89,12 +89,20 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
   );
 }
 
-const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, bettingClosesAt, resolveAt, marketStatus, liveCountdown }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; bettingClosesAt: string; resolveAt: string | null; marketStatus: string; liveCountdown: string; }) {
+const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, resolveAt, marketStatus, liveCountdown }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; resolveAt: string | null; marketStatus: string; liveCountdown: string; }) {
   const [points, setPoints] = useState<PricePoint[]>([]);
   const [smoothData, setSmoothData] = useState<PricePoint[]>([]); // ~12fps chart data
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // ── Scrolling X-axis : fenêtre glissante de 60s mise à jour chaque seconde ──
+  const WINDOW_MS = 60_000;
+  const [xNow, setXNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setXNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const supabaseRef = useRef(getSupabase());
   const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
 
@@ -167,19 +175,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     };
   }, []); // mount once — reads latest values via refs
 
-  // Betting open state — triggers re-render exactly at bettingClosesAt
-  const [isBettingOpen, setIsBettingOpen] = useState(
-    () => new Date(bettingClosesAt) > new Date()
-  );
-  useEffect(() => {
-    const ms = new Date(bettingClosesAt).getTime() - Date.now();
-    if (ms <= 0) { setIsBettingOpen(false); return; }
-    setIsBettingOpen(true);
-    const id = setTimeout(() => setIsBettingOpen(false), ms);
-    return () => clearTimeout(id);
-  }, [bettingClosesAt]);
-
-  const bettingCountdown = useCountdown(isBettingOpen ? bettingClosesAt : null);
+  // Countdown unique vers resolve_at (modèle Limitless : fenêtre unifiée)
+  const liveCountdownChart = useCountdown(marketStatus === "open" ? resolveAt : null);
 
   // Format opensAt as a readable date+time
   const opensAtFormatted = (() => {
@@ -414,18 +411,22 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
   const isAbove = currentPrice != null && currentPrice >= strikePrice;
 
-  // ── Domaine Y tight sur les prix réels (strike exclu — géré via Customized) ──
-  const recentPrices = points.slice(-MAX_POINTS).map(p => p.price); // 1s candles = domaine stable
+  // ── Domaine Y tight sur la fenêtre visible (60s) uniquement ──────────────
+  // On filtre sur les points dans [xNow - WINDOW_MS, xNow] pour que le zoom
+  // Y suive la fenêtre scrollante et amplify les micro-variations visibles.
+  const visiblePrices = smoothData
+    .filter(p => p.time >= xNow - WINDOW_MS && p.time <= xNow)
+    .map(p => p.price);
   const refPrice = currentPrice ?? strikePrice;
-  const minSpread = refPrice * 0.001; // 0.1% → ticks ~$7 BTC, ~$3 ETH, ~$0.15 SOL
-  const priceValues = recentPrices.length > 0 ? recentPrices : [strikePrice];
+  const minSpread = refPrice * 0.0005; // 0.05% → ~$32 BTC, ~$1.2 ETH, ~$0.07 SOL
+  const priceValues = visiblePrices.length > 0 ? visiblePrices : [strikePrice];
   const minP  = Math.min(...priceValues);
   const maxP  = Math.max(...priceValues);
   const spread = maxP - minP;
   const effectiveSpread = Math.max(spread, minSpread);
-  const pad = effectiveSpread * 0.15;
-  const yMin = Math.floor(minP - pad);
-  const yMax = Math.ceil(maxP + pad);
+  const pad = effectiveSpread * 0.25; // 25% de padding vertical
+  const yMin = minP - pad;
+  const yMax = maxP + pad;
   const yDomain: [number, number] = [yMin, yMax];
 
   // ── Smart target: visibilité + opacité de la ligne ──────────────────────
@@ -454,20 +455,13 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           <p className="text-[10px] text-muted-foreground">{opensAtFormatted}</p>
         </div>
         <div className="flex flex-col items-end gap-0.5">
-          {isBettingOpen ? (
-            <>
-              <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                🎯 Predict
-              </span>
-              <span className="text-[10px] tabular-nums font-medium text-orange-600 dark:text-orange-400">{bettingCountdown}</span>
-            </>
-          ) : marketStatus === "open" && liveCountdown ? (
+          {marketStatus === "open" ? (
             <>
               <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                 <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live
               </span>
-              <span className="text-[10px] tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+              <span className="text-[10px] tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdownChart}</span>
             </>
           ) : (
             <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
@@ -525,9 +519,16 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} vertical={false} />
-              <XAxis dataKey="time" tickFormatter={formatTime}
+              <XAxis
+                dataKey="time"
+                type="number"
+                scale="time"
+                domain={[xNow - WINDOW_MS, xNow]}
+                tickFormatter={formatTime}
                 tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
-                tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={50} />
+                tickLine={false} axisLine={false}
+                tickCount={6}
+              />
               <YAxis
                 domain={yDomain}
                 orientation="right"
@@ -649,19 +650,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   const walletAddressRef = useRef(walletAddress);
   useEffect(() => { walletAddressRef.current = walletAddress; }, [walletAddress]);
 
-  // Ratios betting/live par durée totale du round
-  const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
-
-  // bettingClosesAt: toujours recalculé depuis opens_at + BETTING_MINUTES.
-  // Ne pas utiliser market.closes_at directement — les marchés existants en DB
-  // peuvent avoir closes_at = resolve_at (10min) au lieu de opens_at + 5min.
-  const bettingClosesAt = market
-    ? new Date(
-        new Date(market.opens_at).getTime() +
-        (BETTING_MINUTES[market.duration_min] ?? 3) * 60_000
-      ).toISOString()
-    : null;
-
+  // Modèle Limitless : une seule fenêtre, countdown unique vers resolve_at
   const resolveTarget = market
     ? market.resolve_at
       ?? new Date(
@@ -670,23 +659,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
          ).toISOString()
     : null;
 
-  // isBettingOpen: true tant que bettingClosesAt n'est pas atteint
-  const [isBettingOpen, setIsBettingOpen] = useState(
-    () => !!bettingClosesAt && new Date(bettingClosesAt) > new Date()
-  );
-  useEffect(() => {
-    if (!bettingClosesAt || market?.status !== "open") { setIsBettingOpen(false); return; }
-    const msUntilClose = new Date(bettingClosesAt).getTime() - Date.now();
-    if (msUntilClose <= 0) { setIsBettingOpen(false); return; }
-    setIsBettingOpen(true);
-    const id = setTimeout(() => setIsBettingOpen(false), msUntilClose);
-    return () => clearTimeout(id);
-  }, [bettingClosesAt, market?.status]);
-
-  const countdown = useCountdown(isBettingOpen ? bettingClosesAt : null);
-  const liveCountdown = useCountdown(
-    market?.status === "open" && !isBettingOpen ? resolveTarget : null
-  );
+  const liveCountdown = useCountdown(market?.status === "open" ? resolveTarget : null);
 
   const fetchMarket = useCallback(async () => {
     const { data } = await supabase.current.from("updown_markets").select("*").eq("id", marketId).single();
@@ -873,7 +846,6 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
   const isOpen      = market.status === "open";
   const isResolved  = market.status === "resolved";
-  // isBettingOpen est géré par le useState + timer ci-dessus (re-render automatique à closes_at)
   const totalPool  = (market.pool_up ?? 0) + (market.pool_down ?? 0);
   const meta       = COIN_META[market.symbol] ?? { label: market.symbol, symbol: market.symbol, color: "#888", img: "" };
 
@@ -907,7 +879,6 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             strikePrice={market.strike_price}
             durationMin={market.duration_min}
             opensAt={market.opens_at}
-            bettingClosesAt={bettingClosesAt ?? new Date(market.opens_at).toISOString()}
             resolveAt={resolveTarget}
             marketStatus={market.status}
             liveCountdown={liveCountdown}
@@ -981,16 +952,14 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               }
               <div>
                 <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>
-                {isBettingOpen
-                  ? <p className="text-[10px] text-orange-500 font-semibold">Predictions open</p>
-                  : isOpen
-                    ? <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live</p>
-                    : <p className="text-[10px] text-muted-foreground">{market.status}</p>
+                {isOpen
+                  ? <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live · {liveCountdown}</p>
+                  : <p className="text-[10px] text-muted-foreground">{market.status}</p>
                 }
               </div>
             </div>
 
-            {isBettingOpen ? (
+            {isOpen ? (
               <div className="p-4 space-y-4">
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Quick predict</p>
@@ -1046,33 +1015,6 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                   </button>
                 </div>
                 <p className="text-center text-[10px] text-muted-foreground">Min $2 · USDC · Multiple bets allowed</p>
-              </div>
-            ) : isOpen ? (
-              <div className="p-4 space-y-3">
-                <div className="text-center space-y-1">
-                  <p className="text-2xl">🔒</p>
-                  <p className="text-sm font-semibold text-foreground">Predictions closed</p>
-                  {liveCountdown ? (
-                    <p className="text-xs font-semibold tabular-nums text-emerald-500">
-                      Resolution in {liveCountdown}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Waiting for resolution…</p>
-                  )}
-                </div>
-                {totalPool > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-semibold">
-                      <span className="text-emerald-500">↑ UP {upPct}%</span>
-                      <span className="text-red-500">{downPct}% DOWN ↓</span>
-                    </div>
-                    <div className="flex h-1.5 overflow-hidden rounded-full">
-                      <div className="bg-emerald-500 transition-all" style={{ width: `${upPct}%` }} />
-                      <div className="bg-red-500 transition-all" style={{ width: `${downPct}%` }} />
-                    </div>
-                    <p className="text-center text-[10px] text-muted-foreground">Pool: ${totalPool.toFixed(2)} USDC</p>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="p-6 text-center space-y-1">

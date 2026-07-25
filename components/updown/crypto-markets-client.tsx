@@ -43,17 +43,10 @@ interface UpDownBet {
 
 // ── Helpers timing ───────────────────────────────────────────────────────────
 
-const BETTING_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
-
-// BUG-UD-2 FIX: closes_at en DB = opens_at + betting_min, toujours défini.
-// On l'utilise directement — le fallback par calcul était trompeur.
-function getBettingClosesAt(market: UpDownMarket): string {
-  return market.closes_at;
-}
-
+// Modèle Limitless : resolve_at = opens_at + duration_min (fenêtre unifiée)
 function getResolveAt(market: UpDownMarket): string {
   return market.resolve_at
-    ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 2 * 60_000).toISOString();
+    ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 60_000).toISOString();
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -113,31 +106,11 @@ function RoundCard({
   walletType: WalletType | null;
   onNeedWallet: () => void;
 }) {
-  const bettingClosesAt = getBettingClosesAt(market);
   const resolveAt = getResolveAt(market);
 
-  // Prochain opens_at = resolveAt + pause (5min pour 5m, 15min pour 15m, 30min pour 30m)
-  // = resolve_at + betting_minutes (même durée que la phase betting)
-  const pauseMs = (BETTING_MINUTES[market.duration_min] ?? market.duration_min) * 60_000;
-  const nextOpensAt = new Date(new Date(resolveAt).getTime() + pauseMs).toISOString();
-
-  const [isBettingOpen, setIsBettingOpen] = useState(
-    () => market.status === "open" && new Date(bettingClosesAt) > new Date()
-  );
-  useEffect(() => {
-    if (market.status !== "open") { setIsBettingOpen(false); return; }
-    const ms = new Date(bettingClosesAt).getTime() - Date.now();
-    if (ms <= 0) { setIsBettingOpen(false); return; }
-    setIsBettingOpen(true);
-    const id = setTimeout(() => setIsBettingOpen(false), ms);
-    return () => clearTimeout(id);
-  }, [bettingClosesAt, market.status]);
-
-  const isLive = market.status === "open" && !isBettingOpen;
-  const isResolvingPause = market.status === "resolved";
-  const countdown = useCountdown(isBettingOpen ? bettingClosesAt : null);
+  // Modèle Limitless : une seule fenêtre, Paris + Live simultanés jusqu'à resolve_at
+  const isLive = market.status === "open";
   const liveCountdown = useCountdown(isLive ? resolveAt : null);
-  const nextRoundCountdown = useCountdown(isResolvingPause ? nextOpensAt : null);
 
   const [amount, setAmount] = useState(5);
   const [submitting, setSubmitting] = useState(false);
@@ -283,33 +256,26 @@ function RoundCard({
           <Clock className="size-3.5 text-muted-foreground" />
           <span className="text-xs font-semibold text-foreground">{market.duration_min} minutes</span>
         </div>
-        {isBettingOpen && countdown && (
-          <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-            {countdown}
-          </span>
-        )}
         {isLive && (
-          <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-            LIVE
-          </span>
-        )}
-        {isResolved && market.outcome && (
           <div className="flex flex-col items-end gap-0.5">
-            <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
-              market.outcome === "up"
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-            }`}>
-              {market.outcome === "up" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-              {market.outcome === "up" ? "UP" : "DOWN"}
+            <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+              LIVE
             </span>
-            {nextRoundCountdown && (
-              <span className="text-[10px] tabular-nums text-muted-foreground">
-                Next round in <span className="font-semibold text-foreground">{nextRoundCountdown}</span>
-              </span>
+            {liveCountdown && (
+              <span className="text-[10px] tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
             )}
           </div>
+        )}
+        {!isLive && market.outcome && (
+          <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+            market.outcome === "up"
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+              : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+          }`}>
+            {market.outcome === "up" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+            {market.outcome === "up" ? "UP" : "DOWN"}
+          </span>
         )}
       </div>
 
@@ -363,8 +329,8 @@ function RoundCard({
         </div>
       )}
 
-      {/* Bet controls */}
-      {isBettingOpen && !myBet && (
+      {/* Bet controls — ouverts pendant toute la durée du round (modèle Limitless) */}
+      {isLive && !myBet && (
         <div className="px-4 pb-4 space-y-3">
           <div className="flex gap-2">
             {QUICK_AMOUNTS.map(q => (
