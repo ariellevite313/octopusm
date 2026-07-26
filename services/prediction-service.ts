@@ -72,7 +72,8 @@ export async function getMarketVolumes(): Promise<MarketVolumes> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("prediction_history")
-    .select("market_id, token, total_charged");
+    .select("market_id, token, total_charged")
+    .limit(10000);
 
   if (error || !data) return {};
 
