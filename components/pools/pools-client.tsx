@@ -175,7 +175,9 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
   const sortByStatus = (list: MutuelMarketRow[]) =>
     [...list].sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
   const filtered = sortByStatus(
-    filter === "all" ? markets : markets.filter(m => m.status === filter)
+    filter === "all"
+      ? markets.filter(m => m.status !== "resolved")
+      : markets.filter(m => m.status === filter)
   );
 
   return (

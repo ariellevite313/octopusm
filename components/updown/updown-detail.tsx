@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Clock, ArrowLeft } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -66,7 +66,7 @@ function useCountdown(closeAt: string | null | undefined): string {
     const target = new Date(closeAt).getTime();
     const tick = () => {
       const diff = target - Date.now();
-      if (diff <= 0) { setRemaining("00:00"); return; }
+      if (diff <= 0) { setRemaining("Termine"); return; }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setRemaining(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
@@ -96,13 +96,11 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ── Scrolling X-axis : fenêtre glissante de 60s mise à jour chaque seconde ──
+  // ── Scrolling X-axis : fenêtre glissante de 60s ──────────────────────────
+  // xNow est recalculé à chaque render (déclenché par setSmoothData ~12fps via RAF)
+  // → pas besoin de setInterval séparé, le scroll est fluide à ~80ms.
   const WINDOW_MS = 60_000;
-  const [xNow, setXNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setXNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const xNow = Date.now();
   const supabaseRef = useRef(getSupabase());
   const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
 
@@ -472,11 +470,20 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         <div className="flex flex-col items-end gap-0.5">
           {marketStatus === "open" ? (
             <>
-              <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
-              </span>
-              <span className="text-[10px] tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdownChart}</span>
+              {liveCountdownChart === "Termine" ? (
+                <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                  <Loader2 className="size-2.5 animate-spin" />
+                  Resolving
+                </span>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live
+                  </span>
+                  <span className="text-[10px] tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdownChart}</span>
+                </>
+              )}
             </>
           ) : (
             <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
@@ -901,12 +908,26 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
           {/* Round result */}
           {isResolved && market.outcome && (
-            <div className={`rounded-2xl px-4 py-3 text-center text-sm font-bold border ${
+            <div className={`rounded-2xl px-4 py-3 border ${
               market.outcome === "up"
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : "bg-red-500/10 text-red-400 border-red-500/30"
+                ? "bg-emerald-500/10 border-emerald-500/30"
+                : "bg-red-500/10 border-red-500/30"
             }`}>
-              {market.outcome === "up" ? "↑ UP won this round" : "↓ DOWN won this round"}
+              <p className={`text-center text-sm font-bold mb-2 ${market.outcome === "up" ? "text-emerald-400" : "text-red-400"}`}>
+                {market.outcome === "up" ? "↑ UP won this round" : "↓ DOWN won this round"}
+              </p>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Strike</span>
+                <span className="font-semibold text-foreground">${formatPrice(market.strike_price)}</span>
+              </div>
+              {market.open_price != null && (
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>Close</span>
+                  <span className={`font-semibold ${market.outcome === "up" ? "text-emerald-400" : "text-red-400"}`}>
+                    ${formatPrice(market.open_price)}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -968,7 +989,9 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <div>
                 <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>
                 {isOpen
-                  ? <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live · {liveCountdown}</p>
+                  ? liveCountdown === "Termine"
+                    ? <p className="text-[10px] text-amber-500 font-semibold flex items-center gap-1"><Loader2 className="size-3 animate-spin" />Resolving…</p>
+                    : <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live · {liveCountdown}</p>
                   : <p className="text-[10px] text-muted-foreground">{market.status}</p>
                 }
               </div>

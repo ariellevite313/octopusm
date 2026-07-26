@@ -22,19 +22,77 @@ async function getHistoricalClosePrice(symbol: string, resolveAtMs: number): Pro
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) throw new Error(`Binance klines ${res.status}`);
+      if (!res.ok) throw new Error(`Binance klines HTTP ${res.status}`);
       const klines: any[] = await res.json();
       if (!klines || klines.length === 0) throw new Error("No kline data returned");
       // kline format: [openTime, open, high, low, close, volume, ...]
       const closePrice = parseFloat(klines[0][4]);
       if (isNaN(closePrice) || closePrice <= 0) throw new Error("Invalid close price from kline");
+      console.log(`[resolve-updown] kline OK ${symbol}: ${closePrice} (candleStart=${new Date(candleStart).toISOString()})`);
       return closePrice;
     } catch (e) {
-      console.warn(`[resolve-updown] getHistoricalClosePrice attempt ${attempt + 1}/3:`, e);
-      if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      console.warn(`[resolve-updown] kline attempt ${attempt + 1}/3 failed for ${symbol}:`, e);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
     }
   }
-  throw new Error("All kline fetch attempts failed");
+
+  // Fallback: prix ticker temps réel si klines indisponibles (ex: IP bloquée par Binance)
+  console.warn(`[resolve-updown] klines indisponibles pour ${symbol} — fallback ticker`);
+  try {
+    const res = await fetch(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) throw new Error(`Binance ticker HTTP ${res.status}`);
+    const data: { price: string } = await res.json();
+    const price = parseFloat(data.price);
+    if (isNaN(price) || price <= 0) throw new Error("Invalid ticker price");
+    console.log(`[resolve-updown] ticker fallback ${symbol}: ${price}`);
+    return price;
+  } catch (e) {
+    console.error(`[resolve-updown] ticker fallback also failed for ${symbol}:`, e);
+    throw new Error(`All price fetches failed for ${symbol}`);
+  }
+}
+
+/**
+ * Après chaque résolution (resolved / tie / one-sided), on met à jour le
+ * strike_price du round suivant déjà créé avec le closePrice du round courant.
+ *
+ * Pourquoi ici et pas dans create-updown-markets ?
+ * Le créateur tourne AVANT la résolution → quand il crée Round N+1, Round N
+ * est encore "open" donc lastResolved ne correspond pas. On corrige le strike
+ * dès que le prix de clôture est connu.
+ */
+// deno-lint-ignore no-explicit-any
+async function chainNextStrike(
+  supabase: any,
+  symbol: string,
+  durationMin: number,
+  closePrice: number
+): Promise<void> {
+  const { data: next } = await supabase
+    .from("updown_markets")
+    .select("id, opens_at")
+    .eq("symbol", symbol)
+    .eq("duration_min", durationMin)
+    .eq("status", "open")
+    .order("opens_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!next) return;
+
+  const { error } = await supabase
+    .from("updown_markets")
+    .update({ strike_price: closePrice })
+    .eq("id", next.id);
+
+  if (error) {
+    console.error(`[resolve-updown] chainNextStrike error for ${symbol} ${durationMin}m:`, error.message);
+  } else {
+    console.log(`[resolve-updown] Strike chaîné → ${symbol} ${durationMin}m (${next.opens_at}) : ${closePrice}`);
+  }
 }
 
 Deno.serve(async (_req) => {
@@ -46,7 +104,7 @@ Deno.serve(async (_req) => {
   // S-04 FIX: on ne résout que les marchés dont resolve_at a passé depuis ≥ 30s.
   // Binance publie les klines 1min avec 5-10s de délai — 30s de marge évite
   // le fallback sur le prix temps réel qui rendrait la résolution incohérente avec le strike.
-  const RESOLVE_DELAY_MS = 30_000;
+  const RESOLVE_DELAY_MS = 10_000;
   const resolveThreshold = new Date(Date.now() - RESOLVE_DELAY_MS).toISOString();
 
   // Find all open markets whose resolve_at has passed (+ délai 30s)
@@ -120,17 +178,21 @@ Deno.serve(async (_req) => {
         .eq("market_id", market.id)
         .in("status", ["pending", "approved"]);
 
+      // Chaîner le strike : mettre à jour le round suivant avec le closePrice
+      await chainNextStrike(supabase, market.symbol, market.duration_min, closePrice);
+
       resolved.push(`${market.symbol} ${market.duration_min}m → TIE (refunded)`);
       continue;
     }
 
     // BUG-UD-5 FIX: détecter le cas one-sided AVANT l'update atomique "resolved".
-    // Si on mettait "resolved" puis "cancelled", le marché resterait avec outcome écrit
-    // et un status incohérent. On annule directement avec la garde atomique.
     const poolWinners = outcome === "up" ? Number(market.pool_up) : Number(market.pool_down);
     const poolLosers  = outcome === "up" ? Number(market.pool_down) : Number(market.pool_up);
+    const totalPool   = poolWinners + poolLosers;
 
-    if (poolLosers === 0) {
+    // Aucun pari des deux côtés → résoudre normalement (chaîner le strike, pas de payout)
+    // One-sided (gagnants sans perdants) → annuler et rembourser
+    if (poolLosers === 0 && totalPool > 0) {
       const { data: oneSidedUpdated } = await supabase
         .from("updown_markets")
         .update({ status: "cancelled", open_price: closePrice })
@@ -148,6 +210,9 @@ Deno.serve(async (_req) => {
         .update({ status: "refunded" })
         .eq("market_id", market.id)
         .in("status", ["pending", "approved"]);
+
+      // Chaîner le strike : mettre à jour le round suivant avec le closePrice
+      await chainNextStrike(supabase, market.symbol, market.duration_min, closePrice);
 
       resolved.push(`${market.symbol} ${market.duration_min}m → ${outcome} (one-sided, refunded)`);
       continue;
@@ -172,8 +237,10 @@ Deno.serve(async (_req) => {
       continue;
     }
 
+    // Chaîner le strike : mettre à jour le round suivant avec le closePrice
+    await chainNextStrike(supabase, market.symbol, market.duration_min, closePrice);
+
     // Calculate payouts (seulement si on a gagné le verrou atomique)
-    const totalPool = poolWinners + poolLosers;
     const feeRate   = Number(market.fee_rate) / 100;
     const netPool   = totalPool * (1 - feeRate);
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getActiveMarkets, getMarketVolumes, getDistinctCategories } from "@/services/prediction-service";
-import { MarketGrid } from "@/components/market/market-grid";
+import { getActiveMarkets } from "@/services/prediction-service";
+import { MarketsClient } from "@/components/market/markets-client";
 
 export const revalidate = 60;
 
@@ -24,25 +24,9 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [markets, volumes, categories] = await Promise.all([
-    getActiveMarkets(),
-    getMarketVolumes(),
-    getDistinctCategories(),
-  ]);
+  // Requête rapide — les volumes sont chargés côté client via /api/markets
+  const markets = await getActiveMarkets();
 
-  return (
-    <>
-      <div className="mx-auto max-w-7xl px-4 py-10">
-        {markets.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-20 text-center">
-            <span className="text-5xl">🐙</span>
-            <p className="text-muted-foreground">No active markets right now.</p>
-          </div>
-        ) : (
-          <MarketGrid markets={markets} volumes={volumes} showCategoryTabs={false} />
-        )}
-      </div>
-    </>
-  );
+  return <MarketsClient initialMarkets={markets} />;
 }
 

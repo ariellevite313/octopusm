@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 export interface UpDownMarket {
   id: string;
@@ -86,17 +87,33 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
           {/* Badge Live + countdown résolution */}
           {isLive && (
             <div className="flex flex-col items-end gap-0.5">
-              <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
-              </span>
-              <span className="text-xs tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+              {liveCountdown === "Termine" ? (
+                <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                  <Loader2 className="size-3 animate-spin" />
+                  Resolving
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
+                </span>
+              )}
+              {liveCountdown !== "Termine" && (
+                <span className="text-xs tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+              )}
             </div>
           )}
           {isResolved && (
-            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${market.outcome === "up" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"}`}>
-              {market.outcome === "up" ? "UP" : "DOWN"}
-            </span>
+            <div className="flex flex-col items-end gap-0.5">
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${market.outcome === "up" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"}`}>
+                {market.outcome === "up" ? "▲ UP" : "▼ DOWN"}
+              </span>
+              {market.open_price != null && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  Close ${formatPrice(market.open_price)}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
