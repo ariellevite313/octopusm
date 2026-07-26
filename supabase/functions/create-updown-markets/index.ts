@@ -4,15 +4,9 @@ const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 const DURATIONS = [5, 15, 30]; // minutes (durée totale du round)
 const BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines";
 
-// Modèle Limitless — fenêtre unifiée : paris et live simultanés.
-// Pas de phase de paris séparée : on parie pendant toute la durée du round.
-// Strike = prix à opens_at (chainé depuis le round précédent).
-// Résolution = prix à resolve_at = opens_at + duration_min.
-// 5min  → fenêtre 5min  = 5min total
-// 15min → fenêtre 15min = 15min total
-// 30min → fenêtre 30min = 30min total
+// Modèle Limitless : une seule fenêtre, paris ouverts pendant toute la durée.
+// resolve_at = opens_at + duration_min. Pas de pause, pas de phase séparée.
 const TOTAL_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
-const PAUSE_MINUTES: Record<number, number> = { 5: 0, 15: 0,  30: 0  };
 
 // Précision d'arrondi du strike par asset (décimales)
 const STRIKE_DECIMALS: Record<string, number> = {
@@ -80,13 +74,12 @@ Deno.serve(async (_req) => {
 
   for (const symbol of SYMBOLS) {
     for (const duration of DURATIONS) {
-      const totalMs   = (TOTAL_MINUTES[duration] ?? duration) * 60 * 1000;
-      const pauseMs   = (PAUSE_MINUTES[duration]   ?? duration) * 60 * 1000;
+      const totalMs = TOTAL_MINUTES[duration] * 60 * 1000;
 
       // Trouve le dernier marché open pour ce symbol+duration
       const { data: openMarket } = await supabase
         .from("updown_markets")
-        .select("opens_at, closes_at, resolve_at")
+        .select("resolve_at")
         .eq("symbol", symbol)
         .eq("duration_min", duration)
         .eq("status", "open")
@@ -94,10 +87,10 @@ Deno.serve(async (_req) => {
         .limit(1)
         .maybeSingle();
 
-      // Trouve le dernier marché résolu pour chaîner les prochains slots
+      // Trouve le dernier marché résolu pour chaîner le strike
       const { data: lastResolved } = await supabase
         .from("updown_markets")
-        .select("opens_at, resolve_at, open_price")
+        .select("resolve_at, open_price")
         .eq("symbol", symbol)
         .eq("duration_min", duration)
         .eq("status", "resolved")
@@ -105,22 +98,22 @@ Deno.serve(async (_req) => {
         .limit(1)
         .maybeSingle();
 
-      // Calcule l'ancre pour le prochain slot (arrondie à la minute)
+      // Ancre = fin du round en cours, ou prochaine minute ronde si rien
       const roundToMinute = (ms: number) => Math.ceil(ms / 60_000) * 60_000;
       let anchorMs: number;
       if (openMarket?.resolve_at) {
-        const candidate = new Date(openMarket.resolve_at).getTime() + pauseMs;
-        anchorMs = candidate > nowMs ? candidate : roundToMinute(nowMs + 60_000);
+        const end = new Date(openMarket.resolve_at).getTime();
+        anchorMs = end > nowMs ? end : roundToMinute(nowMs + 60_000);
       } else if (lastResolved?.resolve_at) {
-        const candidate = new Date(lastResolved.resolve_at).getTime() + pauseMs;
-        anchorMs = candidate > nowMs ? candidate : roundToMinute(nowMs + 60_000);
+        const end = new Date(lastResolved.resolve_at).getTime();
+        anchorMs = end > nowMs ? end : roundToMinute(nowMs + 60_000);
       } else {
         anchorMs = roundToMinute(nowMs + 60_000);
       }
 
       const opensAt   = new Date(anchorMs);
       const resolveAt = new Date(anchorMs + totalMs);
-      const closesAt  = resolveAt; // Modèle Limitless : closes_at = resolve_at (fenêtre unifiée)
+      const closesAt  = resolveAt; // closes_at = resolve_at (Limitless)
 
       // Skip si opens_at déjà passé
       if (opensAt.getTime() < nowMs) continue;
