@@ -112,56 +112,70 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
   const prevRealRef      = useRef<{ price: number; ts: number } | null>(null);
   const pointsRef        = useRef<PricePoint[]>([]);       // mirror for RAF access
   const noiseRef         = useRef(0);
-  const noiseVelRef      = useRef(0);
   const rafIdRef         = useRef<number | null>(null);
   const lastChartTickRef = useRef(0);
+  // Accumulates noisy 80ms chart points — never rebuilt from hist (avoids straight segments)
+  const smoothDataRef    = useRef<PricePoint[]>([]);
 
   // Sync pointsRef with points state so RAF can read without stale closure
   useEffect(() => { pointsRef.current = points; }, [points]);
 
   // ── RAF: smooth 60fps price + ~12fps chart update ───────────────────────
   useEffect(() => {
-    const INTERP_MS     = 250;  // interpolation window for each real price update
+    const INTERP_MS     = 200;  // interpolation window per real WS tick
     const CHART_TICK_MS = 80;   // ~12fps chart refresh
+    const MAX_SMOOTH    = 1500; // ~2min of 80ms points
 
     const tick = () => {
-      // Use Date.now() — same reference as prevRealRef.ts (set via Date.now() in pushPrice)
-      // RAF passes performance.now() which is incompatible with Date.now() timestamps
-      const now = Date.now();
+      const now    = Date.now();
       const target = targetPriceRef.current;
 
       if (target != null) {
-        // Smooth interpolation from previous real price to target
+        // ── Base: ease-in-out interpolation between real WS ticks ──────────
         let base = target;
         const prev = prevRealRef.current;
         if (prev && now - prev.ts < INTERP_MS) {
-          const t = Math.max(0, Math.min(1, (now - prev.ts) / INTERP_MS));
-          const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
+          const t     = Math.max(0, Math.min(1, (now - prev.ts) / INTERP_MS));
+          const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
           base = prev.price + (target - prev.price) * eased;
         }
 
-        // Brownian motion micro-noise (organic, non-repetitive)
-        noiseVelRef.current += (Math.random() - 0.5) * target * 0.0000015;
-        noiseVelRef.current *= 0.93;                          // velocity damping
-        noiseRef.current    += noiseVelRef.current;
-        noiseRef.current    *= 0.9985;                        // slow decay to 0
-        const noiseCap = target * 0.00006;                    // max ±~$3.9 on BTC
+        // ── Ornstein-Uhlenbeck micro-noise ──────────────────────────────────
+        // X(t+dt) = X(t)*(1 - θ/fps) + σ*ε
+        // θ = 3.0  → half-life ~0.23s  (fast reversion = no drift)
+        // σ = 0.000015*price/frame → ~$2 std-dev on BTC in steady state
+        // Occasional spike (3%/frame) simulates a larger trade hitting the book.
+        const OU_THETA = 1.5;
+        const sigma    = target * 0.00004;
+        noiseRef.current = noiseRef.current * (1 - OU_THETA / 60)
+                         + sigma * (Math.random() - 0.5) * 2;
+        if (Math.random() < 0.07) {
+          noiseRef.current += sigma * (Math.random() - 0.5) * 6; // micro-spike
+        }
+        const noiseCap = target * 0.0002; // hard cap ±0.02% (±$12.8 BTC)
         noiseRef.current = Math.max(-noiseCap, Math.min(noiseCap, noiseRef.current));
 
         const smooth = base + noiseRef.current;
 
-        // 60fps: update display span directly without React re-render
+        // ── 60fps: update display span (no React re-render) ────────────────
         if (displayPriceRef.current) {
           displayPriceRef.current.textContent = `$${formatPrice(smooth)}`;
         }
 
-        // ~12fps: update chart data via state
+        // ── ~12fps: accumulate noisy points into smoothDataRef ─────────────
+        // Never rebuild from hist — avoids straight segments between WS ticks.
         if (now - lastChartTickRef.current > CHART_TICK_MS) {
           lastChartTickRef.current = now;
-          const hist = pointsRef.current;
-          if (hist.length > 0) {
-            const lp: PricePoint = { time: now, price: smooth, open: smooth, high: smooth, low: smooth };
-            setSmoothData([...hist, lp]);
+          const hasSeed = smoothDataRef.current.length > 0 || pointsRef.current.length > 0;
+          if (hasSeed) {
+            if (smoothDataRef.current.length === 0) {
+              // First live tick: seed from real candles then append
+              smoothDataRef.current = [...pointsRef.current];
+            }
+            const pt: PricePoint = { time: now, price: smooth, open: smooth, high: smooth, low: smooth };
+            const next = [...smoothDataRef.current, pt];
+            smoothDataRef.current = next.length > MAX_SMOOTH ? next.slice(-MAX_SMOOTH) : next;
+            setSmoothData(smoothDataRef.current);
           }
         }
       }
@@ -242,7 +256,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       const lastPrice = sliced[sliced.length - 1].price;
       setPoints(sliced);
       setSmoothData(sliced);
-      pointsRef.current = sliced;
+      pointsRef.current    = sliced;
+      smoothDataRef.current = [...sliced]; // seed noisy accumulator from real candles
       setCurrentPrice(lastPrice);
       // Seed RAF refs so animation starts immediately without waiting for WS
       targetPriceRef.current = lastPrice;
