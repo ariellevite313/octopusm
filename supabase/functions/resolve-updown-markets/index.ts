@@ -3,21 +3,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines";
 
 /**
- * S-02 FIX: utilise la bougie 1min qui se TERMINE avant resolve_at.
- * candleStart = floor(resolveAt/60000)*60000 - 60000
- * → son closeTime = candleStart + 60000 - 1ms ≤ resolveAt
- * Avant: on prenait la bougie qui COUVRE resolve_at → jusqu'à 60s de décalage.
+ * Option 3 — Kline 1s : bougie de la SECONDE qui précède resolve_at.
+ * candleStart = floor(resolveAt/1000)*1000 - 1000
+ * → son closeTime = candleStart + 999ms ≤ resolveAt
+ * Décalage réduit de ~60s (kline 1min) à ~1s.
  *
- * S-04 FIX: le résolveur attend 30s après resolve_at avant de fetcher les klines.
- * Binance publie les bougie avec ~5-10s de délai; 30s de marge évite le fallback
- * temps réel qui causerait une résolution incohérente.
+ * Binance publie les bougies 1s avec ~1-2s de délai.
+ * RESOLVE_DELAY_MS = 10s donne une marge confortable.
  *
  * Retry 3× avec backoff pour absorber les pics de latence Binance.
  */
 async function getHistoricalClosePrice(symbol: string, resolveAtMs: number): Promise<number> {
-  // S-02: bougie qui se TERMINE avant resolve_at
-  const candleStart = Math.floor(resolveAtMs / 60_000) * 60_000 - 60_000;
-  const url = `${BINANCE_KLINES_URL}?symbol=${symbol}&interval=1m&startTime=${candleStart}&endTime=${candleStart + 60_000}&limit=1`;
+  // Bougie 1s qui se TERMINE juste avant resolve_at
+  const candleStart = Math.floor(resolveAtMs / 1_000) * 1_000 - 1_000;
+  const url = `${BINANCE_KLINES_URL}?symbol=${symbol}&interval=1s&startTime=${candleStart}&endTime=${candleStart + 1_000}&limit=1`;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -28,7 +27,7 @@ async function getHistoricalClosePrice(symbol: string, resolveAtMs: number): Pro
       // kline format: [openTime, open, high, low, close, volume, ...]
       const closePrice = parseFloat(klines[0][4]);
       if (isNaN(closePrice) || closePrice <= 0) throw new Error("Invalid close price from kline");
-      console.log(`[resolve-updown] kline OK ${symbol}: ${closePrice} (candleStart=${new Date(candleStart).toISOString()})`);
+      console.log(`[resolve-updown] kline 1s OK ${symbol}: ${closePrice} (candle=${new Date(candleStart).toISOString()} → ${new Date(candleStart + 1_000).toISOString()})`);
       return closePrice;
     } catch (e) {
       console.warn(`[resolve-updown] kline attempt ${attempt + 1}/3 failed for ${symbol}:`, e);
@@ -104,7 +103,7 @@ Deno.serve(async (_req) => {
   // S-04 FIX: on ne résout que les marchés dont resolve_at a passé depuis ≥ 30s.
   // Binance publie les klines 1min avec 5-10s de délai — 30s de marge évite
   // le fallback sur le prix temps réel qui rendrait la résolution incohérente avec le strike.
-  const RESOLVE_DELAY_MS = 10_000;
+  const RESOLVE_DELAY_MS = 3_000;
   const resolveThreshold = new Date(Date.now() - RESOLVE_DELAY_MS).toISOString();
 
   // Find all open markets whose resolve_at has passed (+ délai 30s)

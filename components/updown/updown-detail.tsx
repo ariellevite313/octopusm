@@ -283,28 +283,45 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${ticker}&interval=1s&limit=60`;
     }
 
-    fetch(klinesUrl)
+    // Priorité 1 : price_history (notre DB) — historique complet même après navigation
+    const histFrom = marketDone && resolveAt
+      ? new Date(opensAt).getTime()
+      : Date.now() - 65_000;
+    const histTo = marketDone && resolveAt
+      ? new Date(resolveAt).getTime()
+      : Date.now();
+
+    fetch(`/api/crypto/history?symbol=${ticker}&from=${histFrom}&to=${histTo}`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then((data: [number, string, string, string, string, ...unknown[]][]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          applyPoints(data.map(k => ({
-            time: k[0] as number,
-            price: parseFloat(k[4] as string),
-            open:  parseFloat(k[1] as string),
-            high:  parseFloat(k[2] as string),
-            low:   parseFloat(k[3] as string),
-          })));
+      .then((data: { points: { time: number; price: number; open: number; high: number; low: number }[] }) => {
+        if (Array.isArray(data?.points) && data.points.length > 0) {
+          applyPoints(data.points);
         } else return Promise.reject();
       })
       .catch(() => {
-        // Fallback: proxy serveur 1s — garde la même fenêtre (60 secondes) pour
-        // que $1 reste visible. NE PAS utiliser interval=1m (60 points = 60 min → $1 invisible).
-        fetch(`/api/crypto/klines?symbol=${ticker}&interval=1s&limit=60`)
+        // Fallback: klines Binance directes si price_history est vide (ex: 1er démarrage)
+        fetch(klinesUrl)
           .then(r => r.ok ? r.json() : Promise.reject())
-          .then((data: { time: number; price: number; open: number; high: number; low: number }[]) => {
-            if (Array.isArray(data) && data.length > 0) applyPoints(data);
+          .then((data: [number, string, string, string, string, ...unknown[]][]) => {
+            if (Array.isArray(data) && data.length > 0) {
+              applyPoints(data.map(k => ({
+                time:  k[0] as number,
+                price: parseFloat(k[4] as string),
+                open:  parseFloat(k[1] as string),
+                high:  parseFloat(k[2] as string),
+                low:   parseFloat(k[3] as string),
+              })));
+            } else return Promise.reject();
           })
-          .catch(() => {});
+          .catch(() => {
+            // Fallback final: proxy serveur
+            fetch(`/api/crypto/klines?symbol=${ticker}&interval=1s&limit=60`)
+              .then(r => r.ok ? r.json() : Promise.reject())
+              .then((data: { time: number; price: number; open: number; high: number; low: number }[]) => {
+                if (Array.isArray(data) && data.length > 0) applyPoints(data);
+              })
+              .catch(() => {});
+          });
       });
 
     return () => clearTimeout(timeout);
