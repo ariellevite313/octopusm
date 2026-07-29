@@ -160,7 +160,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
     // ALL Up/Down bets — needed for volume, wins, and losses across all statuses
     db
       .from("updown_bets")
-      .select("id, direction, amount, payout, token, status, created_at, updown_markets(symbol)")
+      .select("id, direction, amount, payout, status, created_at, updown_markets(symbol)")
       .eq("wallet_address", walletAddress)
       .order("created_at", { ascending: false })
       .limit(200),
