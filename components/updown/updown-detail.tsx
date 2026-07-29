@@ -104,73 +104,41 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
   const supabaseRef = useRef(getSupabase());
   const meta = COIN_META[ticker] ?? { label: ticker, symbol: ticker, color: "#888", img: "" };
 
-  // ── Smooth animation refs (no setState = no re-render overhead) ──────────
-  const displayPriceRef  = useRef<HTMLSpanElement>(null); // direct DOM update 60fps
-  const targetPriceRef   = useRef<number | null>(null);   // latest real price
-  const prevRealRef      = useRef<{ price: number; ts: number } | null>(null);
-  const pointsRef        = useRef<PricePoint[]>([]);       // mirror for RAF access
-  const noiseRef         = useRef(0);
+  // ── Refs pour mise à jour DOM sans re-render React ───────────────────────
+  const displayPriceRef  = useRef<HTMLSpanElement>(null); // prix affiché 60fps via DOM direct
+  const targetPriceRef   = useRef<number | null>(null);   // dernier prix réel Binance (WS)
+  const pointsRef        = useRef<PricePoint[]>([]);       // miroir de points pour le RAF
   const rafIdRef         = useRef<number | null>(null);
   const lastChartTickRef = useRef(0);
-  // Accumulates noisy 80ms chart points — never rebuilt from hist (avoids straight segments)
   const smoothDataRef    = useRef<PricePoint[]>([]);
 
   // Sync pointsRef with points state so RAF can read without stale closure
   useEffect(() => { pointsRef.current = points; }, [points]);
 
-  // ── RAF: smooth 60fps price + ~12fps chart update ───────────────────────
+  // ── RAF: affichage 60fps du prix réel Binance + point graphe chaque 1s ──
   useEffect(() => {
-    const INTERP_MS     = 200;  // interpolation window per real WS tick
-    const CHART_TICK_MS = 80;   // ~12fps chart refresh
-    const MAX_SMOOTH    = 1500; // ~2min of 80ms points
+    const CHART_TICK_MS = 1000; // 1 point par seconde = prix exact Binance
+    const MAX_SMOOTH    = 3600; // max 1h de points 1s
 
     const tick = () => {
       const now    = Date.now();
       const target = targetPriceRef.current;
 
       if (target != null) {
-        // ── Base: ease-in-out interpolation between real WS ticks ──────────
-        let base = target;
-        const prev = prevRealRef.current;
-        if (prev && now - prev.ts < INTERP_MS) {
-          const t     = Math.max(0, Math.min(1, (now - prev.ts) / INTERP_MS));
-          const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-          base = prev.price + (target - prev.price) * eased;
-        }
-
-        // ── Ornstein-Uhlenbeck micro-noise ──────────────────────────────────
-        // X(t+dt) = X(t)*(1 - θ/fps) + σ*ε
-        // θ = 3.0  → half-life ~0.23s  (fast reversion = no drift)
-        // σ = 0.000015*price/frame → ~$2 std-dev on BTC in steady state
-        // Occasional spike (3%/frame) simulates a larger trade hitting the book.
-        const OU_THETA = 1.5;
-        const sigma    = target * 0.00004;
-        noiseRef.current = noiseRef.current * (1 - OU_THETA / 60)
-                         + sigma * (Math.random() - 0.5) * 2;
-        if (Math.random() < 0.07) {
-          noiseRef.current += sigma * (Math.random() - 0.5) * 6; // micro-spike
-        }
-        const noiseCap = target * 0.0002; // hard cap ±0.02% (±$12.8 BTC)
-        noiseRef.current = Math.max(-noiseCap, Math.min(noiseCap, noiseRef.current));
-
-        const smooth = base + noiseRef.current;
-
-        // ── 60fps: update display span (no React re-render) ────────────────
+        // 60fps : mise à jour du span DOM sans re-render React
         if (displayPriceRef.current) {
-          displayPriceRef.current.textContent = `$${formatPrice(smooth)}`;
+          displayPriceRef.current.textContent = `$${formatPrice(target)}`;
         }
 
-        // ── ~12fps: accumulate noisy points into smoothDataRef ─────────────
-        // Never rebuild from hist — avoids straight segments between WS ticks.
+        // 1s : ajouter le prix réel Binance comme point du graphe
         if (now - lastChartTickRef.current > CHART_TICK_MS) {
           lastChartTickRef.current = now;
           const hasSeed = smoothDataRef.current.length > 0 || pointsRef.current.length > 0;
           if (hasSeed) {
             if (smoothDataRef.current.length === 0) {
-              // First live tick: seed from real candles then append
               smoothDataRef.current = [...pointsRef.current];
             }
-            const pt: PricePoint = { time: now, price: smooth, open: smooth, high: smooth, low: smooth };
+            const pt: PricePoint = { time: now, price: target, open: target, high: target, low: target };
             const next = [...smoothDataRef.current, pt];
             smoothDataRef.current = next.length > MAX_SMOOTH ? next.slice(-MAX_SMOOTH) : next;
             setSmoothData(smoothDataRef.current);
@@ -228,10 +196,6 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
   // Reçoit un prix brut — met à jour les refs d'interpolation + agrège la bougie
   const pushPrice = useCallback((price: number) => {
-    // Track previous real price for smooth interpolation in RAF
-    if (targetPriceRef.current != null) {
-      prevRealRef.current = { price: targetPriceRef.current, ts: Date.now() };
-    }
     targetPriceRef.current = price;
     setCurrentPrice(price);
 
