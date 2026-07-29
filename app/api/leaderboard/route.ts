@@ -84,7 +84,11 @@ export async function GET(req: NextRequest) {
       .select("wallet_address, amount")
       .gt("amount", 0);
     if (cutoff) q = q.gte("created_at", cutoff);
-    const { data } = await q;
+    const { data, error } = await q;
+    if (error) {
+      console.error("[leaderboard/octo]", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     const map = buildMap();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,9 +112,7 @@ export async function GET(req: NextRequest) {
       win_count:      v.wins,
     }));
 
-    return NextResponse.json({ entries }, {
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" },
-    });
+    return NextResponse.json({ entries });
   }
 
   // ── USDC or CLT ───────────────────────────────────────────────────────────
@@ -147,12 +149,24 @@ export async function GET(req: NextRequest) {
     .eq("result_status", "win");
   if (cutoff) predQ = predQ.gte("created_at", cutoff);
 
-  const [udRes, { data: mbData }, { data: predData }] = await Promise.all([
-    udQ ? udQ : Promise.resolve({ data: [] }),
+  const [udRes, mbRes, predRes] = await Promise.all([
+    udQ ? udQ : Promise.resolve({ data: [], error: null }),
     mbQ,
     predQ,
   ]);
-  const udData = udRes.data;
+
+  if (udRes.error)   console.error("[leaderboard/updown]", udRes.error.message);
+  if (mbRes.error)   console.error("[leaderboard/mutuel]", mbRes.error.message);
+  if (predRes.error) console.error("[leaderboard/pred]",   predRes.error.message);
+
+  // If all sources failed, return a real error instead of an empty list
+  if (udRes.error && mbRes.error && predRes.error) {
+    return NextResponse.json({ error: "Failed to load leaderboard data" }, { status: 500 });
+  }
+
+  const udData   = udRes.data;
+  const mbData   = mbRes.data;
+  const predData = predRes.data;
 
   const map = buildMap();
 
@@ -189,7 +203,5 @@ export async function GET(req: NextRequest) {
     win_count:      v.wins,
   }));
 
-  return NextResponse.json({ entries }, {
-    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30" },
-  });
+  return NextResponse.json({ entries });
 }

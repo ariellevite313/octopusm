@@ -43,7 +43,7 @@ function rankDisplay(rank: number) {
 
 export function LeaderboardTabs() {
   const [token,   setToken]   = useState<LeaderboardToken>("usdc");
-  const [period,  setPeriod]  = useState<LeaderboardPeriod>("24h");
+  const [period,  setPeriod]  = useState<LeaderboardPeriod>("all");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
@@ -59,9 +59,12 @@ export function LeaderboardTabs() {
     fetch(`/api/leaderboard?token=${token}&period=${period}&limit=20`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Server error ${res.status}`);
-        return res.json() as Promise<{ entries: LeaderboardEntry[] }>;
+        return res.json() as Promise<{ entries: LeaderboardEntry[]; error?: string }>;
       })
-      .then((json) => { setEntries(json.entries ?? []); })
+      .then((json) => {
+        if (json.error) throw new Error(json.error);
+        setEntries(json.entries ?? []);
+      })
       .catch((err) => {
         if (err.name === "AbortError") return; // tab switched — ignore
         setError("Failed to load leaderboard. Please try again.");
