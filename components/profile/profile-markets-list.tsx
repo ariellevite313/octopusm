@@ -80,8 +80,13 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
 
   if (markets.length === 0) return null;
 
-  const totalVolume      = markets.reduce((s, m) => s + m.volume, 0);
-  const totalFees        = markets.reduce((s, m) => s + m.fee_earned, 0);
+  const usdcMarkets = markets.filter((m) => m.bet_token === "usdc");
+  const cltMarkets  = markets.filter((m) => m.bet_token !== "usdc");
+
+  const totalVolumeUsdc = usdcMarkets.reduce((s, m) => s + m.volume, 0);
+  const totalVolumeClt  = cltMarkets.reduce((s, m) => s + m.volume, 0);
+  const totalFeesUsdc   = usdcMarkets.reduce((s, m) => s + m.fee_earned, 0);
+  const totalFeesClt    = cltMarkets.reduce((s, m) => s + m.fee_earned, 0);
   const totalParticipants = markets.reduce((s, m) => s + m.bet_count, 0);
 
   return (
@@ -104,11 +109,36 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
         </div>
         <div className="px-4 py-2.5 text-center">
           <p className="text-[10px] text-muted-foreground">Total volume</p>
-          <p className="text-lg font-semibold text-foreground">{fmt(totalVolume)}</p>
+          {totalVolumeUsdc > 0 && (
+            <p className="flex items-center justify-center gap-1 text-sm font-semibold text-foreground">
+              <Image src="/usdc-coin.png" alt="USDC" width={11} height={11} className="rounded-full" />
+              {fmt(totalVolumeUsdc)}
+            </p>
+          )}
+          {totalVolumeClt > 0 && (
+            <p className="flex items-center justify-center gap-1 text-sm font-semibold text-foreground">
+              <Image src="/clawdtrust-coin.png" alt="CLT" width={11} height={11} className="rounded-full" />
+              {fmt(totalVolumeClt)}
+            </p>
+          )}
         </div>
         <div className="px-4 py-2.5 text-center">
           <p className="text-[10px] text-muted-foreground">Fees earned (1%)</p>
-          <p className="text-lg font-semibold text-emerald-600">+{fmt(totalFees)}</p>
+          {totalFeesUsdc > 0 && (
+            <p className="flex items-center justify-center gap-1 text-sm font-semibold text-emerald-600">
+              <Image src="/usdc-coin.png" alt="USDC" width={11} height={11} className="rounded-full" />
+              +{fmt(totalFeesUsdc)}
+            </p>
+          )}
+          {totalFeesClt > 0 && (
+            <p className="flex items-center justify-center gap-1 text-sm font-semibold text-emerald-600">
+              <Image src="/clawdtrust-coin.png" alt="CLT" width={11} height={11} className="rounded-full" />
+              +{fmt(totalFeesClt)}
+            </p>
+          )}
+          {totalFeesUsdc === 0 && totalFeesClt === 0 && (
+            <p className="text-sm font-semibold text-muted-foreground">—</p>
+          )}
         </div>
         <div className="hidden px-4 py-2.5 text-center sm:block">
           <p className="text-[10px] text-muted-foreground">Participants</p>
