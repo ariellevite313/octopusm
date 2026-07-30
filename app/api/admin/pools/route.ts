@@ -135,7 +135,9 @@ export async function POST(req: Request) {
     if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
 
     const bets = allBets ?? [];
-    const token: string = market.bet_token;
+    // mutuel_markets has no bet_token column — derive token from the bets themselves.
+    // All bets in a single market use the same token (enforced at bet placement).
+    const token: string = (bets[0]?.token ?? "usdc") as string;
     const totalPool: number = bets.reduce((s: number, b: { amount: number }) => s + Number(b.amount), 0);
 
     const winningBets = bets.filter((b: { option_id: string }) => b.option_id === winning_option_id);
@@ -229,7 +231,7 @@ export async function POST(req: Request) {
         wallet_address: market.creator_wallet,
         option_id:      "creator_fee",
         amount:         creatorShare,
-        token:          market.bet_token,
+        token:          token,  // derived from bets above (market has no bet_token column)
         payout_amount:  creatorShare,
         status:         "creator_fee",
       });

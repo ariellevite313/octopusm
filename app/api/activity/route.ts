@@ -56,9 +56,10 @@ export async function GET() {
       .limit(50),
 
     // Up/Down bets (wins + losses)
+    // Note: updown_bets has no "token" column — all updown bets are USDC only.
     admin
       .from("updown_bets")
-      .select("id, direction, amount, payout, token, status, created_at, updown_markets(symbol)")
+      .select("id, direction, amount, payout, status, created_at, updown_markets(symbol)")
       .eq("wallet_address", wallet)
       .in("status", ["won", "claimed", "paid", "lost", "cancelled"])
       .order("created_at", { ascending: false })
@@ -142,9 +143,9 @@ export async function GET() {
       amount: (b.amount as number) ?? 0, direction: "out" as const,
       created_at: b.created_at as string,
     })),
-    // Up/Down wins in USDC
+    // Up/Down wins in USDC (all updown bets are USDC — no token column in table)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...updownWins.filter((b: any) => isUsdc(b.token ?? "usdc")).map((b: any) => ({
+    ...updownWins.map((b: any) => ({
       id: b.id as string, type: "win" as const,
       label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
       sub: "Won", amount: (b.payout as number) ?? 0, direction: "in" as const,
@@ -152,7 +153,7 @@ export async function GET() {
     })),
     // Up/Down losses in USDC
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...updownLosses.filter((b: any) => isUsdc(b.token ?? "usdc")).map((b: any) => ({
+    ...updownLosses.map((b: any) => ({
       id: `loss-${b.id as string}`, type: "loss" as const,
       label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
       sub: b.status === "cancelled" ? "Cancelled" : "Lost",
@@ -229,23 +230,7 @@ export async function GET() {
       amount: (b.amount as number) ?? 0, direction: "out" as const,
       created_at: b.created_at as string,
     })),
-    // Up/Down wins in CLT
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...updownWins.filter((b: any) => isClt(b.token ?? "")).map((b: any) => ({
-      id: b.id as string, type: "win" as const,
-      label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
-      sub: "Won", amount: (b.payout as number) ?? 0, direction: "in" as const,
-      created_at: b.created_at as string,
-    })),
-    // Up/Down losses in CLT
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...updownLosses.filter((b: any) => isClt(b.token ?? "")).map((b: any) => ({
-      id: `loss-${b.id as string}`, type: "loss" as const,
-      label: `${(b.updown_markets as any)?.symbol ?? "Crypto"} Up/Down`,
-      sub: b.status === "cancelled" ? "Cancelled" : "Lost",
-      amount: (b.amount as number) ?? 0, direction: "out" as const,
-      created_at: b.created_at as string,
-    })),
+    // Up/Down bets are USDC-only (no CLT updown markets exist)
     // Pool wins in CLT
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...mutuelWins.filter((b: any) => isClt(b.token ?? "")).map((b: any) => ({

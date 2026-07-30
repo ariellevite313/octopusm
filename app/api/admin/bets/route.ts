@@ -119,7 +119,7 @@ export async function POST(req: Request) {
   if (payment.flow === "pool_prediction" && payment.market_id && payment.selection_id) {
     const { data: market, error: mErr } = await admin
       .from("mutuel_markets")
-      .select("id, status, options, bet_token, total_pool_usdc, total_pool_clt, bet_count")
+      .select("id, status, options, total_pool_usdc, total_pool_clt, bet_count")
       .eq("id", payment.market_id)
       .single();
 
@@ -133,7 +133,8 @@ export async function POST(req: Request) {
     if (!validOption)
       return NextResponse.json({ error: "Invalid option" }, { status: 400 });
 
-    const token: string = market.bet_token;
+    // Use payment.token — mutuel_markets has no bet_token column (only creation_fee_token)
+    const token: string = (payment.token ?? "usdc") as string;
     const amount = Number(payment.amount_usdc);
 
     const { data: existingBet } = await admin
