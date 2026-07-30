@@ -623,6 +623,16 @@ export interface MutuelBetRow {
   created_at: string;
 }
 
+/**
+ * Marché unifié — discriminated union entre prediction_markets et mutuel_markets.
+ * Utilisé pour la grille home/catégorie qui mélange les deux types.
+ * - source "prediction" → PredictionMarketRow, lien /prediction/[slug|id], champ catégorie: category_id
+ * - source "pool"       → MutuelMarketRow,     lien /pools/[slug],          champ catégorie: category
+ */
+export type UnifiedMarket =
+  | (PredictionMarketRow & { source: "prediction" })
+  | (MutuelMarketRow     & { source: "pool" });
+
 /** MutuelMarketRow enrichi avec les totaux par option (calculés client-side) */
 export interface MutuelMarketEnriched extends MutuelMarketRow {
   /** Map option_id -> total misé sur cette option */

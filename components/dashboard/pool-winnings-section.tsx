@@ -119,13 +119,13 @@ export function PoolWinningsSection({ walletAddress }: Props) {
                   Prediction: <span className="font-medium text-foreground">{optLabel}</span>
                   {" "}&middot; Staked:{" "}
                   <span className="inline-flex items-center gap-0.5 font-medium text-foreground">
-                    <TokenLogo token={bet.token} className="size-3" />
+                    <TokenLogo token={bet.token} className="size-5" />
                     {Number(bet.amount).toFixed(dec)}
                   </span>
                 </p>
 
                 <div className="mb-3 flex items-center gap-1.5 rounded-xl bg-amber-100/60 px-3 py-2 dark:bg-amber-900/20">
-                  <TokenLogo token={bet.token} className="size-4" />
+                  <TokenLogo token={bet.token} className="size-5" />
                   <span className="text-base font-bold text-amber-700 dark:text-amber-400">
                     {bet.net_payout.toFixed(dec)} {tokenLabel(bet.token)}
                   </span>
@@ -174,7 +174,7 @@ export function PoolWinningsSection({ walletAddress }: Props) {
                   </p>
                 </div>
                 <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                  <TokenLogo token={bet.token} className="size-3.5" />
+                  <TokenLogo token={bet.token} className="size-5" />
                   +{bet.net_payout.toFixed(dec)}
                 </span>
               </div>

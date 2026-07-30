@@ -56,14 +56,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function getInitialBets(marketId: string) {
   const supabase = await createClient() as any;
-  const { data } = await supabase
+  const { data: bets } = await supabase
     .from("mutuel_bets")
     .select("option_id, amount, token, wallet_address, created_at, payout_amount, paid_at")
     .eq("market_id", marketId)
     .eq("status", "approved")
     .order("created_at", { ascending: false })
     .limit(200);
-  return data ?? [];
+
+  if (!bets || bets.length === 0) return [];
+
+  // Fetch wallet profiles + OCTO balances for all unique bettors in parallel
+  const admin = createAdminClient() as any;
+  const uniqueWallets = [...new Set((bets as { wallet_address: string }[]).map(b => b.wallet_address).filter(Boolean))];
+
+  const [{ data: walletRows }, { data: octoRows }] = await Promise.all([
+    admin.from("wallets").select("address, username, avatar_src").in("address", uniqueWallets),
+    admin.from("octo_transactions").select("wallet_address, amount").in("wallet_address", uniqueWallets),
+  ]);
+
+  const profileMap: Record<string, { username: string | null; avatar_src: string | null }> = {};
+  for (const w of (walletRows ?? []) as { address: string; username: string | null; avatar_src: string | null }[]) {
+    profileMap[w.address] = { username: w.username, avatar_src: w.avatar_src };
+  }
+
+  const octoMap: Record<string, number> = {};
+  for (const r of (octoRows ?? []) as { wallet_address: string; amount: number }[]) {
+    octoMap[r.wallet_address] = (octoMap[r.wallet_address] ?? 0) + (r.amount ?? 0);
+  }
+
+  return (bets as { wallet_address: string }[]).map(b => ({
+    ...b,
+    username: profileMap[b.wallet_address]?.username ?? null,
+    avatar_src: profileMap[b.wallet_address]?.avatar_src ?? null,
+    octo_balance: octoMap[b.wallet_address] ?? 0,
+  }));
 }
 
 async function getInitialComments(marketId: string, wallet: string | null): Promise<MarketCommentEnriched[]> {

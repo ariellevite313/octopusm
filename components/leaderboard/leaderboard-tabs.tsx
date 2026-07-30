@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { LeaderboardToken, LeaderboardPeriod, LeaderboardEntry } from "@/app/api/leaderboard/route";
+import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ export function LeaderboardTabs() {
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <Image src={t.logo} alt={t.label} width={18} height={18} className="shrink-0 rounded-full" />
+              <Image src={t.logo} alt={t.label} width={22} height={22} className="shrink-0 rounded-full" />
               <span className={`text-sm font-semibold ${token === t.key ? "text-foreground" : "text-muted-foreground"}`}>
                 {t.label}
               </span>
@@ -124,7 +125,7 @@ export function LeaderboardTabs() {
 
       {/* ── Context label ──────────────────────────────────────────────── */}
       <div className="mb-3 flex items-center gap-1.5">
-        <Image src={tokenCfg.logo} alt={tokenCfg.label} width={14} height={14} className="rounded-full opacity-70" />
+        <Image src={tokenCfg.logo} alt={tokenCfg.label} width={20} height={20} className="rounded-full opacity-70" />
         <p className="text-xs text-muted-foreground">
           Top {tokenCfg.label} winners · {periodCfg.label}
         </p>
@@ -182,9 +183,12 @@ export function LeaderboardTabs() {
 
                 {/* Name */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {entry.display_name ?? shortAddress(entry.wallet_address)}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {entry.display_name ?? shortAddress(entry.wallet_address)}
+                    </p>
+                    {entry.octo_balance > 0 && <OctoBadge totalOcto={entry.octo_balance} size={12} />}
+                  </div>
                   <p className="text-[10px] text-muted-foreground">
                     {entry.win_count} win{entry.win_count !== 1 ? "s" : ""}
                   </p>
@@ -192,7 +196,7 @@ export function LeaderboardTabs() {
 
                 {/* Gains */}
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <Image src={tokenCfg.logo} alt={tokenCfg.label} width={14} height={14} className="shrink-0 rounded-full" />
+                  <Image src={tokenCfg.logo} alt={tokenCfg.label} width={20} height={20} className="shrink-0 rounded-full" />
                   <span className="text-sm font-bold text-emerald-600">
                     {tokenCfg.prefix}{fmt(entry.total_gains)}
                   </span>

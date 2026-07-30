@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { MarketGrid } from "./market-grid";
-import type { PredictionMarketRow } from "@/lib/supabase/types";
+import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 
 // ─── Module-level cache (survives React navigation, cleared on page reload) ────
 interface CacheEntry {
-  markets: PredictionMarketRow[];
+  markets: UnifiedMarket[];
   volumes: MarketVolumes;
   ts: number;
 }
@@ -20,14 +20,14 @@ interface Props {
   /** undefined = home page (toutes catégories) */
   category?: string;
   /** Marchés chargés côté serveur — affichés immédiatement sans délai */
-  initialMarkets: PredictionMarketRow[];
+  initialMarkets: UnifiedMarket[];
 }
 
 export function MarketsClient({ category, initialMarkets }: Props) {
   const key = category ?? "__all__";
   const cached = _cache.get(key);
 
-  const [markets, setMarkets] = useState<PredictionMarketRow[]>(
+  const [markets, setMarkets] = useState<UnifiedMarket[]>(
     cached?.markets ?? initialMarkets
   );
   const [volumes, setVolumes] = useState<MarketVolumes>(
@@ -60,7 +60,7 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
     fetch(url)
       .then((r) => r.json())
-      .then(({ markets: m, volumes: v }: { markets: PredictionMarketRow[]; volumes: MarketVolumes }) => {
+      .then(({ markets: m, volumes: v }: { markets: UnifiedMarket[]; volumes: MarketVolumes }) => {
         _cache.set(key, { markets: m, volumes: v, ts: Date.now() });
         setMarkets(m);
         setVolumes(v);

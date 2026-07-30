@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { CATEGORY_SLUGS } from "@/lib/categories";
 
 
 export async function POST(req: Request) {
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
 
     // B-03 — Whitelists
     const VALID_MARKET_TYPES = ["yes-no", "threshold", "three-way"];
-    const VALID_CATEGORIES   = ["sports", "crypto", "politics", "entertainment", "cinema", "science", "other"];
+    const VALID_CATEGORIES   = CATEGORY_SLUGS;
     const VALID_VISUAL_TYPES = ["simple", "vs"];
     const VALID_TICKERS      = ["", "BTCUSDT", "ETHUSDT", "SOLUSDT", null, undefined];
 

@@ -7,7 +7,7 @@ import Image from "next/image";
  */
 export function TokenLogo({
   token,
-  className = "size-4",
+  className = "size-5",
 }: {
   token: string;
   className?: string;
@@ -30,7 +30,7 @@ export function TokenLogo({
 export function TokenAmount({
   amount,
   token,
-  logoClass = "size-3.5",
+  logoClass = "size-4",
   className = "",
 }: {
   amount: string | number;

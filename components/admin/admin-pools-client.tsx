@@ -213,7 +213,7 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
                 <StatusBadge status={pool.status} />
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <TokenLogo token={pool.bet_token} className="size-3.5" />
+                <TokenLogo token={pool.bet_token} className="size-4" />
                 <span className="capitalize">{pool.bet_token}</span>
                 <span>|</span>
                 <span>{options.length} options</span>
@@ -270,7 +270,7 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      <TokenLogo token={pool.bet_token} className="size-3.5" />
+                      <TokenLogo token={pool.bet_token} className="size-4" />
                       <span className="text-xs uppercase">{pool.bet_token === "clawdtrust" ? "CLT" : "USDC"}</span>
                     </div>
                   </td>
