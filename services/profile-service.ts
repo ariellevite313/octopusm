@@ -122,10 +122,10 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       .order("created_at", { ascending: false })
       .limit(500),
 
-    // Prediction bets
+    // Prediction bets — note: prediction_history has no "payout" column, use net_reward
     admin
       .from("prediction_history_with_status")
-      .select("id, market_title, token, amount, payout, result_status, created_at")
+      .select("id, market_title, token, amount, net_reward, result_status, created_at")
       .eq("wallet_address", walletAddress)
       .order("created_at", { ascending: false })
       .limit(500),
@@ -181,16 +181,24 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
   let totalSettled = 0;
 
   for (const b of updownBets) {
-    if (b.status === "won") { winCount++; totalSettled++; }
+    // updown: won/claimed/paid all represent a resolved win
+    if (["won", "claimed", "paid"].includes(b.status)) { winCount++; totalSettled++; }
     else if (b.status === "lost") { totalSettled++; }
   }
   for (const b of mutuelBets) {
-    if (b.status === "won" || b.status === "claimed" || b.status === "paid") {
-      winCount++; totalSettled++;
-    } else if (b.status === "lost") { totalSettled++; }
+    // mutuel: status stays "approved" after resolution — use payout_amount as win signal
+    const mbMarket = b.mutuel_markets;
+    const mbPay    = Number(b.payout_amount ?? 0);
+    const mbIsWin  = mbPay > 0;
+    const mbIsLoss = mbMarket?.status === "resolved" && !mbIsWin
+                     && mbMarket?.winning_option_id
+                     && b.option_id !== mbMarket.winning_option_id;
+    if (mbIsWin)  { winCount++; totalSettled++; }
+    else if (mbIsLoss) { totalSettled++; }
   }
   for (const b of predBets) {
-    if (b.result_status === "win") { winCount++; totalSettled++; }
+    // prediction: win/claimed/paid all represent a resolved win
+    if (["win", "claimed", "paid"].includes(b.result_status)) { winCount++; totalSettled++; }
     else if (b.result_status === "lose") { totalSettled++; }
   }
 
@@ -234,9 +242,8 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     const date = toDate(b.created_at);
     const amt  = Number(b.amount ?? 0);
     const pay  = Number(b.payout ?? 0);
-    const pnl  = (b.status === "won") ? pay - amt
+    const pnl  = (["won", "claimed", "paid"].includes(b.status)) ? pay - amt
                : (b.status === "lost") ? -amt
-               : (b.status === "refunded") ? 0
                : 0;
     addDelta(date, "usdc", pnl); // updown_bets is always USDC
   }
@@ -257,8 +264,9 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
   for (const b of predBets) {
     const date = toDate(b.created_at);
     const amt  = Number(b.amount ?? 0);
-    const pay  = Number(b.payout ?? 0);
-    const pnl  = (b.result_status === "win") ? pay - amt
+    // net_reward is the net profit already (payout - fees), not the gross payout
+    const reward = Number(b.net_reward ?? 0);
+    const pnl  = (["win", "claimed", "paid"].includes(b.result_status)) ? reward
                : (b.result_status === "lose") ? -amt
                : 0;
     addDelta(date, b.token ?? "usdc", pnl);
@@ -288,7 +296,7 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     const amt    = Number(b.amount ?? 0);
     const pay    = Number(b.payout ?? 0);
     const s      = b.status ?? "";
-    const pnl    = s === "won" ? pay - amt : s === "lost" ? -amt : 0;
+    const pnl    = ["won", "claimed", "paid"].includes(s) ? pay - amt : s === "lost" ? -amt : 0;
     activityRaw.push({
       id:              b.id,
       market_type:     "updown",
@@ -330,11 +338,14 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
   }
 
   for (const b of predBets) {
-    const title = b.market_title ?? "Prediction";
-    const amt   = Number(b.amount ?? 0);
-    const pay   = Number(b.payout ?? 0);
-    const s     = b.result_status ?? "";
-    const pnl   = s === "win" ? pay - amt : s === "lose" ? -amt : 0;
+    const title  = b.market_title ?? "Prediction";
+    const amt    = Number(b.amount ?? 0);
+    const reward = Number(b.net_reward ?? 0);
+    const s      = b.result_status ?? "";
+    // net_reward is already the net payout (not gross); use it directly as pnl for wins
+    const pnl    = ["win", "claimed", "paid"].includes(s) ? reward
+                 : s === "lose" ? -amt
+                 : 0;
     activityRaw.push({
       id:              b.id,
       market_type:     "prediction",

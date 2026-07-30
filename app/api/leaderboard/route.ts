@@ -122,11 +122,13 @@ export async function GET(req: NextRequest) {
   const dbToken = token === "usdc" ? "usdc" : "clawdtrust";
 
   // 1. updown_bets — always USDC, skip entirely for CLT leaderboard
+  // Include claimed/paid: after a user claims their win, status progresses
+  // won → claimed → paid. All three represent real winnings.
   let udQ = token === "usdc"
     ? admin
         .from("updown_bets")
         .select("wallet_address, amount, payout")
-        .eq("status", "won")
+        .in("status", ["won", "claimed", "paid"])
     : null;
   if (udQ && cutoff) udQ = udQ.gte("created_at", cutoff);
 
@@ -140,13 +142,16 @@ export async function GET(req: NextRequest) {
     .neq("status", "creator_fee");
   if (cutoff) mbQ = mbQ.gte("created_at", cutoff);
 
-  // 3. prediction_history_with_status — result_status = "win"
-  //    net_reward is the best field; fallback to payout - amount
+  // 3. prediction_history_with_status — include win/claimed/paid
+  //    The view CASE gives "claimed"/"paid" higher priority than "win",
+  //    so once a user claims their payout result_status becomes "claimed" not "win".
+  //    Must include all three to avoid undercounting resolved prediction bets.
+  //    Note: prediction_history has no "payout" column — use net_reward only.
   let predQ = admin
     .from("prediction_history_with_status")
-    .select("wallet_address, amount, payout, net_reward")
+    .select("wallet_address, amount, net_reward")
     .eq("token", dbToken)
-    .eq("result_status", "win");
+    .in("result_status", ["win", "claimed", "paid"]);
   if (cutoff) predQ = predQ.gte("created_at", cutoff);
 
   const [udRes, mbRes, predRes] = await Promise.all([
@@ -172,7 +177,10 @@ export async function GET(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const r of (udData ?? []) as any[]) {
-    const gain = Number(r.payout ?? 0) - Number(r.amount ?? 0);
+    // Skip bets where payout is null — these are data anomalies (paid with no payout set).
+    // Treating them as 0 would unfairly subtract the full amount from the wallet's score.
+    if (r.payout == null) continue;
+    const gain = Number(r.payout) - Number(r.amount ?? 0);
     addToMap(map, r.wallet_address, gain, true);
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,7 +190,7 @@ export async function GET(req: NextRequest) {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const r of (predData ?? []) as any[]) {
-    const gain = Number(r.net_reward ?? 0) || (Number(r.payout ?? 0) - Number(r.amount ?? 0));
+    const gain = Number(r.net_reward ?? 0);
     addToMap(map, r.wallet_address, gain, true);
   }
 
