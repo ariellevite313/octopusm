@@ -2,26 +2,36 @@
 
 import { useState } from "react";
 import { MarketCard } from "./market-card";
+import { PoolGridCard } from "./pool-grid-card";
 import { UpDownSection } from "@/components/updown/updown-cards";
-import type { PredictionMarketRow } from "@/lib/supabase/types";
+import type { UnifiedMarket, PredictionMarketRow, MutuelMarketRow } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 
 type Props = {
-  markets: PredictionMarketRow[];
+  markets: UnifiedMarket[];
   volumes: MarketVolumes;
   showCategoryTabs?: boolean;
 };
 
+/** Catégorie normalisée — prediction utilise category_id, pool utilise category */
+function getCategory(m: UnifiedMarket): string {
+  return m.source === "prediction" ? m.category_id : m.category;
+}
+
 export function MarketGrid({ markets, volumes, showCategoryTabs = true }: Props) {
   const [cryptoSub, setCryptoSub] = useState<"updown" | "hitprice">("updown");
 
-  const isLiveMarket = (m: PredictionMarketRow) =>
-    !!m.event_start_at && Date.now() >= new Date(m.event_start_at).getTime();
-  const sortLiveFirst = (list: PredictionMarketRow[]) =>
+  const isLiveMarket = (m: UnifiedMarket) =>
+    m.source === "prediction" &&
+    !!m.event_start_at &&
+    Date.now() >= new Date(m.event_start_at).getTime();
+
+  const sortLiveFirst = (list: UnifiedMarket[]) =>
     [...list].sort((a, b) => Number(isLiveMarket(b)) - Number(isLiveMarket(a)));
 
-  const isCryptoPage = !showCategoryTabs && markets.every((m) => m.category_id === "crypto");
-  const hitPriceMarkets = sortLiveFirst(markets.filter((m) => m.category_id === "crypto"));
+  // Crypto page : tous les marchés sont dans la catégorie "crypto"
+  const isCryptoPage = !showCategoryTabs && markets.every((m) => getCategory(m) === "crypto");
+  const cryptoMarkets = sortLiveFirst(markets.filter((m) => getCategory(m) === "crypto"));
   const sorted = sortLiveFirst(markets);
 
   if (isCryptoPage) {
@@ -46,14 +56,18 @@ export function MarketGrid({ markets, volumes, showCategoryTabs = true }: Props)
 
         {cryptoSub === "updown" ? (
           <UpDownSection />
-        ) : hitPriceMarkets.length === 0 ? (
+        ) : cryptoMarkets.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <span className="text-4xl">🐙</span>
             <p className="text-muted-foreground">No Hit Price markets active.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {hitPriceMarkets.map((m) => <MarketCard key={m.id} market={m} volumes={volumes} />)}
+            {cryptoMarkets.map((m) =>
+              m.source === "pool"
+                ? <PoolGridCard key={m.id} market={m as MutuelMarketRow} />
+                : <MarketCard   key={m.id} market={m as PredictionMarketRow} volumes={volumes} />
+            )}
           </div>
         )}
       </div>
@@ -71,9 +85,11 @@ export function MarketGrid({ markets, volumes, showCategoryTabs = true }: Props)
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {sorted.map((market) => (
-        <MarketCard key={market.id} market={market} volumes={volumes} />
-      ))}
+      {sorted.map((m) =>
+        m.source === "pool"
+          ? <PoolGridCard key={m.id} market={m as MutuelMarketRow} />
+          : <MarketCard   key={m.id} market={m as PredictionMarketRow} volumes={volumes} />
+      )}
     </div>
   );
 }

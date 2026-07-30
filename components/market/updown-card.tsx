@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { Clock } from "lucide-react";
+import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
 
 interface UpDownMarket {
   id: string;
@@ -57,6 +58,7 @@ function DurationCard({ market, symColor, symLabel }: {
   symLabel: string;
 }) {
   const countdown = useCountdown(market?.status === "open" ? market.closes_at : null);
+  const fakeBets  = useFakeLiveBets(2, false);
 
   if (!market) {
     return (
@@ -126,11 +128,13 @@ function DurationCard({ market, symColor, symLabel }: {
 
         {/* UP / DOWN buttons — même style que options MarketCard */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center justify-center gap-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          <div className="relative flex items-center justify-center gap-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+            <FakeBetOverlay optionIndex={0} bets={fakeBets} />
             <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">↑ UP</span>
             {isResolved && market.outcome === "up" && <span className="text-xs font-bold text-emerald-600">✓</span>}
           </div>
-          <div className="flex items-center justify-center gap-1 rounded-2xl border border-red-200 bg-red-50 px-3 py-3 dark:border-red-900/40 dark:bg-red-950/20">
+          <div className="relative flex items-center justify-center gap-1 rounded-2xl border border-red-200 bg-red-50 px-3 py-3 dark:border-red-900/40 dark:bg-red-950/20">
+            <FakeBetOverlay optionIndex={1} bets={fakeBets} />
             <span className="text-xs font-semibold text-red-800 dark:text-red-200">↓ DOWN</span>
             {isResolved && market.outcome === "down" && <span className="text-xs font-bold text-red-500">✓</span>}
           </div>

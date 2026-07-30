@@ -14,6 +14,7 @@ import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
 import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { toast } from "sonner";
+import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 // ─── Option color palette ─────────────────────────────────────────────────────
 // Used for progress bars and selected-option highlights (cycles through options)
@@ -40,6 +41,9 @@ interface RawBet {
   amount: number;
   token: string;
   wallet_address?: string;
+  username?: string | null;
+  avatar_src?: string | null;
+  octo_balance?: number;
   created_at: string;
   payout_amount?: number | null;
   paid_at?: string | null;
@@ -215,7 +219,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       <h3 className="mb-1 text-sm font-semibold text-foreground">Make a Prediction</h3>
       <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
         Pool uses
-        <TokenLogo token={token} className="size-3.5" />
+        <TokenLogo token={token} className="size-4" />
         <span className="font-semibold text-foreground">{tokenLabel(token)}</span>
         — winnings paid in {tokenLabel(token)}.
       </p>
@@ -244,7 +248,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
       <div className="mb-4">
         <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <TokenLogo token={token} className="size-3.5" />
+          <TokenLogo token={token} className="size-4" />
           Amount ({tokenLabel(token)})
         </label>
         <input
@@ -382,16 +386,16 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
 
       <div className="mb-8 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Clock className="size-3.5" />
+          <Clock className="size-4" />
           {market.status === "active" ? timeLeft(market.betting_closes_at) : market.status}
         </span>
         <span className="flex items-center gap-1">
-          <TokenLogo token={market.bet_token} className="size-3.5" />
+          <TokenLogo token={market.bet_token} className="size-4" />
           {grandTotal.toFixed(decimals)} {tokenLabel(market.bet_token)} total pool
         </span>
         <span>{bets.length} prediction{bets.length !== 1 ? "s" : ""}</span>
         <span className="flex items-center gap-1 rounded-lg bg-muted px-2 py-0.5 font-semibold text-foreground">
-          <TokenLogo token={market.bet_token} className="size-3" />
+          <TokenLogo token={market.bet_token} className="size-4" />
           {tokenLabel(market.bet_token)} pool
         </span>
       </div>
@@ -418,7 +422,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
               </p>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 Winners pool:
-                <TokenLogo token={market.bet_token} className="size-3" />
+                <TokenLogo token={market.bet_token} className="size-4" />
                 {(grandTotal * parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners).toFixed(decimals)}{" "}
                 {tokenLabel(market.bet_token)}{" "}
                 ({Math.round(parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners * 100)}% of {grandTotal.toFixed(decimals)})
@@ -446,7 +450,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
                 </span>
                 <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
                   {pcts[opt.id]}% · {impliedOdds(pcts[opt.id])} ·
-                  <TokenLogo token={market.bet_token} className="size-3" />
+                  <TokenLogo token={market.bet_token} className="size-4" />
                   {totals[opt.id].toFixed(decimals)}
                 </span>
               </div>
@@ -484,18 +488,40 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
               return (
                 <div key={key} className="flex items-center justify-between gap-3 py-2.5 text-xs">
                   {bet.wallet_address && (
-                    <span className="font-mono text-muted-foreground">{truncWallet(bet.wallet_address)}</span>
+                    <Link
+                      href={`/profile/${bet.wallet_address}`}
+                      className="flex items-center gap-2 min-w-0 shrink-0 hover:opacity-80 transition-opacity"
+                    >
+                      {bet.avatar_src ? (
+                        <img
+                          src={bet.avatar_src}
+                          alt=""
+                          className="size-6 rounded-full object-cover shrink-0"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="size-6 shrink-0 flex items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                          {(bet.username ?? bet.wallet_address)?.[0]?.toUpperCase() ?? "?"}
+                        </div>
+                      )}
+                      <span className="font-medium text-foreground truncate max-w-[80px]">
+                        {bet.username ?? truncWallet(bet.wallet_address)}
+                      </span>
+                      {(bet.octo_balance ?? 0) > 0 && (
+                        <OctoBadge totalOcto={bet.octo_balance!} size={11} />
+                      )}
+                    </Link>
                   )}
                   <span className="font-semibold text-foreground">{optLabel}</span>
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
-                      <TokenLogo token={market.bet_token} className="size-3" />
+                      <TokenLogo token={market.bet_token} className="size-4" />
                       {Number(bet.amount).toFixed(decimals)}
                     </span>
                     {bet.payout_amount != null && (
                       <span className={`flex items-center gap-0.5 tabular-nums text-[11px] font-semibold ${bet.paid_at ? "text-emerald-600" : "text-orange-500"}`}>
                         {bet.paid_at ? "✓ Paid " : "→ "}
-                        <TokenLogo token={market.bet_token} className="size-2.5" />
+                        <TokenLogo token={market.bet_token} className="size-4" />
                         {Number(bet.payout_amount).toFixed(decimals)}
                       </span>
                     )}

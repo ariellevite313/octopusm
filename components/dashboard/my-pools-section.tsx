@@ -116,7 +116,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
                   <span>·</span>
                   <span className="flex items-center gap-1">
                     Pool:
-                    <TokenLogo token={market.bet_token} className="size-3" />
+                    <TokenLogo token={market.bet_token} className="size-3.5" />
                     <span className="font-semibold text-foreground">
                       {pool.toFixed(market.bet_token === "usdc" ? 2 : 0)} {tokenLabel(market.bet_token)}
                     </span>
@@ -143,7 +143,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
                     className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
                   >
                     View pool
-                    <ExternalLink className="size-3" />
+                    <ExternalLink className="size-3.5" />
                   </Link>
                 )}
                 </div>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getActiveMarkets } from "@/services/prediction-service";
+import { getActiveMarketsUnified } from "@/services/prediction-service";
 import { MarketsClient } from "@/components/market/markets-client";
 
 export const revalidate = 60;
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   // Requête rapide — les volumes sont chargés côté client via /api/markets
-  const markets = await getActiveMarkets();
+  const markets = await getActiveMarketsUnified();
 
   return <MarketsClient initialMarkets={markets} />;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { awardOcto, OCTO_PER_CREATION } from "@/lib/octo";
+import { CATEGORY_SLUGS } from "@/lib/categories";
 
 export const revalidate = 0;
 
@@ -51,6 +52,8 @@ export async function POST(req: Request) {
   if (!allowedTokens.includes(bet_token))
     return NextResponse.json({ error: "Invalid bet token" }, { status: 400 });
 
+  const safeCategory = category && CATEGORY_SLUGS.includes(String(category) as typeof CATEGORY_SLUGS[number]) ? String(category) : "mentions";
+
   // Création gratuite — pas de frais ni de transaction on-chain requise
   const admin = createAdminClient() as any;
 
@@ -81,7 +84,7 @@ export async function POST(req: Request) {
       description: description ? String(description).slice(0, 1000) : null,
       cover_image_src: cover_image_src ? String(cover_image_src).slice(0, 500) : null,
       options: safeOptions,
-      category: category ? String(category).slice(0, 50) : "general",
+      category: safeCategory,
       creation_fee_token: bet_token,
       creation_fee_amount: 0,
       creation_tx: null,

@@ -6,11 +6,9 @@ import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import { useAuth } from "@/providers/auth-provider";
+import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 
-const CATEGORIES = [
-  "general", "sports", "crypto", "politics", "entertainment", "science", "gaming", "other",
-] as const;
-type Category = typeof CATEGORIES[number];
+type Category = CategorySlug;
 
 interface Props {
   onClose: () => void;
@@ -106,7 +104,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
   const [coverImage, setCoverImage] = useState("");
   const [options, setOptions] = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
   const [closesAt, setClosesAt] = useState("");
-  const [category, setCategory] = useState<Category>("general");
+  const [category, setCategory] = useState<Category>("mentions");
   const [betToken, setBetToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [step, setStep] = useState<CreateStep>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -312,7 +310,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 capitalize"
             >
               {CATEGORIES.map(c => (
-                <option key={c} value={c} className="capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                <option key={c.slug} value={c.slug}>{c.label}</option>
               ))}
             </select>
           </div>
@@ -334,7 +332,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                       : "border-border text-muted-foreground hover:border-primary/40"
                   }`}
                 >
-                  <TokenLogo token={token} className="size-4" />
+                  <TokenLogo token={token} className="size-5" />
                   {token === "usdc" ? "USDC" : "ClawdTrust"}
                 </button>
               ))}

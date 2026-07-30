@@ -11,6 +11,7 @@ export interface LeaderboardEntry {
   wallet_address: string;
   display_name: string | null;
   avatar_src: string | null;
+  octo_balance: number;
   total_gains: number;
   win_count: number;
 }
@@ -44,17 +45,28 @@ async function fetchWalletProfiles(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
   addresses: string[]
-): Promise<Record<string, { display_name: string | null; avatar_src: string | null }>> {
+): Promise<Record<string, { display_name: string | null; avatar_src: string | null; octo_balance: number }>> {
   if (addresses.length === 0) return {};
-  const { data } = await admin
-    .from("wallets")
-    .select("address, display_name, avatar_src")
-    .in("address", addresses);
 
-  const out: Record<string, { display_name: string | null; avatar_src: string | null }> = {};
+  const [{ data: wallets }, { data: octoRows }] = await Promise.all([
+    admin.from("wallets").select("address, display_name, avatar_src").in("address", addresses),
+    admin.from("octo_transactions").select("wallet_address, amount").in("wallet_address", addresses),
+  ]);
+
+  const octoMap: Record<string, number> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const r of (data ?? []) as any[]) {
-    out[r.address] = { display_name: r.display_name ?? null, avatar_src: r.avatar_src ?? null };
+  for (const r of (octoRows ?? []) as any[]) {
+    octoMap[r.wallet_address] = (octoMap[r.wallet_address] ?? 0) + (r.amount ?? 0);
+  }
+
+  const out: Record<string, { display_name: string | null; avatar_src: string | null; octo_balance: number }> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const r of (wallets ?? []) as any[]) {
+    out[r.address] = { display_name: r.display_name ?? null, avatar_src: r.avatar_src ?? null, octo_balance: octoMap[r.address] ?? 0 };
+  }
+  // wallets without a profile row still get their octo balance
+  for (const addr of addresses) {
+    if (!out[addr]) out[addr] = { display_name: null, avatar_src: null, octo_balance: octoMap[addr] ?? 0 };
   }
   return out;
 }
@@ -108,6 +120,7 @@ export async function GET(req: NextRequest) {
       wallet_address: wallet,
       display_name:   profiles[wallet]?.display_name ?? null,
       avatar_src:     profiles[wallet]?.avatar_src   ?? null,
+      octo_balance:   profiles[wallet]?.octo_balance ?? 0,
       total_gains:    Math.round(v.gains * 1_000_000) / 1_000_000,
       win_count:      v.wins,
     }));

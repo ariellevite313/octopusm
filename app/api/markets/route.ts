@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getActiveMarkets,
-  getActiveMarketsByCategory,
+  getActiveMarketsUnified,
   getMarketVolumes,
 } from "@/services/prediction-service";
 import type { MarketVolumes } from "@/lib/market/utils";
@@ -24,10 +23,8 @@ export async function GET(req: NextRequest) {
   }
   const volumes = _volumesCache.data;
 
-  // Fetch markets (fast indexed query)
-  const markets = category
-    ? await getActiveMarketsByCategory(category)
-    : await getActiveMarkets();
+  // Fetch prediction + pool markets merged (fast parallel queries)
+  const markets = await getActiveMarketsUnified(category ?? undefined);
 
   return NextResponse.json(
     { markets, volumes },

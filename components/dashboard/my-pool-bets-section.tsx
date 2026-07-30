@@ -145,7 +145,7 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
             </div>
             <div className="shrink-0 text-right">
               <p className="flex items-center justify-end gap-1 text-sm font-semibold text-foreground">
-                <TokenLogo token={p.token} className="size-3.5" />
+                <TokenLogo token={p.token} className="size-4" />
                 {Number(p.amount_usdc).toFixed(dec(p.token))}
               </p>
               <p className="text-[11px] text-amber-600 dark:text-amber-400">pending</p>
@@ -187,13 +187,13 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
 
               <div className="shrink-0 text-right">
                 <p className="flex items-center justify-end gap-1 text-sm font-semibold text-foreground">
-                  <TokenLogo token={bet.token} className="size-3.5" />
+                  <TokenLogo token={bet.token} className="size-4" />
                   {Number(bet.amount).toFixed(dec(bet.token))}
                 </p>
                 <p className={`text-[11px] ${status.color}`}>{status.label}</p>
                 {netPayout !== null && (
                   <p className="flex items-center justify-end gap-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">
-                    +<TokenLogo token={bet.token} className="size-2.5" />
+                    +<TokenLogo token={bet.token} className="size-3" />
                     {netPayout.toFixed(dec(bet.token))}
                   </p>
                 )}

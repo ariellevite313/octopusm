@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getActiveMarketsByCategory } from "@/services/prediction-service";
+import { getActiveMarketsUnified } from "@/services/prediction-service";
 import { MarketsClient } from "@/components/market/markets-client";
 
 export const revalidate = 60;
@@ -40,7 +40,7 @@ export default async function CategoryPage({ params }: Props) {
   if (RESERVED.includes(category)) notFound();
 
   // Requête rapide (index sur category_id) — ne bloque pas le rendu
-  const markets = await getActiveMarketsByCategory(category);
+  const markets = await getActiveMarketsUnified(category);
 
   // Les volumes sont chargés côté client en arrière-plan via /api/markets
   return <MarketsClient category={category} initialMarkets={markets} />;

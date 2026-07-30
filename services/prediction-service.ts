@@ -1,7 +1,8 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import type { PredictionMarketRow, MarketCommentRow, MarketCommentEnriched } from "@/lib/supabase/types";
+import type { PredictionMarketRow, MutuelMarketRow, UnifiedMarket, MarketCommentRow, MarketCommentEnriched } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 export type { MarketOption, MarketVolumes } from "@/lib/market/utils";
+export type { UnifiedMarket } from "@/lib/supabase/types";
 export { parseMarketOptions } from "@/lib/market/utils";
 
 // ─── Volume types ─────────────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ export async function getMarketComments(marketId: string): Promise<MarketComment
   // Fetch all comments (roots + replies)
   const { data: comments, error: commentsError } = await supabase
     .from("market_comments")
-    .select("id, market_id, parent_id, wallet_address, content, like_count, octo_balance, created_at")
+    .select("id, market_id, parent_id, wallet_address, username, avatar_src, content, created_at")
     .eq("market_id", marketId)
     .order("created_at", { ascending: true })
     .limit(500);
@@ -218,6 +219,57 @@ export async function getActiveMarketsByCategory(category: string): Promise<Pred
     return [];
   }
   return data ?? [];
+}
+
+// ─── Unified fetch (prediction + pools) ───────────────────────────────────────
+
+async function getActivePools(category?: string): Promise<MutuelMarketRow[]> {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q = (supabase as any)
+    .from("mutuel_markets")
+    .select("id, slug, creator_wallet, title, description, cover_image_src, options, category, bet_token, betting_closes_at, status, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (category) q = q.eq("category", category);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[prediction-service] getActivePools:", error.message);
+    return [];
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((m: any) => ({
+    ...m,
+    options: typeof m.options === "string" ? JSON.parse(m.options) : (m.options ?? []),
+  })) as MutuelMarketRow[];
+}
+
+/**
+ * Retourne prediction_markets actifs + mutuel_markets actifs, mélangés.
+ * Les marchés "live" (event_start_at passé) remontent en premier, sinon tri par date desc.
+ */
+export async function getActiveMarketsUnified(category?: string): Promise<UnifiedMarket[]> {
+  const [predictions, pools] = await Promise.all([
+    category ? getActiveMarketsByCategory(category) : getActiveMarkets(),
+    getActivePools(category),
+  ]);
+
+  const unified: UnifiedMarket[] = [
+    ...predictions.map((m) => ({ ...m, source: "prediction" as const })),
+    ...pools.map((m)       => ({ ...m, source: "pool"       as const })),
+  ];
+
+  // Live prediction markets first, then newest first
+  return unified.sort((a, b) => {
+    const aLive = a.source === "prediction" && !!a.event_start_at
+      && Date.now() >= new Date(a.event_start_at).getTime();
+    const bLive = b.source === "prediction" && !!b.event_start_at
+      && Date.now() >= new Date(b.event_start_at).getTime();
+    if (aLive && !bLive) return -1;
+    if (!aLive && bLive) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 export async function getDistinctCategories(): Promise<string[]> {
