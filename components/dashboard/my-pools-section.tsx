@@ -53,13 +53,13 @@ export function MyPoolsSection({ walletAddress }: Props) {
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-foreground">My Pools</h2>
+        <h2 className="text-base font-bold text-foreground">My Markets</h2>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Plus className="size-3.5" />
-          Create Pool
+          Create Market
         </button>
       </div>
 

@@ -8,12 +8,11 @@ import { notFound } from "next/navigation";
 export const revalidate = 60;
 
 async function getPoolBySlug(slug: string): Promise<MutuelMarketRow | null> {
-  const supabase = await createClient() as any;
-  const { data } = await supabase
+  const admin = createAdminClient() as any;
+  const { data } = await admin
     .from("mutuel_markets")
     .select("*")
     .eq("slug", slug)
-    .in("status", ["active", "closed", "resolved", "cancelled"])
     .single();
   if (!data) return null;
   return {
@@ -21,6 +20,8 @@ async function getPoolBySlug(slug: string): Promise<MutuelMarketRow | null> {
     options: typeof data.options === "string" ? JSON.parse(data.options) : data.options,
   };
 }
+
+const PRIVATE_STATUSES = new Set(["pending", "rejected"]);
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -157,6 +158,10 @@ export default async function PoolDetailPage(
   const market = await getPoolBySlug(slug);
   if (!market) notFound();
 
+  // Marchés pending/rejected : visible uniquement par le créateur
+  const isPreview = PRIVATE_STATUSES.has(market.status);
+  if (isPreview && wallet !== market.creator_wallet) notFound();
+
   const [bets, comments] = await Promise.all([
     getInitialBets(market.id),
     getInitialComments(market.id, wallet),
@@ -167,6 +172,7 @@ export default async function PoolDetailPage(
       market={market}
       initialBets={bets}
       initialComments={comments}
+      isPreview={isPreview}
     />
   );
 }

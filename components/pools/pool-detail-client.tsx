@@ -111,7 +111,9 @@ const STATUS_COLORS: Record<string, string> = {
   active:    "text-emerald-600 dark:text-emerald-400",
   closed:    "text-amber-600 dark:text-amber-400",
   resolved:  "text-violet-600 dark:text-violet-400",
-  cancelled: "text-red-500 dark:text-red-400",  // BUG-20 fix
+  cancelled: "text-red-500 dark:text-red-400",
+  pending:   "text-amber-500 dark:text-amber-400",
+  rejected:  "text-red-500 dark:text-red-400",
 };
 
 // Bug #8 fix: only two real steps — signing (wallet approval) then done
@@ -182,7 +184,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   if (isClosed) {
     return (
       <div className="rounded-2xl border border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
-        Predictions are closed for this pool.
+        Predictions are closed for this market.
       </div>
     );
   }
@@ -218,7 +220,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
     <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-5">
       <h3 className="mb-1 text-sm font-semibold text-foreground">Make a Prediction</h3>
       <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-        Pool uses
+        Market uses
         <TokenLogo token={token} className="size-4" />
         <span className="font-semibold text-foreground">{tokenLabel(token)}</span>
         — winnings paid in {tokenLabel(token)}.
@@ -292,9 +294,10 @@ interface Props {
   market: MutuelMarketRow;
   initialBets: RawBet[];
   initialComments: MarketCommentEnriched[];
+  isPreview?: boolean;
 }
 
-export function PoolDetailClient({ market, initialBets, initialComments }: Props) {
+export function PoolDetailClient({ market, initialBets, initialComments, isPreview = false }: Props) {
   const { walletAddress, setWalletType } = useAuth();
   const [showWalletDialog, setShowWalletDialog] = useState(false);
 
@@ -341,12 +344,25 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
     <>
     <div className="mx-auto max-w-3xl px-4 py-10">
       <Link
-        href="/pools"
+        href="/"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        All Bookmakes
+        Markets
       </Link>
+
+      {isPreview && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-950/20">
+          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+            {market.status === "rejected" ? "❌ Marché refusé" : "⏳ En attente d'approbation"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {market.status === "rejected"
+              ? "Votre marché a été refusé par un admin." + (market.admin_notes ? ` Motif : ${market.admin_notes}` : "")
+              : "Votre marché est en cours de révision. Cette page n'est visible que par vous — partagez-la une fois approuvé."}
+          </p>
+        </div>
+      )}
 
       <div className="mb-2 flex items-start gap-4">
         {market.cover_image_src && (
@@ -391,22 +407,22 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
         </span>
         <span className="flex items-center gap-1">
           <TokenLogo token={market.bet_token} className="size-4" />
-          {grandTotal.toFixed(decimals)} {tokenLabel(market.bet_token)} total pool
+          {grandTotal.toFixed(decimals)} {tokenLabel(market.bet_token)} total
         </span>
         <span>{bets.length} prediction{bets.length !== 1 ? "s" : ""}</span>
         <span className="flex items-center gap-1 rounded-lg bg-muted px-2 py-0.5 font-semibold text-foreground">
           <TokenLogo token={market.bet_token} className="size-4" />
-          {tokenLabel(market.bet_token)} pool
+          {tokenLabel(market.bet_token)}
         </span>
       </div>
 
       {market.status === "cancelled" && (
         <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/30">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Pool cancelled
+            Market cancelled
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            This pool was cancelled by an admin. All stakes are being refunded (minus 5% fee). Check your dashboard to claim your refund.
+            This market was cancelled by an admin. All stakes are being refunded (minus 5% fee). Check your dashboard to claim your refund.
           </p>
         </div>
       )}
@@ -421,7 +437,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
                 {options.find(o => o.id === market.winning_option_id)?.label ?? market.winning_option_id}
               </p>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                Winners pool:
+                Winners total:
                 <TokenLogo token={market.bet_token} className="size-4" />
                 {(grandTotal * parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners).toFixed(decimals)}{" "}
                 {tokenLabel(market.bet_token)}{" "}
@@ -430,7 +446,7 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
             </>
           ) : (
             <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
-              Pool resolved — payouts being processed.
+              Market resolved — payouts being processed.
             </p>
           )}
         </div>
@@ -466,12 +482,18 @@ export function PoolDetailClient({ market, initialBets, initialComments }: Props
       </div>
 
       <div className="mb-8">
-        <PredictForm
-          market={market}
-          options={options}
-          pcts={pcts}
-          onRequestConnect={() => setShowWalletDialog(true)}
-        />
+        {isPreview ? (
+          <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+            Les paris s&apos;ouvriront une fois le marché approuvé.
+          </div>
+        ) : (
+          <PredictForm
+            market={market}
+            options={options}
+            pcts={pcts}
+            onRequestConnect={() => setShowWalletDialog(true)}
+          />
+        )}
       </div>
 
       {/* Recent predictions */}

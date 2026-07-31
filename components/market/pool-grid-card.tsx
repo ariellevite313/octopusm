@@ -52,7 +52,7 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
                 {getCategoryLabel(market.category)}
               </p>
               <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
-                POOL
+                MARKET
               </span>
             </div>
             <p className="line-clamp-2 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100">
@@ -85,8 +85,8 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
           <span>
             {pool > 0
               ? `${pool.toFixed(decimals)} ${token}`
-              : "No bets yet"}
-            {market.bet_count > 0 && ` · ${market.bet_count} bets`}
+              : "No predicts yet"}
+            {market.bet_count > 0 && ` · ${market.bet_count} predicts`}
           </span>
           <span className="flex items-center gap-1">
             <Clock className="size-3" />

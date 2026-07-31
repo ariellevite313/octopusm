@@ -79,7 +79,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
         {/* Helper text */}
         <div className="flex flex-col gap-0.5">
           <p className="text-xs text-muted-foreground">
-            Square icon displayed beside your pool title.
+            Square icon displayed beside your market title.
           </p>
           <p className="text-[10px] text-muted-foreground">JPG, PNG, WEBP or GIF · max 2MB</p>
           <button
@@ -209,9 +209,9 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           <X className="size-5" />
         </button>
 
-        <h2 className="mb-1 text-lg font-bold text-foreground">Create a Pool</h2>
+        <h2 className="mb-1 text-lg font-bold text-foreground">Create a Market</h2>
         <p className="mb-5 text-sm text-muted-foreground">
-          An admin will review your pool before it goes live.
+          An admin will review your market before it goes live.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -346,13 +346,13 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {step === "sending" && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 px-3 py-2.5 text-sm text-blue-500">
               <Loader2 className="size-4 animate-spin" />
-              Submitting pool…
+              Submitting market…
             </div>
           )}
           {step === "done" && (
             <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-500">
               <CheckCircle className="size-4" />
-              Pool submitted! Pending admin review.
+              Market submitted! Pending admin review.
             </div>
           )}
           {step === "error" && errorMsg && (
@@ -367,9 +367,9 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {step === "sending" ? "Submitting…"
-              : step === "done"  ? "Pool submitted!"
+              : step === "done"  ? "Market submitted!"
               : step === "error" ? "Try again"
-              : "Submit Pool"}
+              : "Submit Market"}
           </button>
         </form>
       </div>
