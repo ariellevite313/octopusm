@@ -23,7 +23,7 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
   const options  = (market.options ?? []) as MutuelOption[];
   const isUsdc   = market.bet_token === "usdc";
   const pool     = isUsdc ? market.total_pool_usdc : market.total_pool_clt;
-  const token    = isUsdc ? "USDC" : "CLT";
+  const token    = isUsdc ? "USDC" : "ClawdTrust";
   const decimals = isUsdc ? 2 : 0;
   const href     = `/pools/${market.slug}`;
 

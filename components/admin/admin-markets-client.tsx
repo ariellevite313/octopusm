@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { parseMarketOptions } from "@/lib/market/utils";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
+import { CATEGORIES as ALL_CATEGORIES } from "@/lib/categories";
 
 function formatDate(d: string | null) {
   if (!d) return "—";
@@ -23,7 +24,7 @@ function formatDate(d: string | null) {
 
 // ─── Create market form ───────────────────────────────────────────────────────
 
-const CATEGORIES = ["sports", "crypto", "politics", "entertainment", "cinema", "science", "other"];
+const CATEGORIES = ALL_CATEGORIES.map((c) => c.slug);
 const MARKET_TYPES = ["yes-no", "threshold", "three-way"] as const;
 const VISUAL_TYPES = ["simple", "vs"] as const;
 
@@ -301,7 +302,7 @@ function CreateMarketDialog({
                 value={form.category_id}
                 onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value, subcategory: "" }))}
               >
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {ALL_CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.label}</option>)}
               </select>
             </div>
             <div>

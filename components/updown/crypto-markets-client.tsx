@@ -70,8 +70,11 @@ function getSupabase() {
 }
 
 function formatPrice(p: number): string {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return p.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+  if (p >= 1000)   return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1)      return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  if (p >= 0.01)   return p.toFixed(4);
+  if (p >= 0.0001) return p.toFixed(6);
+  return p.toFixed(8);
 }
 
 function useCountdown(closeAt: string | null | undefined): string {
