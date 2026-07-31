@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/services/admin-service";
+import { awardOcto } from "@/lib/octo";
 
 const OCTO_PER_BET = 5;
 
@@ -72,13 +73,8 @@ export async function POST(req: Request) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Attribuer OCTO au parieur
-  const { error: octoErr } = await admin.from("octo_transactions").insert({
-    wallet_address: bet.wallet_address,
-    type:           "bet",
-    amount:         OCTO_PER_BET,
-  });
-  if (octoErr) console.error("[updown/bets] octo_transactions insert:", octoErr.message);
+  // Award OCTO to bettor (updates both octo_transactions and leaderboard_octo)
+  awardOcto(bet.wallet_address, OCTO_PER_BET, "bet").catch(() => {});
 
   return NextResponse.json({ ok: true, action: "approved" });
 }

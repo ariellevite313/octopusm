@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
+import { awardOcto, OCTO_PER_CREATION } from "@/lib/octo";
 
 
 export async function GET(req: Request) {
@@ -40,12 +41,26 @@ export async function POST(req: Request) {
   const sb = createAdminClient() as any;
 
   if (action === "approve") {
+    // Fetch creator_wallet before update so we can award OCTO
+    const { data: market } = await sb
+      .from("mutuel_markets")
+      .select("creator_wallet")
+      .eq("id", marketId)
+      .eq("status", "pending")
+      .single();
+
     const { error } = await sb
       .from("mutuel_markets")
       .update({ status: "active" })
       .eq("id", marketId)
       .eq("status", "pending");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Award OCTO to creator now that the market is approved (fire and forget)
+    if (market?.creator_wallet) {
+      awardOcto(market.creator_wallet, OCTO_PER_CREATION, "task").catch(() => {});
+    }
+
     revalidatePath("/pools");
     return NextResponse.json({ ok: true });
   }

@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
+const VALID_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PEPEUSDT", "DOGEUSDT"];
+
 const COINGECKO_IDS: Record<string, string> = {
-  BTCUSDT: "bitcoin",
-  ETHUSDT: "ethereum",
-  SOLUSDT: "solana",
+  BTCUSDT:  "bitcoin",
+  ETHUSDT:  "ethereum",
+  SOLUSDT:  "solana",
+  BNBUSDT:  "binancecoin",
+  PEPEUSDT: "pepe",
+  DOGEUSDT: "dogecoin",
 };
 
 export async function GET(req: Request) {
@@ -16,7 +21,7 @@ export async function GET(req: Request) {
   const startTime = searchParams.get("startTime");
   const endTime   = searchParams.get("endTime");
 
-  if (!symbol || !["BTCUSDT", "ETHUSDT", "SOLUSDT"].includes(symbol)) {
+  if (!symbol || !VALID_SYMBOLS.includes(symbol)) {
     return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
   }
 

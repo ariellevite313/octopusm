@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { CATEGORY_SLUGS } from "@/lib/categories";
 import type { PredictionMarketRow, MutuelMarketRow, UnifiedMarket, MarketCommentRow, MarketCommentEnriched } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 export type { MarketOption, MarketVolumes } from "@/lib/market/utils";
@@ -273,27 +274,5 @@ export async function getActiveMarketsUnified(category?: string): Promise<Unifie
 }
 
 export async function getDistinctCategories(): Promise<string[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("prediction_markets")
-    .select("category_id")
-    .eq("is_active", true)
-    .eq("is_resolved", false)
-    .not("category_id", "is", null);
-
-  if (error) {
-    console.error("[prediction-service] getDistinctCategories:", error.message);
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const cats: string[] = [];
-  const rows = (data ?? []) as Array<{ category_id: string | null }>;
-  for (const row of rows) {
-    if (row.category_id && !seen.has(row.category_id)) {
-      seen.add(row.category_id);
-      cats.push(row.category_id);
-    }
-  }
-  return cats;
+  return CATEGORY_SLUGS;
 }

@@ -295,9 +295,10 @@ interface Props {
   initialBets: RawBet[];
   initialComments: MarketCommentEnriched[];
   isPreview?: boolean;
+  isAdmin?: boolean;
 }
 
-export function PoolDetailClient({ market, initialBets, initialComments, isPreview = false }: Props) {
+export function PoolDetailClient({ market, initialBets, initialComments, isPreview = false, isAdmin = false }: Props) {
   const { walletAddress, setWalletType } = useAuth();
   const [showWalletDialog, setShowWalletDialog] = useState(false);
 
@@ -354,12 +355,18 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       {isPreview && (
         <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-950/20">
           <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-            {market.status === "rejected" ? "❌ Marché refusé" : "⏳ En attente d'approbation"}
+            {isAdmin
+              ? market.status === "rejected" ? "⚙️ Admin — Market rejected" : "⚙️ Admin — Preview before approval"
+              : market.status === "rejected" ? "❌ Market rejected" : "⏳ Pending approval"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {market.status === "rejected"
-              ? "Votre marché a été refusé par un admin." + (market.admin_notes ? ` Motif : ${market.admin_notes}` : "")
-              : "Votre marché est en cours de révision. Cette page n'est visible que par vous — partagez-la une fois approuvé."}
+            {isAdmin
+              ? market.status === "rejected"
+                ? "This market has been rejected." + (market.admin_notes ? ` Reason: ${market.admin_notes}` : "")
+                : "You are viewing this market as an admin. It is not yet visible to the public."
+              : market.status === "rejected"
+                ? "Your market has been rejected by an admin." + (market.admin_notes ? ` Reason: ${market.admin_notes}` : "")
+                : "Your market is under review. This page is only visible to you — share it once approved."}
           </p>
         </div>
       )}
@@ -484,7 +491,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       <div className="mb-8">
         {isPreview ? (
           <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
-            Les paris s&apos;ouvriront une fois le marché approuvé.
+            Bets will open once the market is approved.
           </div>
         ) : (
           <PredictForm

@@ -325,7 +325,7 @@ function CreateMarketDialog({
               value={form.subcategory}
               onChange={(e) => set("subcategory", e.target.value)}
             >
-              <option value="">— Aucune —</option>
+              <option value="">— None —</option>
               {(SUBCATEGORIES[form.category_id] ?? []).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}

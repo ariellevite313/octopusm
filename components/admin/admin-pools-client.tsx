@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, LoaderCircle, Trophy, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, LoaderCircle, Trophy, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -239,6 +239,11 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
                     <Trophy className="mr-1 size-3" />Resolve
                   </Button>
                 )}
+                <a href={`/pools/${pool.slug}`} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="ghost" className="rounded-full px-2">
+                    <ExternalLink className="size-3" />
+                  </Button>
+                </a>
               </div>
             </div>
           );
@@ -303,6 +308,11 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
                           <Trophy className="mr-1 size-3" />Resolve
                         </Button>
                       )}
+                      <a href={`/pools/${pool.slug}`} target="_blank" rel="noopener noreferrer">
+                        <Button size="sm" variant="ghost" className="rounded-full px-2">
+                          <ExternalLink className="size-3" />
+                        </Button>
+                      </a>
                     </div>
                   </td>
                 </tr>

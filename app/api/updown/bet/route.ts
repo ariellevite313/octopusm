@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { awardOcto, octoForBet } from "@/lib/octo";
 
 
 /**
@@ -84,10 +83,6 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ error: betErr.message }, { status: 500 });
   }
-
-  // Award OCTO for placing an Up/Down bet (fire and forget)
-  // Referral commission on losses is handled at resolution in resolve-updown-markets
-  awardOcto(wallet_address, octoForBet(amount, "usdc"), "bet", "Up/Down bet placed").catch(() => {});
 
   return NextResponse.json({ ok: true });
 }
