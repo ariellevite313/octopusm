@@ -20,12 +20,21 @@ interface UpDownMarket {
 }
 
 const SYMBOLS = [
-  { value: "BTCUSDT", label: "Bitcoin",  short: "BTC", color: "#f59e0b" },
-  { value: "ETHUSDT", label: "Ethereum", short: "ETH", color: "#3b82f6" },
-  { value: "SOLUSDT", label: "Solana",   short: "SOL", color: "#9333ea" },
+  { value: "BTCUSDT",  label: "Bitcoin",  short: "BTC",  color: "#f59e0b" },
+  { value: "ETHUSDT",  label: "Ethereum", short: "ETH",  color: "#3b82f6" },
+  { value: "SOLUSDT",  label: "Solana",   short: "SOL",  color: "#9333ea" },
+  { value: "BNBUSDT",  label: "BNB",      short: "BNB",  color: "#F3BA2F" },
+  { value: "PEPEUSDT", label: "Pepe",     short: "PEPE", color: "#4CAF50" },
+  { value: "DOGEUSDT", label: "Dogecoin", short: "DOGE", color: "#C2A633" },
 ];
 
-const DURATIONS = [5, 15, 30];
+const DURATIONS = [5, 15, 30, 60, 240, 1440];
+
+function formatDuration(min: number): string {
+  if (min < 60) return `${min}m`;
+  if (min < 1440) return `${min / 60}h`;
+  return "24h";
+}
 
 function formatPrice(p: number): string {
   if (p >= 1000) return "$" + p.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -108,7 +117,7 @@ function DurationCard({ market, symColor, symLabel }: {
           <div className="flex shrink-0 items-center gap-1 rounded-xl border border-orange-200 bg-white px-2.5 py-1 dark:border-orange-900/40 dark:bg-zinc-900">
             <Clock className="size-3 text-orange-500" />
             <span className="font-mono text-xs font-bold tabular-nums text-orange-600 dark:text-orange-400">
-              {isOpen ? countdown : `${market.duration_min}m`}
+              {isOpen ? countdown : formatDuration(market.duration_min)}
             </span>
           </div>
         </div>
@@ -142,7 +151,7 @@ function DurationCard({ market, symColor, symLabel }: {
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-orange-100 pt-3 text-xs text-muted-foreground dark:border-orange-900/30">
-          <span>{market.duration_min} minutes · {market.fee_rate}% fee</span>
+          <span>{formatDuration(market.duration_min)} · {market.fee_rate}% fee</span>
           {isResolved && market.open_price && (
             <span className={`font-semibold ${Number(market.open_price) > market.strike_price ? "text-emerald-600" : "text-red-500"}`}>
               Close {formatPrice(Number(market.open_price))}
@@ -188,7 +197,7 @@ export function UpDownCards() {
   return (
     <>
       {/* Symbol selector — ligne horizontale compacte AU-DESSUS des cards, pas dans la grille */}
-      <div className="col-span-full flex items-center gap-2 mb-1">
+      <div className="col-span-full flex flex-wrap items-center gap-2 mb-1">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Up/Down</span>
         {SYMBOLS.map(s => (
           <button
@@ -207,9 +216,9 @@ export function UpDownCards() {
         ))}
       </div>
 
-      {/* 3 cards — une par durée */}
+      {/* 6 cards — une par durée */}
       {loading ? (
-        Array.from({ length: 3 }).map((_, i) => (
+        Array.from({ length: DURATIONS.length }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-2xl border border-orange-200/50 bg-orange-50/30 dark:border-orange-900/20 dark:bg-orange-950/5">
             <div className="flex h-[200px] items-center justify-center">
               <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>

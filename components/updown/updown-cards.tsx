@@ -27,10 +27,22 @@ export function getResolveAt(market: UpDownMarket): string {
     ?? new Date(new Date(market.opens_at).getTime() + market.duration_min * 60_000).toISOString();
 }
 
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-export const SYMBOL_LABELS: Record<string, string> = { BTCUSDT: "BTC", ETHUSDT: "ETH", SOLUSDT: "SOL" };
-export const SYMBOL_IMAGES: Record<string, string> = { BTCUSDT: "/bitcoin.png", ETHUSDT: "/ethereum.png", SOLUSDT: "/solana.png" };
-const DURATIONS = [5, 15, 30];
+const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PEPEUSDT", "DOGEUSDT"];
+export const SYMBOL_LABELS: Record<string, string> = {
+  BTCUSDT: "BTC", ETHUSDT: "ETH", SOLUSDT: "SOL",
+  BNBUSDT: "BNB", PEPEUSDT: "PEPE", DOGEUSDT: "DOGE",
+};
+export const SYMBOL_IMAGES: Record<string, string> = {
+  BTCUSDT: "/bitcoin.png", ETHUSDT: "/ethereum.png", SOLUSDT: "/solana.png",
+  BNBUSDT: "/bnb.png", PEPEUSDT: "/pepe.png", DOGEUSDT: "/doge.png",
+};
+const DURATIONS = [5, 15, 30, 60, 240, 1440];
+
+function formatDuration(min: number): string {
+  if (min < 60) return `${min}m`;
+  if (min < 1440) return `${min / 60}h`;
+  return "24h";
+}
 
 export function formatPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -78,10 +90,10 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {img && <Image src={img} alt={label} width={28} height={28} className="rounded-full shrink-0 bg-white p-0.5" />}
+            {img && <Image src={img} alt={label} width={28} height={28} className="rounded-md shrink-0 bg-white p-0.5" />}
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">{label} Up or Down</p>
-              <p className="text-xs text-muted-foreground">{market.duration_min} Min &middot; Strike ${formatPrice(market.strike_price)}</p>
+              <p className="text-xs text-muted-foreground">{formatDuration(market.duration_min)} &middot; Strike ${formatPrice(market.strike_price)}</p>
             </div>
           </div>
           {/* Badge Live + countdown résolution */}
@@ -204,7 +216,7 @@ export function UpDownSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 rounded-2xl border border-border bg-muted/30 p-1 w-fit">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/30 p-1 w-fit">
         {DURATIONS.map((d) => (
           <button
             key={d}
@@ -212,7 +224,7 @@ export function UpDownSection() {
             onClick={() => setActiveDuration(d)}
             className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition-colors ${activeDuration === d ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
-            {d} Min
+            {formatDuration(d)}
           </button>
         ))}
       </div>

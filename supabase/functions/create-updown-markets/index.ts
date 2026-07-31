@@ -1,18 +1,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-const DURATIONS = [5, 15, 30]; // minutes (durée totale du round)
+const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PEPEUSDT", "DOGEUSDT"];
+const DURATIONS = [5, 15, 30, 60, 240, 1440]; // minutes (durée totale du round)
 const BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines";
 
 // Modèle Limitless : une seule fenêtre, paris ouverts pendant toute la durée.
 // resolve_at = opens_at + duration_min. Pas de pause, pas de phase séparée.
-const TOTAL_MINUTES: Record<number, number> = { 5: 5, 15: 15, 30: 30 };
+const TOTAL_MINUTES: Record<number, number> = {
+  5: 5, 15: 15, 30: 30, 60: 60, 240: 240, 1440: 1440,
+};
 
 // Précision d'arrondi du strike par asset (décimales)
 const STRIKE_DECIMALS: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
   SOLUSDT: 3,
+  BNBUSDT: 2,
+  PEPEUSDT: 8,
+  DOGEUSDT: 4,
 };
 
 /**

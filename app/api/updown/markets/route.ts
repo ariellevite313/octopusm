@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol")?.toUpperCase();
 
-  if (!symbol || !["BTCUSDT", "ETHUSDT", "SOLUSDT"].includes(symbol)) {
+  if (!symbol || !["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PEPEUSDT", "DOGEUSDT"].includes(symbol)) {
     return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
   }
 
