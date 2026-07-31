@@ -236,7 +236,7 @@ function RoundCard({
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
-        toast.error(err.error ?? "Erreur serveur");
+        toast.error(err.error ?? "Server error");
         return;
       }
       toast.success(`${dir.toUpperCase()} predict placed!`);

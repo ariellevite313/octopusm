@@ -4,6 +4,7 @@ import { MutuelMarketRow } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { PoolDetailClient } from "@/components/pools/pool-detail-client";
 import { notFound } from "next/navigation";
+import { requireAdmin } from "@/services/admin-service";
 
 export const revalidate = 60;
 
@@ -155,12 +156,15 @@ export default async function PoolDetailPage(
   const { data: { user } } = await (supabase as any).auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
 
-  const market = await getPoolBySlug(slug);
+  const [market, isAdmin] = await Promise.all([
+    getPoolBySlug(slug),
+    requireAdmin(),
+  ]);
   if (!market) notFound();
 
-  // Marchés pending/rejected : visible uniquement par le créateur
+  // Marchés pending/rejected : visible par le créateur ou un admin
   const isPreview = PRIVATE_STATUSES.has(market.status);
-  if (isPreview && wallet !== market.creator_wallet) notFound();
+  if (isPreview && !isAdmin && wallet !== market.creator_wallet) notFound();
 
   const [bets, comments] = await Promise.all([
     getInitialBets(market.id),
@@ -173,6 +177,7 @@ export default async function PoolDetailPage(
       initialBets={bets}
       initialComments={comments}
       isPreview={isPreview}
+      isAdmin={isAdmin}
     />
   );
 }

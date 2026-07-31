@@ -1,18 +1,5 @@
 import Link from "next/link";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  crypto:        "Crypto",
-  sports:        "Sports",
-  politics:      "Politics",
-  entertainment: "Entertainment",
-  cinema:        "Cinema",
-  science:       "Science",
-  other:         "Other",
-};
-
-function label(cat: string): string {
-  return CATEGORY_LABELS[cat] ?? cat.charAt(0).toUpperCase() + cat.slice(1);
-}
+import { getCategoryLabel } from "@/lib/categories";
 
 type Props = {
   categories: string[];
@@ -43,7 +30,7 @@ export function CategoryNav({ categories, active }: Props) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {label(cat)}
+            {getCategoryLabel(cat)}
           </Link>
         ))}
       </div>

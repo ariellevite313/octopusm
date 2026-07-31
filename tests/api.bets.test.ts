@@ -224,10 +224,10 @@ describe("POST /api/updown/bet", () => {
     expect((await json(res)).ok).toBe(true);
   });
 
-  it("awards OCTO after a valid bet", async () => {
+  it("does NOT award OCTO at placement (pending) — awarded at admin approval instead", async () => {
     setupUpDown(WALLET);
     await postUpDown(makeRequest(UPDOWN_BODY));
-    expect(mockAwardOcto).toHaveBeenCalledWith(WALLET, 10, "bet", "Up/Down bet placed");
+    expect(mockAwardOcto).not.toHaveBeenCalled();
   });
 });
 

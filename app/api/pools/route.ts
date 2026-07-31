@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { awardOcto, OCTO_PER_CREATION } from "@/lib/octo";
 import { CATEGORY_SLUGS } from "@/lib/categories";
 
 export const revalidate = 0;
@@ -96,9 +95,6 @@ export async function POST(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Award OCTO for creating a pool (fire and forget)
-  awardOcto(wallet, OCTO_PER_CREATION, "task", "Pool created").catch(() => {});
 
   return NextResponse.json(inserted, { status: 201 });
 }

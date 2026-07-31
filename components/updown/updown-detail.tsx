@@ -33,9 +33,12 @@ interface UpDownBet {
 interface PricePoint { time: number; price: number; open: number; high: number; low: number; }
 
 const COIN_META: Record<string, { label: string; symbol: string; color: string; img: string }> = {
-  BTCUSDT: { label: "Bitcoin",  symbol: "BTC", color: "#f59e0b", img: "/bitcoin.png" },
-  ETHUSDT: { label: "Ethereum", symbol: "ETH", color: "#3b82f6", img: "/ethereum.png" },
-  SOLUSDT: { label: "Solana",   symbol: "SOL", color: "#9333ea", img: "/solana.png" },
+  BTCUSDT:  { label: "Bitcoin",  symbol: "BTC",  color: "#f59e0b", img: "/bitcoin.png" },
+  ETHUSDT:  { label: "Ethereum", symbol: "ETH",  color: "#3b82f6", img: "/ethereum.png" },
+  SOLUSDT:  { label: "Solana",   symbol: "SOL",  color: "#9333ea", img: "/solana.png" },
+  BNBUSDT:  { label: "BNB",      symbol: "BNB",  color: "#F3BA2F", img: "/bnb.png" },
+  PEPEUSDT: { label: "Pepe",     symbol: "PEPE", color: "#4CAF50", img: "/pepe.png" },
+  DOGEUSDT: { label: "Dogecoin", symbol: "DOGE", color: "#C2A633", img: "/doge.png" },
 };
 
 const QUICK_AMOUNTS = [5, 25, 100, 500];

@@ -230,6 +230,24 @@ serve(async (req: Request) => {
                       ref_wallet: referrerWallet,
                     },
                   ]);
+
+                  // Sync leaderboard_octo for both wallets
+                  const syncLeaderboard = async (wallet: string, delta: number) => {
+                    const { data: lb } = await admin
+                      .from("leaderboard_octo")
+                      .select("total_octo")
+                      .eq("wallet_address", wallet)
+                      .maybeSingle();
+                    const current = Number(lb?.total_octo ?? 0);
+                    await admin.from("leaderboard_octo").upsert(
+                      { wallet_address: wallet, total_octo: current + delta },
+                      { onConflict: "wallet_address" },
+                    );
+                  };
+                  await Promise.all([
+                    syncLeaderboard(referrerWallet, 10),
+                    syncLeaderboard(walletAddress, 5),
+                  ]);
                 }
               }
             }
