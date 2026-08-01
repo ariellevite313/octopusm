@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { Clock } from "lucide-react";
 import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
+import { formatVolume } from "@/lib/market/utils";
 
 interface UpDownMarket {
   id: string;
@@ -133,7 +134,7 @@ function DurationCard({ market, symColor, symLabel }: {
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground">
             <span className="text-emerald-600 font-semibold">↑ {upPct}%</span>
-            <span>${total.toFixed(0)} USDC</span>
+            <span>{formatVolume(total, "usdc")}</span>
             <span className="text-red-500 font-semibold">{100 - upPct}% ↓</span>
           </div>
         </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { MarketCountdownBadge } from "./market-countdown";
 import { useFakeLiveBets, FakeBetOverlay } from "./market-fake-bets";
-import { parseMarketOptions, type MarketVolumes } from "@/lib/market/utils";
+import { parseMarketOptions, formatVolume, type MarketVolumes } from "@/lib/market/utils";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
 
 type Props = {
@@ -78,13 +78,9 @@ export function MarketCard({ market, volumes }: Props) {
 
         {/* Volume */}
         {vol && (vol.usdc > 0 || vol.clt > 0) && (
-          <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-muted-foreground dark:border-orange-900/30">
-            {vol.usdc > 0 && (
-              <span>VOL: {vol.usdc.toLocaleString("en-US", { maximumFractionDigits: 0 })} USDC</span>
-            )}
-            {vol.clt > 0 && (
-              <span>VOL: {vol.clt.toLocaleString("en-US", { maximumFractionDigits: 0 })} ClawdTrust</span>
-            )}
+          <div className="flex items-center gap-3 border-t border-orange-100 pt-3 text-xs font-medium text-muted-foreground dark:border-orange-900/30">
+            {vol.usdc > 0 && <span>{formatVolume(vol.usdc, "usdc")}</span>}
+            {vol.clt > 0  && <span>{formatVolume(vol.clt, "clawdtrust")}</span>}
           </div>
         )}
       </div>

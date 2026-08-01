@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { formatVolume } from "@/lib/market/utils";
 
 export interface UpDownMarket {
   id: string;
@@ -155,7 +156,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
         {total > 0 && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Volume</span>
-            <span className="font-semibold text-foreground">${total.toFixed(2)} USDC</span>
+            <span className="font-semibold text-foreground">{formatVolume(total, "usdc")}</span>
           </div>
         )}
       </div>
