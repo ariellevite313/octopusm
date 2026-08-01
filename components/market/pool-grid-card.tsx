@@ -30,7 +30,7 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
   return (
     <Link
       href={href}
-      className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5"
+      className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30"
     >
       <div className="space-y-4 p-5">
 
@@ -66,7 +66,7 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
           {options.slice(0, 4).map((opt) => (
             <div
               key={opt.id}
-              className="rounded-xl border border-orange-200 bg-white px-3 py-2 dark:border-orange-900/40 dark:bg-zinc-900"
+              className="rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40"
             >
               <span className="line-clamp-1 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                 {opt.label}
@@ -74,14 +74,14 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
             </div>
           ))}
           {options.length > 4 && (
-            <div className="rounded-xl border border-orange-200 bg-white px-3 py-2 dark:border-orange-900/40 dark:bg-zinc-900">
+            <div className="rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40">
               <span className="text-xs text-zinc-400">+{options.length - 4} more options</span>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-zinc-500 dark:border-orange-900/30 dark:text-zinc-400">
+        <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-muted-foreground dark:border-orange-900/30">
           <span>
             {pool > 0
               ? `${pool.toFixed(decimals)} ${token}`

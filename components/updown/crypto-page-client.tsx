@@ -41,7 +41,7 @@ export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
               : "text-muted-foreground hover:text-foreground",
           ].join(" ")}
         >
-          Hit Price
+          Event
         </button>
       </div>
 
@@ -51,7 +51,7 @@ export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
         hitPriceMarkets.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <span className="text-5xl">🎯</span>
-            <p className="text-muted-foreground">No active Hit Price markets at the moment.</p>
+            <p className="text-muted-foreground">No active Event markets at the moment.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

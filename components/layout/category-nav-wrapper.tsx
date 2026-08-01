@@ -13,7 +13,8 @@ export function CategoryNavWrapper({ categories }: Props) {
     pathname === "/" ||
     categories.some((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ||
     pathname.startsWith("/market") ||
-    pathname.startsWith("/updown");
+    pathname.startsWith("/updown") ||
+    pathname.startsWith("/pools");
 
   if (!isMarketPage) return null;
 

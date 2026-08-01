@@ -18,7 +18,7 @@ export function MarketCard({ market, volumes }: Props) {
   const href = `/prediction/${market.slug ?? market.id}`;
 
   return (
-    <Link href={href} className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5">
+    <Link href={href} className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30">
       <div className="space-y-4 p-5">
 
         {/* Header */}
@@ -48,7 +48,7 @@ export function MarketCard({ market, volumes }: Props) {
             {options.map((option, idx) => (
               <div
                 key={option.id}
-                className={`relative flex flex-col gap-2 rounded-2xl border border-orange-200 bg-white px-3 py-3 dark:border-orange-900/40 dark:bg-zinc-900${options.length === 3 ? " min-w-[130px] shrink-0 sm:min-w-0 sm:shrink" : ""}`}
+                className={`relative flex flex-col gap-2 rounded-2xl border border-orange-200 bg-muted/40 px-3 py-3 dark:border-orange-900/40${options.length === 3 ? " min-w-[130px] shrink-0 sm:min-w-0 sm:shrink" : ""}`}
               >
                 {/* Fake bet overlay */}
                 <FakeBetOverlay optionIndex={idx} bets={fakeBets} />
@@ -78,7 +78,7 @@ export function MarketCard({ market, volumes }: Props) {
 
         {/* Volume */}
         {vol && (vol.usdc > 0 || vol.clt > 0) && (
-          <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-zinc-500 dark:border-orange-900/30 dark:text-zinc-400">
+          <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-muted-foreground dark:border-orange-900/30">
             {vol.usdc > 0 && (
               <span>VOL: {vol.usdc.toLocaleString("en-US", { maximumFractionDigits: 0 })} USDC</span>
             )}
