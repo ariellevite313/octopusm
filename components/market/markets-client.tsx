@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { MarketGrid } from "./market-grid";
+import { TrendingSection } from "./trending-section";
 import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 
@@ -78,6 +79,9 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
+      {/* Trending section — home page only, hidden if fewer than 3 markets have volume */}
+      {!category && <TrendingSection />}
+
       {markets.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
           <span className="text-5xl">🐙</span>
