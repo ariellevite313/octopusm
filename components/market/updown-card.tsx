@@ -74,7 +74,7 @@ function DurationCard({ market, symColor, symLabel }: {
 
   if (!market) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-dashed border-orange-200 bg-orange-50/30 dark:border-orange-900/20 dark:bg-orange-950/5">
+      <div className="overflow-hidden rounded-2xl border border-dashed border-orange-200 bg-card dark:border-orange-900/20">
         <div className="flex h-full min-h-[200px] items-center justify-center p-5">
           <p className="text-xs text-muted-foreground">Round pending...</p>
         </div>
@@ -92,7 +92,7 @@ function DurationCard({ market, symColor, symLabel }: {
   return (
     <Link
       href={`/crypto/${market.id}`}
-      className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5"
+      className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30"
     >
       <div className="space-y-4 p-5">
         {/* Header */}
@@ -117,7 +117,7 @@ function DurationCard({ market, symColor, symLabel }: {
             </div>
           </div>
           {/* Countdown */}
-          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-orange-200 bg-white px-2.5 py-1 dark:border-orange-900/40 dark:bg-zinc-900">
+          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-orange-200 bg-muted/40 px-2.5 py-1 dark:border-orange-900/40">
             <Clock className="size-3 text-orange-500" />
             <span className="font-mono text-xs font-bold tabular-nums text-orange-600 dark:text-orange-400">
               {isOpen ? countdown : formatDuration(market.duration_min)}

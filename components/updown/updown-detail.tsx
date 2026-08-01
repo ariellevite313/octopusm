@@ -447,8 +447,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     <div className="rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         {meta.img
-          ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-full bg-white p-0.5 shrink-0" />
-          : <div className="flex size-8 items-center justify-center rounded-full text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+          ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-md bg-white p-0.5 shrink-0" />
+          : <div className="flex size-8 items-center justify-center rounded-md text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
         }
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-foreground">{meta.label} Up or Down {durationMin}m</p>
@@ -506,11 +506,6 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           {isAbove ? "Above ↑" : "Below ↓"}
         </span>
       </div>
-      {/* S-05: informer que la résolution utilise le close klines 1min, pas le prix live */}
-      <p className="mx-4 mb-3 text-[10px] text-muted-foreground">
-        📌 The live price (chart) is indicative. Resolution uses the <strong>Binance 1min close</strong> at the end of the round.
-      </p>
-
       <div className="px-2 pb-4">
         {loading || points.length === 0 ? (
           <div className="flex h-40 items-center justify-center">
@@ -641,6 +636,10 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           </ResponsiveContainer>
         )}
       </div>
+      {/* S-05: informer que la résolution utilise le close klines 1min, pas le prix live */}
+      <p className="mx-4 mt-1 mb-3 text-[10px] text-muted-foreground">
+        Notice : The live price (chart) is indicative. Resolution uses the Binance 1min close at the end of the round.
+      </p>
     </div>
   );
 });
@@ -970,8 +969,8 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             {/* Panel header */}
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
               {meta.img
-                ? <Image src={meta.img} alt={meta.symbol} width={28} height={28} className="rounded-lg bg-white p-0.5 shrink-0" />
-                : <div className="flex size-7 items-center justify-center rounded-lg text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+                ? <Image src={meta.img} alt={meta.symbol} width={28} height={28} className="rounded-md bg-white p-0.5 shrink-0" />
+                : <div className="flex size-7 items-center justify-center rounded-md text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
               }
               <div>
                 <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>

@@ -50,7 +50,7 @@ export function MarketGrid({ markets, volumes, showCategoryTabs = true }: Props)
             onClick={() => setCryptoSub("hitprice")}
             className={`rounded-xl px-4 py-1.5 text-sm font-semibold transition-colors ${cryptoSub === "hitprice" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
-            Hit Price
+            Event
           </button>
         </div>
 
@@ -59,7 +59,7 @@ export function MarketGrid({ markets, volumes, showCategoryTabs = true }: Props)
         ) : cryptoMarkets.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <span className="text-4xl">🐙</span>
-            <p className="text-muted-foreground">No Hit Price markets active.</p>
+            <p className="text-muted-foreground">No Event markets active.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

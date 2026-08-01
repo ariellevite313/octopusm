@@ -88,7 +88,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
   return (
     <Link
       href={`/crypto/${market.id}`}
-      className="block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5"
+      className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">

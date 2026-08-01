@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { Trophy } from "lucide-react";
 import { LeaderboardTabs } from "@/components/leaderboard/leaderboard-tabs";
 
 export const metadata: Metadata = {
@@ -27,9 +27,9 @@ export default function LeaderboardPage() {
 
       {/* Header */}
       <div className="mb-8 flex items-center gap-3">
-        <Image src="/octo-coin.png" alt="Octopus" width={36} height={36} className="shrink-0" />
+        <Trophy className="size-9 shrink-0 text-amber-500 md:size-16" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Leaderboard</h1>
+          <h1 className="text-2xl font-bold text-foreground md:text-6xl">Leaderboard</h1>
           <p className="text-sm text-muted-foreground">Best winners on OMdotfun</p>
         </div>
       </div>
