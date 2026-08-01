@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Clock } from "lucide-react";
 import type { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import { getCategoryLabel } from "@/lib/categories";
+import { formatVolume } from "@/lib/market/utils";
 
 function timeLeft(closesAt: string): string {
   const diff = new Date(closesAt).getTime() - Date.now();
@@ -21,11 +22,9 @@ function timeLeft(closesAt: string): string {
  */
 export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
   const options  = (market.options ?? []) as MutuelOption[];
-  const isUsdc   = market.bet_token === "usdc";
-  const pool     = isUsdc ? market.total_pool_usdc : market.total_pool_clt;
-  const token    = isUsdc ? "USDC" : "ClawdTrust";
-  const decimals = isUsdc ? 2 : 0;
-  const href     = `/pools/${market.slug}`;
+  const isUsdc = market.bet_token === "usdc";
+  const pool   = isUsdc ? market.total_pool_usdc : market.total_pool_clt;
+  const href   = `/pools/${market.slug}`;
 
   return (
     <Link
@@ -84,7 +83,7 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
         <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-muted-foreground dark:border-orange-900/30">
           <span>
             {pool > 0
-              ? `${pool.toFixed(decimals)} ${token}`
+              ? formatVolume(pool, market.bet_token)
               : "No predicts yet"}
             {market.bet_count > 0 && ` · ${market.bet_count} predicts`}
           </span>

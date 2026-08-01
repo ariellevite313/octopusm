@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { Camera, Check, Copy, LayoutDashboard, LogOut, Moon, Pencil, Settings2, Sun, User } from "lucide-react";
+import { Camera, Check, Copy, Globe, LayoutDashboard, LogOut, Moon, Pencil, Settings2, Sun, User } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
@@ -50,21 +50,21 @@ const T = {
     avatarUpdated: "Avatar updated",
   },
   fr: {
-    myWallet: "My wallet",
-    editProfile: "Edit profile",
-    username: "Username",
-    displayName: "Display name",
-    twitterHandle: "Twitter / X handle",
-    cancel: "Cancel",
-    save: "Save",
-    saving: "Saving…",
-    overview: "Overview",
-    octoBalance: "OCTO balance",
+    myWallet: "Mon portefeuille",
+    editProfile: "Modifier le profil",
+    username: "Nom d'utilisateur",
+    displayName: "Nom affiché",
+    twitterHandle: "Pseudo Twitter / X",
+    cancel: "Annuler",
+    save: "Sauvegarder",
+    saving: "Sauvegarde…",
+    overview: "Aperçu",
+    octoBalance: "Solde OCTO",
     twitter: "Twitter / X",
-    adminPanel: "Admin Panel",
-    disconnect: "Disconnect",
-    profileUpdated: "Profile updated",
-    avatarUpdated: "Avatar updated",
+    adminPanel: "Panel Admin",
+    disconnect: "Déconnecter",
+    profileUpdated: "Profil mis à jour",
+    avatarUpdated: "Avatar mis à jour",
   },
 } as const;
 
@@ -357,6 +357,14 @@ function ProfileDrawer({
                       ? <Moon className="size-4 text-muted-foreground" />
                       : <Sun className="size-4 text-muted-foreground" />}
                     <span>{isDark ? "Dark mode" : "Light mode"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { toggleLang(); setShowSettings(false); }}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors border-t border-border"
+                  >
+                    <Globe className="size-4 text-muted-foreground" />
+                    <span>{lang === "en" ? "Français" : "English"}</span>
                   </button>
                 </div>
               )}

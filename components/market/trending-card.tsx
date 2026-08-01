@@ -3,17 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getCategoryLabel } from "@/lib/categories";
+import { formatVolume } from "@/lib/market/utils";
 import type { TrendingMarket } from "@/app/api/markets/trending/route";
 
 // Bar colors: first option green, second blue
 const BAR_COLORS    = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444"];
 const BORDER_COLORS = ["#16a34a", "#2563eb", "#d97706", "#dc2626"];
-
-function formatVolume(v: number): string {
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)     return `$${(v / 1_000).toFixed(1)}K`;
-  return `$${v.toFixed(0)}`;
-}
 
 export function TrendingCard({ market }: { market: TrendingMarket }) {
   return (
@@ -88,9 +83,7 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-orange-100 pt-2.5 dark:border-orange-900/30">
         <span className="text-[10px] text-muted-foreground">
-          {market.bet_token === "clawdtrust"
-            ? `${formatVolume(market.volume_usdc).replace("$", "")} CLT vol`
-            : `${formatVolume(market.volume_usdc)} vol`}
+          {formatVolume(market.volume_usdc, market.bet_token)}
         </span>
         {market.bet_count > 0 && (
           <span className="text-[10px] text-muted-foreground">
