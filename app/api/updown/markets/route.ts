@@ -52,5 +52,7 @@ export async function GET(req: Request) {
     if (!byDuration[d].resolved) byDuration[d].resolved = m;
   }
 
-  return NextResponse.json({ ok: true, markets: byDuration });
+  return NextResponse.json({ ok: true, markets: byDuration }, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

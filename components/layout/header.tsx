@@ -7,11 +7,11 @@ import { Menu, X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
-  { href: "/", label: "Markets" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/launch", label: "Launch" },
-  { href: "/archive", label: "Archive" },
-];
+  { href: "/",            label: "Markets",    badge: undefined, disabled: false },
+  { href: "/leaderboard", label: "Leaderboard",badge: undefined, disabled: false },
+  { href: "#",            label: "Launchpad",  badge: "Soon",    disabled: true  },
+  { href: "/archive",     label: "Archive",    badge: undefined, disabled: false },
+] satisfies { href: string; label: string; badge?: string; disabled: boolean }[];
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -26,15 +26,29 @@ export function Header() {
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm md:flex">
-            {NAV_LINKS.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {label}
-              </Link>
-            ))}
+            {NAV_LINKS.map(({ href, label, badge, disabled }) =>
+              disabled ? (
+                <span
+                  key={label}
+                  className="flex items-center gap-1.5 cursor-not-allowed text-muted-foreground/50 select-none"
+                >
+                  {label}
+                  {badge && (
+                    <span className="text-[9px] font-normal text-muted-foreground/60">
+                      {badge.toLowerCase()}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {label}
+                </Link>
+              )
+            )}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -69,16 +83,30 @@ export function Header() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {NAV_LINKS.map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  {label}
-                </Link>
-              ))}
+              {NAV_LINKS.map(({ href, label, badge, disabled }) =>
+                disabled ? (
+                  <span
+                    key={label}
+                    className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                  >
+                    {label}
+                    {badge && (
+                      <span className="text-[9px] font-normal text-muted-foreground/60">
+                        {badge.toLowerCase()}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {label}
+                  </Link>
+                )
+              )}
             </nav>
           </div>
         </>

@@ -92,10 +92,10 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       .eq("address", walletAddress)
       .maybeSingle(),
 
-    // Rank from leaderboard
+    // OCTO total from leaderboard (no 'rank' column — rank computed below)
     admin
       .from("leaderboard_octo")
-      .select("rank")
+      .select("total_octo")
       .eq("wallet_address", walletAddress)
       .maybeSingle(),
 
@@ -160,7 +160,16 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     : null;
 
   // ── Rank + OCTO ───────────────────────────────────────────────────────────
-  const rank: number | null = rankRes.data?.rank ?? null;
+  // Compute rank: count wallets with strictly more total_octo + 1
+  const userTotalOcto = Number(rankRes.data?.total_octo ?? 0);
+  let rank: number | null = null;
+  if (userTotalOcto > 0) {
+    const { count } = await admin
+      .from("leaderboard_octo")
+      .select("*", { count: "exact", head: true })
+      .gt("total_octo", userTotalOcto);
+    rank = (count ?? 0) + 1;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const octoBalance = ((octoRes.data ?? []) as any[]).reduce(
     (sum: number, r: { amount: number }) => sum + (r.amount ?? 0), 0

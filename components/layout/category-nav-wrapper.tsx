@@ -19,7 +19,10 @@ export function CategoryNavWrapper({ categories }: Props) {
   if (!isMarketPage) return null;
 
   // Détermine la catégorie active
-  const active = categories.find((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ?? "all";
+  const active =
+    pathname === "/updown"
+      ? "updown"
+      : (categories.find((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ?? "all");
 
   return <CategoryNav categories={categories} active={active} />;
 }

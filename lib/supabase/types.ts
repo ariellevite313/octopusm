@@ -577,6 +577,7 @@ export type MutuelMarketStatus = 'pending' | 'active' | 'closed' | 'resolved' | 
 export interface MutuelOption {
   id: string;
   label: string;
+  image_url?: string | null;
 }
 
 export interface MutuelMarketRow {

@@ -17,6 +17,7 @@ interface Props {
 
 interface OptionDraft {
   label: string;
+  image_url?: string;
 }
 
 type CreateStep = "idle" | "sending" | "done" | "error";
@@ -120,10 +121,32 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     setOptions(prev => prev.filter((_, idx) => idx !== i));
   };
   const updateOption = (i: number, label: string) => {
-    // Reset error state when user edits
     if (step === "error") { setStep("idle"); setErrorMsg(null); }
-    setOptions(prev => prev.map((o, idx) => idx === i ? { label } : o));
+    setOptions(prev => prev.map((o, idx) => idx === i ? { ...o, label } : o));
   };
+
+  const updateOptionImage = (i: number, image_url: string) => {
+    setOptions(prev => prev.map((o, idx) => idx === i ? { ...o, image_url } : o));
+  };
+
+  const optionFileRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  async function handleOptionImage(i: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Upload failed");
+      updateOptionImage(i, body.url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      if (optionFileRefs.current[i]) optionFileRefs.current[i]!.value = "";
+    }
+  }
 
   function resetError() {
     if (step === "error") { setStep("idle"); setErrorMsg(null); }
@@ -172,7 +195,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           title: title.trim(),
           description: description.trim() || null,
           cover_image_src: coverImage || null,
-          options: options.map(o => ({ label: o.label.trim() })),
+          options: options.map(o => ({ label: o.label.trim(), image_url: o.image_url || null })),
           category,
           betting_closes_at: closesAtUtc,
           bet_token: betToken,
@@ -254,6 +277,31 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             </label>
             {options.map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
+                {/* Option image preview / upload trigger */}
+                <button
+                  type="button"
+                  onClick={() => optionFileRefs.current[i]?.click()}
+                  className="relative size-9 shrink-0 overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 flex items-center justify-center transition-colors hover:bg-muted/60"
+                  title="Add image"
+                >
+                  {opt.image_url ? (
+                    <>
+                      <img src={opt.image_url} alt="" className="size-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                        <Camera className="size-3 text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <Camera className="size-4 text-muted-foreground" />
+                  )}
+                </button>
+                <input
+                  ref={el => { optionFileRefs.current[i] = el; }}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => void handleOptionImage(i, e)}
+                />
                 <input
                   value={opt.label}
                   onChange={e => updateOption(i, e.target.value)}
@@ -261,6 +309,16 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                   maxLength={80}
                   className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
+                {opt.image_url && (
+                  <button
+                    type="button"
+                    onClick={() => updateOptionImage(i, "")}
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+                    title="Remove image"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
                 {options.length > 2 && (
                   <button
                     type="button"

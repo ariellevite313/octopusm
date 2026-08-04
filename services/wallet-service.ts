@@ -47,29 +47,23 @@ export async function updateWalletProfile(
 
 export async function uploadAvatar(
   file: File,
-  walletAddress: string
+  _walletAddress: string
 ): Promise<{ url: string } | { error: string }> {
-  const supabase = createClient();
-  const ext = file.name.split(".").pop() ?? "png";
-  const path = `${walletAddress}/avatar.${ext}`;
+  // Upload via server route (bypasses RLS) + updates wallets.avatar_src
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+  const data = await res.json() as { url?: string; error?: string };
+  if (!res.ok || !data.url) return { error: data.error ?? "Upload failed" };
 
-  const { error: uploadError } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type });
+  // Sync avatar_src via profile route (also uses admin client)
+  await fetch("/api/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ avatar_src: data.url }),
+  });
 
-  if (uploadError) return { error: uploadError.message };
-
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  const url = `${data.publicUrl}?t=${Date.now()}`;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase as any)
-    .from("wallets")
-    .update({ avatar_src: url })
-    .eq("address", walletAddress);
-
-  if (updateError) return { error: (updateError as { message: string }).message };
-  return { url };
+  return { url: data.url };
 }
 
 export async function getOctoBalance(walletAddress: string): Promise<number> {

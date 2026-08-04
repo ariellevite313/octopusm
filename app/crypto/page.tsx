@@ -1,24 +1,15 @@
 import type { Metadata } from "next";
-import { getActiveMarkets, getMarketVolumes, getDistinctCategories } from "@/services/prediction-service";
-import { CryptoPageClient } from "@/components/updown/crypto-page-client";
+import { getActiveMarketsUnified } from "@/services/prediction-service";
+import { MarketsClient } from "@/components/market/markets-client";
 
 export const metadata: Metadata = {
   title: "Crypto Markets | OMdotfun",
-  description: "Up/Down rounds and Hit Price prediction markets on crypto.",
+  description: "Crypto prediction markets on OMdotfun.",
   robots: { index: true, follow: true },
 };
 export const revalidate = 60;
 
 export default async function CryptoPage() {
-  const [allMarkets, volumes, categories] = await Promise.all([
-    getActiveMarkets(),
-    getMarketVolumes(),
-    getDistinctCategories(),
-  ]);
-
-  // Hit Price = marchés prédiction crypto (category_id === "crypto")
-  // Les Up/Down sont dans updown_markets, pas ici
-  const hitPriceMarkets = allMarkets.filter((m) => m.category_id === "crypto");
-
-  return <CryptoPageClient hitPriceMarkets={hitPriceMarkets} volumes={volumes} />;
+  const markets = await getActiveMarketsUnified("crypto");
+  return <MarketsClient category="crypto" initialMarkets={markets} />;
 }

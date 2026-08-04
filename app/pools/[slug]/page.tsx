@@ -62,7 +62,6 @@ async function getInitialBets(marketId: string) {
     .from("mutuel_bets")
     .select("option_id, amount, token, wallet_address, created_at, payout_amount, paid_at")
     .eq("market_id", marketId)
-    .eq("status", "approved")
     .order("created_at", { ascending: false })
     .limit(200);
 

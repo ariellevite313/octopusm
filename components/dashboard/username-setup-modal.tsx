@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
 import { Camera, User } from "lucide-react";
 import Image from "next/image";
 
@@ -30,18 +29,15 @@ function validateTwitter(v: string) {
   return "";
 }
 
-// ── Upload avatar to Supabase Storage ────────────────────────────────────────
+// ── Upload avatar via server route (bypasses RLS) ────────────────────────────
 
-async function uploadAvatarToStorage(file: File, walletAddress: string): Promise<string> {
-  const supabase = createClient();
-  const ext = file.name.split(".").pop() ?? "png";
-  const path = `${walletAddress}/avatar.${ext}`;
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type });
-  if (error) throw new Error(error.message);
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  return `${data.publicUrl}?t=${Date.now()}`;
+async function uploadAvatarToStorage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+  const data = await res.json() as { url?: string; error?: string };
+  if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed");
+  return data.url;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -89,12 +85,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
       let avatarSrc: string | undefined;
       if (avatarFile) {
         setUploading(true);
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        const wallet = user?.user_metadata?.wallet_address as string | undefined;
-        if (wallet) {
-          avatarSrc = await uploadAvatarToStorage(avatarFile, wallet);
-        }
+        avatarSrc = await uploadAvatarToStorage(avatarFile);
         setUploading(false);
       }
 
