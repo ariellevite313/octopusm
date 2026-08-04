@@ -1,10 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
+const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "PEPEUSDT"];
 const COINGECKO_IDS: Record<string, string> = {
   BTCUSDT: "bitcoin",
   ETHUSDT: "ethereum",
   SOLUSDT: "solana",
+  BNBUSDT: "binancecoin",
+  DOGEUSDT: "dogecoin",
+  PEPEUSDT: "pepe",
 };
 
 Deno.serve(async (_req) => {

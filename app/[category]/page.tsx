@@ -6,7 +6,7 @@ import { MarketsClient } from "@/components/market/markets-client";
 export const revalidate = 60;
 
 // Empêche la route [category] de capturer les segments réservés
-const RESERVED = ["admin", "dashboard", "crypto", "pools", "leaderboard", "launch", "archive", "prediction", "api"];
+const RESERVED = ["admin", "dashboard", "pools", "leaderboard", "launch", "archive", "prediction", "api"];
 
 type Props = { params: Promise<{ category: string }> };
 

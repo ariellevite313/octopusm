@@ -103,7 +103,6 @@ export async function GET() {
         .from("mutuel_bets")
         .select("market_id, option_id, amount")
         .in("market_id", poolIds)
-        .eq("status", "approved")
     : { data: [] };
 
   const betsByMarket: Record<string, Record<string, number>> = {};

@@ -241,7 +241,12 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
                   : `border-border text-foreground ${col.hover}`
               }`}
             >
-              <span>{opt.label}</span>
+              <span className="flex items-center gap-2">
+                {opt.image_url && (
+                  <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-md object-cover" />
+                )}
+                {opt.label}
+              </span>
               <span className="text-xs text-muted-foreground tabular-nums">{pcts[opt.id]}%</span>
             </button>
           );
@@ -468,7 +473,10 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
           return (
             <div key={opt.id} className={`flex flex-col gap-1 ${market.status === "resolved" && !isWinner ? "opacity-50" : ""}`}>
               <div className="flex justify-between text-sm">
-                <span className={`font-medium ${isWinner ? `font-bold ${col.winner}` : "text-foreground"}`}>
+                <span className={`flex items-center gap-2 font-medium ${isWinner ? `font-bold ${col.winner}` : "text-foreground"}`}>
+                  {opt.image_url && (
+                    <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-md object-cover" />
+                  )}
                   {opt.label} {isWinner && "🏆"}
                 </span>
                 <span className="flex items-center gap-1 tabular-nums text-muted-foreground">

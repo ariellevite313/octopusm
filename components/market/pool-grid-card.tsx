@@ -65,8 +65,16 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
           {options.slice(0, 4).map((opt) => (
             <div
               key={opt.id}
-              className="rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40"
+              className="flex items-center gap-2 rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40"
             >
+              {opt.image_url && (
+                <img
+                  src={opt.image_url}
+                  alt=""
+                  className="size-5 shrink-0 rounded-md object-cover"
+                  loading="lazy"
+                />
+              )}
               <span className="line-clamp-1 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                 {opt.label}
               </span>

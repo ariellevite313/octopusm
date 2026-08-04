@@ -69,7 +69,7 @@ export function ReferralSection({
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Earn <span className="font-semibold text-orange-500">10 OCTO</span> for each friend who connects their wallet via your link.
+            Earn <span className="font-semibold text-orange-500">200 OCTO</span> for each friend who connects their wallet via your link — they get <span className="font-semibold text-orange-500">50 OCTO</span> too.
           </p>
         </div>
 

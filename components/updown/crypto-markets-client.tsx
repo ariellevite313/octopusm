@@ -77,15 +77,24 @@ function formatPrice(p: number): string {
   return p.toFixed(8);
 }
 
-function useCountdown(closeAt: string | null | undefined): string {
+function useCountdown(closeAt: string | null | undefined, onExpired?: () => void): string {
   const [remaining, setRemaining] = useState("");
+  const firedRef = useRef(false);
   useEffect(() => {
+    firedRef.current = false;
     if (!closeAt) { setRemaining(""); return; }
     const target = new Date(closeAt).getTime();
     const tick = () => {
       const diff = target - Date.now();
       // UX-UD-1 FIX: afficher "00:00" plutôt que "" pour éviter le saut visuel
-      if (diff <= 0) { setRemaining("00:00"); return; }
+      if (diff <= 0) {
+        setRemaining("00:00");
+        if (!firedRef.current) {
+          firedRef.current = true;
+          onExpired?.();
+        }
+        return;
+      }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setRemaining(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
@@ -93,14 +102,14 @@ function useCountdown(closeAt: string | null | undefined): string {
     tick();
     const id = setInterval(tick, 500);
     return () => clearInterval(id);
-  }, [closeAt]);
+  }, [closeAt, onExpired]);
   return remaining;
 }
 
 // ── RoundCard ─────────────────────────────────────────────────────────────────
 
 function RoundCard({
-  market, myBets, onBetPlaced, walletAddress, walletType, onNeedWallet,
+  market, myBets, onBetPlaced, walletAddress, walletType, onNeedWallet, onMarketExpired,
 }: {
   market: UpDownMarket;
   myBets: UpDownBet[];
@@ -108,12 +117,13 @@ function RoundCard({
   walletAddress: string | null;
   walletType: WalletType | null;
   onNeedWallet: () => void;
+  onMarketExpired: () => void;
 }) {
   const resolveAt = getResolveAt(market);
 
   // Modèle Limitless : une seule fenêtre, Paris + Live simultanés jusqu'à resolve_at
   const isLive = market.status === "open";
-  const liveCountdown = useCountdown(isLive ? resolveAt : null);
+  const liveCountdown = useCountdown(isLive ? resolveAt : null, onMarketExpired);
 
   const [amount, setAmount] = useState(5);
   const [submitting, setSubmitting] = useState(false);
@@ -379,11 +389,12 @@ export function CryptoMarketsClient() {
   const [myBets, setMyBets] = useState<UpDownBet[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWalletDialog, setShowWalletDialog] = useState(false);
+  const [, forceUpdate] = useState(0);
   const supabase = useRef(getSupabase());
   const channelRef = useRef<any>(null);
 
   const fetchMarkets = useCallback(async () => {
-    const res = await fetch(`/api/updown/markets?symbol=${activeSymbol}`);
+    const res = await fetch(`/api/updown/markets?symbol=${activeSymbol}`, { cache: "no-store" });
     if (res.ok) {
       const d = await res.json() as { markets: Record<string, { open?: UpDownMarket; resolved?: UpDownMarket }> };
       // Normalise string keys → number keys
@@ -425,6 +436,19 @@ export function CryptoMarketsClient() {
     return () => { void sb.removeChannel(ch); };
   }, [activeSymbol, fetchMarkets]);
 
+  // Polling fallback (2s) au cas où Realtime ne déclenche pas
+  useEffect(() => {
+    const id = setInterval(() => { void fetchMarkets(); }, 2_000);
+    return () => clearInterval(id);
+  }, [fetchMarkets]);
+
+  // Burst refresh quand un marché expire : re-render immédiat (overlay) + refetch à 2s, 5s, 9s
+  const handleMarketExpired = useCallback(() => {
+    forceUpdate(n => n + 1); // affiche l'overlay "Nouveau round..." immédiatement
+    const delays = [2_000, 5_000, 9_000];
+    delays.forEach(d => setTimeout(() => { void fetchMarkets(); }, d));
+  }, [fetchMarkets]);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border/60 bg-card/60 px-4 py-4">
@@ -465,20 +489,36 @@ export function CryptoMarketsClient() {
               const slot = markets[d];
               const market = slot?.open ?? slot?.resolved;
               if (!market) return (
-                <div key={d} className="rounded-2xl border border-dashed border-border/40 flex items-center justify-center h-40">
+                <div key={`waiting-${d}`} className="rounded-2xl border border-dashed border-border/40 flex items-center justify-center h-40">
                   <span className="text-xs text-muted-foreground">{d}m — Waiting...</span>
                 </div>
               );
+              const isTransitioning = !slot?.open && !!slot?.resolved
+                && new Date(slot.resolved.resolve_at ?? slot.resolved.closes_at).getTime() < Date.now();
               return (
-                <RoundCard
-                  key={market.id}
-                  market={market}
-                  myBets={myBets}
-                  onBetPlaced={() => { void fetchMarkets(); void fetchMyBets(); }}
-                  walletAddress={walletAddress}
-                  walletType={walletType}
-                  onNeedWallet={() => setShowWalletDialog(true)}
-                />
+                <div key={market.id} className="relative">
+                  <RoundCard
+                    market={market}
+                    myBets={myBets}
+                    onBetPlaced={() => { void fetchMarkets(); void fetchMyBets(); }}
+                    walletAddress={walletAddress}
+                    walletType={walletType}
+                    onNeedWallet={() => setShowWalletDialog(true)}
+                    onMarketExpired={handleMarketExpired}
+                  />
+                  {isTransitioning && (
+                    <div className="absolute inset-0 rounded-2xl flex items-center justify-center bg-card/90 backdrop-blur-sm z-10">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex gap-1">
+                          <span className="size-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <span className="size-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <span className="size-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </div>
+                        <p className="text-xs font-semibold text-muted-foreground">Nouveau round en cours...</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

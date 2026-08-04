@@ -396,6 +396,12 @@ function WalletButtonInner() {
   const [showProfile, setShowProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
+  useEffect(() => {
+    const handler = () => setShowDialog(true);
+    window.addEventListener("open-wallet-connect", handler);
+    return () => window.removeEventListener("open-wallet-connect", handler);
+  }, []);
+
   async function handleSelectWallet(type: WalletType) {
     setShowDialog(false);
     setIsConnecting(true);

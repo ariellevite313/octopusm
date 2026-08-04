@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { getDashboardData } from "@/services/dashboard-service";
 import { TokenBalances } from "@/components/dashboard/token-balances";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
@@ -32,15 +30,6 @@ export default async function DashboardLayout({
   return (
     <>
       <div className="mx-auto max-w-2xl px-4 py-10 pb-20 md:pb-10 space-y-6">
-        {/* Back to Home */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Markets
-        </Link>
-
         {/* Identity */}
         <div className="flex items-center gap-4">
           {avatarSrc ? (
