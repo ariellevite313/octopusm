@@ -119,6 +119,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, refunded: (allBets ?? []).length });
   }
 
+  if (action === "close") {
+    const { data: market, error: mErr } = await sb
+      .from("mutuel_markets")
+      .select("id, status, betting_closes_at")
+      .eq("id", marketId)
+      .single();
+
+    if (mErr || !market) return NextResponse.json({ error: "Market not found" }, { status: 404 });
+    if (market.status !== "active")
+      return NextResponse.json({ error: "Only active markets can be closed" }, { status: 400 });
+
+    const { error } = await sb
+      .from("mutuel_markets")
+      .update({ status: "closed" })
+      .eq("id", marketId)
+      .eq("status", "active");
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/pools");
+    return NextResponse.json({ ok: true });
+  }
+
   if (action === "resolve") {
     const { winning_option_id } = body;
     if (!winning_option_id || typeof winning_option_id !== "string")
@@ -165,7 +187,7 @@ export async function POST(req: Request) {
     // Rule 2 : 10% des fonds des perdants (USDC) / 8% (CLT) → plateforme
     // Rule 3 : 5% sur chaque retrait individuel (appliqué côté /api/pools/winnings)
     const CREATOR_RATE     = 0.01;
-    const HOUSE_LOSER_RATE = token === "clawdtrust" ? 0.08 : 0.10;
+    const HOUSE_LOSER_RATE = 0.10; // 10% des perdants (USDC et CLT)
     const creatorShare = totalPool * CREATOR_RATE;
     const commission   = losingTotal * HOUSE_LOSER_RATE;
     const winnersPool  = totalPool - creatorShare - commission;

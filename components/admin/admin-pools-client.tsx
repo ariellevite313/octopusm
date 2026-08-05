@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ExternalLink, LoaderCircle, Trophy, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, LoaderCircle, Lock, Trophy, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,130 @@ function StatusBadge({ status }: { status: string }) {
     <Badge className={`capitalize text-xs ${map[status] ?? map.cancelled}`}>
       {status}
     </Badge>
+  );
+}
+
+// ─── Resolution summary ────────────────────────────────────────────────────────
+
+interface ResolveSummary {
+  token: string;
+  total_pool: number;
+  losing_pool: number;
+  house_from_losers: number;
+  creator_share: number;
+  winners_pool: number;
+  winner_count: number;
+  loser_count: number;
+  refund?: boolean;
+  refunded_count?: number;
+}
+
+function ResolveSummaryDialog({
+  summary,
+  onClose,
+}: {
+  summary: ResolveSummary | null;
+  onClose: () => void;
+}) {
+  if (!summary) return null;
+  const tk = summary.token === "clawdtrust" ? "CLT" : "USDC";
+  const fmt = (n: number) => n.toFixed(4);
+  return (
+    <Dialog open={!!summary} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm border-border">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Trophy className="size-4 text-emerald-500" /> Resolution complete
+          </DialogTitle>
+        </DialogHeader>
+        {summary.refund ? (
+          <p className="text-sm text-muted-foreground">
+            All-winner scenario — <strong>{summary.refunded_count}</strong> bets refunded at full stake.
+          </p>
+        ) : (
+          <div className="space-y-2 text-sm">
+            <div className="rounded-xl border border-border divide-y divide-border">
+              <Row label="Total pool"    value={`${fmt(summary.total_pool)} ${tk}`} />
+              <Row label="Losing pool"   value={`${fmt(summary.losing_pool)} ${tk}`} />
+              <Row label="House fee"     value={`${fmt(summary.house_from_losers)} ${tk}`} highlight="red" />
+              <Row label="Creator fee"   value={`${fmt(summary.creator_share)} ${tk}`} highlight="amber" />
+              <Row label="Winners pool"  value={`${fmt(summary.winners_pool)} ${tk}`} highlight="green" />
+              <Row label="Winners"       value={`${summary.winner_count} bets`} />
+              <Row label="Losers"        value={`${summary.loser_count} bets`} />
+            </div>
+          </div>
+        )}
+        <button
+          onClick={onClose}
+          className="mt-2 w-full rounded-xl border border-border py-2 text-sm font-medium text-foreground hover:bg-muted"
+        >
+          Close
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({ label, value, highlight }: { label: string; value: string; highlight?: "red" | "amber" | "green" }) {
+  const color = highlight === "red" ? "text-red-600 dark:text-red-400"
+    : highlight === "amber" ? "text-amber-600 dark:text-amber-400"
+    : highlight === "green" ? "text-emerald-600 dark:text-emerald-400"
+    : "text-foreground";
+  return (
+    <div className="flex items-center justify-between px-3 py-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={`text-xs font-semibold ${color}`}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Close confirm dialog ──────────────────────────────────────────────────────
+
+function CloseDialog({
+  market,
+  open,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  market: MutuelMarketRow | null;
+  open: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  const isPast = market ? new Date(market.betting_closes_at ?? 0) < new Date() : false;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent className="max-w-sm border-border">
+        <DialogHeader>
+          <DialogTitle>Close betting</DialogTitle>
+        </DialogHeader>
+        {market && (
+          <>
+            <p className="text-sm text-muted-foreground line-clamp-2">{market.title}</p>
+            {!isPast && (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+                Betting deadline hasn't passed yet. Closing early will prevent new bets.
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              No new bets will be accepted. You can then resolve the market.
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button onClick={onCancel} disabled={loading}
+                className="flex-1 rounded-xl border border-border py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={onConfirm} disabled={loading}
+                className="flex-1 rounded-xl bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading ? <LoaderCircle className="size-4 animate-spin" /> : <><Lock className="size-3.5" />Close betting</>}
+              </button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -147,8 +271,10 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const [rejectTarget, setRejectTarget] = useState<MutuelMarketRow | null>(null);
+  const [rejectTarget,  setRejectTarget]  = useState<MutuelMarketRow | null>(null);
   const [resolveTarget, setResolveTarget] = useState<MutuelMarketRow | null>(null);
+  const [closeTarget,   setCloseTarget]   = useState<MutuelMarketRow | null>(null);
+  const [resolveSummary, setResolveSummary] = useState<ResolveSummary | null>(null);
 
   async function callApi(body: Record<string, unknown>) {
     setLoading(true);
@@ -160,10 +286,18 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
-      toast.success("Done");
+
+      // Show resolution summary when resolving
+      if (body.action === "resolve" && data.ok) {
+        setResolveSummary({ ...data.summary, refund: data.refund });
+      } else {
+        toast.success("Done");
+      }
+
       router.refresh();
       setRejectTarget(null);
       setResolveTarget(null);
+      setCloseTarget(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
@@ -232,6 +366,12 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
                       <XCircle className="mr-1 size-3" />Reject
                     </Button>
                   </>
+                )}
+                {pool.status === "active" && (
+                  <Button size="sm" variant="outline" className="flex-1 rounded-full border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400"
+                    disabled={loading} onClick={() => setCloseTarget(pool)}>
+                    <Lock className="mr-1 size-3" />Close
+                  </Button>
                 )}
                 {pool.status === "closed" && (
                   <Button size="sm" className="flex-1 rounded-full bg-purple-500 text-white hover:bg-purple-400"
@@ -302,6 +442,12 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
                           </Button>
                         </>
                       )}
+                      {pool.status === "active" && (
+                        <Button size="sm" variant="outline" className="rounded-full border-orange-300 text-xs text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400"
+                          disabled={loading} onClick={() => setCloseTarget(pool)}>
+                          <Lock className="mr-1 size-3" />Close
+                        </Button>
+                      )}
                       {pool.status === "closed" && (
                         <Button size="sm" className="rounded-full bg-purple-500 text-white text-xs hover:bg-purple-400"
                           disabled={loading} onClick={() => setResolveTarget(pool)}>
@@ -322,6 +468,13 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
         </table>
       </div>
 
+      <CloseDialog
+        market={closeTarget}
+        open={!!closeTarget}
+        onConfirm={() => closeTarget && callApi({ action: "close", marketId: closeTarget.id })}
+        onCancel={() => setCloseTarget(null)}
+        loading={loading}
+      />
       <RejectDialog
         open={!!rejectTarget}
         onConfirm={(reason) => rejectTarget && callApi({ action: "reject", marketId: rejectTarget.id, reason })}
@@ -334,6 +487,10 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
         onConfirm={(winningOptionId) => resolveTarget && callApi({ action: "resolve", marketId: resolveTarget.id, winning_option_id: winningOptionId })}
         onCancel={() => setResolveTarget(null)}
         loading={loading}
+      />
+      <ResolveSummaryDialog
+        summary={resolveSummary}
+        onClose={() => { setResolveSummary(null); }}
       />
     </>
   );

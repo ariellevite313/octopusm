@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { Camera, Check, Copy, Globe, LayoutDashboard, LogOut, Moon, Pencil, Settings2, Sun, User } from "lucide-react";
+import { Camera, Check, Copy, Globe, LayoutDashboard, LogOut, Moon, Pencil, Plus, Settings2, Sun, User } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
@@ -18,7 +18,9 @@ import {
   updateWalletProfile,
   uploadAvatar,
   getPlatformBalances,
+  getDrawerStats,
 } from "@/services/wallet-service";
+import { OCTO_TIERS, getOctoTier } from "@/components/leaderboard/octo-tier-badge";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import {
   Sheet,
@@ -41,13 +43,24 @@ const T = {
     cancel: "Cancel",
     save: "Save",
     saving: "Saving…",
-    overview: "Overview",
-    octoBalance: "OCTO balance",
+    overview: "Balances",
+    octoBalance: "OCTO",
     twitter: "Twitter / X",
+    createMarket: "Create a market",
     adminPanel: "Admin Panel",
     disconnect: "Disconnect",
     profileUpdated: "Profile updated",
     avatarUpdated: "Avatar updated",
+    betsPlaced: "Bets",
+    winRate: "Win rate",
+    referral: "Referral",
+    copyLink: "Copy link",
+    copiedLink: "Copied!",
+    filleuls: "referrals",
+    octoEarned: "OCTO earned",
+    nextTier: "next tier",
+    noTier: "No tier yet",
+    maxTier: "Max tier reached",
   },
   fr: {
     myWallet: "Mon portefeuille",
@@ -58,13 +71,24 @@ const T = {
     cancel: "Annuler",
     save: "Sauvegarder",
     saving: "Sauvegarde…",
-    overview: "Aperçu",
-    octoBalance: "Solde OCTO",
+    overview: "Soldes",
+    octoBalance: "OCTO",
     twitter: "Twitter / X",
+    createMarket: "Créer un marché",
     adminPanel: "Panel Admin",
     disconnect: "Déconnecter",
     profileUpdated: "Profil mis à jour",
     avatarUpdated: "Avatar mis à jour",
+    betsPlaced: "Paris",
+    winRate: "Win rate",
+    referral: "Parrainage",
+    copyLink: "Copier le lien",
+    copiedLink: "Copié !",
+    filleuls: "filleuls",
+    octoEarned: "OCTO gagnés",
+    nextTier: "tier suivant",
+    noTier: "Pas encore de tier",
+    maxTier: "Tier maximum atteint",
   },
 } as const;
 
@@ -139,12 +163,44 @@ function ProfileDrawer({
     staleTime: 60_000,
   });
 
-  const { data: octoBalance = 0 } = useQuery({
+  const { data: balances = { usdc: 0, clt: 0, octo: 0 } } = useQuery({
     queryKey: ["platform-balances", walletAddress],
     queryFn: () => getPlatformBalances(walletAddress),
     staleTime: 60_000,
-    select: (d) => d.octo,
   });
+  const octoBalance = balances.octo;
+
+  const { data: drawerStats } = useQuery({
+    queryKey: ["drawer-stats", walletAddress],
+    queryFn: () => getDrawerStats(),
+    staleTime: 60_000,
+  });
+
+  const [copiedRef, setCopiedRef] = useState(false);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const referralLink = drawerStats?.referral_code
+    ? `${origin}/?ref=${drawerStats.referral_code}`
+    : null;
+
+  async function copyReferralLink() {
+    if (!referralLink) return;
+    await navigator.clipboard.writeText(referralLink);
+    setCopiedRef(true);
+    setTimeout(() => setCopiedRef(false), 2000);
+  }
+
+  // OCTO tier progress
+  const currentTier = getOctoTier(octoBalance);
+  const tierIndex = currentTier ? OCTO_TIERS.findIndex(t => t.label === currentTier.label) : -1;
+  const nextTierObj = tierIndex >= 0 && tierIndex < OCTO_TIERS.length - 1 ? OCTO_TIERS[tierIndex + 1] : null;
+  const isMaxTier = tierIndex === OCTO_TIERS.length - 1;
+  const octoProgress = (() => {
+    if (isMaxTier) return 100;
+    if (!currentTier) return Math.min(100, Math.round((octoBalance / 1000) * 100));
+    const range = currentTier.max - currentTier.min;
+    return Math.min(100, Math.round(((octoBalance - currentTier.min) / range) * 100));
+  })();
+  const progressColor = currentTier?.color ?? "#f97316";
 
   function startEdit() {
     setUsername(profile?.username ?? "");
@@ -246,20 +302,99 @@ function ProfileDrawer({
             </button>
           </div>
 
-          {/* Overview */}
+          {/* OCTO progress bar */}
           {!editing && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.overview}</p>
-              <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{t.octoBalance}</span>
-                <span className="text-sm font-semibold">{octoBalance.toLocaleString()} OCTO</span>
+            <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">{octoBalance.toLocaleString()} OCTO</span>
+                <span className="text-xs text-muted-foreground">
+                  {isMaxTier
+                    ? t.maxTier
+                    : nextTierObj
+                      ? `${nextTierObj.label} ${t.nextTier} · ${nextTierObj.min.toLocaleString()}`
+                      : t.noTier}
+                </span>
               </div>
-              {profile?.twitter_handle && (
-                <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{t.twitter}</span>
-                  <span className="text-sm font-medium">@{profile.twitter_handle.replace(/^@/, "")}</span>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${octoProgress}%`, backgroundColor: progressColor }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
+          {!editing && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-2xl border border-border bg-muted/20 px-3 py-2.5 text-center">
+                <p className="text-base font-semibold text-foreground">{drawerStats?.bets_count ?? "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{t.betsPlaced}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-muted/20 px-3 py-2.5 text-center">
+                <p className="text-base font-semibold text-foreground">{drawerStats ? `${drawerStats.win_rate}%` : "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{t.winRate}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Balances */}
+          {!editing && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.overview}</p>
+              <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-blue-100 text-[9px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">$</span>
+                    <span className="text-xs text-muted-foreground">USDC</span>
+                  </div>
+                  <span className="text-sm font-semibold">{balances.usdc.toFixed(2)}</span>
                 </div>
-              )}
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-amber-100 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">C</span>
+                    <span className="text-xs text-muted-foreground">CLT</span>
+                  </div>
+                  <span className="text-sm font-semibold">
+                    {balances.clt >= 1_000_000
+                      ? `${(balances.clt / 1_000_000).toFixed(2)}M`
+                      : balances.clt >= 1_000
+                        ? `${(balances.clt / 1_000).toFixed(1)}K`
+                        : balances.clt.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-orange-100 text-[10px] dark:bg-orange-900/30">🐙</span>
+                    <span className="text-xs text-muted-foreground">{t.octoBalance}</span>
+                  </div>
+                  <span className="text-sm font-semibold">{octoBalance.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Referral mini */}
+          {!editing && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">{t.referral}</p>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                    {drawerStats?.referral_count ?? 0} {t.filleuls} · {(drawerStats?.referral_octo ?? 0).toLocaleString()} {t.octoEarned}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void copyReferralLink()}
+                  disabled={!referralLink}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-400 disabled:opacity-40 transition-colors"
+                >
+                  {copiedRef
+                    ? <><Check className="size-3" />{t.copiedLink}</>
+                    : <><Copy className="size-3" />{t.copyLink}</>}
+                </button>
+              </div>
             </div>
           )}
 
@@ -312,6 +447,15 @@ function ProfileDrawer({
 
         {/* Footer */}
         <div className="border-t border-border px-5 py-4 space-y-2">
+          <Link
+            href="/dashboard/pools"
+            onClick={onClose}
+            className="flex w-full items-center gap-3 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+          >
+            <Plus className="size-4" />
+            <span>{t.createMarket}</span>
+          </Link>
+
           {!isAdmin && (
             <Link
               href="/dashboard"

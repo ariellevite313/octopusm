@@ -53,8 +53,49 @@ export async function POST(req: Request) {
 
   const safeCategory = category && CATEGORY_SLUGS.includes(String(category) as typeof CATEGORY_SLUGS[number]) ? String(category) : "mentions";
 
-  // Création gratuite — pas de frais ni de transaction on-chain requise
   const admin = createAdminClient() as any;
+
+  // ── Daily creation limit ──────────────────────────────────────────────────
+  // Free: 2 markets/day. From the 3rd: costs 500 OCTO (anti-spam).
+  const FREE_DAILY_LIMIT      = 2;
+  const EXTRA_MARKET_COST_OCTO = 500;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { count: todayCount } = await admin
+    .from("mutuel_markets")
+    .select("id", { count: "exact", head: true })
+    .eq("creator_wallet", wallet)
+    .gte("created_at", todayStart.toISOString());
+
+  if ((todayCount ?? 0) >= FREE_DAILY_LIMIT) {
+    // Check OCTO balance
+    const { data: txns } = await admin
+      .from("octo_transactions")
+      .select("amount")
+      .eq("wallet_address", wallet);
+    const octoBalance = ((txns ?? []) as { amount: number }[])
+      .reduce((s, t) => s + Number(t.amount), 0);
+
+    if (octoBalance < EXTRA_MARKET_COST_OCTO) {
+      return NextResponse.json({
+        error: `Limite journalière atteinte : ${FREE_DAILY_LIMIT} marchés gratuits/jour. La création d'un marché supplémentaire coûte ${EXTRA_MARKET_COST_OCTO} OCTO. Solde actuel : ${Math.floor(octoBalance)} OCTO.`,
+        code: "DAILY_LIMIT_INSUFFICIENT_OCTO",
+        today_count: todayCount ?? 0,
+        octo_balance: Math.floor(octoBalance),
+        cost_octo: EXTRA_MARKET_COST_OCTO,
+      }, { status: 429 });
+    }
+
+    // Deduct OCTO
+    await admin.from("octo_transactions").insert({
+      wallet_address: wallet,
+      amount: -EXTRA_MARKET_COST_OCTO,
+      type: "task",
+      note: `Frais création marché (${(todayCount ?? 0) + 1}ème aujourd'hui)`,
+    });
+  }
 
   const baseSlug = title.trim()
     .toLowerCase()
@@ -68,9 +109,10 @@ export async function POST(req: Request) {
       .map(b => b.toString(16).padStart(2, "0")).join("");
   const slug = `${baseSlug}-${randomSuffix()}`;
 
-  const safeOptions = options.map((opt: { label: string }, i: number) => ({
+  const safeOptions = options.map((opt: { label: string; image_url?: string | null }, i: number) => ({
     id: `opt_${i}`,
     label: String(opt.label).slice(0, 80).trim(),
+    ...(opt.image_url ? { image_url: String(opt.image_url).slice(0, 500) } : {}),
   }));
 
   // Use admin client to bypass RLS for the insert (auth already verified above)

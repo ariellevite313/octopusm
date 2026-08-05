@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Camera, X, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
@@ -97,6 +97,15 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
   );
 }
 
+interface DailyLimitInfo {
+  today_count: number;
+  free_limit: number;
+  cost_octo: number;
+  octo_balance: number;
+  is_free: boolean;
+  can_create: boolean;
+}
+
 export function CreatePoolModal({ onClose, onCreated }: Props) {
   const { walletAddress } = useAuth();
 
@@ -109,6 +118,15 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
   const [betToken, setBetToken] = useState<"usdc" | "clawdtrust">("usdc");
   const [step, setStep] = useState<CreateStep>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [dailyLimit, setDailyLimit] = useState<DailyLimitInfo | null>(null);
+
+  // Fetch daily limit info on open
+  useEffect(() => {
+    fetch("/api/pools/daily-limit")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: DailyLimitInfo | null) => { if (d) setDailyLimit(d); })
+      .catch(() => {});
+  }, []);
 
   const submitting = step === "sending";
 
@@ -233,9 +251,37 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
         </button>
 
         <h2 className="mb-1 text-lg font-bold text-foreground">Create a Market</h2>
-        <p className="mb-5 text-sm text-muted-foreground">
+        <p className="mb-3 text-sm text-muted-foreground">
           An admin will review your market before it goes live.
         </p>
+
+        {/* Daily limit banner */}
+        {dailyLimit && !dailyLimit.is_free && (
+          <div className={`mb-4 rounded-xl px-3 py-2.5 text-sm flex flex-col gap-0.5 ${
+            dailyLimit.can_create
+              ? "bg-orange-50 border border-orange-200 text-orange-700 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-300"
+              : "bg-destructive/10 border border-destructive/30 text-destructive"
+          }`}>
+            <span className="font-semibold">
+              {dailyLimit.can_create
+                ? `Marché payant — coûte ${dailyLimit.cost_octo} OCTO`
+                : `Limite journalière atteinte`}
+            </span>
+            <span className="text-xs opacity-80">
+              {dailyLimit.can_create
+                ? `Vous avez créé ${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits aujourd'hui. Solde OCTO : ${dailyLimit.octo_balance}.`
+                : `${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits utilisés. Il vous faut ${dailyLimit.cost_octo} OCTO (solde : ${dailyLimit.octo_balance}).`}
+            </span>
+          </div>
+        )}
+        {dailyLimit && dailyLimit.is_free && dailyLimit.today_count === dailyLimit.free_limit - 1 && (
+          <div className="mb-4 rounded-xl px-3 py-2.5 text-sm bg-blue-50 border border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
+            <span className="font-semibold">Dernier marché gratuit aujourd'hui</span>
+            <span className="block text-xs opacity-80 mt-0.5">
+              Vous avez utilisé {dailyLimit.today_count}/{dailyLimit.free_limit} marchés gratuits.
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Title */}
@@ -421,13 +467,15 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           )}
           <button
             type="submit"
-            disabled={submitting || step === "done"}
+            disabled={submitting || step === "done" || (dailyLimit !== null && !dailyLimit.can_create)}
             className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {step === "sending" ? "Submitting…"
               : step === "done"  ? "Market submitted!"
               : step === "error" ? "Try again"
-              : "Submit Market"}
+              : dailyLimit && !dailyLimit.is_free && dailyLimit.can_create
+                ? `Submit (−${dailyLimit.cost_octo} OCTO)`
+                : "Submit Market"}
           </button>
         </form>
       </div>

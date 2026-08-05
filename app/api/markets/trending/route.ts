@@ -23,7 +23,7 @@ export type TrendingMarket = {
   closes_at?: string;
 };
 
-const MIN_MARKETS = 3;
+const MIN_MARKETS = 1;
 const MAX_RESULTS = 8;
 
 const SYMBOL_IMAGES: Record<string, string> = {
@@ -221,16 +221,18 @@ export async function GET() {
   }
 
   // ── 6. Sort, filter, return ────────────────────────────────────────────────
-  items.sort((a, b) => b.volume_usdc - a.volume_usdc);
+  // Only show markets that actually have volume — sort highest first
+  const withVolume = items
+    .filter((i) => i.volume_usdc > 0)
+    .sort((a, b) => b.volume_usdc - a.volume_usdc);
 
-  const withVolume = items.filter((i) => i.volume_usdc > 0);
   if (withVolume.length < MIN_MARKETS) {
     return NextResponse.json([], {
       headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=60" },
     });
   }
 
-  return NextResponse.json(items.slice(0, MAX_RESULTS), {
+  return NextResponse.json(withVolume.slice(0, MAX_RESULTS), {
     headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=60" },
   });
 }
