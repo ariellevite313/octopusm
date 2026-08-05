@@ -24,42 +24,42 @@ const TEAM_LINKS = [
 export function Footer() {
   return (
     <footer className="border-t border-border bg-card">
-      <div className="mx-auto max-w-7xl px-4 py-10">
+      <div className="mx-auto max-w-7xl px-4 py-8">
 
         {/* Brand header */}
-        <div className="mb-8 flex items-center gap-3">
+        <div className="mb-6 flex items-center gap-2.5">
           <Image
             src="/octomarket-logo.png"
             alt="OMdotfun"
-            width={40}
-            height={40}
+            width={32}
+            height={32}
             className="rounded-full"
           />
           <div>
-            <p className="text-base font-semibold text-foreground">OMdotfun</p>
-            <p className="text-xs text-muted-foreground">Prediction markets on Solana</p>
+            <p className="text-sm font-semibold text-foreground">OMdotfun</p>
+            <p className="text-[11px] text-muted-foreground">Prediction markets on Solana</p>
           </div>
         </div>
 
-        {/* Three columns */}
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 mb-8">
+        {/* 2 columns on mobile, 3 on desktop */}
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 mb-6">
 
           {/* Col 1 — OMdotfun */}
           <div>
-            <p className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               OMdotfun
             </p>
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {OMDOT_LINKS.map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <i className={`ti ${l.icon} text-base`} aria-hidden />
-                    {l.label}
+                    <i className={`ti ${l.icon} text-sm`} aria-hidden />
+                    <span className="truncate">{l.label}</span>
                   </Link>
                 </li>
               ))}
@@ -68,48 +68,48 @@ export function Footer() {
 
           {/* Col 2 — ClawdTrust */}
           <div>
-            <p className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               ClawdTrust{" "}
               <span className="normal-case tracking-normal font-normal opacity-60">Partner</span>
             </p>
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {CLT_LINKS.map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <i className={`ti ${l.icon} text-base`} aria-hidden />
-                    {l.label}
+                    <i className={`ti ${l.icon} text-sm`} aria-hidden />
+                    <span className="truncate">{l.label}</span>
                   </Link>
                 </li>
               ))}
             </ul>
             {/* Token CA */}
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1">
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {CLT_CA.slice(0, 6)}…{CLT_CA.slice(-4)}
+            <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 px-2 py-0.5">
+              <span className="font-mono text-[9px] text-muted-foreground">
+                {CLT_CA.slice(0, 4)}…{CLT_CA.slice(-4)}
               </span>
             </div>
           </div>
 
-          {/* Col 3 — Team */}
-          <div>
-            <p className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          {/* Col 3 — Team (full width on mobile, 3rd col on desktop) */}
+          <div className="col-span-2 sm:col-span-1">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Team
             </p>
-            <ul className="space-y-1">
+            <ul className="flex flex-row gap-4 sm:flex-col sm:gap-0 sm:space-y-0.5">
               {TEAM_LINKS.map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <i className="ti ti-brand-x text-base" aria-hidden />
+                    <i className="ti ti-brand-x text-sm" aria-hidden />
                     {l.label}
                   </Link>
                 </li>
@@ -119,11 +119,11 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-border pt-6 flex flex-col items-center justify-between gap-2 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} OMdotfun. All rights reserved.
+        <div className="border-t border-border pt-4 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground">
+            © {new Date().getFullYear()} OMdotfun
           </p>
-          <p className="text-xs text-muted-foreground">Built on Solana</p>
+          <p className="text-[11px] text-muted-foreground">Built on Solana</p>
         </div>
 
       </div>

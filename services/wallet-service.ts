@@ -83,6 +83,26 @@ export async function getOctoBalance(walletAddress: string): Promise<number> {
  * et inclut tous les types de marchés (prediction, updown, mutuel).
  * Le paramètre walletAddress est ignoré : l'endpoint lit la session côté serveur.
  */
+export interface DrawerStats {
+  bets_count: number;
+  win_count: number;
+  win_rate: number;
+  referral_count: number;
+  referral_octo: number;
+  referral_code: string | null;
+}
+
+export async function getDrawerStats(): Promise<DrawerStats> {
+  const empty: DrawerStats = { bets_count: 0, win_count: 0, win_rate: 0, referral_count: 0, referral_octo: 0, referral_code: null };
+  try {
+    const res = await fetch("/api/drawer-stats");
+    if (!res.ok) return empty;
+    return await res.json() as DrawerStats;
+  } catch {
+    return empty;
+  }
+}
+
 export async function getPlatformBalances(_walletAddress: string): Promise<PlatformBalances> {
   try {
     const res = await fetch("/api/balance");
