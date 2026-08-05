@@ -8,7 +8,7 @@ type Props = {
 
 export function CategoryNav({ categories, active }: Props) {
   return (
-    <nav className="border-b border-border bg-card">
+    <nav className="mb-6 border-b border-border bg-card">
       <div className="mx-auto flex max-w-7xl gap-6 overflow-x-auto px-4 scrollbar-hide [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         <Link
           href="/"
