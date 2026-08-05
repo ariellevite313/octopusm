@@ -94,26 +94,7 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">
-      {/* Create market banner */}
-      <div className="mt-3 mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30">
-            <BarChart2 className="size-4 text-orange-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Got an idea? Launch a prediction market</p>
-            <p className="hidden text-xs text-muted-foreground sm:block">Create your own market and let the community predict the outcome.</p>
-          </div>
-        </div>
-        <button
-          onClick={handleCreateClick}
-          className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600 sm:w-auto sm:shrink-0"
-        >
-          Create a market
-        </button>
-      </div>
-
-      {/* Trending section — home page only, hidden if fewer than 3 markets have volume */}
+      {/* Trending section — home page only */}
       {!category && <TrendingSection />}
 
       {markets.length === 0 ? (

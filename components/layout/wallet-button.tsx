@@ -13,6 +13,15 @@ import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
+import { TokenLogo } from "@/components/shared/token-logo";
+
+const WALLET_ICONS: Record<WalletType, string> = {
+  phantom:     "/phantom-logo.png",
+  solflare:    "/solflare-logo.png",
+  backpack:    "/backpack-logo.png",
+  trustwallet: "https://trustwallet.com/assets/images/media/assets/TWT.png",
+  robinhood:   "/robinhood-logo.png",
+};
 import {
   getWalletProfile,
   updateWalletProfile,
@@ -345,14 +354,14 @@ function ProfileDrawer({
               <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex size-5 items-center justify-center rounded-full bg-blue-100 text-[9px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">$</span>
+                    <TokenLogo token="usdc" className="size-5" />
                     <span className="text-xs text-muted-foreground">USDC</span>
                   </div>
                   <span className="text-sm font-semibold">{balances.usdc.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex size-5 items-center justify-center rounded-full bg-amber-100 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">C</span>
+                    <TokenLogo token="clawdtrust" className="size-5" />
                     <span className="text-xs text-muted-foreground">CLT</span>
                   </div>
                   <span className="text-sm font-semibold">
@@ -365,7 +374,8 @@ function ProfileDrawer({
                 </div>
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex size-5 items-center justify-center rounded-full bg-orange-100 text-[10px] dark:bg-orange-900/30">🐙</span>
+                    <Image src="/octo-coin.png" alt="OCTO" width={20} height={20}
+                      className="size-5 rounded-full object-contain" unoptimized />
                     <span className="text-xs text-muted-foreground">{t.octoBalance}</span>
                   </div>
                   <span className="text-sm font-semibold">{octoBalance.toLocaleString()}</span>
@@ -578,6 +588,7 @@ function WalletButtonInner() {
   if (isLoading) return <div className="h-9 w-36 animate-pulse rounded-md bg-muted" />;
 
   if (isAuthenticated && walletAddress) {
+    const walletIcon = walletType ? WALLET_ICONS[walletType] : null;
     return (
       <>
         <button
@@ -585,7 +596,12 @@ function WalletButtonInner() {
           onClick={() => setShowProfile(true)}
           className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
-          <span className="size-2 rounded-full bg-emerald-500" />
+          {walletIcon ? (
+            <Image src={walletIcon} alt={walletType ?? "wallet"} width={16} height={16}
+              className="size-4 rounded-full object-contain" unoptimized />
+          ) : (
+            <span className="size-2 rounded-full bg-emerald-500" />
+          )}
           {shortAddr(walletAddress)}
         </button>
         {showProfile && (
