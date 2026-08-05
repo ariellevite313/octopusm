@@ -53,6 +53,15 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
               <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
                 MARKET
               </span>
+              {isUsdc ? (
+                <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                  USDC
+                </span>
+              ) : (
+                <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                  ClawdTrust
+                </span>
+              )}
             </div>
             <p className="line-clamp-2 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100">
               {market.title}
@@ -60,9 +69,9 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
           </div>
         </div>
 
-        {/* Options */}
-        <div className={options.length === 2 ? "grid grid-cols-2 gap-2" : "flex flex-col gap-1.5"}>
-          {options.slice(0, 4).map((opt) => (
+        {/* Options — max 3, spacer flex-1 pour hauteur uniforme */}
+        <div className="flex flex-1 flex-col gap-1.5">
+          {options.slice(0, 3).map((opt) => (
             <div
               key={opt.id}
               className="flex items-center gap-2 rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40"
@@ -80,11 +89,10 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
               </span>
             </div>
           ))}
-          {options.length > 4 && (
-            <div className="rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40">
-              <span className="text-xs text-zinc-400">+{options.length - 4} more options</span>
-            </div>
+          {options.length > 3 && (
+            <p className="pl-1 text-[11px] text-zinc-400">+{options.length - 3} more options</p>
           )}
+          <div className="flex-1" />
         </div>
 
         {/* Footer */}
