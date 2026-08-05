@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
         hostname: "uswgrdqkftjlhlilhgfp.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        protocol: "https",
+        hostname: "db.omdot.fun",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   // Polyfill Buffer pour @solana/web3.js (webpack uniquement, pas Turbopack)
