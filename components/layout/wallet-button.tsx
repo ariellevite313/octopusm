@@ -60,7 +60,7 @@ const T = {
     disconnect: "Disconnect",
     profileUpdated: "Profile updated",
     avatarUpdated: "Avatar updated",
-    betsPlaced: "Bets",
+    betsPlaced: "Predicts",
     winRate: "Win rate",
     referral: "Referral",
     copyLink: "Copy link",
@@ -88,7 +88,7 @@ const T = {
     disconnect: "Déconnecter",
     profileUpdated: "Profil mis à jour",
     avatarUpdated: "Avatar mis à jour",
-    betsPlaced: "Paris",
+    betsPlaced: "Predicts",
     winRate: "Win rate",
     referral: "Parrainage",
     copyLink: "Copier le lien",
@@ -362,7 +362,7 @@ function ProfileDrawer({
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
                     <TokenLogo token="clawdtrust" className="size-5" />
-                    <span className="text-xs text-muted-foreground">CLT</span>
+                    <span className="text-xs text-muted-foreground">ClawdTrust</span>
                   </div>
                   <span className="text-sm font-semibold">
                     {balances.clt >= 1_000_000

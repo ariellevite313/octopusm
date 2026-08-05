@@ -20,7 +20,7 @@ export function TrendingSection() {
   if (!markets || markets.length === 0) return null;
 
   return (
-    <section className="mb-8">
+    <section className="mt-6 mb-8">
       <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
         🔥 Trending
       </h2>
