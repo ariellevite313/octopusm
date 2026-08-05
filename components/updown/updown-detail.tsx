@@ -731,6 +731,8 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     if (!walletAddress || !walletType) { setShowWalletDialog(true); return; }
     if (amount < MIN_AMOUNT) { toast.error(`Minimum $${MIN_AMOUNT} USDC`); return; }
     if (!market) return;
+    // Guard: block transaction if betting window has closed (avoids losing USDC on-chain)
+    if (bettingClosed) { toast.error("Betting is closed for this round"); return; }
 
     setSubmitting(true);
     setActiveDir(dir);
@@ -854,6 +856,9 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
   const isOpen      = market.status === "open";
   const isResolved  = market.status === "resolved";
+  // Betting is locked as soon as closes_at is past, even if status hasn't updated yet
+  const bettingClosed = !isOpen || liveCountdown === "Termine" ||
+    (resolveTarget != null && Date.now() >= new Date(resolveTarget).getTime());
   const totalPool  = (market.pool_up ?? 0) + (market.pool_down ?? 0);
   const meta       = COIN_META[market.symbol] ?? { label: market.symbol, symbol: market.symbol, color: "#888", img: "" };
 
@@ -983,7 +988,13 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               </div>
             </div>
 
-            {isOpen ? (
+            {isOpen && bettingClosed ? (
+              <div className="p-6 text-center space-y-2">
+                <Loader2 className="mx-auto size-5 animate-spin text-amber-500" />
+                <p className="text-sm font-semibold text-amber-500">Resolving…</p>
+                <p className="text-xs text-muted-foreground">Betting is closed. Awaiting outcome.</p>
+              </div>
+            ) : isOpen ? (
               <div className="p-4 space-y-4">
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Quick predict</p>
