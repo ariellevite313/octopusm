@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://omdot.fun/leaderboard" },
 };
 
+export const revalidate = 3600;
+
 export default function LeaderboardPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">

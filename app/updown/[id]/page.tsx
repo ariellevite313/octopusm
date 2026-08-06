@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/server";
 import { UpDownDetail } from "@/components/updown/updown-detail";
 
+export const revalidate = 60;
+
 type Props = { params: Promise<{ id: string }> };
 
 async function getUpDownMarket(id: string) {
