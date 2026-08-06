@@ -5,7 +5,7 @@ const CLT_CA = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 export function Footer() {
   return (
     <footer className="mt-12 px-4 pb-6">
-      <div className="mx-auto max-w-7xl rounded-2xl px-6 py-10" style={{ background: "#0a0a0f" }}>
+      <div className="mx-auto max-w-7xl rounded-2xl px-6 py-10 bg-muted/40 dark:bg-zinc-950 border border-border">
 
         {/* Main grid */}
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 mb-9">
@@ -19,12 +19,11 @@ export function Footer() {
                 alt="OMdotfun"
                 width={36}
                 height={36}
-                className="rounded-xl"
-                style={{ background: "#1a1a2e", border: "0.5px solid #333" }}
+                className="rounded-xl border border-border"
               />
-              <p className="text-base font-semibold text-white">OMdotfun</p>
+              <p className="text-base font-semibold text-foreground">OMdotfun</p>
             </div>
-            <p className="mb-5 text-sm leading-relaxed" style={{ color: "#888", maxWidth: 200 }}>
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground" style={{ maxWidth: 200 }}>
               Where knowledge meets prediction on-chain.
             </p>
             <div className="flex gap-2">
@@ -37,8 +36,7 @@ export function Footer() {
                   href={s.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex size-8 items-center justify-center rounded-lg transition-colors"
-                  style={{ background: "#1a1a2e", border: "0.5px solid #2a2a3e", color: "#666" }}
+                  className="flex size-8 items-center justify-center rounded-lg transition-colors bg-background border border-border text-muted-foreground hover:text-foreground"
                 >
                   <i className={`ti ${s.icon} text-base`} aria-hidden />
                 </Link>
@@ -48,7 +46,7 @@ export function Footer() {
 
           {/* Platform */}
           <div>
-            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#444" }}>
+            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               Platform
             </p>
             <ul className="space-y-1">
@@ -63,8 +61,7 @@ export function Footer() {
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 py-0.5 text-sm transition-colors"
-                    style={{ color: "#666" }}
+                    className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <i className={`ti ${l.icon} text-sm`} aria-hidden />
                     {l.label}
@@ -76,7 +73,7 @@ export function Footer() {
 
           {/* ClawdTrust */}
           <div>
-            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#444" }}>
+            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               ClawdTrust <span className="normal-case tracking-normal font-normal opacity-60">Partner</span>
             </p>
             <ul className="space-y-1">
@@ -89,8 +86,7 @@ export function Footer() {
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 py-0.5 text-sm transition-colors"
-                    style={{ color: "#666" }}
+                    className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <i className={`ti ${l.icon} text-sm`} aria-hidden />
                     {l.label}
@@ -102,8 +98,7 @@ export function Footer() {
                   href="https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 py-0.5 text-sm transition-colors"
-                  style={{ color: "#666" }}
+                  className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/dexcrenner.png" alt="Dexscreener" width={14} height={14} className="rounded-sm" />
@@ -111,17 +106,14 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-            <div
-              className="mt-3 inline-block rounded-md px-2 py-1 font-mono text-[10px]"
-              style={{ background: "#111", border: "0.5px solid #222", color: "#444" }}
-            >
+            <div className="mt-3 inline-block rounded-md px-2 py-1 font-mono text-[10px] bg-muted border border-border text-muted-foreground">
               {CLT_CA.slice(0, 6)}…{CLT_CA.slice(-4)}
             </div>
           </div>
 
           {/* Team */}
           <div>
-            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#444" }}>
+            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               Team
             </p>
             <ul className="space-y-1">
@@ -134,8 +126,7 @@ export function Footer() {
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 py-0.5 text-sm transition-colors"
-                    style={{ color: "#666" }}
+                    className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <i className="ti ti-brand-x text-sm" aria-hidden />
                     {l.label}
@@ -148,11 +139,8 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div
-          className="flex items-center justify-between pt-4"
-          style={{ borderTop: "0.5px solid #1a1a1a" }}
-        >
-          <p className="text-[11px]" style={{ color: "#444" }}>
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <p className="text-[11px] text-muted-foreground">
             © {new Date().getFullYear()} OMdotfun — All rights reserved
           </p>
           <div
