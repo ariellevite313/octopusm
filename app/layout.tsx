@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import { Providers } from "@/providers/providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
