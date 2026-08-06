@@ -12,7 +12,16 @@ export function Footer() {
 
           {/* Brand col */}
           <div className="col-span-2 sm:col-span-1">
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/octomarket-logo.png"
+                alt="OMdotfun"
+                width={36}
+                height={36}
+                className="rounded-xl"
+                style={{ background: "#1a1a2e", border: "0.5px solid #333" }}
+              />
               <p className="text-base font-semibold text-white">OMdotfun</p>
             </div>
             <p className="mb-5 text-sm leading-relaxed" style={{ color: "#888", maxWidth: 200 }}>
