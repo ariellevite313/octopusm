@@ -12,16 +12,7 @@ export function Footer() {
 
           {/* Brand col */}
           <div className="col-span-2 sm:col-span-1">
-            <div className="mb-4 flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/octomarket-logo.png"
-                alt="OMdotfun"
-                width={36}
-                height={36}
-                className="rounded-xl"
-                style={{ background: "#1a1a2e", border: "0.5px solid #333" }}
-              />
+            <div className="mb-4">
               <p className="text-base font-semibold text-white">OMdotfun</p>
             </div>
             <p className="mb-5 text-sm leading-relaxed" style={{ color: "#888", maxWidth: 200 }}>
@@ -29,8 +20,8 @@ export function Footer() {
             </p>
             <div className="flex gap-2">
               {[
-                { href: "https://x.com/omdotfun",  img: "/x-logo.png",       alt: "X" },
-                { href: "https://t.me/Omdotfun",   img: "/telegram-logo.png", alt: "Telegram" },
+                { href: "https://x.com/omdotfun",  icon: "ti-brand-x" },
+                { href: "https://t.me/Omdotfun",   icon: "ti-brand-telegram" },
               ].map((s) => (
                 <Link
                   key={s.href}
@@ -38,10 +29,9 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex size-8 items-center justify-center rounded-lg transition-colors"
-                  style={{ background: "#1a1a2e", border: "0.5px solid #2a2a3e" }}
+                  style={{ background: "#1a1a2e", border: "0.5px solid #2a2a3e", color: "#666" }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.img} alt={s.alt} width={16} height={16} className="opacity-60" />
+                  <i className={`ti ${s.icon} text-base`} aria-hidden />
                 </Link>
               ))}
             </div>
@@ -54,10 +44,10 @@ export function Footer() {
             </p>
             <ul className="space-y-1">
               {[
-                { href: "https://x.com/omdotfun",       img: "/x-logo.png",        alt: "X",        label: "@omdotfun" },
-                { href: "https://x.com/octomarketfun",  img: "/x-logo.png",        alt: "X",        label: "@octomarketfun" },
-                { href: "https://t.me/Omdotfun",        img: "/telegram-logo.png", alt: "Telegram", label: "News & Updates" },
-                { href: "https://t.me/OmdotfunTuto",    img: "/telegram-logo.png", alt: "Telegram", label: "Tutorials" },
+                { href: "https://x.com/omdotfun",       icon: "ti-brand-x",        label: "@omdotfun" },
+                { href: "https://x.com/octomarketfun",  icon: "ti-brand-x",        label: "@octomarketfun" },
+                { href: "https://t.me/Omdotfun",        icon: "ti-brand-telegram", label: "News & Updates" },
+                { href: "https://t.me/OmdotfunTuto",    icon: "ti-brand-telegram", label: "Tutorials" },
               ].map((l) => (
                 <li key={l.href}>
                   <Link
@@ -67,8 +57,7 @@ export function Footer() {
                     className="flex items-center gap-2 py-0.5 text-sm transition-colors"
                     style={{ color: "#666" }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={l.img} alt={l.alt} width={13} height={13} className="opacity-50 shrink-0" />
+                    <i className={`ti ${l.icon} text-sm`} aria-hidden />
                     {l.label}
                   </Link>
                 </li>
@@ -83,8 +72,8 @@ export function Footer() {
             </p>
             <ul className="space-y-1">
               {[
-                { href: "https://x.com/clawdtrust", img: "/x-logo.png",           alt: "X",           label: "@clawdtrust" },
-                { href: "https://clawdtrust.com",    img: "/clawdtrust-coin.png",  alt: "ClawdTrust",  label: "clawdtrust.com" },
+                { href: "https://x.com/clawdtrust",  icon: "ti-brand-x", label: "@clawdtrust" },
+                { href: "https://clawdtrust.com",     icon: "ti-world",   label: "clawdtrust.com" },
               ].map((l) => (
                 <li key={l.href}>
                   <Link
@@ -94,8 +83,7 @@ export function Footer() {
                     className="flex items-center gap-2 py-0.5 text-sm transition-colors"
                     style={{ color: "#666" }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={l.img} alt={l.alt} width={13} height={13} className="opacity-50 shrink-0 rounded-full" />
+                    <i className={`ti ${l.icon} text-sm`} aria-hidden />
                     {l.label}
                   </Link>
                 </li>
@@ -140,8 +128,7 @@ export function Footer() {
                     className="flex items-center gap-2 py-0.5 text-sm transition-colors"
                     style={{ color: "#666" }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/x-logo.png" alt="X" width={13} height={13} className="opacity-50 shrink-0" />
+                    <i className="ti ti-brand-x text-sm" aria-hidden />
                     {l.label}
                   </Link>
                 </li>
