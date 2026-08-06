@@ -19,7 +19,8 @@ const DOMAIN_LOGOS: Record<string, string> = {
 };
 
 function getTaskLogo(task: TaskWithCompletion): string | null {
-  if (task.icon) return task.icon;
+  // Only use task.icon if it's a valid path/URL (not a label like "X" or "Discord")
+  if (task.icon && (task.icon.startsWith("/") || task.icon.startsWith("http"))) return task.icon;
   if (!task.external_link) return null;
   try {
     const host = new URL(task.external_link).hostname.replace("www.", "");
@@ -79,7 +80,6 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
 
   return (
     <section>
-      <h2 className="mb-3 text-base font-bold text-foreground">Tasks</h2>
       <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
 
         {active.map((task) => {
