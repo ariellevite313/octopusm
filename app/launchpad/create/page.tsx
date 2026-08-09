@@ -4,7 +4,7 @@ import { CreateTokenWizard } from "@/components/launchpad/create-token-wizard";
 
 export const metadata: Metadata = {
   title: "Launch a Token — Launchpad",
-  description: "Create and launch your Solana token with Meteora DBC on OMdotfun.",
+  description: "Create and launch your Solana token on OMdotfun.",
   robots: { index: false, follow: false },
 };
 
@@ -20,7 +20,7 @@ export default function CreateTokenPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-foreground">Launch a Token</h1>
         <p className="text-sm text-muted-foreground">
-          Powered by Meteora Dynamic Bonding Curve
+          Launch your token on Solana
         </p>
       </div>
       <CreateTokenWizard />

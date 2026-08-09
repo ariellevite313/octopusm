@@ -968,7 +968,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               isAuthenticated={!!walletAddress}
               walletAddress={walletAddress ?? undefined}
               onRequestConnect={() => setShowWalletDialog(true)}
-              apiBase="/api/markets"
+              apiBase="/api/updown"
             />
           </div>
         </div>

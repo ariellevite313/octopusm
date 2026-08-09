@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, ExternalLink, Rocket, Clock, AlertCircle } from "lucide-react";
+import { ExternalLink, Rocket, Clock, AlertCircle } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -201,15 +201,8 @@ export function MyTokensSection({ walletAddress }: Props) {
   return (
     <section>
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3">
         <h2 className="text-base font-bold text-foreground">My Tokens</h2>
-        <Link
-          href="/launchpad/create"
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          <Plus className="size-3.5" />
-          Create Token
-        </Link>
       </div>
 
       {/* Body */}

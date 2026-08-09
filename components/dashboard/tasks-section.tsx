@@ -72,7 +72,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
     setClaiming((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
     if (error) { toast.error(error); return; }
     setLocalDone((prev) => new Set(prev).add(task.id));
-    toast.success(`+${task.reward_octo} OCTO earned!`);
+    toast.success(`+${task.reward_octo} Omeru Inu earned!`);
   }
 
   const active    = tasks.filter((t) => !isDone(t));
@@ -104,7 +104,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
 
               <div className="flex items-center gap-2 shrink-0">
                 <div className="flex items-center gap-1 rounded-full bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 border border-orange-200 dark:border-orange-800/40">
-                  <Image src="/octo-coin.png" alt="OCTO" width={12} height={12} className="rounded-full" />
+                  <Image src="/octo-coin.png" alt="Omeru Inu" width={12} height={12} className="rounded-full" />
                   <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">
                     +{task.reward_octo}
                   </span>
@@ -146,7 +146,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
                 <p className="text-sm text-muted-foreground line-through truncate">{task.title}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Image src="/octo-coin.png" alt="OCTO" width={12} height={12} className="rounded-full" />
+                <Image src="/octo-coin.png" alt="Omeru Inu" width={12} height={12} className="rounded-full" />
                 <span className="text-xs text-muted-foreground">+{task.reward_octo}</span>
               </div>
             </div>

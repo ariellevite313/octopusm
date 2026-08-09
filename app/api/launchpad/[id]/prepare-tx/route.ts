@@ -15,9 +15,9 @@
  */
 import { NextResponse } from "next/server";
 import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 import { createAdminClient } from "@/lib/supabase/server";
 import { buildCreatePoolTransaction, buildMetadataJson } from "@/lib/solana/dbc";
-import { decodeSecretKey } from "@/lib/solana/vanity";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -53,17 +53,16 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    // Vanity keypair must be ready
+    // Mint keypair must be set
     if (!token.mint_address || !token.vanity_secret_key) {
       return NextResponse.json(
-        { error: "Vanity address is still being generated. Try again in a few seconds." },
+        { error: "Mint keypair not ready. Please try again." },
         { status: 202 }
       );
     }
 
-    // Reconstruct mint keypair from stored secret
-    const secretKey   = decodeSecretKey(token.vanity_secret_key as string);
-    const mintKeypair = Keypair.fromSecretKey(secretKey);
+    // Reconstruct mint keypair from stored secret (bs58-encoded)
+    const mintKeypair = Keypair.fromSecretKey(bs58.decode(token.vanity_secret_key as string));
 
     // Build metadata JSON — logo_url may be null if R2 upload is pending
     const metadataJson = buildMetadataJson({

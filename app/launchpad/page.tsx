@@ -5,11 +5,11 @@ import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
 
 export const metadata: Metadata = {
   title: "Launchpad",
-  description: "Launch your Solana token with Meteora Dynamic Bonding Curve on OMdotfun.",
+  description: "Launch your Solana token on OMdotfun.",
   alternates: { canonical: "https://omdot.fun/launchpad" },
   openGraph: {
     title: "OMdotfun Launchpad",
-    description: "Launch your Solana token with Meteora Dynamic Bonding Curve.",
+    description: "Launch your Solana token on OMdotfun.",
     url: "https://omdot.fun/launchpad",
     type: "website",
     images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "OMdotfun Launchpad" }],
@@ -46,7 +46,7 @@ export default function LaunchpadPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Launchpad</h1>
         <p className="text-sm text-muted-foreground">
-          Tokens launched on Solana via Meteora DBC
+          Tokens launched on Solana
         </p>
       </div>
 

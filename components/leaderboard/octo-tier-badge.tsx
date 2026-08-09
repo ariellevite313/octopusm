@@ -33,7 +33,7 @@ export function OctoBadge({ totalOcto, size = 14 }: { totalOcto: number; size?: 
   const tier = getOctoTier(totalOcto);
   if (!tier) return null;
   return (
-    <span title={`${tier.label} — ${totalOcto.toLocaleString()} OCTO`} className="inline-flex shrink-0 items-center text-white dark:text-zinc-950">
+    <span title={`${tier.label} — ${totalOcto.toLocaleString()} Omeru Inu`} className="inline-flex shrink-0 items-center text-white dark:text-zinc-950">
       <FilledBadgeCheck color={tier.color} size={size} />
     </span>
   );

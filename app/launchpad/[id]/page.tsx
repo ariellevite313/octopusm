@@ -149,9 +149,9 @@ export default async function TokenDetailPage({ params }: Props) {
           {/* Pool address (post-launch) */}
           {token.pool_address && (
             <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
-              <p className="text-xs text-muted-foreground mb-1">Meteora DBC Pool</p>
+              <p className="text-xs text-muted-foreground mb-1">Pool</p>
               <a
-                href={`https://app.meteora.ag/dbc/${token.pool_address}`}
+                href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-mono text-xs text-blue-600 dark:text-blue-400 break-all hover:underline"
@@ -165,15 +165,15 @@ export default async function TokenDetailPage({ params }: Props) {
           {isGraduated && (
             <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center">
               <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">🎓 Graduated to DAMM</p>
-              <p className="text-xs text-muted-foreground mt-1">This token has migrated to Meteora DAMM V1.</p>
+              <p className="text-xs text-muted-foreground mt-1">This token has graduated and is now fully tradeable.</p>
               {token.pool_address && (
                 <a
-                  href={`https://app.meteora.ag/pools/${token.pool_address}`}
+                  href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 inline-block text-xs font-medium text-indigo-600 dark:text-indigo-400 underline"
                 >
-                  Trade on Meteora →
+                  Trade on Birdeye →
                 </a>
               )}
             </div>
@@ -244,12 +244,12 @@ export default async function TokenDetailPage({ params }: Props) {
           {/* Trade button for live tokens */}
           {isActive && token.is_tradeable && token.pool_address && (
             <a
-              href={`https://app.meteora.ag/dbc/${token.pool_address}`}
+              href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Trade on Meteora →
+              Trade on Birdeye →
             </a>
           )}
         </div>

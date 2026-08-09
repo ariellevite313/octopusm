@@ -133,7 +133,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
               type="number"
               value={rewardOcto}
               onChange={(e) => setRewardOcto(e.target.value)}
-              placeholder="OCTO Reward *"
+              placeholder="Omeru Inu Reward *"
               min={1}
               className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
             />
@@ -225,7 +225,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1 font-semibold text-orange-600">
                     <span>{task.reward_octo.toLocaleString()}</span>
-                    <img src="/octo-coin.png" alt="OCTO" width={14} height={14} className="rounded-full" />
+                    <img src="/octo-coin.png" alt="Omeru Inu" width={14} height={14} className="rounded-full" />
                   </div>
                 </td>
                 <td className="px-4 py-3">

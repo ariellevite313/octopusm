@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LoaderCircle, Ban, RefreshCw } from "lucide-react";
+import { ExternalLink, LoaderCircle, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -41,11 +41,6 @@ function statusLabel(t: TokenRow): string {
   return t.status.charAt(0).toUpperCase() + t.status.slice(1);
 }
 
-function vanityBadge(t: TokenRow): { label: string; cls: string } {
-  if (t.mint_address)             return { label: "Ready ✓",  cls: "text-emerald-600 dark:text-emerald-400" };
-  if (t.vanity_job_id === "retry") return { label: "Retry ⚠",  cls: "text-orange-600 dark:text-orange-400" };
-  return { label: "Generating…",   cls: "text-muted-foreground" };
-}
 
 function short(s: string): string {
   return `${s.slice(0, 5)}…${s.slice(-4)}`;
@@ -144,7 +139,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/40">
             <tr>
-              {["Token", "Creator", "Supply", "Status", "Vanity", "Created", "Actions"].map(h => (
+              {["Token", "Creator", "Supply", "Status", "Created", "Actions"].map(h => (
                 <th
                   key={h}
                   className="px-4 py-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap"
@@ -156,7 +151,6 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
           </thead>
           <tbody className="divide-y divide-border">
             {visible.map(token => {
-              const vBadge = vanityBadge(token);
               const isBusy = (key: string) => loading === token.id + key;
 
               return (
@@ -196,11 +190,6 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                     )}
                   </td>
 
-                  {/* Vanity */}
-                  <td className={`px-4 py-3 text-xs whitespace-nowrap ${vBadge.cls}`}>
-                    {vBadge.label}
-                  </td>
-
                   {/* Created */}
                   <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                     {fmtDate(token.created_at)}
@@ -232,23 +221,6 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                             🦅
                           </Button>
                         </a>
-                      )}
-
-                      {/* Retry vanity — only for pending tokens stuck in retry */}
-                      {token.status === "pending" && token.vanity_job_id === "retry" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!!loading}
-                          title="Retry vanity generation"
-                          className="rounded-full border-orange-300 text-orange-700 text-xs hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300"
-                          onClick={() => doAction(token.id, "retry-vanity")}
-                        >
-                          {isBusy("retry-vanity")
-                            ? <LoaderCircle className="size-3 animate-spin" />
-                            : <RefreshCw className="size-3" />
-                          }
-                        </Button>
                       )}
 
                       {/* Cancel — not for already cancelled or graduated */}

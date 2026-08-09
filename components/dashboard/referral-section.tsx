@@ -69,7 +69,7 @@ export function ReferralSection({
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Earn <span className="font-semibold text-orange-500">200 OCTO</span> for each friend who connects their wallet via your link — they get <span className="font-semibold text-orange-500">50 OCTO</span> too.
+            Earn <span className="font-semibold text-orange-500">200 Omeru Inu</span> for each friend who connects their wallet via your link — they get <span className="font-semibold text-orange-500">50 Omeru Inu</span> too.
           </p>
         </div>
 
@@ -84,7 +84,7 @@ export function ReferralSection({
           <div className="px-3 py-3 text-center">
             <p className="text-lg font-bold text-orange-500">{octoEarned.toLocaleString("en-US")}</p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              OCTO earned
+              Omeru Inu earned
             </p>
           </div>
           <div className="px-3 py-3 text-center">
@@ -151,7 +151,7 @@ export function ReferralSection({
 
         {referralCount === 0 && (
           <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-            No referrals yet — share your link to start earning OCTO.
+            No referrals yet — share your link to start earning Omeru Inu.
           </div>
         )}
       </div>
