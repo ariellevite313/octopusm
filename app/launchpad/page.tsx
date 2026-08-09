@@ -43,27 +43,11 @@ export default function LaunchpadPage() {
     <main className="mx-auto max-w-7xl px-4 py-8">
 
       {/* Header */}
-      <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Launchpad</h1>
-          <p className="text-sm text-muted-foreground">
-            Launch your token on Solana with Meteora DBC
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/launchpad/coming-soon"
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Coming Soon
-          </a>
-          <a
-            href="/launchpad/create"
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-          >
-            + Launch a token
-          </a>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-foreground">Launchpad</h1>
+        <p className="text-sm text-muted-foreground">
+          Tokens launched on Solana via Meteora DBC
+        </p>
       </div>
 
       {/* Token grid */}
