@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Layers, CheckSquare, Users } from "lucide-react";
+import { BarChart2, Layers, CheckSquare, Users, Rocket } from "lucide-react";
 
 const TABS = [
   { label: "Predictions", href: "/dashboard/predictions", icon: BarChart2 },
   { label: "Markets",     href: "/dashboard/pools",       icon: Layers },
+  { label: "Tokens",      href: "/dashboard/launchpad",   icon: Rocket },
   { label: "Tasks",       href: "/dashboard/tasks",       icon: CheckSquare },
-  { label: "Referrals",  href: "/dashboard/referrals",   icon: Users },
+  { label: "Referrals",   href: "/dashboard/referrals",   icon: Users },
 ];
+
+// Note: 5 tabs — kept compact via text-sm. The container uses overflow-x-auto
+// so tabs never wrap or clip on narrow desktop screens.
 
 export function DashboardTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="hidden md:flex border-b border-border">
+    <div className="hidden md:flex border-b border-border overflow-x-auto scrollbar-none">
       {TABS.map(({ label, href, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
