@@ -30,12 +30,12 @@ export type DbcPoolParams = {
   metadataUri: string;
   /** Creator wallet public key (signs the pool creation) */
   creatorWallet: string;
-  /** Vanity mint keypair (ends in OCTO) */
+  /** Mint keypair (randomly generated) */
   mintKeypair: Keypair;
   /** Total token supply (e.g. 1_000_000_000) */
   totalSupply: number;
-  /** Creator trading fee % (1 or 2) */
-  creatorFeePct: 1 | 2;
+  /** Creator trading fee % (fixed at 1) */
+  creatorFeePct: 1;
   /** First buy amount in SOL (0 = disabled) */
   firstBuySol: number;
   /** If scheduled, Unix timestamp (seconds) when pool becomes active */
@@ -135,7 +135,7 @@ export async function buildCreatePoolTransaction(
       creatorLockedLpPercentage: 0,
       migrationFee: {
         feePercentage: 0,
-        creatorFeePercentage: params.creatorFeePct === 2 ? 50 : 25, // split
+        creatorFeePercentage: 25, // 50% of the 1% fee goes to creator, 50% to platform
       },
       sqrtStartPrice: new BN("79226673515401279992447579055"), // very low start price
       lockedVesting: {
@@ -145,7 +145,7 @@ export async function buildCreatePoolTransaction(
         numberOfPeriod: new BN(0),
         cliffUnlockAmount: new BN(0),
       },
-      creatorTradingFeePercentage: params.creatorFeePct === 2 ? 50 : 25,
+      creatorTradingFeePercentage: 25,
       tokenSupply: null, // SDK computes from curve
       poolCreationFee: new BN(poolCreationFeeLamports),
     },

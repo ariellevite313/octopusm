@@ -48,6 +48,7 @@ export type TokenReservation = {
 export const PROTECTED_NAMES = new Set([
   "OM", "OCTO", "CLAWDTRUST", "OCTOPUS MARKET",
   "OCTOMARKET", "OMDOTFUN", "OMFUN", "BYOM", "CLAWD", "TRUST",
+  "OMERU", "OMERU INU", "OMERUINU",
 ]);
 
 export function isProtectedName(value: string): boolean {

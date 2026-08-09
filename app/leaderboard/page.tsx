@@ -4,7 +4,7 @@ import { LeaderboardTabs } from "@/components/leaderboard/leaderboard-tabs";
 
 export const metadata: Metadata = {
   title: "Leaderboard",
-  description: "Top winners on OMdotfun. Best USDC, CLT and OCTO earners on Solana prediction markets.",
+  description: "Top winners on OMdotfun. Best USDC, CLT and Omeru Inu earners on Solana prediction markets.",
   openGraph: {
     title: "OMdotfun — Leaderboard",
     description: "Top winners ranked by gains on Solana prediction markets.",

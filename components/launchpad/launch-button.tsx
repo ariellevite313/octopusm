@@ -1,15 +1,13 @@
 "use client";
 
 /**
- * LaunchButton — polls vanity address status, then guides the user through
- * the on-chain DBC pool creation:
+ * LaunchButton — guides the user through the on-chain pool creation:
  *
- *  1. Poll /api/launchpad/[id]/status until vanityReady
- *  2. Call /api/launchpad/[id]/prepare-tx → get base64 transaction
- *  3. Deserialize + sign with user wallet (via window.solana / Phantom)
- *  4. Send to network
- *  5. Call /api/launchpad/[id]/confirm with the tx signature
- *  6. Redirect to /launchpad/[id]
+ *  1. Call /api/launchpad/[id]/prepare-tx → get base64 transaction
+ *  2. Deserialize + sign with user wallet (via window.solana / Phantom)
+ *  3. Send to network
+ *  4. Call /api/launchpad/[id]/confirm with the tx signature
+ *  5. Redirect to /launchpad/[id]
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -17,12 +15,12 @@ import { useRouter } from "next/navigation";
 import { Transaction, Connection, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
+// Clock kept for scheduled launch indicator
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Phase =
-  | "polling"       // waiting for vanity address
-  | "ready"         // vanity ready, waiting for user to click
+  | "ready"         // mint ready, waiting for user to click
   | "signing"       // requesting wallet signature
   | "sending"       // submitting tx to network
   | "confirming"    // waiting for backend confirm
@@ -66,49 +64,20 @@ type Props = {
 
 export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const router = useRouter();
-  const [phase, setPhase]           = useState<Phase>("polling");
+  const [phase, setPhase]             = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
-  const [error, setError]           = useState<string | null>(null);
-  const [dots, setDots]             = useState("");
+  const [error, setError]             = useState<string | null>(null);
 
-  // ── Animated dots for polling state ─────────────────────────────────────────
+  // Fetch mint address on mount
   useEffect(() => {
-    if (phase !== "polling") return;
-    const id = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 500);
-    return () => clearInterval(id);
-  }, [phase]);
-
-  // ── Poll status until vanity address is ready ────────────────────────────────
-  useEffect(() => {
-    if (phase !== "polling") return;
-    let cancelled = false;
-
-    async function poll() {
-      while (!cancelled) {
-        try {
-          const res  = await fetch(`/api/launchpad/${tokenId}/status`);
-          const body = await res.json() as StatusResponse;
-
-          if (body.vanityReady && body.mintAddress) {
-            setMintAddress(body.mintAddress);
-            setPhase("ready");
-            return;
-          }
-          if (body.status === "active" || body.status === "graduated") {
-            setPhase("done");
-            return;
-          }
-        } catch {
-          // network error — keep polling
-        }
-        // wait 3 seconds between polls
-        await new Promise(r => setTimeout(r, 3000));
-      }
-    }
-
-    void poll();
-    return () => { cancelled = true; };
-  }, [phase, tokenId]);
+    fetch(`/api/launchpad/${tokenId}/status`)
+      .then(r => r.json())
+      .then((body: StatusResponse) => {
+        if (body.mintAddress) setMintAddress(body.mintAddress);
+        if (body.status === "active" || body.status === "graduated") setPhase("done");
+      })
+      .catch(() => {/* non-fatal */});
+  }, [tokenId]);
 
   // ── Main launch flow ─────────────────────────────────────────────────────────
   const handleLaunch = useCallback(async () => {
@@ -242,25 +211,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     );
   }
 
-  if (phase === "polling") {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 px-5 py-4">
-          <Loader2 className="size-5 animate-spin text-primary shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">Generating vanity address{dots}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Finding a mint address ending in <span className="font-mono font-bold text-violet-600 dark:text-violet-400">OCTO</span>
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-center text-muted-foreground">
-          This usually takes 10–60 seconds. Don&apos;t close this page.
-        </p>
-      </div>
-    );
-  }
-
   if (phase === "error") {
     return (
       <div className="space-y-3">
@@ -269,7 +219,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         </div>
         <button
           type="button"
-          onClick={() => { setError(null); setPhase("polling"); }}
+          onClick={() => { setError(null); setPhase("ready"); }}
           className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
         >
           Retry
@@ -290,7 +240,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     <div className="space-y-4">
       {mintAddress && (
         <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-1">Mint address (vanity ✓)</p>
+          <p className="text-xs text-muted-foreground mb-1">Mint address</p>
           <p className="font-mono text-xs text-foreground break-all">{mintAddress}</p>
         </div>
       )}

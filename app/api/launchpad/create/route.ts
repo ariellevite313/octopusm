@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 
@@ -21,7 +23,7 @@ type CreatePayload = {
   discord?: string;
   other_social?: string;
   supply: number;
-  creator_fee_pct: 1 | 2;
+  creator_fee_pct: 1;
   fee_recipients: FeeRecipient[];
   share_top100: boolean;
   share_top100_pct: number;
@@ -61,12 +63,11 @@ export async function POST(req: Request) {
     if (payload.supply < 10_000_000 || payload.supply > 1_000_000_000) {
       return NextResponse.json({ error: "Supply must be between 10M and 1B" }, { status: 400 });
     }
-    if (payload.creator_fee_pct !== 1 && payload.creator_fee_pct !== 2) {
-      return NextResponse.json({ error: "Creator fee must be 1 or 2" }, { status: 400 });
+    if (payload.creator_fee_pct !== 1) {
+      return NextResponse.json({ error: "Creator fee must be 1%" }, { status: 400 });
     }
 
     // ── File size check ─────────────────────────────────────────────────────
-    // TODO: upload to Cloudflare R2 when configured.
     let logo_url: string | null = null;
     let whitepaper_url: string | null = null;
 
@@ -84,28 +85,16 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── Claim a vanity keypair from the pre-generated pool ──────────────────
-    // We use a placeholder UUID during the claim so we can release it if the
-    // token insert fails (we don't have a real token ID yet).
+    // ── Generate mint keypair ───────────────────────────────────────────────
+    // Standard random keypair — no vanity suffix required.
+    const mintKeypair = Keypair.generate();
+    const mintAddress = mintKeypair.publicKey.toBase58();
+    const mintSecret  = bs58.encode(mintKeypair.secretKey);
+
+    // ── Insert token ────────────────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
 
-    // Check pool availability first (non-locking read for fast feedback)
-    const { count: available } = await admin
-      .from("vanity_keypair_pool")
-      .select("id", { count: "exact", head: true })
-      .is("assigned_token_id", null);
-
-    if (!available || available === 0) {
-      console.error("Vanity keypair pool is empty!");
-      return NextResponse.json(
-        { error: "No vanity addresses available right now. Please try again in a few minutes." },
-        { status: 503 }
-      );
-    }
-
-    // ── Insert pending token ─────────────────────────────────────────────────
-    // We insert first to get a real ID, then claim the keypair with that ID.
     const { data, error: insertError } = await admin
       .from("launchpad_tokens")
       .insert({
@@ -133,7 +122,9 @@ export async function POST(req: Request) {
         creator_wallet:      payload.creator_wallet,
         status:           "pending",
         is_tradeable:     false,
-        vanity_job_id:    "claiming",
+        mint_address:     mintAddress,
+        vanity_secret_key: mintSecret,
+        vanity_job_id:    "done",
       })
       .select("id")
       .single();
@@ -143,65 +134,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Database error" }, { status: 500 });
     }
 
-    const tokenId = (data as { id: string }).id;
-
-    // ── Atomically claim a keypair from the pool ─────────────────────────────
-    // Uses FOR UPDATE SKIP LOCKED — safe under concurrent requests.
-    const { data: claimed, error: claimError } = await admin
-      .rpc("claim_vanity_keypair", { p_token_id: tokenId });
-
-    if (claimError || !claimed || claimed.length === 0) {
-      // Pool was empty between our check and the claim — roll back the token
-      console.error("Vanity claim failed:", claimError?.message ?? "empty pool");
-      const { error: deleteErr } = await admin
-        .from("launchpad_tokens").delete().eq("id", tokenId);
-      if (deleteErr) {
-        // Rollback failed — mark as cancelled so it doesn't block future creation
-        console.error("Rollback delete failed, marking cancelled:", deleteErr);
-        await admin
-          .from("launchpad_tokens")
-          .update({ status: "cancelled", vanity_job_id: "pool_empty" })
-          .eq("id", tokenId);
-      }
-      return NextResponse.json(
-        { error: "No vanity addresses available right now. Please try again in a few minutes." },
-        { status: 503 }
-      );
-    }
-
-    const { pool_id, pub_key, sec_key } = claimed[0] as {
-      pool_id: string;
-      pub_key:  string;
-      sec_key:  string;
-    };
-
-    // ── Update token with mint address immediately ───────────────────────────
-    const { error: updateError } = await admin
-      .from("launchpad_tokens")
-      .update({
-        mint_address:      pub_key,
-        vanity_secret_key: sec_key,
-        vanity_job_id:     "done",
-      })
-      .eq("id", tokenId);
-
-    if (updateError) {
-      // Update failed — release the keypair back to the pool and clean up token
-      console.error("Token update failed:", updateError);
-      await admin.rpc("release_vanity_keypair", { p_pool_id: pool_id });
-      const { error: deleteErr } = await admin
-        .from("launchpad_tokens").delete().eq("id", tokenId);
-      if (deleteErr) {
-        console.error("Cleanup delete failed, marking cancelled:", deleteErr);
-        await admin
-          .from("launchpad_tokens")
-          .update({ status: "cancelled", vanity_job_id: "update_failed" })
-          .eq("id", tokenId);
-      }
-      return NextResponse.json({ error: "Database error" }, { status: 500 });
-    }
-
-    return NextResponse.json({ id: tokenId, mintAddress: pub_key });
+    return NextResponse.json({ id: (data as { id: string }).id, mintAddress });
 
   } catch (err) {
     console.error("launchpad create unexpected error:", err);

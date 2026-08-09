@@ -31,7 +31,7 @@ type WizardData = {
   other_social: string;
   // Étape 3 — Options avancées
   supply: number;
-  creator_fee_pct: 1 | 2;
+  creator_fee_pct: 1;
   fee_recipients: FeeRecipient[];
   share_top100: boolean;
   share_top100_pct: number;
@@ -208,7 +208,7 @@ function StepIdentity({ data, set, errors }: {
               value={data.ticker}
               onChange={(e) => { set("ticker", e.target.value.toUpperCase().slice(0, 10)); setAvailability({}); }}
               onBlur={checkAvailability}
-              placeholder="OCTO"
+              placeholder="OMERU"
               className="w-full rounded-xl border border-border bg-background pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary uppercase"
             />
           </div>
@@ -352,30 +352,14 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
         </div>
         <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
           <Info className="size-3.5 shrink-0" />
-          Mint address will end in <span className="font-mono font-semibold text-foreground">OCTO</span> — generation may take a few minutes.
+          A unique mint address will be generated for your token.
         </p>
       </div>
 
-      {/* Frais créateur */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Creator Revenue</label>
-        <div className="grid grid-cols-2 gap-3">
-          {([1, 2] as const).map((pct) => (
-            <button
-              key={pct}
-              type="button"
-              onClick={() => set("creator_fee_pct", pct)}
-              className={`rounded-xl border-2 px-4 py-3 text-left transition-colors ${
-                data.creator_fee_pct === pct
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/40"
-              }`}
-            >
-              <p className="text-sm font-semibold text-foreground">{pct}% creator</p>
-              <p className="text-xs text-muted-foreground">{pct}% platform · {pct * 2}% total</p>
-            </button>
-          ))}
-        </div>
+      {/* Frais créateur — fixé à 1% */}
+      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+        <p className="text-sm font-medium text-foreground">Trading fees</p>
+        <p className="text-xs text-muted-foreground mt-0.5">1% creator · 1% platform · 2% total per trade</p>
       </div>
 
       {/* Partage frais — jusqu'à 4 adresses */}
@@ -511,7 +495,7 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data }: { data: WizardData }) {
-  const totalFee = data.creator_fee_pct * 2;
+  const totalFee = 2; // 1% creator + 1% platform, fixed
   const mintCost = 0.05 + (data.is_scheduled ? 0.1 : 0);
 
   return (
@@ -568,7 +552,7 @@ function StepReview({ data }: { data: WizardData }) {
         {data.is_scheduled && data.scheduled_at && (
           <Row label="Launch date" value={new Date(data.scheduled_at).toLocaleString()} />
         )}
-        <Row label="Mint address" value="Ends in OCTO (generated)" highlight />
+        <Row label="Mint address" value="Auto-generated" highlight />
       </div>
 
       {/* Coût */}
