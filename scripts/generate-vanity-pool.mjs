@@ -17,6 +17,10 @@
 import { Keypair }    from "@solana/web3.js";
 import bs58           from "bs58";
 import { createClient } from "@supabase/supabase-js";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+// Node 20 doesn't have native WebSocket — provide ws as polyfill
+const ws = (() => { try { return require("ws"); } catch { return undefined; } })();
 import { readFileSync, existsSync } from "fs";
 import { resolve, dirname }        from "path";
 import { fileURLToPath }           from "url";
@@ -59,7 +63,9 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
+  ...(ws ? { global: { WebSocket: ws } } : {}),
+});
 
 // ── Check existing pool ───────────────────────────────────────────────────────
 const { count: existing } = await supabase

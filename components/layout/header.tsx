@@ -9,7 +9,7 @@ import { WalletButton } from "./wallet-button";
 const NAV_LINKS = [
   { href: "/",            label: "Markets",    badge: undefined, disabled: false },
   { href: "/leaderboard", label: "Leaderboard",badge: undefined, disabled: false },
-  { href: "/launchpad",   label: "Launchpad",  badge: "New",     disabled: false },
+  { href: "/launchpad",   label: "Launchpad",  badge: "Soon",    disabled: true  },
   { href: "/archive",     label: "Archive",    badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean }[];
 
@@ -34,8 +34,8 @@ export function Header() {
                 >
                   {label}
                   {badge && (
-                    <span className="text-[9px] font-normal text-muted-foreground/60">
-                      {badge.toLowerCase()}
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                      {badge}
                     </span>
                   )}
                 </span>
