@@ -1,0 +1,115 @@
+/**
+ * POST /api/launchpad/[id]/prepare-tx
+ *
+ * Builds the DBC pool creation transaction and returns it base64-encoded
+ * for the client wallet to sign. The mint keypair (vanity address) is
+ * pre-signed server-side.
+ *
+ * The client must:
+ *  1. Deserialize the transaction
+ *  2. Sign it with their wallet
+ *  3. Send it to the network
+ *  4. Call POST /api/launchpad/[id]/confirm with the tx signature
+ *
+ * Body: { walletAddress: string }
+ */
+import { NextResponse } from "next/server";
+import { Keypair } from "@solana/web3.js";
+import { createAdminClient } from "@/lib/supabase/server";
+import { buildCreatePoolTransaction, buildMetadataJson } from "@/lib/solana/dbc";
+import { decodeSecretKey } from "@/lib/solana/vanity";
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+export async function POST(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+
+  try {
+    const body = await req.json() as { walletAddress?: string };
+    if (!body.walletAddress) {
+      return NextResponse.json({ error: "walletAddress is required" }, { status: 400 });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const { data: token, error } = await admin
+      .from("launchpad_tokens")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error || !token) {
+      return NextResponse.json({ error: "Token not found" }, { status: 404 });
+    }
+
+    if (token.creator_wallet !== body.walletAddress) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    if (token.status !== "pending") {
+      return NextResponse.json(
+        { error: `Token is already ${token.status as string}` },
+        { status: 409 }
+      );
+    }
+
+    // Vanity keypair must be ready
+    if (!token.mint_address || !token.vanity_secret_key) {
+      return NextResponse.json(
+        { error: "Vanity address is still being generated. Try again in a few seconds." },
+        { status: 202 }
+      );
+    }
+
+    // Reconstruct mint keypair from stored secret
+    const secretKey   = decodeSecretKey(token.vanity_secret_key as string);
+    const mintKeypair = Keypair.fromSecretKey(secretKey);
+
+    // Build metadata JSON — logo_url may be null if R2 upload is pending
+    const metadataJson = buildMetadataJson({
+      name:        token.name as string,
+      symbol:      token.ticker as string,
+      description: (token.description as string) ?? "",
+      logoUrl:     (token.logo_url as string) ?? "https://omdot.fun/octomarket-logo.png",
+      website:     token.website as string | undefined,
+      twitter:     token.twitter as string | undefined,
+      telegram:    token.telegram as string | undefined,
+    });
+
+    // For now store metadata JSON directly; in production upload to R2 first
+    // TODO: upload metadataJson to R2 and use the returned URL
+    const metadataUri = (token.metadata_uri as string | null)
+      ?? `https://omdot.fun/api/launchpad/${id}/metadata`;
+
+    // Build the DBC transaction
+    const { transactionBase64, mintAddress } = await buildCreatePoolTransaction({
+      name:          token.name as string,
+      symbol:        token.ticker as string,
+      metadataUri,
+      creatorWallet: token.creator_wallet as string,
+      mintKeypair,
+      totalSupply:   token.supply as number,
+      creatorFeePct: (token.creator_fee_pct as 1 | 2),
+      firstBuySol:   (token.first_buy_amount as number) ?? 0,
+      activationTimestamp: token.is_scheduled && token.scheduled_at
+        ? Math.floor(new Date(token.scheduled_at as string).getTime() / 1000)
+        : undefined,
+    });
+
+    // Persist metadata for serving
+    await admin
+      .from("launchpad_tokens")
+      .update({ metadata_uri: metadataUri })
+      .eq("id", id);
+
+    return NextResponse.json({
+      transactionBase64,
+      mintAddress,
+      metadataJson,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("prepare-tx error:", err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

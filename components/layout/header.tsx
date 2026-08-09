@@ -9,7 +9,7 @@ import { WalletButton } from "./wallet-button";
 const NAV_LINKS = [
   { href: "/",            label: "Markets",    badge: undefined, disabled: false },
   { href: "/leaderboard", label: "Leaderboard",badge: undefined, disabled: false },
-  { href: "#",            label: "Launchpad",  badge: "Soon",    disabled: true  },
+  { href: "/launchpad",   label: "Launchpad",  badge: "New",     disabled: false },
   { href: "/archive",     label: "Archive",    badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean }[];
 
