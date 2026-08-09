@@ -208,7 +208,7 @@ function StepIdentity({ data, set, errors }: {
               value={data.ticker}
               onChange={(e) => { set("ticker", e.target.value.toUpperCase().slice(0, 10)); setAvailability({}); }}
               onBlur={checkAvailability}
-              placeholder="OMERU"
+              placeholder="OMERO"
               className="w-full rounded-xl border border-border bg-background pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary uppercase"
             />
           </div>

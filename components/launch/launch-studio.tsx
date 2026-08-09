@@ -728,7 +728,7 @@ export function LaunchStudio() {
                       <Input
                         value={symbol}
                         onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                        placeholder="Symbol, e.g. OMERU"
+                        placeholder="Symbol, e.g. OMERO"
                         className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
                       />
                       <Textarea

@@ -53,7 +53,7 @@ const T = {
     save: "Save",
     saving: "Saving…",
     overview: "Balances",
-    octoBalance: "Omeru Inu",
+    octoBalance: "OMERO",
     twitter: "Twitter / X",
     createMarket: "Create a market",
     adminPanel: "Admin Panel",
@@ -66,7 +66,7 @@ const T = {
     copyLink: "Copy link",
     copiedLink: "Copied!",
     filleuls: "referrals",
-    octoEarned: "Omeru Inu earned",
+    octoEarned: "OMERO earned",
     nextTier: "next tier",
     noTier: "No tier yet",
     maxTier: "Max tier reached",
@@ -81,7 +81,7 @@ const T = {
     save: "Sauvegarder",
     saving: "Sauvegarde…",
     overview: "Soldes",
-    octoBalance: "Omeru Inu",
+    octoBalance: "OMERO",
     twitter: "Twitter / X",
     createMarket: "Créer un marché",
     adminPanel: "Panel Admin",
@@ -94,7 +94,7 @@ const T = {
     copyLink: "Copier le lien",
     copiedLink: "Copié !",
     filleuls: "filleuls",
-    octoEarned: "Omeru Inu gagnés",
+    octoEarned: "OMERO gagnés",
     nextTier: "tier suivant",
     noTier: "Pas encore de tier",
     maxTier: "Tier maximum atteint",
@@ -315,7 +315,7 @@ function ProfileDrawer({
           {!editing && (
             <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">{octoBalance.toLocaleString()} Omeru Inu</span>
+                <span className="text-xs font-semibold text-foreground">{octoBalance.toLocaleString()} OMERO</span>
                 <span className="text-xs text-muted-foreground">
                   {isMaxTier
                     ? t.maxTier
@@ -374,7 +374,7 @@ function ProfileDrawer({
                 </div>
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <Image src="/octo-coin.png" alt="Omeru Inu" width={20} height={20}
+                    <Image src="/octo-coin.png" alt="OMERO" width={20} height={20}
                       className="size-5 rounded-full object-contain" unoptimized />
                     <span className="text-xs text-muted-foreground">{t.octoBalance}</span>
                   </div>
