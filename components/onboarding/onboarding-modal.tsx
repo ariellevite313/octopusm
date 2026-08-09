@@ -115,7 +115,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
     setClaiming((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
     if (error) { toast.error(error); return; }
     setLocalDone((prev) => new Set(prev).add(task.id));
-    toast.success(`+${task.reward_octo} Omeru Inu earned!`);
+    toast.success(`+${task.reward_octo} OMERO earned!`);
     void queryClient.invalidateQueries({ queryKey: ["tasks", walletAddress] });
   }
 
@@ -156,7 +156,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
         <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
           Complete these tasks and earn up to{" "}
           <span className="inline-flex items-center gap-1 font-semibold text-orange-500">
-            +{totalOcto} <img src="/octo-coin.png" alt="Omeru Inu" className="size-4 object-contain" />
+            +{totalOcto} <img src="/octo-coin.png" alt="OMERO" className="size-4 object-contain" />
           </span>!
         </p>
 
@@ -200,7 +200,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                 {/* Reward + button */}
                 <div className="flex shrink-0 items-center gap-2">
                   <span className={`inline-flex items-center gap-1 text-xs font-bold ${done ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500"}`}>
-                    +{task.reward_octo} <img src="/octo-coin.png" alt="Omeru Inu" className="size-3.5 object-contain" />
+                    +{task.reward_octo} <img src="/octo-coin.png" alt="OMERO" className="size-3.5 object-contain" />
                   </span>
 
                   {!done && (

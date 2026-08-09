@@ -80,7 +80,7 @@ export async function POST(req: Request) {
 
     if (octoBalance < EXTRA_MARKET_COST_OCTO) {
       return NextResponse.json({
-        error: `Limite journalière atteinte : ${FREE_DAILY_LIMIT} marchés gratuits/jour. La création d'un marché supplémentaire coûte ${EXTRA_MARKET_COST_OCTO} Omeru Inu. Solde actuel : ${Math.floor(octoBalance)} Omeru Inu.`,
+        error: `Limite journalière atteinte : ${FREE_DAILY_LIMIT} marchés gratuits/jour. La création d'un marché supplémentaire coûte ${EXTRA_MARKET_COST_OCTO} OMERO. Solde actuel : ${Math.floor(octoBalance)} OMERO.`,
         code: "DAILY_LIMIT_INSUFFICIENT_OCTO",
         today_count: todayCount ?? 0,
         octo_balance: Math.floor(octoBalance),

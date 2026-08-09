@@ -203,7 +203,7 @@ function OctoDropdown({ stats, activity }: {
                 key={a.id}
                 label={a.label}
                 sub={a.sub}
-                amount={`+${a.amount.toLocaleString("en-US")} Omeru Inu`}
+                amount={`+${a.amount.toLocaleString("en-US")} OMERO`}
                 date={fmtDate(a.created_at)}
               />
             ))}
@@ -213,7 +213,7 @@ function OctoDropdown({ stats, activity }: {
         <p className="text-xs text-muted-foreground">No activity yet.</p>
       )}
       <p className="text-[10px] text-muted-foreground">
-        Omeru Inu points are non-transferable — they reflect your platform rank.
+        OMERO points are non-transferable — they reflect your platform rank.
       </p>
     </div>
   );
@@ -408,8 +408,8 @@ export function TokenBalances({
 
         <TokenRow
           logo="/octo-coin.png"
-          name="Omeru Inu"
-          symbol="OMERU"
+          name="OMERO"
+          symbol="OMERO"
           balance={octoBalance.toLocaleString("en-US")}
           open={open === "octo"}
           onToggle={() => toggle("octo")}

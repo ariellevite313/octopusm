@@ -11,7 +11,7 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 const TOKENS: { key: LeaderboardToken; label: string; logo: string; unit: string; prefix: string }[] = [
   { key: "usdc", label: "USDC",  logo: "/usdc-coin.png",        unit: "USDC", prefix: "+$" },
   { key: "clt",  label: "ClawdTrust", logo: "/clawdtrust-coin.png", unit: "CLT", prefix: "+" },
-  { key: "octo", label: "Omeru Inu",  logo: "/octo-coin.png",        unit: "Omeru Inu", prefix: "+"  },
+  { key: "octo", label: "OMERO",  logo: "/octo-coin.png",        unit: "OMERO", prefix: "+"  },
 ];
 
 const PERIODS: { key: LeaderboardPeriod; label: string }[] = [

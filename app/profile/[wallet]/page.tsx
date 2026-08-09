@@ -161,7 +161,7 @@ export default async function PublicProfilePage({
               <p className="text-lg font-semibold text-emerald-600">{data.stats.win_rate}%</p>
             </div>
             <div className="px-2 text-center">
-              <p className="text-[10px] text-muted-foreground">Omeru Inu</p>
+              <p className="text-[10px] text-muted-foreground">OMERO</p>
               <p className="text-lg font-semibold text-foreground">{fmt(data.stats.octo_balance, 0)}</p>
             </div>
           </div>

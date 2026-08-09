@@ -264,13 +264,13 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           }`}>
             <span className="font-semibold">
               {dailyLimit.can_create
-                ? `Marché payant — coûte ${dailyLimit.cost_octo} Omeru Inu`
+                ? `Marché payant — coûte ${dailyLimit.cost_octo} OMERO`
                 : `Limite journalière atteinte`}
             </span>
             <span className="text-xs opacity-80">
               {dailyLimit.can_create
-                ? `Vous avez créé ${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits aujourd'hui. Solde Omeru Inu : ${dailyLimit.octo_balance}.`
-                : `${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits utilisés. Il vous faut ${dailyLimit.cost_octo} Omeru Inu (solde : ${dailyLimit.octo_balance}).`}
+                ? `Vous avez créé ${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits aujourd'hui. Solde OMERO : ${dailyLimit.octo_balance}.`
+                : `${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits utilisés. Il vous faut ${dailyLimit.cost_octo} OMERO (solde : ${dailyLimit.octo_balance}).`}
             </span>
           </div>
         )}
@@ -474,7 +474,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               : step === "done"  ? "Market submitted!"
               : step === "error" ? "Try again"
               : dailyLimit && !dailyLimit.is_free && dailyLimit.can_create
-                ? `Submit (−${dailyLimit.cost_octo} Omeru Inu)`
+                ? `Submit (−${dailyLimit.cost_octo} OMERO)`
                 : "Submit Market"}
           </button>
         </form>

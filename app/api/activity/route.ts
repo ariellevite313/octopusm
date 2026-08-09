@@ -292,7 +292,7 @@ export async function GET() {
     id: t.id as string,
     type: t.type as "bet" | "task" | "referral",
     amount: Number(t.amount ?? 0),
-    label: OCTO_LABELS[t.type as string] ?? "Omeru Inu earned",
+    label: OCTO_LABELS[t.type as string] ?? "OMERO earned",
     sub: t.bet_amount_usd != null ? `$${Number(t.bet_amount_usd).toFixed(2)}` : "",
     created_at: t.created_at as string,
   }));
