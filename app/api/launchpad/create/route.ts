@@ -79,12 +79,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Logo too large (max 5 MB)" }, { status: 400 });
       }
       const ext  = logoFile.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
-      const path = `launchpad/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const buf  = await logoFile.arrayBuffer();
       const { error: uploadErr } = await adminUpload.storage
         .from("market-images")
         .upload(path, buf, { contentType: logoFile.type, upsert: false });
-      if (!uploadErr) {
+      if (uploadErr) {
+        console.error("Logo upload error:", uploadErr.message);
+      } else {
         const { data: urlData } = adminUpload.storage.from("market-images").getPublicUrl(path);
         logo_url = urlData.publicUrl;
       }
