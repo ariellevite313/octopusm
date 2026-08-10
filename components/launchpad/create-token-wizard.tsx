@@ -137,10 +137,17 @@ function StepIdentity({ data, set, errors }: {
     }
   }, [data.name, data.ticker]);
 
+  const VALID_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!VALID_LOGO_TYPES.includes(file.type)) {
+      toast.error("Unsupported format. Use PNG, JPG, WebP, or GIF");
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) { toast.error("Logo max 5 MB"); return; }
+    if (data.logo_preview) URL.revokeObjectURL(data.logo_preview);
     set("logo_file", file);
     set("logo_preview", URL.createObjectURL(file));
   }
@@ -174,14 +181,14 @@ function StepIdentity({ data, set, errors }: {
             <p>PNG, JPG, GIF — max 5 MB</p>
             <p>Recommended: 400×400 px</p>
             {data.logo_file && (
-              <button type="button" onClick={() => { set("logo_file", null); set("logo_preview", null); }}
+              <button type="button" onClick={() => { if (data.logo_preview) URL.revokeObjectURL(data.logo_preview); set("logo_file", null); set("logo_preview", null); }}
                 className="flex items-center gap-1 text-red-500 hover:text-red-600">
                 <X className="size-3" /> Remove
               </button>
             )}
           </div>
         </div>
-        <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogo} />
+        <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleLogo} />
         {errors.logo && <p className="mt-1 text-xs text-red-500">{errors.logo}</p>}
       </div>
 
@@ -300,21 +307,26 @@ function SocialInput({ icon, label, value, onChange, placeholder }: {
   );
 }
 
-function StepSocials({ data, set }: { data: WizardData; set: (k: keyof WizardData, v: unknown) => void }) {
+function StepSocials({ data, set, errors }: { data: WizardData; set: (k: keyof WizardData, v: unknown) => void; errors: Record<string, string> }) {
   return (
     <div className="space-y-4">
-      <SocialInput icon={<Globe className="size-4" />}           label="Website *"          value={data.website}      onChange={(v) => set("website", v)}      placeholder="https://yourtoken.com" />
-      <SocialInput icon={<Twitter className="size-4" />}         label="Twitter / X *"      value={data.twitter}      onChange={(v) => set("twitter", v)}      placeholder="https://x.com/yourtoken" />
-      <SocialInput icon={<MessageCircle className="size-4" />}   label="Telegram *"         value={data.telegram}     onChange={(v) => set("telegram", v)}     placeholder="https://t.me/yourtoken" />
+      <SocialInput icon={<Globe className="size-4" />}           label="Website (optional)"          value={data.website}      onChange={(v) => set("website", v)}      placeholder="https://yourtoken.com" />
+      {errors.website  && <p className="-mt-3 text-xs text-red-500">{errors.website}</p>}
+      <SocialInput icon={<Twitter className="size-4" />}         label="Twitter / X (optional)"      value={data.twitter}      onChange={(v) => set("twitter", v)}      placeholder="https://x.com/yourtoken" />
+      {errors.twitter  && <p className="-mt-3 text-xs text-red-500">{errors.twitter}</p>}
+      <SocialInput icon={<MessageCircle className="size-4" />}   label="Telegram (optional)"         value={data.telegram}     onChange={(v) => set("telegram", v)}     placeholder="https://t.me/yourtoken" />
+      {errors.telegram && <p className="-mt-3 text-xs text-red-500">{errors.telegram}</p>}
       <SocialInput icon={<Hash className="size-4" />}            label="Discord (optional)" value={data.discord}      onChange={(v) => set("discord", v)}      placeholder="https://discord.gg/yourtoken" />
+      {errors.discord      && <p className="-mt-3 text-xs text-red-500">{errors.discord}</p>}
       <SocialInput icon={<ExternalLink className="size-4" />}    label="Other (optional)"   value={data.other_social} onChange={(v) => set("other_social", v)} placeholder="https://…" />
+      {errors.other_social && <p className="-mt-3 text-xs text-red-500">{errors.other_social}</p>}
     </div>
   );
 }
 
 // ─── Étape 3 — Options avancées ──────────────────────────────────────────────
 
-function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardData, v: unknown) => void }) {
+function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof WizardData, v: unknown) => void; errors: Record<string, string> }) {
   function addRecipient() {
     if (data.fee_recipients.length >= 4) return;
     set("fee_recipients", [...data.fee_recipients, { address: "", share_pct: 0 }]);
@@ -403,6 +415,9 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
             </div>
           ))}
         </div>
+        {errors.fee_recipients && (
+          <p className="mt-1 text-xs text-red-500">{errors.fee_recipients}</p>
+        )}
       </div>
 
       {/* First buy */}
@@ -421,14 +436,19 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
           </button>
         </div>
         {data.first_buy_enabled && (
-          <div className="flex items-center gap-2">
-            <input
-              type="number" min={0.01} max={100} step={0.01}
-              value={data.first_buy_amount}
-              onChange={(e) => set("first_buy_amount", Number(e.target.value))}
-              className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <span className="text-sm text-muted-foreground">SOL</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={0.01} max={100} step={0.01}
+                value={data.first_buy_amount}
+                onChange={(e) => set("first_buy_amount", Number(e.target.value))}
+                className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-sm text-muted-foreground">SOL</span>
+            </div>
+            {errors.first_buy_amount && (
+              <p className="text-xs text-red-500">{errors.first_buy_amount}</p>
+            )}
           </div>
         )}
       </div>
@@ -449,14 +469,19 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
           </button>
         </div>
         {data.is_scheduled && (
-          <input
-            type="datetime-local"
-            min={tomorrowMin()}
-            max={maxSchedule()}
-            value={data.scheduled_at}
-            onChange={(e) => set("scheduled_at", e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+          <div className="space-y-1">
+            <input
+              type="datetime-local"
+              min={tomorrowMin()}
+              max={maxSchedule()}
+              value={data.scheduled_at}
+              onChange={(e) => set("scheduled_at", e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            {errors.scheduled_at && (
+              <p className="text-xs text-red-500">{errors.scheduled_at}</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -552,6 +577,13 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
+function isValidUrl(s: string): boolean {
+  try { const u = new URL(s); return u.protocol === "https:" || u.protocol === "http:"; }
+  catch { return false; }
+}
+
+const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
 function validate(step: number, data: WizardData): Record<string, string> {
   const errors: Record<string, string> = {};
   if (step === 0) {
@@ -561,12 +593,22 @@ function validate(step: number, data: WizardData): Record<string, string> {
     if (!data.description.trim()) errors.description = "Description is required";
   }
   if (step === 1) {
-    if (!data.website.trim()) errors.website = "Website is required";
-    if (!data.twitter.trim()) errors.twitter = "Twitter is required";
-    if (!data.telegram.trim()) errors.telegram = "Telegram is required";
+    if (data.website && !isValidUrl(data.website)) errors.website = "Enter a valid URL (e.g. https://yourtoken.com)";
+    if (data.twitter && !isValidUrl(data.twitter)) errors.twitter = "Enter a valid URL (e.g. https://x.com/yourtoken)";
+    if (data.telegram && !isValidUrl(data.telegram)) errors.telegram = "Enter a valid URL (e.g. https://t.me/yourtoken)";
+    if (data.discord && !isValidUrl(data.discord)) errors.discord = "Enter a valid URL";
+    if (data.other_social && !isValidUrl(data.other_social)) errors.other_social = "Enter a valid URL";
   }
   if (step === 2) {
     if (data.is_scheduled && !data.scheduled_at) errors.scheduled_at = "Please pick a launch date";
+    if (data.first_buy_enabled && data.first_buy_amount < 0.01)
+      errors.first_buy_amount = "Minimum first buy is 0.01 SOL";
+    if (data.fee_recipients.length > 0) {
+      const hasInvalidAddr = data.fee_recipients.some(r => !BASE58_RE.test(r.address.trim()));
+      if (hasInvalidAddr) errors.fee_recipients = "One or more wallet addresses are invalid";
+      const totalPct = data.fee_recipients.reduce((s, r) => s + r.share_pct, 0);
+      if (totalPct > 100) errors.fee_recipients = `Total share (${totalPct}%) exceeds 100%`;
+    }
   }
   return errors;
 }
@@ -627,7 +669,7 @@ export function CreateTokenWizard() {
         return;
       }
 
-      toast.success("Token created! Vanity address is being generated…");
+      toast.success("Token created! Redirecting to your launch page…");
       router.push(`/launchpad/${json.id}`);
     } catch (e) {
       toast.error("Unexpected error");
@@ -652,8 +694,8 @@ export function CreateTokenWizard() {
 
       <div className="min-h-[400px]">
         {step === 0 && <StepIdentity data={data} set={set} errors={errors} />}
-        {step === 1 && <StepSocials  data={data} set={set} />}
-        {step === 2 && <StepAdvanced data={data} set={set} />}
+        {step === 1 && <StepSocials  data={data} set={set} errors={errors} />}
+        {step === 2 && <StepAdvanced data={data} set={set} errors={errors} />}
         {step === 3 && <StepReview   data={data} />}
       </div>
 

@@ -97,6 +97,17 @@ export async function POST(req: Request) {
       if (pdfFile.size > MAX_WHITEPAPER_BYTES) {
         return NextResponse.json({ error: "PDF too large (max 20 MB)" }, { status: 400 });
       }
+      const pdfPath = `whitepapers/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+      const pdfBuf  = await pdfFile.arrayBuffer();
+      const { error: pdfErr } = await adminUpload.storage
+        .from("market-images")
+        .upload(pdfPath, pdfBuf, { contentType: "application/pdf", upsert: false });
+      if (pdfErr) {
+        console.error("Whitepaper upload error:", pdfErr.message);
+      } else {
+        const { data: pdfUrl } = adminUpload.storage.from("market-images").getPublicUrl(pdfPath);
+        whitepaper_url = pdfUrl.publicUrl;
+      }
     }
 
     // ── Generate mint keypair ───────────────────────────────────────────────

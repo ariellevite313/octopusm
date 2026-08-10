@@ -61,10 +61,19 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Already confirmed" }, { status: 409 });
     }
 
-    // Verify the transaction exists on-chain (with tolerance: accept if not yet confirmed)
+    // Verify the transaction exists on-chain
     const confirmed = await verifyTransaction(body.txSignature);
+
+    // If not yet confirmed, retry once after a short delay before accepting
+    let finalConfirmed = confirmed;
     if (!confirmed) {
-      // Transaction may not be finalized yet — accept optimistically and store sig
+      await new Promise(r => setTimeout(r, 4000));
+      finalConfirmed = await verifyTransaction(body.txSignature);
+    }
+
+    if (!finalConfirmed) {
+      // Still not confirmed — accept optimistically but keep vanity_secret_key
+      // so the user can retry if the tx ultimately failed.
       console.warn(`tx ${body.txSignature} not yet confirmed for token ${id}, accepting optimistically`);
     }
 
@@ -76,9 +85,10 @@ export async function POST(req: Request, { params }: RouteParams) {
     await admin
       .from("launchpad_tokens")
       .update({
-        status:           newStatus,
-        is_tradeable:     isTradeable,
-        vanity_secret_key: null,        // clear secret — no longer needed
+        status:       newStatus,
+        is_tradeable: isTradeable,
+        // Only clear the secret if tx is confirmed — keeps retry possible otherwise
+        ...(finalConfirmed ? { vanity_secret_key: null } : {}),
         // pool_address will be indexed from the tx by a background job
       })
       .eq("id", id);

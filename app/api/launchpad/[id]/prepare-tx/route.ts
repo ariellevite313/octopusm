@@ -52,6 +52,18 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
+    // If a prepared transaction is already cached, return it to avoid
+    // submitting multiple createConfigTx (each costs ~0.05 SOL from platform wallet).
+    // The cached tx expires after 45s (Solana blockhash valid ~60s).
+    const cachedAt   = token.tx_prepared_at ? new Date(token.tx_prepared_at as string).getTime() : 0;
+    const cacheAgeMs = Date.now() - cachedAt;
+    if (token.tx_base64 && cacheAgeMs < 45_000) {
+      return NextResponse.json({
+        transactionBase64: token.tx_base64,
+        mintAddress:       token.mint_address,
+      });
+    }
+
     // Mint keypair must be set
     if (!token.mint_address || !token.vanity_secret_key) {
       return NextResponse.json(
@@ -101,10 +113,14 @@ export async function POST(req: Request, { params }: RouteParams) {
         : undefined,
     });
 
-    // Persist metadata for serving
+    // Cache the prepared tx in DB to prevent duplicate createConfigTx submissions
     await admin
       .from("launchpad_tokens")
-      .update({ metadata_uri: metadataUri })
+      .update({
+        metadata_uri:   metadataUri,
+        tx_base64:      transactionBase64,
+        tx_prepared_at: new Date().toISOString(),
+      })
       .eq("id", id);
 
     return NextResponse.json({
