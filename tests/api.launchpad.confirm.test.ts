@@ -35,6 +35,9 @@ vi.mock("@solana/web3.js", async (importOriginal) => {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
+// Set SOLANA_RPC_URL so verifyTransaction doesn't short-circuit (line: if (!rpc) return false)
+process.env.SOLANA_RPC_URL = "https://mock-rpc.test";
+
 const { POST: postConfirm } = await import("../app/api/launchpad/[id]/confirm/route");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
