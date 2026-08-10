@@ -42,6 +42,21 @@ vi.mock("@/lib/solana/dbc", () => ({
   buildMetadataJson: vi.fn().mockReturnValue({ name: "Test", symbol: "TST" }),
 }));
 
+// Mock Keypair.fromSecretKey — the test fixture uses 64 zero-bytes which is
+// an invalid Ed25519 key and would throw. The mock bypasses key validation
+// since buildCreatePoolTransaction is already mocked anyway.
+vi.mock("@solana/web3.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@solana/web3.js")>();
+  return {
+    ...real,
+    Keypair: {
+      fromSecretKey: vi.fn().mockReturnValue({
+        publicKey: { toBase58: () => "MintAddressBase58" },
+      }),
+    },
+  };
+});
+
 // ── Route handlers ────────────────────────────────────────────────────────────
 
 const { GET:  getMetadata } = await import("../app/api/launchpad/[id]/metadata/route");
