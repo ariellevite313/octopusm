@@ -359,7 +359,7 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
       {/* Frais créateur — fixé à 1% */}
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
         <p className="text-sm font-medium text-foreground">Trading fees</p>
-        <p className="text-xs text-muted-foreground mt-0.5">1% creator · 1% platform · 2% total per trade</p>
+        <p className="text-xs text-muted-foreground mt-0.5">2% trading fee per trade</p>
       </div>
 
       {/* Partage frais — jusqu'à 4 adresses */}
@@ -509,9 +509,7 @@ function StepReview({ data }: { data: WizardData }) {
       {/* Options */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Options</p>
-        <Row label="Total fee" value={`${totalFee}% per trade`} />
-        <Row label="Creator fee" value={`${data.creator_fee_pct}%`} />
-        <Row label="Platform fee" value={`${data.creator_fee_pct}%`} />
+        <Row label="Trading fee" value={`${totalFee}% per trade`} />
         {data.fee_recipients.length > 0 && (
           <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
         )}

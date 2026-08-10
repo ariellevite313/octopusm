@@ -147,7 +147,6 @@ function MarkPaidDialog({
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 px-3 py-2">
                     <p className="text-xs text-emerald-700 dark:text-emerald-300">
                       <span className="font-bold">Send to user: {fmtAmount(row.token, netAmount(row.token, row.amount))}</span>
-                      <span className="ml-1 opacity-70">(after 5% platform fee)</span>
                     </p>
                   </div>
                 </>

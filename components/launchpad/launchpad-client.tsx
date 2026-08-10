@@ -58,7 +58,7 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
           {token.category}
         </span>
         <span className="text-[10px] text-muted-foreground">
-          {token.creator_fee_pct + token.platform_fee_pct}% fee
+          {token.creator_fee_pct * 2}% fee
         </span>
       </div>
 
