@@ -31,3 +31,5 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
 process.env.SUPABASE_SERVICE_KEY = "test-service-key";
 process.env.NEXT_PUBLIC_SITE_URL = "https://omdot.fun";
+// Required by confirm/route.ts verifyTransaction — without this it returns false immediately
+process.env.SOLANA_RPC_URL = "https://mock-rpc.test";
