@@ -67,19 +67,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Creator fee must be 1%" }, { status: 400 });
     }
 
-    // ── File size check ─────────────────────────────────────────────────────
+    // ── File upload ─────────────────────────────────────────────────────────
     let logo_url: string | null = null;
     let whitepaper_url: string | null = null;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adminUpload = createAdminClient() as any;
+
     const logoFile = form.get("logo");
-    if (logoFile instanceof Blob) {
+    if (logoFile instanceof Blob && logoFile.size > 0) {
       if (logoFile.size > MAX_LOGO_BYTES) {
         return NextResponse.json({ error: "Logo too large (max 5 MB)" }, { status: 400 });
+      }
+      const ext  = logoFile.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+      const path = `launchpad/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const buf  = await logoFile.arrayBuffer();
+      const { error: uploadErr } = await adminUpload.storage
+        .from("market-images")
+        .upload(path, buf, { contentType: logoFile.type, upsert: false });
+      if (!uploadErr) {
+        const { data: urlData } = adminUpload.storage.from("market-images").getPublicUrl(path);
+        logo_url = urlData.publicUrl;
       }
     }
 
     const pdfFile = form.get("whitepaper");
-    if (pdfFile instanceof Blob) {
+    if (pdfFile instanceof Blob && pdfFile.size > 0) {
       if (pdfFile.size > MAX_WHITEPAPER_BYTES) {
         return NextResponse.json({ error: "PDF too large (max 20 MB)" }, { status: 400 });
       }
@@ -92,10 +105,7 @@ export async function POST(req: Request) {
     const mintSecret  = bs58.encode(mintKeypair.secretKey);
 
     // ── Insert token ────────────────────────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any;
-
-    const { data, error: insertError } = await admin
+    const { data, error: insertError } = await adminUpload
       .from("launchpad_tokens")
       .insert({
         name:             payload.name.trim(),

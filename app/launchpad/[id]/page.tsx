@@ -58,11 +58,11 @@ export default async function TokenDetailPage({ params }: Props) {
   if (!token) notFound();
 
   const socials = [
-    { label: "Website",  href: token.website,      icon: "🌐" },
-    { label: "Twitter",  href: token.twitter,       icon: "𝕏" },
-    { label: "Telegram", href: token.telegram,      icon: "✈️" },
-    { label: "Discord",  href: token.discord,       icon: "💬" },
-    { label: "Other",    href: token.other_social,  icon: "🔗" },
+    { label: "Website",  href: token.website,      icon: "ti-world" },
+    { label: "Twitter",  href: token.twitter,       icon: "ti-brand-x" },
+    { label: "Telegram", href: token.telegram,      icon: "ti-brand-telegram" },
+    { label: "Discord",  href: token.discord,       icon: "ti-brand-discord" },
+    { label: "Other",    href: token.other_social,  icon: "ti-link" },
   ].filter(s => s.href);
 
   const isPending   = token.status === "pending";
@@ -125,7 +125,7 @@ export default async function TokenDetailPage({ params }: Props) {
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <span>{s.icon}</span> {s.label}
+                  <i className={`ti ${s.icon} text-sm`} aria-hidden /> {s.label}
                 </a>
               ))}
             </div>

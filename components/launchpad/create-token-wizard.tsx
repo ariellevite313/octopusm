@@ -405,34 +405,6 @@ function StepAdvanced({ data, set }: { data: WizardData; set: (k: keyof WizardDa
         </div>
       </div>
 
-      {/* Share top 100 */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Share revenue with Top 100 holders</p>
-            <p className="text-xs text-muted-foreground">Distribute a % of creator fees to top 100 holders</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => set("share_top100", !data.share_top100)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.share_top100 ? "bg-primary" : "bg-muted"}`}
-          >
-            <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.share_top100 ? "translate-x-4" : "translate-x-0.5"}`} />
-          </button>
-        </div>
-        {data.share_top100 && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground shrink-0">% to distribute</label>
-            <input
-              type="range" min={1} max={50} value={data.share_top100_pct}
-              onChange={(e) => set("share_top100_pct", Number(e.target.value))}
-              className="flex-1 accent-primary"
-            />
-            <span className="w-10 text-right text-xs font-semibold text-primary">{data.share_top100_pct}%</span>
-          </div>
-        )}
-      </div>
-
       {/* First buy */}
       <div className="rounded-xl border border-border p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -543,9 +515,6 @@ function StepReview({ data }: { data: WizardData }) {
         {data.fee_recipients.length > 0 && (
           <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
         )}
-        {data.share_top100 && (
-          <Row label="Top 100 share" value={`${data.share_top100_pct}% of creator fees`} />
-        )}
         {data.first_buy_enabled && (
           <Row label="First buy" value={`${data.first_buy_amount} SOL`} />
         )}
@@ -643,8 +612,8 @@ export function CreateTokenWizard() {
         supply: data.supply,
         creator_fee_pct: data.creator_fee_pct,
         fee_recipients: data.fee_recipients,
-        share_top100: data.share_top100,
-        share_top100_pct: data.share_top100_pct,
+        share_top100: false,
+        share_top100_pct: 0,
         first_buy_enabled: data.first_buy_enabled,
         first_buy_amount: data.first_buy_amount,
         is_scheduled: data.is_scheduled,
