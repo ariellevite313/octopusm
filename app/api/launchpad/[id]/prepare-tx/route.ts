@@ -15,7 +15,6 @@
  */
 import { NextResponse } from "next/server";
 import { Keypair } from "@solana/web3.js";
-import bs58 from "bs58";
 import { createAdminClient } from "@/lib/supabase/server";
 import { buildCreatePoolTransaction, buildMetadataJson } from "@/lib/solana/dbc";
 
@@ -61,8 +60,10 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    // Reconstruct mint keypair from stored secret (bs58-encoded)
-    const mintKeypair = Keypair.fromSecretKey(bs58.decode(token.vanity_secret_key as string));
+    // Reconstruct mint keypair from stored secret (base64-encoded)
+    const mintKeypair = Keypair.fromSecretKey(
+      Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"))
+    );
 
     // Build metadata JSON — logo_url may be null if R2 upload is pending
     const metadataJson = buildMetadataJson({

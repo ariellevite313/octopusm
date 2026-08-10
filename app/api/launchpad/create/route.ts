@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { Keypair } from "@solana/web3.js";
-import bs58 from "bs58";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 
@@ -100,9 +99,10 @@ export async function POST(req: Request) {
 
     // ── Generate mint keypair ───────────────────────────────────────────────
     // Standard random keypair — no vanity suffix required.
+    // Secret is stored as base64 (native Node.js Buffer, no external deps).
     const mintKeypair = Keypair.generate();
     const mintAddress = mintKeypair.publicKey.toBase58();
-    const mintSecret  = bs58.encode(mintKeypair.secretKey);
+    const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
 
     // ── Insert token ────────────────────────────────────────────────────────
     const { data, error: insertError } = await adminUpload
