@@ -146,6 +146,8 @@ describe("POST /api/launchpad/[id]/confirm — authorization", () => {
 
 describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
   beforeEach(() => vi.clearAllMocks());
+  // Ensure fake timers don't leak into subsequent describe blocks
+  afterEach(() => vi.useRealTimers());
 
   it("clears vanity_secret_key when TX is confirmed on first check", async () => {
     // TX confirmed immediately
@@ -242,7 +244,11 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
       ROUTE_PARAMS
     );
 
-    await vi.advanceTimersByTimeAsync(5000);
+    // runAllTimersAsync flushes pending microtasks first (letting the route reach
+    // its setTimeout), then fires the timer, then flushes again — more reliable
+    // than advanceTimersByTimeAsync which may advance the clock before the route
+    // has had a chance to register the setTimeout.
+    await vi.runAllTimersAsync();
     const res = await responsePromise;
 
     expect(res.status).toBe(200);
