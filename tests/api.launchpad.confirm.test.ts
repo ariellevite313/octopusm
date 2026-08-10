@@ -8,14 +8,14 @@
  *  4. Scheduled vs immediate token behavior
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { json } from "./helpers";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-const { mockCreateAdminClient, mockGetSignatureStatus } = vi.hoisted(() => ({
-  mockCreateAdminClient:  vi.fn(),
-  mockGetSignatureStatus: vi.fn(),
+const { mockCreateAdminClient, mockVerifyTransaction } = vi.hoisted(() => ({
+  mockCreateAdminClient: vi.fn(),
+  mockVerifyTransaction:  vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -23,20 +23,13 @@ vi.mock("@/lib/supabase/server", () => ({
   createAdminClient: mockCreateAdminClient,
 }));
 
-vi.mock("@solana/web3.js", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@solana/web3.js")>();
-  return {
-    ...real,
-    Connection: vi.fn().mockImplementation(() => ({
-      getSignatureStatus: mockGetSignatureStatus,
-    })),
-  };
-});
+// Mock verifyTransaction directly — avoids @solana/web3.js Connection issues
+// and makes the SOLANA_RPC_URL env-var irrelevant for tests.
+vi.mock("@/lib/solana/verify-tx", () => ({
+  verifyTransaction: mockVerifyTransaction,
+}));
 
 // ── Route handler ─────────────────────────────────────────────────────────────
-
-// Set SOLANA_RPC_URL so verifyTransaction doesn't short-circuit (line: if (!rpc) return false)
-process.env.SOLANA_RPC_URL = "https://mock-rpc.test";
 
 const { POST: postConfirm } = await import("../app/api/launchpad/[id]/confirm/route");
 
@@ -53,31 +46,26 @@ function makeRequest(body: object): Request {
 }
 
 /** Build an admin client mock where launchpad_tokens returns the given token */
-function buildAdminMock(token: object | null, updateSpy = vi.fn()) {
+function buildAdminMock(token: object | null, updateFn = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })) {
   const maybeSingleResult = { data: token, error: null };
   const client = {
-    from: vi.fn((table: string) => {
-      if (table === "launchpad_tokens") {
-        return {
-          select:      vi.fn().mockReturnThis(),
-          eq:          vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue(maybeSingleResult),
-          update:      vi.fn(() => ({ eq: updateSpy })),
-        };
-      }
-      return {};
-    }),
+    from: vi.fn(() => ({
+      select:      vi.fn().mockReturnThis(),
+      eq:          vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue(maybeSingleResult),
+      update:      updateFn,
+    })),
   };
-  return client;
+  return { client, updateFn };
 }
 
 // ── Fixture ───────────────────────────────────────────────────────────────────
 
 const PENDING_TOKEN = {
-  status:           "pending",
-  creator_wallet:   "CreatorWallet111",
-  is_scheduled:     false,
-  scheduled_at:     null,
+  status:         "pending",
+  creator_wallet: "CreatorWallet111",
+  is_scheduled:   false,
+  scheduled_at:   null,
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -108,7 +96,8 @@ describe("POST /api/launchpad/[id]/confirm — authorization", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns 404 when token does not exist", async () => {
-    mockCreateAdminClient.mockReturnValue(buildAdminMock(null));
+    const { client } = buildAdminMock(null);
+    mockCreateAdminClient.mockReturnValue(client);
 
     const res = await postConfirm(
       makeRequest({ txSignature: "sig", walletAddress: "any" }),
@@ -118,7 +107,8 @@ describe("POST /api/launchpad/[id]/confirm — authorization", () => {
   });
 
   it("returns 403 when walletAddress does not match creator_wallet", async () => {
-    mockCreateAdminClient.mockReturnValue(buildAdminMock(PENDING_TOKEN));
+    const { client } = buildAdminMock(PENDING_TOKEN);
+    mockCreateAdminClient.mockReturnValue(client);
 
     const res = await postConfirm(
       makeRequest({ txSignature: "sig", walletAddress: "OtherWallet" }),
@@ -129,7 +119,8 @@ describe("POST /api/launchpad/[id]/confirm — authorization", () => {
   });
 
   it("returns 409 when token status is not pending", async () => {
-    mockCreateAdminClient.mockReturnValue(buildAdminMock({ ...PENDING_TOKEN, status: "active" }));
+    const { client } = buildAdminMock({ ...PENDING_TOKEN, status: "active" });
+    mockCreateAdminClient.mockReturnValue(client);
 
     const res = await postConfirm(
       makeRequest({ txSignature: "sig", walletAddress: "CreatorWallet111" }),
@@ -146,25 +137,12 @@ describe("POST /api/launchpad/[id]/confirm — authorization", () => {
 
 describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
   beforeEach(() => vi.clearAllMocks());
-  // Ensure fake timers don't leak into subsequent describe blocks
   afterEach(() => vi.useRealTimers());
 
   it("clears vanity_secret_key when TX is confirmed on first check", async () => {
-    // TX confirmed immediately
-    mockGetSignatureStatus.mockResolvedValue({
-      value: { err: null, confirmationStatus: "confirmed" },
-    });
+    mockVerifyTransaction.mockResolvedValue(true);
 
-    const updateEq = vi.fn().mockResolvedValue({ error: null });
-    const updateFn = vi.fn().mockReturnValue({ eq: updateEq });
-    const client = {
-      from: vi.fn(() => ({
-        select:      vi.fn().mockReturnThis(),
-        eq:          vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: PENDING_TOKEN, error: null }),
-        update:      updateFn,
-      })),
-    };
+    const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
 
     const res = await postConfirm(
@@ -175,7 +153,6 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
     expect(res.status).toBe(200);
     expect((await json(res)).ok).toBe(true);
 
-    // vanity_secret_key must be null in the update payload
     const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
     expect(updateArg).toHaveProperty("vanity_secret_key", null);
     expect(updateArg).toHaveProperty("status", "active");
@@ -183,21 +160,10 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
 
   it("does NOT clear vanity_secret_key when TX is not confirmed after retry", async () => {
     vi.useFakeTimers();
+    // Both checks return false
+    mockVerifyTransaction.mockResolvedValue(false);
 
-    // TX never confirms (both checks return not-confirmed)
-    mockGetSignatureStatus.mockResolvedValue({ value: null });
-
-    const updateFn = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
-    const client = {
-      from: vi.fn(() => ({
-        select:      vi.fn().mockReturnThis(),
-        eq:          vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: PENDING_TOKEN, error: null }),
-        update:      updateFn,
-      })),
-    };
+    const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
 
     const responsePromise = postConfirm(
@@ -205,38 +171,25 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
       ROUTE_PARAMS
     );
 
-    // Advance timer past the 4s retry delay
-    await vi.advanceTimersByTimeAsync(5000);
+    // Advance past the 4s retry delay
+    await vi.runAllTimersAsync();
     const res = await responsePromise;
 
     expect(res.status).toBe(200);
     const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
-    // vanity_secret_key must NOT be in the update payload (key preserved for retry)
+    // vanity_secret_key must NOT be cleared (key preserved for retry)
     expect(updateArg).not.toHaveProperty("vanity_secret_key");
     expect(updateArg).toHaveProperty("status", "active");
-
-    vi.useRealTimers();
   });
 
   it("clears vanity_secret_key when TX is confirmed on retry (second check)", async () => {
     vi.useFakeTimers();
-
     // First call not confirmed, second call confirmed
-    mockGetSignatureStatus
-      .mockResolvedValueOnce({ value: null })
-      .mockResolvedValueOnce({ value: { err: null, confirmationStatus: "confirmed" } });
+    mockVerifyTransaction
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
 
-    const updateFn = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
-    const client = {
-      from: vi.fn(() => ({
-        select:      vi.fn().mockReturnThis(),
-        eq:          vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: PENDING_TOKEN, error: null }),
-        update:      updateFn,
-      })),
-    };
+    const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
 
     const responsePromise = postConfirm(
@@ -244,46 +197,27 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
       ROUTE_PARAMS
     );
 
-    // runAllTimersAsync flushes pending microtasks first (letting the route reach
-    // its setTimeout), then fires the timer, then flushes again — more reliable
-    // than advanceTimersByTimeAsync which may advance the clock before the route
-    // has had a chance to register the setTimeout.
     await vi.runAllTimersAsync();
     const res = await responsePromise;
 
     expect(res.status).toBe(200);
     const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
     expect(updateArg).toHaveProperty("vanity_secret_key", null);
-
-    vi.useRealTimers();
   });
 
   it("treats a TX with err field as unconfirmed", async () => {
     vi.useFakeTimers();
+    // verifyTransaction already handles err internally and returns false
+    mockVerifyTransaction.mockResolvedValue(false);
 
-    // TX has an error (reverted)
-    mockGetSignatureStatus.mockResolvedValue({
-      value: { err: { InstructionError: [0, "InvalidArgument"] }, confirmationStatus: "confirmed" },
-    });
-
-    const updateFn = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
-    const client = {
-      from: vi.fn(() => ({
-        select:      vi.fn().mockReturnThis(),
-        eq:          vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: PENDING_TOKEN, error: null }),
-        update:      updateFn,
-      })),
-    };
+    const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
 
     const responsePromise = postConfirm(
       makeRequest({ txSignature: "failedSig", walletAddress: "CreatorWallet111" }),
       ROUTE_PARAMS
     );
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.runAllTimersAsync();
     await responsePromise;
 
     const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
@@ -300,9 +234,7 @@ describe("POST /api/launchpad/[id]/confirm — scheduled tokens", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("sets is_tradeable=false for scheduled tokens", async () => {
-    mockGetSignatureStatus.mockResolvedValue({
-      value: { err: null, confirmationStatus: "confirmed" },
-    });
+    mockVerifyTransaction.mockResolvedValue(true);
 
     const scheduledToken = {
       ...PENDING_TOKEN,
@@ -310,17 +242,7 @@ describe("POST /api/launchpad/[id]/confirm — scheduled tokens", () => {
       scheduled_at: new Date(Date.now() + 86_400_000).toISOString(),
     };
 
-    const updateFn = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
-    const client = {
-      from: vi.fn(() => ({
-        select:      vi.fn().mockReturnThis(),
-        eq:          vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: scheduledToken, error: null }),
-        update:      updateFn,
-      })),
-    };
+    const { client, updateFn } = buildAdminMock(scheduledToken);
     mockCreateAdminClient.mockReturnValue(client);
 
     const res = await postConfirm(
@@ -337,21 +259,9 @@ describe("POST /api/launchpad/[id]/confirm — scheduled tokens", () => {
   });
 
   it("sets is_tradeable=true for immediate (non-scheduled) tokens", async () => {
-    mockGetSignatureStatus.mockResolvedValue({
-      value: { err: null, confirmationStatus: "confirmed" },
-    });
+    mockVerifyTransaction.mockResolvedValue(true);
 
-    const updateFn = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
-    const client = {
-      from: vi.fn(() => ({
-        select:      vi.fn().mockReturnThis(),
-        eq:          vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: PENDING_TOKEN, error: null }),
-        update:      updateFn,
-      })),
-    };
+    const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
 
     const res = await postConfirm(

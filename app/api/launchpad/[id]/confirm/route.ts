@@ -12,28 +12,8 @@
  *  3. Clears the stored vanity secret key (no longer needed)
  */
 import { NextResponse } from "next/server";
-import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
-
-type RouteParams = { params: Promise<{ id: string }> };
-
-async function verifyTransaction(txSignature: string): Promise<boolean> {
-  const rpc = process.env.SOLANA_RPC_URL;
-  if (!rpc) return false;
-  try {
-    const connection = new Connection(rpc, "confirmed");
-    const result = await connection.getSignatureStatus(txSignature);
-    const status = result.value;
-    if (!status) return false;
-    if (status.err) return false;
-    return (
-      status.confirmationStatus === "confirmed" ||
-      status.confirmationStatus === "finalized"
-    );
-  } catch {
-    return false;
-  }
-}
+import { verifyTransaction } from "@/lib/solana/verify-tx";
 
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
