@@ -217,7 +217,6 @@ function RewardSummary({
         <span>Potential win ×{option.oddsMultiplier}</span>
         <span>{fmt(reward.netReward)} <span className="text-xs font-normal text-zinc-400 dark:text-zinc-500">net</span></span>
       </div>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500">5% platform fee applied to winnings</p>
     </div>
   );
 }
