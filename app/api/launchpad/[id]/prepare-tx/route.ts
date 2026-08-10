@@ -60,10 +60,15 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    // Reconstruct mint keypair from stored secret (base64-encoded)
-    const mintKeypair = Keypair.fromSecretKey(
-      Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"))
-    );
+    // Reconstruct mint keypair from stored secret (base64-encoded, 64 bytes)
+    const secretBytes = Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"));
+    if (secretBytes.length !== 64) {
+      return NextResponse.json(
+        { error: "Ce token a été créé avec une ancienne version et doit être recréé. Supprime-le et relance la création." },
+        { status: 422 }
+      );
+    }
+    const mintKeypair = Keypair.fromSecretKey(secretBytes);
 
     // Build metadata JSON — logo_url may be null if R2 upload is pending
     const metadataJson = buildMetadataJson({
