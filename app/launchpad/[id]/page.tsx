@@ -5,6 +5,7 @@ import Image from "next/image";
 import { getLaunchpadToken } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
+import { EditTokenButton } from "@/components/launchpad/edit-token-button";
 
 // Revalidate every 30s — status changes after on-chain confirmation
 export const revalidate = 30;
@@ -102,6 +103,22 @@ export default async function TokenDetailPage({ params }: Props) {
                 <h1 className="text-xl font-bold text-foreground">{token.name}</h1>
                 <span className="text-sm text-muted-foreground">${token.ticker}</span>
                 <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
+                <EditTokenButton token={{
+                  id: token.id,
+                  creator_wallet: token.creator_wallet,
+                  name: token.name,
+                  ticker: token.ticker,
+                  description: token.description,
+                  category: token.category,
+                  logo_url: token.logo_url,
+                  whitepaper_url: token.whitepaper_url,
+                  website: token.website,
+                  twitter: token.twitter,
+                  telegram: token.telegram,
+                  discord: token.discord,
+                  other_social: token.other_social,
+                  status: token.status,
+                }} />
               </div>
               <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 {token.category}

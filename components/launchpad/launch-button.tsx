@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Transaction, Connection, PublicKey } from "@solana/web3.js";
+import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 // Clock kept for scheduled launch indicator
@@ -136,12 +136,11 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const txBuffer = Buffer.from(transactionBase64, "base64");
       const tx = Transaction.from(txBuffer);
 
-      // Set recent blockhash if missing
-      if (!tx.recentBlockhash) {
-        const connection = new Connection(getRpc(), "confirmed");
-        const { blockhash } = await connection.getLatestBlockhash();
-        tx.recentBlockhash = blockhash;
-      }
+      // DO NOT change recentBlockhash here — the server already refreshed it
+      // right after confirming createConfigTx and pre-signed with it.
+      // Changing the blockhash would invalidate the server's partial signatures
+      // (platformWallet + mintKeypair). If this fails with "blockhash not found",
+      // the user clicks Launch again which calls prepare-tx with a fresh blockhash.
 
       signedTx = await wallet.signTransaction(tx);
     } catch (e) {
@@ -156,6 +155,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     setPhase("sending");
     let txSignature: string;
     try {
+      const { Connection } = await import("@solana/web3.js");
       const connection = new Connection(getRpc(), "confirmed");
       const serialized = signedTx.serialize();
       txSignature = await connection.sendRawTransaction(serialized, {
