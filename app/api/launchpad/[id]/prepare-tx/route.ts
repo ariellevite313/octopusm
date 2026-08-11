@@ -106,7 +106,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       creatorWallet: token.creator_wallet as string,
       mintKeypair,
       totalSupply:   token.supply as number,
-      creatorFeePct: (token.creator_fee_pct as 1 | 2),
+
       firstBuySol:   (token.first_buy_amount as number) ?? 0,
       activationTimestamp: token.is_scheduled && token.scheduled_at
         ? Math.floor(new Date(token.scheduled_at as string).getTime() / 1000)
