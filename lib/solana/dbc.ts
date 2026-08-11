@@ -4,6 +4,7 @@
  * Required env vars:
  *   SOLANA_RPC_URL          — server-side RPC (never NEXT_PUBLIC_*)
  *   PLATFORM_WALLET_SECRET  — base58-encoded platform wallet private key
+ *   DBC_CONFIG_KEY          — pre-created Meteora partner config key (public key)
  */
 
 import {
@@ -24,8 +25,6 @@ export type DbcPoolParams = {
   /** Mint keypair (randomly generated, pre-signed server-side) */
   mintKeypair: Keypair;
   totalSupply: number;
-  /** @deprecated — fee is now hardcoded to 2.5% (platform 1% + creator 1% after Meteora's 20% cut) */
-  creatorFeePct?: never;
   /** First buy amount in SOL (0 = disabled) */
   firstBuySol: number;
   /** Unix timestamp (seconds) for scheduled pools; undefined = immediate */
@@ -46,6 +45,12 @@ function getPlatformWallet(): Keypair {
   return Keypair.fromSecretKey(bs58.decode(secret));
 }
 
+function getConfigKey(): PublicKey {
+  const key = process.env.DBC_CONFIG_KEY;
+  if (!key) throw new Error("DBC_CONFIG_KEY is not set");
+  return new PublicKey(key);
+}
+
 // ── wSOL mint ─────────────────────────────────────────────────────────────────
 
 const WSOL = new PublicKey("So11111111111111111111111111111111111111112");
@@ -53,13 +58,12 @@ const WSOL = new PublicKey("So11111111111111111111111111111111111111112");
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
- * Build the DBC pool creation transaction.
+ * Build the DBC pool creation transaction using the pre-created partner config key.
  *
- * Flow:
- *  1. Server generates a config keypair and calls partner.createConfigAndPoolWithFirstBuy()
- *  2. Server signs + submits createConfigTx (config keypair + platform wallet)
- *  3. Server pre-signs createPoolWithFirstBuyTx (mint keypair + platform wallet)
- *  4. Returns base64 transaction for the client (creator) to finish signing
+ * Flow (simplified — no createConfigTx needed):
+ *  1. Server calls creator.createPoolWithFirstBuy() with the existing config key
+ *  2. Server pre-signs the tx (mint keypair + platform wallet)
+ *  3. Returns base64 transaction for the client (creator) to finish signing
  */
 export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise<{
   transactionBase64: string;
@@ -81,108 +85,48 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     );
   }
 
-  const connection    = getConnection();
+  const connection     = getConnection();
   const platformWallet = getPlatformWallet();
-  const creator       = new PublicKey(params.creatorWallet);
-
-  // New keypair for the on-chain config account (must sign createConfigTx)
-  const configKeypair = Keypair.generate();
+  const configKey      = getConfigKey();
+  const creator        = new PublicKey(params.creatorWallet);
 
   const client = new DynamicBondingCurveClient(connection, "confirmed");
 
-  const poolCreationFeeLamports = 50_000_000; // 0.05 SOL
   const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
 
-  const { createConfigTx, createPoolWithFirstBuyTx } =
-    await client.partner.createConfigAndPoolWithFirstBuy({
-      // ── Accounts ──────────────────────────────────────────────────────────
-      config:           configKeypair.publicKey,
-      feeClaimer:       platformWallet.publicKey,
-      leftoverReceiver: platformWallet.publicKey,
-      payer:            platformWallet.publicKey,
-      quoteMint:        WSOL,
+  // Use the pre-created partner config key — no createConfigTx needed
+  const createPoolTx = await client.creator.createPoolWithFirstBuy({
+    config:  configKey,
+    payer:   platformWallet.publicKey,
 
-      // ── ConfigParameters (on-chain IDL type) ──────────────────────────────
-      poolFees: {
-        baseFee: {
-          // 2.5% total trading fee = 25_000_000 / 1_000_000_000
-          // Meteora takes 20% → 0.5%; remaining 80% split 50/50:
-          //   platform (feeClaimer): 1%  |  creator: 1%
-          cliffFeeNumerator: new BN(25_000_000),
-          baseFeeMode:  0,       // FeeSchedulerLinear
-          firstFactor:  0,
-          secondFactor: new BN(0),
-          thirdFactor:  new BN(0),
-        },
-        dynamicFee: null,
-      },
-      activationType:  params.activationTimestamp ? 1 : 0,  // 1=Timestamp, 0=Slot
-      activationPoint: params.activationTimestamp
-        ? new BN(params.activationTimestamp)
-        : null,
-      collectFeeMode:  0,  // QuoteToken
-      migrationOption: 0,  // DAMM V1
-      tokenType:       0,  // SPLToken
-      tokenDecimal:    6,
-      migrationQuoteThreshold: new BN(85 * LAMPORTS_PER_SOL),
-      partnerLpPercentage:       0,
-      creatorLpPercentage:       100,
-      partnerLockedLpPercentage: 0,
-      creatorLockedLpPercentage: 0,
-      migrationFee: {
-        feePercentage:        0,
-        creatorFeePercentage: 25,
-      },
-      // Very low start price (essentially 0)
-      sqrtStartPrice: new BN("79226673515401279992447579055"),
-      lockedVesting: {
-        amountPerPeriod:                 new BN(0),
-        cliffDurationFromMigrationTime:  new BN(0),
-        frequency:                       new BN(0),
-        numberOfPeriod:                  new BN(0),
-        cliffUnlockAmount:               new BN(0),
-      },
-      creatorTradingFeePercentage: 50,  // 50% of 80% of 2.5% = 1% to creator
-      tokenSupply:     null,
-      poolCreationFee: new BN(poolCreationFeeLamports),
+    // ── Pool params ─────────────────────────────────────────────────────────
+    preCreatePoolParam: {
+      name:        params.name,
+      symbol:      params.symbol,
+      uri:         params.metadataUri,
+      poolCreator: creator,
+      baseMint:    params.mintKeypair.publicKey,
+    },
 
-      // ── Pool params ───────────────────────────────────────────────────────
-      preCreatePoolParam: {
-        name:        params.name,
-        symbol:      params.symbol,
-        uri:         params.metadataUri,
-        poolCreator: creator,
-        baseMint:    params.mintKeypair.publicKey,
-      },
+    // ── Optional first buy ──────────────────────────────────────────────────
+    firstBuyParam: firstBuyLamports > 0
+      ? {
+          buyer:                creator,
+          buyAmount:            new BN(firstBuyLamports),
+          minimumAmountOut:     new BN(0),
+          referralTokenAccount: null,
+        }
+      : undefined,
+  });
 
-      // ── Optional first buy ────────────────────────────────────────────────
-      firstBuyParam: firstBuyLamports > 0
-        ? {
-            buyer:                creator,
-            buyAmount:            new BN(firstBuyLamports),
-            minimumAmountOut:     new BN(0),
-            referralTokenAccount: null,
-          }
-        : undefined,
-    });
+  // ── Pre-sign the pool transaction ─────────────────────────────────────────
+  // Platform wallet pays fees; mint keypair signs as the new token account.
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  createPoolTx.recentBlockhash = blockhash;
+  createPoolTx.feePayer = platformWallet.publicKey;
+  createPoolTx.partialSign(platformWallet, params.mintKeypair);
 
-  // ── Step 1: sign + submit the config creation transaction ─────────────────
-  // createConfigTx must be signed by the config keypair (new account) + platform wallet (payer)
-  createConfigTx.feePayer = platformWallet.publicKey;
-  createConfigTx.partialSign(configKeypair, platformWallet);
-  const configSig = await connection.sendRawTransaction(createConfigTx.serialize());
-  await connection.confirmTransaction(configSig, "confirmed");
-
-  // ── Step 2: refresh blockhash + pre-sign the pool transaction ────────────
-  // The pool tx was built at the same time as configTx and shares its blockhash.
-  // After waiting for configTx confirmation, that blockhash may have expired.
-  // We refresh it here to give the client a fresh ~60s window to sign.
-  const { blockhash: freshBlockhash } = await connection.getLatestBlockhash("confirmed");
-  createPoolWithFirstBuyTx.recentBlockhash = freshBlockhash;
-  createPoolWithFirstBuyTx.feePayer = platformWallet.publicKey;
-  createPoolWithFirstBuyTx.partialSign(platformWallet, params.mintKeypair);
-
-  const serialized = createPoolWithFirstBuyTx.serialize({ requireAllSignatures: false });
+  const serialized = createPoolTx.serialize({ requireAllSignatures: false });
   const transactionBase64 = Buffer.from(serialized).toString("base64");
 
   return {
