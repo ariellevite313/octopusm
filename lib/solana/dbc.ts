@@ -24,8 +24,8 @@ export type DbcPoolParams = {
   /** Mint keypair (randomly generated, pre-signed server-side) */
   mintKeypair: Keypair;
   totalSupply: number;
-  /** Creator trading fee % (fixed at 1) */
-  creatorFeePct: 1;
+  /** @deprecated — fee is now hardcoded to 2.5% (platform 1% + creator 1% after Meteora's 20% cut) */
+  creatorFeePct?: never;
   /** First buy amount in SOL (0 = disabled) */
   firstBuySol: number;
   /** Unix timestamp (seconds) for scheduled pools; undefined = immediate */
@@ -105,8 +105,10 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
       // ── ConfigParameters (on-chain IDL type) ──────────────────────────────
       poolFees: {
         baseFee: {
-          // 1% total trading fee = 10_000_000 / 1_000_000_000
-          cliffFeeNumerator: new BN(params.creatorFeePct * 10_000_000),
+          // 2.5% total trading fee = 25_000_000 / 1_000_000_000
+          // Meteora takes 20% → 0.5%; remaining 80% split 50/50:
+          //   platform (feeClaimer): 1%  |  creator: 1%
+          cliffFeeNumerator: new BN(25_000_000),
           baseFeeMode:  0,       // FeeSchedulerLinear
           firstFactor:  0,
           secondFactor: new BN(0),
@@ -140,7 +142,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
         numberOfPeriod:                  new BN(0),
         cliffUnlockAmount:               new BN(0),
       },
-      creatorTradingFeePercentage: 25,
+      creatorTradingFeePercentage: 50,  // 50% of 80% of 2.5% = 1% to creator
       tokenSupply:     null,
       poolCreationFee: new BN(poolCreationFeeLamports),
 

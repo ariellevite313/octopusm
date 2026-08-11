@@ -204,7 +204,7 @@ export default async function TokenDetailPage({ params }: Props) {
           <div className="rounded-2xl border border-border bg-card p-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Token Info</p>
             <InfoRow label="Supply"       value={formatSupply(token.supply)} />
-            <InfoRow label="Creator fee"  value={`${token.creator_fee_pct}% per trade`} />
+            <InfoRow label="Trading fee"  value="2.5% per trade" />
             {token.first_buy_amount && (
               <InfoRow label="First buy" value={`${token.first_buy_amount} SOL`} />
             )}
