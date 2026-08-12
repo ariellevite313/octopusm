@@ -33,3 +33,8 @@ process.env.SUPABASE_SERVICE_KEY = "test-service-key";
 process.env.NEXT_PUBLIC_SITE_URL = "https://omdot.fun";
 // Required by confirm/route.ts verifyTransaction — without this it returns false immediately
 process.env.SOLANA_RPC_URL = "https://mock-rpc.test";
+// Required by lib/solana/dbc.ts — dummy values so any test that imports dbc without mocking
+// gets a clear error rather than "DBC_CONFIG_KEY is not set"
+process.env.DBC_CONFIG_KEY         = "11111111111111111111111111111111";
+// 64 zero-bytes base58-encoded — invalid key but passes the env check
+process.env.PLATFORM_WALLET_SECRET = "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111";

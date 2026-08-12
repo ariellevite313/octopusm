@@ -27,8 +27,13 @@ export type DbcPoolParams = {
   totalSupply: number;
   /** First buy amount in SOL (0 = disabled) */
   firstBuySol: number;
-  /** Unix timestamp (seconds) for scheduled pools; undefined = immediate */
-  activationTimestamp?: number;
+  /**
+   * NOTE: activationTimestamp is intentionally NOT forwarded to the SDK.
+   * The pre-created DBC_CONFIG_KEY encodes a fixed activationType on-chain;
+   * per-pool activation points are not supported with the pre-created config flow.
+   * Scheduled launches are enforced at the application level only (is_tradeable=false
+   * until the cron job fires at scheduled_at and flips is_tradeable=true).
+   */
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,18 +56,14 @@ function getConfigKey(): PublicKey {
   return new PublicKey(key);
 }
 
-// ── wSOL mint ─────────────────────────────────────────────────────────────────
-
-const WSOL = new PublicKey("So11111111111111111111111111111111111111112");
-
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
  * Build the DBC pool creation transaction using the pre-created partner config key.
  *
- * Flow (simplified — no createConfigTx needed):
- *  1. Server calls creator.createPoolWithFirstBuy() with the existing config key
- *  2. Server pre-signs the tx (mint keypair + platform wallet)
+ * Flow (single transaction — no createConfigTx needed):
+ *  1. Server calls client.pool.createPool() with the existing config key
+ *  2. Server pre-signs the tx (platform wallet + mint keypair)
  *  3. Returns base64 transaction for the client (creator) to finish signing
  */
 export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise<{
@@ -81,7 +82,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     BN = bnMod.default ?? bnMod;
   } catch {
     throw new Error(
-      "DBC SDK not installed. Run: npm install @meteora-ag/dynamic-bonding-curve-sdk bn.js"
+      "DBC SDK not installed. Run: npm install @meteora-ag/dynamic-bonding-curve-sdk@latest bn.js"
     );
   }
 
@@ -89,44 +90,46 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
   const platformWallet = getPlatformWallet();
   const configKey      = getConfigKey();
   const creator        = new PublicKey(params.creatorWallet);
+  const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
 
   const client = new DynamicBondingCurveClient(connection, "confirmed");
 
-  const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
+  // ── Build pool transaction using the pre-created config key ─────────────────
+  // All fee/curve settings are already encoded in the config on-chain.
+  const createPoolParam = {
+    baseMint:    params.mintKeypair.publicKey,
+    config:      configKey,
+    name:        params.name,
+    symbol:      params.symbol,
+    uri:         params.metadataUri,
+    payer:       platformWallet.publicKey,
+    poolCreator: creator,
+  };
 
-  // Use the pre-created partner config key — no createConfigTx needed
-  const createPoolTx = await client.creator.createPoolWithFirstBuy({
-    config:  configKey,
-    payer:   platformWallet.publicKey,
+  let poolTx;
+  if (firstBuyLamports > 0) {
+    // With first buy
+    poolTx = await client.pool.createPoolWithFirstBuy({
+      ...createPoolParam,
+      firstBuyParam: {
+        buyer:                creator,
+        buyAmount:            new BN(firstBuyLamports),
+        minimumAmountOut:     new BN(0),
+        referralTokenAccount: null,
+      },
+    });
+  } else {
+    // Without first buy
+    poolTx = await client.pool.createPool(createPoolParam);
+  }
 
-    // ── Pool params ─────────────────────────────────────────────────────────
-    preCreatePoolParam: {
-      name:        params.name,
-      symbol:      params.symbol,
-      uri:         params.metadataUri,
-      poolCreator: creator,
-      baseMint:    params.mintKeypair.publicKey,
-    },
-
-    // ── Optional first buy ──────────────────────────────────────────────────
-    firstBuyParam: firstBuyLamports > 0
-      ? {
-          buyer:                creator,
-          buyAmount:            new BN(firstBuyLamports),
-          minimumAmountOut:     new BN(0),
-          referralTokenAccount: null,
-        }
-      : undefined,
-  });
-
-  // ── Pre-sign the pool transaction ─────────────────────────────────────────
-  // Platform wallet pays fees; mint keypair signs as the new token account.
+  // ── Pre-sign: platform wallet (payer) + mint keypair ────────────────────────
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
-  createPoolTx.recentBlockhash = blockhash;
-  createPoolTx.feePayer = platformWallet.publicKey;
-  createPoolTx.partialSign(platformWallet, params.mintKeypair);
+  poolTx.recentBlockhash = blockhash;
+  poolTx.feePayer = platformWallet.publicKey;
+  poolTx.partialSign(platformWallet, params.mintKeypair);
 
-  const serialized = createPoolTx.serialize({ requireAllSignatures: false });
+  const serialized = poolTx.serialize({ requireAllSignatures: false });
   const transactionBase64 = Buffer.from(serialized).toString("base64");
 
   return {

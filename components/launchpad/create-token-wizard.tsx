@@ -492,8 +492,10 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data }: { data: WizardData }) {
-  const totalFee = 2; // 1% creator + 1% platform, fixed
-  const mintCost = 0.05 + (data.is_scheduled ? 0.1 : 0);
+  // Fee set by the DBC_CONFIG_KEY (2.5% total: 1% platform + 1% creator + 0.5% Meteora protocol)
+  const totalFee = 2.5;
+  // Scheduled fee is an app-level charge stored in scheduled_paid_sol
+  const mintCost = data.is_scheduled ? 0.1 : 0;
 
   return (
     <div className="space-y-4">
@@ -551,13 +553,13 @@ function StepReview({ data }: { data: WizardData }) {
       <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost</p>
         <div className="space-y-1">
-          <Row label="Token creation" value="0.05 SOL" />
+          <Row label="Network fees" value="~0.01 SOL" />
           {data.is_scheduled && <Row label="Scheduled launch" value="0.10 SOL" />}
           {data.first_buy_enabled && <Row label="First buy" value={`${data.first_buy_amount} SOL`} />}
           <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
             <span className="text-sm font-semibold text-foreground">Total</span>
             <span className="text-sm font-bold text-primary">
-              ~{(mintCost + (data.first_buy_enabled ? data.first_buy_amount : 0)).toFixed(2)} SOL
+              ~{(mintCost + (data.first_buy_enabled ? data.first_buy_amount : 0) + 0.01).toFixed(2)} SOL
             </span>
           </div>
         </div>

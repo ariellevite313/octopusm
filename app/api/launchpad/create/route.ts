@@ -133,6 +133,8 @@ export async function POST(req: Request) {
         discord:          payload.discord  || null,
         other_social:     payload.other_social || null,
         supply:           payload.supply,
+        // Informational only — on-chain fees are governed by DBC_CONFIG_KEY (2.5% total).
+        // These fields do NOT affect the SDK call and are stored for audit purposes only.
         creator_fee_pct:  payload.creator_fee_pct,
         platform_fee_pct: payload.creator_fee_pct,
         fee_recipients:   payload.fee_recipients.length > 0 ? payload.fee_recipients : null,

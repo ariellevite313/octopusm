@@ -15,6 +15,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { verifyTransaction } from "@/lib/solana/verify-tx";
 
+type RouteParams = { params: Promise<{ id: string }> };
+
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
