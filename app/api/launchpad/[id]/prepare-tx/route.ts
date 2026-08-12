@@ -33,7 +33,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("*")
+      // Select only the columns needed server-side (vanity_secret_key required to rebuild mint keypair)
+      .select("id,creator_wallet,status,name,ticker,description,logo_url,website,twitter,telegram,supply,first_buy_amount,is_scheduled,mint_address,vanity_secret_key,metadata_uri,tx_base64,tx_prepared_at")
       .eq("id", id)
       .maybeSingle();
 

@@ -6,6 +6,7 @@ import { checkNameAvailability, isProtectedName } from "@/services/launchpad-ser
 // Max file sizes
 const MAX_LOGO_BYTES       = 5  * 1024 * 1024; // 5 MB
 const MAX_WHITEPAPER_BYTES = 20 * 1024 * 1024; // 20 MB
+const VALID_LOGO_TYPES     = new Set(["image/jpeg","image/png","image/webp","image/gif"]);
 
 const VALID_CATEGORIES = new Set(["Meme","Utility","AI","Gaming","DeFi","NFT","x402"]);
 
@@ -72,6 +73,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Creator fee must be 1%" }, { status: 400 });
     }
 
+    // Scheduled date must be at least 1 hour in the future (client picks tomorrow min, server enforces 1h)
+    if (payload.is_scheduled) {
+      if (!payload.scheduled_at) {
+        return NextResponse.json({ error: "scheduled_at is required for scheduled launches" }, { status: 400 });
+      }
+      const scheduledMs = new Date(payload.scheduled_at).getTime();
+      if (isNaN(scheduledMs) || scheduledMs < Date.now() + 60 * 60 * 1000) {
+        return NextResponse.json({ error: "Scheduled date must be at least 1 hour in the future" }, { status: 400 });
+      }
+    }
+
+    // First buy amount must be between 0.01 and 100 SOL
+    if (payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
+      return NextResponse.json({ error: "First buy amount must be between 0.01 and 100 SOL" }, { status: 400 });
+    }
+
     // Validate social URLs server-side — reject javascript: and other non-http(s) schemes
     const socialFields = ["website", "twitter", "telegram", "discord", "other_social"] as const;
     for (const field of socialFields) {
@@ -90,6 +107,9 @@ export async function POST(req: Request) {
 
     const logoFile = form.get("logo");
     if (logoFile instanceof Blob && logoFile.size > 0) {
+      if (!VALID_LOGO_TYPES.has(logoFile.type)) {
+        return NextResponse.json({ error: "Unsupported logo format. Use PNG, JPG, WebP, or GIF" }, { status: 400 });
+      }
       if (logoFile.size > MAX_LOGO_BYTES) {
         return NextResponse.json({ error: "Logo too large (max 5 MB)" }, { status: 400 });
       }
