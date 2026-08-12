@@ -62,7 +62,7 @@ function getConfigKey(): PublicKey {
  * Build the DBC pool creation transaction using the pre-created partner config key.
  *
  * Flow (single transaction — no createConfigTx needed):
- *  1. Server calls client.pool.createPool() with the existing config key
+ *  1. Server calls client.creator.createPool() with the existing config key
  *  2. Server pre-signs the tx (platform wallet + mint keypair)
  *  3. Returns base64 transaction for the client (creator) to finish signing
  */
@@ -109,7 +109,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
   let poolTx;
   if (firstBuyLamports > 0) {
     // With first buy
-    poolTx = await client.pool.createPoolWithFirstBuy({
+    poolTx = await client.creator.createPoolWithFirstBuy({
       ...createPoolParam,
       firstBuyParam: {
         buyer:                creator,
@@ -120,7 +120,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     });
   } else {
     // Without first buy
-    poolTx = await client.pool.createPool(createPoolParam);
+    poolTx = await client.creator.createPool(createPoolParam);
   }
 
   // ── Pre-sign: platform wallet (payer) + mint keypair ────────────────────────
