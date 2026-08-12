@@ -11,6 +11,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SystemProgram,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -28,12 +29,16 @@ export type DbcPoolParams = {
   /** First buy amount in SOL (0 = disabled) */
   firstBuySol: number;
   /**
+   * Whether this is a scheduled launch. When true, an additional 0.1 SOL is
+   * collected on-chain (creator → platform wallet) on top of the standard 0.05 SOL
+   * creation fee. Scheduling itself is enforced at the app level (is_tradeable=false
+   * until the cron job fires at scheduled_at).
+   *
    * NOTE: activationTimestamp is intentionally NOT forwarded to the SDK.
    * The pre-created DBC_CONFIG_KEY encodes a fixed activationType on-chain;
    * per-pool activation points are not supported with the pre-created config flow.
-   * Scheduled launches are enforced at the application level only (is_tradeable=false
-   * until the cron job fires at scheduled_at and flips is_tradeable=true).
    */
+  isScheduled?: boolean;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -122,6 +127,18 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     // Without first buy
     poolTx = await client.creator.createPool(createPoolParam);
   }
+
+  // ── Platform creation fee: 0.05 SOL (+ 0.1 SOL if scheduled) → platform wallet
+  const CREATION_FEE_LAMPORTS  = Math.floor(0.05 * LAMPORTS_PER_SOL);
+  const SCHEDULED_FEE_LAMPORTS = Math.floor(0.10 * LAMPORTS_PER_SOL);
+  const totalFeeLamports = CREATION_FEE_LAMPORTS + (params.isScheduled ? SCHEDULED_FEE_LAMPORTS : 0);
+  poolTx.add(
+    SystemProgram.transfer({
+      fromPubkey: creator,
+      toPubkey:   platformWallet.publicKey,
+      lamports:   totalFeeLamports,
+    })
+  );
 
   // ── Pre-sign: platform wallet (payer) + mint keypair ────────────────────────
   const { blockhash } = await connection.getLatestBlockhash("confirmed");

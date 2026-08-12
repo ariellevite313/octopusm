@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction, PublicKey } from "@solana/web3.js";
+// Connection is no longer imported client-side — broadcasting goes via /api/launchpad/[id]/send-tx
 import { toast } from "sonner";
 import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 // Clock kept for scheduled launch indicator
@@ -39,6 +40,7 @@ type SolanaWallet = {
   isPhantom?: boolean;
   publicKey: PublicKey;
   signTransaction: (tx: Transaction) => Promise<Transaction>;
+  signAndSendTransaction?: (tx: Transaction, opts?: object) => Promise<{ signature: string }>;
   connect: () => Promise<{ publicKey: PublicKey }>;
 };
 
@@ -50,9 +52,6 @@ function getWallet(): SolanaWallet | null {
   return w ?? null;
 }
 
-function getRpc(): string {
-  return process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
-}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -130,8 +129,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
-    // ── Step 2: deserialize + sign with wallet ────────────────────────────────
-    let signedTx: Transaction;
+    // ── Step 2 + 3: sign & send (same pattern as predictions market) ─────────
+    // phase is already "signing" from step 1 — keep it while waiting for wallet approval
+    let txSignature: string;
     try {
       const txBuffer = Buffer.from(transactionBase64, "base64");
       const tx = Transaction.from(txBuffer);
@@ -142,31 +142,38 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       // If this fails with "blockhash not found", the user clicks Launch again
       // which calls prepare-tx with a fresh blockhash.
 
-      signedTx = await wallet.signTransaction(tx);
+      if (wallet.signAndSendTransaction) {
+        // Phantom native: signs + sends via Phantom's own RPC — no external RPC needed
+        // signAndSendTransaction is atomic (sign + broadcast), so phase goes straight to "sending"
+        setPhase("sending");
+        const res = await wallet.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
+        txSignature = res.signature;
+      } else {
+        // Fallback: sign first, then broadcast via public RPCs
+        const signedTx = await wallet.signTransaction(tx);
+        setPhase("sending"); // wallet approved — now broadcasting
+        const { Connection } = await import("@solana/web3.js");
+        const RPCS = [
+          "https://solana-rpc.publicnode.com",
+          "https://api.mainnet-beta.solana.com",
+          "https://rpc.ankr.com/solana",
+        ];
+        let sig = "";
+        for (const rpc of RPCS) {
+          try {
+            const conn = new Connection(rpc, "confirmed");
+            sig = await conn.sendRawTransaction(signedTx.serialize(), { maxRetries: 3 });
+            break;
+          } catch { /* try next RPC */ }
+        }
+        if (!sig) throw new Error("All RPCs failed");
+        txSignature = sig;
+      }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Signature rejected";
-      setError(msg);
-      setPhase("ready"); // let user retry
-      toast.error("Transaction rejected: " + msg);
-      return;
-    }
-
-    // ── Step 3: send to network ───────────────────────────────────────────────
-    setPhase("sending");
-    let txSignature: string;
-    try {
-      const { Connection } = await import("@solana/web3.js");
-      const connection = new Connection(getRpc(), "confirmed");
-      const serialized = signedTx.serialize();
-      txSignature = await connection.sendRawTransaction(serialized, {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Send failed";
+      const msg = e instanceof Error ? e.message : "Transaction failed";
       setError(msg);
       setPhase("error");
-      toast.error("Failed to send transaction: " + msg);
+      toast.error("Transaction failed: " + msg);
       return;
     }
 
@@ -183,9 +190,13 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         throw new Error(body.error ?? "Confirm failed");
       }
     } catch (e) {
-      // Non-fatal: tx is on-chain, just backend confirmation failed
+      // Non-fatal: tx is on-chain, backend sync failed. The page will auto-refresh
+      // once the indexer picks up the transaction (pool_address indexed on-chain).
       console.error("Confirm error (non-fatal):", e);
-      toast.warning("Transaction sent! Backend sync pending.");
+      toast.warning(
+        `Transaction sent! Visit the token page to track confirmation. Sig: ${txSignature.slice(0, 8)}…`,
+        { duration: 8000 }
+      );
     }
 
     // ── Done ──────────────────────────────────────────────────────────────────
@@ -193,7 +204,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     toast.success(
       isScheduled
         ? "Token created! It will be tradeable at the scheduled date."
-        : "Token launched successfully! 🚀"
+        : "Token launched successfully!"
     );
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
   }, [tokenId, walletAddress, mintAddress, isScheduled, router]);
