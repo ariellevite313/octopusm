@@ -43,19 +43,28 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Already confirmed" }, { status: 409 });
     }
 
-    // Verify the transaction exists on-chain
-    const confirmed = await verifyTransaction(body.txSignature);
+    // Verify the transaction on-chain — distinguish confirmed / pending / failed
+    let result = await verifyTransaction(body.txSignature);
 
-    // If not yet confirmed, retry once after a short delay before accepting
-    let finalConfirmed = confirmed;
-    if (!confirmed) {
+    // If pending, retry once after a short delay (network propagation lag)
+    if (result.state === "pending") {
       await new Promise(r => setTimeout(r, 4000));
-      finalConfirmed = await verifyTransaction(body.txSignature);
+      result = await verifyTransaction(body.txSignature);
     }
 
-    if (!finalConfirmed) {
-      // Still not confirmed — accept optimistically but keep vanity_secret_key
-      // so the user can retry if the tx ultimately failed.
+    // Transaction landed but reverted — do NOT mark token active, let user retry
+    if (result.state === "failed") {
+      console.error(`tx ${body.txSignature} failed on-chain for token ${id}:`, result.reason);
+      return NextResponse.json(
+        { error: `Transaction failed on-chain: ${result.reason}` },
+        { status: 422 }
+      );
+    }
+
+    const isConfirmed = result.state === "confirmed";
+    if (!isConfirmed) {
+      // Still pending after retry — accept optimistically (network congestion)
+      // but keep vanity_secret_key so user can retry if the tx never lands.
       console.warn(`tx ${body.txSignature} not yet confirmed for token ${id}, accepting optimistically`);
     }
 
@@ -73,7 +82,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         tx_base64:      null,
         tx_prepared_at: null,
         // Only clear the mint secret if tx is confirmed on-chain; keep it for retry otherwise
-        ...(finalConfirmed ? { vanity_secret_key: null } : {}),
+        ...(isConfirmed ? { vanity_secret_key: null } : {}),
         // pool_address will be indexed from the tx by a background job
       })
       .eq("id", id);
