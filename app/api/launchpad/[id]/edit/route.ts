@@ -144,6 +144,14 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return NextResponse.json({ ok: true, message: "Nothing to update" });
     }
 
+    // If any metadata that affects the on-chain tx changed, invalidate the cached transaction
+    // so prepare-tx rebuilds it with the new name/symbol/metadata_uri on the next launch attempt.
+    const metadataFields = new Set(["name","ticker","description","logo_url","whitepaper_url"]);
+    if (Object.keys(update).some((k) => metadataFields.has(k))) {
+      update.tx_base64      = null;
+      update.tx_prepared_at = null;
+    }
+
     const { error: updateErr } = await admin
       .from("launchpad_tokens")
       .update(update)

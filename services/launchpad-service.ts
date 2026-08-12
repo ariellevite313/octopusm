@@ -66,6 +66,12 @@ const PUBLIC_COLUMNS = [
   "created_at","updated_at",
 ].join(",");
 
+// Colonnes publiques pour token_reservations (colonnes différentes de launchpad_tokens)
+const RESERVATION_COLUMNS = [
+  "id","wallet_address","name","ticker","paid_sol","tx_signature",
+  "expires_at","consumed","created_at",
+].join(",");
+
 // ─── Tokens ────────────────────────────────────────────────────────────────
 
 export async function getLaunchpadTokens({
@@ -165,7 +171,7 @@ export async function getActiveReservation(wallet: string): Promise<TokenReserva
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
   const { data } = await admin
     .from("token_reservations")
-    .select(PUBLIC_COLUMNS)
+    .select(RESERVATION_COLUMNS)
     .eq("wallet_address", wallet)
     .eq("consumed", false)
     .gt("expires_at", new Date().toISOString())
