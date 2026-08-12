@@ -55,6 +55,17 @@ export function isProtectedName(value: string): boolean {
   return PROTECTED_NAMES.has(value.trim().toUpperCase());
 }
 
+// Colonnes publiques — exclut vanity_secret_key, tx_base64, tx_prepared_at, vanity_job_id
+const PUBLIC_COLUMNS = [
+  "id","name","ticker","category","description","logo_url","whitepaper_url",
+  "website","twitter","telegram","discord","other_social",
+  "mint_address","pool_address","creator_wallet","supply",
+  "creator_fee_pct","platform_fee_pct","fee_recipients",
+  "share_top100","share_top100_pct","is_scheduled","scheduled_at",
+  "first_buy_amount","status","is_tradeable","metadata_uri",
+  "created_at","updated_at",
+].join(",");
+
 // ─── Tokens ────────────────────────────────────────────────────────────────
 
 export async function getLaunchpadTokens({
@@ -71,7 +82,7 @@ export async function getLaunchpadTokens({
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
   let q = admin
     .from("launchpad_tokens")
-    .select("*")
+    .select(PUBLIC_COLUMNS)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -91,7 +102,7 @@ export async function getLaunchpadToken(id: string): Promise<LaunchpadToken | nu
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
   const { data } = await admin
     .from("launchpad_tokens")
-    .select("*")
+    .select(PUBLIC_COLUMNS)
     .eq("id", id)
     .maybeSingle();
   return data as LaunchpadToken | null;
@@ -101,7 +112,7 @@ export async function getLaunchpadTokenByMint(mint: string): Promise<LaunchpadTo
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
   const { data } = await admin
     .from("launchpad_tokens")
-    .select("*")
+    .select(PUBLIC_COLUMNS)
     .eq("mint_address", mint)
     .maybeSingle();
   return data as LaunchpadToken | null;
@@ -121,21 +132,19 @@ export async function checkNameAvailability(name: string, ticker: string): Promi
     return { nameAvailable: false, tickerAvailable: false };
   }
 
-  // Vérifier réservations actives
-  const { data: rawReservations } = await admin
-    .from("token_reservations")
-    .select("name, ticker")
-    .eq("consumed", false)
-    .gt("expires_at", now)
-    .or(`name.ilike.${name},ticker.ilike.${ticker}`);
-  const reservations = (rawReservations ?? []) as { name: string; ticker: string }[];
+  // Vérifier réservations actives — deux requêtes séparées pour éviter l'injection via .or()
+  const [{ data: resName }, { data: resTicker }] = await Promise.all([
+    admin.from("token_reservations").select("name, ticker").eq("consumed", false).gt("expires_at", now).ilike("name", name),
+    admin.from("token_reservations").select("name, ticker").eq("consumed", false).gt("expires_at", now).ilike("ticker", ticker),
+  ]);
+  const reservations = ([...(resName ?? []), ...(resTicker ?? [])]) as { name: string; ticker: string }[];
 
-  // Vérifier tokens existants
-  const { data: rawTokens } = await admin
-    .from("launchpad_tokens")
-    .select("name, ticker")
-    .or(`name.ilike.${name},ticker.ilike.${ticker}`);
-  const existingTokens = (rawTokens ?? []) as { name: string; ticker: string }[];
+  // Vérifier tokens existants — deux requêtes séparées
+  const [{ data: tokName }, { data: tokTicker }] = await Promise.all([
+    admin.from("launchpad_tokens").select("name, ticker").ilike("name", name),
+    admin.from("launchpad_tokens").select("name, ticker").ilike("ticker", ticker),
+  ]);
+  const existingTokens = ([...(tokName ?? []), ...(tokTicker ?? [])]) as { name: string; ticker: string }[];
 
   const takenNames = new Set([
     ...reservations.map((r) => r.name.toLowerCase()),
@@ -156,7 +165,7 @@ export async function getActiveReservation(wallet: string): Promise<TokenReserva
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
   const { data } = await admin
     .from("token_reservations")
-    .select("*")
+    .select(PUBLIC_COLUMNS)
     .eq("wallet_address", wallet)
     .eq("consumed", false)
     .gt("expires_at", new Date().toISOString())

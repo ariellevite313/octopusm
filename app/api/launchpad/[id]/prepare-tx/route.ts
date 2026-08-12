@@ -108,6 +108,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       totalSupply:   token.supply as number,
 
       firstBuySol:   (token.first_buy_amount as number) ?? 0,
+      isScheduled:   Boolean(token.is_scheduled),
       // activationTimestamp is not forwarded — scheduling is app-level only
       // (is_tradeable=false until cron flips it at scheduled_at).
     });

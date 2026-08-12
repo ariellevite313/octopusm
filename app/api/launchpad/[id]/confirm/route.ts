@@ -69,7 +69,10 @@ export async function POST(req: Request, { params }: RouteParams) {
       .update({
         status:       newStatus,
         is_tradeable: isTradeable,
-        // Only clear the secret if tx is confirmed — keeps retry possible otherwise
+        // Clear cached transaction so prepare-tx builds a fresh one if user re-launches
+        tx_base64:      null,
+        tx_prepared_at: null,
+        // Only clear the mint secret if tx is confirmed on-chain; keep it for retry otherwise
         ...(finalConfirmed ? { vanity_secret_key: null } : {}),
         // pool_address will be indexed from the tx by a background job
       })

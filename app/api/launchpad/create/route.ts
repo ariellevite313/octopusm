@@ -9,6 +9,12 @@ const MAX_WHITEPAPER_BYTES = 20 * 1024 * 1024; // 20 MB
 
 const VALID_CATEGORIES = new Set(["Meme","Utility","AI","Gaming","DeFi","NFT","x402"]);
 
+function isValidUrl(s: string | null | undefined): boolean {
+  if (!s) return true; // optional fields
+  try { const u = new URL(s); return u.protocol === "https:" || u.protocol === "http:"; }
+  catch { return false; }
+}
+
 type FeeRecipient = { address: string; share_pct: number };
 
 type CreatePayload = {
@@ -64,6 +70,15 @@ export async function POST(req: Request) {
     }
     if (payload.creator_fee_pct !== 1) {
       return NextResponse.json({ error: "Creator fee must be 1%" }, { status: 400 });
+    }
+
+    // Validate social URLs server-side — reject javascript: and other non-http(s) schemes
+    const socialFields = ["website", "twitter", "telegram", "discord", "other_social"] as const;
+    for (const field of socialFields) {
+      const val = (payload as Record<string, unknown>)[field] as string | undefined;
+      if (val && !isValidUrl(val)) {
+        return NextResponse.json({ error: `Invalid URL for ${field}` }, { status: 400 });
+      }
     }
 
     // ── File upload ─────────────────────────────────────────────────────────
