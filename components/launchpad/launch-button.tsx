@@ -129,7 +129,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
-    // ── Step 2 + 3: sign & send (same pattern as predictions market) ─────────
+    // ── Step 2 + 3: sign & send ───────────────────────────────────────────────
     // phase is already "signing" from step 1 — keep it while waiting for wallet approval
     let txSignature: string;
     try {
@@ -139,14 +139,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       // DO NOT change recentBlockhash here — the server already set it during
       // createPool and pre-signed with platformWallet + mintKeypair.
       // Changing the blockhash would invalidate the server's partial signatures.
-      // If this fails with "blockhash not found", the user clicks Launch again
-      // which calls prepare-tx with a fresh blockhash.
+      // If this fails with "blockhash not found" / expired, Retry will call
+      // prepare-tx again with a fresh blockhash (server cache is max 20s).
 
       if (wallet.signAndSendTransaction) {
-        // Phantom native: signs + sends via Phantom's own RPC — no external RPC needed
-        // signAndSendTransaction is atomic (sign + broadcast), so phase goes straight to "sending"
-        setPhase("sending");
+        // Phantom native: signs + sends atomically via Phantom's own RPC.
+        // Keep phase = "signing" until signAndSendTransaction resolves (user has approved).
         const res = await wallet.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
+        setPhase("sending");
         txSignature = res.signature;
       } else {
         // Fallback: sign first, then broadcast via public RPCs
@@ -170,10 +170,22 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         txSignature = sig;
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Transaction failed";
+      const raw = e instanceof Error ? e.message : "Transaction failed";
+
+      // Distinguish user cancellation from real errors
+      const isRejection = /rejected|cancel/i.test(raw);
+      // Detect expired blockhash (Phantom preflight error shows as "User rejected" or "blockhash")
+      const isExpired   = /blockhash|not found|expired/i.test(raw);
+
+      const msg = isRejection && !isExpired
+        ? "Transaction cancelled."
+        : isExpired
+          ? "Transaction expired — click Retry to get a fresh one."
+          : raw;
+
       setError(msg);
       setPhase("error");
-      toast.error("Transaction failed: " + msg);
+      if (!isRejection || isExpired) toast.error(msg);
       return;
     }
 
@@ -213,11 +225,26 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
   if (phase === "done") {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-emerald-600 dark:text-emerald-400">
-        <CheckCircle2 className="size-5" />
-        <span className="text-sm font-semibold">
-          {isScheduled ? "Scheduled! Coming soon." : "Launched successfully!"}
-        </span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="size-5" />
+          <span className="text-sm font-semibold">
+            {isScheduled ? "Scheduled! Coming soon." : "Launched successfully!"}
+          </span>
+        </div>
+        {mintAddress && (
+          <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-1">Contract address (CA)</p>
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(mintAddress); toast.success("CA copied!"); }}
+              className="font-mono text-xs text-violet-600 dark:text-violet-400 break-all hover:underline text-left w-full"
+              title="Click to copy"
+            >
+              {mintAddress}
+            </button>
+          </div>
+        )}
       </div>
     );
   }
