@@ -287,13 +287,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
   return (
     <div className="space-y-4">
-      {mintAddress && (
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-1">Mint address</p>
-          <p className="font-mono text-xs text-foreground break-all">{mintAddress}</p>
-        </div>
-      )}
-
       {isScheduled && (
         <div className="flex items-center gap-2 rounded-xl bg-violet-500/10 border border-violet-500/20 px-4 py-2.5 text-xs text-violet-700 dark:text-violet-300">
           <Clock className="size-3.5 shrink-0" />
