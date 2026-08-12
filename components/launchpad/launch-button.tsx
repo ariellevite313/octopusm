@@ -136,11 +136,11 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const txBuffer = Buffer.from(transactionBase64, "base64");
       const tx = Transaction.from(txBuffer);
 
-      // DO NOT change recentBlockhash here — the server already refreshed it
-      // right after confirming createConfigTx and pre-signed with it.
-      // Changing the blockhash would invalidate the server's partial signatures
-      // (platformWallet + mintKeypair). If this fails with "blockhash not found",
-      // the user clicks Launch again which calls prepare-tx with a fresh blockhash.
+      // DO NOT change recentBlockhash here — the server already set it during
+      // createPool and pre-signed with platformWallet + mintKeypair.
+      // Changing the blockhash would invalidate the server's partial signatures.
+      // If this fails with "blockhash not found", the user clicks Launch again
+      // which calls prepare-tx with a fresh blockhash.
 
       signedTx = await wallet.signTransaction(tx);
     } catch (e) {

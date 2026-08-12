@@ -340,7 +340,7 @@ describe("POST /api/launchpad/create", () => {
     expect((await json(res)).error).toMatch(/supply/i);
   });
 
-  it("returns 400 when creator_fee_pct is not 1 or 2", async () => {
+  it("returns 400 when creator_fee_pct is not 1", async () => {
     const res = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, creator_fee_pct: 3 }));
     expect(res.status).toBe(400);
     expect((await json(res)).error).toMatch(/creator fee/i);

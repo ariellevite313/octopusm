@@ -53,7 +53,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     // If a prepared transaction is already cached, return it to avoid
-    // submitting multiple createConfigTx (each costs ~0.05 SOL from platform wallet).
+    // duplicate createPool submissions and race conditions.
     // The cached tx expires after 45s (Solana blockhash valid ~60s).
     const cachedAt   = token.tx_prepared_at ? new Date(token.tx_prepared_at as string).getTime() : 0;
     const cacheAgeMs = Date.now() - cachedAt;
@@ -108,12 +108,11 @@ export async function POST(req: Request, { params }: RouteParams) {
       totalSupply:   token.supply as number,
 
       firstBuySol:   (token.first_buy_amount as number) ?? 0,
-      activationTimestamp: token.is_scheduled && token.scheduled_at
-        ? Math.floor(new Date(token.scheduled_at as string).getTime() / 1000)
-        : undefined,
+      // activationTimestamp is not forwarded — scheduling is app-level only
+      // (is_tradeable=false until cron flips it at scheduled_at).
     });
 
-    // Cache the prepared tx in DB to prevent duplicate createConfigTx submissions
+    // Cache the prepared tx in DB to prevent duplicate createPool submissions
     await admin
       .from("launchpad_tokens")
       .update({

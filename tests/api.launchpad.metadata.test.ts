@@ -45,11 +45,13 @@ vi.mock("@/lib/solana/dbc", () => ({
 // Mock Keypair.fromSecretKey — the test fixture uses 64 zero-bytes which is
 // an invalid Ed25519 key and would throw. The mock bypasses key validation
 // since buildCreatePoolTransaction is already mocked anyway.
+// We spread the real module so Keypair.generate and other statics remain intact.
 vi.mock("@solana/web3.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("@solana/web3.js")>();
   return {
     ...real,
     Keypair: {
+      ...real.Keypair,
       fromSecretKey: vi.fn().mockReturnValue({
         publicKey: { toBase58: () => "MintAddressBase58" },
       }),
