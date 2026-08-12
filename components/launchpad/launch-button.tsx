@@ -198,15 +198,26 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         body:    JSON.stringify({ txSignature, walletAddress }),
       });
       const body = await res.json() as { ok?: boolean; error?: string };
+      // 422 = tx landed but failed on-chain — show error, let user retry
+      if (res.status === 422) {
+        setError("Transaction échouée on-chain. Clique sur Retry pour relancer.");
+        setPhase("error");
+        toast.error("Transaction failed on-chain — click Retry");
+        return;
+      }
       if (!res.ok || !body.ok) {
-        throw new Error(body.error ?? "Confirm failed");
+        // Non-fatal: tx is on-chain, backend sync failed. Page auto-refreshes
+        // once the indexer picks up the transaction.
+        console.error("Confirm sync error (non-fatal):", body.error);
+        toast.warning(
+          `Transaction envoyée ! Sig: ${txSignature.slice(0, 8)}… — la page se mettra à jour automatiquement.`,
+          { duration: 8000 }
+        );
       }
     } catch (e) {
-      // Non-fatal: tx is on-chain, backend sync failed. The page will auto-refresh
-      // once the indexer picks up the transaction (pool_address indexed on-chain).
       console.error("Confirm error (non-fatal):", e);
       toast.warning(
-        `Transaction sent! Visit the token page to track confirmation. Sig: ${txSignature.slice(0, 8)}…`,
+        `Transaction envoyée ! Sig: ${txSignature.slice(0, 8)}… — la page se mettra à jour automatiquement.`,
         { duration: 8000 }
       );
     }
