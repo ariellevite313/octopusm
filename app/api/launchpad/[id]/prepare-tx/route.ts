@@ -55,10 +55,11 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     // If a prepared transaction is already cached, return it to avoid
     // duplicate createPool submissions and race conditions.
-    // The cached tx expires after 45s (Solana blockhash valid ~60s).
+    // Cache expires after 20s — Solana blockhash is valid ~60s but we need
+    // ~40s headroom for the user to review + sign + network latency.
     const cachedAt   = token.tx_prepared_at ? new Date(token.tx_prepared_at as string).getTime() : 0;
     const cacheAgeMs = Date.now() - cachedAt;
-    if (token.tx_base64 && cacheAgeMs < 45_000) {
+    if (token.tx_base64 && cacheAgeMs < 20_000) {
       return NextResponse.json({
         transactionBase64: token.tx_base64,
         mintAddress:       token.mint_address,

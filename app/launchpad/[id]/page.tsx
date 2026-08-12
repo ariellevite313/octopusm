@@ -151,7 +151,7 @@ export default async function TokenDetailPage({ params }: Props) {
           {/* Mint address */}
           {token.mint_address && (
             <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
-              <p className="text-xs text-muted-foreground mb-1">Mint address</p>
+              <p className="text-xs text-muted-foreground mb-1">Contract address (CA)</p>
               <a
                 href={`https://solscan.io/token/${token.mint_address}`}
                 target="_blank"
