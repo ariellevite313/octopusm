@@ -66,23 +66,31 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
     }
 
-    // Mint keypair must be set
-    if (!token.mint_address || !token.vanity_secret_key) {
-      return NextResponse.json(
-        { error: "Mint keypair not ready. Please try again." },
-        { status: 202 }
-      );
+    // ── Mint keypair — generated lazily at prepare-tx time ───────────────────
+    // The keypair is generated here (not at creation time) so the CA is only
+    // revealed when the user clicks Launch. On retry, the same keypair is reused
+    // (vanity_secret_key already set) so the mint address stays stable.
+    let mintKeypair: Keypair;
+    if (token.vanity_secret_key) {
+      // Reuse existing keypair (retry path)
+      const secretBytes = Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"));
+      if (secretBytes.length !== 64) {
+        return NextResponse.json(
+          { error: "Keypair corrompu. Supprime ce token et relance la création." },
+          { status: 422 }
+        );
+      }
+      mintKeypair = Keypair.fromSecretKey(secretBytes);
+    } else {
+      // First prepare-tx: generate a fresh keypair and persist it
+      mintKeypair = Keypair.generate();
+      const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
+      const mintAddress = mintKeypair.publicKey.toBase58();
+      await admin
+        .from("launchpad_tokens")
+        .update({ mint_address: mintAddress, vanity_secret_key: mintSecret })
+        .eq("id", id);
     }
-
-    // Reconstruct mint keypair from stored secret (base64-encoded, 64 bytes)
-    const secretBytes = Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"));
-    if (secretBytes.length !== 64) {
-      return NextResponse.json(
-        { error: "Ce token a été créé avec une ancienne version et doit être recréé. Supprime-le et relance la création." },
-        { status: 422 }
-      );
-    }
-    const mintKeypair = Keypair.fromSecretKey(secretBytes);
 
     // Build metadata JSON — logo_url may be null if R2 upload is pending
     const metadataJson = buildMetadataJson({

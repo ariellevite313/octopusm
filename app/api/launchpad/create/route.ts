@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Keypair } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 
@@ -145,14 +144,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── Generate mint keypair ───────────────────────────────────────────────
-    // Standard random keypair — no vanity suffix required.
-    // Secret is stored as base64 (native Node.js Buffer, no external deps).
-    const mintKeypair = Keypair.generate();
-    const mintAddress = mintKeypair.publicKey.toBase58();
-    const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
-
     // ── Insert token ────────────────────────────────────────────────────────
+    // Mint keypair is generated lazily in prepare-tx (first Launch click)
+    // so the CA is only revealed at launch time, not at creation time.
     const { data, error: insertError } = await adminUpload
       .from("launchpad_tokens")
       .insert({
@@ -182,9 +176,7 @@ export async function POST(req: Request) {
         creator_wallet:      payload.creator_wallet,
         status:           "pending",
         is_tradeable:     false,
-        mint_address:     mintAddress,
-        vanity_secret_key: mintSecret,
-        vanity_job_id:    "done",
+        // mint_address and vanity_secret_key are set lazily in prepare-tx
       })
       .select("id")
       .single();
@@ -194,7 +186,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Database error" }, { status: 500 });
     }
 
-    return NextResponse.json({ id: (data as { id: string }).id, mintAddress });
+    return NextResponse.json({ id: (data as { id: string }).id });
 
   } catch (err) {
     console.error("launchpad create unexpected error:", err);
