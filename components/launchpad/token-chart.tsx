@@ -2,18 +2,11 @@
 
 /**
  * TokenChart — Candlestick chart powered by GeckoTerminal (free, no API key)
- * + TradingView Lightweight Charts.
- *
- * Flow:
- *  1. Fetch top pool for the token from GeckoTerminal
- *  2. Fetch 5-minute OHLCV candles for that pool
- *  3. Render with lightweight-charts
+ * + TradingView Lightweight Charts v5.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 type Bar = {
   time: number;
@@ -28,79 +21,75 @@ type Status = "loading" | "nodata" | "error" | "ready";
 // ── GeckoTerminal fetcher ─────────────────────────────────────────────────────
 
 async function fetchBars(mintAddress: string): Promise<Bar[]> {
-  // Step 1: resolve top pool for this token
+  // Step 1: get the top pool for this token
   const poolsRes = await fetch(
     `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}/pools?page=1`,
-    { headers: { Accept: "application/json" }, next: { revalidate: 0 } }
+    { headers: { Accept: "application/json" } }
   );
-  if (!poolsRes.ok) throw new Error("Aucun pool trouvé sur GeckoTerminal");
+  if (!poolsRes.ok) throw new Error("Aucun pool trouvé");
 
-  const poolsJson = await poolsRes.json() as {
-    data?: { attributes?: { address?: string } }[];
-  };
-  const poolAddress = poolsJson?.data?.[0]?.attributes?.address;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const poolsJson = await poolsRes.json() as any;
+  const poolAddress = poolsJson?.data?.[0]?.attributes?.address as string | undefined;
   if (!poolAddress) throw new Error("Pool introuvable");
 
-  // Step 2: fetch 5-minute OHLCV for the pool (last 200 candles)
+  // Step 2: OHLCV — 5-minute candles, last 200
   const ohlcvRes = await fetch(
     `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/minute?aggregate=5&limit=200&currency=usd`,
-    { headers: { Accept: "application/json" }, next: { revalidate: 0 } }
+    { headers: { Accept: "application/json" } }
   );
   if (!ohlcvRes.ok) throw new Error("Données OHLCV indisponibles");
 
-  const ohlcvJson = await ohlcvRes.json() as {
-    data?: { attributes?: { ohlcv_list?: [number, string, string, string, string, string][] } };
-  };
-  const list = ohlcvJson?.data?.attributes?.ohlcv_list;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ohlcvJson = await ohlcvRes.json() as any;
+  // GeckoTerminal: [[timestamp_sec, open, high, low, close, volume], ...] newest first
+  const list = ohlcvJson?.data?.attributes?.ohlcv_list as
+    | [number, string | number, string | number, string | number, string | number, string | number][]
+    | undefined;
+
   if (!list?.length) throw new Error("Aucune donnée de prix");
 
-  // GeckoTerminal returns newest-first; we need oldest-first for the chart
   return list
     .map(([t, o, h, l, c]) => ({
-      time:  t,
-      open:  parseFloat(o),
-      high:  parseFloat(h),
-      low:   parseFloat(l),
-      close: parseFloat(c),
+      time:  Number(t),
+      open:  Number(o),
+      high:  Number(h),
+      low:   Number(l),
+      close: Number(c),
     }))
-    .filter(b => b.open > 0)
-    .reverse();
+    .filter(b => b.open > 0 && b.time > 0)
+    .reverse(); // oldest-first for the chart
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-type Props = {
-  mintAddress: string;
-  name: string;
-};
-
-export function TokenChart({ mintAddress, name }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [status, setStatus]   = useState<Status>("loading");
+export function TokenChart({ mintAddress, name }: { mintAddress: string; name: string }) {
+  const wrapperRef   = useRef<HTMLDivElement>(null);
+  const [status, setStatus]     = useState<Status>("loading");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let chartCleanup: (() => void) | undefined;
 
     async function init() {
+      if (!wrapperRef.current) return;
+
       try {
         const [lw, bars] = await Promise.all([
           import("lightweight-charts"),
           fetchBars(mintAddress),
         ]);
 
-        if (cancelled || !containerRef.current) return;
+        if (cancelled || !wrapperRef.current) return;
         if (!bars.length) { setStatus("nodata"); return; }
 
-        const { createChart, CandlestickSeries } = lw as typeof import("lightweight-charts");
+        const { createChart, CandlestickSeries, ColorType } = lw;
 
-        const chart = createChart(containerRef.current, {
-          width:  containerRef.current.clientWidth,
+        const chart = createChart(wrapperRef.current, {
+          width:  wrapperRef.current.clientWidth,
           height: 420,
           layout: {
-            background: { color: "transparent" } as { color: string },
+            background: { type: ColorType.Solid, color: "transparent" },
             textColor: "#94a3b8",
           },
           grid: {
@@ -127,33 +116,48 @@ export function TokenChart({ mintAddress, name }: Props) {
         setStatus("ready");
 
         const ro = new ResizeObserver(() => {
-          if (containerRef.current) {
-            chart.applyOptions({ width: containerRef.current.clientWidth });
+          if (wrapperRef.current) {
+            chart.applyOptions({ width: wrapperRef.current.clientWidth });
           }
         });
-        ro.observe(containerRef.current);
+        ro.observe(wrapperRef.current);
 
-        chartCleanup = () => { chart.remove(); ro.disconnect(); };
+        return () => { chart.remove(); ro.disconnect(); };
       } catch (e) {
         if (!cancelled) {
+          console.error("[TokenChart]", e);
           setErrorMsg(e instanceof Error ? e.message : "Graphique indisponible");
           setStatus("error");
         }
       }
     }
 
-    void init();
+    const cleanupPromise = init();
     return () => {
       cancelled = true;
-      chartCleanup?.();
+      cleanupPromise.then(fn => fn?.());
     };
   }, [mintAddress]);
 
-  const externalLinks = [
+  const links = [
     { label: "GMGN",          href: `https://gmgn.ai/sol/token/${mintAddress}` },
     { label: "GeckoTerminal", href: `https://www.geckoterminal.com/solana/tokens/${mintAddress}` },
     { label: "DexScreener",   href: `https://dexscreener.com/solana/${mintAddress}` },
   ];
+
+  const Fallback = ({ msg }: { msg: string }) => (
+    <div className="flex flex-col items-center justify-center gap-3 py-16 px-6">
+      <p className="text-sm text-muted-foreground text-center">{msg}</p>
+      <div className="flex flex-wrap gap-2 justify-center">
+        {links.map(({ label, href }) => (
+          <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+            className="rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/70 transition-colors">
+            {label} ↗
+          </a>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -161,73 +165,29 @@ export function TokenChart({ mintAddress, name }: Props) {
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
         <span className="text-xs font-semibold text-muted-foreground">{name} · 5m</span>
         <div className="flex items-center gap-3">
-          {externalLinks.map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            >
+          {links.map(({ label, href }) => (
+            <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
               {label} ↗
             </a>
           ))}
         </div>
       </div>
 
-      {/* Chart area */}
-      <div className="relative" style={{ minHeight: 420 }}>
-        {status === "loading" && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
+      {/* Body */}
+      {status === "loading" && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {status === "error"  && <Fallback msg={errorMsg} />}
+      {status === "nodata" && <Fallback msg="Pas encore de données de prix disponibles." />}
 
-        {status === "nodata" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
-            <p className="text-sm text-muted-foreground text-center">
-              Pas encore de données de prix disponibles.
-            </p>
-            <div className="flex gap-2">
-              {externalLinks.map(({ label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/70 transition-colors"
-                >
-                  {label} ↗
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6">
-            <p className="text-sm text-muted-foreground text-center">{errorMsg}</p>
-            <div className="flex gap-2">
-              {externalLinks.map(({ label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/70 transition-colors"
-                >
-                  {label} ↗
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div
-          ref={containerRef}
-          className={status !== "ready" ? "invisible absolute" : ""}
-        />
-      </div>
+      {/* Chart container — always in DOM so ref works, hidden until ready */}
+      <div
+        ref={wrapperRef}
+        style={{ display: status === "ready" ? "block" : "none" }}
+      />
     </div>
   );
 }
