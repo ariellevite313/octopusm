@@ -20,7 +20,22 @@ type Status = "loading" | "nodata" | "error" | "ready";
 
 // ── GeckoTerminal fetcher ─────────────────────────────────────────────────────
 
-async function fetchBars(mintAddress: string): Promise<Bar[]> {
+type RawList = [number, string | number, string | number, string | number, string | number, string | number][];
+
+function parseOHLCV(list: RawList): Bar[] {
+  return list
+    .map(([t, o, h, l, c]) => ({
+      time:  Number(t),
+      open:  Number(o),
+      high:  Number(h),
+      low:   Number(l),
+      close: Number(c),
+    }))
+    .filter(b => b.open > 0 && b.time > 1_000_000_000) // sanity check: valid Unix timestamp
+    .reverse(); // oldest-first for the chart
+}
+
+async function fetchBars(mintAddress: string): Promise<{ bars: Bar[]; label: string }> {
   // Step 1: get the top pool for this token
   const poolsRes = await fetch(
     `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}/pools?page=1`,
@@ -33,32 +48,30 @@ async function fetchBars(mintAddress: string): Promise<Bar[]> {
   const poolAddress = poolsJson?.data?.[0]?.attributes?.address as string | undefined;
   if (!poolAddress) throw new Error("Pool introuvable");
 
-  // Step 2: OHLCV — 5-minute candles, last 200
-  const ohlcvRes = await fetch(
-    `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/minute?aggregate=5&limit=200&currency=usd`,
-    { headers: { Accept: "application/json" } }
-  );
-  if (!ohlcvRes.ok) throw new Error("Données OHLCV indisponibles");
+  // Step 2: try 5m first, fall back to 1h if not enough candles
+  const timeframes = [
+    { path: "minute?aggregate=5&limit=200", label: "5m" },
+    { path: "hour?aggregate=1&limit=200",   label: "1h" },
+    { path: "day?aggregate=1&limit=200",    label: "1j" },
+  ];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ohlcvJson = await ohlcvRes.json() as any;
-  // GeckoTerminal: [[timestamp_sec, open, high, low, close, volume], ...] newest first
-  const list = ohlcvJson?.data?.attributes?.ohlcv_list as
-    | [number, string | number, string | number, string | number, string | number, string | number][]
-    | undefined;
+  for (const { path, label } of timeframes) {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${path}&currency=usd`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) continue;
 
-  if (!list?.length) throw new Error("Aucune donnée de prix");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = await res.json() as any;
+    const list = json?.data?.attributes?.ohlcv_list as RawList | undefined;
+    if (!list?.length) continue;
 
-  return list
-    .map(([t, o, h, l, c]) => ({
-      time:  Number(t),
-      open:  Number(o),
-      high:  Number(h),
-      low:   Number(l),
-      close: Number(c),
-    }))
-    .filter(b => b.open > 0 && b.time > 0)
-    .reverse(); // oldest-first for the chart
+    const bars = parseOHLCV(list);
+    if (bars.length >= 2) return { bars, label };
+  }
+
+  throw new Error("Aucune donnée de prix disponible");
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -67,6 +80,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   const wrapperRef   = useRef<HTMLDivElement>(null);
   const [status, setStatus]     = useState<Status>("loading");
   const [errorMsg, setErrorMsg] = useState("");
+  const [tfLabel, setTfLabel]   = useState("5m");
 
   useEffect(() => {
     let cancelled = false;
@@ -75,12 +89,14 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       if (!wrapperRef.current) return;
 
       try {
-        const [lw, bars] = await Promise.all([
+        const [lw, result] = await Promise.all([
           import("lightweight-charts"),
           fetchBars(mintAddress),
         ]);
 
         if (cancelled || !wrapperRef.current) return;
+        const { bars, label } = result;
+        setTfLabel(label);
         if (!bars.length) { setStatus("nodata"); return; }
 
         const { createChart, CandlestickSeries, ColorType } = lw;
@@ -99,6 +115,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
           crosshair: { mode: 1 },
           rightPriceScale: { borderColor: "#334155" },
           timeScale:       { borderColor: "#334155", timeVisible: true },
+          watermark:       { visible: false },
         });
 
         const series = chart.addSeries(CandlestickSeries, {
@@ -108,6 +125,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
           borderDownColor: "#ef4444",
           wickUpColor:     "#22c55e",
           wickDownColor:   "#ef4444",
+          priceFormat:     { type: "price", precision: 8, minMove: 0.00000001 },
         });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,8 +180,11 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       {/* Header */}
+      {/* Hide TradingView attribution logo */}
+      <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
+
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-        <span className="text-xs font-semibold text-muted-foreground">{name} · 5m</span>
+        <span className="text-xs font-semibold text-muted-foreground">{name} · {tfLabel}</span>
         <div className="flex items-center gap-3">
           {links.map(({ label, href }) => (
             <a key={label} href={href} target="_blank" rel="noopener noreferrer"
