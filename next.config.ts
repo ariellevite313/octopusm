@@ -59,7 +59,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://db.omdot.fun wss://db.omdot.fun https://api.binance.com wss://stream.binance.com:9443 https://mainnet.helius-rpc.com https://*.solana.com https://solana-rpc.publicnode.com https://rpc.ankr.com https://solana.drpc.org https://1rpc.io https://api.dexscreener.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://db.omdot.fun wss://db.omdot.fun https://api.binance.com wss://stream.binance.com:9443 https://mainnet.helius-rpc.com https://*.solana.com https://solana-rpc.publicnode.com https://rpc.ankr.com https://solana.drpc.org https://1rpc.io https://api.dexscreener.com https://api.geckoterminal.com",
               "frame-ancestors 'none'",
             ].join("; "),
           },
