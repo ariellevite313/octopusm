@@ -184,11 +184,11 @@ export default async function TokenDetailPage({ params }: Props) {
             </div>
           )}
 
-          {/* DexScreener chart — shown for active/graduated tokens with a mint address */}
+          {/* Birdeye chart — shown for active/graduated tokens with a mint address */}
           {(isActive || isGraduated) && token.mint_address && (
             <div className="rounded-2xl border border-border overflow-hidden">
               <iframe
-                src={`https://dexscreener.com/solana/${token.mint_address}?embed=1&theme=dark&trades=1&info=0`}
+                src={`https://birdeye.so/tv-widget/${token.mint_address}?chain=solana&viewMode=pair&chartType=CANDLE&chartInterval=15&chartLeftToolbar=show&theme=dark`}
                 style={{ width: "100%", height: "500px", border: "none" }}
                 title={`${token.name} price chart`}
                 allowFullScreen
