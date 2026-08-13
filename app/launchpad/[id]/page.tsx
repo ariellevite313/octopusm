@@ -6,6 +6,7 @@ import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
 import { EditTokenButton } from "@/components/launchpad/edit-token-button";
+import { TokenChart } from "@/components/launchpad/token-chart";
 
 // Revalidate every 30s — status changes after on-chain confirmation
 export const revalidate = 30;
@@ -184,16 +185,9 @@ export default async function TokenDetailPage({ params }: Props) {
             </div>
           )}
 
-          {/* GeckoTerminal chart — shown for active/graduated tokens with a mint address */}
+          {/* Chart — shown for active/graduated tokens with a mint address */}
           {(isActive || isGraduated) && token.mint_address && (
-            <div className="rounded-2xl border border-border overflow-hidden">
-              <iframe
-                src={`https://www.geckoterminal.com/solana/tokens/${token.mint_address}?embed=1&info=0&swaps=0&theme=dark`}
-                style={{ width: "100%", height: "500px", border: "none" }}
-                title={`${token.name} price chart`}
-                allow="clipboard-write"
-              />
-            </div>
+            <TokenChart mintAddress={token.mint_address} name={token.name} />
           )}
 
           {/* Graduated banner */}
