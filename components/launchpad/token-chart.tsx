@@ -157,23 +157,9 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     };
   }, [mintAddress]);
 
-  const links = [
-    { label: "GMGN",          href: `https://gmgn.ai/sol/token/${mintAddress}` },
-    { label: "GeckoTerminal", href: `https://www.geckoterminal.com/solana/tokens/${mintAddress}` },
-    { label: "DexScreener",   href: `https://dexscreener.com/solana/${mintAddress}` },
-  ];
-
   const Fallback = ({ msg }: { msg: string }) => (
-    <div className="flex flex-col items-center justify-center gap-3 py-16 px-6">
+    <div className="flex items-center justify-center py-16 px-6">
       <p className="text-sm text-muted-foreground text-center">{msg}</p>
-      <div className="flex flex-wrap gap-2 justify-center">
-        {links.map(({ label, href }) => (
-          <a key={label} href={href} target="_blank" rel="noopener noreferrer"
-            className="rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/70 transition-colors">
-            {label} ↗
-          </a>
-        ))}
-      </div>
     </div>
   );
 
@@ -183,16 +169,8 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       {/* Hide TradingView attribution logo */}
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+      <div className="flex items-center px-4 py-2.5 border-b border-border">
         <span className="text-xs font-semibold text-muted-foreground">{name} · {tfLabel}</span>
-        <div className="flex items-center gap-3">
-          {links.map(({ label, href }) => (
-            <a key={label} href={href} target="_blank" rel="noopener noreferrer"
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-              {label} ↗
-            </a>
-          ))}
-        </div>
       </div>
 
       {/* Body */}
