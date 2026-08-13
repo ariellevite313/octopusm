@@ -184,14 +184,14 @@ export default async function TokenDetailPage({ params }: Props) {
             </div>
           )}
 
-          {/* Birdeye chart — shown for active/graduated tokens with a mint address */}
+          {/* GeckoTerminal chart — shown for active/graduated tokens with a mint address */}
           {(isActive || isGraduated) && token.mint_address && (
             <div className="rounded-2xl border border-border overflow-hidden">
               <iframe
-                src={`https://birdeye.so/tv-widget/${token.mint_address}?chain=solana&viewMode=pair&chartType=CANDLE&chartInterval=15&chartLeftToolbar=show&theme=dark`}
+                src={`https://www.geckoterminal.com/solana/tokens/${token.mint_address}?embed=1&info=0&swaps=0&theme=dark`}
                 style={{ width: "100%", height: "500px", border: "none" }}
                 title={`${token.name} price chart`}
-                allowFullScreen
+                allow="clipboard-write"
               />
             </div>
           )}
