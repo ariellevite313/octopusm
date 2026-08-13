@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getLaunchpadToken } from "@/services/launchpad-service";
+import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
 import { EditTokenButton } from "@/components/launchpad/edit-token-button";
@@ -14,7 +14,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const token = await getLaunchpadToken(id);
+  const token = id.length > 36 ? await getLaunchpadTokenByMint(id) : await getLaunchpadToken(id);
   if (!token) return { title: "Token not found" };
   return {
     title: `${token.name} ($${token.ticker}) — Launchpad`,
@@ -55,8 +55,14 @@ function formatSupply(n: number): string {
 
 export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
-  const token = await getLaunchpadToken(id);
+  // Mint address = base58, ~44 chars. UUID = 36 chars with dashes.
+  const token = id.length > 36 ? await getLaunchpadTokenByMint(id) : await getLaunchpadToken(id);
   if (!token) notFound();
+
+  // If accessed by UUID and token has a mint address, redirect to canonical CA URL
+  if (id.length <= 36 && token.mint_address) {
+    redirect(`/launchpad/${token.mint_address}`);
+  }
 
   const socials = [
     { label: "Website",  href: token.website,      icon: "ti-world" },
