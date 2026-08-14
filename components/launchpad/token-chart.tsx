@@ -55,7 +55,7 @@ async function resolvePool(mintAddress: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json = await res.json() as any;
   const addr = json?.data?.[0]?.attributes?.address as string | undefined;
-  if (!addr) throw new Error("Pool introuvable");
+  if (!addr) throw new Error("Pool not found");
   return addr;
 }
 
@@ -64,11 +64,11 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
     `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${tf.path}&currency=usd`,
     { headers: { Accept: "application/json" } }
   );
-  if (!res.ok) throw new Error("Données indisponibles");
+  if (!res.ok) throw new Error("Data unavailable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json = await res.json() as any;
   const list = json?.data?.attributes?.ohlcv_list as RawList | undefined;
-  if (!list?.length) throw new Error("Aucune donnée");
+  if (!list?.length) throw new Error("No data");
   return parseOHLCV(list);
 }
 
@@ -188,7 +188,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
         roRef.current = ro;
       } catch (e) {
         if (!cancelled) {
-          setErrorMsg(e instanceof Error ? e.message : "Graphique indisponible");
+          setErrorMsg(e instanceof Error ? e.message : "Chart unavailable");
           setStatus("error");
         }
       }
@@ -270,7 +270,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
             type="button"
             disabled={status !== "ready"}
             onClick={() => switchType("candle")}
-            title="Bougies"
+            title="Candlestick"
             className={`p-1.5 rounded-lg transition-colors ${
               chartType === "candle"
                 ? "bg-primary text-primary-foreground"
@@ -283,7 +283,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
             type="button"
             disabled={status !== "ready"}
             onClick={() => switchType("line")}
-            title="Ligne live"
+            title="Live line"
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
               chartType === "line"
                 ? "bg-violet-600 text-white"
@@ -337,7 +337,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       )}
       {status === "nodata" && (
         <div className="flex items-center justify-center" style={{ height: 440 }}>
-          <p className="text-sm text-muted-foreground">Pas encore de données de prix.</p>
+          <p className="text-sm text-muted-foreground">No price data yet.</p>
         </div>
       )}
 

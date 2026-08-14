@@ -48,7 +48,7 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
 
     const wallet = getWallet();
     if (!wallet) {
-      toast.error("Phantom wallet non trouvé");
+      toast.error("Phantom wallet not found");
       setPhase("idle");
       return;
     }
@@ -56,13 +56,13 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
     try {
       await wallet.connect();
     } catch {
-      toast.error("Connecte ton wallet d'abord");
+      toast.error("Connect your wallet first");
       setPhase("idle");
       return;
     }
 
     if (wallet.publicKey?.toBase58() !== walletAddress) {
-      toast.error(`Mauvais wallet — utilise le wallet créateur …${walletAddress.slice(-6)}`);
+      toast.error(`Wrong wallet — use the creator wallet …${walletAddress.slice(-6)}`);
       setPhase("idle");
       return;
     }
@@ -107,11 +107,11 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
       }
 
       setPhase("done");
-      const label = claimableSol !== null ? `${claimableSol.toFixed(6)} SOL réclamé !` : "Frais réclamés !";
+      const label = claimableSol !== null ? `${claimableSol.toFixed(6)} SOL claimed!` : "Fees claimed!";
       toast.success(label + ` — Sig: ${sig.slice(0, 8)}…`);
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Transaction failed";
-      const msg = /rejected|cancel/i.test(raw) ? "Transaction annulée." : raw;
+      const msg = /rejected|cancel/i.test(raw) ? "Transaction cancelled." : raw;
       setErrorMsg(msg);
       setPhase("error");
       if (!/rejected|cancel/i.test(raw)) toast.error(msg);
@@ -121,7 +121,7 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
   if (phase === "done") {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-        ✓ Frais réclamés
+        ✓ Fees claimed
       </span>
     );
   }
@@ -135,14 +135,14 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
           onClick={() => setPhase("idle")}
           className="text-xs text-muted-foreground underline"
         >
-          Réessayer
+          Retry
         </button>
       </div>
     );
   }
 
   const busy  = phase === "building" || phase === "signing";
-  const label = phase === "building" ? "Préparation…" : phase === "signing" ? "Signature…" : "Claim fees";
+  const label = phase === "building" ? "Preparing…" : phase === "signing" ? "Signing…" : "Claim fees";
 
   return (
     <div className="space-y-2">
@@ -150,16 +150,16 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
       <div className="flex items-center gap-1.5">
         <CoinsIcon className="size-3.5 text-muted-foreground shrink-0" />
         {loadingAmt ? (
-          <span className="text-xs text-muted-foreground">Chargement…</span>
+          <span className="text-xs text-muted-foreground">Loading…</span>
         ) : claimable !== null ? (
           <span className="text-sm font-semibold text-foreground">
             {claimable.toFixed(6)} SOL
-            <span className="ml-1 text-xs font-normal text-muted-foreground">disponible</span>
+            <span className="ml-1 text-xs font-normal text-muted-foreground">available</span>
           </span>
         ) : feesUsd24h !== null ? (
           <span className="text-sm font-semibold text-foreground">
             ~${feesUsd24h.toFixed(2)}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">frais 24h</span>
+            <span className="ml-1 text-xs font-normal text-muted-foreground">24h fees</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
