@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * TokenMarketStats — live market data from GeckoTerminal
- * Shows: price, market cap, FDV, 24h volume, holders
+ * TokenMarketStats — live market data from GeckoTerminal + Birdeye
+ * Shows: price, 24h change, market cap, FDV, 24h volume, holders
  */
 
 import { useEffect, useState } from "react";
@@ -14,6 +14,7 @@ type Stats = {
   fdv:         number | null;
   volume24h:   number | null;
   priceChange: number | null; // 24h %
+  holders:     number | null;
 };
 
 function fmt(n: number | null, opts?: { prefix?: string; suffix?: string; decimals?: number }): string {
@@ -43,24 +44,51 @@ function fmtPrice(n: number | null): string {
   return `$${n.toFixed(4)}`;
 }
 
+function fmtHolders(n: number | null): string {
+  if (n === null || isNaN(n)) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
 async function fetchStats(mintAddress: string): Promise<Stats> {
-  const res = await fetch(
-    `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}`,
-    { headers: { Accept: "application/json" } }
-  );
-  if (!res.ok) throw new Error("GeckoTerminal unreachable");
+  // Fetch GeckoTerminal and Birdeye in parallel
+  const [gtRes, birdRes] = await Promise.allSettled([
+    fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}`,
+      { headers: { Accept: "application/json" } }
+    ),
+    fetch(
+      `https://public-api.birdeye.so/defi/token_overview?address=${mintAddress}`,
+      { headers: { Accept: "application/json", "x-chain": "solana" } }
+    ),
+  ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const json = await res.json() as any;
-  const a    = json?.data?.attributes;
+  let gtAttrs: any = null;
+  if (gtRes.status === "fulfilled" && gtRes.value.ok) {
+    const json = await gtRes.value.json() as { data?: { attributes?: unknown } };
+    gtAttrs = (json?.data as { attributes?: unknown })?.attributes ?? null;
+  }
+
+  let holders: number | null = null;
+  if (birdRes.status === "fulfilled" && birdRes.value.ok) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = await birdRes.value.json() as any;
+    const h = json?.data?.holder;
+    if (typeof h === "number" && h > 0) holders = h;
+  }
+
+  if (!gtAttrs && holders === null) throw new Error("No data available");
 
   return {
-    priceUsd:    a?.price_usd       ? parseFloat(a.price_usd)          : null,
-    marketCap:   a?.market_cap_usd  ? parseFloat(a.market_cap_usd)     : null,
-    fdv:         a?.fdv_usd         ? parseFloat(a.fdv_usd)            : null,
-    volume24h:   a?.volume_usd?.h24 ? parseFloat(a.volume_usd.h24)     : null,
-    priceChange: a?.price_change_percentage?.h24
-                   ? parseFloat(a.price_change_percentage.h24)         : null,
+    priceUsd:    gtAttrs?.price_usd       ? parseFloat(gtAttrs.price_usd)          : null,
+    marketCap:   gtAttrs?.market_cap_usd  ? parseFloat(gtAttrs.market_cap_usd)     : null,
+    fdv:         gtAttrs?.fdv_usd         ? parseFloat(gtAttrs.fdv_usd)            : null,
+    volume24h:   gtAttrs?.volume_usd?.h24 ? parseFloat(gtAttrs.volume_usd.h24)     : null,
+    priceChange: gtAttrs?.price_change_percentage?.h24
+                   ? parseFloat(gtAttrs.price_change_percentage.h24)               : null,
+    holders,
   };
 }
 
@@ -94,7 +122,7 @@ export function TokenMarketStats({ mintAddress }: { mintAddress: string }) {
     return (
       <div className="rounded-2xl border border-border bg-card p-4 flex items-center justify-center gap-2 py-6">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Chargement des données…</span>
+        <span className="text-xs text-muted-foreground">Loading market data…</span>
       </div>
     );
   }
@@ -110,11 +138,11 @@ export function TokenMarketStats({ mintAddress }: { mintAddress: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-        Marché
+        Market
       </p>
 
       <Row
-        label="Prix"
+        label="Price"
         value={
           <span className="flex items-center gap-1.5">
             {fmtPrice(stats.priceUsd)}
@@ -136,10 +164,12 @@ export function TokenMarketStats({ mintAddress }: { mintAddress: string }) {
       {stats.volume24h !== null && (
         <Row label="Volume 24h"  value={fmt(stats.volume24h,  { prefix: "$" })} />
       )}
-
+      {stats.holders !== null && (
+        <Row label="Holders"     value={fmtHolders(stats.holders)} />
+      )}
 
       <p className="mt-2 text-[10px] text-muted-foreground text-right">
-        Source : GeckoTerminal
+        Source: GeckoTerminal · Birdeye
       </p>
     </div>
   );

@@ -273,8 +273,8 @@ export default async function TokenDetailPage({ params }: Props) {
           {/* Claim fees — only for the creator, token must be live or graduated */}
           {isCreator && (isActive || isGraduated) && (
             <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Frais créateur</p>
-              <p className="text-xs text-muted-foreground">Réclamez vos frais de trading accumulés dans le pool.</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Creator fees</p>
+              <p className="text-xs text-muted-foreground">Claim your accumulated trading fees from the pool.</p>
               <ClaimFeesButton
                 tokenId={token.id}
                 walletAddress={token.creator_wallet}
