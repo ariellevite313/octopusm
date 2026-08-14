@@ -9,20 +9,17 @@ import { NextResponse } from "next/server";
 
 type RouteParams = { params: Promise<{ mint: string }> };
 
-async function fetchHolderCount(mint: string): Promise<number | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchHolderRaw(mint: string): Promise<any> {
   try {
     const res = await fetch(
       `https://public-api.solscan.io/token/holders?tokenAddress=${mint}&limit=1&offset=0`,
       { headers: { Accept: "application/json" } }
     );
-    if (!res.ok) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const json = await res.json() as any;
-    console.log("[token-stats] Solscan raw:", JSON.stringify(json).slice(0, 300));
-    const total = json?.total ?? json?.data?.total ?? json?.result?.total;
-    return typeof total === "number" && total > 0 ? total : null;
-  } catch {
-    return null;
+    if (!res.ok) return { _status: res.status };
+    return await res.json();
+  } catch (e) {
+    return { _error: String(e) };
   }
 }
 
@@ -30,12 +27,12 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const { mint } = await params;
   if (!mint) return NextResponse.json({ error: "mint required" }, { status: 400 });
 
-  const [gtRes, holders] = await Promise.all([
+  const [gtRes, solscanRaw] = await Promise.all([
     fetch(
       `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`,
       { headers: { Accept: "application/json" } }
     ).catch(() => null),
-    fetchHolderCount(mint),
+    fetchHolderRaw(mint),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,6 +52,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     volume24h:   gtAttrs?.volume_usd?.h24 ? parseFloat(gtAttrs.volume_usd.h24)     : null,
     priceChange: gtAttrs?.price_change_percentage?.h24
                    ? parseFloat(gtAttrs.price_change_percentage.h24)               : null,
-    holders,
+    holders: null,
+    _solscanDebug: solscanRaw, // ← TEMP DEBUG — à supprimer après diagnostic
   });
 }
