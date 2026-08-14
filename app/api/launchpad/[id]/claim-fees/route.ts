@@ -26,6 +26,51 @@ function getPlatformWallet(): Keypair {
   return Keypair.fromSecretKey(bs58.decode(secret));
 }
 
+export async function GET(_req: Request, { params }: RouteParams) {
+  const { id } = await params;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const { data: token, error } = await admin
+      .from("launchpad_tokens")
+      .select("pool_address")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error || !token?.pool_address) {
+      return NextResponse.json({ claimableSol: null });
+    }
+
+    let DynamicBondingCurveClient: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    try {
+      const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+      DynamicBondingCurveClient = sdk.DynamicBondingCurveClient;
+    } catch {
+      return NextResponse.json({ claimableSol: null });
+    }
+
+    const connection = getConnection();
+    const client     = new DynamicBondingCurveClient(connection, "confirmed");
+    const pool       = new PublicKey(token.pool_address as string);
+
+    try {
+      const poolState = await client.getPool(pool);
+      const lamports  = Number(
+        poolState?.creatorTradingFeeTokenA ??
+        poolState?.creator_trading_fee_token_a ??
+        0
+      );
+      return NextResponse.json({ claimableSol: lamports / 1e9 });
+    } catch {
+      return NextResponse.json({ claimableSol: null });
+    }
+  } catch (err) {
+    console.error("claimable-fees GET error:", err);
+    return NextResponse.json({ claimableSol: null });
+  }
+}
+
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 

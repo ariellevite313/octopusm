@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { Loader2, CoinsIcon } from "lucide-react";
@@ -24,8 +24,19 @@ type Props = {
 };
 
 export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddress }: Props) {
-  const [phase, setPhase] = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [phase, setPhase]           = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
+  const [errorMsg, setErrorMsg]     = useState("");
+  const [claimable, setClaimable]   = useState<number | null>(null);
+  const [loadingAmt, setLoadingAmt] = useState(true);
+
+  // Fetch claimable amount on mount
+  useEffect(() => {
+    fetch(`/api/launchpad/${tokenId}/claim-fees`)
+      .then(r => r.json())
+      .then((body: { claimableSol: number | null }) => setClaimable(body.claimableSol ?? null))
+      .catch(() => {})
+      .finally(() => setLoadingAmt(false));
+  }, [tokenId]);
 
   async function handleClaim() {
     setPhase("building");
@@ -126,18 +137,35 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
     );
   }
 
-  const busy = phase === "building" || phase === "signing";
+  const busy  = phase === "building" || phase === "signing";
   const label = phase === "building" ? "Préparation…" : phase === "signing" ? "Signature…" : "Claim fees";
 
   return (
-    <button
-      type="button"
-      disabled={busy}
-      onClick={handleClaim}
-      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
-    >
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <CoinsIcon className="size-3.5" />}
-      {label}
-    </button>
+    <div className="space-y-2">
+      {/* Claimable amount */}
+      <div className="flex items-center gap-1.5 text-sm">
+        <CoinsIcon className="size-3.5 text-muted-foreground shrink-0" />
+        {loadingAmt ? (
+          <span className="text-xs text-muted-foreground">Chargement…</span>
+        ) : claimable !== null ? (
+          <span className="font-semibold text-foreground">
+            {claimable.toFixed(6)} SOL
+            <span className="ml-1 text-xs font-normal text-muted-foreground">disponible</span>
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Montant indisponible</span>
+        )}
+      </div>
+
+      <button
+        type="button"
+        disabled={busy || (claimable !== null && claimable <= 0)}
+        onClick={handleClaim}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
+      >
+        {busy && <Loader2 className="size-3.5 animate-spin" />}
+        {label}
+      </button>
+    </div>
   );
 }
