@@ -26,14 +26,18 @@ type Props = {
 export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddress }: Props) {
   const [phase, setPhase]           = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg]     = useState("");
-  const [claimable, setClaimable]   = useState<number | null>(null);
-  const [loadingAmt, setLoadingAmt] = useState(true);
+  const [claimable, setClaimable]     = useState<number | null>(null);
+  const [feesUsd24h, setFeesUsd24h]   = useState<number | null>(null);
+  const [loadingAmt, setLoadingAmt]   = useState(true);
 
   // Fetch claimable amount on mount
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/claim-fees`)
       .then(r => r.json())
-      .then((body: { claimableSol: number | null }) => setClaimable(body.claimableSol ?? null))
+      .then((body: { claimableSol?: number | null; feesUsd24h?: number | null }) => {
+        setClaimable(body.claimableSol ?? null);
+        setFeesUsd24h(body.feesUsd24h ?? null);
+      })
       .catch(() => {})
       .finally(() => setLoadingAmt(false));
   }, [tokenId]);
@@ -143,17 +147,22 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
   return (
     <div className="space-y-2">
       {/* Claimable amount */}
-      <div className="flex items-center gap-1.5 text-sm">
+      <div className="flex items-center gap-1.5">
         <CoinsIcon className="size-3.5 text-muted-foreground shrink-0" />
         {loadingAmt ? (
           <span className="text-xs text-muted-foreground">Chargement…</span>
         ) : claimable !== null ? (
-          <span className="font-semibold text-foreground">
+          <span className="text-sm font-semibold text-foreground">
             {claimable.toFixed(6)} SOL
             <span className="ml-1 text-xs font-normal text-muted-foreground">disponible</span>
           </span>
+        ) : feesUsd24h !== null ? (
+          <span className="text-sm font-semibold text-foreground">
+            ~${feesUsd24h.toFixed(2)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">frais 24h</span>
+          </span>
         ) : (
-          <span className="text-xs text-muted-foreground">Montant indisponible</span>
+          <span className="text-xs text-muted-foreground">—</span>
         )}
       </div>
 
