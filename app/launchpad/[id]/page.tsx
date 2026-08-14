@@ -9,11 +9,90 @@ import { EditTokenButton } from "@/components/launchpad/edit-token-button";
 import { TokenChart } from "@/components/launchpad/token-chart";
 import { TokenMarketStats } from "@/components/launchpad/token-market-stats";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
+import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
+import { createAdminClient } from "@/lib/supabase/server";
+import type { MarketCommentEnriched } from "@/lib/supabase/types";
 
 export const revalidate = 30;
 
 type Props = { params: Promise<{ id: string }> };
+
+async function getInitialComments(tokenId: string, wallet: string | null): Promise<MarketCommentEnriched[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+
+  const { data: rows } = await admin
+    .from("launchpad_comments")
+    .select("*")
+    .eq("token_id", tokenId)
+    .order("created_at", { ascending: true });
+
+  const comments = (rows ?? []) as Array<Record<string, unknown>>;
+
+  let likedSet = new Set<string>();
+  if (wallet) {
+    const { data: likes } = await admin
+      .from("launchpad_comment_likes")
+      .select("comment_id")
+      .eq("wallet_address", wallet);
+    likedSet = new Set((likes ?? []).map((l: { comment_id: string }) => l.comment_id));
+  }
+
+  const uniqueWallets = [...new Set(comments.map(c => c.wallet_address as string))];
+  const octoMap: Record<string, number> = {};
+  if (uniqueWallets.length > 0) {
+    const { data: octoRows } = await admin
+      .from("octo_transactions")
+      .select("wallet_address, amount")
+      .in("wallet_address", uniqueWallets);
+    for (const row of (octoRows ?? []) as { wallet_address: string; amount: number }[]) {
+      octoMap[row.wallet_address] = (octoMap[row.wallet_address] ?? 0) + (row.amount ?? 0);
+    }
+  }
+
+  const likeCountMap: Record<string, number> = {};
+  if (comments.length > 0) {
+    const { data: likeCounts } = await admin
+      .from("launchpad_comment_likes")
+      .select("comment_id")
+      .in("comment_id", comments.map(c => c.id));
+    for (const row of (likeCounts ?? []) as { comment_id: string }[]) {
+      likeCountMap[row.comment_id] = (likeCountMap[row.comment_id] ?? 0) + 1;
+    }
+  }
+
+  const byId: Record<string, MarketCommentEnriched> = {};
+  const topLevel: MarketCommentEnriched[] = [];
+
+  for (const c of comments) {
+    const enriched: MarketCommentEnriched = {
+      id:             c.id as string,
+      market_id:      c.token_id as string,
+      wallet_address: c.wallet_address as string,
+      username:       c.username as string | null,
+      avatar_src:     c.avatar_src as string | null,
+      content:        c.content as string,
+      created_at:     c.created_at as string,
+      parent_id:      c.parent_id as string | null,
+      like_count:     likeCountMap[c.id as string] ?? 0,
+      liked_by_me:    likedSet.has(c.id as string),
+      octo_balance:   octoMap[c.wallet_address as string] ?? 0,
+      replies:        [],
+    };
+    byId[enriched.id] = enriched;
+  }
+
+  for (const enriched of Object.values(byId)) {
+    if (enriched.parent_id && byId[enriched.parent_id]) {
+      byId[enriched.parent_id].replies.push(enriched);
+    } else if (!enriched.parent_id) {
+      topLevel.push(enriched);
+    }
+  }
+
+  return topLevel;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -59,12 +138,13 @@ export default async function TokenDetailPage({ params }: Props) {
     getWalletAddress(),
   ]);
   if (!token) notFound();
-
   const isCreator  = walletAddress === token.creator_wallet;
 
   if (id.length <= 36 && token.mint_address) {
     redirect(`/launchpad/${token.mint_address}`);
   }
+
+  const initialComments = await getInitialComments(token.id, walletAddress);
 
   const socials = [
     { label: "Website",  href: token.website,     icon: "ti-world" },
@@ -225,6 +305,16 @@ export default async function TokenDetailPage({ params }: Props) {
               {token.description}
             </p>
           )}
+
+          {/* Comments */}
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <LaunchpadComments
+              tokenId={token.id}
+              initialComments={initialComments}
+              isAuthenticated={!!walletAddress}
+              walletAddress={walletAddress}
+            />
+          </div>
         </div>
 
         {/* ── Sidebar droite ── */}
