@@ -52,44 +52,11 @@ function fmtHolders(n: number | null): string {
 }
 
 async function fetchStats(mintAddress: string): Promise<Stats> {
-  // Fetch GeckoTerminal and Birdeye in parallel
-  const [gtRes, birdRes] = await Promise.allSettled([
-    fetch(
-      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}`,
-      { headers: { Accept: "application/json" } }
-    ),
-    fetch(
-      `https://public-api.birdeye.so/defi/token_overview?address=${mintAddress}`,
-      { headers: { Accept: "application/json", "x-chain": "solana" } }
-    ),
-  ]);
-
+  // Call our server-side proxy — avoids CORS issues with Birdeye
+  const res = await fetch(`/api/launchpad/token-stats/${mintAddress}`);
+  if (!res.ok) throw new Error("Stats unavailable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let gtAttrs: any = null;
-  if (gtRes.status === "fulfilled" && gtRes.value.ok) {
-    const json = await gtRes.value.json() as { data?: { attributes?: unknown } };
-    gtAttrs = (json?.data as { attributes?: unknown })?.attributes ?? null;
-  }
-
-  let holders: number | null = null;
-  if (birdRes.status === "fulfilled" && birdRes.value.ok) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const json = await birdRes.value.json() as any;
-    const h = json?.data?.holder;
-    if (typeof h === "number" && h > 0) holders = h;
-  }
-
-  if (!gtAttrs && holders === null) throw new Error("No data available");
-
-  return {
-    priceUsd:    gtAttrs?.price_usd       ? parseFloat(gtAttrs.price_usd)          : null,
-    marketCap:   gtAttrs?.market_cap_usd  ? parseFloat(gtAttrs.market_cap_usd)     : null,
-    fdv:         gtAttrs?.fdv_usd         ? parseFloat(gtAttrs.fdv_usd)            : null,
-    volume24h:   gtAttrs?.volume_usd?.h24 ? parseFloat(gtAttrs.volume_usd.h24)     : null,
-    priceChange: gtAttrs?.price_change_percentage?.h24
-                   ? parseFloat(gtAttrs.price_change_percentage.h24)               : null,
-    holders,
-  };
+  return await res.json() as any;
 }
 
 // ── Row component ─────────────────────────────────────────────────────────────
