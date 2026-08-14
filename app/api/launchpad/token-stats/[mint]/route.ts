@@ -1,49 +1,49 @@
 /**
  * GET /api/launchpad/token-stats/[mint]
  *
- * Server-side proxy that fetches token market data from:
- *   - GeckoTerminal: price, market cap, FDV, 24h volume, 24h price change
- *   - Birdeye public API: holder count
- *
- * Returns:
- *   { priceUsd, marketCap, fdv, volume24h, priceChange, holders }
+ * Server-side proxy — no API key required.
+ *   - GeckoTerminal : price, market cap, FDV, 24h volume, 24h price change
+ *   - Solscan public API : holder count
  */
 import { NextResponse } from "next/server";
 
 type RouteParams = { params: Promise<{ mint: string }> };
 
+async function fetchHolderCount(mint: string): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://public-api.solscan.io/token/holders?tokenAddress=${mint}&limit=1&offset=0`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = await res.json() as any;
+    const total = json?.total;
+    return typeof total === "number" && total > 0 ? total : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(_req: Request, { params }: RouteParams) {
   const { mint } = await params;
   if (!mint) return NextResponse.json({ error: "mint required" }, { status: 400 });
 
-  const [gtRes, birdRes] = await Promise.allSettled([
+  const [gtRes, holders] = await Promise.all([
     fetch(
       `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`,
       { headers: { Accept: "application/json" } }
-    ),
-    fetch(
-      `https://public-api.birdeye.so/defi/token_overview?address=${mint}`,
-      { headers: { Accept: "application/json", "x-chain": "solana" } }
-    ),
+    ).catch(() => null),
+    fetchHolderCount(mint),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let gtAttrs: any = null;
-  if (gtRes.status === "fulfilled" && gtRes.value.ok) {
+  if (gtRes?.ok) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json = await gtRes.value.json() as any;
+      const json = await gtRes.json() as any;
       gtAttrs = json?.data?.attributes ?? null;
-    } catch { /* ignore */ }
-  }
-
-  let holders: number | null = null;
-  if (birdRes.status === "fulfilled" && birdRes.value.ok) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json = await birdRes.value.json() as any;
-      const h = json?.data?.holder;
-      if (typeof h === "number" && h > 0) holders = h;
     } catch { /* ignore */ }
   }
 
