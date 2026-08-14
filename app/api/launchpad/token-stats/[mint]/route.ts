@@ -18,7 +18,8 @@ async function fetchHolderCount(mint: string): Promise<number | null> {
     if (!res.ok) return null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json = await res.json() as any;
-    const total = json?.total;
+    console.log("[token-stats] Solscan raw:", JSON.stringify(json).slice(0, 300));
+    const total = json?.total ?? json?.data?.total ?? json?.result?.total;
     return typeof total === "number" && total > 0 ? total : null;
   } catch {
     return null;
