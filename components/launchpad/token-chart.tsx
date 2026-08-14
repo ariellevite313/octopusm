@@ -83,6 +83,9 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   const seriesRef  = useRef<any>(null);
   const roRef      = useRef<ResizeObserver | null>(null);
   const liveTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ref mirrors for stale-closure safety inside setInterval
+  const activeTfRef   = useRef<Timeframe>(DEFAULT_TF);
+  const chartTypeRef  = useRef<ChartType>("candle");
 
   const [status,    setStatus]    = useState<Status>("loading");
   const [errorMsg,  setErrorMsg]  = useState("");
@@ -120,15 +123,15 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       (series as any).setData(bars);
       seriesRef.current = series;
     } else {
-      const { AreaSeries } = lw;
-      // Convert bars to line points (close price)
+      // AreaSeries (v5) or LineSeries fallback (v4)
+      const SeriesClass = lw.AreaSeries ?? lw.LineSeries;
       const lineData = bars.map(b => ({ time: b.time, value: b.close }));
-      const series = chartRef.current.addSeries(AreaSeries, {
-        lineColor:       "#7c3aed",
-        topColor:        "rgba(124,58,237,0.3)",
-        bottomColor:     "rgba(124,58,237,0.0)",
-        lineWidth:       2,
-        priceFormat:     { type: "price", precision: 8, minMove: 0.00000001 },
+      const series = chartRef.current.addSeries(SeriesClass, {
+        lineColor:   "#7c3aed",
+        topColor:    "rgba(124,58,237,0.3)",
+        bottomColor: "rgba(124,58,237,0.0)",
+        lineWidth:   2,
+        priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (series as any).setData(lineData);
@@ -207,21 +210,23 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   const switchTf = useCallback(async (tf: Timeframe) => {
     if (!poolRef.current || !chartRef.current || tfLoading) return;
     setActiveTf(tf);
+    activeTfRef.current = tf; // keep ref in sync for live timer
     setTfLoading(true);
     try {
       const [lw, bars] = await Promise.all([
         import("lightweight-charts"),
         fetchBars(poolRef.current, tf),
       ]);
-      if (bars.length) await buildSeries(lw, bars, chartType);
+      if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
     } catch { /* keep existing */ }
     finally { setTfLoading(false); }
-  }, [tfLoading, chartType, buildSeries]);
+  }, [tfLoading, buildSeries]);
 
   // ── Switch chart type ─────────────────────────────────────────────────────────
   const switchType = useCallback(async (type: ChartType) => {
     if (!poolRef.current || !chartRef.current) return;
     setChartType(type);
+    chartTypeRef.current = type; // keep ref in sync
 
     // Stop existing live timer
     if (liveTimer.current) { clearInterval(liveTimer.current); liveTimer.current = null; }
@@ -230,18 +235,18 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     try {
       const [lw, bars] = await Promise.all([
         import("lightweight-charts"),
-        fetchBars(poolRef.current, activeTf),
+        fetchBars(poolRef.current, activeTfRef.current), // use ref, not stale state
       ]);
       if (bars.length) await buildSeries(lw, bars, type);
 
-      // Auto-refresh every 30s for line chart
+      // Auto-refresh every 30s for line chart — use refs to avoid stale closures
       if (type === "line") {
         liveTimer.current = setInterval(async () => {
           if (!poolRef.current || !seriesRef.current) return;
           try {
             const [lw2, freshBars] = await Promise.all([
               import("lightweight-charts"),
-              fetchBars(poolRef.current!, activeTf),
+              fetchBars(poolRef.current, activeTfRef.current), // always latest TF
             ]);
             await buildSeries(lw2, freshBars, "line");
           } catch { /* ignore */ }
@@ -249,7 +254,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       }
     } catch { /* keep existing */ }
     finally { setTfLoading(false); }
-  }, [activeTf, buildSeries]);
+  }, [buildSeries]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 

@@ -7,6 +7,7 @@ import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
 import { EditTokenButton } from "@/components/launchpad/edit-token-button";
 import { TokenChart } from "@/components/launchpad/token-chart";
+import { TokenMarketStats } from "@/components/launchpad/token-market-stats";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 
@@ -218,6 +219,11 @@ export default async function TokenDetailPage({ params }: Props) {
 
         {/* ── Right column ── */}
         <div className="space-y-4">
+
+          {/* Market stats — live data from GeckoTerminal */}
+          {(isActive || isGraduated) && token.mint_address && (
+            <TokenMarketStats mintAddress={token.mint_address} />
+          )}
 
           {/* Token info card */}
           <div className="rounded-2xl border border-border bg-card p-4">
