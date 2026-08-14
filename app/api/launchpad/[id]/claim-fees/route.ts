@@ -73,9 +73,14 @@ export async function GET(_req: Request, { params }: RouteParams) {
           // creator fee = creator_fee_percentage * 24h volume (approximation)
           // GeckoTerminal doesn't expose accumulated fees directly,
           // so we return the 24h fees earned as an approximation
-          const volumeUsd24h  = parseFloat(attrs?.volume_usd?.h24 ?? "0");
-          const feePct        = parseFloat(attrs?.pool_fee ?? attrs?.swap_fee ?? "0"); // %
-          const feesUsd24h    = volumeUsd24h * feePct / 100;
+          const volumeUsd24h = parseFloat(attrs?.volume_usd?.h24 ?? "0");
+          // GeckoTerminal pool_fee is already a percentage string (e.g. "2.5" = 2.5%)
+          // Some pools return it as a decimal fraction — we normalise both cases
+          let feePct = parseFloat(attrs?.pool_fee ?? attrs?.swap_fee ?? "0");
+          if (feePct > 0 && feePct < 1) feePct = feePct * 100; // 0.025 → 2.5
+          // Creator gets ~50% of fees by convention (platform takes the rest)
+          const creatorSharePct = 0.5;
+          const feesUsd24h = volumeUsd24h * (feePct / 100) * creatorSharePct;
           // We can't get the exact claimable SOL without on-chain data,
           // so return the 24h fee revenue in USD as context
           if (feesUsd24h > 0) {
