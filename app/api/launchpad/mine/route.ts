@@ -22,7 +22,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("launchpad_tokens")
     .select(
-      "id, name, ticker, category, logo_url, status, is_tradeable, is_scheduled, scheduled_at, mint_address, pool_address, supply, created_at"
+      "id, name, ticker, category, logo_url, status, is_tradeable, is_scheduled, scheduled_at, mint_address, pool_address, creator_wallet, supply, created_at"
     )
     .eq("creator_wallet", wallet)
     .order("created_at", { ascending: false })

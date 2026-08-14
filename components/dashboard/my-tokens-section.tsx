@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ExternalLink, Rocket, Clock, AlertCircle } from "lucide-react";
+import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ type MyToken = {
   scheduled_at: string | null;
   mint_address: string | null;
   pool_address: string | null;
+  creator_wallet: string | null;
   supply: number;
   created_at: string;
 };
@@ -147,6 +149,17 @@ function TokenCard({ token }: { token: MyToken }) {
                 View token
                 <ExternalLink className="size-3.5" />
               </Link>
+            )}
+
+            {/* Claim trading fees — only for live/graduated tokens with a pool */}
+            {token.pool_address &&
+              (token.status === "active" || token.status === "graduating" || token.status === "graduated") &&
+              token.is_tradeable && (
+                <ClaimFeesButton
+                  tokenId={token.id}
+                  walletAddress={token.creator_wallet ?? ""}
+                  poolAddress={token.pool_address}
+                />
             )}
 
             {/* Pool on-chain link */}
