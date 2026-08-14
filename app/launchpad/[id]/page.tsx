@@ -7,6 +7,8 @@ import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
 import { EditTokenButton } from "@/components/launchpad/edit-token-button";
 import { TokenChart } from "@/components/launchpad/token-chart";
+import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
+import { getWalletAddress } from "@/lib/auth/get-wallet";
 
 // Revalidate every 30s — status changes after on-chain confirmation
 export const revalidate = 30;
@@ -57,8 +59,13 @@ function formatSupply(n: number): string {
 export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
   // Mint address = base58, ~44 chars. UUID = 36 chars with dashes.
-  const token = id.length > 36 ? await getLaunchpadTokenByMint(id) : await getLaunchpadToken(id);
+  const [token, walletAddress] = await Promise.all([
+    id.length > 36 ? getLaunchpadTokenByMint(id) : getLaunchpadToken(id),
+    getWalletAddress(),
+  ]);
   if (!token) notFound();
+
+  const isCreator = walletAddress === token.creator_wallet;
 
   // If accessed by UUID and token has a mint address, redirect to canonical CA URL
   if (id.length <= 36 && token.mint_address) {
@@ -256,6 +263,19 @@ export default async function TokenDetailPage({ params }: Props) {
 
           {/* Watchlist */}
           <WatchlistButton tokenId={token.id} />
+
+          {/* Claim fees — only for the creator, token must be live or graduated */}
+          {isCreator && (isActive || isGraduated) && (
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Frais créateur</p>
+              <p className="text-xs text-muted-foreground">Réclamez vos frais de trading accumulés dans le pool.</p>
+              <ClaimFeesButton
+                tokenId={token.id}
+                walletAddress={token.creator_wallet}
+                poolAddress={token.pool_address ?? ""}
+              />
+            </div>
+          )}
 
           {/* Launch button — only shown for pending tokens */}
           {isPending && (
