@@ -5,6 +5,7 @@ import { HeaderSwitch } from "@/components/layout/header-switch";
 import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
 import { RefCapture } from "@/components/layout/ref-capture";
+import { RootBottomNav } from "@/components/layout/root-bottom-nav";
 import { getDistinctCategories } from "@/services/prediction-service";
 import "./globals.css";
 
@@ -55,8 +56,9 @@ export default async function RootLayout({
           <div className="flex min-h-screen flex-col">
             <HeaderSwitch />
             <CategoryNavWrapper categories={categories} />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            <main className="flex-1 pb-16 md:pb-0">{children}</main>
+            <div className="hidden md:block"><Footer /></div>
+            <RootBottomNav />
           </div>
         </Providers>
       </body>
