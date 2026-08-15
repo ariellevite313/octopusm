@@ -57,7 +57,8 @@ async function claimForPool(
   let claimedSol: number | undefined;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const poolState = await (client as any).getPool(pool);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const poolState = await (client as any).state.getPool(pool);
     const lamports = Number(
       poolState?.partnerTradingFeeTokenA ??
       poolState?.partner_trading_fee_token_a ??
@@ -73,32 +74,29 @@ async function claimForPool(
     // Non-fatal — proceed without amount check
   }
 
-  // Build claim tx (try partner, then protocol as fallback)
+  // Build claim tx
+  // The SDK's claimPartnerTradingFee expects:
+  //   { payer, feeClaimer, pool }
+  // where feeClaimer = the address stored in the pool config's feeClaimer field
+  // (= PLATFORM_WALLET_SECRET public key, verified via check-dbc-config script)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let claimTx: any;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = client as any;
+    const baseParams = {
+      payer:       platformWallet.publicKey,
+      feeClaimer:  platformWallet.publicKey,
+      pool,
+    };
     if (c.partner?.claimPartnerTradingFee) {
-      claimTx = await c.partner.claimPartnerTradingFee({
-        payer: platformWallet.publicKey,
-        pool,
-      });
+      claimTx = await c.partner.claimPartnerTradingFee(baseParams);
     } else if (c.partner?.claimTradingFee) {
-      claimTx = await c.partner.claimTradingFee({
-        payer: platformWallet.publicKey,
-        pool,
-      });
+      claimTx = await c.partner.claimTradingFee(baseParams);
     } else if (c.claimPartnerFee) {
-      claimTx = await c.claimPartnerFee({
-        payer: platformWallet.publicKey,
-        pool,
-      });
+      claimTx = await c.claimPartnerFee(baseParams);
     } else if (c.claimProtocolFee) {
-      claimTx = await c.claimProtocolFee({
-        payer: platformWallet.publicKey,
-        pool,
-      });
+      claimTx = await c.claimProtocolFee(baseParams);
     } else {
       throw new Error("No partner/protocol fee claim method found in DBC SDK");
     }
