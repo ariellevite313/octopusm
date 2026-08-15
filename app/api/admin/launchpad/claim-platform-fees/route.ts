@@ -85,20 +85,17 @@ async function claimForPool(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = client as any;
     const baseParams = {
-      payer:       platformWallet.publicKey,
-      feeClaimer:  platformWallet.publicKey,
+      feeClaimer: platformWallet.publicKey,
+      payer:      platformWallet.publicKey,
       pool,
+      receiver:   platformWallet.publicKey, // where claimed SOL lands
     };
     if (c.partner?.claimPartnerTradingFee) {
       claimTx = await c.partner.claimPartnerTradingFee(baseParams);
     } else if (c.partner?.claimTradingFee) {
       claimTx = await c.partner.claimTradingFee(baseParams);
-    } else if (c.claimPartnerFee) {
-      claimTx = await c.claimPartnerFee(baseParams);
-    } else if (c.claimProtocolFee) {
-      claimTx = await c.claimProtocolFee(baseParams);
     } else {
-      throw new Error("No partner/protocol fee claim method found in DBC SDK");
+      throw new Error("No partner fee claim method found in DBC SDK");
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to build claim tx";
