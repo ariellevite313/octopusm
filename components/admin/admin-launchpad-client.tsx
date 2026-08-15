@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LoaderCircle, Ban } from "lucide-react";
+import { ExternalLink, LoaderCircle, Ban, CoinsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -63,10 +63,11 @@ function fmtSupply(n: number): string {
 type Filter = "all" | "pending" | "active" | "graduating" | "graduated" | "cancelled";
 
 export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
-  const router                    = useRouter();
-  const [filter, setFilter]       = useState<Filter>("all");
-  const [loading, setLoading]     = useState<string | null>(null);
-  const [confirm, setConfirm]     = useState<string | null>(null); // tokenId awaiting cancel confirm
+  const router                        = useRouter();
+  const [filter, setFilter]           = useState<Filter>("all");
+  const [loading, setLoading]         = useState<string | null>(null);
+  const [confirm, setConfirm]         = useState<string | null>(null); // tokenId awaiting cancel confirm
+  const [claimAllBusy, setClaimAllBusy] = useState(false);
 
   const counts = {
     all:        tokens.length,
@@ -80,6 +81,51 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
   const visible = filter === "all"
     ? tokens
     : tokens.filter(t => t.status === filter);
+
+  async function claimPlatformFees(tokenId?: string) {
+    const key = tokenId ?? "__all__";
+    if (tokenId) setLoading(tokenId + "claim");
+    else setClaimAllBusy(true);
+
+    try {
+      const res = await fetch("/api/admin/launchpad/claim-platform-fees", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(tokenId ? { tokenId } : {}),
+      });
+      const data = await res.json() as {
+        summary?: { claimed: number; skipped: number; errors: number; totalSol: number };
+        results?: Array<{ status: string; name: string; signature?: string; error?: string }>;
+        error?: string;
+      };
+
+      if (!res.ok || data.error) {
+        toast.error(data.error ?? "Claim failed");
+        return;
+      }
+
+      const { summary, results } = data;
+      if (summary) {
+        if (summary.claimed > 0) {
+          toast.success(
+            `✅ ${summary.claimed} pool${summary.claimed > 1 ? "s" : ""} claimed — ${summary.totalSol} SOL` +
+            (summary.errors > 0 ? ` · ${summary.errors} error(s)` : "")
+          );
+        } else if (summary.skipped > 0 && summary.errors === 0) {
+          toast.info("Nothing to claim (all pools at 0)");
+        } else if (summary.errors > 0) {
+          const firstErr = results?.find(r => r.status === "error")?.error;
+          toast.error(`Errors: ${firstErr ?? "see console"}`);
+        }
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      if (tokenId) setLoading(null);
+      else setClaimAllBusy(false);
+    }
+    void key; // suppress unused warning
+  }
 
   async function doAction(tokenId: string, action: "cancel" | "retry-vanity") {
     setLoading(tokenId + action);
@@ -116,6 +162,29 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
 
   return (
     <div className="space-y-4">
+
+      {/* Claim all platform fees */}
+      <div className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Platform fees</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Claim OMdotfun&apos;s share of trading fees across all active pools
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={claimAllBusy || !!loading}
+          onClick={() => claimPlatformFees()}
+          className="rounded-full gap-1.5 text-xs font-semibold border-emerald-400 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/20"
+        >
+          {claimAllBusy
+            ? <LoaderCircle className="size-3.5 animate-spin" />
+            : <CoinsIcon className="size-3.5" />
+          }
+          {claimAllBusy ? "Claiming…" : "Claim all fees"}
+        </Button>
+      </div>
 
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-1">
@@ -221,6 +290,23 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                             🦅
                           </Button>
                         </a>
+                      )}
+
+                      {/* Claim platform fees (only for pools with pool_address) */}
+                      {token.pool_address && token.status !== "cancelled" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={!!loading || claimAllBusy}
+                          title="Claim platform fees for this pool"
+                          className="rounded-full px-2 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/20"
+                          onClick={() => claimPlatformFees(token.id)}
+                        >
+                          {isBusy("claim")
+                            ? <LoaderCircle className="size-3 animate-spin" />
+                            : <CoinsIcon className="size-3" />
+                          }
+                        </Button>
                       )}
 
                       {/* Cancel — not for already cancelled or graduated */}
