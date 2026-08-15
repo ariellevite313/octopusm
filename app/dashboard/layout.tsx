@@ -4,7 +4,7 @@ import { getDashboardData } from "@/services/dashboard-service";
 import { TokenBalances } from "@/components/dashboard/token-balances";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
-import { BottomNavWrapper } from "@/components/layout/bottom-nav-wrapper";
+import { DashboardBottomNavSwitch } from "@/components/layout/dashboard-bottom-nav-switch";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 
 export const revalidate = 0;
@@ -79,7 +79,7 @@ export default async function DashboardLayout({
         {/* Sub-page content */}
         {children}
       </div>
-      <BottomNavWrapper />
+      <DashboardBottomNavSwitch />
     </>
   );
 }
