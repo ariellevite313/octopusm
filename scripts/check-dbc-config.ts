@@ -54,22 +54,29 @@ async function main() {
   const DynamicBondingCurveClient = sdk.DynamicBondingCurveClient;
   const client = new DynamicBondingCurveClient(connection, "confirmed");
 
-  // Fetch config
-  let config: Record<string, unknown>;
+  // Fetch config via client.state.getPoolConfig
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let cfg: any;
   try {
-    config = await client.getConfig(configPubkey);
+    cfg = await client.state.getPoolConfig(configPubkey);
   } catch (e) {
     console.error("❌ Failed to fetch config:", e instanceof Error ? e.message : e);
     process.exit(1);
   }
 
-  console.log("\n─── Config on-chain ───\n");
-  console.log(JSON.stringify(config, null, 2));
+  console.log("\n─── Config on-chain (raw) ───\n");
+  // Serialize BigInts and PublicKeys for display
+  console.log(JSON.stringify(cfg, (_, v) =>
+    typeof v === "bigint" ? v.toString() :
+    v?.toBase58 ? v.toBase58() : v
+  , 2));
 
-  // Key check
-  const partnerAddr =
-    (config.partnerAddress as PublicKey | undefined)?.toBase58?.() ??
-    (config.partner_address as string | undefined) ??
+  // Partner address check
+  const partnerAddr: string =
+    cfg?.partnerAddress?.toBase58?.() ??
+    cfg?.partner_address?.toBase58?.() ??
+    cfg?.partnerAddress ??
+    cfg?.partner_address ??
     "not found";
 
   console.log("\n─── Résultat ───\n");
@@ -80,12 +87,12 @@ async function main() {
     console.log("\n✅ MATCH — La plateforme peut bien réclamer ses frais.");
   } else {
     console.log("\n❌ MISMATCH — Les frais plateforme vont vers une autre adresse !");
-    console.log("   Pour corriger, tu dois recréer le config DBC avec la bonne adresse.");
+    console.log("   Pour corriger, il faut recréer le config DBC avec la bonne adresse.");
   }
 
   // Fee split
-  const creatorFee = config.creatorTradingFeePercentage ?? config.creator_trading_fee_percentage ?? "?";
-  const partnerFee = config.partnerTradingFeePercentage ?? config.partner_trading_fee_percentage ?? "?";
+  const creatorFee = cfg?.creatorTradingFeePercentage ?? cfg?.creator_trading_fee_percentage ?? "?";
+  const partnerFee = cfg?.partnerTradingFeePercentage ?? cfg?.partner_trading_fee_percentage ?? "?";
   console.log("\n─── Fee split ───\n");
   console.log("Creator fee % :", creatorFee);
   console.log("Partner fee % :", partnerFee);
