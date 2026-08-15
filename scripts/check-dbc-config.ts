@@ -8,7 +8,25 @@
  *   npx tsx scripts/check-dbc-config.ts
  */
 
-import "dotenv/config";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+// Load .env.local / .env manually (no dotenv dependency needed)
+for (const file of [".env.local", ".env"]) {
+  try {
+    const content = readFileSync(resolve(process.cwd(), file), "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+      if (!(key in process.env)) process.env[key] = val;
+    }
+  } catch { /* file not found — skip */ }
+}
+
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 
