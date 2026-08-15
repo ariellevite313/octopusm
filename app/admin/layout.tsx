@@ -12,21 +12,28 @@ import {
   Gavel,
   Users,
   Coins,
+  TrendingUp,
+  ArrowDownToLine,
 } from "lucide-react";
 import { requireAdmin } from "@/services/admin-service";
 import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
 
 const NAV = [
-  { href: "/admin",          label: "Overview",  icon: LayoutDashboard },
-  { href: "/admin/markets",  label: "Markets",   icon: BarChart3 },
-  { href: "/admin/pools",    label: "Pools",     icon: Layers },
-  { href: "/admin/bets",     label: "Predicts",  icon: Gavel },
-  { href: "/admin/payments", label: "Payments",  icon: CreditCard },
-  { href: "/admin/launches",  label: "Launches",  icon: Rocket },
-  { href: "/admin/launchpad", label: "Launchpad", icon: Coins },
-  { href: "/admin/tasks",    label: "Tasks",     icon: CheckSquare },
-  { href: "/admin/wallets",  label: "Wallets",   icon: Users },
-  { href: "/admin/account",  label: "My account",  icon: User },
+  { href: "/admin",              label: "Overview",    icon: LayoutDashboard },
+  // ── Predictions ────────────────────────────────
+  { href: "/admin/markets",      label: "Markets",     icon: BarChart3 },
+  { href: "/admin/pools",        label: "Pools",       icon: Layers },
+  { href: "/admin/bets",         label: "Predicts",    icon: Gavel },
+  { href: "/admin/updown",       label: "Up/Down",     icon: TrendingUp },
+  { href: "/admin/payments",     label: "Payments",    icon: CreditCard },
+  { href: "/admin/withdrawals",  label: "Withdrawals", icon: ArrowDownToLine },
+  // ── Launchpad ──────────────────────────────────
+  { href: "/admin/launches",     label: "Launches",    icon: Rocket },
+  { href: "/admin/launchpad",    label: "Launchpad",   icon: Coins },
+  // ── Admin ──────────────────────────────────────
+  { href: "/admin/tasks",        label: "Tasks",       icon: CheckSquare },
+  { href: "/admin/wallets",      label: "Wallets",     icon: Users },
+  { href: "/admin/account",      label: "My account",  icon: User },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
