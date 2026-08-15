@@ -3,18 +3,26 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
   { href: "/",            label: "Markets",     badge: undefined, disabled: false },
+  { href: "/updown",      label: "Up/Down",     badge: undefined, disabled: false },
   { href: "/leaderboard", label: "Leaderboard", badge: undefined, disabled: false },
   { href: "/launchpad",   label: "Launchpad",   badge: undefined, disabled: false, external: true },
   { href: "/archive",     label: "Archive",     badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
+function isActive(href: string, pathname: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
 export function Header() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <>
@@ -45,7 +53,11 @@ export function Header() {
                   href={href}
                   target={external ? "_blank" : undefined}
                   rel={external ? "noopener noreferrer" : undefined}
-                  className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  className={`flex items-center gap-1.5 transition-colors hover:text-foreground ${
+                    !external && isActive(href, pathname)
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground"
+                  }`}
                 >
                   {label}
                   {external && <span className="text-[10px] opacity-40">↗</span>}
@@ -106,7 +118,11 @@ export function Header() {
                     target={external ? "_blank" : undefined}
                     rel={external ? "noopener noreferrer" : undefined}
                     onClick={() => setOpen(false)}
-                    className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground ${
+                      !external && isActive(href, pathname)
+                        ? "text-foreground bg-muted"
+                        : "text-muted-foreground"
+                    }`}
                   >
                     {label}
                     {external && <span className="text-xs opacity-30">↗</span>}

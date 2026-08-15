@@ -6,7 +6,7 @@ import { BarChart2, Layers, CheckSquare, Users, Rocket } from "lucide-react";
 
 const TABS = [
   { label: "Predictions", href: "/dashboard/predictions", icon: BarChart2 },
-  { label: "Markets",     href: "/dashboard/pools",       icon: Layers },
+  { label: "Pools",       href: "/dashboard/pools",       icon: Layers },
   { label: "Tokens",      href: "/dashboard/launchpad",   icon: Rocket },
   { label: "Tasks",       href: "/dashboard/tasks",       icon: CheckSquare },
   { label: "Referrals",   href: "/dashboard/referrals",   icon: Users },

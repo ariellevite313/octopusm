@@ -12,23 +12,29 @@ import {
   User,
   Gavel,
   Users,
+  Coins,
+  TrendingUp,
+  ArrowDownToLine,
   MoreHorizontal,
   X,
 } from "lucide-react";
 
 const PRIMARY = [
-  { href: "/admin",          label: "Overview",  icon: LayoutDashboard },
-  { href: "/admin/markets",  label: "Markets",   icon: BarChart3 },
-  { href: "/admin/bets",     label: "Predicts",  icon: Gavel },
-  { href: "/admin/payments", label: "Payments",  icon: CreditCard },
-  { href: "/admin/launches", label: "Launches",  icon: Rocket },
+  { href: "/admin",           label: "Overview",  icon: LayoutDashboard },
+  { href: "/admin/markets",   label: "Markets",   icon: BarChart3 },
+  { href: "/admin/bets",      label: "Predicts",  icon: Gavel },
+  { href: "/admin/launchpad", label: "Launchpad", icon: Coins },
+  { href: "/admin/payments",  label: "Payments",  icon: CreditCard },
 ];
 
 const MORE_ITEMS = [
-  { href: "/admin/pools",    label: "Bookmake", icon: Layers },
-  { href: "/admin/tasks",    label: "Tasks",       icon: CheckSquare },
-  { href: "/admin/wallets",  label: "Wallets",     icon: Users },
-  { href: "/admin/account",  label: "My account",  icon: User },
+  { href: "/admin/pools",       label: "Pools",       icon: Layers },
+  { href: "/admin/updown",      label: "Up/Down",     icon: TrendingUp },
+  { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowDownToLine },
+  { href: "/admin/launches",    label: "Launches",    icon: Rocket },
+  { href: "/admin/tasks",       label: "Tasks",       icon: CheckSquare },
+  { href: "/admin/wallets",     label: "Wallets",     icon: Users },
+  { href: "/admin/account",     label: "My account",  icon: User },
 ];
 
 export function AdminMobileNav() {
