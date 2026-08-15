@@ -1,138 +1,309 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { LayoutGrid, List, CheckCircle2 } from "lucide-react";
 import type { LaunchpadToken } from "@/services/launchpad-service";
 
-const CATEGORIES = ["All", "Meme", "Utility", "AI", "Gaming", "DeFi", "NFT", "x402"];
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_BADGE: Record<string, { label: string; class: string }> = {
-  active:     { label: "Live",       class: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
-  graduating: { label: "Graduating", class: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  graduated:  { label: "Graduated",  class: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  pending:    { label: "Pending",    class: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400" },
-  cancelled:  { label: "Cancelled",  class: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
+function shortWallet(address: string) {
+  if (!address || address.length < 10) return address;
+  return `${address.slice(0, 4)}…${address.slice(-4)}`;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d`;
+  return `${Math.floor(diff / (86400 * 30))}mo`;
+}
+
+// ── constants ─────────────────────────────────────────────────────────────────
+
+type SortTab = "all" | "new" | "graduated" | "scheduled";
+
+const SORT_TABS: { id: SortTab; label: string }[] = [
+  { id: "all",       label: "All" },
+  { id: "new",       label: "New" },
+  { id: "graduated", label: "Graduated" },
+  { id: "scheduled", label: "Scheduled" },
+];
+
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  active:     { label: "Live",       cls: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" },
+  graduating: { label: "Graduating", cls: "bg-amber-500/15 text-amber-400 border border-amber-500/30" },
+  graduated:  { label: "Graduated",  cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
+  pending:    { label: "Pending",    cls: "bg-zinc-500/15 text-zinc-400 border border-zinc-500/30" },
+  cancelled:  { label: "Cancelled",  cls: "bg-red-500/15 text-red-400 border border-red-500/30" },
 };
 
+// ── TokenCard (grid) ──────────────────────────────────────────────────────────
+
 function TokenCard({ token }: { token: LaunchpadToken }) {
+  const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
+  const isGraduated = token.status === "graduated";
+  const isScheduled = token.is_scheduled && !token.is_tradeable;
+
+  return (
+    <Link
+      href={`/launchpad/${token.id}`}
+      className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:shadow-[0_0_18px_rgba(16,185,129,0.10)]"
+      style={{
+        borderColor: isGraduated
+          ? "rgba(59,130,246,0.25)"
+          : "rgba(16,185,129,0.20)",
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLElement).style.borderColor = isGraduated
+          ? "rgba(59,130,246,0.55)"
+          : "rgba(16,185,129,0.55)";
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.borderColor = isGraduated
+          ? "rgba(59,130,246,0.25)"
+          : "rgba(16,185,129,0.20)";
+      }}
+    >
+      {/* Square image */}
+      <div className="relative aspect-square w-full overflow-hidden bg-black">
+        {token.logo_url ? (
+          <Image
+            src={token.logo_url}
+            alt={token.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-3xl font-bold tracking-tighter text-white/70">
+            {token.ticker.slice(0, 3)}
+          </div>
+        )}
+
+        {/* Status badge — top-right */}
+        <div className="absolute right-1.5 top-1.5">
+          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${badge.cls}`}>
+            {badge.label}
+          </span>
+        </div>
+
+        {/* Scheduled — top-left */}
+        {isScheduled && (
+          <div className="absolute left-1.5 top-1.5">
+            <span className="rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-400 border border-violet-500/30">
+              Soon
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col gap-1 p-2.5">
+        {/* Name + mint check */}
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
+            {token.name}
+          </span>
+          {token.mint_address && (
+            <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
+          )}
+        </div>
+
+        {/* Ticker */}
+        <p className="text-xs text-muted-foreground">${token.ticker}</p>
+
+        {/* Creator + time */}
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="text-[10px] font-mono text-muted-foreground/60">
+            {shortWallet(token.creator_wallet)}
+          </span>
+          <span className="text-[10px] text-muted-foreground/60">
+            · {timeAgo(token.created_at)}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ── TokenRow (list view) ──────────────────────────────────────────────────────
+
+function TokenRow({ token }: { token: LaunchpadToken }) {
   const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
 
   return (
     <Link
       href={`/launchpad/${token.id}`}
-      className="group flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-3 transition-all hover:border-primary/40 hover:shadow-sm"
+      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 transition-all hover:border-emerald-500/40"
     >
-      {/* Logo + badge */}
-      <div className="flex items-start justify-between">
+      {/* Logo */}
+      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-black">
         {token.logo_url ? (
           <Image
             src={token.logo_url}
             alt={token.name}
-            width={44}
-            height={44}
-            className="rounded-xl object-cover"
+            fill
+            className="object-cover"
             unoptimized
           />
         ) : (
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-base font-bold text-primary">
-            {token.ticker.slice(0, 2)}
+          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white/60">
+            {token.ticker.slice(0, 3)}
           </div>
         )}
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.class}`}>
+      </div>
+
+      {/* Name + ticker + category */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1">
+          <span className="truncate text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
+            {token.name}
+          </span>
+          {token.mint_address && (
+            <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          ${token.ticker} · {token.category}
+        </p>
+      </div>
+
+      {/* Creator */}
+      <span className="hidden sm:block text-[10px] font-mono text-muted-foreground/50">
+        {shortWallet(token.creator_wallet)}
+      </span>
+
+      {/* Status + time */}
+      <div className="flex flex-col items-end gap-1">
+        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${badge.cls}`}>
           {badge.label}
         </span>
-      </div>
-
-      {/* Name + ticker */}
-      <div>
-        <p className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-          {token.name}
-        </p>
-        <p className="text-xs text-muted-foreground">${token.ticker}</p>
-      </div>
-
-      {/* Category + fee */}
-      <div className="flex items-center justify-between">
-        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-          {token.category}
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          2.5% fee
+        <span className="text-[10px] text-muted-foreground/50">
+          {timeAgo(token.created_at)}
         </span>
       </div>
-
-      {/* Scheduled badge */}
-      {token.is_scheduled && !token.is_tradeable && token.scheduled_at && (
-        <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 px-2 py-1 text-[10px] font-medium text-violet-700 dark:text-violet-400 text-center">
-          Launches {new Date(token.scheduled_at).toLocaleDateString()}
-        </div>
-      )}
     </Link>
   );
 }
 
-export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadToken[] }) {
-  const [category, setCategory] = useState("All");
-  const [search, setSearch] = useState("");
+// ── LaunchpadClient ───────────────────────────────────────────────────────────
 
-  const filtered = initialTokens.filter((t) => {
-    const matchCat = category === "All" || t.category === category;
-    const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      t.name.toLowerCase().includes(q) ||
-      t.ticker.toLowerCase().includes(q);
-    return matchCat && matchSearch;
-  });
+export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadToken[] }) {
+  const [tab, setTab] = useState<SortTab>("all");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const filtered = useMemo(() => {
+    let list = [...initialTokens];
+
+    if (tab === "new") {
+      list = list.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    } else if (tab === "graduated") {
+      list = list.filter(t => t.status === "graduated");
+    } else if (tab === "scheduled") {
+      list = list.filter(t => t.is_scheduled && !t.is_tradeable);
+    }
+
+    const q = search.toLowerCase().trim();
+    if (q) {
+      list = list.filter(
+        t =>
+          t.name.toLowerCase().includes(q) ||
+          t.ticker.toLowerCase().includes(q),
+      );
+    }
+
+    return list;
+  }, [initialTokens, tab, search]);
 
   return (
-    <div className="space-y-5">
-      {/* Filtres */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto">
+        {/* Tabs */}
+        <div className="flex items-center gap-0.5 flex-1 min-w-0">
+          {SORT_TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                tab === t.id
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Search */}
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or ticker…"
-          className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-64"
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search…"
+          className="h-8 w-36 shrink-0 rounded-lg border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
         />
-        {/* Categories */}
-        <div className="flex flex-wrap gap-1.5">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                category === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+
+        {/* Grid / List toggle */}
+        <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5 shrink-0">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`rounded p-1.5 transition-colors ${
+              viewMode === "grid"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label="Grid view"
+          >
+            <LayoutGrid className="size-3.5" />
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`rounded p-1.5 transition-colors ${
+              viewMode === "list"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label="List view"
+          >
+            <List className="size-3.5" />
+          </button>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Content */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-3xl mb-3">🚀</p>
-          <p className="text-sm font-medium text-foreground mb-1">No tokens yet</p>
-          <p className="text-xs text-muted-foreground mb-5">Be the first to launch a token on OMdotfun</p>
+          <p className="mb-3 text-3xl">🚀</p>
+          <p className="mb-1 text-sm font-medium text-foreground">No tokens yet</p>
+          <p className="mb-5 text-xs text-muted-foreground">
+            Be the first to launch a token on OMdotfun
+          </p>
           <Link
             href="/launchpad/create"
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             Launch a token
           </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {filtered.map((token) => (
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {filtered.map(token => (
             <TokenCard key={token.id} token={token} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filtered.map(token => (
+            <TokenRow key={token.id} token={token} />
           ))}
         </div>
       )}

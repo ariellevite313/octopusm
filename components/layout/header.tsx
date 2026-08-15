@@ -7,11 +7,11 @@ import { Menu, X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
-  { href: "/",            label: "Markets",    badge: undefined, disabled: false },
-  { href: "/leaderboard", label: "Leaderboard",badge: undefined, disabled: false },
-  { href: "/launchpad",   label: "Launchpad",  badge: "Soon",    disabled: true  },
-  { href: "/archive",     label: "Archive",    badge: undefined, disabled: false },
-] satisfies { href: string; label: string; badge?: string; disabled: boolean }[];
+  { href: "/",            label: "Markets",     badge: undefined, disabled: false },
+  { href: "/leaderboard", label: "Leaderboard", badge: undefined, disabled: false },
+  { href: "/launchpad",   label: "Launchpad",   badge: undefined, disabled: false, external: true },
+  { href: "/archive",     label: "Archive",     badge: undefined, disabled: false },
+] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -26,7 +26,7 @@ export function Header() {
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm md:flex">
-            {NAV_LINKS.map(({ href, label, badge, disabled }) =>
+            {NAV_LINKS.map(({ href, label, badge, disabled, external }) =>
               disabled ? (
                 <span
                   key={label}
@@ -43,9 +43,12 @@ export function Header() {
                 <Link
                   key={href}
                   href={href}
+                  target={external ? "_blank" : undefined}
+                  rel={external ? "noopener noreferrer" : undefined}
                   className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {label}
+                  {external && <span className="text-[10px] opacity-40">↗</span>}
                 </Link>
               )
             )}
@@ -83,7 +86,7 @@ export function Header() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {NAV_LINKS.map(({ href, label, badge, disabled }) =>
+              {NAV_LINKS.map(({ href, label, badge, disabled, external }) =>
                 disabled ? (
                   <span
                     key={label}
@@ -100,10 +103,13 @@ export function Header() {
                   <Link
                     key={href}
                     href={href}
+                    target={external ? "_blank" : undefined}
+                    rel={external ? "noopener noreferrer" : undefined}
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     {label}
+                    {external && <span className="text-xs opacity-30">↗</span>}
                   </Link>
                 )
               )}

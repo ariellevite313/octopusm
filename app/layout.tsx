@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import { Providers } from "@/providers/providers";
-import { Header } from "@/components/layout/header";
+import { HeaderSwitch } from "@/components/layout/header-switch";
 import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
 import { RefCapture } from "@/components/layout/ref-capture";
@@ -53,7 +53,7 @@ export default async function RootLayout({
         <Providers>
           <RefCapture />
           <div className="flex min-h-screen flex-col">
-            <Header />
+            <HeaderSwitch />
             <CategoryNavWrapper categories={categories} />
             <main className="flex-1">{children}</main>
             <Footer />

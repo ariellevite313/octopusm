@@ -5,7 +5,6 @@ import Image from "next/image";
 import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
-import { EditTokenButton } from "@/components/launchpad/edit-token-button";
 import { TokenChart } from "@/components/launchpad/token-chart";
 import { TokenMarketStats } from "@/components/launchpad/token-market-stats";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
@@ -197,22 +196,6 @@ export default async function TokenDetailPage({ params }: Props) {
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 {token.category}
               </span>
-              <EditTokenButton token={{
-                id: token.id,
-                creator_wallet: token.creator_wallet,
-                name: token.name,
-                ticker: token.ticker,
-                description: token.description,
-                category: token.category,
-                logo_url: token.logo_url,
-                whitepaper_url: token.whitepaper_url,
-                website: token.website,
-                twitter: token.twitter,
-                telegram: token.telegram,
-                discord: token.discord,
-                other_social: token.other_social,
-                status: token.status,
-              }} />
             </div>
 
             {/* Mint address inline */}
