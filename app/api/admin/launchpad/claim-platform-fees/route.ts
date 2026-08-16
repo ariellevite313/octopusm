@@ -53,10 +53,10 @@ async function claimForPool(
 ): Promise<ClaimResult> {
   const pool = new PublicKey(token.pool_address);
 
-  // Check claimable amount first (non-fatal)
-  let claimedSol: number | undefined;
+  // Check claimable amount — REQUIRED, not optional.
+  // Without this check the SDK may draw from the payer (platform wallet) instead of the pool.
+  let claimedSol: number;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const poolState = await (client as any).state.getPool(pool);
     const lamports = Number(
@@ -66,12 +66,14 @@ async function claimForPool(
       poolState?.protocol_trading_fee_token_a ??
       0
     );
-    if (lamports === 0) {
+    if (lamports <= 0) {
       return { tokenId: token.id, name: token.name, status: "skipped", claimedSol: 0 };
     }
     claimedSol = lamports / 1e9;
-  } catch {
-    // Non-fatal — proceed without amount check
+  } catch (e) {
+    // If we can't verify the pool state, refuse to claim — safer than risking a wrong debit
+    const msg = e instanceof Error ? e.message : "Could not fetch pool state";
+    return { tokenId: token.id, name: token.name, status: "error", error: `Pool state check failed: ${msg}` };
   }
 
   // Build claim tx

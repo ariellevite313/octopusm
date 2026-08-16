@@ -8,8 +8,7 @@
  * Returns: { transactionBase64: string; claimableSol: number | null }
  */
 import { NextResponse } from "next/server";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import bs58 from "bs58";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -20,11 +19,6 @@ function getConnection(): Connection {
   return new Connection(rpc, "confirmed");
 }
 
-function getPlatformWallet(): Keypair {
-  const secret = process.env.PLATFORM_WALLET_SECRET;
-  if (!secret) throw new Error("PLATFORM_WALLET_SECRET is not set");
-  return Keypair.fromSecretKey(bs58.decode(secret));
-}
 
 export async function GET(_req: Request, { params }: RouteParams) {
   const { id } = await params;
@@ -102,7 +96,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
       if (poolAddress) {
         const pool      = new PublicKey(poolAddress);
-        const poolState = await client.getPool(pool);
+        const poolState = await client.state.getPool(pool); // correct method
         const lamports  = Number(
           poolState?.creatorTradingFeeTokenA ??
           poolState?.creator_trading_fee_token_a ??
@@ -156,46 +150,58 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "DBC SDK not installed" }, { status: 500 });
     }
 
-    const connection     = getConnection();
-    const platformWallet = getPlatformWallet();
-    const client         = new DynamicBondingCurveClient(connection, "confirmed");
-    const creator        = new PublicKey(token.creator_wallet as string);
-    const pool           = new PublicKey(token.pool_address as string);
+    const connection = getConnection();
+    const client     = new DynamicBondingCurveClient(connection, "confirmed");
+    const creator    = new PublicKey(token.creator_wallet as string);
+    const pool       = new PublicKey(token.pool_address as string);
 
-    // Fetch pool state to get claimable fee amounts
-    let claimableSol: number | null = null;
+    // Fetch pool state — required before building the tx.
+    // If pool has 0 fees, we block the claim to prevent the SDK from
+    // drawing from the payer instead of the pool.
+    let claimableSol: number;
     try {
-      const poolState = await client.getPool(pool);
-      // creatorTradingFeeTokenA is usually the SOL/WSOL fee
+      const poolState = await client.state.getPool(pool);
       const lamports = Number(
         poolState?.creatorTradingFeeTokenA ??
         poolState?.creator_trading_fee_token_a ??
         0
       );
+      if (lamports <= 0) {
+        return NextResponse.json(
+          { error: "Nothing to claim — no fees accumulated in this pool yet" },
+          { status: 409 }
+        );
+      }
       claimableSol = lamports / 1e9;
     } catch {
-      // Non-fatal — we proceed without the amount
+      // If we can't verify, block the claim — safer than risking a wrong debit
+      return NextResponse.json(
+        { error: "Could not fetch pool state — try again later" },
+        { status: 503 }
+      );
     }
 
-    // Build claim transaction
+    // Build claim transaction.
+    // The creator is both payer and receiver — platform wallet is NOT involved.
+    // SOL flows: pool fee bucket → creator wallet only.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let claimTx: any;
     try {
       claimTx = await client.creator.claimCreatorTradingFee({
         creator,
         pool,
-        payer: platformWallet.publicKey,
+        payer:    creator,  // creator pays their own gas
+        receiver: creator,  // claimed SOL goes to creator
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to build claim transaction";
       return NextResponse.json({ error: msg }, { status: 500 });
     }
 
-    // Pre-sign with platform wallet (payer for fees)
+    // No platform wallet pre-sign needed — creator signs everything client-side
     const { blockhash } = await connection.getLatestBlockhash("confirmed");
     claimTx.recentBlockhash = blockhash;
-    claimTx.feePayer = platformWallet.publicKey;
-    claimTx.partialSign(platformWallet);
+    claimTx.feePayer = creator;
 
     const transactionBase64 = Buffer.from(
       claimTx.serialize({ requireAllSignatures: false })
