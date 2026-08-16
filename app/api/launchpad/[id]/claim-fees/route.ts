@@ -9,6 +9,7 @@
  */
 import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 import { createAdminClient } from "@/lib/supabase/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -72,8 +73,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
           // Some pools return it as a decimal fraction — we normalise both cases
           let feePct = parseFloat(attrs?.pool_fee ?? attrs?.swap_fee ?? "0");
           if (feePct > 0 && feePct < 1) feePct = feePct * 100; // 0.025 → 2.5
-          // Creator gets ~50% of fees by convention (platform takes the rest)
-          const creatorSharePct = 0.5;
+          // Creator gets 40% of fees per DBC config (platform feeClaimer gets 60%)
+          const creatorSharePct = 0.4;
           const feesUsd24h = volumeUsd24h * (feePct / 100) * creatorSharePct;
           // We can't get the exact claimable SOL without on-chain data,
           // so return the 24h fee revenue in USD as context
@@ -96,13 +97,16 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
       if (poolAddress) {
         const pool      = new PublicKey(poolAddress);
-        const poolState = await client.state.getPool(pool); // correct method
-        const lamports  = Number(
-          poolState?.creatorTradingFeeTokenA ??
-          poolState?.creator_trading_fee_token_a ??
-          0
-        );
-        if (lamports > 0) return NextResponse.json({ claimableSol: lamports / 1e9 });
+        const poolState = await client.state.getPool(pool);
+        if (poolState) {
+          const inner = poolState.poolState ?? poolState; // nested per DBC docs
+          // tokenA = base (project token), tokenB = quote (SOL)
+          const baseL  = Number(inner?.creatorTradingFeeTokenA ?? inner?.creator_trading_fee_token_a ?? 0);
+          const quoteL = Number(inner?.creatorTradingFeeTokenB ?? inner?.creator_trading_fee_token_b ?? 0);
+          if (baseL > 0 || quoteL > 0) {
+            return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
+          }
+        }
       }
     } catch { /* SDK not available or method not found */ }
 
@@ -156,49 +160,55 @@ export async function POST(req: Request, { params }: RouteParams) {
     const pool       = new PublicKey(token.pool_address as string);
 
     // Fetch pool state — required before building the tx.
-    // If pool has 0 fees, we block the claim to prevent the SDK from
-    // drawing from the payer instead of the pool.
+    // poolState.poolState is the nested structure per DBC SDK docs.
+    // tokenA = base (project token fees), tokenB = quote (SOL fees).
+    // Block if both are 0 to prevent the SDK from drawing from the payer.
     let claimableSol: number;
+    let maxBaseAmount: BN;
+    let maxQuoteAmount: BN;
     try {
       const poolState = await client.state.getPool(pool);
-      const lamports = Number(
-        poolState?.creatorTradingFeeTokenA ??
-        poolState?.creator_trading_fee_token_a ??
-        0
-      );
-      if (lamports <= 0) {
+      if (!poolState) throw new Error("Pool not found");
+      const inner = poolState.poolState ?? poolState; // handle both SDK versions
+
+      maxBaseAmount  = new BN(String(inner?.creatorTradingFeeTokenA ?? inner?.creator_trading_fee_token_a  ?? 0));
+      maxQuoteAmount = new BN(String(inner?.creatorTradingFeeTokenB ?? inner?.creator_trading_fee_token_b  ?? 0));
+
+      if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
         return NextResponse.json(
           { error: "Nothing to claim — no fees accumulated in this pool yet" },
           { status: 409 }
         );
       }
-      claimableSol = lamports / 1e9;
-    } catch {
-      // If we can't verify, block the claim — safer than risking a wrong debit
+      // claimableSol = SOL (quote) portion
+      claimableSol = maxQuoteAmount.toNumber() / 1e9;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown";
       return NextResponse.json(
-        { error: "Could not fetch pool state — try again later" },
+        { error: `Could not fetch pool state: ${msg}` },
         { status: 503 }
       );
     }
 
-    // Build claim transaction.
-    // The creator is both payer and receiver — platform wallet is NOT involved.
-    // SOL flows: pool fee bucket → creator wallet only.
+    // Per Meteora docs, claimCreatorTradingFeeToReceiver takes:
+    //   { creator, pool, payer, maxBaseAmount, maxQuoteAmount, receiver }
+    // Platform wallet is NOT involved in this transaction.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let claimTx: any;
     try {
-      claimTx = await client.creator.claimCreatorTradingFee({
+      claimTx = await client.creator.claimCreatorTradingFeeToReceiver({
         creator,
         pool,
-        payer:    creator,  // creator pays their own gas
-        receiver: creator,  // claimed SOL goes to creator
+        payer:          creator, // creator pays their own gas
+        receiver:       creator, // claimed SOL goes to creator
+        maxBaseAmount,
+        maxQuoteAmount,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to build claim transaction";
       return NextResponse.json({ error: msg }, { status: 500 });
     }
 
-    // No platform wallet pre-sign needed — creator signs everything client-side
     const { blockhash } = await connection.getLatestBlockhash("confirmed");
     claimTx.recentBlockhash = blockhash;
     claimTx.feePayer = creator;
