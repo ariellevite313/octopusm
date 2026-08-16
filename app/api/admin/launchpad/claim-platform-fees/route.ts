@@ -67,14 +67,18 @@ async function claimForPool(
     if (!poolState) throw new Error("Pool not found");
     const inner = poolState.poolState ?? poolState; // handle both SDK versions
 
-    // tokenA = base (project token fees), tokenB = quote (SOL fees)
-    maxBaseAmount  = new BN(String(inner?.partnerTradingFeeTokenA  ?? inner?.partner_trading_fee_token_a  ?? 0));
-    maxQuoteAmount = new BN(String(inner?.partnerTradingFeeTokenB  ?? inner?.partner_trading_fee_token_b  ?? 0));
+    // Real field names from DBC SDK (confirmed via debug endpoint):
+    //   partnerBaseFee  = base token fees (hex string)
+    //   partnerQuoteFee = SOL fees (hex string)
+    const rawBase  = inner?.partnerBaseFee  ?? "0";
+    const rawQuote = inner?.partnerQuoteFee ?? "0";
+    maxBaseAmount  = new BN(rawBase  === "00" || rawBase  === "0" ? "0" : rawBase,  "hex");
+    maxQuoteAmount = new BN(rawQuote === "00" || rawQuote === "0" ? "0" : rawQuote, "hex");
 
     if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
       return { tokenId: token.id, name: token.name, status: "skipped", claimedSol: 0 };
     }
-    // Report claimedSol = SOL (quote) portion; base token value ignored in summary
+    // claimedSol = SOL (quote) portion
     claimedSol = maxQuoteAmount.toNumber() / 1e9;
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not fetch pool state";

@@ -99,10 +99,12 @@ export async function GET(_req: Request, { params }: RouteParams) {
         const pool      = new PublicKey(poolAddress);
         const poolState = await client.state.getPool(pool);
         if (poolState) {
-          const inner = poolState.poolState ?? poolState; // nested per DBC docs
-          // tokenA = base (project token), tokenB = quote (SOL)
-          const baseL  = Number(inner?.creatorTradingFeeTokenA ?? inner?.creator_trading_fee_token_a ?? 0);
-          const quoteL = Number(inner?.creatorTradingFeeTokenB ?? inner?.creator_trading_fee_token_b ?? 0);
+          const inner = poolState.poolState ?? poolState;
+          // Real field names: creatorBaseFee / creatorQuoteFee (hex strings)
+          const rawQ = inner?.creatorQuoteFee ?? "0";
+          const rawB = inner?.creatorBaseFee  ?? "0";
+          const quoteL = rawQ === "00" || rawQ === "0" ? 0 : parseInt(rawQ, 16);
+          const baseL  = rawB === "00" || rawB === "0" ? 0 : parseInt(rawB, 16);
           if (baseL > 0 || quoteL > 0) {
             return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
           }
@@ -171,8 +173,13 @@ export async function POST(req: Request, { params }: RouteParams) {
       if (!poolState) throw new Error("Pool not found");
       const inner = poolState.poolState ?? poolState; // handle both SDK versions
 
-      maxBaseAmount  = new BN(String(inner?.creatorTradingFeeTokenA ?? inner?.creator_trading_fee_token_a  ?? 0));
-      maxQuoteAmount = new BN(String(inner?.creatorTradingFeeTokenB ?? inner?.creator_trading_fee_token_b  ?? 0));
+      // Real field names from DBC SDK (confirmed via debug endpoint):
+      //   creatorBaseFee  = base token fees (hex string)
+      //   creatorQuoteFee = SOL fees (hex string)
+      const rawBase  = inner?.creatorBaseFee  ?? "0";
+      const rawQuote = inner?.creatorQuoteFee ?? "0";
+      maxBaseAmount  = new BN(rawBase  === "00" || rawBase  === "0" ? "0" : rawBase,  "hex");
+      maxQuoteAmount = new BN(rawQuote === "00" || rawQuote === "0" ? "0" : rawQuote, "hex");
 
       if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
         return NextResponse.json(
