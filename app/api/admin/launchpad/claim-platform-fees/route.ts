@@ -13,6 +13,7 @@
  */
 import { NextResponse } from "next/server";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 import bs58 from "bs58";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -53,49 +54,54 @@ async function claimForPool(
 ): Promise<ClaimResult> {
   const pool = new PublicKey(token.pool_address);
 
-  // Check claimable amount — REQUIRED, not optional.
-  // Without this check the SDK may draw from the payer (platform wallet) instead of the pool.
+  // Fetch pool state — REQUIRED before building tx.
+  // Per DBC SDK docs: poolState.poolState is the nested structure.
+  // tokenA = base (project token), tokenB = quote (SOL).
+  // Block if 0 fees in both buckets to prevent SDK drawing from payer.
   let claimedSol: number;
+  let maxBaseAmount: BN;
+  let maxQuoteAmount: BN;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const poolState = await (client as any).state.getPool(pool);
-    const lamports = Number(
-      poolState?.partnerTradingFeeTokenA ??
-      poolState?.partner_trading_fee_token_a ??
-      poolState?.protocolTradingFeeTokenA ??
-      poolState?.protocol_trading_fee_token_a ??
-      0
-    );
-    if (lamports <= 0) {
+    if (!poolState) throw new Error("Pool not found");
+    const inner = poolState.poolState ?? poolState; // handle both SDK versions
+
+    // tokenA = base (project token fees), tokenB = quote (SOL fees)
+    maxBaseAmount  = new BN(String(inner?.partnerTradingFeeTokenA  ?? inner?.partner_trading_fee_token_a  ?? 0));
+    maxQuoteAmount = new BN(String(inner?.partnerTradingFeeTokenB  ?? inner?.partner_trading_fee_token_b  ?? 0));
+
+    if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
       return { tokenId: token.id, name: token.name, status: "skipped", claimedSol: 0 };
     }
-    claimedSol = lamports / 1e9;
+    // Report claimedSol = SOL (quote) portion; base token value ignored in summary
+    claimedSol = maxQuoteAmount.toNumber() / 1e9;
   } catch (e) {
-    // If we can't verify the pool state, refuse to claim — safer than risking a wrong debit
     const msg = e instanceof Error ? e.message : "Could not fetch pool state";
     return { tokenId: token.id, name: token.name, status: "error", error: `Pool state check failed: ${msg}` };
   }
 
-  // Build claim tx
-  // The SDK's claimPartnerTradingFee expects:
-  //   { payer, feeClaimer, pool }
-  // where feeClaimer = the address stored in the pool config's feeClaimer field
-  // (= PLATFORM_WALLET_SECRET public key, verified via check-dbc-config script)
+  // Per Meteora docs, claimPartnerTradingFeeToReceiver takes:
+  //   { pool, feeClaimer, payer, maxBaseAmount, maxQuoteAmount, receiver }
+  // maxBaseAmount / maxQuoteAmount = how much to claim per token; passing pool state
+  // values claims exactly what is accumulated — no risk of drawing from payer.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let claimTx: any;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = client as any;
     const baseParams = {
-      feeClaimer: platformWallet.publicKey,
-      payer:      platformWallet.publicKey,
+      feeClaimer:     platformWallet.publicKey,
+      payer:          platformWallet.publicKey,
       pool,
-      receiver:   platformWallet.publicKey, // where claimed SOL lands
+      receiver:       platformWallet.publicKey,
+      maxBaseAmount,
+      maxQuoteAmount,
     };
-    if (c.partner?.claimPartnerTradingFee) {
+    if (c.partner?.claimPartnerTradingFeeToReceiver) {
+      claimTx = await c.partner.claimPartnerTradingFeeToReceiver(baseParams);
+    } else if (c.partner?.claimPartnerTradingFee) {
       claimTx = await c.partner.claimPartnerTradingFee(baseParams);
-    } else if (c.partner?.claimTradingFee) {
-      claimTx = await c.partner.claimTradingFee(baseParams);
     } else {
       throw new Error("No partner fee claim method found in DBC SDK");
     }
