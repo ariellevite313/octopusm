@@ -152,6 +152,14 @@
   }
 }
 
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Animations custom ────────────────────────────────────────────────────── */
 @keyframes float-bet {
   0%   { opacity: 1; transform: translateY(0); }
