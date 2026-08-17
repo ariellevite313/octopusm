@@ -183,7 +183,7 @@ export function TokenMarketStats({
       return (
         <div className="flex items-center gap-2 py-3 px-4 md:px-6 border-y border-border">
           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Chargement…</span>
+          <span className="text-xs text-muted-foreground">Loading…</span>
         </div>
       );
     }

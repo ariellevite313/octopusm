@@ -231,22 +231,17 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
 
 function TokenRow({ token }: { token: LaunchpadToken }) {
   const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
+  const creatorLabel = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
 
   return (
     <Link
       href={`/launchpad/${token.id}`}
-      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 transition-all hover:border-emerald-500/40"
+      className="group flex items-center gap-3 px-3 py-3 transition-colors"
     >
       {/* Logo */}
-      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-black">
+      <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-black">
         {token.logo_url ? (
-          <Image
-            src={token.logo_url}
-            alt={token.name}
-            fill
-            className="object-cover"
-            unoptimized
-          />
+          <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white/60">
             {token.ticker.slice(0, 3)}
@@ -254,9 +249,9 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
         )}
       </div>
 
-      {/* Name + ticker + category */}
+      {/* Name + meta */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 mb-0.5">
           <span className="truncate text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
             {token.name}
           </span>
@@ -264,18 +259,28 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
             <BadgeCheck className="size-3.5 shrink-0 text-orange-400" title="Token vérifié" />
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          ${token.ticker} · {token.category}
-        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] text-muted-foreground">${token.ticker}</span>
+          <span className="text-muted-foreground/40 text-[10px]">·</span>
+          <span className="text-[10px] text-muted-foreground/60">{token.category}</span>
+          {token.mint_address && (
+            <CopyButton text={token.mint_address}>
+              {shortAddr(token.mint_address, 4, 4)}
+            </CopyButton>
+          )}
+        </div>
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className="text-[10px] text-muted-foreground/50">By {creatorLabel}</span>
+        </div>
       </div>
 
-      {/* Creator */}
-      <span className="hidden sm:block text-[10px] font-mono text-muted-foreground/50">
-        {token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4)}
-      </span>
+      {/* Stats (mcap + holders) */}
+      <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
+        <TokenStats mintAddress={token.mint_address} />
+      </div>
 
       {/* Status + time */}
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-col items-end gap-1 shrink-0">
         <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${badge.cls}`}>
           {badge.label}
         </span>
@@ -322,58 +327,60 @@ export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadTok
   return (
     <div className="space-y-4">
       {/* Top bar */}
-      <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto">
-        {/* Tabs */}
-        <div className="flex items-center gap-0.5 flex-1 min-w-0">
-          {SORT_TABS.map(t => (
+      <div className="border-b border-border pb-3 space-y-2">
+        {/* Ligne 1 : Tabs + toggle vue */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
+            {SORT_TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  tab === t.id
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Grid / List toggle */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5 shrink-0">
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                tab === t.id
+              onClick={() => setViewMode("grid")}
+              className={`rounded p-1.5 transition-colors ${
+                viewMode === "grid"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-muted-foreground hover:text-foreground"
               }`}
+              aria-label="Grid view"
             >
-              {t.label}
+              <LayoutGrid className="size-3.5" />
             </button>
-          ))}
+            <button
+              onClick={() => setViewMode("list")}
+              className={`rounded p-1.5 transition-colors ${
+                viewMode === "list"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-label="List view"
+            >
+              <List className="size-3.5" />
+            </button>
+          </div>
         </div>
 
-        {/* Search */}
+        {/* Ligne 2 : Search pleine largeur */}
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search…"
-          className="h-8 w-36 shrink-0 rounded-lg border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+          className="h-8 w-full rounded-lg border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
         />
-
-        {/* Grid / List toggle */}
-        <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5 shrink-0">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`rounded p-1.5 transition-colors ${
-              viewMode === "grid"
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            aria-label="Grid view"
-          >
-            <LayoutGrid className="size-3.5" />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`rounded p-1.5 transition-colors ${
-              viewMode === "list"
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            aria-label="List view"
-          >
-            <List className="size-3.5" />
-          </button>
-        </div>
       </div>
 
       {/* Content */}
@@ -398,7 +405,7 @@ export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadTok
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col divide-y divide-border">
           {filtered.map(token => (
             <TokenRow key={token.id} token={token} />
           ))}
