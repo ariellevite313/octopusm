@@ -36,12 +36,7 @@ export function LaunchpadHeader() {
           {/* Logo */}
           <Link href="/launchpad" className="flex items-center gap-2 font-semibold text-foreground">
             <Image src="/octomarket-logo.png" alt="OMdotfun" width={40} height={40} className="rounded-xl" />
-            <div className="flex flex-col leading-tight">
-              <span>OMdotfun</span>
-              <span className="rounded-full bg-primary px-1.5 py-px text-[9px] font-semibold text-primary-foreground w-fit">
-                Launchpad
-              </span>
-            </div>
+            <span>OMdotfun</span>
           </Link>
 
           {/* Nav desktop */}
