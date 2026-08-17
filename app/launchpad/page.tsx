@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export const revalidate = 30;
 
 async function LaunchpadContent() {
-  const tokens = await getLaunchpadTokens({ limit: 50 });
+  const tokens = await getLaunchpadTokens({ limit: 50, excludeStatuses: ["pending", "cancelled"] });
   return <LaunchpadClient initialTokens={tokens} />;
 }
 

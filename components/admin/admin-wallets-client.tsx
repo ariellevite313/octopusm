@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { BadgeCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import type { ConnectedWalletRow } from "@/services/admin-service";
 
 const PAGE_SIZE = 20;
@@ -12,6 +14,45 @@ function fmtDate(d: string) {
 
 function shortAddr(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+function VerifyToggle({ address, initial }: { address: string; initial: boolean }) {
+  const [verified, setVerified] = useState(initial);
+  const [loading, setLoading]   = useState(false);
+
+  const toggle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/wallets/${address}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verified: !verified }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setVerified(v => !v);
+      toast.success(!verified ? "Créateur vérifié ✓" : "Vérification retirée");
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    } finally {
+      setLoading(false);
+    }
+  }, [address, verified]);
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={loading}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
+        verified
+          ? "bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25"
+          : "bg-muted text-muted-foreground border border-border hover:bg-muted/70"
+      }`}
+    >
+      <BadgeCheck className="size-3.5" />
+      {verified ? "Vérifié" : "Non vérifié"}
+    </button>
+  );
 }
 
 export function AdminWalletsClient({ wallets }: { wallets: ConnectedWalletRow[] }) {
@@ -47,7 +88,7 @@ export function AdminWalletsClient({ wallets }: { wallets: ConnectedWalletRow[] 
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/40">
             <tr>
-              {["Wallet", "Username", "Twitter", "Role", "Connections", "Last seen", "Payments"].map((h) => (
+              {["Wallet", "Username", "Twitter", "Role", "Vérifié créateur", "Connections", "Last seen", "Payments"].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -75,6 +116,9 @@ export function AdminWalletsClient({ wallets }: { wallets: ConnectedWalletRow[] 
                   ) : (
                     <Badge variant="outline" className="text-muted-foreground">User</Badge>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  <VerifyToggle address={w.address} initial={w.is_creator_verified} />
                 </td>
                 <td className="px-4 py-3 text-center text-sm font-medium text-foreground">{w.connection_count}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(w.last_connected_at)}</td>

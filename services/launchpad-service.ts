@@ -26,10 +26,13 @@ export type LaunchpadToken = {
   scheduled_at: string | null;
   first_buy_amount: number | null;
   status: "pending" | "active" | "graduating" | "graduated" | "cancelled";
+  is_verified: boolean;
   is_tradeable: boolean;
   metadata_uri: string | null;
   created_at: string;
   updated_at: string;
+  creator_display_name?: string | null;
+  creator_verified?: boolean;
 };
 
 export type TokenReservation = {
@@ -62,7 +65,7 @@ const PUBLIC_COLUMNS = [
   "mint_address","pool_address","creator_wallet","supply",
   "creator_fee_pct","platform_fee_pct","fee_recipients",
   "share_top100","share_top100_pct","is_scheduled","scheduled_at",
-  "first_buy_amount","status","is_tradeable","metadata_uri",
+  "first_buy_amount","status","is_verified","is_tradeable","metadata_uri",
   "created_at","updated_at",
 ].join(",");
 
@@ -76,11 +79,13 @@ const RESERVATION_COLUMNS = [
 
 export async function getLaunchpadTokens({
   status,
+  excludeStatuses,
   category,
   limit = 50,
   offset = 0,
 }: {
   status?: LaunchpadToken["status"] | "coming_soon";
+  excludeStatuses?: LaunchpadToken["status"][];
   category?: string;
   limit?: number;
   offset?: number;
@@ -98,10 +103,33 @@ export async function getLaunchpadTokens({
     q = q.eq("status", status);
   }
 
+  if (excludeStatuses && excludeStatuses.length > 0) {
+    q = q.not("status", "in", `(${excludeStatuses.join(",")})`);
+  }
+
   if (category) q = q.eq("category", category);
 
   const { data } = await q;
-  return (data ?? []) as LaunchpadToken[];
+  const tokens = (data ?? []) as LaunchpadToken[];
+
+  // Batch-fetch creator display names from wallets table
+  const wallets = [...new Set(tokens.map(t => t.creator_wallet).filter(Boolean))];
+  if (wallets.length > 0) {
+    const { data: walletRows } = await admin
+      .from("wallets")
+      .select("address, display_name, is_creator_verified")
+      .in("address", wallets);
+    if (walletRows) {
+      const nameMap     = new Map((walletRows as { address: string; display_name: string | null; is_creator_verified: boolean }[]).map(w => [w.address, w]));
+      tokens.forEach(t => {
+        const w = nameMap.get(t.creator_wallet);
+        t.creator_display_name = w?.display_name ?? null;
+        t.creator_verified     = w?.is_creator_verified ?? false;
+      });
+    }
+  }
+
+  return tokens;
 }
 
 export async function getLaunchpadToken(id: string): Promise<LaunchpadToken | null> {
