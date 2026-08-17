@@ -108,7 +108,8 @@ export async function getLaunchpadTokens({
 
   if (category) q = q.eq("category", category);
 
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) console.error("[launchpad-service] getLaunchpadTokens error:", error.message);
   const tokens = (data ?? []) as LaunchpadToken[];
 
   // Batch-fetch creator display names from wallets table

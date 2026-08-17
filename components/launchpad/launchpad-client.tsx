@@ -32,7 +32,7 @@ function fmtMcap(usd: number): string {
 
 // ── CopyButton ────────────────────────────────────────────────────────────────
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, children }: { text: string; children?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
   const copy = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,13 +49,16 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={copy}
-      className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+      className="flex items-center gap-0.5 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
       title="Copier le CA"
     >
       {copied
         ? <Check className="size-3 text-emerald-400" />
         : <Copy className="size-3" />
       }
+      {children && (
+        <span className="text-[10px] font-mono">{children}</span>
+      )}
     </button>
   );
 }
@@ -190,12 +193,9 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
             )}
           </div>
           {token.mint_address && (
-            <div className="flex items-center gap-0.5 shrink-0">
-              <CopyButton text={token.mint_address} />
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {shortAddr(token.mint_address, 4, 4)}
-              </span>
-            </div>
+            <CopyButton text={token.mint_address}>
+              {shortAddr(token.mint_address, 4, 4)}
+            </CopyButton>
           )}
         </div>
 
