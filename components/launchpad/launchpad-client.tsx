@@ -1,25 +1,112 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutGrid, List, CheckCircle2 } from "lucide-react";
+import { LayoutGrid, List, Copy, Check, BadgeCheck, Users } from "lucide-react";
+import { toast } from "sonner";
 import type { LaunchpadToken } from "@/services/launchpad-service";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function shortWallet(address: string) {
-  if (!address || address.length < 10) return address;
-  return `${address.slice(0, 4)}…${address.slice(-4)}`;
+function shortAddr(address: string, head = 4, tail = 4) {
+  if (!address || address.length < head + tail + 3) return address;
+  return `${address.slice(0, head)}…${address.slice(-tail)}`;
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return `${diff}s`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d`;
-  return `${Math.floor(diff / (86400 * 30))}mo`;
+  if (diff < 60) return `${diff}S`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}M`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}H`;
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}D`;
+  return `${Math.floor(diff / (86400 * 30))}MO`;
+}
+
+function fmtMcap(usd: number): string {
+  if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(1)}B`;
+  if (usd >= 1_000_000)     return `$${(usd / 1_000_000).toFixed(2)}M`;
+  if (usd >= 1_000)         return `$${(usd / 1_000).toFixed(2)}k`;
+  return `$${usd.toFixed(0)}`;
+}
+
+// ── CopyButton ────────────────────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.success("CA copié !", {
+        description: `${text.slice(0, 8)}…${text.slice(-6)}`,
+        duration: 2000,
+      });
+    });
+  }, [text]);
+  return (
+    <button
+      onClick={copy}
+      className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+      title="Copier le CA"
+    >
+      {copied
+        ? <Check className="size-3 text-emerald-400" />
+        : <Copy className="size-3" />
+      }
+    </button>
+  );
+}
+
+function fmtHolders(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+// ── TokenStats (lazy fetch from GeckoTerminal) ────────────────────────────────
+// Single fetch per card → market cap + holder count
+
+function TokenStats({ mintAddress }: { mintAddress: string | null }) {
+  const [mcap,    setMcap]    = useState<number | null>(null);
+  const [holders, setHolders] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!mintAddress) return;
+    let cancelled = false;
+    fetch(
+      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}`,
+      { headers: { Accept: "application/json" } }
+    )
+      .then(r => r.ok ? r.json() : null)
+      .then((json: { data?: { attributes?: { market_cap_usd?: string; fdv_usd?: string; holders?: number } } } | null) => {
+        if (cancelled || !json) return;
+        const attrs = json?.data?.attributes;
+        const rawMcap = attrs?.market_cap_usd ?? attrs?.fdv_usd ?? null;
+        if (rawMcap) setMcap(parseFloat(rawMcap));
+        if (attrs?.holders) setHolders(attrs.holders);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [mintAddress]);
+
+  if (mcap === null && holders === null) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {holders !== null && (
+        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+          <Users className="size-2.5" />
+          {fmtHolders(holders)}
+        </span>
+      )}
+      {mcap !== null && (
+        <span className="text-xs font-bold text-emerald-400">{fmtMcap(mcap)}</span>
+      )}
+    </div>
+  );
 }
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -47,26 +134,15 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
   const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
   const isGraduated = token.status === "graduated";
   const isScheduled = token.is_scheduled && !token.is_tradeable;
+  const creatorLabel = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
 
   return (
     <Link
       href={`/launchpad/${token.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:shadow-[0_0_18px_rgba(16,185,129,0.10)]"
-      style={{
-        borderColor: isGraduated
-          ? "rgba(59,130,246,0.25)"
-          : "rgba(16,185,129,0.20)",
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.borderColor = isGraduated
-          ? "rgba(59,130,246,0.55)"
-          : "rgba(16,185,129,0.55)";
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.borderColor = isGraduated
-          ? "rgba(59,130,246,0.25)"
-          : "rgba(16,185,129,0.20)";
-      }}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200 hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
+      style={{ borderColor: isGraduated ? "rgba(59,130,246,0.25)" : "rgba(16,185,129,0.18)" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "rgba(59,130,246,0.55)" : "rgba(16,185,129,0.50)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "rgba(59,130,246,0.25)" : "rgba(16,185,129,0.18)"; }}
     >
       {/* Square image */}
       <div className="relative aspect-square w-full overflow-hidden bg-black">
@@ -85,16 +161,15 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
         )}
 
         {/* Status badge — top-right */}
-        <div className="absolute right-1.5 top-1.5">
-          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${badge.cls}`}>
+        <div className="absolute right-2 top-2">
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.cls}`}>
             {badge.label}
           </span>
         </div>
 
-        {/* Scheduled — top-left */}
         {isScheduled && (
-          <div className="absolute left-1.5 top-1.5">
-            <span className="rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-400 border border-violet-500/30">
+          <div className="absolute left-2 top-2">
+            <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-400 border border-violet-500/30">
               Soon
             </span>
           </div>
@@ -102,27 +177,52 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
       </div>
 
       {/* Info */}
-      <div className="flex flex-col gap-1 p-2.5">
-        {/* Name + mint check */}
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="truncate text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
-            {token.name}
-          </span>
+      <div className="flex flex-col gap-1.5 p-3">
+
+        {/* Row 1: Name + mint address with copy */}
+        <div className="flex items-center justify-between gap-1 min-w-0">
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="truncate text-sm font-bold text-foreground group-hover:text-emerald-400 transition-colors">
+              {token.name}
+            </span>
+            {token.is_verified && (
+              <BadgeCheck className="size-3.5 shrink-0 text-orange-400" title="Token vérifié" />
+            )}
+          </div>
           {token.mint_address && (
-            <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
+            <div className="flex items-center gap-0.5 shrink-0">
+              <CopyButton text={token.mint_address} />
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {shortAddr(token.mint_address, 4, 4)}
+              </span>
+            </div>
           )}
         </div>
 
-        {/* Ticker */}
-        <p className="text-xs text-muted-foreground">${token.ticker}</p>
+        {/* Row 2: Ticker + stats (holders + mcap) */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground font-medium">${token.ticker}</span>
+          <TokenStats mintAddress={token.mint_address} />
+        </div>
 
-        {/* Creator + time */}
-        <div className="flex items-center justify-between mt-0.5">
-          <span className="text-[10px] font-mono text-muted-foreground/60">
-            {shortWallet(token.creator_wallet)}
+        {/* Row 3: By creator name — badge bleu uniquement si vérifié par admin */}
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-[10px] text-muted-foreground">By</span>
+          <span className="truncate text-[10px] font-semibold text-foreground">
+            {creatorLabel}
           </span>
-          <span className="text-[10px] text-muted-foreground/60">
-            · {timeAgo(token.created_at)}
+          {token.creator_verified && (
+            <BadgeCheck className="size-3 shrink-0 text-blue-400" />
+          )}
+        </div>
+
+        {/* Row 4: Creator wallet + age */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono text-muted-foreground/50">
+            {shortAddr(token.creator_wallet, 4, 4)}
+          </span>
+          <span className="text-[10px] font-bold text-muted-foreground/60">
+            {timeAgo(token.created_at)}
           </span>
         </div>
       </div>
@@ -164,7 +264,7 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
             {token.name}
           </span>
           {token.mint_address && (
-            <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
+            <BadgeCheck className="size-3.5 shrink-0 text-emerald-500" />
           )}
         </div>
         <p className="text-xs text-muted-foreground">
@@ -174,7 +274,7 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
 
       {/* Creator */}
       <span className="hidden sm:block text-[10px] font-mono text-muted-foreground/50">
-        {shortWallet(token.creator_wallet)}
+        {token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4)}
       </span>
 
       {/* Status + time */}

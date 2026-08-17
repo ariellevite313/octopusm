@@ -17,7 +17,7 @@ export default async function AdminLaunchpadPage() {
   const { data, error } = await admin
     .from("launchpad_tokens")
     .select(
-      "id, name, ticker, category, status, is_tradeable, is_scheduled, scheduled_at, " +
+      "id, name, ticker, category, status, is_verified, is_tradeable, is_scheduled, scheduled_at, " +
       "mint_address, pool_address, creator_wallet, supply, vanity_job_id, created_at"
     )
     .order("created_at", { ascending: false })

@@ -40,9 +40,31 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
     if (!poolAddress && !mintAddress) return NextResponse.json({ claimableSol: null });
 
-    // Try GeckoTerminal to get the pool's creator fee data
+    // 1. Try DBC SDK first — exact on-chain amount
+    if (poolAddress) {
+      try {
+        const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const DynamicBondingCurveClient = (sdk as any).DynamicBondingCurveClient;
+        const connection = getConnection();
+        const client     = new DynamicBondingCurveClient(connection, "confirmed");
+        const pool       = new PublicKey(poolAddress);
+        const poolState  = await client.state.getPool(pool);
+        if (poolState) {
+          const inner  = poolState.poolState ?? poolState;
+          // Real field names confirmed via debug: creatorBaseFee / creatorQuoteFee (hex strings)
+          const rawQ   = inner?.creatorQuoteFee ?? "0";
+          const rawB   = inner?.creatorBaseFee  ?? "0";
+          const quoteL = rawQ === "00" || rawQ === "0" ? 0 : parseInt(rawQ, 16);
+          const baseL  = rawB === "00" || rawB === "0" ? 0 : parseInt(rawB, 16);
+          // Always return the SDK value — even if 0 (so UI shows 0, not a GeckoTerminal estimate)
+          return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
+        }
+      } catch { /* SDK failed — fall through to GeckoTerminal */ }
+    }
+
+    // 2. Fallback: GeckoTerminal 24h fee estimate (approximate, USD only)
     try {
-      // Resolve pool address via GeckoTerminal if needed
       let gtPool = poolAddress;
       if (!gtPool && mintAddress) {
         const res = await fetch(
@@ -55,7 +77,6 @@ export async function GET(_req: Request, { params }: RouteParams) {
           gtPool = json?.data?.[0]?.attributes?.address ?? null;
         }
       }
-
       if (gtPool) {
         const res = await fetch(
           `https://api.geckoterminal.com/api/v2/networks/solana/pools/${gtPool}`,
@@ -65,52 +86,17 @@ export async function GET(_req: Request, { params }: RouteParams) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const json = await res.json() as any;
           const attrs = json?.data?.attributes;
-          // creator fee = creator_fee_percentage * 24h volume (approximation)
-          // GeckoTerminal doesn't expose accumulated fees directly,
-          // so we return the 24h fees earned as an approximation
           const volumeUsd24h = parseFloat(attrs?.volume_usd?.h24 ?? "0");
-          // GeckoTerminal pool_fee is already a percentage string (e.g. "2.5" = 2.5%)
-          // Some pools return it as a decimal fraction — we normalise both cases
           let feePct = parseFloat(attrs?.pool_fee ?? attrs?.swap_fee ?? "0");
-          if (feePct > 0 && feePct < 1) feePct = feePct * 100; // 0.025 → 2.5
-          // Creator gets 40% of fees per DBC config (platform feeClaimer gets 60%)
-          const creatorSharePct = 0.4;
-          const feesUsd24h = volumeUsd24h * (feePct / 100) * creatorSharePct;
-          // We can't get the exact claimable SOL without on-chain data,
-          // so return the 24h fee revenue in USD as context
+          if (feePct > 0 && feePct < 1) feePct = feePct * 100;
+          // Creator gets 40% per DBC config
+          const feesUsd24h = volumeUsd24h * (feePct / 100) * 0.4;
           if (feesUsd24h > 0) {
             return NextResponse.json({ claimableSol: null, feesUsd24h: Number(feesUsd24h.toFixed(4)) });
           }
         }
       }
-    } catch {
-      // GeckoTerminal failed — fall through to SDK
-    }
-
-    // Fallback: try DBC SDK
-    try {
-      const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const DynamicBondingCurveClient = (sdk as any).DynamicBondingCurveClient;
-      const connection = getConnection();
-      const client     = new DynamicBondingCurveClient(connection, "confirmed");
-
-      if (poolAddress) {
-        const pool      = new PublicKey(poolAddress);
-        const poolState = await client.state.getPool(pool);
-        if (poolState) {
-          const inner = poolState.poolState ?? poolState;
-          // Real field names: creatorBaseFee / creatorQuoteFee (hex strings)
-          const rawQ = inner?.creatorQuoteFee ?? "0";
-          const rawB = inner?.creatorBaseFee  ?? "0";
-          const quoteL = rawQ === "00" || rawQ === "0" ? 0 : parseInt(rawQ, 16);
-          const baseL  = rawB === "00" || rawB === "0" ? 0 : parseInt(rawB, 16);
-          if (baseL > 0 || quoteL > 0) {
-            return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
-          }
-        }
-      }
-    } catch { /* SDK not available or method not found */ }
+    } catch { /* GeckoTerminal failed */ }
 
     return NextResponse.json({ claimableSol: null, feesUsd24h: null });
   } catch (err) {

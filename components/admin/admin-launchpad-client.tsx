@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LoaderCircle, Ban, CoinsIcon } from "lucide-react";
+import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ type TokenRow = {
   ticker: string;
   category: string;
   status: "pending" | "active" | "graduating" | "graduated" | "cancelled";
+  is_verified: boolean;
   is_tradeable: boolean;
   is_scheduled: boolean;
   scheduled_at: string | null;
@@ -56,6 +57,51 @@ function fmtSupply(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(0)}B`;
   if (n >= 1_000_000)     return `${(n / 1_000_000).toFixed(0)}M`;
   return n.toLocaleString();
+}
+
+// ── VerifyTokenToggle ─────────────────────────────────────────────────────────
+
+function VerifyTokenToggle({ tokenId, initial }: { tokenId: string; initial: boolean }) {
+  const [verified, setVerified] = useState(initial);
+  const [loading, setLoading]   = useState(false);
+
+  const toggle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/launchpad/${tokenId}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verified: !verified }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setVerified(v => !v);
+      toast.success(verified ? "Badge retiré" : "Token vérifié ✓");
+    } catch {
+      toast.error("Erreur");
+    } finally {
+      setLoading(false);
+    }
+  }, [tokenId, verified]);
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={loading}
+      onClick={toggle}
+      title={verified ? "Retirer la vérification" : "Marquer comme vérifié"}
+      className={`rounded-full px-2 ${
+        verified
+          ? "text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+          : "text-muted-foreground hover:text-orange-500"
+      }`}
+    >
+      {loading
+        ? <LoaderCircle className="size-3 animate-spin" />
+        : <BadgeCheck className="size-3.5" />
+      }
+    </Button>
+  );
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -227,7 +273,12 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
 
                   {/* Token */}
                   <td className="px-4 py-3">
-                    <p className="font-semibold">{token.name}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="font-semibold">{token.name}</p>
+                      {token.is_verified && (
+                        <BadgeCheck className="size-3.5 text-orange-500 shrink-0" />
+                      )}
+                    </div>
                     <p className="text-xs font-mono text-muted-foreground">${token.ticker}</p>
                     <span className="text-[11px] text-muted-foreground">{token.category}</span>
                     {token.mint_address && (
@@ -267,6 +318,9 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                   {/* Actions */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
+
+                      {/* Verify token */}
+                      <VerifyTokenToggle tokenId={token.id} initial={token.is_verified} />
 
                       {/* View token page */}
                       <a

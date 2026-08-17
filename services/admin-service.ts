@@ -351,6 +351,7 @@ export interface ConnectedWalletRow {
   connection_count: number;
   payment_count: number;
   approved_payment_count: number;
+  is_creator_verified: boolean;
 }
 
 export async function getConnectedWallets(): Promise<ConnectedWalletRow[]> {
@@ -358,7 +359,7 @@ export async function getConnectedWallets(): Promise<ConnectedWalletRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("wallets")
-    .select("address, username, display_name, twitter_handle, avatar_src, role, status, first_connected_at, last_connected_at, latest_activity_at, connection_count, payment_count, approved_payment_count")
+    .select("address, username, display_name, twitter_handle, avatar_src, role, status, first_connected_at, last_connected_at, latest_activity_at, connection_count, payment_count, approved_payment_count, is_creator_verified")
     .order("latest_activity_at", { ascending: false });
   return data ?? [];
 }
