@@ -205,15 +205,12 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
           <TokenStats mintAddress={token.mint_address} />
         </div>
 
-        {/* Row 3: By creator name — badge bleu uniquement si vérifié par admin */}
+        {/* Row 3: By creator name */}
         <div className="flex items-center gap-1 min-w-0">
           <span className="text-[10px] text-muted-foreground">By</span>
           <span className="truncate text-[10px] font-semibold text-foreground">
             {creatorLabel}
           </span>
-          {token.creator_verified && (
-            <BadgeCheck className="size-3 shrink-0 text-blue-400" />
-          )}
         </div>
 
         {/* Row 4: Creator wallet + age */}
@@ -263,8 +260,8 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
           <span className="truncate text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
             {token.name}
           </span>
-          {token.mint_address && (
-            <BadgeCheck className="size-3.5 shrink-0 text-emerald-500" />
+          {token.is_verified && (
+            <BadgeCheck className="size-3.5 shrink-0 text-orange-400" title="Token vérifié" />
           )}
         </div>
         <p className="text-xs text-muted-foreground">

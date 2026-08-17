@@ -32,7 +32,6 @@ export type LaunchpadToken = {
   created_at: string;
   updated_at: string;
   creator_display_name?: string | null;
-  creator_verified?: boolean;
 };
 
 export type TokenReservation = {
@@ -117,14 +116,13 @@ export async function getLaunchpadTokens({
   if (wallets.length > 0) {
     const { data: walletRows } = await admin
       .from("wallets")
-      .select("address, display_name, is_creator_verified")
+      .select("address, display_name")
       .in("address", wallets);
     if (walletRows) {
-      const nameMap     = new Map((walletRows as { address: string; display_name: string | null; is_creator_verified: boolean }[]).map(w => [w.address, w]));
+      const nameMap = new Map((walletRows as { address: string; display_name: string | null }[]).map(w => [w.address, w]));
       tokens.forEach(t => {
         const w = nameMap.get(t.creator_wallet);
         t.creator_display_name = w?.display_name ?? null;
-        t.creator_verified     = w?.is_creator_verified ?? false;
       });
     }
   }

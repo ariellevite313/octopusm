@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ExternalLink } from "lucide-react";
 import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
 import { TokenChart } from "@/components/launchpad/token-chart";
 import { TokenMarketStats } from "@/components/launchpad/token-market-stats";
+import { CopyMint } from "@/components/launchpad/copy-mint";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
@@ -16,6 +18,8 @@ import type { MarketCommentEnriched } from "@/lib/supabase/types";
 export const revalidate = 30;
 
 type Props = { params: Promise<{ id: string }> };
+
+// ── Comments loader ───────────────────────────────────────────────────────────
 
 async function getInitialComments(tokenId: string, wallet: string | null): Promise<MarketCommentEnriched[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,6 +97,8 @@ async function getInitialComments(tokenId: string, wallet: string | null): Promi
   return topLevel;
 }
 
+// ── Metadata ──────────────────────────────────────────────────────────────────
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const token = id.length > 36 ? await getLaunchpadTokenByMint(id) : await getLaunchpadToken(id);
@@ -103,24 +109,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function StatusBadge({ status, isTradeable }: { status: string; isTradeable: boolean }) {
   const map: Record<string, { label: string; cls: string }> = {
-    pending:    { label: "Pending",    cls: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
-    active:     { label: isTradeable ? "Live" : "Scheduled", cls: isTradeable ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
-    graduating: { label: "Graduating", cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-    graduated:  { label: "Graduated",  cls: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
-    cancelled:  { label: "Cancelled",  cls: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
+    pending:    { label: "Pending",    cls: "bg-yellow-500/15 text-yellow-500 border border-yellow-500/30" },
+    active:     { label: isTradeable ? "Live" : "Scheduled", cls: isTradeable ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-violet-500/15 text-violet-400 border border-violet-500/30" },
+    graduating: { label: "Graduating", cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
+    graduated:  { label: "Graduated",  cls: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30" },
+    cancelled:  { label: "Cancelled",  cls: "bg-red-500/15 text-red-400 border border-red-500/30" },
   };
   const { label, cls } = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
-  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
+  return <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${cls}`}>{label}</span>;
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="text-xs font-medium text-foreground text-right max-w-[60%] break-all">{value}</span>
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+      {children}
+    </p>
   );
 }
 
@@ -130,6 +146,12 @@ function formatSupply(n: number): string {
   return n.toLocaleString();
 }
 
+function shortAddr(s: string, head = 4, tail = 4) {
+  return `${s.slice(0, head)}…${s.slice(-tail)}`;
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
   const [token, walletAddress] = await Promise.all([
@@ -137,6 +159,7 @@ export default async function TokenDetailPage({ params }: Props) {
     getWalletAddress(),
   ]);
   if (!token) notFound();
+
   const isCreator  = walletAddress === token.creator_wallet;
 
   if (id.length <= 36 && token.mint_address) {
@@ -151,6 +174,7 @@ export default async function TokenDetailPage({ params }: Props) {
     { label: "Telegram", href: token.telegram,     icon: "ti-brand-telegram" },
     { label: "Discord",  href: token.discord,      icon: "ti-brand-discord" },
     { label: "Other",    href: token.other_social, icon: "ti-link" },
+    { label: "Whitepaper", href: token.whitepaper_url, icon: "ti-file-text" },
   ].filter(s => s.href);
 
   const isPending   = token.status === "pending";
@@ -158,125 +182,150 @@ export default async function TokenDetailPage({ params }: Props) {
   const isGraduated = token.status === "graduated";
   const showChart   = (isActive || isGraduated) && !!token.mint_address;
 
+  const creatorInitials = token.creator_wallet.slice(0, 2).toUpperCase();
+
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6">
+    <main className="mx-auto max-w-5xl">
 
-      {/* ── Back ── */}
-      <Link href="/launchpad" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-        ← Launchpad
-      </Link>
+      {/* ── Hero banner ─────────────────────────────────────────────────────── */}
+      <div className="relative h-36 md:h-48 overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+        {token.logo_url && (
+          <Image
+            src={token.logo_url}
+            alt=""
+            fill
+            className="object-cover opacity-20 blur-md scale-110"
+            unoptimized
+            role="presentation"
+          />
+        )}
+        {/* gradient fade to page bg at bottom */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
 
-      {/* ══════════════════════════════════════════
-          HEADER — pleine largeur
-      ══════════════════════════════════════════ */}
-      <div className="mt-4 rounded-2xl border border-border bg-card px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+        {/* Back link — top left */}
+        <div className="absolute top-4 left-4">
+          <Link
+            href="/launchpad"
+            className="inline-flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors"
+          >
+            ← Launchpad
+          </Link>
+        </div>
 
-        {/* Gauche : avatar + nom + badges */}
-        <div className="flex items-center gap-4 min-w-0">
+        {/* Floating avatar — bottom left, overlaps into content */}
+        <div className="absolute bottom-0 translate-y-1/2 left-4 md:left-6">
           {token.logo_url ? (
             <Image
               src={token.logo_url}
               alt={token.name}
-              width={52}
-              height={52}
-              className="rounded-xl object-cover shrink-0"
+              width={72}
+              height={72}
+              className="size-14 md:size-[72px] rounded-2xl border-2 border-background object-cover shadow-lg"
               unoptimized
             />
           ) : (
-            <div className="flex size-[52px] items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30 text-lg font-bold text-violet-600 dark:text-violet-400 shrink-0">
+            <div className="size-14 md:size-[72px] rounded-2xl border-2 border-background bg-violet-900/60 flex items-center justify-center text-xl font-semibold text-violet-300 shadow-lg">
               {token.ticker.slice(0, 2)}
             </div>
-          )}
-
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h1 className="text-lg font-semibold text-foreground">{token.name}</h1>
-              <span className="text-sm text-muted-foreground">${token.ticker}</span>
-              <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {token.category}
-              </span>
-            </div>
-
-            {/* Mint address inline */}
-            {token.mint_address && (
-              <div className="flex items-center gap-1.5">
-                <a
-                  href={`https://solscan.io/token/${token.mint_address}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-[11px] text-muted-foreground hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-                >
-                  {token.mint_address.slice(0, 6)}…{token.mint_address.slice(-6)}
-                </a>
-                <i className="ti ti-external-link text-[11px] text-muted-foreground" aria-hidden />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Droite : socials + pool link */}
-        <div className="flex items-center gap-3 shrink-0">
-          {socials.map(s => (
-            <a
-              key={s.label}
-              href={s.href!}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={s.label}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <i className={`ti ${s.icon} text-base`} aria-hidden />
-            </a>
-          ))}
-          {token.whitepaper_url && (
-            <a
-              href={token.whitepaper_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Whitepaper"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <i className="ti ti-file-text text-base" aria-hidden />
-            </a>
           )}
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════
-          BODY — chart gauche + sidebar droite
-      ══════════════════════════════════════════ */}
-      <div className="mt-4 grid gap-4 md:grid-cols-[1fr_268px] items-start">
+      {/* ── Token header ────────────────────────────────────────────────────── */}
+      <div className="pt-10 md:pt-12 px-4 md:px-6 flex items-start justify-between gap-4 flex-wrap">
 
-        {/* ── Colonne gauche ── */}
-        <div className="space-y-4">
+        {/* Left: name, ticker, badges, CA */}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <h1 className="text-xl font-semibold text-foreground">{token.name}</h1>
+            <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {token.category}
+            </span>
+            {token.is_verified && (
+              <span className="rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[10px] font-semibold text-orange-400">
+                ✓ Vérifié
+              </span>
+            )}
+          </div>
+          <div className="text-sm text-muted-foreground mb-2">${token.ticker}</div>
+          {token.mint_address && (
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {shortAddr(token.mint_address, 6, 6)}
+              </span>
+              <CopyMint address={token.mint_address} />
+              <a
+                href={`https://solscan.io/token/${token.mint_address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Voir sur Solscan"
+              >
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Right: socials */}
+        {socials.length > 0 && (
+          <div className="flex items-center gap-4 flex-wrap">
+            {socials.map(s => (
+              <a
+                key={s.label}
+                href={s.href!}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={s.label}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <i className={`ti ${s.icon} text-base`} aria-hidden />
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Stats bar (full-width, borderless) ──────────────────────────────── */}
+      {showChart && (
+        <div className="mt-4">
+          <TokenMarketStats mintAddress={token.mint_address!} variant="bar" />
+        </div>
+      )}
+
+      {/* ── Body ────────────────────────────────────────────────────────────── */}
+      <div className="mt-6 px-4 md:px-6 pb-10 grid gap-8 md:grid-cols-[1fr_280px] items-start">
+
+        {/* ── Left column ─────────────────────────────────────────────────── */}
+        <div className="space-y-8">
 
           {/* Chart */}
           {showChart && (
             <TokenChart mintAddress={token.mint_address!} name={token.name} />
           )}
 
-          {/* Pending — pas de chart */}
+          {/* Pending placeholder */}
           {isPending && (
-            <div className="rounded-2xl border border-border bg-card px-5 py-8 text-center">
-              <p className="text-sm font-semibold text-foreground mb-1">Waiting for launch</p>
-              <p className="text-xs text-muted-foreground">The chart will appear once the token is live on-chain.</p>
+            <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
+              <p className="text-sm font-medium text-foreground mb-1">En attente de lancement</p>
+              <p className="text-xs text-muted-foreground">Le chart apparaîtra une fois le token déployé on-chain.</p>
             </div>
           )}
 
           {/* Graduated banner */}
           {isGraduated && (
             <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center">
-              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">🎓 Graduated to DAMM</p>
-              <p className="text-xs text-muted-foreground mt-1">This token has graduated and is now fully tradeable.</p>
+              <p className="text-sm font-semibold text-indigo-400">🎓 Diplômé vers DAMM</p>
+              <p className="text-xs text-muted-foreground mt-1">Ce token est maintenant pleinement tradeable.</p>
               {token.pool_address && (
                 <a
                   href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-block text-xs font-medium text-indigo-600 dark:text-indigo-400 underline"
+                  className="mt-2 inline-block text-xs font-medium text-indigo-400 underline"
                 >
-                  Trade on Birdeye →
+                  Trader sur Birdeye →
                 </a>
               )}
             </div>
@@ -284,13 +333,14 @@ export default async function TokenDetailPage({ params }: Props) {
 
           {/* Description */}
           {token.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed px-1">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {token.description}
             </p>
           )}
 
           {/* Comments */}
-          <div className="rounded-2xl border border-border bg-card p-5">
+          <div>
+            <SectionLabel>Comments</SectionLabel>
             <LaunchpadComments
               tokenId={token.id}
               initialComments={initialComments}
@@ -300,76 +350,25 @@ export default async function TokenDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* ── Sidebar droite ── */}
-        <div className="space-y-3">
+        {/* ── Right sidebar — no card borders ─────────────────────────────── */}
+        <div className="space-y-6">
 
-          {/* Market stats (price, mcap, fdv, vol, holders) */}
-          {showChart && (
-            <TokenMarketStats mintAddress={token.mint_address!} />
-          )}
-
-          {/* Token info + creator */}
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Token info</p>
-            <InfoRow label="Network"      value="Solana" />
-            <InfoRow label="Supply"       value={formatSupply(token.supply)} />
-            <InfoRow label="Trading fee"  value="2.5% per trade" />
-            {token.first_buy_amount && (
-              <InfoRow label="First buy"  value={`${token.first_buy_amount} SOL`} />
-            )}
-            {token.is_scheduled && token.scheduled_at && (
-              <InfoRow label="Launch date" value={new Date(token.scheduled_at).toLocaleString()} />
-            )}
-            {token.share_top100 && token.share_top100_pct && (
-              <InfoRow label="Top 100 share" value={`${token.share_top100_pct}% of creator fees`} />
-            )}
-            <div className="pt-2 mt-1 border-t border-border">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2 mt-1">Creator</p>
-              <a
-                href={`/profile/${token.creator_wallet}`}
-                className="font-mono text-[11px] text-foreground hover:text-primary transition-colors break-all"
-              >
-                {token.creator_wallet}
-              </a>
-            </div>
-            {/* Pool address */}
-            {token.pool_address && (
-              <div className="pt-2 mt-1 border-t border-border">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1 mt-1">Pool</p>
-                <a
-                  href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-[11px] text-blue-600 dark:text-blue-400 break-all hover:underline"
-                >
-                  {token.pool_address.slice(0, 8)}…{token.pool_address.slice(-8)}
-                </a>
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
+          {/* CTA — toujours en premier */}
           <div className="space-y-2">
-
-            {/* Watchlist */}
-            <WatchlistButton tokenId={token.id} />
-
-            {/* Trade */}
             {isActive && token.is_tradeable && token.pool_address && (
               <a
                 href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-400 transition-colors"
               >
-                Trade on Birdeye →
+                Trader sur Birdeye →
               </a>
             )}
+            <WatchlistButton tokenId={token.id} />
 
-            {/* Launch — pending only */}
             {isPending && (
-              <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Launch</p>
+              <div className="space-y-3 pt-1">
                 <LaunchButton
                   tokenId={token.id}
                   walletAddress={token.creator_wallet}
@@ -378,11 +377,10 @@ export default async function TokenDetailPage({ params }: Props) {
               </div>
             )}
 
-            {/* Claim fees — creator only */}
             {isCreator && (isActive || isGraduated) && (
-              <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Creator fees</p>
-                <p className="text-xs text-muted-foreground">Claim your accumulated trading fees from the pool.</p>
+              <div className="pt-2 space-y-1.5">
+                <SectionLabel>Mes frais créateur</SectionLabel>
+                <p className="text-xs text-muted-foreground mb-2">Réclamez vos frais de trading accumulés.</p>
                 <ClaimFeesButton
                   tokenId={token.id}
                   walletAddress={token.creator_wallet}
@@ -391,6 +389,63 @@ export default async function TokenDetailPage({ params }: Props) {
               </div>
             )}
           </div>
+
+          <div className="border-t border-border" />
+
+          {/* Token info — no card, sections séparées par des lignes */}
+          <div>
+            <SectionLabel>Token info</SectionLabel>
+            <InfoRow label="Réseau"      value="Solana" />
+            <InfoRow label="Supply"      value={formatSupply(token.supply)} />
+            <InfoRow label="Frais"       value="2.5% par trade" />
+            {token.first_buy_amount && (
+              <InfoRow label="First buy" value={`${token.first_buy_amount} SOL`} />
+            )}
+            {token.is_scheduled && token.scheduled_at && (
+              <InfoRow label="Lancement" value={new Date(token.scheduled_at).toLocaleString("fr-FR")} />
+            )}
+            {token.share_top100 && token.share_top100_pct && (
+              <InfoRow label="Top 100 share" value={`${token.share_top100_pct}% des frais créateur`} />
+            )}
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Creator */}
+          <div>
+            <SectionLabel>Créateur</SectionLabel>
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground border border-border shrink-0">
+                {creatorInitials}
+              </div>
+              <div className="min-w-0">
+                <a
+                  href={`/profile/${token.creator_wallet}`}
+                  className="font-mono text-[11px] text-foreground hover:text-primary transition-colors break-all"
+                >
+                  {shortAddr(token.creator_wallet, 6, 6)}
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Pool address */}
+          {token.pool_address && (
+            <>
+              <div className="border-t border-border" />
+              <div>
+                <SectionLabel>Pool</SectionLabel>
+                <a
+                  href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[11px] text-blue-400 break-all hover:underline"
+                >
+                  {shortAddr(token.pool_address, 8, 8)}
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>

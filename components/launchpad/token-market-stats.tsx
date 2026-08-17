@@ -2,7 +2,9 @@
 
 /**
  * TokenMarketStats — live market data from GeckoTerminal + Birdeye
- * Shows: price, 24h change, market cap, FDV, 24h volume, holders
+ *
+ * variant="bar"  → horizontal strip (full-width, borderless) — used on the detail page
+ * variant="card" → vertical card with rows (legacy, kept for backward compat)
  */
 
 import { useEffect, useState } from "react";
@@ -13,14 +15,13 @@ type Stats = {
   marketCap:   number | null;
   fdv:         number | null;
   volume24h:   number | null;
-  priceChange: number | null; // 24h %
+  priceChange: number | null;
   holders:     number | null;
 };
 
-function fmt(n: number | null, opts?: { prefix?: string; suffix?: string; decimals?: number }): string {
+function fmt(n: number | null, opts?: { prefix?: string; decimals?: number }): string {
   if (n === null || isNaN(n)) return "—";
-  const { prefix = "", suffix = "", decimals } = opts ?? {};
-
+  const { prefix = "", decimals } = opts ?? {};
   let s: string;
   if (decimals !== undefined) {
     s = n.toFixed(decimals);
@@ -33,14 +34,14 @@ function fmt(n: number | null, opts?: { prefix?: string; suffix?: string; decima
   } else {
     s = n.toFixed(2);
   }
-  return `${prefix}${s}${suffix}`;
+  return `${prefix}${s}`;
 }
 
 function fmtPrice(n: number | null): string {
   if (n === null) return "—";
-  if (n < 0.000001)   return `$${n.toFixed(10)}`;
-  if (n < 0.001)      return `$${n.toFixed(8)}`;
-  if (n < 1)          return `$${n.toFixed(6)}`;
+  if (n < 0.000001) return `$${n.toFixed(10)}`;
+  if (n < 0.001)    return `$${n.toFixed(8)}`;
+  if (n < 1)        return `$${n.toFixed(6)}`;
   return `$${n.toFixed(4)}`;
 }
 
@@ -52,14 +53,66 @@ function fmtHolders(n: number | null): string {
 }
 
 async function fetchStats(mintAddress: string): Promise<Stats> {
-  // Call our server-side proxy — avoids CORS issues with Birdeye
   const res = await fetch(`/api/launchpad/token-stats/${mintAddress}`);
   if (!res.ok) throw new Error("Stats unavailable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return await res.json() as any;
 }
 
-// ── Row component ─────────────────────────────────────────────────────────────
+// ── Bar variant (horizontal, borderless) ──────────────────────────────────────
+
+function StatItem({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 shrink-0">
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className={`text-sm font-medium ${accent ? "text-emerald-500" : "text-foreground"}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function StatBar({ stats }: { stats: Stats }) {
+  const changeColor =
+    stats.priceChange === null ? "" :
+    stats.priceChange > 0 ? "text-emerald-500" : "text-red-500";
+
+  return (
+    <div className="flex items-center gap-6 overflow-x-auto py-3 px-4 md:px-6 border-y border-border scrollbar-none">
+      <StatItem
+        label="Price"
+        accent
+        value={
+          <span className="flex items-center gap-1.5">
+            {fmtPrice(stats.priceUsd)}
+            {stats.priceChange !== null && (
+              <span className={`text-[10px] ${changeColor}`}>
+                {stats.priceChange > 0 ? "+" : ""}{stats.priceChange.toFixed(2)}%
+              </span>
+            )}
+          </span>
+        }
+      />
+      {stats.marketCap !== null && (
+        <StatItem label="Market cap" value={fmt(stats.marketCap, { prefix: "$" })} />
+      )}
+      {stats.fdv !== null && (
+        <StatItem label="FDV" value={fmt(stats.fdv, { prefix: "$" })} />
+      )}
+      {stats.volume24h !== null && (
+        <StatItem label="Volume 24h" value={fmt(stats.volume24h, { prefix: "$" })} />
+      )}
+      {stats.holders !== null && (
+        <StatItem label="Holders" value={fmtHolders(stats.holders)} />
+      )}
+      <span className="ml-auto text-[9px] text-muted-foreground/50 shrink-0 hidden md:block">
+        GeckoTerminal · Birdeye
+      </span>
+    </div>
+  );
+}
+
+// ── Card variant (legacy vertical) ────────────────────────────────────────────
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -70,44 +123,16 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-
-export function TokenMarketStats({ mintAddress }: { mintAddress: string }) {
-  const [stats,   setStats]   = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchStats(mintAddress)
-      .then(s  => setStats(s))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, [mintAddress]);
-
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-4 flex items-center justify-center gap-2 py-6">
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Loading market data…</span>
-      </div>
-    );
-  }
-
-  if (error || !stats) {
-    return null; // silent fail — not critical
-  }
-
+function StatCard({ stats }: { stats: Stats }) {
   const changeColor =
     stats.priceChange === null ? "text-foreground" :
     stats.priceChange > 0 ? "text-emerald-500" : "text-red-500";
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
         Market
       </p>
-
       <Row
         label="Price"
         value={
@@ -121,23 +146,56 @@ export function TokenMarketStats({ mintAddress }: { mintAddress: string }) {
           </span>
         }
       />
-
-      {stats.marketCap !== null && (
-        <Row label="Market Cap"  value={fmt(stats.marketCap,  { prefix: "$" })} />
-      )}
-      {stats.fdv !== null && (
-        <Row label="FDV"         value={fmt(stats.fdv,        { prefix: "$" })} />
-      )}
-      {stats.volume24h !== null && (
-        <Row label="Volume 24h"  value={fmt(stats.volume24h,  { prefix: "$" })} />
-      )}
-      {stats.holders !== null && (
-        <Row label="Holders"     value={fmtHolders(stats.holders)} />
-      )}
-
+      {stats.marketCap !== null && <Row label="Market Cap" value={fmt(stats.marketCap, { prefix: "$" })} />}
+      {stats.fdv       !== null && <Row label="FDV"        value={fmt(stats.fdv,       { prefix: "$" })} />}
+      {stats.volume24h !== null && <Row label="Volume 24h" value={fmt(stats.volume24h, { prefix: "$" })} />}
+      {stats.holders   !== null && <Row label="Holders"    value={fmtHolders(stats.holders)} />}
       <p className="mt-2 text-[10px] text-muted-foreground text-right">
         Source: GeckoTerminal · Birdeye
       </p>
     </div>
   );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export function TokenMarketStats({
+  mintAddress,
+  variant = "card",
+}: {
+  mintAddress: string;
+  variant?: "bar" | "card";
+}) {
+  const [stats,   setStats]   = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchStats(mintAddress)
+      .then(s  => setStats(s))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [mintAddress]);
+
+  if (loading) {
+    if (variant === "bar") {
+      return (
+        <div className="flex items-center gap-2 py-3 px-4 md:px-6 border-y border-border">
+          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Chargement…</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2 py-6">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Loading market data…</span>
+      </div>
+    );
+  }
+
+  if (error || !stats) return null;
+
+  return variant === "bar" ? <StatBar stats={stats} /> : <StatCard stats={stats} />;
 }
