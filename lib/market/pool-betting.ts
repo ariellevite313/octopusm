@@ -256,7 +256,7 @@ export type PoolCreationResult =
   | { success: false; error: string };
 
 /**
- * Sends the creation fee (5 USDC or 500K CLT) to treasury.
+ * Sends the creation fee (2 USDC or 500K CLT) to treasury.
  * Returns the tx signature on success.
  */
 export async function submitPoolCreation(params: PoolCreationParams): Promise<PoolCreationResult> {
@@ -270,7 +270,7 @@ export async function submitPoolCreation(params: PoolCreationParams): Promise<Po
 
   const mint     = feeToken === "clawdtrust" ? CLT_MINT : USDC_MINT;
   const decimals = feeToken === "clawdtrust" ? 9 : 6;
-  const feeAmount = feeToken === "clawdtrust" ? 500_000 : 5;
+  const feeAmount = feeToken === "clawdtrust" ? 500_000 : 2;
 
   const memo = [
     "om?v=1",

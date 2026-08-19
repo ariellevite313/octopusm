@@ -89,8 +89,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
           const volumeUsd24h = parseFloat(attrs?.volume_usd?.h24 ?? "0");
           let feePct = parseFloat(attrs?.pool_fee ?? attrs?.swap_fee ?? "0");
           if (feePct > 0 && feePct < 1) feePct = feePct * 100;
-          // Creator gets 40% per DBC config
-          const feesUsd24h = volumeUsd24h * (feePct / 100) * 0.4;
+          // Creator gets 1% out of 3% total fee (1/3 of pool fees)
+          const feesUsd24h = volumeUsd24h * (feePct / 100) * (1 / 3);
           if (feesUsd24h > 0) {
             return NextResponse.json({ claimableSol: null, feesUsd24h: Number(feesUsd24h.toFixed(4)) });
           }

@@ -461,9 +461,8 @@ describe("POST /api/launchpad/create", () => {
     );
   });
 
-  it("mirrors platform_fee_pct = creator_fee_pct in DB insert", async () => {
-    // creator_fee_pct is fixed at 1 — the route rejects any other value.
-    // We verify the insert receives both creator_fee_pct and platform_fee_pct set to 1.
+  it("stores correct fee split in DB insert (creator=1, platform=2)", async () => {
+    // creator_fee_pct is fixed at 1, platform_fee_pct is hardcoded to 2 (3% total).
     const NEW_ID = "uuid-fee-001";
     const insertSpy = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
@@ -477,7 +476,7 @@ describe("POST /api/launchpad/create", () => {
     await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, creator_fee_pct: 1 }));
 
     expect(insertSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ creator_fee_pct: 1, platform_fee_pct: 1 })
+      expect.objectContaining({ creator_fee_pct: 1, platform_fee_pct: 2 })
     );
   });
 
