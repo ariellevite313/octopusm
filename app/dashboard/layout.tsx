@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import { getDashboardData } from "@/services/dashboard-service";
-import { TokenBalances } from "@/components/dashboard/token-balances";
-import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { BalancesSection } from "@/components/dashboard/balances-section";
+import { OctoBadgeSection } from "@/components/dashboard/octo-badge-section";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { DashboardBottomNavSwitch } from "@/components/layout/dashboard-bottom-nav-switch";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
@@ -51,27 +51,24 @@ export default async function DashboardLayout({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-bold text-foreground truncate">{displayLabel}</h1>
-              <OctoBadge totalOcto={data.octoBalance} size={14} />
+              <OctoBadgeSection totalOcto={data.octoBalance} size={14} />
             </div>
             <p className="text-xs font-mono text-muted-foreground mt-0.5">{fmtAddr(wallet)}</p>
           </div>
         </div>
 
-        {/* Balances */}
-        <section>
-          <h2 className="mb-3 text-base font-bold text-foreground">Balances</h2>
-          <TokenBalances
-            usdcBalance={data.usdcBalance}
-            cltBalance={data.cltBalance}
-            octoBalance={data.octoBalance}
-            usdcStats={data.usdcStats}
-            cltStats={data.cltStats}
-            octoStats={data.octoStats}
-            usdcActivity={data.usdcActivity}
-            cltActivity={data.cltActivity}
-            octoActivity={data.octoActivity}
-          />
-        </section>
+        {/* Balances — hidden on launchpad dashboard */}
+        <BalancesSection
+          usdcBalance={data.usdcBalance}
+          cltBalance={data.cltBalance}
+          octoBalance={data.octoBalance}
+          usdcStats={data.usdcStats}
+          cltStats={data.cltStats}
+          octoStats={data.octoStats}
+          usdcActivity={data.usdcActivity}
+          cltActivity={data.cltActivity}
+          octoActivity={data.octoActivity}
+        />
 
         {/* Desktop tabs */}
         <DashboardTabs />
