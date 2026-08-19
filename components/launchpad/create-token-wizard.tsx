@@ -617,11 +617,17 @@ function validate(step: number, data: WizardData): Record<string, string> {
 
 // ─── Wizard principal ────────────────────────────────────────────────────────
 
-export function CreateTokenWizard() {
+type InitialData = Partial<Pick<WizardData,
+  "name" | "ticker" | "category" | "description" |
+  "website" | "twitter" | "telegram" | "discord" | "other_social" |
+  "supply"
+>>;
+
+export function CreateTokenWizard({ initialData }: { initialData?: InitialData }) {
   const router = useRouter();
   const { walletAddress } = useAuth();
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<WizardData>(INITIAL);
+  const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
