@@ -109,6 +109,15 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
       setPhase("done");
       const label = claimableSol !== null ? `${claimableSol.toFixed(6)} SOL claimed!` : "Fees claimed!";
       toast.success(label + ` — Sig: ${sig.slice(0, 8)}…`);
+
+      // Log to DB for historical tracking
+      if (claimableSol && claimableSol > 0) {
+        fetch("/api/dashboard/log-claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tokenId, walletAddress, amountSol: claimableSol, txSignature: sig }),
+        }).catch(() => { /* non-blocking */ });
+      }
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Transaction failed";
       const msg = /rejected|cancel/i.test(raw) ? "Transaction cancelled." : raw;

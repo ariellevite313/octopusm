@@ -1,8 +1,54 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { CATEGORY_SLUGS } from "@/lib/categories";
+import { Connection } from "@solana/web3.js";
 
 export const revalidate = 0;
+
+// ── Tx verification ───────────────────────────────────────────────────────────
+
+async function verifyCreationTx(txSig: string, wallet: string): Promise<boolean> {
+  const rpc = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
+  const conn = new Connection(rpc, "confirmed");
+
+  // Retry up to 3 times with 1.5s delay (tx may not have propagated yet right after broadcast)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+    try {
+      const tx = await conn.getParsedTransaction(txSig, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+      if (!tx) continue; // not confirmed yet — retry
+
+      const instructions = tx.transaction.message.instructions;
+      for (const ix of instructions) {
+        // Parsed memo: ix.parsed is the memo string
+        if ("parsed" in ix && typeof ix.parsed === "string") {
+          if (ix.parsed.includes(`wallet=${wallet}`) && ix.parsed.includes("kind=pool_creation")) {
+            return true;
+          }
+        }
+        // Fallback: some RPCs expose memo data in accounts[0] as base64
+        if ("data" in ix && typeof (ix as any).data === "string") {
+          try {
+            const decoded = Buffer.from((ix as any).data, "base64").toString("utf8");
+            if (decoded.includes(`wallet=${wallet}`) && decoded.includes("kind=pool_creation")) {
+              return true;
+            }
+          } catch { /* not utf8 */ }
+        }
+      }
+      // Tx found but no matching memo — don't retry
+      return false;
+    } catch {
+      // RPC error — retry
+    }
+  }
+  return false;
+}
+
+// ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET() {
   const admin = createAdminClient() as any;
@@ -16,21 +62,49 @@ export async function GET() {
   return NextResponse.json(data ?? []);
 }
 
+// ── POST ──────────────────────────────────────────────────────────────────────
+
 export async function POST(req: Request) {
-  // Auth check with user client (respects session cookies)
   const userClient = await createClient() as any;
   const { data: { user } } = await userClient.auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  let body;
-
+  let body: any;
   try { body = await req.json(); }
-
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const { title, description, cover_image_src, options, category, bet_token, betting_closes_at } = body;
+  const {
+    title, description, cover_image_src, options,
+    category, bet_token, betting_closes_at,
+    creation_fee_token, creation_tx,
+  } = body;
 
+  // ── Validate creation payment ─────────────────────────────────────────────
+  if (!creation_tx || typeof creation_tx !== "string") {
+    return NextResponse.json({ error: "Creation fee transaction required" }, { status: 400 });
+  }
+  if (!["usdc", "clawdtrust"].includes(creation_fee_token)) {
+    return NextResponse.json({ error: "Invalid creation fee token" }, { status: 400 });
+  }
+
+  // Verify tx on-chain (memo must contain kind=pool_creation&wallet=xxx)
+  const txValid = await verifyCreationTx(creation_tx, wallet);
+  if (!txValid) {
+    return NextResponse.json({ error: "Creation fee transaction could not be verified." }, { status: 402 });
+  }
+
+  // Prevent replaying the same tx for multiple markets
+  const admin = createAdminClient() as any;
+  const { count: txUsed } = await admin
+    .from("mutuel_markets")
+    .select("id", { count: "exact", head: true })
+    .eq("creation_tx", creation_tx);
+  if ((txUsed ?? 0) > 0) {
+    return NextResponse.json({ error: "This transaction has already been used." }, { status: 409 });
+  }
+
+  // ── Validate fields ───────────────────────────────────────────────────────
   if (!title || typeof title !== "string" || title.trim().length < 5)
     return NextResponse.json({ error: "Title must be at least 5 characters" }, { status: 400 });
 
@@ -42,60 +116,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "All options must have a non-empty label" }, { status: 400 });
   }
 
-  // BUG-18 fix: require at least 1 hour from now — prevents pools that close before anyone can bet
   const closesAtMs = new Date(betting_closes_at).getTime();
   if (!betting_closes_at || isNaN(closesAtMs) || closesAtMs < Date.now() + 60 * 60 * 1000)
     return NextResponse.json({ error: "Betting close date must be at least 1 hour from now" }, { status: 400 });
 
-  const allowedTokens = ["usdc", "clawdtrust"];
-  if (!allowedTokens.includes(bet_token))
+  if (!["usdc", "clawdtrust"].includes(bet_token))
     return NextResponse.json({ error: "Invalid bet token" }, { status: 400 });
 
-  const safeCategory = category && CATEGORY_SLUGS.includes(String(category) as typeof CATEGORY_SLUGS[number]) ? String(category) : "mentions";
-
-  const admin = createAdminClient() as any;
-
-  // ── Daily creation limit ──────────────────────────────────────────────────
-  // Free: 2 markets/day. From the 3rd: costs 500 OCTO (anti-spam).
-  const FREE_DAILY_LIMIT      = 2;
-  const EXTRA_MARKET_COST_OCTO = 500;
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const { count: todayCount } = await admin
-    .from("mutuel_markets")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_wallet", wallet)
-    .gte("created_at", todayStart.toISOString());
-
-  if ((todayCount ?? 0) >= FREE_DAILY_LIMIT) {
-    // Check OCTO balance
-    const { data: txns } = await admin
-      .from("octo_transactions")
-      .select("amount")
-      .eq("wallet_address", wallet);
-    const octoBalance = ((txns ?? []) as { amount: number }[])
-      .reduce((s, t) => s + Number(t.amount), 0);
-
-    if (octoBalance < EXTRA_MARKET_COST_OCTO) {
-      return NextResponse.json({
-        error: `Limite journalière atteinte : ${FREE_DAILY_LIMIT} marchés gratuits/jour. La création d'un marché supplémentaire coûte ${EXTRA_MARKET_COST_OCTO} OMERO. Solde actuel : ${Math.floor(octoBalance)} OMERO.`,
-        code: "DAILY_LIMIT_INSUFFICIENT_OCTO",
-        today_count: todayCount ?? 0,
-        octo_balance: Math.floor(octoBalance),
-        cost_octo: EXTRA_MARKET_COST_OCTO,
-      }, { status: 429 });
-    }
-
-    // Deduct OCTO
-    await admin.from("octo_transactions").insert({
-      wallet_address: wallet,
-      amount: -EXTRA_MARKET_COST_OCTO,
-      type: "task",
-      note: `Frais création marché (${(todayCount ?? 0) + 1}ème aujourd'hui)`,
-    });
-  }
+  const safeCategory = category && CATEGORY_SLUGS.includes(String(category) as typeof CATEGORY_SLUGS[number])
+    ? String(category) : "mentions";
 
   const baseSlug = title.trim()
     .toLowerCase()
@@ -103,7 +132,6 @@ export async function POST(req: Request) {
     .replace(/^-|-$/g, "")
     .slice(0, 80);
 
-  // Generate a unique slug — suffix with random hex to avoid collisions
   const randomSuffix = () =>
     Array.from(crypto.getRandomValues(new Uint8Array(4)))
       .map(b => b.toString(16).padStart(2, "0")).join("");
@@ -115,20 +143,21 @@ export async function POST(req: Request) {
     ...(opt.image_url ? { image_url: String(opt.image_url).slice(0, 500) } : {}),
   }));
 
-  // Use admin client to bypass RLS for the insert (auth already verified above)
+  const creationFeeAmount = creation_fee_token === "clawdtrust" ? 500_000 : 2;
+
   const { data: inserted, error } = await admin
     .from("mutuel_markets")
     .insert({
       slug,
-      creator_wallet: wallet,
-      title: title.trim().slice(0, 200),
-      description: description ? String(description).slice(0, 1000) : null,
-      cover_image_src: cover_image_src ? String(cover_image_src).slice(0, 500) : null,
-      options: safeOptions,
-      category: safeCategory,
-      creation_fee_token: bet_token,
-      creation_fee_amount: 0,
-      creation_tx: null,
+      creator_wallet:      wallet,
+      title:               title.trim().slice(0, 200),
+      description:         description ? String(description).slice(0, 1000) : null,
+      cover_image_src:     cover_image_src ? String(cover_image_src).slice(0, 500) : null,
+      options:             safeOptions,
+      category:            safeCategory,
+      creation_fee_token,
+      creation_fee_amount: creationFeeAmount,
+      creation_tx,
       bet_token,
       betting_closes_at,
       status: "pending",

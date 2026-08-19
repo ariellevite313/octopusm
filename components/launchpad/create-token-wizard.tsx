@@ -492,8 +492,8 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data }: { data: WizardData }) {
-  // Fee set by the DBC_CONFIG_KEY (2.5% total: 1% platform + 1% creator + 0.5% Meteora protocol)
-  const totalFee = 2.5;
+  // Fee set by the DBC_CONFIG_KEY (3% total: 2% platform + 1% creator)
+  const totalFee = 3;
   // 0.05 SOL creation fee (platform) + optional scheduled fee
   const mintCost = 0.05 + (data.is_scheduled ? 0.1 : 0);
 

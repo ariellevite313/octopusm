@@ -127,10 +127,10 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       const SeriesClass = lw.AreaSeries ?? lw.LineSeries;
       const lineData = bars.map(b => ({ time: b.time, value: b.close }));
       const series = chartRef.current.addSeries(SeriesClass, {
-        lineColor:   "#7c3aed",
-        topColor:    "rgba(124,58,237,0.3)",
-        bottomColor: "rgba(124,58,237,0.0)",
-        lineWidth:   2,
+        lineColor:   "#00e87a",
+        topColor:    "rgba(0,232,122,0.15)",
+        bottomColor: "rgba(0,232,122,0.0)",
+        lineWidth:   1.5,
         priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,16 +164,16 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
           width:  wrapperRef.current.clientWidth,
           height: 440,
           layout: {
-            background: { type: ColorType.Solid, color: "transparent" },
-            textColor: "#94a3b8",
+            background: { type: ColorType.Solid, color: "#000000" },
+            textColor: "#555555",
           },
           grid: {
-            vertLines: { color: "#1e293b" },
-            horzLines: { color: "#1e293b" },
+            vertLines: { color: "#111111" },
+            horzLines: { color: "#111111", style: 3 },
           },
           crosshair: { mode: 1 },
-          rightPriceScale: { borderColor: "#334155" },
-          timeScale:       { borderColor: "#334155", timeVisible: true, secondsVisible: false },
+          rightPriceScale: { borderColor: "#1a1a1a" },
+          timeScale:       { borderColor: "#1a1a1a", timeVisible: true, secondsVisible: false },
           watermark:       { visible: false },
         });
 
@@ -259,7 +259,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-2xl overflow-hidden" style={{ background: "#000" }}>
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
       {/* Toolbar */}

@@ -1,28 +1,30 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { Camera, X, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
 import { useAuth } from "@/providers/auth-provider";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
+import { submitPoolCreation } from "@/lib/market/pool-betting";
 
 type Category = CategorySlug;
 
 interface Props {
-  onClose: () => void;
+  onClose:   () => void;
   onCreated: (market: MutuelMarketRow) => void;
 }
 
 interface OptionDraft {
-  label: string;
+  label:     string;
   image_url?: string;
 }
 
-type CreateStep = "idle" | "sending" | "done" | "error";
+type CreateStep = "idle" | "paying" | "sending" | "done" | "error";
 
 // ─── Image upload widget ──────────────────────────────────────────────────────
+
 function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -34,7 +36,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+      const res  = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Upload failed");
       onChange(body.url);
@@ -52,7 +54,6 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
         Icon image (optional)
       </label>
       <div className="flex items-center gap-3">
-        {/* Square icon preview */}
         <div
           className="relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 transition-colors hover:bg-muted/50 flex items-center justify-center"
           onClick={() => fileRef.current?.click()}
@@ -77,11 +78,8 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
             <Camera className="size-5 text-muted-foreground" />
           )}
         </div>
-        {/* Helper text */}
         <div className="flex flex-col gap-0.5">
-          <p className="text-xs text-muted-foreground">
-            Square icon displayed beside your market title.
-          </p>
+          <p className="text-xs text-muted-foreground">Square icon displayed beside your market title.</p>
           <p className="text-[10px] text-muted-foreground">JPG, PNG, WEBP or GIF · max 2MB</p>
           <button
             type="button"
@@ -97,55 +95,32 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
   );
 }
 
-interface DailyLimitInfo {
-  today_count: number;
-  free_limit: number;
-  cost_octo: number;
-  octo_balance: number;
-  is_free: boolean;
-  can_create: boolean;
-}
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function CreatePoolModal({ onClose, onCreated }: Props) {
-  const { walletAddress } = useAuth();
+  const { walletAddress, walletType } = useAuth();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [coverImage, setCoverImage] = useState("");
-  const [options, setOptions] = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
-  const [closesAt, setClosesAt] = useState("");
-  const [category, setCategory] = useState<Category>("mentions");
-  const [betToken, setBetToken] = useState<"usdc" | "clawdtrust">("usdc");
-  const [step, setStep] = useState<CreateStep>("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [dailyLimit, setDailyLimit] = useState<DailyLimitInfo | null>(null);
+  const [title,          setTitle]          = useState("");
+  const [description,    setDescription]    = useState("");
+  const [coverImage,     setCoverImage]     = useState("");
+  const [options,        setOptions]        = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
+  const [closesAt,       setClosesAt]       = useState("");
+  const [category,       setCategory]       = useState<Category>("mentions");
+  const [betToken,       setBetToken]       = useState<"usdc" | "clawdtrust">("usdc");
+  const [feeToken,       setFeeToken]       = useState<"usdc" | "clawdtrust">("usdc");
+  const [step,           setStep]           = useState<CreateStep>("idle");
+  const [errorMsg,       setErrorMsg]       = useState<string | null>(null);
 
-  // Fetch daily limit info on open
-  useEffect(() => {
-    fetch("/api/pools/daily-limit")
-      .then(r => r.ok ? r.json() : null)
-      .then((d: DailyLimitInfo | null) => { if (d) setDailyLimit(d); })
-      .catch(() => {});
-  }, []);
+  const submitting = step === "paying" || step === "sending";
 
-  const submitting = step === "sending";
-
-  const addOption = () => {
-    if (options.length >= 8) return;
-    setOptions(prev => [...prev, { label: "" }]);
-  };
-  const removeOption = (i: number) => {
-    if (options.length <= 2) return;
-    setOptions(prev => prev.filter((_, idx) => idx !== i));
-  };
+  const addOption    = () => { if (options.length < 8) setOptions(prev => [...prev, { label: "" }]); };
+  const removeOption = (i: number) => { if (options.length > 2) setOptions(prev => prev.filter((_, idx) => idx !== i)); };
   const updateOption = (i: number, label: string) => {
     if (step === "error") { setStep("idle"); setErrorMsg(null); }
     setOptions(prev => prev.map((o, idx) => idx === i ? { ...o, label } : o));
   };
-
-  const updateOptionImage = (i: number, image_url: string) => {
+  const updateOptionImage = (i: number, image_url: string) =>
     setOptions(prev => prev.map((o, idx) => idx === i ? { ...o, image_url } : o));
-  };
 
   const optionFileRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -155,7 +130,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
+      const res  = await fetch("/api/admin/upload-image", { method: "POST", body: fd });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Upload failed");
       updateOptionImage(i, body.url);
@@ -174,49 +149,57 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     e.preventDefault();
     setErrorMsg(null);
 
-    // ── Client-side validation ────────────────────────────────────────────
+    // ── Validation ──────────────────────────────────────────────────────────
     if (title.trim().length < 5) { toast.error("Title must be at least 5 characters."); return; }
-
-    // Options: non-empty, min 2 chars, unique
     for (const o of options) {
       if (!o.label.trim() || o.label.trim().length < 2) {
         toast.error("Each option must be at least 2 characters."); return;
       }
     }
     const labels = options.map(o => o.label.trim().toLowerCase());
-    if (new Set(labels).size !== labels.length) {
-      toast.error("Options must be unique."); return;
-    }
-
+    if (new Set(labels).size !== labels.length) { toast.error("Options must be unique."); return; }
     if (!closesAt) { toast.error("Prediction close date is required."); return; }
-    // Validate at least 1h from now (client-side hint — server also enforces)
     const closesAtDate = new Date(closesAt);
     if (isNaN(closesAtDate.getTime()) || closesAtDate.getTime() < Date.now() + 60 * 60 * 1000) {
       toast.error("Closing date must be at least 1 hour from now."); return;
     }
+    if (!walletAddress) { toast.error("Wallet not connected. Please sign in first."); return; }
+    if (!walletType) { toast.error("Wallet type unknown. Please reconnect."); return; }
 
-    if (!walletAddress) {
-      toast.error("Wallet not connected. Please sign in first.");
+    // ── Step 1: on-chain payment ────────────────────────────────────────────
+    setStep("paying");
+    const payResult = await submitPoolCreation({
+      title,
+      feeToken,
+      walletAddress,
+      walletType,
+    });
+
+    if (!payResult.success) {
+      const msg = payResult.error ?? "Payment failed.";
+      setStep("error");
+      setErrorMsg(msg);
+      if (!/cancel|reject/i.test(msg)) toast.error(msg);
       return;
     }
 
-    // Création gratuite — on POST directement sans transaction on-chain
+    // ── Step 2: create market via API ───────────────────────────────────────
     setStep("sending");
     try {
-      // datetime-local gives local time — convert to UTC ISO explicitly
       const closesAtUtc = new Date(closesAt).toISOString();
-
       const res = await fetch("/api/pools", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || null,
-          cover_image_src: coverImage || null,
-          options: options.map(o => ({ label: o.label.trim(), image_url: o.image_url || null })),
+          title:              title.trim(),
+          description:        description.trim() || null,
+          cover_image_src:    coverImage || null,
+          options:            options.map(o => ({ label: o.label.trim(), image_url: o.image_url || null })),
           category,
-          betting_closes_at: closesAtUtc,
-          bet_token: betToken,
+          betting_closes_at:  closesAtUtc,
+          bet_token:          betToken,
+          creation_fee_token: feeToken,
+          creation_tx:        payResult.signature,
         }),
       });
       const data = await res.json();
@@ -228,9 +211,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
         return;
       }
       setStep("done");
-      // Use a ref-guarded callback to avoid setState on unmounted component
-      const market = data as MutuelMarketRow;
-      setTimeout(() => { onCreated(market); }, 1200);
+      setTimeout(() => { onCreated(data as MutuelMarketRow); }, 1200);
     } catch {
       setStep("error");
       const msg = "Network error, please try again.";
@@ -238,7 +219,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       toast.error(msg);
     }
   }
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
@@ -251,39 +231,12 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
         </button>
 
         <h2 className="mb-1 text-lg font-bold text-foreground">Create a Market</h2>
-        <p className="mb-3 text-sm text-muted-foreground">
+        <p className="mb-4 text-sm text-muted-foreground">
           An admin will review your market before it goes live.
         </p>
 
-        {/* Daily limit banner */}
-        {dailyLimit && !dailyLimit.is_free && (
-          <div className={`mb-4 rounded-xl px-3 py-2.5 text-sm flex flex-col gap-0.5 ${
-            dailyLimit.can_create
-              ? "bg-orange-50 border border-orange-200 text-orange-700 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-300"
-              : "bg-destructive/10 border border-destructive/30 text-destructive"
-          }`}>
-            <span className="font-semibold">
-              {dailyLimit.can_create
-                ? `Marché payant — coûte ${dailyLimit.cost_octo} OMERO`
-                : `Limite journalière atteinte`}
-            </span>
-            <span className="text-xs opacity-80">
-              {dailyLimit.can_create
-                ? `Vous avez créé ${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits aujourd'hui. Solde OMERO : ${dailyLimit.octo_balance}.`
-                : `${dailyLimit.today_count}/${dailyLimit.free_limit} marchés gratuits utilisés. Il vous faut ${dailyLimit.cost_octo} OMERO (solde : ${dailyLimit.octo_balance}).`}
-            </span>
-          </div>
-        )}
-        {dailyLimit && dailyLimit.is_free && dailyLimit.today_count === dailyLimit.free_limit - 1 && (
-          <div className="mb-4 rounded-xl px-3 py-2.5 text-sm bg-blue-50 border border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
-            <span className="font-semibold">Dernier marché gratuit aujourd'hui</span>
-            <span className="block text-xs opacity-80 mt-0.5">
-              Vous avez utilisé {dailyLimit.today_count}/{dailyLimit.free_limit} marchés gratuits.
-            </span>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -323,7 +276,6 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             </label>
             {options.map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
-                {/* Option image preview / upload trigger */}
                 <button
                   type="button"
                   onClick={() => optionFileRefs.current[i]?.click()}
@@ -343,9 +295,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                 </button>
                 <input
                   ref={el => { optionFileRefs.current[i] = el; }}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
+                  type="file" accept="image/*" className="hidden"
                   onChange={e => void handleOptionImage(i, e)}
                 />
                 <input
@@ -422,7 +372,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {/* Bet token */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Prediction token (token used for all predictions)
+              Prediction token
             </label>
             <div className="flex gap-2">
               {(["usdc", "clawdtrust"] as const).map(token => (
@@ -442,11 +392,44 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              All predictors must use {betToken === "usdc" ? "USDC" : "ClawdTrust"} to participate. Winnings paid in the same token.
+              Token used by all predictors. Winnings paid in the same token.
+            </p>
+          </div>
+
+          {/* Creation fee */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Pay creation fee with
+            </label>
+            <div className="flex gap-2">
+              {(["usdc", "clawdtrust"] as const).map(token => (
+                <button
+                  key={token}
+                  type="button"
+                  onClick={() => setFeeToken(token)}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
+                    feeToken === token
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <TokenLogo token={token} className="size-5" />
+                  {token === "usdc" ? "2 USDC" : "500K CLT"}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              One-time fee sent on-chain before your market is submitted.
             </p>
           </div>
 
           {/* Step feedback */}
+          {step === "paying" && (
+            <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-sm text-amber-500">
+              <Loader2 className="size-4 animate-spin" />
+              Waiting for payment confirmation…
+            </div>
+          )}
           {step === "sending" && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 px-3 py-2.5 text-sm text-blue-500">
               <Loader2 className="size-4 animate-spin" />
@@ -465,17 +448,17 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               <span>{errorMsg}</span>
             </div>
           )}
+
           <button
             type="submit"
-            disabled={submitting || step === "done" || (dailyLimit !== null && !dailyLimit.can_create)}
+            disabled={submitting || step === "done"}
             className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {step === "sending" ? "Submitting…"
-              : step === "done"  ? "Market submitted!"
-              : step === "error" ? "Try again"
-              : dailyLimit && !dailyLimit.is_free && dailyLimit.can_create
-                ? `Submit (−${dailyLimit.cost_octo} OMERO)`
-                : "Submit Market"}
+            {step === "paying"  ? "Waiting for payment…"
+             : step === "sending" ? "Submitting…"
+             : step === "done"    ? "Market submitted!"
+             : step === "error"   ? "Try again"
+             : `Pay ${feeToken === "usdc" ? "2 USDC" : "500K CLT"} & Submit`}
           </button>
         </form>
       </div>
