@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Rocket, Clock, AlertCircle } from "lucide-react";
+import { ExternalLink, Rocket, Clock, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -67,9 +68,28 @@ function fmtDate(iso: string): string {
 
 // ── Token Card ─────────────────────────────────────────────────────────────────
 
-function TokenCard({ token }: { token: MyToken }) {
-  const isPending   = token.status === "pending";
-  const isScheduled = token.status === "active" && !token.is_tradeable;
+function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string) => void }) {
+  const isPending    = token.status === "pending";
+  const isCancelled  = token.status === "cancelled";
+  const isScheduled  = token.status === "active" && !token.is_tradeable;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = useCallback(async () => {
+    if (!confirm(`Supprimer "${token.name}" ? Cette action est irréversible.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/launchpad/${token.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json() as { error?: string };
+        throw new Error(json.error ?? "Erreur serveur");
+      }
+      toast.success(`${token.name} supprimé`);
+      onDelete(token.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+      setDeleting(false);
+    }
+  }, [token.id, token.name, onDelete]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -129,6 +149,27 @@ function TokenCard({ token }: { token: MyToken }) {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 pt-0.5">
+            {/* Cancelled: Re-launch + Delete */}
+            {isCancelled && (
+              <>
+                <Link
+                  href={`/launchpad/create?from=${token.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
+                >
+                  <RotateCcw className="size-3.5" />
+                  Re-lancer
+                </Link>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:underline underline-offset-2 disabled:opacity-50"
+                >
+                  <Trash2 className="size-3.5" />
+                  {deleting ? "Suppression…" : "Supprimer"}
+                </button>
+              </>
+            )}
+
             {/* Pending: show Launch button */}
             {isPending && (
               <Link
@@ -192,6 +233,10 @@ export function MyTokensSection({ walletAddress }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
 
+  const handleDelete = useCallback((id: string) => {
+    setTokens(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   useEffect(() => {
     async function load() {
       setError(false);
@@ -244,7 +289,7 @@ export function MyTokensSection({ walletAddress }: Props) {
       ) : (
         <div className="flex flex-col gap-3">
           {tokens.map(token => (
-            <TokenCard key={token.id} token={token} />
+            <TokenCard key={token.id} token={token} onDelete={handleDelete} />
           ))}
         </div>
       )}

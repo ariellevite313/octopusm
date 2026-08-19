@@ -397,7 +397,6 @@ export default async function TokenDetailPage({ params }: Props) {
             <SectionLabel>Token info</SectionLabel>
             <InfoRow label="Network"    value="Solana" />
             <InfoRow label="Supply"     value={formatSupply(token.supply)} />
-            <InfoRow label="Fees"       value="3% per trade (1% creator · 2% platform)" />
             {token.first_buy_amount && (
               <InfoRow label="First buy" value={`${token.first_buy_amount} SOL`} />
             )}
