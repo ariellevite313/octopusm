@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/activate-scheduled-tokens",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

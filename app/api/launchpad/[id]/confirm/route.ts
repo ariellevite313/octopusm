@@ -12,10 +12,81 @@
  *  3. Clears the stored vanity secret key (no longer needed)
  */
 import { NextResponse } from "next/server";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { verifyTransaction } from "@/lib/solana/verify-tx";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+/**
+ * After the DBC createPool tx is confirmed, parse the transaction's account
+ * list to find the newly-created pool PDA and return its address.
+ *
+ * Strategy:
+ *  1. Fetch the confirmed transaction
+ *  2. Find accounts whose preBalance was 0 and postBalance > 0 (newly created)
+ *  3. Exclude the base mint and creator wallet (both already known)
+ *  4. Test each candidate via DBC SDK getPool() — the real pool will return a valid state
+ */
+async function extractPoolAddress(
+  txSig: string,
+  mintAddress: string,
+  creatorWallet: string,
+): Promise<string | null> {
+  try {
+    const rpc = process.env.SOLANA_RPC_URL;
+    if (!rpc) return null;
+
+    const connection = new Connection(rpc, "confirmed");
+
+    const txData = await connection.getTransaction(txSig, {
+      maxSupportedTransactionVersion: 0,
+      commitment: "confirmed",
+    });
+
+    if (!txData?.meta) return null;
+
+    const msg = txData.transaction.message;
+
+    // Works for both legacy (Message) and versioned (MessageV0) transactions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawKeys: string[] = "getAccountKeys" in msg
+      ? (msg as any).getAccountKeys().staticAccountKeys.map((k: PublicKey) => k.toBase58())
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      : (msg as any).accountKeys.map((k: any) => k.toBase58?.() ?? String(k));
+
+    const preBalances  = txData.meta.preBalances;
+    const postBalances = txData.meta.postBalances;
+    const excluded     = new Set([mintAddress, creatorWallet]);
+
+    // Newly-created rent-exempt accounts (not the mint, not the creator)
+    const candidates = rawKeys.filter(
+      (addr, i) => preBalances[i] === 0 && postBalances[i] > 0 && !excluded.has(addr),
+    );
+
+    if (candidates.length === 0) return null;
+
+    // Identify the pool by probing each candidate with the DBC SDK
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const DynamicBondingCurveClient = (sdk as any).DynamicBondingCurveClient;
+      const client = new DynamicBondingCurveClient(connection, "confirmed");
+
+      for (const addr of candidates) {
+        try {
+          const poolState = await client.state.getPool(new PublicKey(addr));
+          if (poolState) return addr;
+        } catch { /* not a pool account — try next */ }
+      }
+    } catch { /* DBC SDK unavailable */ }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
@@ -29,7 +100,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token } = await admin
       .from("launchpad_tokens")
-      .select("status, creator_wallet, is_scheduled, scheduled_at")
+      .select("status, creator_wallet, is_scheduled, scheduled_at, mint_address")
       .eq("id", id)
       .maybeSingle();
 
@@ -73,6 +144,17 @@ export async function POST(req: Request, { params }: RouteParams) {
     const isTradeable = !isScheduled;
     const newStatus   = "active" as const;
 
+    // Extract pool_address from the confirmed transaction before responding
+    // Non-fatal: if extraction fails, pool_address stays null and can be fixed via admin
+    let poolAddress: string | null = null;
+    if (isConfirmed && token.mint_address) {
+      poolAddress = await extractPoolAddress(
+        body.txSignature,
+        token.mint_address as string,
+        body.walletAddress,
+      );
+    }
+
     await admin
       .from("launchpad_tokens")
       .update({
@@ -83,7 +165,8 @@ export async function POST(req: Request, { params }: RouteParams) {
         tx_prepared_at: null,
         // Only clear the mint secret if tx is confirmed on-chain; keep it for retry otherwise
         ...(isConfirmed ? { vanity_secret_key: null } : {}),
-        // pool_address will be indexed from the tx by a background job
+        // Store pool_address if we could extract it from the tx
+        ...(poolAddress ? { pool_address: poolAddress } : {}),
       })
       .eq("id", id);
 
@@ -92,6 +175,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       status:      newStatus,
       isTradeable,
       scheduledAt: isScheduled ? (token.scheduled_at as string) : null,
+      poolAddress,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

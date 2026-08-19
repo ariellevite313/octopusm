@@ -69,8 +69,9 @@ function fmtHolders(n: number): string {
   return String(n);
 }
 
-// ── TokenStats (lazy fetch from GeckoTerminal) ────────────────────────────────
-// Single fetch per card → market cap + holder count
+// ── TokenStats (lazy fetch via internal API — avoids GeckoTerminal rate-limits) ─
+// Using /api/launchpad/token-stats/[mint] which batches GT + RPC holder count server-side.
+// Each card staggered by a small random delay so requests don't all fire simultaneously.
 
 function TokenStats({ mintAddress }: { mintAddress: string | null }) {
   const [mcap,    setMcap]    = useState<number | null>(null);
@@ -79,20 +80,20 @@ function TokenStats({ mintAddress }: { mintAddress: string | null }) {
   useEffect(() => {
     if (!mintAddress) return;
     let cancelled = false;
-    fetch(
-      `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}`,
-      { headers: { Accept: "application/json" } }
-    )
-      .then(r => r.ok ? r.json() : null)
-      .then((json: { data?: { attributes?: { market_cap_usd?: string; fdv_usd?: string; holders?: number } } } | null) => {
-        if (cancelled || !json) return;
-        const attrs = json?.data?.attributes;
-        const rawMcap = attrs?.market_cap_usd ?? attrs?.fdv_usd ?? null;
-        if (rawMcap) setMcap(parseFloat(rawMcap));
-        if (attrs?.holders) setHolders(attrs.holders);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
+    // Stagger requests: 0–600 ms random delay to spread server-side GT calls
+    const delay = Math.floor(Math.random() * 600);
+    const timer = setTimeout(() => {
+      fetch(`/api/launchpad/token-stats/${mintAddress}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((json: { marketCap?: number | null; fdv?: number | null; holders?: number | null } | null) => {
+          if (cancelled || !json) return;
+          const rawMcap = json.marketCap ?? json.fdv ?? null;
+          if (rawMcap) setMcap(rawMcap);
+          if (json.holders) setHolders(json.holders);
+        })
+        .catch(() => {});
+    }, delay);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [mintAddress]);
 
   if (mcap === null && holders === null) return null;

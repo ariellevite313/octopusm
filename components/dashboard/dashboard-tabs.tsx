@@ -18,8 +18,13 @@ const TABS = [
 export function DashboardTabs() {
   const pathname = usePathname();
 
+  // Launchpad dashboard is a separate universe — no prediction tabs
+  if (pathname === "/dashboard/launchpad" || pathname.startsWith("/dashboard/launchpad/")) {
+    return null;
+  }
+
   return (
-    <div className="hidden md:flex border-b border-border overflow-x-auto scrollbar-none">
+    <div className="flex border-b border-border overflow-x-auto scrollbar-none">
       {TABS.map(({ label, href, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
