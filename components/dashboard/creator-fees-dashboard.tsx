@@ -11,7 +11,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Copy, Check } from "lucide-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import type { CreatorStatsResponse } from "@/app/api/dashboard/creator-stats/route";
@@ -40,6 +40,30 @@ type SolanaWallet = {
 function getPhantom(): SolanaWallet | null {
   if (typeof window === "undefined") return null;
   return (window as unknown as { solana?: SolanaWallet }).solana ?? null;
+}
+
+// ── WalletCopyButton ──────────────────────────────────────────────────────────
+
+function WalletCopyButton({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(address).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  const short = `${address.slice(0, 4)}…${address.slice(-4)}`;
+  return (
+    <button
+      onClick={copy}
+      className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity"
+    >
+      <span className="text-sm font-mono font-medium">{short}</span>
+      {copied
+        ? <Check className="size-3.5" />
+        : <Copy className="size-3.5" />}
+    </button>
+  );
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -266,8 +290,10 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
 
       {/* ── Total claimed card ───────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl bg-primary p-5 text-white">
+
+        {/* Header row */}
         <div className="flex items-start justify-between mb-1">
-          <p className="text-sm font-semibold opacity-90">Total claimed</p>
+          <p className="text-sm font-semibold opacity-90">Total Claimed</p>
           <button
             onClick={() => refresh(true)}
             disabled={refreshing}
@@ -278,8 +304,8 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
           </button>
         </div>
 
+        {/* Amount */}
         <div className="flex items-center gap-3 mt-2">
-          {/* SOL logo */}
           <div className="size-10 rounded-full bg-black/20 flex items-center justify-center shrink-0">
             <svg viewBox="0 0 32 32" className="size-6 fill-white" aria-hidden>
               <path d="M6.47 21.41a.8.8 0 0 1 .57-.24h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H3.78a.4.4 0 0 1-.28-.68l2.97-2.97Zm0-13.82A.8.8 0 0 1 7.04 7.35h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H4.78a.4.4 0 0 1-.28-.68l1.97-1.97Zm17.06 6.88a.8.8 0 0 0-.57-.24H5.09a.4.4 0 0 0-.28.68l2.97 2.97a.8.8 0 0 0 .57.24h17.87a.4.4 0 0 0 .28-.68l-2.97-2.97Z"/>
@@ -289,13 +315,26 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
         </div>
 
         {stats.todayClaimed > 0 && (
-          <p className="mt-2 text-sm opacity-80">
+          <p className="mt-1.5 text-sm opacity-80">
             +{fmtSol(stats.todayClaimed)} claimed today
           </p>
         )}
 
-        {/* Decorative blob */}
-        <div className="pointer-events-none absolute -right-8 -bottom-8 size-40 rounded-full bg-white/10" />
+        {/* Bottom row: wallet address + cat icon */}
+        <div className="flex items-end justify-between mt-5">
+          <WalletCopyButton address={walletAddress} />
+
+          {/* Money cat icon */}
+          <div className="size-10 rounded-full bg-black/25 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 36 36" className="size-6 fill-white" aria-hidden>
+              {/* Simple cat silhouette with $ */}
+              <path d="M7 6 L7 14 Q7 20 13 22 L13 26 Q13 28 15 28 L21 28 Q23 28 23 26 L23 22 Q29 20 29 14 L29 6 L25 10 Q22 8 18 8 Q14 8 11 10 Z" opacity="0.9"/>
+              <circle cx="14" cy="15" r="1.5"/>
+              <circle cx="22" cy="15" r="1.5"/>
+              <text x="18" y="21" textAnchor="middle" fontSize="7" fontWeight="bold" fill="hsl(var(--primary))" fontFamily="sans-serif">$</text>
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* ── Pending fees bar ─────────────────────────────────────────────── */}
