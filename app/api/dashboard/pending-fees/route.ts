@@ -61,29 +61,32 @@ export async function GET(req: Request) {
     .from("launchpad_tokens")
     .select("id, name, ticker, logo_url, pool_address")
     .eq("creator_wallet", wallet)
-    .in("status", ["active", "graduating", "graduated"])
-    .not("pool_address", "is", null);
+    .in("status", ["active", "graduating", "graduated"]);
+  // Note: tokens without pool_address are included — they show 0 pending
 
   if (!tokenRows || tokenRows.length === 0) {
     return NextResponse.json({ total: 0, tokens: [] } satisfies PendingFeesResponse);
   }
 
-  type TokenRow = { id: string; name: string; ticker: string; logo_url: string | null; pool_address: string };
+  type TokenRow = { id: string; name: string; ticker: string; logo_url: string | null; pool_address: string | null };
 
   const withTimeout = (p: Promise<number>, ms = 6000) =>
     Promise.race([p, new Promise<number>(res => setTimeout(() => res(0), ms))]);
 
   // Fan out RPC calls in parallel (each capped at 6 s)
+  // Tokens without a pool_address yet get pending = 0 immediately
   const results = await Promise.all(
     (tokenRows as TokenRow[]).map(async (t) => {
-      const pending = await withTimeout(queryPendingSol(t.pool_address));
+      const pending = t.pool_address
+        ? await withTimeout(queryPendingSol(t.pool_address))
+        : 0;
       return {
         tokenId:     t.id,
         name:        t.name,
         ticker:      t.ticker,
         logoUrl:     t.logo_url,
         pending,
-        poolAddress: t.pool_address,
+        poolAddress: t.pool_address ?? "",
       } satisfies PendingFeeToken;
     })
   );
