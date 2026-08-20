@@ -215,18 +215,18 @@ serve(async (req: Request) => {
               // 23505 = race condition, already inserted — still credit OCTO
               if (!refErr || refErr.code === "23505") {
                 if (!refErr) {
-                  // +200 OCTO to referrer, +50 OCTO to new user
+                  // +20 OMERO to referrer, +5 OMERO to new user
                   await admin.from("octo_transactions").insert([
                     {
                       wallet_address: referrerWallet,
                       type: "referral",
-                      amount: 200,
+                      amount: 20,
                       ref_wallet: walletAddress,
                     },
                     {
                       wallet_address: walletAddress,
                       type: "referral",
-                      amount: 50,
+                      amount: 5,
                       ref_wallet: referrerWallet,
                     },
                   ]);
@@ -245,8 +245,8 @@ serve(async (req: Request) => {
                     );
                   };
                   await Promise.all([
-                    syncLeaderboard(referrerWallet, 200),
-                    syncLeaderboard(walletAddress, 50),
+                    syncLeaderboard(referrerWallet, 20),
+                    syncLeaderboard(walletAddress, 5),
                   ]);
                 }
               }
