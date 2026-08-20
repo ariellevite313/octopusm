@@ -283,7 +283,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
     };
   }).sort((a, b) => (b.earned + b.token.pending) - (a.earned + a.token.pending));
 
-  if (mergedTokens.length === 0) return null;
+  // Note: we always render the orange card — even with 0 tokens/claims.
 
   return (
     <div className="space-y-4">
@@ -361,18 +361,20 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
       )}
 
       {/* ── Per-token list ───────────────────────────────────────────────── */}
-      <div>
-        {mergedTokens.map(({ token, earned }) => (
-          <TokenFeeRow
-            key={token.tokenId}
-            token={token}
-            earned={earned}
-            onClaim={handleClaimOne}
-            claiming={claimingId === token.tokenId}
-            disabled={claimingAll || (claimingId !== null && claimingId !== token.tokenId)}
-          />
-        ))}
-      </div>
+      {mergedTokens.length > 0 && (
+        <div>
+          {mergedTokens.map(({ token, earned }) => (
+            <TokenFeeRow
+              key={token.tokenId}
+              token={token}
+              earned={earned}
+              onClaim={handleClaimOne}
+              claiming={claimingId === token.tokenId}
+              disabled={claimingAll || (claimingId !== null && claimingId !== token.tokenId)}
+            />
+          ))}
+        </div>
+      )}
 
     </div>
   );
