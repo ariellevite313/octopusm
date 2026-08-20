@@ -43,16 +43,27 @@ async function getInitialComments(tokenId: string, wallet: string | null): Promi
     likedSet = new Set((likes ?? []).map((l: { comment_id: string }) => l.comment_id));
   }
 
-  // Launchpad comments do not use OCTO balance (prediction-market concept).
-  // octo_balance is set to 0 for all commenters.
   const likeCountMap: Record<string, number> = {};
+  const octoMap: Record<string, number> = {};
+
   if (comments.length > 0) {
+    // Fetch like counts
     const { data: likeCounts } = await admin
       .from("launchpad_comment_likes")
       .select("comment_id")
       .in("comment_id", comments.map(c => c.id));
     for (const row of (likeCounts ?? []) as { comment_id: string }[]) {
       likeCountMap[row.comment_id] = (likeCountMap[row.comment_id] ?? 0) + 1;
+    }
+
+    // Fetch OMERO balances for all unique commenters
+    const uniqueWallets = [...new Set(comments.map(c => c.wallet_address as string))];
+    const { data: lbRows } = await admin
+      .from("leaderboard_octo")
+      .select("wallet_address, total_octo")
+      .in("wallet_address", uniqueWallets);
+    for (const row of (lbRows ?? []) as { wallet_address: string; total_octo: number }[]) {
+      octoMap[row.wallet_address] = Number(row.total_octo ?? 0);
     }
   }
 
@@ -71,7 +82,7 @@ async function getInitialComments(tokenId: string, wallet: string | null): Promi
       parent_id:      c.parent_id as string | null,
       like_count:     likeCountMap[c.id as string] ?? 0,
       liked_by_me:    likedSet.has(c.id as string),
-      octo_balance:   0, // launchpad has no OCTO concept
+      octo_balance:   octoMap[c.wallet_address as string] ?? 0,
       replies:        [],
     };
     byId[enriched.id] = enriched;

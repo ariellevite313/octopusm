@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTheme } from "next-themes";
 import { Loader2, CandlestickChart, TrendingUp } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -74,7 +75,25 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+function getChartTheme(isDark: boolean) {
+  return isDark
+    ? {
+        background:  "#000000",
+        text:        "#555555",
+        grid:        "#111111",
+        border:      "#1a1a1a",
+      }
+    : {
+        background:  "#ffffff",
+        text:        "#666666",
+        grid:        "#e5e7eb",
+        border:      "#d1d5db",
+      };
+}
+
 export function TokenChart({ mintAddress, name }: { mintAddress: string; name: string }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const poolRef    = useRef<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -159,21 +178,22 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
         if (!bars.length) { setStatus("nodata"); return; }
 
         const { createChart, ColorType } = lw;
+        const t = getChartTheme(isDark);
 
         const chart = createChart(wrapperRef.current, {
           width:  wrapperRef.current.clientWidth,
           height: 440,
           layout: {
-            background: { type: ColorType.Solid, color: "#000000" },
-            textColor: "#555555",
+            background: { type: ColorType.Solid, color: t.background },
+            textColor: t.text,
           },
           grid: {
-            vertLines: { color: "#111111" },
-            horzLines: { color: "#111111", style: 3 },
+            vertLines: { color: t.grid },
+            horzLines: { color: t.grid, style: 3 },
           },
           crosshair: { mode: 1 },
-          rightPriceScale: { borderColor: "#1a1a1a" },
-          timeScale:       { borderColor: "#1a1a1a", timeVisible: true, secondsVisible: false },
+          rightPriceScale: { borderColor: t.border },
+          timeScale:       { borderColor: t.border, timeVisible: true, secondsVisible: false },
           watermark:       { visible: false },
         });
 
@@ -205,6 +225,26 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mintAddress]);
+
+  // ── Re-apply theme when it changes ───────────────────────────────────────────
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const t = getChartTheme(isDark);
+    import("lightweight-charts").then(({ ColorType }) => {
+      chartRef.current?.applyOptions({
+        layout: {
+          background: { type: ColorType.Solid, color: t.background },
+          textColor: t.text,
+        },
+        grid: {
+          vertLines: { color: t.grid },
+          horzLines: { color: t.grid, style: 3 },
+        },
+        rightPriceScale: { borderColor: t.border },
+        timeScale:       { borderColor: t.border },
+      });
+    });
+  }, [isDark]);
 
   // ── Switch timeframe ──────────────────────────────────────────────────────────
   const switchTf = useCallback(async (tf: Timeframe) => {
@@ -259,7 +299,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "#000" }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: isDark ? "#000" : "#fff" }}>
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
       {/* Toolbar */}
