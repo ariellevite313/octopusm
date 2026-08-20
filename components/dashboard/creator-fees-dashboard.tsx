@@ -324,16 +324,8 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
         <div className="flex items-end justify-between mt-5">
           <WalletCopyButton address={walletAddress} />
 
-          {/* Money cat icon */}
-          <div className="size-10 rounded-full bg-black/25 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 36 36" className="size-6 fill-white" aria-hidden>
-              {/* Simple cat silhouette with $ */}
-              <path d="M7 6 L7 14 Q7 20 13 22 L13 26 Q13 28 15 28 L21 28 Q23 28 23 26 L23 22 Q29 20 29 14 L29 6 L25 10 Q22 8 18 8 Q14 8 11 10 Z" opacity="0.9"/>
-              <circle cx="14" cy="15" r="1.5"/>
-              <circle cx="22" cy="15" r="1.5"/>
-              <text x="18" y="21" textAnchor="middle" fontSize="7" fontWeight="bold" fill="hsl(var(--primary))" fontFamily="sans-serif">$</text>
-            </svg>
-          </div>
+          {/* Card logo */}
+          <img src="/card-logo.png" alt="" className="size-10 rounded-full object-cover shrink-0" />
         </div>
       </div>
 
