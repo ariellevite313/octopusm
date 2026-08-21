@@ -14,6 +14,29 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+/** Convert a BN object, number, or decimal string → lamports (number) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function bnToNumber(raw: any): number {
+  if (!raw) return 0;
+  if (typeof raw === "number") return raw;
+  if (typeof raw.toNumber === "function") return raw.toNumber(); // BN object
+  const str = String(raw).trim();
+  if (!str || str === "0" || str === "00") return 0;
+  return parseInt(str, 10); // decimal string
+}
+
+/** Convert a BN object, number, or decimal string → BN */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rawToBN(raw: any): BN {
+  if (!raw) return new BN(0);
+  if (raw instanceof BN) return raw;
+  if (typeof raw === "number") return new BN(raw);
+  if (typeof raw.toNumber === "function") return new BN(raw.toNumber()); // BN-like
+  const str = String(raw).trim();
+  if (!str || str === "0" || str === "00") return new BN(0);
+  return new BN(str); // decimal string
+}
+
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
@@ -52,11 +75,10 @@ export async function GET(_req: Request, { params }: RouteParams) {
         const poolState  = await client.state.getPool(pool);
         if (poolState) {
           const inner  = poolState.poolState ?? poolState;
-          // Real field names confirmed via debug: creatorBaseFee / creatorQuoteFee (hex strings)
-          const rawQ   = inner?.creatorQuoteFee ?? "0";
-          const rawB   = inner?.creatorBaseFee  ?? "0";
-          const quoteL = rawQ === "00" || rawQ === "0" ? 0 : parseInt(rawQ, 16);
-          const baseL  = rawB === "00" || rawB === "0" ? 0 : parseInt(rawB, 16);
+          const rawQ   = inner?.creatorQuoteFee;
+          const rawB   = inner?.creatorBaseFee;
+          const quoteL = bnToNumber(rawQ);
+          const baseL  = bnToNumber(rawB);
           // Always return the SDK value — even if 0 (so UI shows 0, not a GeckoTerminal estimate)
           return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
         }
@@ -159,13 +181,11 @@ export async function POST(req: Request, { params }: RouteParams) {
       if (!poolState) throw new Error("Pool not found");
       const inner = poolState.poolState ?? poolState; // handle both SDK versions
 
-      // Real field names from DBC SDK (confirmed via debug endpoint):
-      //   creatorBaseFee  = base token fees (hex string)
-      //   creatorQuoteFee = SOL fees (hex string)
-      const rawBase  = inner?.creatorBaseFee  ?? "0";
-      const rawQuote = inner?.creatorQuoteFee ?? "0";
-      maxBaseAmount  = new BN(rawBase  === "00" || rawBase  === "0" ? "0" : rawBase,  "hex");
-      maxQuoteAmount = new BN(rawQuote === "00" || rawQuote === "0" ? "0" : rawQuote, "hex");
+      // creatorBaseFee / creatorQuoteFee can be BN objects, numbers, or decimal strings
+      const rawBase  = inner?.creatorBaseFee;
+      const rawQuote = inner?.creatorQuoteFee;
+      maxBaseAmount  = rawToBN(rawBase);
+      maxQuoteAmount = rawToBN(rawQuote);
 
       if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
         return NextResponse.json(

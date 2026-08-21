@@ -3,15 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, TrendingUp, Trophy, LayoutGrid, User, MoreHorizontal, X, ExternalLink } from "lucide-react";
+import { BarChart2, Trophy, LayoutGrid, MoreHorizontal, X, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const NAV_ITEMS = [
   { label: "Markets",  href: "/",           icon: BarChart2,  exact: true  },
-  { label: "Up/Down",  href: "/updown",      icon: TrendingUp, exact: false },
   { label: "Top",      href: "/leaderboard", icon: Trophy,     exact: false },
   { label: "Tokens",   href: "/launchpad",   icon: LayoutGrid, exact: false },
-  { label: "Account",  href: "/dashboard",   icon: User,       exact: false },
 ];
 
 const CLT_DEXSCREENER = "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc";
