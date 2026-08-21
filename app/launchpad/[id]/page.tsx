@@ -106,9 +106,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const token = id.length > 36 ? await getLaunchpadTokenByMint(id) : await getLaunchpadToken(id);
   if (!token) return { title: "Token not found" };
+
+  const title       = `${token.name} ($${token.ticker}) — OMdotfun`;
+  const description = token.description ?? `${token.name} on OMdotfun Launchpad`;
+
   return {
-    title: `${token.name} ($${token.ticker}) — Launchpad`,
-    description: token.description ?? `${token.name} on OMdotfun Launchpad`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName: "OMdotfun",
+      type: "website",
+    },
+    twitter: {
+      card:        "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 

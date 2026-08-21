@@ -213,6 +213,8 @@ export default async function PublicProfilePage({
           series={data.pnl_series}
           totalUsdc={totalUsdc}
           totalClt={totalClt}
+          volumeUsdc={data.volume.usdc}
+          volumeClt={data.volume.clt}
         />
 
         {/* ── 3. Recent activity (paginated client component) ─────────── */}
