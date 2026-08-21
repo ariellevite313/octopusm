@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -13,12 +13,16 @@ import {
 import type { PnlPoint } from "@/services/profile-service";
 
 interface Props {
-  series: PnlPoint[];
+  series:    PnlPoint[];
   totalUsdc: number;
-  totalClt: number;
+  totalClt:  number;
+  volumeUsdc?: number;
+  volumeClt?:  number;
 }
 
-type Range = "7d" | "30d" | "all";
+type Range = "1W" | "1M" | "ALL";
+
+const RANGES: Range[] = ["1W", "1M", "ALL"];
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00Z");
@@ -26,76 +30,81 @@ function formatDate(dateStr: string): string {
 }
 
 function formatAmount(n: number): string {
-  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1000)      return `${(n / 1000).toFixed(1)}k`;
   return n.toFixed(2);
 }
 
-// Custom dot: green above zero, red below
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ColoredDot(props: any) {
-  const { cx, cy, value } = props;
-  if (cx == null || cy == null) return null;
-  const color = value >= 0 ? "#22c55e" : "#ef4444";
-  return <circle cx={cx} cy={cy} r={3} fill={color} stroke="var(--background)" strokeWidth={1.5} />;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label, unit }: any) {
   if (!active || !payload?.length) return null;
+  const val: number = payload[0]?.value ?? 0;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-medium text-muted-foreground">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} style={{ color: p.color }} className="font-semibold">
-          {p.dataKey === "usdc" ? "USDC" : "ClawdTrust"}: {p.value >= 0 ? "+" : ""}{formatAmount(p.value)}
-        </p>
-      ))}
+      <p className="font-semibold" style={{ color: val >= 0 ? "#f97316" : "#ef4444" }}>
+        {val >= 0 ? "+" : ""}{formatAmount(val)} {unit}
+      </p>
     </div>
   );
 }
 
-export function ProfilePnlChart({ series, totalUsdc, totalClt }: Props) {
-  const [range, setRange] = useState<Range>("7d");
+function filterSeries(series: PnlPoint[], range: Range): PnlPoint[] {
+  if (range === "ALL" || series.length === 0) return series;
+  const days = range === "1W" ? 7 : 30;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const filtered = series.filter(p => p.date >= cutoffStr);
+  return filtered.length > 0 ? filtered : series.slice(-1);
+}
 
-  const filtered = useMemo(() => {
-    if (range === "all" || series.length === 0) return series;
-    const days = range === "7d" ? 7 : 30;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    const f = series.filter((p) => p.date >= cutoffStr);
-    // If nothing in range, show last point only
-    return f.length > 0 ? f : series.slice(-1);
-  }, [series, range]);
+// ── Single token chart card ───────────────────────────────────────────────────
 
-  const data = filtered.map((p) => ({
-    date: formatDate(p.date),
-    usdc: Number(p.usdc.toFixed(4)),
-    clt:  Number(p.clt.toFixed(4)),
+interface ChartCardProps {
+  label:      string;   // "USDC" | "ClawdTrust"
+  unit:       string;   // "USDC" | "CLT"
+  total:      number;
+  volume?:    number;
+  series:     PnlPoint[];
+  dataKey:    "usdc" | "clt";
+  color:      string;   // main color
+}
+
+function ChartCard({ label, unit, total, volume, series, dataKey, color }: ChartCardProps) {
+  const [range, setRange] = useState<Range>("1W");
+
+  const filtered = useMemo(() => filterSeries(series, range), [series, range]);
+
+  const data = filtered.map(p => ({
+    date:  formatDate(p.date),
+    value: Number(p[dataKey].toFixed(4)),
   }));
 
-  const usdcColor = totalUsdc >= 0 ? "#378ADD" : "#ef4444";
-  const cltColor  = totalClt  >= 0 ? "#7F77DD" : "#f97316";
+  const isPositive = total >= 0;
+  const mainColor  = isPositive ? color : "#ef4444";
+  const gradId     = `grad-${dataKey}`;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      {/* Header */}
-      <div className="mb-3 flex items-start justify-between">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      {/* Header row */}
+      <div className="flex items-start justify-between mb-1">
         <div>
-          <p className="mb-1 text-xs text-muted-foreground">Cumulative P&amp;L</p>
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span className="text-base font-semibold" style={{ color: usdcColor }}>
-              {totalUsdc >= 0 ? "+" : ""}{formatAmount(totalUsdc)}{" "}
-              <span className="text-xs font-normal text-muted-foreground">USDC</span>
-            </span>
-            <span className="text-base font-semibold" style={{ color: cltColor }}>
-              {totalClt >= 0 ? "+" : ""}{formatAmount(totalClt)}{" "}
-              <span className="text-xs font-normal text-muted-foreground">ClawdTrust</span>
-            </span>
-          </div>
+          <p className="text-xs text-muted-foreground mb-0.5">Profit/Loss · {label}</p>
+          <p className="text-2xl font-bold" style={{ color: mainColor }}>
+            {isPositive ? "+" : ""}{formatAmount(total)}{" "}
+            <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+          </p>
+          {volume !== undefined && volume > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Volume : {formatAmount(volume)} {unit}
+            </p>
+          )}
         </div>
-        <div className="flex gap-0.5 rounded-lg bg-muted p-0.5">
-          {(["7d", "30d", "all"] as Range[]).map((r) => (
+
+        {/* Range buttons */}
+        <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 shrink-0">
+          {RANGES.map(r => (
             <button
               key={r}
               onClick={() => setRange(r)}
@@ -105,31 +114,26 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt }: Props) {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {r === "all" ? "All" : r}
+              {r}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="mb-2 flex flex-wrap gap-4">
-        <div className="flex items-center gap-1.5">
-          <div className="h-0.5 w-4 rounded" style={{ background: "#378ADD" }} />
-          <span className="text-[11px] text-muted-foreground">USDC</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-0 w-4 border-t-2 border-dashed" style={{ borderColor: "#7F77DD" }} />
-          <span className="text-[11px] text-muted-foreground">ClawdTrust</span>
-        </div>
-      </div>
-
+      {/* Chart */}
       {data.length === 0 ? (
-        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          No activity yet
+        <div className="flex h-28 items-center justify-center text-sm text-muted-foreground">
+          No data
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={160}>
-          <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={130}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={mainColor} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={mainColor} stopOpacity={0}   />
+              </linearGradient>
+            </defs>
             <XAxis
               dataKey="date"
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
@@ -143,30 +147,48 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt }: Props) {
               axisLine={false}
               tickFormatter={formatAmount}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip unit={unit} />} />
             <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="4 4" />
-            <Line
+            <Area
               type="monotone"
-              dataKey="usdc"
-              stroke="#378ADD"
+              dataKey="value"
+              stroke={mainColor}
               strokeWidth={2}
-              dot={<ColoredDot />}
-              activeDot={{ r: 4 }}
+              fill={`url(#${gradId})`}
+              dot={false}
+              activeDot={{ r: 4, fill: mainColor }}
               isAnimationActive={false}
             />
-            <Line
-              type="monotone"
-              dataKey="clt"
-              stroke="#7F77DD"
-              strokeWidth={2}
-              strokeDasharray="6 4"
-              dot={<ColoredDot />}
-              activeDot={{ r: 4 }}
-              isAnimationActive={false}
-            />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       )}
+    </div>
+  );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volumeClt }: Props) {
+  return (
+    <div className="space-y-4">
+      <ChartCard
+        label="USDC"
+        unit="USDC"
+        total={totalUsdc}
+        volume={volumeUsdc}
+        series={series}
+        dataKey="usdc"
+        color="#f97316"
+      />
+      <ChartCard
+        label="ClawdTrust"
+        unit="CLT"
+        total={totalClt}
+        volume={volumeClt}
+        series={series}
+        dataKey="clt"
+        color="#7F77DD"
+      />
     </div>
   );
 }
