@@ -12,6 +12,7 @@ import { CopyMint } from "@/components/launchpad/copy-mint";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
+import { TokenShareButton } from "@/components/launchpad/token-share-button";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -274,23 +275,22 @@ export default async function TokenDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Right: socials */}
-        {socials.length > 0 && (
-          <div className="flex items-center gap-4 flex-wrap">
-            {socials.map(s => (
-              <a
-                key={s.label}
-                href={s.href!}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={s.label}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <i className={`ti ${s.icon} text-base`} aria-hidden />
-              </a>
-            ))}
-          </div>
-        )}
+        {/* Right: socials + share */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {socials.map(s => (
+            <a
+              key={s.label}
+              href={s.href!}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={s.label}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <i className={`ti ${s.icon} text-base`} aria-hidden />
+            </a>
+          ))}
+          <TokenShareButton name={token.name} ticker={token.ticker} />
+        </div>
       </div>
 
       {/* ── Stats bar (full-width, borderless) ──────────────────────────────── */}
