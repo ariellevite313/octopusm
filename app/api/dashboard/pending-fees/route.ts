@@ -40,9 +40,22 @@ async function queryPendingSol(poolAddress: string): Promise<number> {
     const pool       = new PublicKey(poolAddress);
     const poolState  = await client.state.getPool(pool);
     if (!poolState) return 0;
-    const inner  = poolState.poolState ?? poolState;
-    const rawQ   = inner?.creatorQuoteFee ?? "0";
-    const lamports = rawQ === "00" || rawQ === "0" ? 0 : parseInt(rawQ, 16);
+    const inner = poolState.poolState ?? poolState;
+    const rawQ  = inner?.creatorQuoteFee;
+    if (!rawQ) return 0;
+
+    // creatorQuoteFee can be a BN object, a number, or a decimal string
+    let lamports: number;
+    if (typeof rawQ === "object" && rawQ !== null && typeof rawQ.toNumber === "function") {
+      lamports = rawQ.toNumber(); // BN
+    } else if (typeof rawQ === "number") {
+      lamports = rawQ;
+    } else {
+      const str = String(rawQ).trim();
+      if (str === "0" || str === "00" || str === "") return 0;
+      lamports = parseInt(str, 10); // decimal string (BN.toString())
+    }
+
     return lamports / 1e9;
   } catch {
     return 0;
