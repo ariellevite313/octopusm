@@ -1,20 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import type { CreatedMarket } from "@/services/profile-service";
+import { fmt, fmtDate } from "@/lib/format";
 
 const PAGE_SIZE = 10;
-
-function fmt(n: number) {
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000)    return `${(n / 1_000).toFixed(1)}k`;
-  return n.toFixed(2);
-}
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -151,7 +143,11 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
         {slice.map((market) => {
           const isUsdc = market.bet_token === "usdc";
           return (
-            <div key={market.id} className="flex items-center gap-4 px-4 py-4">
+            <Link
+              key={market.id}
+              href={`/prediction/${market.id}`}
+              className="flex items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/30"
+            >
               <MarketCoverImage market={market} />
 
               <div className="min-w-0 flex-1 space-y-1">
@@ -205,7 +201,7 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
                   </>
                 )}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

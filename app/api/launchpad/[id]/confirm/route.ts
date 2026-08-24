@@ -134,9 +134,14 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const isConfirmed = result.state === "confirmed";
     if (!isConfirmed) {
-      // Still pending after retry — accept optimistically (network congestion)
-      // but keep vanity_secret_key so user can retry if the tx never lands.
-      console.warn(`tx ${body.txSignature} not yet confirmed for token ${id}, accepting optimistically`);
+      // TX still pending on-chain after 8s — do NOT accept optimistically.
+      // Return a retriable error so the user can try again in a moment.
+      // The token stays "pending" in DB; the blockhash is still valid ~52s.
+      console.warn(`tx ${body.txSignature} not yet confirmed for token ${id} after retries`);
+      return NextResponse.json(
+        { error: "Transaction not yet confirmed. Please wait a few seconds and click Retry." },
+        { status: 202 },
+      );
     }
 
     // Scheduled tokens stay non-tradeable until scheduled_at

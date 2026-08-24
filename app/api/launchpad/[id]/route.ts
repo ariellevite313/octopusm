@@ -2,45 +2,32 @@
  * DELETE /api/launchpad/[id]
  *
  * Permanently deletes a cancelled launchpad token from the DB.
- * Only the creator (session wallet) can delete, and only when status = 'cancelled'.
- *
- * Body: { walletAddress: string }
+ * Admin-only. Token must have status = 'cancelled'.
  */
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth/require-admin";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function DELETE(req: Request, { params }: RouteParams) {
+export async function DELETE(_req: Request, { params }: RouteParams) {
   const { id } = await params;
 
+  const denied = await requireAdminApi();
+  if (denied) return denied;
+
   try {
-    // Verify session wallet
-    const supabase = await createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: { user } } = await (supabase as any).auth.getUser();
-    const sessionWallet: string | null = user?.user_metadata?.wallet_address ?? null;
-
-    if (!sessionWallet) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
 
-    // Fetch the token to verify ownership and status
     const { data: token, error: fetchError } = await admin
       .from("launchpad_tokens")
-      .select("id, creator_wallet, status")
+      .select("id, status")
       .eq("id", id)
       .maybeSingle();
 
     if (fetchError || !token) {
       return NextResponse.json({ error: "Token not found" }, { status: 404 });
-    }
-
-    if ((token.creator_wallet as string) !== sessionWallet) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     if ((token.status as string) !== "cancelled") {

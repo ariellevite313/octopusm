@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck } from "lucide-react";
+import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -113,6 +113,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
   const [filter, setFilter]           = useState<Filter>("all");
   const [loading, setLoading]         = useState<string | null>(null);
   const [confirm, setConfirm]         = useState<string | null>(null); // tokenId awaiting cancel confirm
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null); // tokenId awaiting delete confirm
   const [claimAllBusy, setClaimAllBusy] = useState(false);
 
   const counts = {
@@ -188,6 +189,25 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
         return;
       }
       toast.success(action === "cancel" ? "Token cancelled" : "Vanity generation restarted");
+      router.refresh();
+    } catch {
+      toast.error("Network error — please retry");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function doDelete(tokenId: string) {
+    setLoading(tokenId + "delete");
+    setConfirmDelete(null);
+    try {
+      const res = await fetch(`/api/launchpad/${tokenId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        toast.error(d.error ?? "Delete failed");
+        return;
+      }
+      toast.success("Token deleted");
       router.refresh();
     } catch {
       toast.error("Network error — please retry");
@@ -361,6 +381,48 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                             : <CoinsIcon className="size-3" />
                           }
                         </Button>
+                      )}
+
+                      {/* Delete — only for cancelled tokens */}
+                      {token.status === "cancelled" && (
+                        confirmDelete === token.id ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!!loading}
+                              className="rounded-full border-red-500 bg-red-50 text-red-600 text-xs hover:bg-red-100 dark:border-red-700 dark:bg-red-950/20 dark:text-red-400"
+                              onClick={() => doDelete(token.id)}
+                            >
+                              {isBusy("delete")
+                                ? <LoaderCircle className="size-3 animate-spin" />
+                                : "Supprimer ?"
+                              }
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-full text-xs"
+                              onClick={() => setConfirmDelete(null)}
+                            >
+                              Non
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!!loading}
+                            title="Supprimer définitivement ce token"
+                            className="rounded-full px-2 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
+                            onClick={() => setConfirmDelete(token.id)}
+                          >
+                            {isBusy("delete")
+                              ? <LoaderCircle className="size-3 animate-spin" />
+                              : <Trash2 className="size-3" />
+                            }
+                          </Button>
+                        )
                       )}
 
                       {/* Cancel — not for already cancelled or graduated */}

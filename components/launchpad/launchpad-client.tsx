@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutGrid, List, Copy, Check, BadgeCheck, Users } from "lucide-react";
+import { LayoutGrid, List, Copy, Check, BadgeCheck, Users, Bell } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken } from "@/services/launchpad-service";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -115,13 +116,14 @@ function TokenStats({ mintAddress }: { mintAddress: string | null }) {
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
-type SortTab = "all" | "new" | "graduated" | "scheduled";
+type SortTab = "all" | "new" | "graduated" | "scheduled" | "watchlist";
 
-const SORT_TABS: { id: SortTab; label: string }[] = [
+const SORT_TABS: { id: SortTab; label: string; icon?: React.ReactNode }[] = [
   { id: "all",       label: "All" },
   { id: "new",       label: "New" },
   { id: "graduated", label: "Graduated" },
   { id: "scheduled", label: "Scheduled" },
+  { id: "watchlist", label: "Watchlist", icon: <Bell className="size-3" /> },
 ];
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
@@ -296,9 +298,24 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
 // ── LaunchpadClient ───────────────────────────────────────────────────────────
 
 export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadToken[] }) {
-  const [tab, setTab] = useState<SortTab>("all");
-  const [search, setSearch] = useState("");
+  const [tab, setTab]           = useState<SortTab>("all");
+  const [search, setSearch]     = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Watchlist state
+  const { walletAddress }               = useAuth();
+  const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "watchlist" || !walletAddress) return;
+    setWatchlistLoading(true);
+    fetch(`/api/launchpad/watchlist?wallet=${encodeURIComponent(walletAddress)}`)
+      .then(r => r.ok ? r.json() : { tokenIds: [] })
+      .then((d: { tokenIds: string[] }) => setWatchlistIds(new Set(d.tokenIds)))
+      .catch(() => {})
+      .finally(() => setWatchlistLoading(false));
+  }, [tab, walletAddress]);
 
   const filtered = useMemo(() => {
     let list = [...initialTokens];
@@ -311,6 +328,8 @@ export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadTok
       list = list.filter(t => t.status === "graduated");
     } else if (tab === "scheduled") {
       list = list.filter(t => t.is_scheduled && !t.is_tradeable);
+    } else if (tab === "watchlist") {
+      list = list.filter(t => watchlistIds.has(t.id));
     }
 
     const q = search.toLowerCase().trim();
@@ -323,7 +342,7 @@ export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadTok
     }
 
     return list;
-  }, [initialTokens, tab, search]);
+  }, [initialTokens, tab, search, watchlistIds]);
 
   return (
     <div className="space-y-4">
@@ -336,12 +355,13 @@ export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadTok
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                   tab === t.id
                     ? "bg-emerald-500/10 text-emerald-400"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
+                {t.icon}
                 {t.label}
               </button>
             ))}
@@ -385,19 +405,49 @@ export function LaunchpadClient({ initialTokens }: { initialTokens: LaunchpadTok
       </div>
 
       {/* Content */}
-      {filtered.length === 0 ? (
+      {tab === "watchlist" && !walletAddress ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="mb-3 text-3xl">🚀</p>
-          <p className="mb-1 text-sm font-medium text-foreground">No tokens yet</p>
-          <p className="mb-5 text-xs text-muted-foreground">
-            Be the first to launch a token on OMdotfun
-          </p>
-          <Link
-            href="/launchpad/create"
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Launch a token
-          </Link>
+          <Bell className="mb-3 size-8 text-muted-foreground/40" />
+          <p className="mb-1 text-sm font-medium text-foreground">Connect your wallet</p>
+          <p className="text-xs text-muted-foreground">Connect to see your watchlisted tokens.</p>
+        </div>
+      ) : tab === "watchlist" && watchlistLoading ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-xl border border-border bg-card animate-pulse">
+              <div className="aspect-square w-full bg-muted/30" />
+              <div className="p-2.5 space-y-2">
+                <div className="h-3.5 w-24 rounded bg-muted/40" />
+                <div className="h-2.5 w-14 rounded bg-muted/30" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          {tab === "watchlist" ? (
+            <>
+              <Bell className="mb-3 size-8 text-muted-foreground/40" />
+              <p className="mb-1 text-sm font-medium text-foreground">No watchlisted tokens</p>
+              <p className="text-xs text-muted-foreground">
+                Add tokens to your watchlist from their detail page.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mb-3 text-3xl">🚀</p>
+              <p className="mb-1 text-sm font-medium text-foreground">No tokens yet</p>
+              <p className="mb-5 text-xs text-muted-foreground">
+                Be the first to launch a token on OMdotfun
+              </p>
+              <Link
+                href="/launchpad/create"
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Launch a token
+              </Link>
+            </>
+          )}
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

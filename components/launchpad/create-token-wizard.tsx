@@ -6,7 +6,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   Check, ChevronRight, ChevronLeft, Upload, X, Plus, Trash2,
-  Globe, Twitter, MessageCircle, Hash, ExternalLink, Info,
+  Globe, Twitter, MessageCircle, Hash, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -30,7 +30,6 @@ type WizardData = {
   discord: string;
   other_social: string;
   // Étape 3 — Options avancées
-  supply: number;
   creator_fee_pct: 1;
   fee_recipients: FeeRecipient[];
   share_top100: boolean;
@@ -45,7 +44,6 @@ const INITIAL: WizardData = {
   name: "", ticker: "", category: "Meme", description: "",
   logo_file: null, logo_preview: null, whitepaper_file: null,
   website: "", twitter: "", telegram: "", discord: "", other_social: "",
-  supply: 1_000_000_000,
   creator_fee_pct: 1,
   fee_recipients: [],
   share_top100: false, share_top100_pct: 5,
@@ -54,16 +52,8 @@ const INITIAL: WizardData = {
 };
 
 const CATEGORIES = ["Meme","Utility","AI","Gaming","DeFi","NFT","x402"];
-const SUPPLY_MIN = 10_000_000;
-const SUPPLY_MAX = 1_000_000_000;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatSupply(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(0)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-  return n.toLocaleString();
-}
 
 function tomorrowMin(): string {
   const d = new Date();
@@ -339,34 +329,8 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
     set("fee_recipients", data.fee_recipients.filter((_, idx) => idx !== i));
   }
 
-  const supplyPct = ((data.supply - SUPPLY_MIN) / (SUPPLY_MAX - SUPPLY_MIN)) * 100;
-
   return (
     <div className="space-y-6">
-
-      {/* Supply */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="text-sm font-medium text-foreground">Token Supply</label>
-          <span className="font-mono text-sm font-semibold text-primary">{formatSupply(data.supply)}</span>
-        </div>
-        <input
-          type="range"
-          min={SUPPLY_MIN}
-          max={SUPPLY_MAX}
-          step={10_000_000}
-          value={data.supply}
-          onChange={(e) => set("supply", Number(e.target.value))}
-          className="w-full accent-primary"
-        />
-        <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-          <span>10M</span><span>1B</span>
-        </div>
-        <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          <Info className="size-3.5 shrink-0" />
-          A unique mint address will be generated for your token.
-        </p>
-      </div>
 
       {/* Frais créateur — fixé à 1% */}
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
@@ -510,7 +474,7 @@ function StepReview({ data }: { data: WizardData }) {
           )}
           <div>
             <p className="font-semibold text-foreground">{data.name} <span className="text-muted-foreground font-normal">${data.ticker}</span></p>
-            <p className="text-xs text-muted-foreground">{data.category} · {formatSupply(data.supply)} supply</p>
+            <p className="text-xs text-muted-foreground">{data.category} · 1B supply</p>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">{data.description}</p>
@@ -619,8 +583,7 @@ function validate(step: number, data: WizardData): Record<string, string> {
 
 type InitialData = Partial<Pick<WizardData,
   "name" | "ticker" | "category" | "description" |
-  "website" | "twitter" | "telegram" | "discord" | "other_social" |
-  "supply"
+  "website" | "twitter" | "telegram" | "discord" | "other_social"
 >>;
 
 export function CreateTokenWizard({ initialData }: { initialData?: InitialData }) {
@@ -657,7 +620,7 @@ export function CreateTokenWizard({ initialData }: { initialData?: InitialData }
         description: data.description, website: data.website,
         twitter: data.twitter, telegram: data.telegram,
         discord: data.discord, other_social: data.other_social,
-        supply: data.supply,
+        supply: 1_000_000_000,
         creator_fee_pct: data.creator_fee_pct,
         fee_recipients: data.fee_recipients,
         share_top100: false,

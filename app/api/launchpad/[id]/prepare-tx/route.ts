@@ -94,13 +94,14 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     // Build metadata JSON — logo_url may be null if R2 upload is pending
     const metadataJson = buildMetadataJson({
-      name:        token.name as string,
-      symbol:      token.ticker as string,
-      description: (token.description as string) ?? "",
-      logoUrl:     (token.logo_url as string) ?? "https://omdot.fun/octomarket-logo.png",
-      website:     token.website as string | undefined,
-      twitter:     token.twitter as string | undefined,
-      telegram:    token.telegram as string | undefined,
+      name:          token.name as string,
+      symbol:        token.ticker as string,
+      description:   (token.description as string) ?? "",
+      logoUrl:       (token.logo_url as string) ?? "https://omdot.fun/octomarket-logo.png",
+      creatorWallet: token.creator_wallet as string,
+      website:       token.website as string | undefined,
+      twitter:       token.twitter as string | undefined,
+      telegram:      token.telegram as string | undefined,
     });
 
     // For now store metadata JSON directly; in production upload to R2 first

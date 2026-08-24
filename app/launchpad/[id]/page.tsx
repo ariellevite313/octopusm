@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
@@ -21,6 +22,12 @@ export const revalidate = 30;
 
 type Props = { params: Promise<{ id: string }> };
 
+// ── Deduplicated token fetch (avoids double DB call between generateMetadata + page) ──
+
+const getCachedToken = cache(async (id: string) =>
+  id.length > 36 ? getLaunchpadTokenByMint(id) : getLaunchpadToken(id),
+);
+
 // ── Comments loader ───────────────────────────────────────────────────────────
 
 async function getInitialComments(tokenId: string, wallet: string | null): Promise<MarketCommentEnriched[]> {
@@ -29,45 +36,42 @@ async function getInitialComments(tokenId: string, wallet: string | null): Promi
 
   const { data: rows } = await admin
     .from("launchpad_comments")
-    .select("*")
+    .select("id, token_id, wallet_address, username, avatar_src, content, created_at, parent_id")
     .eq("token_id", tokenId)
     .order("created_at", { ascending: true });
 
   const comments = (rows ?? []) as Array<Record<string, unknown>>;
 
-  let likedSet = new Set<string>();
-  if (wallet) {
-    const { data: likes } = await admin
-      .from("launchpad_comment_likes")
-      .select("comment_id")
-      .eq("wallet_address", wallet);
-    likedSet = new Set((likes ?? []).map((l: { comment_id: string }) => l.comment_id));
+  if (comments.length === 0) return [];
+
+  const commentIds  = comments.map(c => c.id as string);
+  const uniqueWallets = [...new Set(comments.map(c => c.wallet_address as string))];
+
+  // Run all enrichment queries in parallel
+  const [omeroResult, likeCountsResult, userLikesResult] = await Promise.all([
+    admin.from("leaderboard_octo").select("wallet_address, total_octo").in("wallet_address", uniqueWallets),
+    admin.from("launchpad_comment_likes").select("comment_id").in("comment_id", commentIds),
+    wallet
+      ? admin.from("launchpad_comment_likes").select("comment_id").eq("wallet_address", wallet).in("comment_id", commentIds)
+      : Promise.resolve({ data: [] as { comment_id: string }[] }),
+  ]);
+
+  // Build lookup maps
+  const octoMap: Record<string, number> = {};
+  for (const row of (omeroResult.data ?? []) as { wallet_address: string; total_octo: number }[]) {
+    octoMap[row.wallet_address] = Number(row.total_octo ?? 0);
   }
 
   const likeCountMap: Record<string, number> = {};
-  const octoMap: Record<string, number> = {};
-
-  if (comments.length > 0) {
-    // Fetch like counts
-    const { data: likeCounts } = await admin
-      .from("launchpad_comment_likes")
-      .select("comment_id")
-      .in("comment_id", comments.map(c => c.id));
-    for (const row of (likeCounts ?? []) as { comment_id: string }[]) {
-      likeCountMap[row.comment_id] = (likeCountMap[row.comment_id] ?? 0) + 1;
-    }
-
-    // Fetch OMERO balances for all unique commenters
-    const uniqueWallets = [...new Set(comments.map(c => c.wallet_address as string))];
-    const { data: lbRows } = await admin
-      .from("leaderboard_octo")
-      .select("wallet_address, total_octo")
-      .in("wallet_address", uniqueWallets);
-    for (const row of (lbRows ?? []) as { wallet_address: string; total_octo: number }[]) {
-      octoMap[row.wallet_address] = Number(row.total_octo ?? 0);
-    }
+  for (const row of (likeCountsResult.data ?? []) as { comment_id: string }[]) {
+    likeCountMap[row.comment_id] = (likeCountMap[row.comment_id] ?? 0) + 1;
   }
 
+  const likedSet = new Set<string>(
+    ((userLikesResult.data ?? []) as { comment_id: string }[]).map(l => l.comment_id),
+  );
+
+  // Build threaded structure
   const byId: Record<string, MarketCommentEnriched> = {};
   const topLevel: MarketCommentEnriched[] = [];
 
@@ -104,7 +108,7 @@ async function getInitialComments(tokenId: string, wallet: string | null): Promi
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const token = id.length > 36 ? await getLaunchpadTokenByMint(id) : await getLaunchpadToken(id);
+  const token = await getCachedToken(id);
   if (!token) return { title: "Token not found" };
 
   const title       = `${token.name} ($${token.ticker}) — OMdotfun`;
@@ -173,12 +177,12 @@ function shortAddr(s: string, head = 4, tail = 4) {
 export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
   const [token, walletAddress] = await Promise.all([
-    id.length > 36 ? getLaunchpadTokenByMint(id) : getLaunchpadToken(id),
+    getCachedToken(id),   // reuses the same DB call as generateMetadata
     getWalletAddress(),
   ]);
   if (!token) notFound();
 
-  const isCreator  = walletAddress === token.creator_wallet;
+  const isCreator = walletAddress === token.creator_wallet;
 
   if (id.length <= 36 && token.mint_address) {
     redirect(`/launchpad/${token.mint_address}`);
@@ -187,11 +191,11 @@ export default async function TokenDetailPage({ params }: Props) {
   const initialComments = await getInitialComments(token.id, walletAddress);
 
   const socials = [
-    { label: "Website",  href: token.website,     icon: "ti-world" },
-    { label: "Twitter",  href: token.twitter,      icon: "ti-brand-x" },
-    { label: "Telegram", href: token.telegram,     icon: "ti-brand-telegram" },
-    { label: "Discord",  href: token.discord,      icon: "ti-brand-discord" },
-    { label: "Other",    href: token.other_social, icon: "ti-link" },
+    { label: "Website",    href: token.website,       icon: "ti-world" },
+    { label: "Twitter",    href: token.twitter,        icon: "ti-brand-x" },
+    { label: "Telegram",   href: token.telegram,       icon: "ti-brand-telegram" },
+    { label: "Discord",    href: token.discord,        icon: "ti-brand-discord" },
+    { label: "Other",      href: token.other_social,   icon: "ti-link" },
     { label: "Whitepaper", href: token.whitepaper_url, icon: "ti-file-text" },
   ].filter(s => s.href);
 
@@ -200,16 +204,21 @@ export default async function TokenDetailPage({ params }: Props) {
   const isGraduated = token.status === "graduated";
   const showChart   = (isActive || isGraduated) && !!token.mint_address;
 
-  const creatorInitials = token.creator_wallet.slice(0, 2).toUpperCase();
+  // Birdeye uses mint address for token pages
+  const birdeyeTokenUrl = token.mint_address
+    ? `https://birdeye.so/token/${token.mint_address}?chain=solana`
+    : null;
+
+  const creatorInitials     = token.creator_wallet.slice(0, 2).toUpperCase();
+  const creatorDisplayName  = token.creator_display_name ?? null;
 
   return (
     <main className="mx-auto max-w-5xl">
 
       {/* ── Hero banner ─────────────────────────────────────────────────────── */}
-      {/* Outer: positioning context, no overflow clip so avatar can overflow */}
       <div className="relative h-36 md:h-48">
 
-        {/* Inner: background clipped */}
+        {/* Background clipped */}
         <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
           {token.logo_url && (
             <Image
@@ -234,7 +243,7 @@ export default async function TokenDetailPage({ params }: Props) {
           </Link>
         </div>
 
-        {/* Floating avatar — overflows hero downward freely */}
+        {/* Floating avatar */}
         <div className="absolute bottom-0 translate-y-1/2 left-4 md:left-6">
           {token.logo_url ? (
             <Image
@@ -308,7 +317,7 @@ export default async function TokenDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── Stats bar (full-width, borderless) ──────────────────────────────── */}
+      {/* ── Stats bar ───────────────────────────────────────────────────────── */}
       {showChart && (
         <div className="mt-4">
           <TokenMarketStats mintAddress={token.mint_address!} variant="bar" />
@@ -321,17 +330,14 @@ export default async function TokenDetailPage({ params }: Props) {
         {/* ── Left column ─────────────────────────────────────────────────── */}
         <div className="space-y-8">
 
-          {/* Chart */}
           {showChart && (
             <TokenChart mintAddress={token.mint_address!} name={token.name} />
           )}
 
-          {/* Trade stats */}
           {showChart && token.mint_address && (
             <TokenTradeStats mintAddress={token.mint_address} />
           )}
 
-          {/* Pending placeholder */}
           {isPending && (
             <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
               <p className="text-sm font-medium text-foreground mb-1">Awaiting launch</p>
@@ -339,14 +345,13 @@ export default async function TokenDetailPage({ params }: Props) {
             </div>
           )}
 
-          {/* Graduated banner */}
           {isGraduated && (
             <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center">
               <p className="text-sm font-semibold text-indigo-400">🎓 Graduated to DAMM</p>
               <p className="text-xs text-muted-foreground mt-1">This token is now fully tradeable.</p>
-              {token.pool_address && (
+              {birdeyeTokenUrl && (
                 <a
-                  href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
+                  href={birdeyeTokenUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 inline-block text-xs font-medium text-indigo-400 underline"
@@ -357,14 +362,12 @@ export default async function TokenDetailPage({ params }: Props) {
             </div>
           )}
 
-          {/* Description */}
           {token.description && (
             <p className="text-sm text-muted-foreground leading-relaxed">
               {token.description}
             </p>
           )}
 
-          {/* Comments */}
           <div>
             <SectionLabel>Comments</SectionLabel>
             <LaunchpadComments
@@ -376,14 +379,14 @@ export default async function TokenDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* ── Right sidebar — no card borders ─────────────────────────────── */}
+        {/* ── Right sidebar ───────────────────────────────────────────────── */}
         <div className="space-y-6">
 
-          {/* CTA — toujours en premier */}
           <div className="space-y-2">
-            {isActive && token.is_tradeable && token.pool_address && (
+            {/* Trade CTA — active + tradeable only */}
+            {isActive && token.is_tradeable && birdeyeTokenUrl && (
               <a
-                href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
+                href={birdeyeTokenUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-400 transition-colors"
@@ -391,9 +394,11 @@ export default async function TokenDetailPage({ params }: Props) {
                 Trade on Birdeye →
               </a>
             )}
+
             <WatchlistButton tokenId={token.id} />
 
-            {isPending && (
+            {/* Launch button — creator only */}
+            {isPending && isCreator && (
               <div className="space-y-3 pt-1">
                 <LaunchButton
                   tokenId={token.id}
@@ -403,6 +408,7 @@ export default async function TokenDetailPage({ params }: Props) {
               </div>
             )}
 
+            {/* Claim fees — creator only */}
             {isCreator && (isActive || isGraduated) && (
               <div className="pt-2 space-y-1.5">
                 <SectionLabel>Creator fees</SectionLabel>
@@ -418,11 +424,11 @@ export default async function TokenDetailPage({ params }: Props) {
 
           <div className="border-t border-border" />
 
-          {/* Token info — no card, sections séparées par des lignes */}
+          {/* Token info */}
           <div>
             <SectionLabel>Token info</SectionLabel>
-            <InfoRow label="Network"    value="Solana" />
-            <InfoRow label="Supply"     value={formatSupply(token.supply)} />
+            <InfoRow label="Network" value="Solana" />
+            <InfoRow label="Supply"  value={formatSupply(token.supply)} />
             {token.first_buy_amount && (
               <InfoRow label="First buy" value={`${token.first_buy_amount} SOL`} />
             )}
@@ -446,9 +452,16 @@ export default async function TokenDetailPage({ params }: Props) {
               <div className="min-w-0">
                 <a
                   href={`/profile/${token.creator_wallet}`}
-                  className="font-mono text-[11px] text-foreground hover:text-primary transition-colors break-all"
+                  className="block hover:text-primary transition-colors"
                 >
-                  {shortAddr(token.creator_wallet, 6, 6)}
+                  {creatorDisplayName ? (
+                    <>
+                      <span className="block text-xs font-medium text-foreground">{creatorDisplayName}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{shortAddr(token.creator_wallet, 6, 6)}</span>
+                    </>
+                  ) : (
+                    <span className="font-mono text-[11px] text-foreground break-all">{shortAddr(token.creator_wallet, 6, 6)}</span>
+                  )}
                 </a>
               </div>
             </div>

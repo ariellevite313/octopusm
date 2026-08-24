@@ -205,6 +205,13 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         toast.error("Transaction failed on-chain — click Retry");
         return;
       }
+      // 202 = tx submitted but not yet confirmed — ask user to retry in a moment
+      if (res.status === 202) {
+        setError("Transaction en cours… Attends quelques secondes puis clique sur Retry.");
+        setPhase("error");
+        toast.info("Transaction pending — retry in a few seconds");
+        return;
+      }
       if (!res.ok || !body.ok) {
         // Non-fatal: tx is on-chain, backend sync failed. Page auto-refreshes
         // once the indexer picks up the transaction.

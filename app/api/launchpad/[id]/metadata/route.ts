@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const admin = createAdminClient() as any;
   const { data: token } = await admin
     .from("launchpad_tokens")
-    .select("name, ticker, description, logo_url, website, twitter, telegram")
+    .select("name, ticker, description, logo_url, creator_wallet, website, twitter, telegram")
     .eq("id", id)
     .maybeSingle();
 
@@ -31,9 +31,16 @@ export async function GET(_req: Request, { params }: RouteParams) {
     image:        token.logo_url ?? "https://omdot.fun/octomarket-logo.png",
     external_url: token.website ?? "",
     attributes:   [],
+    // Metaplex-standard creators — read by Solscan, Jupiter, Magic Eden, etc.
+    ...(token.creator_wallet
+      ? { creators: [{ address: token.creator_wallet, share: 100, verified: false }] }
+      : {}),
     properties: {
       files:    [{ uri: token.logo_url ?? "", type: "image/png" }],
       category: "image",
+      ...(token.creator_wallet
+        ? { creators: [{ address: token.creator_wallet, share: 100 }] }
+        : {}),
     },
     extensions: {
       website:  token.website  ?? null,

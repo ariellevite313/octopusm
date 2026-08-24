@@ -162,6 +162,7 @@ export function buildMetadataJson(params: {
   symbol: string;
   description: string;
   logoUrl: string;
+  creatorWallet?: string;
   website?: string;
   twitter?: string;
   telegram?: string;
@@ -176,7 +177,15 @@ export function buildMetadataJson(params: {
     properties: {
       files:    [{ uri: params.logoUrl, type: "image/png" }],
       category: "image",
+      // Metaplex-standard creators array — visible on Solscan, Jupiter, etc.
+      ...(params.creatorWallet
+        ? { creators: [{ address: params.creatorWallet, share: 100 }] }
+        : {}),
     },
+    // Top-level creators for explorers that read it here (Solscan, Magic Eden)
+    ...(params.creatorWallet
+      ? { creators: [{ address: params.creatorWallet, share: 100, verified: false }] }
+      : {}),
     extensions: {
       website:  params.website  ?? null,
       twitter:  params.twitter  ?? null,

@@ -3,14 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { ActivityItem } from "@/services/profile-service";
+import { fmt } from "@/lib/format";
 
 const PAGE_SIZE = 10;
-
-function fmt(n: number) {
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000)    return `${(n / 1_000).toFixed(1)}k`;
-  return n.toFixed(2);
-}
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
