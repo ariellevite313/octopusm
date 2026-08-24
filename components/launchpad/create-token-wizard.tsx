@@ -456,8 +456,6 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data }: { data: WizardData }) {
-  // Fee set by the DBC_CONFIG_KEY (3% total: 2% platform + 1% creator)
-  const totalFee = 3;
   // 0.05 SOL creation fee (platform) + optional scheduled fee
   const mintCost = 0.05 + (data.is_scheduled ? 0.1 : 0);
 
@@ -500,7 +498,6 @@ function StepReview({ data }: { data: WizardData }) {
       {/* Options */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Options</p>
-        <Row label="Trading fee" value={`${totalFee}% per trade`} />
         {data.fee_recipients.length > 0 && (
           <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
         )}

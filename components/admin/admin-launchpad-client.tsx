@@ -353,19 +353,6 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                         </Button>
                       </a>
 
-                      {/* Birdeye */}
-                      {token.mint_address && (
-                        <a
-                          href={`https://birdeye.so/token/${token.mint_address}?chain=solana`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button size="sm" variant="ghost" className="rounded-full px-2 text-[10px]" title="Birdeye">
-                            🦅
-                          </Button>
-                        </a>
-                      )}
-
                       {/* Claim platform fees (only for pools with pool_address) */}
                       {token.pool_address && token.status !== "cancelled" && (
                         <Button
@@ -383,8 +370,8 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                         </Button>
                       )}
 
-                      {/* Delete — only for cancelled tokens */}
-                      {token.status === "cancelled" && (
+                      {/* Delete — for cancelled and pending tokens */}
+                      {(token.status === "cancelled" || token.status === "pending") && (
                         confirmDelete === token.id ? (
                           <div className="flex items-center gap-1">
                             <Button
