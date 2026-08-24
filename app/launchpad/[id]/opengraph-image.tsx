@@ -125,7 +125,7 @@ export default async function OgImage({ params }: Props) {
               }}
             >
               <span style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>
-                Voir plus
+                Buy
               </span>
             </div>
           </div>

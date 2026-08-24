@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,20 +71,22 @@ function toDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
-// ─── Service ──────────────────────────────────────────────────────────────────
+// ─── Core function ────────────────────────────────────────────────────────────
 
-export async function getPublicProfile(walletAddress: string): Promise<PublicProfileData> {
+async function _getPublicProfile(walletAddress: string): Promise<PublicProfileData> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   const [
     walletRes,
     rankRes,
-    octoRes,
     updownBetsRes,
     mutuelBetsRes,
     predBetsRes,
     createdMarketsRes,
+    updownCountRes,
+    mutuelCountRes,
+    predCountRes,
   ] = await Promise.all([
     // Wallet info
     admin
@@ -92,20 +95,14 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       .eq("address", walletAddress)
       .maybeSingle(),
 
-    // OCTO total from leaderboard (no 'rank' column — rank computed below)
+    // OCTO total from leaderboard (includes total_octo used for balance + rank)
     admin
       .from("leaderboard_octo")
       .select("total_octo")
       .eq("wallet_address", walletAddress)
       .maybeSingle(),
 
-    // OCTO balance
-    admin
-      .from("octo_transactions")
-      .select("amount")
-      .eq("wallet_address", walletAddress),
-
-    // Up/Down bets — all statuses so active/pending bets appear in activity
+    // Up/Down bets — for P&L computation + activity display
     admin
       .from("updown_bets")
       .select("id, direction, amount, payout, status, created_at, updown_markets(symbol, duration_min)")
@@ -122,7 +119,7 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       .order("created_at", { ascending: false })
       .limit(500),
 
-    // Prediction bets — note: prediction_history has no "payout" column, use net_reward
+    // Prediction bets
     admin
       .from("prediction_history_with_status")
       .select("id, market_title, token, amount, net_reward, result_status, created_at")
@@ -137,16 +134,35 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       .eq("creator_wallet", walletAddress)
       .order("created_at", { ascending: false })
       .limit(50),
+
+    // Accurate total counts (HEAD queries — no row data transfer)
+    admin
+      .from("updown_bets")
+      .select("*", { count: "exact", head: true })
+      .eq("wallet_address", walletAddress),
+
+    admin
+      .from("mutuel_bets")
+      .select("*", { count: "exact", head: true })
+      .eq("wallet_address", walletAddress)
+      .neq("status", "creator_fee"),
+
+    admin
+      .from("prediction_history_with_status")
+      .select("*", { count: "exact", head: true })
+      .eq("wallet_address", walletAddress),
   ]);
 
   // ── Error logging ─────────────────────────────────────────────────────────
-  if (walletRes.error)        console.error("[profile] wallets:", walletRes.error.message);
-  if (rankRes.error)          console.error("[profile] leaderboard_octo:", rankRes.error.message);
-  if (octoRes.error)          console.error("[profile] octo_transactions:", octoRes.error.message);
-  if (updownBetsRes.error)    console.error("[profile] updown_bets:", updownBetsRes.error.message);
-  if (mutuelBetsRes.error)    console.error("[profile] mutuel_bets:", mutuelBetsRes.error.message);
-  if (predBetsRes.error)      console.error("[profile] prediction_history:", predBetsRes.error.message);
+  if (walletRes.error)         console.error("[profile] wallets:", walletRes.error.message);
+  if (rankRes.error)           console.error("[profile] leaderboard_octo:", rankRes.error.message);
+  if (updownBetsRes.error)     console.error("[profile] updown_bets:", updownBetsRes.error.message);
+  if (mutuelBetsRes.error)     console.error("[profile] mutuel_bets:", mutuelBetsRes.error.message);
+  if (predBetsRes.error)       console.error("[profile] prediction_history:", predBetsRes.error.message);
   if (createdMarketsRes.error) console.error("[profile] mutuel_markets:", createdMarketsRes.error.message);
+  if (updownCountRes.error)    console.error("[profile] updown_count:", updownCountRes.error.message);
+  if (mutuelCountRes.error)    console.error("[profile] mutuel_count:", mutuelCountRes.error.message);
+  if (predCountRes.error)      console.error("[profile] pred_count:", predCountRes.error.message);
 
   // ── Wallet ────────────────────────────────────────────────────────────────
   const wallet: PublicProfileWallet | null = walletRes.data
@@ -159,59 +175,58 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       }
     : null;
 
-  // ── Rank + OCTO ───────────────────────────────────────────────────────────
-  // Compute rank: count wallets with strictly more total_octo + 1
-  const userTotalOcto = Number(rankRes.data?.total_octo ?? 0);
+  // ── OCTO balance — use precomputed total from leaderboard (no extra query) ──
+  const octoBalance = Number(rankRes.data?.total_octo ?? 0);
+
+  // ── Rank — sequential after rankRes (requires knowing user's total first) ──
   let rank: number | null = null;
-  if (userTotalOcto > 0) {
+  if (octoBalance > 0) {
     const { count } = await admin
       .from("leaderboard_octo")
       .select("*", { count: "exact", head: true })
-      .gt("total_octo", userTotalOcto);
+      .gt("total_octo", octoBalance);
     rank = (count ?? 0) + 1;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const octoBalance = ((octoRes.data ?? []) as any[]).reduce(
-    (sum: number, r: { amount: number }) => sum + (r.amount ?? 0), 0
-  );
 
-  // ── Up/Down bets ──────────────────────────────────────────────────────────
+  // ── Raw bet arrays ────────────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updownBets: any[] = updownBetsRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mutuelBets: any[] = mutuelBetsRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const predBets: any[]   = predBetsRes.data ?? [];
+  const predBets:   any[] = predBetsRes.data ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createdRaw: any[] = createdMarketsRes.data ?? [];
 
+  // ── Total rounds — accurate counts from DB (not limited by fetch limit) ───
+  const total_rounds =
+    (updownCountRes.count ?? 0) +
+    (mutuelCountRes.count  ?? 0) +
+    (predCountRes.count    ?? 0);
+
   // ── Stats ──────────────────────────────────────────────────────────────────
-  let winCount = 0;
+  let winCount    = 0;
   let totalSettled = 0;
 
   for (const b of updownBets) {
-    // updown: won/claimed/paid all represent a resolved win
     if (["won", "claimed", "paid"].includes(b.status)) { winCount++; totalSettled++; }
     else if (b.status === "lost") { totalSettled++; }
   }
   for (const b of mutuelBets) {
-    // mutuel: status stays "approved" after resolution — use payout_amount as win signal
     const mbMarket = b.mutuel_markets;
     const mbPay    = Number(b.payout_amount ?? 0);
     const mbIsWin  = mbPay > 0;
     const mbIsLoss = mbMarket?.status === "resolved" && !mbIsWin
                      && mbMarket?.winning_option_id
                      && b.option_id !== mbMarket.winning_option_id;
-    if (mbIsWin)  { winCount++; totalSettled++; }
-    else if (mbIsLoss) { totalSettled++; }
+    if (mbIsWin)        { winCount++; totalSettled++; }
+    else if (mbIsLoss)  { totalSettled++; }
   }
   for (const b of predBets) {
-    // prediction: win/claimed/paid all represent a resolved win
     if (["win", "claimed", "paid"].includes(b.result_status)) { winCount++; totalSettled++; }
     else if (b.result_status === "lose") { totalSettled++; }
   }
 
-  const total_rounds = updownBets.length + mutuelBets.length + predBets.length;
   const win_rate = totalSettled > 0 ? Math.round((winCount / totalSettled) * 100) : 0;
 
   // ── Volume ────────────────────────────────────────────────────────────────
@@ -219,8 +234,7 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
   let volumeClt  = 0;
 
   for (const b of updownBets) {
-    const amt = Number(b.amount ?? 0);
-    volumeUsdc += amt; // updown_bets is always USDC
+    volumeUsdc += Number(b.amount ?? 0); // updown_bets is always USDC
   }
   for (const b of mutuelBets) {
     const amt = Number(b.amount ?? 0);
@@ -234,13 +248,11 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
   }
 
   // ── P&L daily series ──────────────────────────────────────────────────────
-  // Accumulate daily delta per token
   const dailyUsdc: Record<string, number> = {};
   const dailyClt:  Record<string, number> = {};
 
   function addDelta(date: string, token: string, pnl: number) {
-    const isUsdc = token === "usdc";
-    if (isUsdc) {
+    if (token === "usdc") {
       dailyUsdc[date] = (dailyUsdc[date] ?? 0) + pnl;
     } else {
       dailyClt[date] = (dailyClt[date] ?? 0) + pnl;
@@ -251,17 +263,16 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     const date = toDate(b.created_at);
     const amt  = Number(b.amount ?? 0);
     const pay  = Number(b.payout ?? 0);
-    const pnl  = (["won", "claimed", "paid"].includes(b.status)) ? pay - amt
-               : (b.status === "lost") ? -amt
+    const pnl  = ["won", "claimed", "paid"].includes(b.status) ? pay - amt
+               : b.status === "lost" ? -amt
                : 0;
-    addDelta(date, "usdc", pnl); // updown_bets is always USDC
+    addDelta(date, "usdc", pnl);
   }
 
   for (const b of mutuelBets) {
-    const date = toDate(b.created_at);
-    const amt  = Number(b.amount ?? 0);
-    const pay  = Number(b.payout_amount ?? 0);
-    // Status stays "approved" after resolution — use payout_amount as win signal
+    const date   = toDate(b.created_at);
+    const amt    = Number(b.amount ?? 0);
+    const pay    = Number(b.payout_amount ?? 0);
     const market = b.mutuel_markets;
     const isWinner = pay > 0;
     const isLoser  = market?.status === "resolved" && !isWinner
@@ -271,17 +282,15 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
   }
 
   for (const b of predBets) {
-    const date = toDate(b.created_at);
-    const amt  = Number(b.amount ?? 0);
-    // net_reward is the net profit already (payout - fees), not the gross payout
+    const date   = toDate(b.created_at);
+    const amt    = Number(b.amount ?? 0);
     const reward = Number(b.net_reward ?? 0);
-    const pnl  = (["win", "claimed", "paid"].includes(b.result_status)) ? reward
-               : (b.result_status === "lose") ? -amt
-               : 0;
+    const pnl    = ["win", "claimed", "paid"].includes(b.result_status) ? reward
+                 : b.result_status === "lose" ? -amt
+                 : 0;
     addDelta(date, b.token ?? "usdc", pnl);
   }
 
-  // Build sorted date list and cumulate
   const allDates = Array.from(
     new Set([...Object.keys(dailyUsdc), ...Object.keys(dailyClt)])
   ).sort();
@@ -295,7 +304,7 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     pnl_series.push({ date, usdc: cumUsdc, clt: cumClt });
   }
 
-  // ── Activity (last 20 across all types) ───────────────────────────────────
+  // ── Activity (last 200, sorted desc) ──────────────────────────────────────
   const activityRaw: ActivityItem[] = [];
 
   for (const b of updownBets) {
@@ -311,7 +320,7 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       market_type:     "updown",
       label:           `${sym.replace("USDT", "")} · ${dur}`,
       direction_badge: b.direction?.toUpperCase() ?? null,
-      token:           "usdc", // updown_bets is always USDC
+      token:           "usdc",
       amount:          amt,
       pnl,
       status:          s,
@@ -325,9 +334,6 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     const amt    = Number(b.amount ?? 0);
     const pay    = Number(b.payout_amount ?? 0);
     const s      = b.status ?? "";
-    // Note: mutuel_bets status stays "approved" after resolution — never becomes "won".
-    // Detect win via payout_amount > 0 (set by admin resolver).
-    // Detect loss via resolved market where this bet's option didn't win.
     const marketResolved = market?.status === "resolved";
     const isWinner = pay > 0;
     const isLoser  = marketResolved && !isWinner && market?.winning_option_id
@@ -351,7 +357,6 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     const amt    = Number(b.amount ?? 0);
     const reward = Number(b.net_reward ?? 0);
     const s      = b.result_status ?? "";
-    // net_reward is already the net payout (not gross); use it directly as pnl for wins
     const pnl    = ["win", "claimed", "paid"].includes(s) ? reward
                  : s === "lose" ? -amt
                  : 0;
@@ -360,7 +365,7 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
       market_type:     "prediction",
       label:           title.length > 40 ? title.slice(0, 40) + "…" : title,
       direction_badge: null,
-      token:           (b.token === "clawdtrust" || b.token === "clt") ? "clt" : "usdc",
+      token:           b.token === "clawdtrust" || b.token === "clt" ? "clt" : "usdc",
       amount:          amt,
       pnl,
       status:          s,
@@ -368,14 +373,15 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     });
   }
 
-  // Sort by date desc and take 200 (component paginates by 10)
   activityRaw.sort((a, b) => b.created_at.localeCompare(a.created_at));
   const activity = activityRaw.slice(0, 200);
 
   // ── Created markets ───────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const created_markets: CreatedMarket[] = createdRaw.map((m: any) => {
     const options: { id: string; label: string }[] =
       Array.isArray(m.options)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ? m.options.map((o: any) => ({ id: o.id ?? "", label: o.label ?? o.text ?? "" }))
         : [];
 
@@ -385,7 +391,6 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
 
     const fee_earned = Math.round(volume * 0.01 * 1_000_000) / 1_000_000;
 
-    // Find winning option label
     let winning_option_label: string | null = null;
     if (m.winning_option_id) {
       const wo = options.find((o) => o.id === m.winning_option_id);
@@ -425,3 +430,11 @@ export async function getPublicProfile(walletAddress: string): Promise<PublicPro
     created_markets,
   };
 }
+
+// ─── Cached export (60 s TTL, per wallet) ────────────────────────────────────
+
+export const getPublicProfile = unstable_cache(
+  _getPublicProfile,
+  ["public-profile"],
+  { revalidate: 60, tags: ["profile"] }
+);

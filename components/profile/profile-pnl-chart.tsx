@@ -11,6 +11,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import type { PnlPoint } from "@/services/profile-service";
+import { fmt as formatAmount } from "@/lib/format";
 
 interface Props {
   series:    PnlPoint[];
@@ -21,28 +22,46 @@ interface Props {
 }
 
 type Range = "1W" | "1M" | "ALL";
+type Token = "usdc" | "clt";
 
 const RANGES: Range[] = ["1W", "1M", "ALL"];
+
+const TOKEN_CONFIG = {
+  usdc: {
+    label:       "USDC",
+    unit:        "USDC",
+    dataKey:     "usdc" as const,
+    color:       "#f97316",
+    activeBg:    "#fff7f0",
+    activeText:  "#c2540a",
+    activeBorder:"#f97316",
+    dotColor:    "#2775ca",
+  },
+  clt: {
+    label:       "ClawdTrust",
+    unit:        "CLT",
+    dataKey:     "clt" as const,
+    color:       "#7F77DD",
+    activeBg:    "#EEEDFE",
+    activeText:  "#3C3489",
+    activeBorder:"#7F77DD",
+    dotColor:    "#7F77DD",
+  },
+} as const;
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00Z");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-function formatAmount(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1000)      return `${(n / 1000).toFixed(1)}k`;
-  return n.toFixed(2);
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTooltip({ active, payload, label, unit }: any) {
+function CustomTooltip({ active, payload, label, unit, positiveColor }: any) {
   if (!active || !payload?.length) return null;
   const val: number = payload[0]?.value ?? 0;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-medium text-muted-foreground">{label}</p>
-      <p className="font-semibold" style={{ color: val >= 0 ? "#f97316" : "#ef4444" }}>
+      <p className="font-semibold" style={{ color: val >= 0 ? positiveColor : "#ef4444" }}>
         {val >= 0 ? "+" : ""}{formatAmount(val)} {unit}
       </p>
     </div>
@@ -59,50 +78,80 @@ function filterSeries(series: PnlPoint[], range: Range): PnlPoint[] {
   return filtered.length > 0 ? filtered : series.slice(-1);
 }
 
-// ── Single token chart card ───────────────────────────────────────────────────
+// ─── Main export ──────────────────────────────────────────────────────────────
 
-interface ChartCardProps {
-  label:      string;   // "USDC" | "ClawdTrust"
-  unit:       string;   // "USDC" | "CLT"
-  total:      number;
-  volume?:    number;
-  series:     PnlPoint[];
-  dataKey:    "usdc" | "clt";
-  color:      string;   // main color
-}
-
-function ChartCard({ label, unit, total, volume, series, dataKey, color }: ChartCardProps) {
+export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volumeClt }: Props) {
+  const [activeToken, setActiveToken] = useState<Token>("usdc");
   const [range, setRange] = useState<Range>("1W");
+
+  const cfg   = TOKEN_CONFIG[activeToken];
+  const total = activeToken === "usdc" ? totalUsdc : totalClt;
+  const vol   = activeToken === "usdc" ? volumeUsdc : volumeClt;
 
   const filtered = useMemo(() => filterSeries(series, range), [series, range]);
 
   const data = filtered.map(p => ({
     date:  formatDate(p.date),
-    value: Number(p[dataKey].toFixed(4)),
+    value: Number(p[cfg.dataKey].toFixed(4)),
   }));
 
   const isPositive = total >= 0;
-  const mainColor  = isPositive ? color : "#ef4444";
-  const gradId     = `grad-${dataKey}`;
+  const mainColor  = isPositive ? cfg.color : "#ef4444";
+  const gradId     = `grad-profile-${activeToken}`;
+
+  function handleTokenSwitch(token: Token) {
+    setActiveToken(token);
+    setRange("1W");
+  }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      {/* Header row */}
+
+      {/* Token selector pills */}
+      <div className="flex gap-2 mb-4">
+        {(["usdc", "clt"] as Token[]).map(token => {
+          const c       = TOKEN_CONFIG[token];
+          const isActive = activeToken === token;
+          return (
+            <button
+              key={token}
+              onClick={() => handleTokenSwitch(token)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all"
+              style={isActive ? {
+                border:     `1.5px solid ${c.activeBorder}`,
+                background: c.activeBg,
+                color:      c.activeText,
+              } : {
+                border:     "0.5px solid var(--border)",
+                background: "transparent",
+                color:      "var(--text-secondary)",
+              }}
+            >
+              <span
+                className="inline-block size-3 rounded-full shrink-0"
+                style={{ background: c.dotColor }}
+              />
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Header: total + range selector */}
       <div className="flex items-start justify-between mb-1">
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Profit/Loss · {label}</p>
+          <p className="text-xs text-muted-foreground mb-0.5">Profit/Loss · {cfg.label}</p>
           <p className="text-2xl font-bold" style={{ color: mainColor }}>
             {isPositive ? "+" : ""}{formatAmount(total)}{" "}
-            <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+            <span className="text-sm font-normal text-muted-foreground">{cfg.unit}</span>
           </p>
-          {volume !== undefined && volume > 0 && (
+          {vol !== undefined && vol > 0 && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Volume : {formatAmount(volume)} {unit}
+              Volume : {formatAmount(vol)} {cfg.unit}
             </p>
           )}
         </div>
 
-        {/* Range buttons */}
         <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 shrink-0">
           {RANGES.map(r => (
             <button
@@ -147,7 +196,7 @@ function ChartCard({ label, unit, total, volume, series, dataKey, color }: Chart
               axisLine={false}
               tickFormatter={formatAmount}
             />
-            <Tooltip content={<CustomTooltip unit={unit} />} />
+            <Tooltip content={<CustomTooltip unit={cfg.unit} positiveColor={cfg.color} />} />
             <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="4 4" />
             <Area
               type="monotone"
@@ -162,33 +211,6 @@ function ChartCard({ label, unit, total, volume, series, dataKey, color }: Chart
           </AreaChart>
         </ResponsiveContainer>
       )}
-    </div>
-  );
-}
-
-// ── Main export ───────────────────────────────────────────────────────────────
-
-export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volumeClt }: Props) {
-  return (
-    <div className="space-y-4">
-      <ChartCard
-        label="USDC"
-        unit="USDC"
-        total={totalUsdc}
-        volume={volumeUsdc}
-        series={series}
-        dataKey="usdc"
-        color="#f97316"
-      />
-      <ChartCard
-        label="ClawdTrust"
-        unit="CLT"
-        total={totalClt}
-        volume={volumeClt}
-        series={series}
-        dataKey="clt"
-        color="#7F77DD"
-      />
     </div>
   );
 }
