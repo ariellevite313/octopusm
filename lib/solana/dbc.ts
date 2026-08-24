@@ -95,6 +95,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
   const platformWallet = getPlatformWallet();
   const configKey      = getConfigKey();
   const creator        = new PublicKey(params.creatorWallet);
+  console.log("[DBC] configKey:", configKey.toBase58(), "| firstBuySol:", params.firstBuySol);
   const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
 
   const client = new DynamicBondingCurveClient(connection, "confirmed");
@@ -113,16 +114,25 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
 
   let poolTx;
   if (firstBuyLamports > 0) {
-    // With first buy
-    poolTx = await client.creator.createPoolWithFirstBuy({
-      ...createPoolParam,
-      firstBuyParam: {
-        buyer:                creator,
-        buyAmount:            new BN(firstBuyLamports),
-        minimumAmountOut:     new BN(0),
-        referralTokenAccount: null,
-      },
-    });
+    // With first buy — SDK v1.5.11 expects { createPoolParam, firstBuyParam }
+    try {
+      poolTx = await client.creator.createPoolWithFirstBuy({
+        createPoolParam,
+        firstBuyParam: {
+          buyer:                creator,
+          buyAmount:            new BN(firstBuyLamports),
+          minimumAmountOut:     new BN(0),
+          referralTokenAccount: null,
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[DBC] createPoolWithFirstBuy failed:", msg);
+      throw new Error(
+        `First buy failed (SDK error: ${msg}). ` +
+        `Check that DBC_CONFIG_KEY is set and the config account exists on-chain.`
+      );
+    }
   } else {
     // Without first buy
     poolTx = await client.creator.createPool(createPoolParam);

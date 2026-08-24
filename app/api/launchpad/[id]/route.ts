@@ -30,9 +30,10 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Token not found" }, { status: 404 });
     }
 
-    if ((token.status as string) !== "cancelled") {
+    const deletableStatuses = ["cancelled", "pending"];
+    if (!deletableStatuses.includes(token.status as string)) {
       return NextResponse.json(
-        { error: "Only cancelled tokens can be deleted" },
+        { error: "Only pending or cancelled tokens can be deleted" },
         { status: 409 },
       );
     }
