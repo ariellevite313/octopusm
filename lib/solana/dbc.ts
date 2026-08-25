@@ -102,14 +102,17 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
 
   // ── Build pool transaction using the pre-created config key ─────────────────
   // All fee/curve settings are already encoded in the config on-chain.
+  // payer = creator so the user's wallet shows as token creator on Solscan.
+  // The Metaplex metadata account is created with payer as the creator field.
+  // Creator pays ~0.02 SOL extra in account rents (standard for all Solana launchpads).
   const createPoolParam = {
     baseMint:    params.mintKeypair.publicKey,
     config:      configKey,
     name:        params.name,
     symbol:      params.symbol,
     uri:         params.metadataUri,
-    payer:       platformWallet.publicKey,
-    poolCreator: platformWallet.publicKey,
+    payer:       creator,
+    poolCreator: creator,
   };
 
   let poolTx;
@@ -150,11 +153,12 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     })
   );
 
-  // ── Pre-sign: platform wallet (payer) + mint keypair ────────────────────────
+  // ── Pre-sign: mint keypair only (platform wallet is not a signer) ───────────
+  // feePayer = creator — user pays tx fees and is recorded as creator on-chain.
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
   poolTx.recentBlockhash = blockhash;
-  poolTx.feePayer = platformWallet.publicKey;
-  poolTx.partialSign(platformWallet, params.mintKeypair);
+  poolTx.feePayer = creator;
+  poolTx.partialSign(params.mintKeypair);
 
   const serialized = poolTx.serialize({ requireAllSignatures: false });
   const transactionBase64 = Buffer.from(serialized).toString("base64");
