@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { verifyTransaction } from "@/lib/solana/verify-tx";
+import { transferPoolCreator } from "@/lib/solana/dbc";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -174,6 +175,20 @@ export async function POST(req: Request, { params }: RouteParams) {
         ...(poolAddress ? { pool_address: poolAddress } : {}),
       })
       .eq("id", id);
+
+    // Transfer pool creator role to the user's wallet so their address shows
+    // on Solscan/Jupiter and they can claim creator fees directly.
+    // Non-fatal: failure logs a warning but doesn't block the response.
+    if (poolAddress) {
+      try {
+        await transferPoolCreator({
+          poolAddress,
+          newCreatorWallet: body.walletAddress,
+        });
+      } catch (transferErr) {
+        console.warn("[confirm] transferPoolCreator failed (non-fatal):", transferErr);
+      }
+    }
 
     return NextResponse.json({
       ok:          true,
