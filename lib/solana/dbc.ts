@@ -109,7 +109,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     symbol:      params.symbol,
     uri:         params.metadataUri,
     payer:       platformWallet.publicKey,
-    poolCreator: creator,
+    poolCreator: platformWallet.publicKey,
   };
 
   let poolTx;
@@ -163,6 +163,53 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     transactionBase64,
     mintAddress: params.mintKeypair.publicKey.toBase58(),
   };
+}
+
+// ── Transfer pool creator ─────────────────────────────────────────────────────
+
+/**
+ * After pool creation, transfer the DBC pool creator role from the platform
+ * wallet to the actual token creator's wallet.
+ *
+ * This makes the user's address appear as the creator on Solscan, Jupiter,
+ * and any explorer that reads the on-chain pool creator field, and also
+ * allows them to claim creator fees directly.
+ *
+ * Must be called server-side after the pool creation tx is confirmed.
+ */
+export async function transferPoolCreator(params: {
+  poolAddress: string;
+  newCreatorWallet: string;
+}): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let DynamicBondingCurveClient: any;
+  try {
+    const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+    DynamicBondingCurveClient = sdk.DynamicBondingCurveClient;
+  } catch {
+    throw new Error("DBC SDK not installed");
+  }
+
+  const connection     = getConnection();
+  const platformWallet = getPlatformWallet();
+  const client         = new DynamicBondingCurveClient(connection, "confirmed");
+
+  // Args: None — only accounts: pool, current creator (signer), new creator
+  const transferTx = await client.creator.transferPoolCreator({
+    pool:       new PublicKey(params.poolAddress),
+    newCreator: new PublicKey(params.newCreatorWallet),
+  });
+
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transferTx.recentBlockhash = blockhash;
+  transferTx.feePayer        = platformWallet.publicKey;
+  transferTx.sign(platformWallet);
+
+  const raw = transferTx.serialize();
+  const sig  = await connection.sendRawTransaction(raw, { skipPreflight: false });
+  await connection.confirmTransaction(sig, "confirmed");
+
+  console.log("[DBC] transferPoolCreator done:", sig);
 }
 
 // ── Metadata builder ──────────────────────────────────────────────────────────
