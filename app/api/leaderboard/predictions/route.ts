@@ -25,7 +25,6 @@ export type LeaderboardEntry = {
 const TOKEN_MAP: Record<string, string> = {
   usdc: "usdc",
   clt:  "clawdtrust",
-  octo: "octo",
 };
 
 const PERIOD_HOURS: Record<string, number | null> = {
@@ -42,53 +41,86 @@ export async function GET(req: Request) {
     const periodKey = searchParams.get("period") ?? "all";
     const limit     = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
 
-    const dbToken  = TOKEN_MAP[tokenKey] ?? "usdc";
-    const hours    = PERIOD_HOURS[periodKey] ?? null;
+    const hours = PERIOD_HOURS[periodKey] ?? null;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
 
-    // Build base query — only resolved (payout_amount not null) bets
-    let query = admin
-      .from("mutuel_bets")
-      .select("wallet_address, amount, payout_amount, created_at")
-      .eq("token", dbToken)
-      .not("payout_amount", "is", null);
+    let sorted: [string, { wins: number; gains: number }][];
 
-    // Period filter
-    if (hours !== null) {
-      const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-      query = query.gte("created_at", since);
+    // ── OMERO tab: query leaderboard_octo (OMERO is a reward, not a bet token) ──
+    if (tokenKey === "octo") {
+      let query = admin
+        .from("leaderboard_octo")
+        .select("wallet_address, total_octo")
+        .order("total_octo", { ascending: false })
+        .limit(limit);
+
+      // Period filter via octo_transactions if needed
+      if (hours !== null) {
+        const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+        const { data: txRows } = await admin
+          .from("octo_transactions")
+          .select("wallet_address, amount")
+          .gte("created_at", since);
+
+        if (!txRows || txRows.length === 0) {
+          return NextResponse.json({ entries: [] });
+        }
+
+        // Aggregate by wallet for the period
+        const periodMap = new Map<string, number>();
+        for (const tx of txRows as { wallet_address: string; amount: number }[]) {
+          periodMap.set(tx.wallet_address, (periodMap.get(tx.wallet_address) ?? 0) + Number(tx.amount));
+        }
+
+        sorted = [...periodMap.entries()]
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, limit)
+          .map(([w, total]) => [w, { wins: 0, gains: total }]);
+      } else {
+        // All-time: use leaderboard_octo directly
+        const { data: lbRows, error } = await query;
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (!lbRows || lbRows.length === 0) return NextResponse.json({ entries: [] });
+
+        sorted = (lbRows as { wallet_address: string; total_octo: number }[])
+          .map((r) => [r.wallet_address, { wins: 0, gains: Number(r.total_octo) }] as [string, { wins: number; gains: number }]);
+      }
+    } else {
+      // ── USDC / CLT tabs: query mutuel_bets ──────────────────────────────────
+      const dbToken = TOKEN_MAP[tokenKey] ?? "usdc";
+
+      let query = admin
+        .from("mutuel_bets")
+        .select("wallet_address, amount, payout_amount, created_at")
+        .eq("token", dbToken)
+        .not("payout_amount", "is", null);
+
+      if (hours !== null) {
+        const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+        query = query.gte("created_at", since);
+      }
+
+      const { data: bets, error } = await query;
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      const walletMap = new Map<string, { wins: number; gains: number }>();
+      for (const bet of (bets ?? []) as { wallet_address: string; amount: number; payout_amount: number }[]) {
+        const gain = (bet.payout_amount ?? 0) - (bet.amount ?? 0);
+        if (gain <= 0) continue;
+        const existing = walletMap.get(bet.wallet_address) ?? { wins: 0, gains: 0 };
+        walletMap.set(bet.wallet_address, { wins: existing.wins + 1, gains: existing.gains + gain });
+      }
+
+      if (walletMap.size === 0) return NextResponse.json({ entries: [] });
+
+      sorted = [...walletMap.entries()]
+        .sort(([, a], [, b]) => b.gains - a.gains)
+        .slice(0, limit);
     }
 
-    const { data: bets, error } = await query;
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Aggregate per wallet
-    const walletMap = new Map<string, { wins: number; gains: number }>();
-
-    for (const bet of (bets ?? []) as { wallet_address: string; amount: number; payout_amount: number }[]) {
-      const gain = (bet.payout_amount ?? 0) - (bet.amount ?? 0);
-      if (gain <= 0) continue; // only count actual wins
-
-      const existing = walletMap.get(bet.wallet_address) ?? { wins: 0, gains: 0 };
-      walletMap.set(bet.wallet_address, {
-        wins:   existing.wins + 1,
-        gains:  existing.gains + gain,
-      });
-    }
-
-    if (walletMap.size === 0) {
-      return NextResponse.json({ entries: [] });
-    }
-
-    // Sort by total gains desc
-    const sorted = [...walletMap.entries()]
-      .sort(([, a], [, b]) => b.gains - a.gains)
-      .slice(0, limit);
+    if (sorted.length === 0) return NextResponse.json({ entries: [] });
 
     const wallets = sorted.map(([w]) => w);
 
