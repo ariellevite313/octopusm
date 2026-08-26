@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Trophy, LayoutGrid, MoreHorizontal, X, ExternalLink } from "lucide-react";
+import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const NAV_ITEMS = [
   { label: "Markets",  href: "/",           icon: BarChart2,  exact: true  },
-  { label: "Leaderboard", href: "/leaderboard", icon: Trophy,  exact: false },
   { label: "Tokens",   href: "/launchpad",   icon: LayoutGrid, exact: false },
 ];
 
