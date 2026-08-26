@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { LeaderboardToken, LeaderboardPeriod, LeaderboardEntry } from "@/app/api/leaderboard/route";
+import type { LeaderboardEntry } from "@/app/api/leaderboard/predictions/route";
+
+type LeaderboardToken  = "usdc" | "clt" | "octo";
+type LeaderboardPeriod = "24h" | "7d" | "31d" | "all";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -57,7 +60,7 @@ export function LeaderboardTabs() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/leaderboard?token=${token}&period=${period}&limit=20`, { signal: controller.signal })
+    fetch(`/api/leaderboard/predictions?token=${token}&period=${period}&limit=20`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         return res.json() as Promise<{ entries: LeaderboardEntry[]; error?: string }>;
