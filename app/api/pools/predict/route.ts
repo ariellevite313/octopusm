@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     selection_id:       body.selection_id,
     selection_label:    body.selection_label,
     user_wallet:        body.wallet_address,
-    recipient_wallet:   "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ",
+    recipient_wallet:   process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ",
     amount_usdc:        body.amount_usdc,
     reserve_fee_usdc:   0,
     total_paid_usdc:    body.amount_usdc,

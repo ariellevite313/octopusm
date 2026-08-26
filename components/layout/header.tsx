@@ -8,10 +8,10 @@ import { Menu, X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
-  { href: "/",            label: "Markets",     badge: undefined, disabled: false },
-  { href: "/leaderboard", label: "Leaderboard", badge: undefined, disabled: false },
-  { href: "/launchpad",   label: "Launchpad",   badge: undefined, disabled: false },
-  { href: "/archive",     label: "Archive",     badge: undefined, disabled: false },
+  { href: "/",                        label: "Markets",     badge: undefined, disabled: false },
+  { href: "/leaderboard/predictions", label: "Leaderboard", badge: undefined, disabled: false },
+  { href: "/launchpad",               label: "Launchpad",   badge: undefined, disabled: false },
+  { href: "/archive",                 label: "Archive",     badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
 function isActive(href: string, pathname: string) {
