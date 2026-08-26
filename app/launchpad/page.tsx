@@ -65,12 +65,20 @@ export default function LaunchpadPage() {
           <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
           <p className="text-xs text-muted-foreground">Tokens launched on Solana</p>
         </div>
-        <Link
-          href="/launchpad/create"
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
-        >
-          + Launch
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/leaderboard"
+            className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-amber-400 hover:text-amber-500"
+          >
+            🏆 Leaderboard
+          </Link>
+          <Link
+            href="/launchpad/create"
+            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
+          >
+            + Launch
+          </Link>
+        </div>
       </div>
 
       {/* Token grid */}

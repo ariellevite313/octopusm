@@ -87,9 +87,25 @@ export default async function OgImage({ params }: Props) {
 
           {/* Name + ticker */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <span style={{ fontSize: 52, fontWeight: 700, color: "#ffffff", lineHeight: 1, letterSpacing: "-1px" }}>
-              {token.name}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <span style={{ fontSize: 52, fontWeight: 700, color: "#ffffff", lineHeight: 1, letterSpacing: "-1px" }}>
+                {token.name}
+              </span>
+              {token.is_verified && (
+                <div
+                  style={{
+                    display: "flex", alignItems: "center",
+                    background: "#f9731622",
+                    border: "1.5px solid #f9731655",
+                    borderRadius: 40,
+                    padding: "6px 16px",
+                    marginTop: "4px",
+                  }}
+                >
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "#f97316" }}>✓ Verified</span>
+                </div>
+              )}
+            </div>
             <span style={{ fontSize: 24, color: "#888", fontWeight: 500 }}>
               ${token.ticker}
             </span>
