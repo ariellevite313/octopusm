@@ -1,228 +1,86 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * GET /api/leaderboard
+ *
+ * Returns the top creator wallets ranked by total SOL fees claimed.
+ * Data comes from creator_fee_claims (confirmed on-chain claims only).
+ */
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
-export type LeaderboardToken = "usdc" | "clt" | "octo";
-export type LeaderboardPeriod = "24h" | "7d" | "31d" | "all";
+export type LeaderboardEntry = {
+  rank:         number;
+  walletAddress: string;
+  totalFeeSol:  number;
+  tokenCount:   number;
+  claimCount:   number;
+};
 
-export interface LeaderboardEntry {
-  rank: number;
-  wallet_address: string;
-  display_name: string | null;
-  avatar_src: string | null;
-  octo_balance: number;
-  total_gains: number;
-  win_count: number;
-}
+export type LeaderboardResponse = {
+  entries: LeaderboardEntry[];
+  updatedAt: string;
+};
 
-function getCutoff(period: LeaderboardPeriod): string | null {
-  if (period === "all") return null;
-  const ms = period === "24h" ? 86_400_000
-           : period === "7d"  ? 7  * 86_400_000
-           :                    31 * 86_400_000;
-  return new Date(Date.now() - ms).toISOString();
-}
-
-function buildMap() {
-  return {} as Record<string, { gains: number; wins: number }>;
-}
-
-function addToMap(
-  map: Record<string, { gains: number; wins: number }>,
-  wallet: string,
-  gain: number,
-  win: boolean
-) {
-  if (!wallet) return;
-  if (!map[wallet]) map[wallet] = { gains: 0, wins: 0 };
-  map[wallet].gains += gain;
-  if (win) map[wallet].wins++;
-}
-
-// Fetch display_name + avatar_src for a list of wallet addresses
-async function fetchWalletProfiles(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any,
-  addresses: string[]
-): Promise<Record<string, { display_name: string | null; avatar_src: string | null; octo_balance: number }>> {
-  if (addresses.length === 0) return {};
-
-  const [{ data: wallets }, { data: octoRows }] = await Promise.all([
-    admin.from("wallets").select("address, display_name, avatar_src").in("address", addresses),
-    admin.from("octo_transactions").select("wallet_address, amount").in("wallet_address", addresses),
-  ]);
-
-  const octoMap: Record<string, number> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const r of (octoRows ?? []) as any[]) {
-    octoMap[r.wallet_address] = (octoMap[r.wallet_address] ?? 0) + (r.amount ?? 0);
-  }
-
-  const out: Record<string, { display_name: string | null; avatar_src: string | null; octo_balance: number }> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const r of (wallets ?? []) as any[]) {
-    out[r.address] = { display_name: r.display_name ?? null, avatar_src: r.avatar_src ?? null, octo_balance: octoMap[r.address] ?? 0 };
-  }
-  // wallets without a profile row still get their octo balance
-  for (const addr of addresses) {
-    if (!out[addr]) out[addr] = { display_name: null, avatar_src: null, octo_balance: octoMap[addr] ?? 0 };
-  }
-  return out;
-}
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl;
-  const token  = (searchParams.get("token")  ?? "usdc") as LeaderboardToken;
-  const period = (searchParams.get("period") ?? "all")  as LeaderboardPeriod;
-  const limit  = Math.min(Number(searchParams.get("limit") ?? 20), 50);
-
-  // Validate params
-  const VALID_TOKENS  = ["usdc", "clt", "octo"] as const;
-  const VALID_PERIODS = ["24h", "7d", "31d", "all"] as const;
-  if (!VALID_TOKENS.includes(token as typeof VALID_TOKENS[number]))
-    return NextResponse.json({ error: "invalid token" }, { status: 400 });
-  if (!VALID_PERIODS.includes(period as typeof VALID_PERIODS[number]))
-    return NextResponse.json({ error: "invalid period" }, { status: 400 });
-
-  const cutoff = getCutoff(period);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
-
-  // ── OCTO ─────────────────────────────────────────────────────────────────
-  if (token === "octo") {
-    let q = admin
-      .from("octo_transactions")
-      .select("wallet_address, amount")
-      .gt("amount", 0);
-    if (cutoff) q = q.gte("created_at", cutoff);
-    const { data, error } = await q;
-    if (error) {
-      console.error("[leaderboard/octo]", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const map = buildMap();
+export async function GET() {
+  try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const r of (data ?? []) as any[]) {
-      addToMap(map, r.wallet_address, Number(r.amount ?? 0), true);
+    const admin = createAdminClient() as any;
+
+    // Aggregate claims by wallet
+    const { data: claims, error: claimsError } = await admin
+      .from("creator_fee_claims")
+      .select("wallet_address, amount_sol");
+
+    if (claimsError) {
+      return NextResponse.json({ error: claimsError.message }, { status: 500 });
     }
 
-    const sorted = Object.entries(map)
-      .filter(([, v]) => v.gains > 0)
-      .sort(([, a], [, b]) => b.gains - a.gains)
-      .slice(0, limit);
+    // Count tokens per wallet (only active/graduating/graduated)
+    const { data: tokens, error: tokensError } = await admin
+      .from("launchpad_tokens")
+      .select("creator_wallet")
+      .in("status", ["active", "graduating", "graduated"]);
 
-    const profiles = await fetchWalletProfiles(admin, sorted.map(([w]) => w));
+    if (tokensError) {
+      return NextResponse.json({ error: tokensError.message }, { status: 500 });
+    }
 
-    const entries: LeaderboardEntry[] = sorted.map(([wallet, v], i) => ({
-      rank:           i + 1,
-      wallet_address: wallet,
-      display_name:   profiles[wallet]?.display_name ?? null,
-      avatar_src:     profiles[wallet]?.avatar_src   ?? null,
-      octo_balance:   profiles[wallet]?.octo_balance ?? 0,
-      total_gains:    Math.round(v.gains * 1_000_000) / 1_000_000,
-      win_count:      v.wins,
-    }));
+    // Aggregate in JS
+    const walletMap = new Map<string, { totalFeeSol: number; claimCount: number }>();
 
-    return NextResponse.json({ entries });
+    for (const claim of (claims ?? []) as { wallet_address: string; amount_sol: number }[]) {
+      const existing = walletMap.get(claim.wallet_address) ?? { totalFeeSol: 0, claimCount: 0 };
+      walletMap.set(claim.wallet_address, {
+        totalFeeSol: existing.totalFeeSol + (claim.amount_sol ?? 0),
+        claimCount:  existing.claimCount + 1,
+      });
+    }
+
+    // Count tokens per wallet
+    const tokenCountMap = new Map<string, number>();
+    for (const t of (tokens ?? []) as { creator_wallet: string }[]) {
+      tokenCountMap.set(t.creator_wallet, (tokenCountMap.get(t.creator_wallet) ?? 0) + 1);
+    }
+
+    // Build sorted entries — only wallets with at least one claim
+    const entries: LeaderboardEntry[] = [...walletMap.entries()]
+      .map(([wallet, { totalFeeSol, claimCount }]) => ({
+        walletAddress: wallet,
+        totalFeeSol:   Math.round(totalFeeSol * 1e6) / 1e6,
+        claimCount,
+        tokenCount:    tokenCountMap.get(wallet) ?? 0,
+      }))
+      .sort((a, b) => b.totalFeeSol - a.totalFeeSol)
+      .slice(0, 50)
+      .map((entry, i) => ({ rank: i + 1, ...entry }));
+
+    return NextResponse.json({
+      entries,
+      updatedAt: new Date().toISOString(),
+    } satisfies LeaderboardResponse);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  // ── USDC or CLT ───────────────────────────────────────────────────────────
-  // updown_bets: no token column — always USDC
-  // mutuel_bets uses "usdc" / "clawdtrust"
-  // prediction_history uses "usdc" / "clawdtrust"
-  const dbToken = token === "usdc" ? "usdc" : "clawdtrust";
-
-  // 1. updown_bets — always USDC, skip entirely for CLT leaderboard
-  // Include claimed/paid: after a user claims their win, status progresses
-  // won → claimed → paid. All three represent real winnings.
-  let udQ = token === "usdc"
-    ? admin
-        .from("updown_bets")
-        .select("wallet_address, amount, payout")
-        .in("status", ["won", "claimed", "paid"])
-    : null;
-  if (udQ && cutoff) udQ = udQ.gte("created_at", cutoff);
-
-  // 2. mutuel_bets — filter by payout_amount > 0 (status stays "approved" after resolution,
-  //    never becomes "won"; payout_amount is set by the admin resolver)
-  let mbQ = admin
-    .from("mutuel_bets")
-    .select("wallet_address, amount, payout_amount")
-    .eq("token", dbToken)
-    .gt("payout_amount", 0)
-    .neq("status", "creator_fee");
-  if (cutoff) mbQ = mbQ.gte("created_at", cutoff);
-
-  // 3. prediction_history_with_status — include win/claimed/paid
-  //    The view CASE gives "claimed"/"paid" higher priority than "win",
-  //    so once a user claims their payout result_status becomes "claimed" not "win".
-  //    Must include all three to avoid undercounting resolved prediction bets.
-  //    Note: prediction_history has no "payout" column — use net_reward only.
-  let predQ = admin
-    .from("prediction_history_with_status")
-    .select("wallet_address, amount, net_reward")
-    .eq("token", dbToken)
-    .in("result_status", ["win", "claimed", "paid"]);
-  if (cutoff) predQ = predQ.gte("created_at", cutoff);
-
-  const [udRes, mbRes, predRes] = await Promise.all([
-    udQ ? udQ : Promise.resolve({ data: [], error: null }),
-    mbQ,
-    predQ,
-  ]);
-
-  if (udRes.error)   console.error("[leaderboard/updown]", udRes.error.message);
-  if (mbRes.error)   console.error("[leaderboard/mutuel]", mbRes.error.message);
-  if (predRes.error) console.error("[leaderboard/pred]",   predRes.error.message);
-
-  // If all sources failed, return a real error instead of an empty list
-  if (udRes.error && mbRes.error && predRes.error) {
-    return NextResponse.json({ error: "Failed to load leaderboard data" }, { status: 500 });
-  }
-
-  const udData   = udRes.data;
-  const mbData   = mbRes.data;
-  const predData = predRes.data;
-
-  const map = buildMap();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const r of (udData ?? []) as any[]) {
-    // Skip bets where payout is null — these are data anomalies (paid with no payout set).
-    // Treating them as 0 would unfairly subtract the full amount from the wallet's score.
-    if (r.payout == null) continue;
-    const gain = Number(r.payout) - Number(r.amount ?? 0);
-    addToMap(map, r.wallet_address, gain, true);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const r of (mbData ?? []) as any[]) {
-    const gain = Number(r.payout_amount ?? 0) - Number(r.amount ?? 0);
-    addToMap(map, r.wallet_address, gain, true);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const r of (predData ?? []) as any[]) {
-    const gain = Number(r.net_reward ?? 0);
-    addToMap(map, r.wallet_address, gain, true);
-  }
-
-  const sorted = Object.entries(map)
-    .filter(([, v]) => v.gains > 0)
-    .sort(([, a], [, b]) => b.gains - a.gains)
-    .slice(0, limit);
-
-  // Fetch wallet display info in one query
-  const profiles = await fetchWalletProfiles(admin, sorted.map(([w]) => w));
-
-  const entries: LeaderboardEntry[] = sorted.map(([wallet, v], i) => ({
-    rank:           i + 1,
-    wallet_address: wallet,
-    display_name:   profiles[wallet]?.display_name ?? null,
-    avatar_src:     profiles[wallet]?.avatar_src   ?? null,
-    total_gains:    Math.round(v.gains * 1_000_000) / 1_000_000,
-    win_count:      v.wins,
-  }));
-
-  return NextResponse.json({ entries });
 }
