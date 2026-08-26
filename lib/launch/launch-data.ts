@@ -47,7 +47,7 @@ export const OFFICIAL_TOKEN_GOLD_BADGE_SRC =
 export const OFFICIAL_DEX_PAIR = "EGi97Rat7zrxRQVVV7EDb5TvxzZXwGDh8vwVKgpfZdFC";
 
 // Payment
-export const SOLANA_PAYMENT_ADDRESS = "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ";
+export const SOLANA_PAYMENT_ADDRESS = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ";
 export const BASE_LAUNCH_FEE_SOL = 5;
 export const DISCOUNT_LAUNCH_FEE_SOL = 4.5;
 export const FREE_LAUNCH_FEE_SOL = 0.2;
