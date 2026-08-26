@@ -194,7 +194,7 @@ export function LeaderboardTabs() {
                     {entry.octo_balance > 0 && <OctoBadge totalOcto={entry.octo_balance} size={12} />}
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    {entry.win_count} win{entry.win_count !== 1 ? "s" : ""}
+                    {token === "octo" ? "total earned" : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`}
                   </p>
                 </div>
 
