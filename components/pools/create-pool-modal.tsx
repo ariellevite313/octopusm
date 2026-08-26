@@ -176,10 +176,12 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     });
 
     if (!payResult.success) {
-      const msg = payResult.error ?? "Payment failed.";
+      const rawMsg = payResult.error ?? "Payment failed.";
+      const isUserCancel = /cancel|reject|authorized|denied|declined/i.test(rawMsg);
+      const msg = isUserCancel ? "Transaction cancelled. Please try again." : rawMsg;
       setStep("error");
       setErrorMsg(msg);
-      if (!/cancel|reject/i.test(msg)) toast.error(msg);
+      if (!isUserCancel) toast.error(msg);
       return;
     }
 
