@@ -8,7 +8,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 const NAV_ITEMS = [
   { label: "Markets",  href: "/",           icon: BarChart2,  exact: true  },
-  { label: "Top",      href: "/leaderboard", icon: Trophy,     exact: false },
+  { label: "Leaderboard", href: "/leaderboard", icon: Trophy,  exact: false },
   { label: "Tokens",   href: "/launchpad",   icon: LayoutGrid, exact: false },
 ];
 
