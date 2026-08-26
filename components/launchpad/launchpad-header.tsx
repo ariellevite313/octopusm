@@ -4,13 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Trophy } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
 
 const NAV_LINKS = [
   { href: "/launchpad",           label: "Tokens" },
   { href: "/launchpad/create",    label: "+ Launch" },
   { href: "/dashboard/launchpad", label: "My tokens" },
+  { href: "/leaderboard",         label: "Leaderboard", icon: Trophy },
 ];
 
 function isActive(href: string, pathname: string) {
@@ -49,16 +50,17 @@ export function LaunchpadHeader() {
               ← Predictions
             </Link>
 
-            {NAV_LINKS.map(({ href, label }) => (
+            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
-                className={`transition-colors hover:text-foreground ${
+                className={`flex items-center gap-1.5 transition-colors hover:text-foreground ${
                   isActive(href, pathname)
                     ? "text-foreground font-medium"
                     : "text-muted-foreground"
                 }`}
               >
+                {Icon && <Icon className="size-3.5" />}
                 {label}
               </Link>
             ))}
@@ -105,7 +107,7 @@ export function LaunchpadHeader() {
               >
                 ← Predictions
               </Link>
-              {NAV_LINKS.map(({ href, label }) => (
+              {NAV_LINKS.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
@@ -116,6 +118,7 @@ export function LaunchpadHeader() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
+                  {Icon && <Icon className="size-4" />}
                   {label}
                 </Link>
               ))}
