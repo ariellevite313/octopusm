@@ -124,28 +124,38 @@ export async function GET(req: Request) {
 
     const wallets = sorted.map(([w]) => w);
 
-    // Fetch profiles for display names + avatars
+    // Fetch profiles — data lives in the `wallets` table
     const { data: profiles } = await admin
-      .from("profiles")
-      .select("wallet_address, username, avatar_url, octo_balance")
+      .from("wallets")
+      .select("address, display_name, avatar_src")
+      .in("address", wallets);
+
+    // Also fetch octo balances
+    const { data: octoRows } = await admin
+      .from("leaderboard_octo")
+      .select("wallet_address, total_octo")
       .in("wallet_address", wallets);
 
     const profileMap = new Map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (profiles ?? []).map((p: any) => [p.wallet_address, p])
+      (profiles ?? []).map((p: any) => [p.address, p])
+    );
+    const octoMap = new Map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (octoRows ?? []).map((r: any) => [r.wallet_address, Number(r.total_octo ?? 0)])
     );
 
     const entries: LeaderboardEntry[] = sorted.map(([wallet, { wins, gains }], i) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const profile = profileMap.get(wallet) as any;
       return {
-        rank:          i + 1,
+        rank:           i + 1,
         wallet_address: wallet,
-        display_name:  profile?.username ?? undefined,
-        avatar_src:    profile?.avatar_url ?? undefined,
-        win_count:     wins,
-        total_gains:   Math.round(gains * 1000) / 1000,
-        octo_balance:  profile?.octo_balance ?? 0,
+        display_name:   profile?.display_name ?? undefined,
+        avatar_src:     profile?.avatar_src   ?? undefined,
+        win_count:      wins,
+        total_gains:    Math.round(gains * 1000) / 1000,
+        octo_balance:   octoMap.get(wallet) ?? 0,
       };
     });
 
