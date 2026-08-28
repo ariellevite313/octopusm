@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("id, creator_wallet, status, is_scheduled")
+      .select("id, creator_wallet, status, is_scheduled, fee_paid_at")
       .eq("id", id)
       .maybeSingle();
 
@@ -59,6 +59,16 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
     if (token.status !== "pending") {
       return NextResponse.json({ error: `Token is already ${token.status as string}` }, { status: 409 });
+    }
+
+    // If fee was already paid in the last 30 min, skip TX1 so the user
+    // doesn't pay twice when retrying after rejecting TX2.
+    const FEE_WINDOW_MS = 30 * 60 * 1000;
+    if (token.fee_paid_at) {
+      const paidAgo = Date.now() - new Date(token.fee_paid_at as string).getTime();
+      if (paidAgo < FEE_WINDOW_MS) {
+        return NextResponse.json({ skip: true });
+      }
     }
 
     const connection     = getConnection();

@@ -1,21 +1,14 @@
 "use client";
 
 /**
- * LaunchButton — guides the user through the on-chain pool creation.
+ * LaunchButton — two-transaction flow to avoid Phantom "Request blocked".
  *
- * Two-transaction flow (prevents Phantom "Request blocked" warning):
+ * TX1 — Platform fee (simple SOL transfer → clean Phantom confirmation)
+ * TX2 — Meteora pool creation (no SOL drain instruction)
  *
- *  TX 1 — Fee payment (simple SOL transfer → platform wallet)
- *    1a. Call /api/launchpad/[id]/prepare-fee-tx → get base64 fee tx
- *    1b. User signs (Phantom shows simple SOL transfer, no warning)
- *    1c. Broadcast fee tx
- *
- *  TX 2 — Pool creation (Meteora DBC, no SOL drain instruction)
- *    2a. Call /api/launchpad/[id]/prepare-tx → get base64 pool tx
- *    2b. User signs (clean tx, no SystemProgram.transfer)
- *    2c. Broadcast pool tx
- *    2d. Call /api/launchpad/[id]/confirm with pool tx signature
- *    2e. Redirect to /launchpad/[id]
+ * Retry protection: if TX1 succeeded but TX2 was rejected, the fee is
+ * recorded server-side (record-fee-tx). On retry, prepare-fee-tx returns
+ * {skip: true} so TX1 is skipped — the user only signs TX2.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -27,12 +20,12 @@ import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Phase =
-  | "ready"         // waiting for user to click
-  | "fee-signing"   // TX1: requesting wallet signature for fee
-  | "fee-sending"   // TX1: broadcasting fee tx
-  | "signing"       // TX2: requesting wallet signature for pool tx
-  | "sending"       // TX2: broadcasting pool tx
-  | "confirming"    // waiting for backend confirm
+  | "ready"
+  | "fee-signing"   // TX1: waiting for user to approve fee
+  | "fee-sending"   // TX1: broadcasting
+  | "signing"       // TX2: waiting for user to approve pool tx
+  | "sending"       // TX2: broadcasting
+  | "confirming"
   | "done"
   | "error";
 
@@ -61,18 +54,17 @@ function getWallet(): SolanaWallet | null {
 }
 
 async function broadcastTx(signedTx: Transaction): Promise<string> {
+  const { Connection } = await import("@solana/web3.js");
   const RPCS = [
     "https://solana-rpc.publicnode.com",
     "https://api.mainnet-beta.solana.com",
     "https://rpc.ankr.com/solana",
   ];
-  const { Connection } = await import("@solana/web3.js");
   for (const rpc of RPCS) {
     try {
       const conn = new Connection(rpc, "confirmed");
-      const sig = await conn.sendRawTransaction(signedTx.serialize(), { maxRetries: 3 });
-      return sig;
-    } catch { /* try next RPC */ }
+      return await conn.sendRawTransaction(signedTx.serialize(), { maxRetries: 3 });
+    } catch { /* try next */ }
   }
   throw new Error("All RPCs failed — please try again");
 }
@@ -90,8 +82,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const [phase, setPhase]             = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]             = useState<string | null>(null);
+  const [feeSkipped, setFeeSkipped]   = useState(false);
 
-  // Fetch mint address on mount
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/status`)
       .then(r => r.json())
@@ -99,10 +91,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         if (body.mintAddress) setMintAddress(body.mintAddress);
         if (body.status === "active" || body.status === "graduated") setPhase("done");
       })
-      .catch(() => {/* non-fatal */});
+      .catch(() => {});
   }, [tokenId]);
 
-  // ── Main launch flow ─────────────────────────────────────────────────────────
   const handleLaunch = useCallback(async () => {
     setError(null);
 
@@ -111,43 +102,33 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       toast.error("Phantom wallet not found. Install it at phantom.app");
       return;
     }
-
-    // Ensure wallet is connected
-    try {
-      await wallet.connect();
-    } catch {
+    try { await wallet.connect(); } catch {
       toast.error("Please connect your wallet first");
       return;
     }
 
-    // Verify the connected wallet is the token creator
     const connectedAddress = wallet.publicKey?.toBase58();
     if (connectedAddress !== walletAddress) {
-      toast.error(
-        `Wrong wallet connected. Connect the creator wallet ending in …${walletAddress.slice(-6)}`
-      );
+      toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
       return;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TX 1: Platform fee payment (simple SOL transfer)
-    // This tx is clean — Phantom shows "Send 0.05 SOL to …" without any warning.
-    // ─────────────────────────────────────────────────────────────────────────
-
+    // ── TX1: Platform fee ────────────────────────────────────────────────────
     setPhase("fee-signing");
 
-    let feeTxBase64: string;
+    // Ask server for fee tx — may return {skip: true} if already paid
+    let skipFee = false;
+    let feeTxBase64 = "";
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/prepare-fee-tx`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ walletAddress }),
+        body: JSON.stringify({ walletAddress }),
       });
-      const body = await res.json() as { transactionBase64?: string; totalSol?: number; error?: string };
-      if (!res.ok || !body.transactionBase64) {
-        throw new Error(body.error ?? "Failed to prepare fee transaction");
-      }
-      feeTxBase64 = body.transactionBase64;
+      const body = await res.json() as { skip?: boolean; transactionBase64?: string; error?: string };
+      if (!res.ok && !body.skip) throw new Error(body.error ?? "Failed to prepare fee transaction");
+      skipFee = body.skip === true;
+      feeTxBase64 = body.transactionBase64 ?? "";
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       setError(msg);
@@ -156,52 +137,51 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
-    // Sign & send fee tx
-    try {
-      const feeTxBuffer = Buffer.from(feeTxBase64, "base64");
-      const feeTx = Transaction.from(feeTxBuffer);
+    setFeeSkipped(skipFee);
 
-      if (wallet.signAndSendTransaction) {
-        // Phantom native path
-        await wallet.signAndSendTransaction(feeTx, { maxRetries: 3, preflightCommitment: "confirmed" });
-      } else {
-        setPhase("fee-sending");
-        const signedFeeTx = await wallet.signTransaction(feeTx);
-        await broadcastTx(signedFeeTx);
+    if (!skipFee) {
+      let feeSig = "";
+      try {
+        const feeTx = Transaction.from(Buffer.from(feeTxBase64, "base64"));
+        if (wallet.signAndSendTransaction) {
+          const r = await wallet.signAndSendTransaction(feeTx, { maxRetries: 3, preflightCommitment: "confirmed" });
+          feeSig = r.signature;
+        } else {
+          const signed = await wallet.signTransaction(feeTx);
+          setPhase("fee-sending");
+          feeSig = await broadcastTx(signed);
+        }
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : "Fee transaction failed";
+        const isRejection = /rejected|cancel/i.test(raw);
+        setError(isRejection ? "Fee payment cancelled." : raw);
+        setPhase("error");
+        if (!isRejection) toast.error(raw);
+        return;
       }
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : "Fee transaction failed";
-      const isRejection = /rejected|cancel/i.test(raw);
-      const msg = isRejection
-        ? "Fee payment cancelled."
-        : raw;
-      setError(msg);
-      setPhase("error");
-      if (!isRejection) toast.error(msg);
-      return;
+
+      // Record fee payment — so retry skips TX1
+      fetch(`/api/launchpad/${tokenId}/record-fee-tx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress, feeTxSig: feeSig }),
+      }).catch(() => {/* non-fatal */});
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TX 2: Pool creation (Meteora DBC — no SOL drain, no Phantom warning)
-    // ─────────────────────────────────────────────────────────────────────────
-
+    // ── TX2: Pool creation ───────────────────────────────────────────────────
     setPhase("signing");
 
     let transactionBase64: string;
-    let mint: string;
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/prepare-tx`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ walletAddress }),
+        body: JSON.stringify({ walletAddress }),
       });
       const body = await res.json() as { transactionBase64?: string; mintAddress?: string; error?: string };
-      if (!res.ok || !body.transactionBase64) {
-        throw new Error(body.error ?? "Failed to prepare pool transaction");
-      }
+      if (!res.ok || !body.transactionBase64) throw new Error(body.error ?? "Failed to prepare pool transaction");
       transactionBase64 = body.transactionBase64;
-      mint = body.mintAddress ?? mintAddress ?? "";
-      if (mint) setMintAddress(mint);
+      if (body.mintAddress) setMintAddress(body.mintAddress);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       setError(msg);
@@ -210,27 +190,24 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
-    // Sign & send pool creation tx
     let txSignature: string;
     try {
-      const txBuffer = Buffer.from(transactionBase64, "base64");
-      const tx = Transaction.from(txBuffer);
-
+      const tx = Transaction.from(Buffer.from(transactionBase64, "base64"));
       if (wallet.signAndSendTransaction) {
-        const res = await wallet.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
+        const r = await wallet.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
         setPhase("sending");
-        txSignature = res.signature;
+        txSignature = r.signature;
       } else {
-        const signedTx = await wallet.signTransaction(tx);
+        const signed = await wallet.signTransaction(tx);
         setPhase("sending");
-        txSignature = await broadcastTx(signedTx);
+        txSignature = await broadcastTx(signed);
       }
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Transaction failed";
       const isRejection = /rejected|cancel/i.test(raw);
       const isExpired   = /blockhash|not found|expired/i.test(raw);
       const msg = isRejection && !isExpired
-        ? "Pool creation cancelled."
+        ? "Pool creation cancelled. Your fee is saved — click Retry to try again without paying the fee."
         : isExpired
           ? "Transaction expired — click Retry to get a fresh one."
           : raw;
@@ -240,19 +217,18 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
-    // ── Confirm with backend ──────────────────────────────────────────────────
+    // ── Confirm ──────────────────────────────────────────────────────────────
     setPhase("confirming");
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ txSignature, walletAddress }),
+        body: JSON.stringify({ txSignature, walletAddress }),
       });
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) {
         setError("Transaction failed on-chain. Click Retry to try again.");
         setPhase("error");
-        toast.error("Transaction failed on-chain — click Retry");
         return;
       }
       if (res.status === 202) {
@@ -262,27 +238,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         return;
       }
       if (!res.ok || !body.ok) {
-        console.error("Confirm sync error (non-fatal):", body.error);
-        toast.warning(
-          `Transaction sent! Sig: ${txSignature.slice(0, 8)}… — page will update automatically.`,
-          { duration: 8000 }
-        );
+        toast.warning(`Transaction sent! Sig: ${txSignature.slice(0, 8)}… — page will update automatically.`, { duration: 8000 });
       }
-    } catch (e) {
-      console.error("Confirm error (non-fatal):", e);
-      toast.warning(
-        `Transaction sent! Sig: ${txSignature.slice(0, 8)}… — page will update automatically.`,
-        { duration: 8000 }
-      );
+    } catch {
+      toast.warning(`Transaction sent! Sig: ${txSignature.slice(0, 8)}… — page will update automatically.`, { duration: 8000 });
     }
 
-    // ── Done ──────────────────────────────────────────────────────────────────
     setPhase("done");
-    toast.success(
-      isScheduled
-        ? "Token created! It will be tradeable at the scheduled date."
-        : "Token launched successfully!"
-    );
+    toast.success(isScheduled ? "Token created! It will be tradeable at the scheduled date." : "Token launched successfully!");
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
   }, [tokenId, walletAddress, mintAddress, isScheduled, router]);
 
@@ -304,7 +267,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
               type="button"
               onClick={() => { navigator.clipboard.writeText(mintAddress); toast.success("CA copied!"); }}
               className="font-mono text-xs text-violet-600 dark:text-violet-400 break-all hover:underline text-left w-full"
-              title="Click to copy"
             >
               {mintAddress}
             </button>
@@ -322,7 +284,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         </div>
         <button
           type="button"
-          onClick={() => { setError(null); setPhase("ready"); }}
+          onClick={() => { setError(null); setFeeSkipped(false); setPhase("ready"); }}
           className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
         >
           Retry
@@ -332,15 +294,16 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   }
 
   const busy = phase !== "ready";
+
   const label: Record<Phase, string> = {
-    ready:       isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
-    "fee-signing": "Step 1/2 — Approve platform fee…",
+    ready:        isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
+    "fee-signing": "Step 1/2 — Approve fee payment…",
     "fee-sending": "Sending fee…",
-    signing:     "Step 2/2 — Approve pool creation…",
-    sending:     "Sending to network…",
-    confirming:  "Confirming…",
-    done:        "Done",
-    error:       "Error",
+    signing:      feeSkipped ? "Approve pool creation…" : "Step 2/2 — Approve pool creation…",
+    sending:      "Sending to network…",
+    confirming:   "Confirming…",
+    done:         "Done",
+    error:        "Error",
   };
 
   return (
@@ -352,17 +315,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         </div>
       )}
 
-      {/* Progress hint shown while signing */}
-      {(phase === "fee-signing" || phase === "fee-sending") && (
+      {phase === "fee-signing" && (
         <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-xs text-blue-700 dark:text-blue-300">
-          <span className="font-semibold">Signature 1 of 2:</span> Platform fee payment.
-          Check your Phantom wallet.
+          <span className="font-semibold">Signature 1/2:</span> Platform fee ({isScheduled ? "0.15" : "0.05"} SOL). Check Phantom.
         </div>
       )}
       {(phase === "signing" || phase === "sending") && (
         <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-4 py-2.5 text-xs text-violet-700 dark:text-violet-300">
-          <span className="font-semibold">Signature 2 of 2:</span> Pool creation on Meteora.
-          Check your Phantom wallet.
+          <span className="font-semibold">{feeSkipped ? "Pool creation:" : "Signature 2/2:"}</span> Meteora pool creation. Check Phantom.
         </div>
       )}
 
@@ -376,10 +336,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         {label[phase]}
       </button>
 
-      {/* Subtle hint below button */}
       {phase === "ready" && (
         <p className="text-center text-xs text-muted-foreground">
-          You will sign 2 transactions: fee payment + pool creation.
+          2 signatures required: fee payment + pool creation.
         </p>
       )}
     </div>

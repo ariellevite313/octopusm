@@ -11,6 +11,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SystemProgram,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -140,8 +141,21 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
     poolTx = await client.creator.createPool(createPoolParam);
   }
 
-  // NOTE: platform fee (0.05 SOL) is collected in a separate transaction
-  // (prepare-fee-tx route) so Phantom doesn't flag this tx as suspicious.
+  // ── Platform fee: SOL transfer to platform wallet ───────────────────────────
+  // 0.05 SOL base fee + 0.10 SOL if scheduled.
+  // NOTE: once omdot.fun is verified by Blowfish (review@phantom.com),
+  // Phantom will no longer show a warning for this instruction.
+  const CREATION_FEE_LAMPORTS  = Math.floor(0.05 * LAMPORTS_PER_SOL);
+  const SCHEDULED_FEE_LAMPORTS = Math.floor(0.10 * LAMPORTS_PER_SOL);
+  const totalFeeLamports = CREATION_FEE_LAMPORTS + (params.isScheduled ? SCHEDULED_FEE_LAMPORTS : 0);
+
+  poolTx.add(
+    SystemProgram.transfer({
+      fromPubkey: creator,
+      toPubkey:   platformWallet.publicKey,
+      lamports:   totalFeeLamports,
+    })
+  );
 
   // ── Pre-sign: mint keypair only (platform wallet is not a signer) ───────────
   // feePayer = creator — user pays tx fees and is recorded as creator on-chain.
