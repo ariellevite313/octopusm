@@ -175,16 +175,26 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
     })
   );
 
-  // TX A: mint creation + metadata + fee — pre-sign with mint keypair
+  // TX A: mint creation + metadata + fee
   const { blockhash: bhA } = await connection.getLatestBlockhash("confirmed");
   const txA = new Transaction({ recentBlockhash: bhA, feePayer: creator });
   for (const ix of ixA) txA.add(ix);
-  txA.partialSign(params.mintKeypair);
 
-  // TX B: DBC pool creation only — no pre-sign (creator is the only signer)
+  // TX B: DBC pool creation only
   const { blockhash: bhB } = await connection.getLatestBlockhash("confirmed");
   const txB = new Transaction({ recentBlockhash: bhB, feePayer: creator });
   for (const ix of ixB) txB.add(ix);
+
+  // Pre-sign with mint keypair only where it is actually a required signer.
+  // We check tx.signatures (populated after instructions are added) rather than
+  // assuming TX A always needs it — the SDK may use PDAs or createAccountWithSeed
+  // which don't require the mint to sign.
+  const mintStr = params.mintKeypair.publicKey.toBase58();
+  const txANeedsMint = txA.signatures.some(s => s.publicKey.toBase58() === mintStr);
+  const txBNeedsMint = txB.signatures.some(s => s.publicKey.toBase58() === mintStr);
+  console.log("[DBC split] txA needs mint sig:", txANeedsMint, "| txB needs mint sig:", txBNeedsMint);
+  if (txANeedsMint) txA.partialSign(params.mintKeypair);
+  if (txBNeedsMint) txB.partialSign(params.mintKeypair);
 
   return {
     txABase64: Buffer.from(txA.serialize({ requireAllSignatures: false })).toString("base64"),
