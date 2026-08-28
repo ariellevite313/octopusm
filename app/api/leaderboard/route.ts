@@ -40,13 +40,14 @@ export async function GET(req: Request) {
     const admin = createAdminClient() as any;
 
     // Aggregate claims by wallet
+    // Note: column names are `wallet` and `claimed_at` (not wallet_address / created_at)
     let claimsQuery = admin
       .from("creator_fee_claims")
-      .select("wallet_address, amount_sol");
+      .select("wallet, amount_sol");
 
     if (hours !== null) {
       const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-      claimsQuery = claimsQuery.gte("created_at", since);
+      claimsQuery = claimsQuery.gte("claimed_at", since);
     }
 
     const { data: claims, error: claimsError } = await claimsQuery;
@@ -68,9 +69,9 @@ export async function GET(req: Request) {
     // Aggregate in JS
     const walletMap = new Map<string, { totalFeeSol: number; claimCount: number }>();
 
-    for (const claim of (claims ?? []) as { wallet_address: string; amount_sol: number }[]) {
-      const existing = walletMap.get(claim.wallet_address) ?? { totalFeeSol: 0, claimCount: 0 };
-      walletMap.set(claim.wallet_address, {
+    for (const claim of (claims ?? []) as { wallet: string; amount_sol: number }[]) {
+      const existing = walletMap.get(claim.wallet) ?? { totalFeeSol: 0, claimCount: 0 };
+      walletMap.set(claim.wallet, {
         totalFeeSol: existing.totalFeeSol + (claim.amount_sol ?? 0),
         claimCount:  existing.claimCount + 1,
       });
