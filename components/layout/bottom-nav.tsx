@@ -15,7 +15,7 @@ const PREDICT_NAV = [
 const LAUNCHPAD_NAV = [
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
   { label: "Launch",      href: "/launchpad/create",        icon: Rocket,     exact: true  },
-  { label: "Leaderboard", href: "/leaderboard",             icon: Trophy,     exact: true  },
+  { label: "Leaderboard", href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
   { label: "My tokens",   href: "/dashboard/launchpad",     icon: User,       exact: false },
 ];
 
@@ -139,7 +139,7 @@ export function BottomNav() {
 
   if (!mounted || !isAuthenticated) return null;
 
-  const isLaunchpad = pathname === "/launchpad" || pathname.startsWith("/launchpad/") || pathname.startsWith("/dashboard/launchpad");
+  const isLaunchpad = pathname === "/launchpad" || pathname.startsWith("/launchpad/") || pathname.startsWith("/dashboard/launchpad") || pathname === "/leaderboard/launchpad";
   const navItems = isLaunchpad ? LAUNCHPAD_NAV : PREDICT_NAV;
 
   return (

@@ -8,13 +8,14 @@ import { Menu, X, Trophy } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
 
 const NAV_LINKS = [
-  { href: "/launchpad",           label: "Tokens" },
-  { href: "/launchpad/create",    label: "+ Launch" },
-  { href: "/dashboard/launchpad", label: "My tokens" },
+  { href: "/launchpad",              label: "Tokens"       },
+  { href: "/launchpad/create",       label: "+ Launch"     },
+  { href: "/dashboard/launchpad",    label: "My tokens"    },
+  { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
 ];
 
 const MOBILE_EXTRA_LINKS = [
-  { href: "/leaderboard", label: "Creator Leaderboard", icon: Trophy },
+  { href: "/leaderboard/launchpad", label: "Leaderboard", icon: Trophy },
 ];
 
 function isActive(href: string, pathname: string) {
