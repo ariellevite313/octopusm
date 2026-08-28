@@ -16,7 +16,7 @@
 import { NextResponse } from "next/server";
 import { Keypair } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
-import { buildCreatePoolTransaction, buildMetadataJson } from "@/lib/solana/dbc";
+import { buildSplitPoolTransactions, buildMetadataJson } from "@/lib/solana/dbc";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -53,17 +53,24 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    // If a prepared transaction is already cached, return it to avoid
-    // duplicate createPool submissions and race conditions.
-    // Cache expires after 45s — Solana blockhash is valid ~60s; 45s gives the user
-    // comfortable time to review + sign on hardware wallets or slow mobile connections.
+    // If a prepared transaction pair is already cached, return it.
+    // Cache expires after 45s (Solana blockhash valid ~60s).
     const cachedAt   = token.tx_prepared_at ? new Date(token.tx_prepared_at as string).getTime() : 0;
     const cacheAgeMs = Date.now() - cachedAt;
     if (token.tx_base64 && cacheAgeMs < 45_000) {
-      return NextResponse.json({
-        transactionBase64: token.tx_base64,
-        mintAddress:       token.mint_address,
-      });
+      try {
+        // tx_base64 may be a JSON object {a, b} for the split-tx flow
+        const parsed = JSON.parse(token.tx_base64 as string) as { a: string; b: string };
+        if (parsed.a && parsed.b) {
+          return NextResponse.json({
+            txABase64:   parsed.a,
+            txBBase64:   parsed.b,
+            mintAddress: token.mint_address,
+          });
+        }
+      } catch {
+        // Legacy single-tx cache — fall through and rebuild
+      }
     }
 
     // ── Mint keypair — generated lazily at prepare-tx time ───────────────────
@@ -109,33 +116,31 @@ export async function POST(req: Request, { params }: RouteParams) {
     const metadataUri = (token.metadata_uri as string | null)
       ?? `https://omdot.fun/api/launchpad/${id}/metadata`;
 
-    // Build the DBC transaction
-    const { transactionBase64, mintAddress } = await buildCreatePoolTransaction({
+    // Build split transactions (TX A: mint+metadata+fee, TX B: DBC pool)
+    const { txABase64, txBBase64, mintAddress } = await buildSplitPoolTransactions({
       name:          token.name as string,
       symbol:        token.ticker as string,
       metadataUri,
       creatorWallet: token.creator_wallet as string,
       mintKeypair,
       totalSupply:   token.supply as number,
-
       firstBuySol:   (token.first_buy_amount as number) ?? 0,
       isScheduled:   Boolean(token.is_scheduled),
-      // activationTimestamp is not forwarded — scheduling is app-level only
-      // (is_tradeable=false until cron flips it at scheduled_at).
     });
 
-    // Cache the prepared tx in DB to prevent duplicate createPool submissions
+    // Cache both txs as JSON in tx_base64
     await admin
       .from("launchpad_tokens")
       .update({
         metadata_uri:   metadataUri,
-        tx_base64:      transactionBase64,
+        tx_base64:      JSON.stringify({ a: txABase64, b: txBBase64 }),
         tx_prepared_at: new Date().toISOString(),
       })
       .eq("id", id);
 
     return NextResponse.json({
-      transactionBase64,
+      txABase64,
+      txBBase64,
       mintAddress,
       metadataJson,
     });
