@@ -22,15 +22,34 @@ export type LeaderboardResponse = {
   updatedAt: string;
 };
 
-export async function GET() {
+const PERIOD_HOURS: Record<string, number | null> = {
+  "24h": 24,
+  "7d":  24 * 7,
+  "30d": 24 * 30,
+  "1y":  24 * 365,
+  "all": null,
+};
+
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const periodKey = searchParams.get("period") ?? "all";
+    const hours     = PERIOD_HOURS[periodKey] ?? null;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
 
     // Aggregate claims by wallet
-    const { data: claims, error: claimsError } = await admin
+    let claimsQuery = admin
       .from("creator_fee_claims")
       .select("wallet_address, amount_sol");
+
+    if (hours !== null) {
+      const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+      claimsQuery = claimsQuery.gte("created_at", since);
+    }
+
+    const { data: claims, error: claimsError } = await claimsQuery;
 
     if (claimsError) {
       return NextResponse.json({ error: claimsError.message }, { status: 500 });
