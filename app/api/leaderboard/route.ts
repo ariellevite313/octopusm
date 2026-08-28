@@ -15,6 +15,8 @@ export type LeaderboardEntry = {
   totalFeeSol:  number;
   tokenCount:   number;
   claimCount:   number;
+  displayName:  string | null;
+  avatarSrc:    string | null;
 };
 
 export type LeaderboardResponse = {
@@ -84,7 +86,7 @@ export async function GET(req: Request) {
     }
 
     // Build sorted entries — only wallets with at least one claim
-    const entries: LeaderboardEntry[] = [...walletMap.entries()]
+    const sortedWallets = [...walletMap.entries()]
       .map(([wallet, { totalFeeSol, claimCount }]) => ({
         walletAddress: wallet,
         totalFeeSol:   Math.round(totalFeeSol * 1e6) / 1e6,
@@ -92,8 +94,31 @@ export async function GET(req: Request) {
         tokenCount:    tokenCountMap.get(wallet) ?? 0,
       }))
       .sort((a, b) => b.totalFeeSol - a.totalFeeSol)
-      .slice(0, 50)
-      .map((entry, i) => ({ rank: i + 1, ...entry }));
+      .slice(0, 50);
+
+    // Fetch profiles from wallets table
+    const walletAddresses = sortedWallets.map(e => e.walletAddress);
+    const { data: profiles } = walletAddresses.length > 0
+      ? await admin
+          .from("wallets")
+          .select("address, display_name, avatar_src")
+          .in("address", walletAddresses)
+      : { data: [] };
+
+    const profileMap = new Map<string, { display_name: string | null; avatar_src: string | null }>();
+    for (const p of (profiles ?? []) as { address: string; display_name: string | null; avatar_src: string | null }[]) {
+      profileMap.set(p.address, { display_name: p.display_name, avatar_src: p.avatar_src });
+    }
+
+    const entries: LeaderboardEntry[] = sortedWallets.map((entry, i) => {
+      const profile = profileMap.get(entry.walletAddress);
+      return {
+        rank: i + 1,
+        ...entry,
+        displayName: profile?.display_name ?? null,
+        avatarSrc:   profile?.avatar_src   ?? null,
+      };
+    });
 
     return NextResponse.json({
       entries,

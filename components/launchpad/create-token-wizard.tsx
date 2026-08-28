@@ -456,9 +456,9 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data }: { data: WizardData }) {
-  // 0.05 SOL platform fee + ~0.02 SOL Solana/Meteora account rent + optional scheduled fee
+  // 0.05 SOL platform fee + 0.02449768 SOL Solana/Meteora account rent + optional scheduled fee
   const PLATFORM_FEE = 0.05;
-  const NETWORK_RENT = 0.02; // approx. rent for pool + mint + metadata accounts
+  const NETWORK_RENT = 0.02449768; // exact rent for pool + mint + metadata accounts (Meteora DBC)
   const mintCost = PLATFORM_FEE + NETWORK_RENT + (data.is_scheduled ? 0.1 : 0);
 
   return (
@@ -517,7 +517,7 @@ function StepReview({ data }: { data: WizardData }) {
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost</p>
         <div className="space-y-1">
           <Row label="Platform fee" value="0.05 SOL" />
-          <Row label="Network rent (Meteora)" value="~0.02 SOL" />
+          <Row label="Network rent (Meteora)" value="~0.0245 SOL" />
           {data.is_scheduled && <Row label="Scheduled launch" value="0.10 SOL" />}
           {data.first_buy_enabled && <Row label="First buy" value={`${data.first_buy_amount} SOL`} />}
           <div className="mt-2 flex items-center justify-between border-t border-border pt-2">

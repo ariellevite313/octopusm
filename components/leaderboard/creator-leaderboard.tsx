@@ -21,6 +21,31 @@ function short(addr: string) {
   return `${addr.slice(0, 5)}…${addr.slice(-4)}`;
 }
 
+function Avatar({ entry, size = "md" }: { entry: LeaderboardEntry; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "size-7" : "size-10";
+  const txt = size === "sm" ? "text-[10px]" : "text-xs";
+  const initials = (entry.displayName ?? entry.walletAddress).slice(0, 2).toUpperCase();
+  if (entry.avatarSrc) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={entry.avatarSrc}
+        alt={entry.displayName ?? entry.walletAddress}
+        className={`${dim} rounded-full object-cover border border-border`}
+      />
+    );
+  }
+  return (
+    <div className={`${dim} rounded-full bg-primary/20 flex items-center justify-center ${txt} font-bold text-primary flex-shrink-0`}>
+      {initials}
+    </div>
+  );
+}
+
+function displayLabel(entry: LeaderboardEntry) {
+  return entry.displayName ?? short(entry.walletAddress);
+}
+
 function fmtSol(n: number) {
   if (n === 0) return "0 SOL";
   if (n >= 1) return `${n.toFixed(4)} SOL`;
@@ -36,10 +61,10 @@ function PodiumCard({ entry }: { entry: LeaderboardEntry }) {
     <div className="flex flex-col items-center gap-2">
       <span className={`${sizes[idx]} font-bold text-foreground`}>{MEDAL[idx]}</span>
       <div className="flex flex-col items-center">
-        <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-          {entry.walletAddress.slice(0, 2).toUpperCase()}
-        </div>
-        <p className="mt-1 text-xs font-mono text-foreground">{short(entry.walletAddress)}</p>
+        <Avatar entry={entry} size="md" />
+        <p className="mt-1 text-xs font-semibold text-foreground max-w-[72px] truncate text-center">
+          {displayLabel(entry)}
+        </p>
         <p className="text-xs font-bold text-primary">{fmtSol(entry.totalFeeSol)}</p>
       </div>
       <div
@@ -166,8 +191,13 @@ export function CreatorLeaderboard() {
                     <td className="px-4 py-3 text-xs font-bold text-muted-foreground w-8">
                       {entry.rank <= 3 ? MEDAL[entry.rank - 1] : `#${entry.rank}`}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-foreground">
-                      {short(entry.walletAddress)}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar entry={entry} size="sm" />
+                        <span className="text-xs font-semibold text-foreground truncate max-w-[90px]">
+                          {displayLabel(entry)}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {entry.tokenCount}
