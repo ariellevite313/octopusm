@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("id, creator_wallet, status, is_scheduled, fee_paid_at")
+      .select("id, creator_wallet, status, is_scheduled")
       .eq("id", id)
       .maybeSingle();
 
@@ -63,12 +63,22 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     // If fee was already paid in the last 30 min, skip TX1 so the user
     // doesn't pay twice when retrying after rejecting TX2.
-    const FEE_WINDOW_MS = 30 * 60 * 1000;
-    if (token.fee_paid_at) {
-      const paidAgo = Date.now() - new Date(token.fee_paid_at as string).getTime();
-      if (paidAgo < FEE_WINDOW_MS) {
-        return NextResponse.json({ skip: true });
+    // (fee_paid_at column may not exist yet — handled gracefully)
+    try {
+      const FEE_WINDOW_MS = 30 * 60 * 1000;
+      const { data: feeRow } = await admin
+        .from("launchpad_tokens")
+        .select("fee_paid_at")
+        .eq("id", id)
+        .maybeSingle();
+      if (feeRow?.fee_paid_at) {
+        const paidAgo = Date.now() - new Date(feeRow.fee_paid_at as string).getTime();
+        if (paidAgo < FEE_WINDOW_MS) {
+          return NextResponse.json({ skip: true });
+        }
       }
+    } catch {
+      // Column doesn't exist yet — skip the check, proceed normally
     }
 
     const connection     = getConnection();
