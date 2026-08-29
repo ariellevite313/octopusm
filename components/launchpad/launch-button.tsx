@@ -92,6 +92,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const [phase, setPhase]             = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]             = useState<string | null>(null);
+  const [hasTxA, setHasTxA]          = useState(true); // false when mint already on-chain
 
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/status`)
@@ -118,9 +119,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
-    // ── Fetch both transactions from server ───────────────────────────────────
+    // ── Fetch transactions from server ────────────────────────────────────────
     setPhase("signing-a");
-    let txABase64: string, txBBase64: string;
+    let txABase64: string | null, txBBase64: string;
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/prepare-tx`, {
         method: "POST",
@@ -128,52 +129,81 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         body: JSON.stringify({ walletAddress }),
       });
       const body = await res.json() as {
-        txABase64?: string; txBBase64?: string;
+        txABase64?: string | null; txBBase64?: string;
         mintAddress?: string; error?: string;
       };
-      if (!res.ok || !body.txABase64 || !body.txBBase64) {
+      if (!res.ok || !body.txBBase64) {
         throw new Error(body.error ?? "Failed to prepare transactions");
       }
-      txABase64 = body.txABase64;
+      txABase64 = body.txABase64 ?? null;
       txBBase64 = body.txBBase64;
+      setHasTxA(txABase64 !== null);
       if (body.mintAddress) setMintAddress(body.mintAddress);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       setError(msg); setPhase("error"); toast.error(msg); return;
     }
 
-    // ── TX A: mint + metadata + fee ───────────────────────────────────────────
-    try {
-      await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : "TX A failed";
-      const isRejection = /rejected|cancel/i.test(raw);
-      setError(isRejection ? "Cancelled." : raw);
-      setPhase("error");
-      if (!isRejection) toast.error(raw);
-      return;
+    // ── TX A: mint + metadata + fee (skipped if mint already exists on-chain) ─
+    if (txABase64) {
+      try {
+        await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : "TX A failed";
+        const isRejection = /rejected|cancel/i.test(raw);
+        setError(isRejection ? "Cancelled." : raw);
+        setPhase("error");
+        if (!isRejection) toast.error(raw);
+        return;
+      }
+    } else {
+      // Mint already created in a previous attempt — jump straight to TX B
+      toast.info("Mint already created — signing pool creation only.");
     }
 
     // ── TX B: DBC pool creation ───────────────────────────────────────────────
     setPhase("signing-b");
-    let poolSig: string;
+    let poolSig = "";
     try {
       poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
     } catch (e) {
       const raw = e instanceof Error ? e.message : "TX B failed";
-      const isRejection = /rejected|cancel/i.test(raw);
-      const isExpired   = /blockhash|expired/i.test(raw);
-      const msg = isRejection && !isExpired
-        ? "Pool creation cancelled. Click Retry — TX A (fee + mint) won't be repeated."
-        : isExpired
-          ? "Transaction expired — click Retry."
-          : raw;
-      setError(msg); setPhase("error");
-      if (!isRejection || isExpired) toast.error(msg);
+      const isExpired = /blockhash|expired/i.test(raw);
+
+      if (isExpired) {
+        setError("Transaction expired — click Retry.");
+        setPhase("error");
+        toast.error("Transaction expired — click Retry.");
+        return;
+      }
+
+      // Phantom sometimes fires an error AFTER broadcasting (e.g. after "Proceed anyway").
+      // Poll the status endpoint to check if the pool actually landed on-chain.
+      setPhase("confirming");
+      for (let i = 0; i < 5; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          const s = await fetch(`/api/launchpad/${tokenId}/status`).then(r => r.json()) as { status: string };
+          if (s.status === "active" || s.status === "graduated") {
+            setPhase("done");
+            toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
+            setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+            return;
+          }
+        } catch { /* non-fatal */ }
+      }
+
+      // Still pending after polling — genuine cancellation or failure
+      setError("Pool creation cancelled. Click Retry — mint creation won't be repeated.");
+      setPhase("error");
       return;
     }
 
     // ── Confirm ───────────────────────────────────────────────────────────────
+    if (!poolSig) {
+      // Should not happen, but guard against empty sig
+      setError("Missing transaction signature. Click Retry."); setPhase("error"); return;
+    }
     setPhase("confirming");
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
@@ -266,7 +296,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       )}
 
       {/* Context hint per step */}
-      {(phase === "signing-a" || phase === "sending-a") && (
+      {(phase === "signing-a" || phase === "sending-a") && hasTxA && (
         <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-xs text-blue-700 dark:text-blue-300">
           <p className="font-semibold">Signature 1/2 — Mint creation + platform fee</p>
           <p className="mt-0.5 opacity-80">Phantom will show the {isScheduled ? "0.15" : "0.05"} SOL fee clearly. Approve to continue.</p>
