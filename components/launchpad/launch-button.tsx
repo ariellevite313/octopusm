@@ -93,6 +93,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]             = useState<string | null>(null);
   const [hasTxA, setHasTxA]          = useState(true); // false when mint already on-chain
+  const [txBRetryMode, setTxBRetryMode] = useState(false); // true after TX B cancellation
 
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/status`)
@@ -104,8 +105,80 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       .catch(() => {});
   }, [tokenId]);
 
+  // Called when Retry is clicked after a TX B cancellation — skips TX A entirely.
+  const handleTxBOnly = useCallback(async () => {
+    setError(null);
+    setTxBRetryMode(false);
+
+    const wallet = getWallet();
+    if (!wallet) { toast.error("Phantom not found"); return; }
+    try { await wallet.connect(); } catch { toast.error("Please connect your wallet first"); return; }
+    if (wallet.publicKey?.toBase58() !== walletAddress) {
+      toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
+      return;
+    }
+
+    // Fetch a fresh TX B (mint is already on-chain, server returns txABase64: null)
+    setPhase("signing-b");
+    let txBBase64: string;
+    try {
+      const res = await fetch(`/api/launchpad/${tokenId}/prepare-tx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress }),
+      });
+      const body = await res.json() as { txBBase64?: string; error?: string };
+      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? "Failed to prepare TX B");
+      txBBase64 = body.txBBase64;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setError(msg); setTxBRetryMode(true); setPhase("error"); return;
+    }
+
+    // Sign & broadcast TX B
+    let poolSig = "";
+    try {
+      poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : "TX B failed";
+      setPhase("confirming");
+      for (let i = 0; i < 5; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          const s = await fetch(`/api/launchpad/${tokenId}/status`).then(r => r.json()) as { status: string };
+          if (s.status === "active" || s.status === "graduated") {
+            setPhase("done");
+            toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+            setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+            return;
+          }
+        } catch { /* non-fatal */ }
+      }
+      setError(/blockhash|expired/i.test(raw)
+        ? "Transaction expired — click Retry."
+        : "Pool creation cancelled. Click Retry — your fee won't be charged again. In Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
+      setTxBRetryMode(true);
+      setPhase("error");
+      return;
+    }
+
+    // Confirm
+    setPhase("confirming");
+    try {
+      await fetch(`/api/launchpad/${tokenId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txSignature: poolSig, walletAddress }),
+      });
+    } catch { /* non-fatal */ }
+    setPhase("done");
+    toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+    setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+  }, [tokenId, walletAddress, isScheduled, router]);
+
   const handleLaunch = useCallback(async () => {
     setError(null);
+    setTxBRetryMode(false);
 
     const wallet = getWallet();
     if (!wallet) { toast.error("Phantom not found — install it at phantom.app"); return; }
@@ -195,6 +268,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
       // Still pending after polling — genuine cancellation or failure
       setError("Pool creation cancelled. Click Retry — your fee won't be charged again. In Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
+      setTxBRetryMode(true);
       setPhase("error");
       return;
     }
@@ -261,10 +335,10 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         </div>
         <button
           type="button"
-          onClick={() => { setError(null); setPhase("ready"); }}
+          onClick={txBRetryMode ? handleTxBOnly : () => { setError(null); setTxBRetryMode(false); setPhase("ready"); }}
           className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
         >
-          Retry
+          {txBRetryMode ? "Retry pool creation" : "Retry"}
         </button>
       </div>
     );
