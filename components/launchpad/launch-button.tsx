@@ -200,10 +200,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     }
 
     // ── Confirm ───────────────────────────────────────────────────────────────
-    if (!poolSig) {
-      // Should not happen, but guard against empty sig
-      setError("Missing transaction signature. Click Retry."); setPhase("error"); return;
-    }
     setPhase("confirming");
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {

@@ -82,13 +82,48 @@ export async function POST(req: Request, { params }: RouteParams) {
           const conn = new Connection(rpc, "confirmed");
           const info = await conn.getAccountInfo(new PublicKey(token.mint_address as string));
           if (info !== null) {
-            console.log("[prepare-tx] mint already on-chain — building TX B only");
-            const { txBBase64 } = await buildPoolOnlyTransaction(dbcParams);
-            return NextResponse.json({
-              txABase64:   null,
-              txBBase64,
-              mintAddress: token.mint_address,
-            });
+            console.log("[prepare-tx] mint already on-chain — rebuilding TX B with fresh blockhash");
+
+            // Strategy 1: reuse cached TX B instructions (avoids calling SDK with existing mint)
+            if (token.tx_base64) {
+              try {
+                const cached = JSON.parse(token.tx_base64 as string) as { a?: string; b?: string };
+                if (cached.b) {
+                  const { Transaction: Tx } = await import("@solana/web3.js");
+                  const cachedTxB = Tx.from(Buffer.from(cached.b, "base64"));
+                  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+                  const creator      = new PublicKey(body.walletAddress!);
+                  const freshTxB     = new Tx({ recentBlockhash: blockhash, feePayer: creator });
+                  for (const ix of cachedTxB.instructions) freshTxB.add(ix);
+                  // Re-sign with mint keypair if needed
+                  const mintStr = mintKeypair.publicKey.toBase58();
+                  if (freshTxB.signatures.some((s: { publicKey: PublicKey }) => s.publicKey.toBase58() === mintStr)) {
+                    freshTxB.partialSign(mintKeypair);
+                  }
+                  const txBBase64 = Buffer.from(freshTxB.serialize({ requireAllSignatures: false })).toString("base64");
+                  // Update cache
+                  await admin.from("launchpad_tokens")
+                    .update({ tx_base64: JSON.stringify({ a: null, b: txBBase64 }), tx_prepared_at: new Date().toISOString() })
+                    .eq("id", id);
+                  return NextResponse.json({ txABase64: null, txBBase64, mintAddress: token.mint_address });
+                }
+              } catch (cacheErr) {
+                console.warn("[prepare-tx] cached TX B rebuild failed, trying SDK:", cacheErr);
+              }
+            }
+
+            // Strategy 2: try building pool-only via SDK (fallback)
+            try {
+              const { txBBase64 } = await buildPoolOnlyTransaction(dbcParams);
+              return NextResponse.json({ txABase64: null, txBBase64, mintAddress: token.mint_address });
+            } catch (sdkErr) {
+              const sdkMsg = sdkErr instanceof Error ? sdkErr.message : String(sdkErr);
+              console.error("[prepare-tx] pool-only SDK build failed:", sdkErr);
+              return NextResponse.json(
+                { error: `Pool creation failed: ${sdkMsg}` },
+                { status: 500 }
+              );
+            }
           }
         }
       } catch (e) {
