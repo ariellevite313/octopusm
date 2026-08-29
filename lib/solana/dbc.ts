@@ -185,11 +185,13 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
   const txB = new Transaction({ recentBlockhash: bhB, feePayer: creator });
   for (const ix of ixB) txB.add(ix);
 
-  // Pre-sign with mint keypair only where it is actually a required signer.
-  // We check tx.signatures (populated after instructions are added) rather than
-  // assuming TX A always needs it — the SDK may use PDAs or createAccountWithSeed
-  // which don't require the mint to sign.
+  // Pre-sign with mint keypair where it is a required signer.
+  // IMPORTANT: tx.signatures is only populated after compileMessage() is called.
+  // Without compileMessage(), the array is always empty → both flags are false
+  // → mint never signs → TX B fails on-chain with "missing required signer".
   const mintStr = params.mintKeypair.publicKey.toBase58();
+  txA.compileMessage();
+  txB.compileMessage();
   const txANeedsMint = txA.signatures.some(s => s.publicKey.toBase58() === mintStr);
   const txBNeedsMint = txB.signatures.some(s => s.publicKey.toBase58() === mintStr);
   console.log("[DBC split] txA needs mint sig:", txANeedsMint, "| txB needs mint sig:", txBNeedsMint);
