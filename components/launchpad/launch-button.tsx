@@ -194,7 +194,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       }
 
       // Still pending after polling — genuine cancellation or failure
-      setError("Pool creation cancelled. Click Retry — mint creation won't be repeated.");
+      setError("Pool creation cancelled. Click Retry — your fee won't be charged again. In Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
       setPhase("error");
       return;
     }
