@@ -204,6 +204,73 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
 }
 
 /**
+ * Build only TX B (DBC pool creation) — used when TX A (mint + fee) already
+ * confirmed on a previous attempt. The mint exists on-chain; we just need the pool.
+ */
+export async function buildPoolOnlyTransaction(params: DbcPoolParams): Promise<{
+  txBBase64: string;
+  mintAddress: string;
+}> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let DynamicBondingCurveClient: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let BN: any;
+  try {
+    const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+    DynamicBondingCurveClient = sdk.DynamicBondingCurveClient;
+    const bnMod = await import("bn.js");
+    BN = bnMod.default ?? bnMod;
+  } catch {
+    throw new Error("DBC SDK not installed.");
+  }
+
+  const connection      = getConnection();
+  const configKey       = getConfigKey();
+  const creator         = new PublicKey(params.creatorWallet);
+  const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
+  const client = new DynamicBondingCurveClient(connection, "confirmed");
+
+  const createPoolParam = {
+    baseMint:    params.mintKeypair.publicKey,
+    config:      configKey,
+    name:        params.name,
+    symbol:      params.symbol,
+    uri:         params.metadataUri,
+    payer:       creator,
+    poolCreator: creator,
+  };
+
+  let fullTx;
+  if (firstBuyLamports > 0) {
+    fullTx = await client.creator.createPoolWithFirstBuy({
+      createPoolParam,
+      firstBuyParam: { buyer: creator, buyAmount: new BN(firstBuyLamports), minimumAmountOut: new BN(0), referralTokenAccount: null },
+    });
+  } else {
+    fullTx = await client.creator.createPool(createPoolParam);
+  }
+
+  const { Transaction } = await import("@solana/web3.js");
+  const ixB = fullTx.instructions.filter(
+    (ix: { programId: PublicKey }) => !BLOWFISH_SAFE_PROGRAMS.has(ix.programId.toBase58())
+  );
+
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const txB = new Transaction({ recentBlockhash: blockhash, feePayer: creator });
+  for (const ix of ixB) txB.add(ix);
+
+  const mintStr = params.mintKeypair.publicKey.toBase58();
+  if (txB.signatures.some((s: { publicKey: PublicKey }) => s.publicKey.toBase58() === mintStr)) {
+    txB.partialSign(params.mintKeypair);
+  }
+
+  return {
+    txBBase64:   Buffer.from(txB.serialize({ requireAllSignatures: false })).toString("base64"),
+    mintAddress: params.mintKeypair.publicKey.toBase58(),
+  };
+}
+
+/**
  * @deprecated Use buildSplitPoolTransactions instead.
  * Kept for reference — builds a single monolithic pool creation tx.
  */

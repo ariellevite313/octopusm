@@ -1,22 +1,17 @@
 /**
  * POST /api/launchpad/[id]/prepare-tx
  *
- * Builds the DBC pool creation transaction and returns it base64-encoded
- * for the client wallet to sign. The mint keypair (vanity address) is
- * pre-signed server-side.
+ * Returns one or two base64 transactions for the client to sign:
+ *   txABase64  — mint creation + Metaplex metadata + platform fee  (null if mint already on-chain)
+ *   txBBase64  — Meteora DBC pool creation only
  *
- * The client must:
- *  1. Deserialize the transaction
- *  2. Sign it with their wallet
- *  3. Send it to the network
- *  4. Call POST /api/launchpad/[id]/confirm with the tx signature
- *
- * Body: { walletAddress: string }
+ * The on-chain mint check always runs BEFORE the cache so a retry after
+ * TX A confirmed (but TX B was cancelled) never asks the user to pay again.
  */
 import { NextResponse } from "next/server";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
-import { buildSplitPoolTransactions, buildMetadataJson } from "@/lib/solana/dbc";
+import { buildSplitPoolTransactions, buildPoolOnlyTransaction, buildMetadataJson } from "@/lib/solana/dbc";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -33,7 +28,6 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      // Select only the columns needed server-side (vanity_secret_key required to rebuild mint keypair)
       .select("id,creator_wallet,status,name,ticker,description,logo_url,website,twitter,telegram,supply,first_buy_amount,is_scheduled,mint_address,vanity_secret_key,metadata_uri,tx_base64,tx_prepared_at")
       .eq("id", id)
       .maybeSingle();
@@ -41,25 +35,73 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (error || !token) {
       return NextResponse.json({ error: "Token not found" }, { status: 404 });
     }
-
     if (token.creator_wallet !== body.walletAddress) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
-
     if (token.status !== "pending") {
-      return NextResponse.json(
-        { error: `Token is already ${token.status as string}` },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: `Token is already ${token.status as string}` }, { status: 409 });
     }
 
-    // If a prepared transaction pair is already cached, return it.
-    // Cache expires after 45s (Solana blockhash valid ~60s).
+    // ── Mint keypair ─────────────────────────────────────────────────────────
+    let mintKeypair: Keypair;
+    if (token.vanity_secret_key) {
+      const secretBytes = Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"));
+      if (secretBytes.length !== 64) {
+        return NextResponse.json({ error: "Keypair corrompu. Supprime ce token et relance la création." }, { status: 422 });
+      }
+      mintKeypair = Keypair.fromSecretKey(secretBytes);
+    } else {
+      mintKeypair = Keypair.generate();
+      const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
+      const mintAddress = mintKeypair.publicKey.toBase58();
+      await admin.from("launchpad_tokens")
+        .update({ mint_address: mintAddress, vanity_secret_key: mintSecret })
+        .eq("id", id);
+    }
+
+    const metadataUri = (token.metadata_uri as string | null)
+      ?? `https://omdot.fun/api/launchpad/${id}/metadata`;
+
+    const dbcParams = {
+      name:          token.name as string,
+      symbol:        token.ticker as string,
+      metadataUri,
+      creatorWallet: token.creator_wallet as string,
+      mintKeypair,
+      totalSupply:   token.supply as number,
+      firstBuySol:   (token.first_buy_amount as number) ?? 0,
+      isScheduled:   Boolean(token.is_scheduled),
+    };
+
+    // ── On-chain mint check (always first, before cache) ─────────────────────
+    // If TX A (mint creation) already landed, skip it entirely — no fee repeat.
+    if (token.mint_address) {
+      try {
+        const rpc = process.env.SOLANA_RPC_URL;
+        if (rpc) {
+          const conn = new Connection(rpc, "confirmed");
+          const info = await conn.getAccountInfo(new PublicKey(token.mint_address as string));
+          if (info !== null) {
+            console.log("[prepare-tx] mint already on-chain — building TX B only");
+            const { txBBase64 } = await buildPoolOnlyTransaction(dbcParams);
+            return NextResponse.json({
+              txABase64:   null,
+              txBBase64,
+              mintAddress: token.mint_address,
+            });
+          }
+        }
+      } catch (e) {
+        // Non-fatal: if the RPC check fails, fall through and rebuild both txs
+        console.warn("[prepare-tx] on-chain mint check failed, rebuilding full split:", e);
+      }
+    }
+
+    // ── Cache check (only when mint NOT yet on-chain) ─────────────────────────
     const cachedAt   = token.tx_prepared_at ? new Date(token.tx_prepared_at as string).getTime() : 0;
     const cacheAgeMs = Date.now() - cachedAt;
     if (token.tx_base64 && cacheAgeMs < 45_000) {
       try {
-        // tx_base64 may be a JSON object {a, b} for the split-tx flow
         const parsed = JSON.parse(token.tx_base64 as string) as { a: string; b: string };
         if (parsed.a && parsed.b) {
           return NextResponse.json({
@@ -68,38 +110,10 @@ export async function POST(req: Request, { params }: RouteParams) {
             mintAddress: token.mint_address,
           });
         }
-      } catch {
-        // Legacy single-tx cache — fall through and rebuild
-      }
+      } catch { /* legacy cache — fall through */ }
     }
 
-    // ── Mint keypair — generated lazily at prepare-tx time ───────────────────
-    // The keypair is generated here (not at creation time) so the CA is only
-    // revealed when the user clicks Launch. On retry, the same keypair is reused
-    // (vanity_secret_key already set) so the mint address stays stable.
-    let mintKeypair: Keypair;
-    if (token.vanity_secret_key) {
-      // Reuse existing keypair (retry path)
-      const secretBytes = Uint8Array.from(Buffer.from(token.vanity_secret_key as string, "base64"));
-      if (secretBytes.length !== 64) {
-        return NextResponse.json(
-          { error: "Keypair corrompu. Supprime ce token et relance la création." },
-          { status: 422 }
-        );
-      }
-      mintKeypair = Keypair.fromSecretKey(secretBytes);
-    } else {
-      // First prepare-tx: generate a fresh keypair and persist it
-      mintKeypair = Keypair.generate();
-      const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
-      const mintAddress = mintKeypair.publicKey.toBase58();
-      await admin
-        .from("launchpad_tokens")
-        .update({ mint_address: mintAddress, vanity_secret_key: mintSecret })
-        .eq("id", id);
-    }
-
-    // Build metadata JSON — logo_url may be null if R2 upload is pending
+    // ── Build metadata ────────────────────────────────────────────────────────
     const metadataJson = buildMetadataJson({
       name:          token.name as string,
       symbol:        token.ticker as string,
@@ -111,26 +125,11 @@ export async function POST(req: Request, { params }: RouteParams) {
       telegram:      token.telegram as string | undefined,
     });
 
-    // For now store metadata JSON directly; in production upload to R2 first
-    // TODO: upload metadataJson to R2 and use the returned URL
-    const metadataUri = (token.metadata_uri as string | null)
-      ?? `https://omdot.fun/api/launchpad/${id}/metadata`;
+    // ── Build split transactions ──────────────────────────────────────────────
+    const { txABase64, txBBase64, mintAddress } = await buildSplitPoolTransactions(dbcParams);
 
-    // Build split transactions (TX A: mint+metadata+fee, TX B: DBC pool)
-    const { txABase64, txBBase64, mintAddress } = await buildSplitPoolTransactions({
-      name:          token.name as string,
-      symbol:        token.ticker as string,
-      metadataUri,
-      creatorWallet: token.creator_wallet as string,
-      mintKeypair,
-      totalSupply:   token.supply as number,
-      firstBuySol:   (token.first_buy_amount as number) ?? 0,
-      isScheduled:   Boolean(token.is_scheduled),
-    });
-
-    // Cache both txs as JSON in tx_base64
-    await admin
-      .from("launchpad_tokens")
+    // Cache both txs
+    await admin.from("launchpad_tokens")
       .update({
         metadata_uri:   metadataUri,
         tx_base64:      JSON.stringify({ a: txABase64, b: txBBase64 }),
@@ -138,12 +137,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       })
       .eq("id", id);
 
-    return NextResponse.json({
-      txABase64,
-      txBBase64,
-      mintAddress,
-      metadataJson,
-    });
+    return NextResponse.json({ txABase64, txBBase64, mintAddress, metadataJson });
+
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("prepare-tx error:", err);
