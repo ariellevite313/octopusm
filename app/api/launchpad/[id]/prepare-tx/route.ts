@@ -1,9 +1,9 @@
 /**
  * POST /api/launchpad/[id]/prepare-tx
  *
- * Returns one or two base64 transactions for the client to sign:
- *   txABase64  — mint creation + Metaplex metadata + platform fee  (null if mint already on-chain)
- *   txBBase64  — Meteora DBC pool creation only
+ * Returns two base64 transactions:
+ *   txABase64  — mint creation + Metaplex metadata + platform fee  (no warning in Phantom)
+ *   txBBase64  — Meteora DBC pool creation only                    ("Proceed anyway" in Phantom)
  *
  * The on-chain mint check always runs BEFORE the cache so a retry after
  * TX A confirmed (but TX B was cancelled) never asks the user to pay again.
@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
-import { buildSplitPoolTransactions, buildPoolOnlyTransaction, buildMetadataJson } from "@/lib/solana/dbc";
+import { buildSplitPoolTransactions, buildMetadataJson } from "@/lib/solana/dbc";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -74,7 +74,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     };
 
     // ── On-chain mint check (always first, before cache) ─────────────────────
-    // If TX A (mint creation) already landed, skip it entirely — no fee repeat.
+    // If TX A (mint creation) already landed, skip it — return only fresh TX B.
     if (token.mint_address) {
       try {
         const rpc = process.env.SOLANA_RPC_URL;
@@ -84,7 +84,7 @@ export async function POST(req: Request, { params }: RouteParams) {
           if (info !== null) {
             console.log("[prepare-tx] mint already on-chain — rebuilding TX B with fresh blockhash");
 
-            // Strategy 1: reuse cached TX B instructions (avoids calling SDK with existing mint)
+            // Reuse cached TX B instructions with fresh blockhash
             if (token.tx_base64) {
               try {
                 const cached = JSON.parse(token.tx_base64 as string) as { a?: string; b?: string };
@@ -95,40 +95,24 @@ export async function POST(req: Request, { params }: RouteParams) {
                   const creator      = new PublicKey(body.walletAddress!);
                   const freshTxB     = new Tx({ recentBlockhash: blockhash, feePayer: creator });
                   for (const ix of cachedTxB.instructions) freshTxB.add(ix);
-                  // Re-sign with mint keypair if needed
                   const mintStr = mintKeypair.publicKey.toBase58();
                   if (freshTxB.signatures.some((s: { publicKey: PublicKey }) => s.publicKey.toBase58() === mintStr)) {
                     freshTxB.partialSign(mintKeypair);
                   }
                   const txBBase64 = Buffer.from(freshTxB.serialize({ requireAllSignatures: false })).toString("base64");
-                  // Update cache
                   await admin.from("launchpad_tokens")
                     .update({ tx_base64: JSON.stringify({ a: null, b: txBBase64 }), tx_prepared_at: new Date().toISOString() })
                     .eq("id", id);
                   return NextResponse.json({ txABase64: null, txBBase64, mintAddress: token.mint_address });
                 }
               } catch (cacheErr) {
-                console.warn("[prepare-tx] cached TX B rebuild failed, trying SDK:", cacheErr);
+                console.warn("[prepare-tx] cached TX B rebuild failed:", cacheErr);
               }
-            }
-
-            // Strategy 2: try building pool-only via SDK (fallback)
-            try {
-              const { txBBase64 } = await buildPoolOnlyTransaction(dbcParams);
-              return NextResponse.json({ txABase64: null, txBBase64, mintAddress: token.mint_address });
-            } catch (sdkErr) {
-              const sdkMsg = sdkErr instanceof Error ? sdkErr.message : String(sdkErr);
-              console.error("[prepare-tx] pool-only SDK build failed:", sdkErr);
-              return NextResponse.json(
-                { error: `Pool creation failed: ${sdkMsg}` },
-                { status: 500 }
-              );
             }
           }
         }
       } catch (e) {
-        // Non-fatal: if the RPC check fails, fall through and rebuild both txs
-        console.warn("[prepare-tx] on-chain mint check failed, rebuilding full split:", e);
+        console.warn("[prepare-tx] on-chain mint check failed:", e);
       }
     }
 
@@ -149,7 +133,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     // ── Build metadata ────────────────────────────────────────────────────────
-    const metadataJson = buildMetadataJson({
+    buildMetadataJson({
       name:          token.name as string,
       symbol:        token.ticker as string,
       description:   (token.description as string) ?? "",
@@ -163,7 +147,6 @@ export async function POST(req: Request, { params }: RouteParams) {
     // ── Build split transactions ──────────────────────────────────────────────
     const { txABase64, txBBase64, mintAddress } = await buildSplitPoolTransactions(dbcParams);
 
-    // Cache both txs
     await admin.from("launchpad_tokens")
       .update({
         metadata_uri:   metadataUri,
@@ -172,7 +155,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       })
       .eq("id", id);
 
-    return NextResponse.json({ txABase64, txBBase64, mintAddress, metadataJson });
+    return NextResponse.json({ txABase64, txBBase64, mintAddress });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

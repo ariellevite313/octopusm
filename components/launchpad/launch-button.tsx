@@ -1,15 +1,14 @@
 "use client";
 
 /**
- * LaunchButton — two-transaction flow to minimise Phantom security warnings.
+ * LaunchButton — two-transaction flow.
  *
- * TX A  mint creation + Metaplex metadata + platform fee (0.05 SOL)
- *       Only System / Token / Metaplex instructions → Blowfish-safe.
- *       The SOL transfer is clearly labelled in Phantom (amount + recipient).
+ * TX A  mint + metadata + platform fee   → no Phantom warning
+ * TX B  Meteora DBC create_virtual_pool  → "Proceed anyway" in Phantom
  *
- * TX B  Meteora DBC create_virtual_pool (+ first buy if enabled)
- *       No raw SystemProgram.transfer → not flagged as a drainer.
- *       Blowfish may show "Are you sure?" but not "Request blocked".
+ * When TX B throws (Phantom fires error even after "Proceed anyway"), we
+ * immediately call /check-pool to detect if the pool was actually created
+ * on-chain before showing any error to the user.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -22,19 +21,15 @@ import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 
 type Phase =
   | "ready"
-  | "signing-a"   // TX A: mint + metadata + fee
+  | "signing-a"
   | "sending-a"
-  | "signing-b"   // TX B: DBC pool creation
+  | "signing-b"
   | "sending-b"
   | "confirming"
   | "done"
   | "error";
 
-type StatusResponse = {
-  status: string;
-  mintAddress: string | null;
-  isScheduled: boolean;
-};
+type StatusResponse = { status: string; mintAddress: string | null; isScheduled: boolean };
 
 type SolanaWallet = {
   publicKey: PublicKey;
@@ -52,12 +47,11 @@ function getWallet(): SolanaWallet | null {
 
 async function broadcastTx(signedTx: Transaction): Promise<string> {
   const { Connection } = await import("@solana/web3.js");
-  const RPCS = [
+  for (const rpc of [
     "https://solana-rpc.publicnode.com",
     "https://api.mainnet-beta.solana.com",
     "https://rpc.ankr.com/solana",
-  ];
-  for (const rpc of RPCS) {
+  ]) {
     try {
       return await new Connection(rpc, "confirmed").sendRawTransaction(
         signedTx.serialize(), { maxRetries: 3 }
@@ -83,17 +77,41 @@ async function signAndBroadcast(
   return broadcastTx(signed);
 }
 
+/** Wait for a transaction to reach "confirmed" status before proceeding. */
+async function waitForConfirmation(sig: string): Promise<void> {
+  const { Connection } = await import("@solana/web3.js");
+  const RPCS = [
+    "https://solana-rpc.publicnode.com",
+    "https://api.mainnet-beta.solana.com",
+    "https://rpc.ankr.com/solana",
+  ];
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    for (const rpc of RPCS) {
+      try {
+        const status = await new Connection(rpc, "confirmed").getSignatureStatus(sig);
+        const cs = status.value?.confirmationStatus;
+        if (cs === "confirmed" || cs === "finalized") return;
+        if (status.value?.err) throw new Error("TX A failed on-chain");
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("failed on-chain")) throw e;
+        /* try next RPC */
+      }
+    }
+  }
+  // 30s timeout — proceed anyway, TX B may still work
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 type Props = { tokenId: string; walletAddress: string; isScheduled: boolean };
 
 export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const router = useRouter();
-  const [phase, setPhase]             = useState<Phase>("ready");
+  const [phase, setPhase]     = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
-  const [error, setError]             = useState<string | null>(null);
-  const [hasTxA, setHasTxA]          = useState(true); // false when mint already on-chain
-  const [txBRetryMode, setTxBRetryMode] = useState(false); // true after TX B cancellation
+  const [error, setError]     = useState<string | null>(null);
+  const [hasTxA, setHasTxA]  = useState(true);
 
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/status`)
@@ -105,94 +123,74 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       .catch(() => {});
   }, [tokenId]);
 
-  // Called when Retry is clicked after a TX B cancellation — skips TX A entirely.
-  const handleTxBOnly = useCallback(async () => {
+  /**
+   * After a TX B error, check if the pool was actually created on-chain.
+   * Phantom often fires an error callback even after "Proceed anyway" succeeds.
+   * Returns true if we detected success and navigated away.
+   */
+  const checkPoolAndFinish = useCallback(async (): Promise<boolean> => {
+    // Immediate check-pool (derives PDA from mint, getAccountInfo)
+    try {
+      const r = await fetch(`/api/launchpad/${tokenId}/check-pool`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress }),
+      });
+      const b = await r.json() as { found?: boolean };
+      if (b.found) {
+        setPhase("done");
+        toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+        setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+        return true;
+      }
+    } catch { /* non-fatal */ }
+
+    // Poll up to 30s — Meteora tx may take a few seconds to finalize
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        const s = await fetch(`/api/launchpad/${tokenId}/status`).then(r => r.json()) as { status: string };
+        if (s.status === "active" || s.status === "graduated") {
+          setPhase("done");
+          toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+          setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+          return true;
+        }
+      } catch { /* non-fatal */ }
+
+      // Re-check PDA every 3 polls
+      if (i % 3 === 2) {
+        try {
+          const r2 = await fetch(`/api/launchpad/${tokenId}/check-pool`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ walletAddress }),
+          });
+          const b2 = await r2.json() as { found?: boolean };
+          if (b2.found) {
+            setPhase("done");
+            toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+            setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+            return true;
+          }
+        } catch { /* non-fatal */ }
+      }
+    }
+    return false;
+  }, [tokenId, walletAddress, isScheduled, router]);
+
+  const handleLaunch = useCallback(async () => {
     setError(null);
-    setTxBRetryMode(false);
 
     const wallet = getWallet();
-    if (!wallet) { toast.error("Phantom not found"); return; }
+    if (!wallet) { toast.error("Phantom not found — install it at phantom.app"); return; }
     try { await wallet.connect(); } catch { toast.error("Please connect your wallet first"); return; }
     if (wallet.publicKey?.toBase58() !== walletAddress) {
       toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
       return;
     }
 
-    // Fetch a fresh TX B (mint is already on-chain, server returns txABase64: null)
-    setPhase("signing-b");
-    let txBBase64: string;
-    try {
-      const res = await fetch(`/api/launchpad/${tokenId}/prepare-tx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress }),
-      });
-      const body = await res.json() as { txBBase64?: string; error?: string };
-      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? "Failed to prepare TX B");
-      txBBase64 = body.txBBase64;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setError(msg); setTxBRetryMode(true); setPhase("error"); return;
-    }
-
-    // Sign & broadcast TX B
-    let poolSig = "";
-    try {
-      poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : "TX B failed";
-      setPhase("confirming");
-      for (let i = 0; i < 5; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        try {
-          const s = await fetch(`/api/launchpad/${tokenId}/status`).then(r => r.json()) as { status: string };
-          if (s.status === "active" || s.status === "graduated") {
-            setPhase("done");
-            toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
-            setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-            return;
-          }
-        } catch { /* non-fatal */ }
-      }
-      setError(/blockhash|expired/i.test(raw)
-        ? "Transaction expired — click Retry."
-        : "Pool creation cancelled. Click Retry — your fee won't be charged again. In Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
-      setTxBRetryMode(true);
-      setPhase("error");
-      return;
-    }
-
-    // Confirm
-    setPhase("confirming");
-    try {
-      await fetch(`/api/launchpad/${tokenId}/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txSignature: poolSig, walletAddress }),
-      });
-    } catch { /* non-fatal */ }
-    setPhase("done");
-    toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
-    setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, isScheduled, router]);
-
-  const handleLaunch = useCallback(async () => {
-    setError(null);
-    setTxBRetryMode(false);
-
-    const wallet = getWallet();
-    if (!wallet) { toast.error("Phantom not found — install it at phantom.app"); return; }
-
-    try { await wallet.connect(); } catch {
-      toast.error("Please connect your wallet first"); return;
-    }
-
-    if (wallet.publicKey?.toBase58() !== walletAddress) {
-      toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
-      return;
-    }
-
-    // ── Fetch transactions from server ────────────────────────────────────────
+    // ── Fetch transactions ────────────────────────────────────────────────────
     setPhase("signing-a");
     let txABase64: string | null, txBBase64: string;
     try {
@@ -202,12 +200,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         body: JSON.stringify({ walletAddress }),
       });
       const body = await res.json() as {
-        txABase64?: string | null; txBBase64?: string;
-        mintAddress?: string; error?: string;
+        txABase64?: string | null; txBBase64?: string; mintAddress?: string; error?: string;
       };
-      if (!res.ok || !body.txBBase64) {
-        throw new Error(body.error ?? "Failed to prepare transactions");
-      }
+      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? "Failed to prepare transactions");
       txABase64 = body.txABase64 ?? null;
       txBBase64 = body.txBBase64;
       setHasTxA(txABase64 !== null);
@@ -217,21 +212,27 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       setError(msg); setPhase("error"); toast.error(msg); return;
     }
 
-    // ── TX A: mint + metadata + fee (skipped if mint already exists on-chain) ─
+    // ── TX A: mint + metadata + fee (skipped if mint already on-chain) ────────
     if (txABase64) {
+      let txASig = "";
       try {
-        await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
+        txASig = await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
       } catch (e) {
         const raw = e instanceof Error ? e.message : "TX A failed";
-        const isRejection = /rejected|cancel/i.test(raw);
-        setError(isRejection ? "Cancelled." : raw);
+        setError(/rejected|cancel/i.test(raw) ? "Cancelled." : raw);
         setPhase("error");
-        if (!isRejection) toast.error(raw);
+        return;
+      }
+      // Wait for TX A to confirm before TX B — Meteora needs the mint to exist on-chain
+      try {
+        await waitForConfirmation(txASig);
+      } catch {
+        setError("Mint creation failed on-chain. Click Retry.");
+        setPhase("error");
         return;
       }
     } else {
-      // Mint already created in a previous attempt — jump straight to TX B
-      toast.info("Mint already created — signing pool creation only.");
+      toast.info("Mint already created — approving pool creation only.");
     }
 
     // ── TX B: DBC pool creation ───────────────────────────────────────────────
@@ -241,35 +242,13 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
     } catch (e) {
       const raw = e instanceof Error ? e.message : "TX B failed";
-      const isExpired = /blockhash|expired/i.test(raw);
-
-      if (isExpired) {
-        setError("Transaction expired — click Retry.");
-        setPhase("error");
-        toast.error("Transaction expired — click Retry.");
-        return;
-      }
-
-      // Phantom sometimes fires an error AFTER broadcasting (e.g. after "Proceed anyway").
-      // Poll the status endpoint to check if the pool actually landed on-chain.
+      // Pool may have been created despite the error — check on-chain first
       setPhase("confirming");
-      for (let i = 0; i < 5; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        try {
-          const s = await fetch(`/api/launchpad/${tokenId}/status`).then(r => r.json()) as { status: string };
-          if (s.status === "active" || s.status === "graduated") {
-            setPhase("done");
-            toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
-            setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-            return;
-          }
-        } catch { /* non-fatal */ }
+      const found = await checkPoolAndFinish();
+      if (!found) {
+        setError("Pool creation cancelled. Click Retry — your fee won't be charged again.\nIn Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
+        setPhase("error");
       }
-
-      // Still pending after polling — genuine cancellation or failure
-      setError("Pool creation cancelled. Click Retry — your fee won't be charged again. In Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
-      setTxBRetryMode(true);
-      setPhase("error");
       return;
     }
 
@@ -282,15 +261,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         body: JSON.stringify({ txSignature: poolSig, walletAddress }),
       });
       const body = await res.json() as { ok?: boolean; error?: string };
-      if (res.status === 422) {
-        setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return;
-      }
-      if (res.status === 202) {
-        setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return;
-      }
-      if (!res.ok || !body.ok) {
-        toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
-      }
+      if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
+      if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
+      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
     } catch {
       toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
     }
@@ -298,7 +271,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     setPhase("done");
     toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, mintAddress, isScheduled, router]);
+  }, [tokenId, walletAddress, mintAddress, isScheduled, router, checkPoolAndFinish]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -330,15 +303,15 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   if (phase === "error") {
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400 whitespace-pre-line">
           {error}
         </div>
         <button
           type="button"
-          onClick={txBRetryMode ? handleTxBOnly : () => { setError(null); setTxBRetryMode(false); setPhase("ready"); }}
+          onClick={() => { setError(null); setPhase("ready"); }}
           className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
         >
-          {txBRetryMode ? "Retry pool creation" : "Retry"}
+          Retry
         </button>
       </div>
     );
@@ -346,14 +319,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
   const busy = phase !== "ready";
   const labels: Record<Phase, string> = {
-    ready:      isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
-    "signing-a": "Step 1/2 — Approve mint + fee…",
+    ready:       isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
+    "signing-a": "Step 1/2 — Approve in Phantom…",
     "sending-a": "Creating mint…",
-    "signing-b": "Step 2/2 — Approve pool creation…",
+    "signing-b": "Step 2/2 — Approve pool in Phantom…",
     "sending-b": "Creating pool…",
-    confirming: "Confirming…",
-    done:       "Done",
-    error:      "Error",
+    confirming:  "Confirming…",
+    done:        "Done",
+    error:       "Error",
   };
 
   return (
@@ -365,17 +338,13 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         </div>
       )}
 
-      {/* Context hint per step */}
-      {(phase === "signing-a" || phase === "sending-a") && hasTxA && (
-        <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-xs text-blue-700 dark:text-blue-300">
-          <p className="font-semibold">Signature 1/2 — Mint creation + platform fee</p>
-          <p className="mt-0.5 opacity-80">Phantom will show the {isScheduled ? "0.15" : "0.05"} SOL fee clearly. Approve to continue.</p>
-        </div>
-      )}
       {(phase === "signing-b" || phase === "sending-b") && (
         <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <p className="font-semibold">Signature 2/2 — Pool creation on Meteora</p>
-          <p className="mt-0.5 opacity-80">Phantom may show a security notice. Scroll down and tap <strong>&quot;Proceed anyway&quot;</strong> — this transaction is safe.</p>
+          <p className="font-semibold">Pool creation — Meteora</p>
+          <p className="mt-0.5 opacity-80">
+            Phantom may show a security notice. Scroll down and tap{" "}
+            <strong>&quot;Proceed anyway&quot;</strong> to confirm.
+          </p>
         </div>
       )}
 
@@ -391,7 +360,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
       {phase === "ready" && (
         <p className="text-center text-xs text-muted-foreground">
-          2 signatures: mint creation + pool deployment.
+          2 signatures : mint + pool.
         </p>
       )}
     </div>
