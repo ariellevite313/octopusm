@@ -36,9 +36,17 @@ async function findPoolOnChain(
   dbcProgramId: PublicKey,
 ): Promise<string | null> {
   const mint = new PublicKey(mintAddress);
+  const configKey = process.env.DBC_CONFIG_KEY ? new PublicKey(process.env.DBC_CONFIG_KEY) : null;
 
-  // Try known seed combinations used by Meteora DBC for the virtual pool PDA
-  const seedSets = [
+  // Meteora DBC virtual pool PDA seeds (try all known variants):
+  // v1: ["virtual_pool", configKey, baseMint]
+  // v2: ["virtual_pool", baseMint]
+  // v3: ["pool", baseMint]
+  const seedSets: Buffer[][] = [
+    ...(configKey ? [
+      [Buffer.from("virtual_pool"), configKey.toBuffer(), mint.toBuffer()],
+      [Buffer.from("pool"), configKey.toBuffer(), mint.toBuffer()],
+    ] : []),
     [Buffer.from("virtual_pool"), mint.toBuffer()],
     [Buffer.from("pool"), mint.toBuffer()],
   ];
@@ -47,7 +55,10 @@ async function findPoolOnChain(
     try {
       const [pda] = PublicKey.findProgramAddressSync(seeds, dbcProgramId);
       const info = await connection.getAccountInfo(pda);
-      if (info !== null) return pda.toBase58();
+      if (info !== null) {
+        console.log("[check-pool] found pool at PDA:", pda.toBase58(), "seeds:", seeds.map(s => s.toString("hex").slice(0,16)));
+        return pda.toBase58();
+      }
     } catch { /* try next */ }
   }
   return null;
@@ -104,15 +115,11 @@ export async function POST(req: Request, { params }: RouteParams) {
       } catch { /* fallback to known IDs */ }
     }
 
-    // Fallback: try known Meteora DBC program IDs
+    // Use extracted DBC program ID, falling back to the known one from logs
+    const KNOWN_DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
     const programsToTry: PublicKey[] = dbcProgramId
-      ? [dbcProgramId]
-      : [
-          new PublicKey("DBi9ywgDesNsfaqcfBQ97WRNB7PfmHMmMVdSzD1YuMp"),
-          new PublicKey("MeteoraDbc11111111111111111111111111111111"),
-        ].filter(k => {
-          try { k.toBase58(); return true; } catch { return false; }
-        });
+      ? [dbcProgramId, new PublicKey(KNOWN_DBC_PROGRAM)]
+      : [new PublicKey(KNOWN_DBC_PROGRAM)];
 
     let poolAddress: string | null = null;
     for (const prog of programsToTry) {

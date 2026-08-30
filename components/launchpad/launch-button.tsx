@@ -11,18 +11,20 @@
  * on-chain before showing any error to the user.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
-import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, Rocket, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Phase =
   | "ready"
+  | "pick-wallet"    // Wallet selector shown before TX A
   | "signing-a"
   | "sending-a"
+  | "warn-phantom"   // Modal shown before TX B
   | "signing-b"
   | "sending-b"
   | "confirming"
@@ -38,11 +40,74 @@ type SolanaWallet = {
   connect: () => Promise<{ publicKey: PublicKey }>;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Multi-wallet support ───────────────────────────────────────────────────────
 
-function getWallet(): SolanaWallet | null {
-  if (typeof window === "undefined") return null;
-  return (window as unknown as { solana?: SolanaWallet }).solana ?? null;
+type WalletConfig = {
+  id: string;
+  name: string;
+  icon: string;        // emoji fallback
+  iconUrl?: string;    // logo URL
+  get: () => SolanaWallet | null;
+  installUrl: string;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const w = () => (typeof window !== "undefined" ? (window as any) : null);
+
+const WALLET_CONFIGS: WalletConfig[] = [
+  {
+    id: "phantom",
+    name: "Phantom",
+    icon: "👻",
+    iconUrl: "https://phantom.app/favicon.ico",
+    get: () => w()?.phantom?.solana ?? (w()?.solana?.isPhantom ? w()?.solana : null),
+    installUrl: "https://phantom.app",
+  },
+  {
+    id: "solflare",
+    name: "Solflare",
+    icon: "🌟",
+    iconUrl: "https://solflare.com/favicon.ico",
+    get: () => w()?.solflare?.isSolflare ? w()?.solflare : null,
+    installUrl: "https://solflare.com",
+  },
+  {
+    id: "backpack",
+    name: "Backpack",
+    icon: "🎒",
+    iconUrl: "https://backpack.app/favicon.ico",
+    get: () => w()?.backpack?.solana ?? w()?.xnft?.solana ?? null,
+    installUrl: "https://backpack.app",
+  },
+  {
+    id: "okx",
+    name: "OKX Wallet",
+    icon: "⭕",
+    iconUrl: "https://www.okx.com/favicon.ico",
+    get: () => w()?.okxwallet?.solana ?? null,
+    installUrl: "https://www.okx.com/web3",
+  },
+  {
+    id: "coinbase",
+    name: "Coinbase Wallet",
+    icon: "🔵",
+    iconUrl: "https://www.coinbase.com/favicon.ico",
+    get: () => w()?.coinbaseSolana ?? null,
+    installUrl: "https://www.coinbase.com/wallet",
+  },
+  {
+    id: "trust",
+    name: "Trust Wallet",
+    icon: "🛡️",
+    iconUrl: "https://trustwallet.com/favicon.ico",
+    get: () => w()?.trustwallet?.solana ?? (w()?.solana?.isTrust ? w()?.solana : null),
+    installUrl: "https://trustwallet.com",
+  },
+];
+
+function getInstalledWallets(): WalletConfig[] {
+  if (typeof window === "undefined") return [];
+  return WALLET_CONFIGS.filter(c => c.get() !== null);
 }
 
 async function broadcastTx(signedTx: Transaction): Promise<string> {
@@ -113,6 +178,11 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const [error, setError]     = useState<string | null>(null);
   const [hasTxA, setHasTxA]  = useState(true);
 
+  // Stores the TX B base64 while the warn-phantom modal is shown
+  const pendingTxBRef = useRef<string | null>(null);
+  // The wallet chosen by the user in the picker
+  const selectedWalletRef = useRef<SolanaWallet | null>(null);
+
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/status`)
       .then(r => r.json())
@@ -179,18 +249,10 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     return false;
   }, [tokenId, walletAddress, isScheduled, router]);
 
-  const handleLaunch = useCallback(async () => {
+  // ── Core launch flow (runs after wallet is selected) ─────────────────────────
+  const runLaunchFlow = useCallback(async (wallet: SolanaWallet) => {
     setError(null);
 
-    const wallet = getWallet();
-    if (!wallet) { toast.error("Phantom not found — install it at phantom.app"); return; }
-    try { await wallet.connect(); } catch { toast.error("Please connect your wallet first"); return; }
-    if (wallet.publicKey?.toBase58() !== walletAddress) {
-      toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
-      return;
-    }
-
-    // ── Fetch transactions ────────────────────────────────────────────────────
     setPhase("signing-a");
     let txABase64: string | null, txBBase64: string;
     try {
@@ -212,7 +274,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       setError(msg); setPhase("error"); toast.error(msg); return;
     }
 
-    // ── TX A: mint + metadata + fee (skipped if mint already on-chain) ────────
     if (txABase64) {
       let txASig = "";
       try {
@@ -223,7 +284,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         setPhase("error");
         return;
       }
-      // Wait for TX A to confirm before TX B — Meteora needs the mint to exist on-chain
       try {
         await waitForConfirmation(txASig);
       } catch {
@@ -235,24 +295,35 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       toast.info("Mint already created — approving pool creation only.");
     }
 
-    // ── TX B: DBC pool creation ───────────────────────────────────────────────
+    pendingTxBRef.current = txBBase64;
+    setPhase("warn-phantom");
+  }, [tokenId, walletAddress]);
+
+  // ── TX B: pool creation (called from warn-phantom modal button) ──────────────
+  const proceedToTxB = useCallback(async () => {
+    const txBBase64 = pendingTxBRef.current;
+    if (!txBBase64) { setError("Session expired. Click Retry."); setPhase("error"); return; }
+
+    const wallet = selectedWalletRef.current;
+    if (!wallet) { setError("Wallet disconnected. Click Retry."); setPhase("error"); return; }
+
     setPhase("signing-b");
     let poolSig = "";
     try {
       poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : "TX B failed";
-      // Pool may have been created despite the error — check on-chain first
+    } catch {
       setPhase("confirming");
       const found = await checkPoolAndFinish();
       if (!found) {
-        setError("Pool creation cancelled. Click Retry — your fee won't be charged again.\nIn Phantom, scroll down and tap \"Proceed anyway\" to confirm.");
+        setError(
+          "Pool creation cancelled. Click Retry — your fee won't be charged again.\n" +
+          "In your wallet: scroll down and confirm the transaction."
+        );
         setPhase("error");
       }
       return;
     }
 
-    // ── Confirm ───────────────────────────────────────────────────────────────
     setPhase("confirming");
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
@@ -271,7 +342,36 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     setPhase("done");
     toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, mintAddress, isScheduled, router, checkPoolAndFinish]);
+  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish]);
+
+  // ── Called when user picks a wallet from the picker ──────────────────────────
+  const handleWalletSelected = useCallback(async (cfg: WalletConfig) => {
+    const wallet = cfg.get();
+    if (!wallet) { toast.error(`${cfg.name} not found — please install it first`); return; }
+    try { await wallet.connect(); } catch { toast.error("Please unlock your wallet and try again"); return; }
+    if (wallet.publicKey?.toBase58() !== walletAddress) {
+      toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
+      return;
+    }
+    selectedWalletRef.current = wallet;
+    await runLaunchFlow(wallet);
+  }, [walletAddress, runLaunchFlow]);
+
+  const handleLaunch = useCallback(async () => {
+    setError(null);
+    const installed = getInstalledWallets();
+    if (installed.length === 0) {
+      toast.error("No Solana wallet found. Install Phantom, Solflare, or Backpack.");
+      return;
+    }
+    if (installed.length === 1) {
+      // Only one wallet — skip picker, go straight to flow
+      await handleWalletSelected(installed[0]);
+      return;
+    }
+    // Multiple wallets — show picker
+    setPhase("pick-wallet");
+  }, [handleWalletSelected]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -300,6 +400,93 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     );
   }
 
+  if (phase === "pick-wallet") {
+    const installed = getInstalledWallets();
+    const allWallets = WALLET_CONFIGS;
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-foreground">Choose your wallet</p>
+        <div className="space-y-2">
+          {allWallets.map(cfg => {
+            const isInstalled = installed.some(wc => wc.id === cfg.id);
+            return (
+              <button
+                key={cfg.id}
+                type="button"
+                disabled={!isInstalled}
+                onClick={() => handleWalletSelected(cfg)}
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <span className="text-lg leading-none">{cfg.icon}</span>
+                <span className="flex-1 text-left">{cfg.name}</span>
+                {isInstalled ? (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">Detected</span>
+                ) : (
+                  <a
+                    href={cfg.installUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-normal"
+                  >
+                    Install
+                  </a>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => setPhase("ready")}
+          className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "warn-phantom") {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+              Your wallet will show a security warning
+            </p>
+          </div>
+          <p className="text-xs text-amber-700/90 dark:text-amber-300/90 leading-relaxed">
+            The second transaction creates your trading pool via <strong>Meteora DBC</strong>.
+            This program is not yet verified by all wallets, which may trigger a warning — this is normal and safe.
+          </p>
+          <div className="rounded-lg bg-amber-500/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 font-medium">
+            👉 In your wallet: scroll down → confirm the transaction
+          </div>
+          <p className="text-xs text-amber-700/70 dark:text-amber-300/70">
+            Funds go directly to the Meteora protocol to create your liquidity — not to omdot.fun.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={proceedToTxB}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          <Rocket className="size-4" />
+          Got it — create the pool
+        </button>
+        <button
+          type="button"
+          onClick={() => { pendingTxBRef.current = null; setPhase("ready"); }}
+          className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   if (phase === "error") {
     return (
       <div className="space-y-3">
@@ -319,14 +506,16 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
   const busy = phase !== "ready";
   const labels: Record<Phase, string> = {
-    ready:       isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
-    "signing-a": "Step 1/2 — Approve in Phantom…",
-    "sending-a": "Creating mint…",
-    "signing-b": "Step 2/2 — Approve pool in Phantom…",
-    "sending-b": "Creating pool…",
-    confirming:  "Confirming…",
-    done:        "Done",
-    error:       "Error",
+    ready:           isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
+    "pick-wallet":   "Choose wallet…",
+    "signing-a":     "Step 1/2 — Approve in wallet…",
+    "sending-a":     "Creating mint…",
+    "warn-phantom":  "Security notice",
+    "signing-b":     "Step 2/2 — Approve pool in wallet…",
+    "sending-b":     "Creating pool…",
+    confirming:      "Confirming…",
+    done:            "Done",
+    error:           "Error",
   };
 
   return (
@@ -335,16 +524,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         <div className="flex items-center gap-2 rounded-xl bg-violet-500/10 border border-violet-500/20 px-4 py-2.5 text-xs text-violet-700 dark:text-violet-300">
           <Clock className="size-3.5 shrink-0" />
           Token won&apos;t be tradeable until the scheduled launch date.
-        </div>
-      )}
-
-      {(phase === "signing-b" || phase === "sending-b") && (
-        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <p className="font-semibold">Pool creation — Meteora</p>
-          <p className="mt-0.5 opacity-80">
-            Phantom may show a security notice. Scroll down and tap{" "}
-            <strong>&quot;Proceed anyway&quot;</strong> to confirm.
-          </p>
         </div>
       )}
 
