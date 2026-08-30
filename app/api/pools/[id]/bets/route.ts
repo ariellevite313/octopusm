@@ -3,26 +3,26 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function GET(
   _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+
+    const supabase = createAdminClient() as any;
+    const { data, error } = await supabase
+      .from("mutuel_bets")
+      .select("option_id, amount, token, wallet_address, payout_amount, paid_at, created_at")
+      .eq("market_id", id)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
   } catch (err) {
     console.error("[bets] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-  try {
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-
-  const supabase = createAdminClient() as any;
-  const { data, error } = await supabase
-    .from("mutuel_bets")
-    .select("option_id, amount, token, wallet_address, payout_amount, paid_at, created_at")
-    .eq("market_id", id)
-    .eq("status", "approved")
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
 }
