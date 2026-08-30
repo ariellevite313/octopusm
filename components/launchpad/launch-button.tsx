@@ -57,7 +57,6 @@ const w = () => (typeof window !== "undefined" ? (window as any) : null);
 
 const WALLET_CONFIGS: WalletConfig[] = [
   {
-  {
     id: "solflare",
     name: "Solflare",
     icon: "🌟",
