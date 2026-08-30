@@ -47,6 +47,7 @@ type WalletConfig = {
   name: string;
   icon: string;        // emoji fallback
   iconUrl?: string;    // logo URL
+  recommended?: boolean;
   get: () => SolanaWallet | null;
   installUrl: string;
 };
@@ -56,20 +57,22 @@ const w = () => (typeof window !== "undefined" ? (window as any) : null);
 
 const WALLET_CONFIGS: WalletConfig[] = [
   {
+  {
+    id: "solflare",
+    name: "Solflare",
+    icon: "🌟",
+    iconUrl: "https://solflare.com/favicon.ico",
+    recommended: true,
+    get: () => w()?.solflare?.isSolflare ? w()?.solflare : null,
+    installUrl: "https://solflare.com",
+  },
+  {
     id: "phantom",
     name: "Phantom",
     icon: "👻",
     iconUrl: "https://phantom.app/favicon.ico",
     get: () => w()?.phantom?.solana ?? (w()?.solana?.isPhantom ? w()?.solana : null),
     installUrl: "https://phantom.app",
-  },
-  {
-    id: "solflare",
-    name: "Solflare",
-    icon: "🌟",
-    iconUrl: "https://solflare.com/favicon.ico",
-    get: () => w()?.solflare?.isSolflare ? w()?.solflare : null,
-    installUrl: "https://solflare.com",
   },
   {
     id: "backpack",
@@ -181,7 +184,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   // Stores the TX B base64 while the warn-phantom modal is shown
   const pendingTxBRef = useRef<string | null>(null);
   // The wallet chosen by the user in the picker
-  const selectedWalletRef = useRef<SolanaWallet | null>(null);
+  const selectedWalletRef   = useRef<SolanaWallet | null>(null);
+  // ID of the selected wallet config (e.g. "phantom", "solflare")
+  const selectedWalletIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/status`)
@@ -296,8 +301,48 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     }
 
     pendingTxBRef.current = txBBase64;
-    setPhase("warn-phantom");
-  }, [tokenId, walletAddress]);
+
+    // Only Phantom shows the Blowfish "Are you sure?" warning for unverified programs.
+    // For all other wallets, skip the modal and go straight to signing.
+    if (selectedWalletIdRef.current === "phantom") {
+      setPhase("warn-phantom");
+      return; // proceedToTxB() called by button click
+    }
+
+    // ── Non-Phantom: sign TX B immediately ───────────────────────────────────
+    setPhase("signing-b");
+    let poolSig = "";
+    try {
+      poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+    } catch {
+      setPhase("confirming");
+      const found = await checkPoolAndFinish();
+      if (!found) {
+        setError("Pool creation cancelled. Click Retry — your fee won't be charged again.");
+        setPhase("error");
+      }
+      return;
+    }
+
+    setPhase("confirming");
+    try {
+      const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txSignature: poolSig, walletAddress }),
+      });
+      const body = await res.json() as { ok?: boolean; error?: string };
+      if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
+      if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
+      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+    } catch {
+      toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+    }
+
+    setPhase("done");
+    toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
+    setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish]);
 
   // ── TX B: pool creation (called from warn-phantom modal button) ──────────────
   const proceedToTxB = useCallback(async () => {
@@ -353,7 +398,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
       return;
     }
-    selectedWalletRef.current = wallet;
+    selectedWalletRef.current   = wallet;
+    selectedWalletIdRef.current = cfg.id;
     await runLaunchFlow(wallet);
   }, [walletAddress, runLaunchFlow]);
 
@@ -418,7 +464,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
                 className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <span className="text-lg leading-none">{cfg.icon}</span>
-                <span className="flex-1 text-left">{cfg.name}</span>
+                <span className="flex-1 text-left flex items-center gap-2">
+                  {cfg.name}
+                  {cfg.recommended && (
+                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+                      Recommended
+                    </span>
+                  )}
+                </span>
                 {isInstalled ? (
                   <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">Detected</span>
                 ) : (
