@@ -36,6 +36,7 @@ const SYMBOL_IMAGES: Record<string, string> = {
 };
 
 export async function GET() {
+  try {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = createAdminClient() as any;
 
@@ -235,4 +236,8 @@ export async function GET() {
   return NextResponse.json(withVolume.slice(0, MAX_RESULTS), {
     headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=60" },
   });
+  } catch (err) {
+    console.error("[trending] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

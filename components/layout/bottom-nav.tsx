@@ -39,9 +39,9 @@ const MORE_ITEMS = [
   {
     label: "FAQ",
     description: "Frequently asked questions",
-    href: "https://x.com/omdotfun",
+    href: "/faq",
     icon: "ti-help-circle",
-    external: true,
+    external: false,
   },
   {
     label: "Tutorial",

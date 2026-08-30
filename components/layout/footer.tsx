@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const CLT_CA = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 
@@ -13,8 +14,7 @@ export function Footer() {
           {/* Brand col */}
           <div className="col-span-2 sm:col-span-1">
             <div className="mb-4 flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/octomarket-logo.png"
                 alt="OMdotfun"
                 width={36}
@@ -28,8 +28,8 @@ export function Footer() {
             </p>
             <div className="flex gap-2">
               {[
-                { href: "https://x.com/omdotfun",  icon: "ti-brand-x" },
-                { href: "https://t.me/Omdotfun",   icon: "ti-brand-telegram" },
+                { href: "https://x.com/omdotfun", icon: "ti-brand-x" },
+                { href: "https://t.me/Omdotfun",  icon: "ti-brand-telegram" },
               ].map((s) => (
                 <Link
                   key={s.href}
@@ -51,16 +51,18 @@ export function Footer() {
             </p>
             <ul className="space-y-1">
               {[
-                { href: "https://x.com/omdotfun",       icon: "ti-brand-x",        label: "@omdotfun" },
-                { href: "https://x.com/octomarketfun",  icon: "ti-brand-x",        label: "@octomarketfun" },
-                { href: "https://t.me/Omdotfun",        icon: "ti-brand-telegram", label: "News & Updates" },
-                { href: "https://t.me/OmdotfunTuto",    icon: "ti-brand-telegram", label: "Tutorials" },
+                { href: "/",              icon: "ti-chart-bar",    label: "Markets",     internal: true },
+                { href: "/launchpad",     icon: "ti-rocket",       label: "Launchpad",   internal: true },
+                { href: "/leaderboard",   icon: "ti-trophy",       label: "Leaderboard", internal: true },
+                { href: "/faq",           icon: "ti-help-circle",  label: "FAQ",         internal: true },
+                { href: "https://t.me/Omdotfun",     icon: "ti-brand-telegram", label: "News & Updates", internal: false },
+                { href: "https://t.me/OmdotfunTuto", icon: "ti-brand-telegram", label: "Tutorials",      internal: false },
               ].map((l) => (
-                <li key={l.href}>
+                <li key={l.href + l.label}>
                   <Link
                     href={l.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    target={l.internal ? undefined : "_blank"}
+                    rel={l.internal ? undefined : "noopener noreferrer"}
                     className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <i className={`ti ${l.icon} text-sm`} aria-hidden />
@@ -78,8 +80,8 @@ export function Footer() {
             </p>
             <ul className="space-y-1">
               {[
-                { href: "https://x.com/clawdtrust",  icon: "ti-brand-x", label: "@clawdtrust" },
-                { href: "https://clawdtrust.com",     icon: "ti-world",   label: "clawdtrust.com" },
+                { href: "https://x.com/clawdtrust", icon: "ti-brand-x", label: "@clawdtrust" },
+                { href: "https://clawdtrust.com",    icon: "ti-world",   label: "clawdtrust.com" },
               ].map((l) => (
                 <li key={l.href}>
                   <Link
@@ -100,8 +102,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/dexcrenner.png" alt="Dexscreener" width={14} height={14} className="rounded-sm" />
+                  <Image src="/dexcrenner.png" alt="Dexscreener" width={14} height={14} className="rounded-sm" />
                   Dexscreener
                 </Link>
               </li>
@@ -138,15 +139,22 @@ export function Footer() {
 
         </div>
 
+        {/* Disclaimer */}
+        <p className="mb-4 text-[11px] text-muted-foreground/60 leading-relaxed border-t border-border pt-4">
+          ⚠️ Trading prediction markets and launching tokens involve a risk of loss. Nothing on this platform constitutes financial advice.
+          Always check the current{" "}
+          <Link href="/faq" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
+            terms
+          </Link>{" "}
+          before acting.
+        </p>
+
         {/* Bottom bar */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">
             © {new Date().getFullYear()} OMdotfun — All rights reserved
           </p>
-          <div
-            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
-            style={{ color: "#9945FF", border: "0.5px solid #9945FF33" }}
-          >
+          <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-violet-500 border border-violet-500/20">
             <i className="ti ti-circle-filled text-[8px]" aria-hidden />
             Built on Solana
           </div>

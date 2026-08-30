@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: RouteParams) {
+  try {
   const { id } = await params;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,4 +55,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
       "Cache-Control": "public, max-age=300, stale-while-revalidate=60",
     },
   });
+  } catch (err) {
+    console.error("[metadata] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

@@ -19,6 +19,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: Request,
+  } catch (err) {
+    console.error("[[id]] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+  try {
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: rawId } = await params;

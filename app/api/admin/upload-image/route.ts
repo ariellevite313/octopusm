@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
+  try {
   // Any authenticated user can upload a market icon (not admin-only)
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,4 +33,8 @@ export async function POST(req: Request) {
 
   const { data: urlData } = admin.storage.from("market-images").getPublicUrl(path);
   return NextResponse.json({ url: urlData.publicUrl });
+  } catch (err) {
+    console.error("[upload-image] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

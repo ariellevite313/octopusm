@@ -57,7 +57,8 @@ async function queryPendingSol(poolAddress: string): Promise<number> {
     }
 
     return lamports / 1e9;
-  } catch {
+  } catch (err) {
+    console.warn("[pending-fees] queryPendingSol failed for", poolAddress, err);
     return 0;
   }
 }

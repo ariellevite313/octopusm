@@ -5,6 +5,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 // GET — check if a wallet is watching
 export async function GET(req: Request, { params }: RouteParams) {
+  try {
   const { id } = await params;
   const wallet = new URL(req.url).searchParams.get("wallet");
   if (!wallet) return NextResponse.json({ watching: false });
@@ -19,10 +20,15 @@ export async function GET(req: Request, { params }: RouteParams) {
     .maybeSingle();
 
   return NextResponse.json({ watching: !!data });
+  } catch (err) {
+    console.error("[watchlist] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 // POST — toggle watchlist
 export async function POST(req: Request, { params }: RouteParams) {
+  try {
   const { id } = await params;
   const { wallet } = await req.json() as { wallet?: string };
   if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
@@ -43,5 +49,9 @@ export async function POST(req: Request, { params }: RouteParams) {
   } else {
     await admin.from("launchpad_watchlist").insert({ token_id: id, wallet });
     return NextResponse.json({ watching: true });
+  }
+  } catch (err) {
+    console.error("[watchlist] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

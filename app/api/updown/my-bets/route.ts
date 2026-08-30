@@ -9,6 +9,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
  * not from a query param (which could be spoofed to read any user's bets).
  */
 export async function GET() {
+  try {
   // C-02 fix: verify authenticated session
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
@@ -29,4 +30,8 @@ export async function GET() {
 
   if (error) return NextResponse.json({ bets: [] });
   return NextResponse.json({ bets: data ?? [] });
+  } catch (err) {
+    console.error("[my-bets] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

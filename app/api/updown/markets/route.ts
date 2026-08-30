@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
  * Returns active (open) markets for a given symbol, plus the latest resolved ones.
  */
 export async function GET(req: Request) {
+  try {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol")?.toUpperCase();
 
@@ -55,4 +56,8 @@ export async function GET(req: Request) {
   return NextResponse.json({ ok: true, markets: byDuration }, {
     headers: { "Cache-Control": "no-store" },
   });
+  } catch (err) {
+    console.error("[markets] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

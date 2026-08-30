@@ -30,6 +30,7 @@ const WITHDRAWAL_SUB: Record<string, string> = {
 };
 
 export async function GET() {
+  try {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
@@ -287,10 +288,11 @@ export async function GET() {
     bet:      "Bet reward",
     task:     "Task reward",
     referral: "Referral bonus",
+    launch:   "Token launch reward",
   };
   const octoActivity = octoTxs.map((t: any) => ({
     id: t.id as string,
-    type: t.type as "bet" | "task" | "referral",
+    type: t.type as "bet" | "task" | "referral" | "launch",
     amount: Number(t.amount ?? 0),
     label: OCTO_LABELS[t.type as string] ?? "OMERO earned",
     sub: t.bet_amount_usd != null ? `$${Number(t.bet_amount_usd).toFixed(2)}` : "",
@@ -298,4 +300,8 @@ export async function GET() {
   }));
 
   return NextResponse.json({ usdcActivity, cltActivity, octoActivity });
+  } catch (err) {
+    console.error("[activity] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

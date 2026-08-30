@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function GET() {
+  try {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
@@ -34,4 +35,8 @@ export async function GET() {
   }
 
   return NextResponse.json(data ?? []);
+  } catch (err) {
+    console.error("[mine] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

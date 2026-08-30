@@ -6,8 +6,21 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/prediction/", "/pools/", "/archive", "/leaderboard", "/launch"],
-        disallow: ["/dashboard", "/admin", "/api/"],
+        allow: [
+          "/",
+          "/prediction/",
+          "/pools/",
+          "/archive",
+          "/leaderboard",
+          "/launchpad",
+          "/faq",
+        ],
+        disallow: [
+          "/dashboard",
+          "/admin",
+          "/api/",
+          "/launchpad/create",
+        ],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,

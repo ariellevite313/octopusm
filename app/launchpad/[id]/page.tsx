@@ -111,22 +111,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const token = await getCachedToken(id);
   if (!token) return { title: "Token not found" };
 
+  const siteUrl     = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
+  const canonical   = token.mint_address
+    ? `${siteUrl}/launchpad/${token.mint_address}`
+    : `${siteUrl}/launchpad/${id}`;
   const title       = `${token.name} ($${token.ticker}) — OMdotfun`;
   const description = token.description ?? `${token.name} on OMdotfun Launchpad`;
+  const ogImage     = (token.logo_url as string | null) ?? `${siteUrl}/branding-logo.jpeg`;
 
   return {
     title,
     description,
+    alternates: { canonical },
     openGraph: {
       title,
       description,
       siteName: "OMdotfun",
-      type: "website",
+      type:     "website",
+      url:      canonical,
+      images:   [{ url: ogImage, width: 400, height: 400, alt: token.name as string }],
     },
     twitter: {
       card:        "summary_large_image",
       title,
       description,
+      images:      [ogImage],
     },
   };
 }

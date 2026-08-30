@@ -3,6 +3,11 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function GET(
   _req: Request,
+  } catch (err) {
+    console.error("[bets] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+  try {
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;

@@ -13,6 +13,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
  * from the net amount at claim time (not here — this route just lists).
  */
 export async function GET() {
+  try {
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
@@ -50,4 +51,8 @@ export async function GET() {
   });
 
   return NextResponse.json(enriched);
+  } catch (err) {
+    console.error("[winnings] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
