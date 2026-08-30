@@ -7,6 +7,7 @@ const FREE_DAILY_LIMIT       = 2;
 const EXTRA_MARKET_COST_OCTO = 500;
 
 export async function GET() {
+  try {
   const userClient = await createClient() as any;
   const { data: { user } } = await userClient.auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
@@ -40,4 +41,8 @@ export async function GET() {
     is_free:       (todayCount ?? 0) < FREE_DAILY_LIMIT,
     can_create:    (todayCount ?? 0) < FREE_DAILY_LIMIT || octoBalance >= EXTRA_MARKET_COST_OCTO,
   });
+  } catch (err) {
+    console.error("[daily-limit] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

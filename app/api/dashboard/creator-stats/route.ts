@@ -24,6 +24,7 @@ export type CreatorStatsResponse = {
 };
 
 export async function GET(req: Request) {
+  try {
   const { searchParams } = new URL(req.url);
   const wallet = searchParams.get("wallet");
   if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
@@ -80,4 +81,8 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({ totalClaimed, todayClaimed, tokens } satisfies CreatorStatsResponse);
+  } catch (err) {
+    console.error("[creator-stats] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

@@ -9,6 +9,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
  * Each entry includes market info (title, slug, status, options, bet_token).
  */
 export async function GET() {
+  try {
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
   const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
@@ -64,4 +65,8 @@ export async function GET() {
     pending:            pending            ?? [],
     pendingPredictions: pendingPredictions ?? [],
   });
+  } catch (err) {
+    console.error("[my-bets] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

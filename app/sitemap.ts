@@ -5,15 +5,19 @@ export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: siteUrl,                        lastModified: new Date(), changeFrequency: "hourly",  priority: 1.0 },
-    { url: `${siteUrl}/pools`,             lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
-    { url: `${siteUrl}/crypto`,            lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
-    { url: `${siteUrl}/archive`,           lastModified: new Date(), changeFrequency: "daily",   priority: 0.6 },
-    { url: `${siteUrl}/leaderboard`,       lastModified: new Date(), changeFrequency: "hourly",  priority: 0.7 },
-    { url: `${siteUrl}/launch`,            lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: siteUrl,                                  lastModified: new Date(), changeFrequency: "hourly",  priority: 1.0 },
+    { url: `${siteUrl}/launchpad`,                   lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
+    { url: `${siteUrl}/pools`,                       lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
+    { url: `${siteUrl}/crypto`,                      lastModified: new Date(), changeFrequency: "hourly",  priority: 0.8 },
+    { url: `${siteUrl}/leaderboard`,                 lastModified: new Date(), changeFrequency: "hourly",  priority: 0.7 },
+    { url: `${siteUrl}/leaderboard/predictions`,     lastModified: new Date(), changeFrequency: "hourly",  priority: 0.7 },
+    { url: `${siteUrl}/leaderboard/launchpad`,       lastModified: new Date(), changeFrequency: "hourly",  priority: 0.7 },
+    { url: `${siteUrl}/archive`,                     lastModified: new Date(), changeFrequency: "daily",   priority: 0.6 },
+    { url: `${siteUrl}/faq`,                         lastModified: new Date(), changeFrequency: "weekly",  priority: 0.6 },
   ];
 
   // Active prediction markets
@@ -24,12 +28,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq("is_resolved", false)
     .limit(200);
 
-  const marketRoutes: MetadataRoute.Sitemap = (markets ?? []).map((m: { slug: string | null; id: string; updated_at: string }) => ({
-    url: `${siteUrl}/prediction/${m.slug ?? m.id}`,
-    lastModified: new Date(m.updated_at),
-    changeFrequency: "hourly" as const,
-    priority: 0.8,
-  }));
+  const marketRoutes: MetadataRoute.Sitemap = (markets ?? []).map(
+    (m: { slug: string | null; id: string; updated_at: string }) => ({
+      url: `${siteUrl}/prediction/${m.slug ?? m.id}`,
+      lastModified: new Date(m.updated_at),
+      changeFrequency: "hourly" as const,
+      priority: 0.8,
+    }),
+  );
 
   // Active pools
   const { data: pools } = await admin
@@ -38,12 +44,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .in("status", ["active", "closed"])
     .limit(200);
 
-  const poolRoutes: MetadataRoute.Sitemap = (pools ?? []).map((p: { slug: string; updated_at: string }) => ({
-    url: `${siteUrl}/pools/${p.slug}`,
-    lastModified: new Date(p.updated_at),
-    changeFrequency: "hourly" as const,
-    priority: 0.8,
-  }));
+  const poolRoutes: MetadataRoute.Sitemap = (pools ?? []).map(
+    (p: { slug: string; updated_at: string }) => ({
+      url: `${siteUrl}/pools/${p.slug}`,
+      lastModified: new Date(p.updated_at),
+      changeFrequency: "hourly" as const,
+      priority: 0.8,
+    }),
+  );
 
-  return [...staticRoutes, ...marketRoutes, ...poolRoutes];
+  // Active launchpad tokens — indexed by mint address (canonical URL)
+  const { data: tokens } = await admin
+    .from("launchpad_tokens")
+    .select("mint_address, updated_at")
+    .eq("status", "active")
+    .not("mint_address", "is", null)
+    .limit(500);
+
+  const tokenRoutes: MetadataRoute.Sitemap = (tokens ?? []).map(
+    (t: { mint_address: string; updated_at: string }) => ({
+      url: `${siteUrl}/launchpad/${t.mint_address}`,
+      lastModified: new Date(t.updated_at),
+      changeFrequency: "hourly" as const,
+      priority: 0.75,
+    }),
+  );
+
+  return [...staticRoutes, ...marketRoutes, ...poolRoutes, ...tokenRoutes];
 }

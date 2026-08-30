@@ -13,6 +13,7 @@ const VOLUMES_TTL = 5 * 60 * 1000; // 5 minutes
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  try {
   const category = req.nextUrl.searchParams.get("category") ?? undefined;
 
   // Fetch volumes from cache or DB
@@ -34,4 +35,8 @@ export async function GET(req: NextRequest) {
       },
     }
   );
+  } catch (err) {
+    console.error("[markets] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

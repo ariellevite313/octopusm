@@ -8,6 +8,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
  * Inserts bet + atomically increments pool_up or pool_down.
  */
 export async function POST(req: Request) {
+  try {
   // 1. Auth: session Supabase requise
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -85,4 +86,8 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[updown/bet] unexpected error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

@@ -6,6 +6,7 @@ const isUsdc = (t: string) => t === "usdc";
 const isWin  = (s: string) => ["win", "claimed", "paid"].includes(s);
 
 export async function GET() {
+  try {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
@@ -107,4 +108,8 @@ export async function GET() {
   const octoBalance = (octoRes.data ?? []).reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
   return NextResponse.json({ usdcBalance, cltBalance, octoBalance });
+  } catch (err) {
+    console.error("[balance] unexpected error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

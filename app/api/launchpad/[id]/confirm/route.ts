@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { verifyTransaction } from "@/lib/solana/verify-tx";
+import { awardOcto, OMERO_PER_LAUNCH } from "@/lib/octo";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -175,12 +176,18 @@ export async function POST(req: Request, { params }: RouteParams) {
       })
       .eq("id", id);
 
+    // Award 500 Omero to the creator — fire-and-forget, never blocks the response
+    awardOcto(body.walletAddress, OMERO_PER_LAUNCH, "launch").catch((e) =>
+      console.warn("[confirm] awardOcto failed (non-fatal):", e),
+    );
+
     return NextResponse.json({
       ok:          true,
       status:      newStatus,
       isTradeable,
       scheduledAt: isScheduled ? (token.scheduled_at as string) : null,
       poolAddress,
+      omeroAwarded: OMERO_PER_LAUNCH,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

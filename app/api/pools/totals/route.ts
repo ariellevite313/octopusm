@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
+  try {
   const ids = req.nextUrl.searchParams.get("ids");
   if (!ids) return NextResponse.json({});
 
@@ -30,4 +31,8 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(result);
+  } catch (err) {
+    console.error("[totals] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

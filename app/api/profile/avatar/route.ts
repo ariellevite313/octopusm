@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
+  try {
   // Verify session
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,4 +36,8 @@ export async function POST(req: Request) {
 
   const { data: urlData } = admin.storage.from("avatars").getPublicUrl(path);
   return NextResponse.json({ url: `${urlData.publicUrl}?t=${Date.now()}` });
+  } catch (err) {
+    console.error("[avatar] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

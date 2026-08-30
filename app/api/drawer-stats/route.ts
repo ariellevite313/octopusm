@@ -6,6 +6,7 @@ export const revalidate = 0;
 const isWin = (s: string) => ["win", "won", "claimed", "paid"].includes(s);
 
 export async function GET() {
+  try {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
@@ -45,4 +46,8 @@ export async function GET() {
   const referral_code: string | null = refCodeRes.data?.code ?? null;
 
   return NextResponse.json({ bets_count, win_count, win_rate, referral_count, referral_octo, referral_code });
+  } catch (err) {
+    console.error("[drawer-stats] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

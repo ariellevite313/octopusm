@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 
 export const OCTO_PER_CREATION = 100;
+export const OMERO_PER_LAUNCH  = 500;
 
 /**
  * OCTO earned for a bet, based on amount:
@@ -25,7 +26,7 @@ export function octoForBet(amount: number, token: string): number {
 export async function awardOcto(
   walletAddress: string,
   amount: number,
-  type: "bet" | "task" | "referral",
+  type: "bet" | "task" | "referral" | "launch",
   _label?: string,
   betAmountUsd?: number,
 ): Promise<void> {

@@ -17,6 +17,7 @@ import { requireAdminApi } from "@/lib/auth/require-admin";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  try {
   // ── Auth admin ────────────────────────────────────────────────────────────
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -37,4 +38,8 @@ export async function GET() {
       "Cache-Control": "private, max-age=3600",
     },
   });
+  } catch (err) {
+    console.error("[matches] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

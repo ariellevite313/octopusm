@@ -18,6 +18,7 @@ function getSupabase() {
  * navigation hors de la page.
  */
 export async function GET(req: NextRequest) {
+  try {
   const { searchParams } = req.nextUrl;
   const symbol = searchParams.get("symbol");
   const from   = Number(searchParams.get("from"));
@@ -55,4 +56,8 @@ export async function GET(req: NextRequest) {
   }));
 
   return NextResponse.json({ points });
+  } catch (err) {
+    console.error("[history] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

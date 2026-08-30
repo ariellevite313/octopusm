@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 type Params = { params: Promise<{ address: string }> };
 
 export async function POST(req: Request, { params }: Params) {
+  try {
   const denied = await requireAdminApi();
   if (denied) return denied;
 
@@ -26,4 +27,8 @@ export async function POST(req: Request, { params }: Params) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true, verified: body.verified });
+  } catch (err) {
+    console.error("[verify] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

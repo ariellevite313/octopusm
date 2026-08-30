@@ -11,6 +11,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
  * + paris won sur rounds precedents non encore claims.
  */
 export async function GET(req: Request) {
+  try {
   // C-02 fix: verify authenticated session
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
@@ -72,4 +73,8 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({ bets });
+  } catch (err) {
+    console.error("[my-bet] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
