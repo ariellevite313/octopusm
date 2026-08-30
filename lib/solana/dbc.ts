@@ -189,14 +189,19 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
   // IMPORTANT: tx.signatures is only populated after compileMessage() is called.
   // Without compileMessage(), the array is always empty → both flags are false
   // → mint never signs → TX B fails on-chain with "missing required signer".
+  console.log("[DBC split] TX A instructions:", ixA.map((ix: { programId: PublicKey }) => ix.programId.toBase58()));
+  console.log("[DBC split] TX B instructions:", ixB.map((ix: { programId: PublicKey }) => ix.programId.toBase58()));
+
   const mintStr = params.mintKeypair.publicKey.toBase58();
   txA.compileMessage();
   txB.compileMessage();
   const txANeedsMint = txA.signatures.some(s => s.publicKey.toBase58() === mintStr);
   const txBNeedsMint = txB.signatures.some(s => s.publicKey.toBase58() === mintStr);
   console.log("[DBC split] txA needs mint sig:", txANeedsMint, "| txB needs mint sig:", txBNeedsMint);
-  if (txANeedsMint) txA.partialSign(params.mintKeypair);
-  if (txBNeedsMint) txB.partialSign(params.mintKeypair);
+  // Always try to partialSign with mint keypair — some programs check for the signature
+  // even when it's not listed as a required signer in the outer tx message.
+  try { txA.partialSign(params.mintKeypair); } catch { /* not needed */ }
+  try { txB.partialSign(params.mintKeypair); } catch { /* not needed */ }
 
   return {
     txABase64: Buffer.from(txA.serialize({ requireAllSignatures: false })).toString("base64"),
