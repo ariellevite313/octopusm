@@ -94,7 +94,7 @@ export async function GET(req: Request) {
         tokenCount:    tokenCountMap.get(wallet) ?? 0,
       }))
       .sort((a, b) => b.totalFeeSol - a.totalFeeSol)
-      .slice(0, 50);
+      .slice(0, 100);
 
     // Fetch profiles from wallets table
     const walletAddresses = sortedWallets.map(e => e.walletAddress);

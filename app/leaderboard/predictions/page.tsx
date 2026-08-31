@@ -22,9 +22,14 @@ export default function PredictionsLeaderboardPage() {
       </Link>
 
       {/* Title */}
-      <div className="mb-6 flex items-center gap-2">
-        <Trophy className="size-5 text-amber-400" />
-        <h1 className="text-xl font-bold text-foreground">Predictions Leaderboard</h1>
+      <div className="mb-6 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Trophy className="size-5 text-amber-400" />
+          <h1 className="text-xl font-bold text-foreground">Predictions Leaderboard</h1>
+        </div>
+        <span className="rounded-full bg-amber-400/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400 border border-amber-400/20">
+          Top 20
+        </span>
       </div>
 
       <LeaderboardTabs />
