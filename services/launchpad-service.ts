@@ -31,6 +31,11 @@ export type LaunchpadToken = {
   metadata_uri: string | null;
   created_at: string;
   updated_at: string;
+  // Market stats (hydrated by cron every 5 min from GeckoTerminal)
+  price_usd:        number | null;
+  market_cap_usd:   number | null;
+  volume_24h_usd:   number | null;
+  stats_updated_at: string | null;
   creator_display_name?: string | null;
 };
 
@@ -66,7 +71,10 @@ const PUBLIC_COLUMNS = [
   "share_top100","share_top100_pct","is_scheduled","scheduled_at",
   "first_buy_amount","status","is_verified","is_tradeable","metadata_uri",
   "created_at","updated_at",
+  "price_usd","market_cap_usd","volume_24h_usd","stats_updated_at",
 ].join(",");
+
+export type SortOption = "new" | "old" | "verified" | "market_cap_desc" | "market_cap_asc" | "volume";
 
 // Colonnes publiques pour token_reservations (colonnes différentes de launchpad_tokens)
 const RESERVATION_COLUMNS = [
@@ -80,55 +88,80 @@ export async function getLaunchpadTokens({
   status,
   excludeStatuses,
   category,
-  limit = 50,
+  sort = "new",
+  limit = 20,
   offset = 0,
+  withCount = false,
 }: {
   status?: LaunchpadToken["status"] | "coming_soon";
   excludeStatuses?: LaunchpadToken["status"][];
   category?: string;
+  sort?: SortOption;
   limit?: number;
   offset?: number;
-} = {}): Promise<LaunchpadToken[]> {
+  withCount?: boolean;
+} = {}): Promise<{ tokens: LaunchpadToken[]; total: number }> {
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
-  let q = admin
-    .from("launchpad_tokens")
-    .select(PUBLIC_COLUMNS)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q = (admin as any)
+    .from("launchpad_tokens")
+    .select(PUBLIC_COLUMNS, withCount ? { count: "exact" } : undefined);
+
+  // ── Status filters ──────────────────────────────────────────────────────────
   if (status === "coming_soon") {
     q = q.eq("is_scheduled", true).eq("is_tradeable", false);
   } else if (status) {
     q = q.eq("status", status);
   }
-
   if (excludeStatuses && excludeStatuses.length > 0) {
     q = q.not("status", "in", `(${excludeStatuses.join(",")})`);
   }
-
   if (category) q = q.eq("category", category);
 
-  const { data, error } = await q;
+  // "verified" sort = only verified tokens, newest first
+  if (sort === "verified") {
+    q = q.eq("is_verified", true).order("created_at", { ascending: false });
+  } else {
+    // All other sorts: verified tokens always first, then by criterion
+    q = q.order("is_verified", { ascending: false, nullsFirst: false });
+    if (sort === "old") {
+      q = q.order("created_at", { ascending: true });
+    } else if (sort === "market_cap_desc") {
+      q = q.order("market_cap_usd", { ascending: false, nullsFirst: false });
+    } else if (sort === "market_cap_asc") {
+      q = q.order("market_cap_usd", { ascending: true, nullsFirst: false });
+    } else if (sort === "volume") {
+      q = q.order("volume_24h_usd", { ascending: false, nullsFirst: false });
+    } else {
+      // "new" (default)
+      q = q.order("created_at", { ascending: false });
+    }
+  }
+
+  q = q.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await q;
   if (error) console.error("[launchpad-service] getLaunchpadTokens error:", error.message);
   const tokens = (data ?? []) as LaunchpadToken[];
 
   // Batch-fetch creator display names from wallets table
-  const wallets = [...new Set(tokens.map(t => t.creator_wallet).filter(Boolean))];
-  if (wallets.length > 0) {
+  const walletAddrs = [...new Set(tokens.map((t: LaunchpadToken) => t.creator_wallet).filter(Boolean))];
+  if (walletAddrs.length > 0) {
     const { data: walletRows } = await admin
       .from("wallets")
       .select("address, display_name")
-      .in("address", wallets);
+      .in("address", walletAddrs);
     if (walletRows) {
       const nameMap = new Map((walletRows as { address: string; display_name: string | null }[]).map(w => [w.address, w]));
-      tokens.forEach(t => {
+      tokens.forEach((t: LaunchpadToken) => {
         const w = nameMap.get(t.creator_wallet);
         t.creator_display_name = w?.display_name ?? null;
       });
     }
   }
 
-  return tokens;
+  return { tokens, total: count ?? 0 };
 }
 
 export async function getLaunchpadToken(id: string): Promise<LaunchpadToken | null> {
