@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
+import { TrendingStrip } from "@/components/launchpad/trending-strip";
 
 export const metadata: Metadata = {
   title: "Launchpad",
@@ -20,8 +21,14 @@ export const metadata: Metadata = {
 export const revalidate = 30;
 
 async function LaunchpadContent() {
-  const tokens = await getLaunchpadTokens({ limit: 50, excludeStatuses: ["pending", "cancelled"] });
-  return <LaunchpadClient initialTokens={tokens} />;
+  const { tokens, total } = await getLaunchpadTokens({
+    limit: 20,
+    offset: 0,
+    sort: "new",
+    excludeStatuses: ["pending", "cancelled"],
+    withCount: true,
+  });
+  return <LaunchpadClient initialTokens={tokens} initialTotal={total} />;
 }
 
 function LaunchpadSkeleton() {
@@ -73,7 +80,10 @@ export default function LaunchpadPage() {
         </Link>
       </div>
 
-      {/* Token grid */}
+      {/* Trending strip (client, fetches /api/launchpad/trending) */}
+      <TrendingStrip />
+
+      {/* Token grid + filters */}
       <Suspense fallback={<LaunchpadSkeleton />}>
         <LaunchpadContent />
       </Suspense>

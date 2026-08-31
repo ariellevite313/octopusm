@@ -76,7 +76,7 @@ function ComingSoonCard({ token }: { token: LaunchpadToken }) {
 }
 
 async function ComingSoonContent() {
-  const tokens = await getLaunchpadTokens({ status: "coming_soon", limit: 50 });
+  const { tokens } = await getLaunchpadTokens({ status: "coming_soon", limit: 50 });
 
   if (tokens.length === 0) {
     return (
