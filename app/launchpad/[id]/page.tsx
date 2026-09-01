@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, BadgeCheck } from "lucide-react";
 import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
@@ -280,9 +280,7 @@ export default async function TokenDetailPage({ params }: Props) {
               {token.category}
             </span>
             {token.is_verified && (
-              <span className="rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[10px] font-semibold text-orange-400">
-                ✓ Verified
-              </span>
+              <BadgeCheck className="size-5 text-orange-400 shrink-0" />
             )}
           </div>
           <div className="text-sm text-muted-foreground mb-2">${token.ticker}</div>

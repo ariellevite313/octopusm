@@ -103,7 +103,7 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
 
   return (
     <Link
-      href={`/launchpad/${token.id}`}
+      href={`/launchpad/${token.mint_address ?? token.id}`}
       className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200 hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
       style={{ borderColor: isGraduated ? "rgba(59,130,246,0.25)" : "rgba(16,185,129,0.18)" }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "rgba(59,130,246,0.55)" : "rgba(16,185,129,0.50)"; }}
@@ -135,18 +135,16 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
             </span>
           </div>
         )}
-        {token.is_verified && (
-          <div className="absolute left-2 bottom-2">
-            <BadgeCheck className="size-4 text-orange-400 drop-shadow-sm" />
-          </div>
-        )}
       </div>
 
       <div className="flex flex-col gap-1.5 p-3">
         <div className="flex items-center justify-between gap-1 min-w-0">
-          <span className="truncate text-sm font-bold text-foreground group-hover:text-emerald-400 transition-colors">
-            {token.name}
-          </span>
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="truncate text-sm font-bold text-foreground group-hover:text-emerald-400 transition-colors">
+              {token.name}
+            </span>
+            {token.is_verified && <BadgeCheck className="size-3.5 shrink-0 text-orange-400" />}
+          </div>
           {token.mint_address && (
             <CopyButton text={token.mint_address}>
               {shortAddr(token.mint_address, 4, 4)}
@@ -187,7 +185,7 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
 
   return (
     <Link
-      href={`/launchpad/${token.id}`}
+      href={`/launchpad/${token.mint_address ?? token.id}`}
       className="group flex items-center gap-3 px-3 py-3 transition-colors"
     >
       <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-black">
