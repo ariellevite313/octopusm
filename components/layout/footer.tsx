@@ -151,9 +151,23 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground">
-            © {new Date().getFullYear()} OMdotfun — All rights reserved
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-[11px] text-muted-foreground">
+              © {new Date().getFullYear()} OMdotfun — All rights reserved
+            </p>
+            <Link
+              href="/privacy"
+              className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/policy"
+              className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
+            >
+              ŌM Policy
+            </Link>
+          </div>
           <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-violet-500 border border-violet-500/20">
             <i className="ti ti-circle-filled text-[8px]" aria-hidden />
             Built on Solana
