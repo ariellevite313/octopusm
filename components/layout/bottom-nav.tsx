@@ -50,6 +50,20 @@ const MORE_ITEMS = [
     icon: "ti-book",
     external: true,
   },
+  {
+    label: "ŌM Policy",
+    description: "Rules, prohibitions, removals",
+    href: "/policy",
+    icon: "ti-shield-check",
+    external: false,
+  },
+  {
+    label: "Privacy Policy",
+    description: "How we handle your data",
+    href: "/privacy",
+    icon: "ti-lock",
+    external: false,
+  },
 ];
 
 function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
