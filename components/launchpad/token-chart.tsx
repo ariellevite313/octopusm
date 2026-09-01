@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * TokenChart — Multi-timeframe candlestick + live line chart
- * Data: GeckoTerminal API (free, no key)
- * Renderer: TradingView Lightweight Charts v5
+ * TokenChart — DexScreener embed (primary, indexes Meteora DBC)
+ *              falls back to GeckoTerminal OHLCV chart for graduated pools
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -13,7 +12,7 @@ import { Loader2, CandlestickChart, TrendingUp } from "lucide-react";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Bar = { time: number; open: number; high: number; low: number; close: number };
-type Status = "loading" | "nodata" | "error" | "ready";
+type Status = "loading" | "nodata" | "error" | "ready" | "embed";
 type ChartType = "candle" | "line";
 
 type Timeframe = { label: string; path: string };
@@ -28,9 +27,26 @@ const TIMEFRAMES: Timeframe[] = [
 ];
 
 const DEFAULT_TF = TIMEFRAMES[1]; // 5m
-const LIVE_REFRESH_MS = 30_000;   // refresh line chart every 30s
+const LIVE_REFRESH_MS = 30_000;
 
-// ── GeckoTerminal helpers ─────────────────────────────────────────────────────
+// ── DexScreener helpers ───────────────────────────────────────────────────────
+
+async function resolveDexPair(mintAddress: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = await res.json() as any;
+    return json?.pairs?.[0]?.pairAddress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── GeckoTerminal helpers (fallback) ──────────────────────────────────────────
 
 type RawList = [number, string | number, string | number, string | number, string | number, string | number][];
 
@@ -47,7 +63,7 @@ function parseOHLCV(list: RawList): Bar[] {
     .reverse();
 }
 
-async function resolvePool(mintAddress: string): Promise<string> {
+async function resolveGeckoPool(mintAddress: string): Promise<string> {
   const res = await fetch(
     `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}/pools?page=1`,
     { headers: { Accept: "application/json" } }
@@ -73,27 +89,25 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
   return parseOHLCV(list);
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Chart theme ───────────────────────────────────────────────────────────────
 
 function getChartTheme(isDark: boolean) {
   return isDark
-    ? {
-        background:  "#000000",
-        text:        "#555555",
-        grid:        "#111111",
-        border:      "#1a1a1a",
-      }
-    : {
-        background:  "#ffffff",
-        text:        "#666666",
-        grid:        "#e5e7eb",
-        border:      "#d1d5db",
-      };
+    ? { background: "#000000", text: "#555555", grid: "#111111", border: "#1a1a1a" }
+    : { background: "#ffffff", text: "#666666", grid: "#e5e7eb", border: "#d1d5db" };
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function TokenChart({ mintAddress, name }: { mintAddress: string; name: string }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme !== "light";
+
+  // DexScreener embed
+  const [dexPair, setDexPair] = useState<string | null>(null);
+  const [embedReady, setEmbedReady] = useState(false);
+
+  // GeckoTerminal fallback
   const wrapperRef = useRef<HTMLDivElement>(null);
   const poolRef    = useRef<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,9 +116,8 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   const seriesRef  = useRef<any>(null);
   const roRef      = useRef<ResizeObserver | null>(null);
   const liveTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Ref mirrors for stale-closure safety inside setInterval
-  const activeTfRef   = useRef<Timeframe>(DEFAULT_TF);
-  const chartTypeRef  = useRef<ChartType>("candle");
+  const activeTfRef  = useRef<Timeframe>(DEFAULT_TF);
+  const chartTypeRef = useRef<ChartType>("candle");
 
   const [status,    setStatus]    = useState<Status>("loading");
   const [errorMsg,  setErrorMsg]  = useState("");
@@ -112,7 +125,26 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   const [chartType, setChartType] = useState<ChartType>("candle");
   const [tfLoading, setTfLoading] = useState(false);
 
-  // ── Build / rebuild series ────────────────────────────────────────────────────
+  // ── Step 1: try DexScreener embed ─────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function tryDex() {
+      const pair = await resolveDexPair(mintAddress);
+      if (cancelled) return;
+      if (pair) {
+        setDexPair(pair);
+        setStatus("embed");
+      } else {
+        // No DexScreener pair — try GeckoTerminal
+        initGecko();
+      }
+    }
+    void tryDex();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mintAddress]);
+
+  // ── Build / rebuild GeckoTerminal series ──────────────────────────────────
   const buildSeries = useCallback(async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lw: any,
@@ -120,8 +152,6 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     type: ChartType,
   ) => {
     if (!chartRef.current) return;
-
-    // Remove existing series
     if (seriesRef.current) {
       try { chartRef.current.removeSeries(seriesRef.current); } catch { /* ignore */ }
       seriesRef.current = null;
@@ -142,7 +172,6 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       (series as any).setData(bars);
       seriesRef.current = series;
     } else {
-      // AreaSeries (v5) or LineSeries fallback (v4)
       const SeriesClass = lw.AreaSeries ?? lw.LineSeries;
       const lineData = bars.map(b => ({ time: b.time, value: b.close }));
       const series = chartRef.current.addSeries(SeriesClass, {
@@ -160,13 +189,13 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     chartRef.current.timeScale().fitContent();
   }, []);
 
-  // ── Initial chart setup ───────────────────────────────────────────────────────
-  useEffect(() => {
+  // ── GeckoTerminal init (fallback) ─────────────────────────────────────────
+  function initGecko() {
     let cancelled = false;
 
     async function init() {
       try {
-        const pool = await resolvePool(mintAddress);
+        const pool = await resolveGeckoPool(mintAddress);
         if (cancelled) return;
         poolRef.current = pool;
 
@@ -223,71 +252,50 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       chartRef.current  = null;
       seriesRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mintAddress]);
+  }
 
-  // ── Re-apply theme when it changes ───────────────────────────────────────────
+  // ── Re-apply GeckoTerminal theme ──────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
     const t = getChartTheme(isDark);
     import("lightweight-charts").then(({ ColorType }) => {
       chartRef.current?.applyOptions({
-        layout: {
-          background: { type: ColorType.Solid, color: t.background },
-          textColor: t.text,
-        },
-        grid: {
-          vertLines: { color: t.grid },
-          horzLines: { color: t.grid, style: 3 },
-        },
+        layout: { background: { type: ColorType.Solid, color: t.background }, textColor: t.text },
+        grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid, style: 3 } },
         rightPriceScale: { borderColor: t.border },
         timeScale:       { borderColor: t.border },
       });
     });
   }, [isDark]);
 
-  // ── Switch timeframe ──────────────────────────────────────────────────────────
+  // ── GeckoTerminal timeframe switch ────────────────────────────────────────
   const switchTf = useCallback(async (tf: Timeframe) => {
     if (!poolRef.current || !chartRef.current || tfLoading) return;
     setActiveTf(tf);
-    activeTfRef.current = tf; // keep ref in sync for live timer
+    activeTfRef.current = tf;
     setTfLoading(true);
     try {
-      const [lw, bars] = await Promise.all([
-        import("lightweight-charts"),
-        fetchBars(poolRef.current, tf),
-      ]);
+      const [lw, bars] = await Promise.all([import("lightweight-charts"), fetchBars(poolRef.current, tf)]);
       if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
     } catch { /* keep existing */ }
     finally { setTfLoading(false); }
   }, [tfLoading, buildSeries]);
 
-  // ── Switch chart type ─────────────────────────────────────────────────────────
+  // ── GeckoTerminal chart type switch ───────────────────────────────────────
   const switchType = useCallback(async (type: ChartType) => {
     if (!poolRef.current || !chartRef.current) return;
     setChartType(type);
-    chartTypeRef.current = type; // keep ref in sync
-
-    // Stop existing live timer
+    chartTypeRef.current = type;
     if (liveTimer.current) { clearInterval(liveTimer.current); liveTimer.current = null; }
-
     setTfLoading(true);
     try {
-      const [lw, bars] = await Promise.all([
-        import("lightweight-charts"),
-        fetchBars(poolRef.current, activeTfRef.current), // use ref, not stale state
-      ]);
+      const [lw, bars] = await Promise.all([import("lightweight-charts"), fetchBars(poolRef.current, activeTfRef.current)]);
       if (bars.length) await buildSeries(lw, bars, type);
-
-      // Auto-refresh every 30s for line chart — use refs to avoid stale closures
       if (type === "line") {
         liveTimer.current = setInterval(async () => {
           if (!poolRef.current || !seriesRef.current) return;
           try {
-            const [lw2, freshBars] = await Promise.all([
-              import("lightweight-charts"),
-              fetchBars(poolRef.current, activeTfRef.current), // always latest TF
-            ]);
+            const [lw2, freshBars] = await Promise.all([import("lightweight-charts"), fetchBars(poolRef.current, activeTfRef.current)]);
             await buildSeries(lw2, freshBars, "line");
           } catch { /* ignore */ }
         }, LIVE_REFRESH_MS);
@@ -296,75 +304,86 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     finally { setTfLoading(false); }
   }, [buildSeries]);
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── DexScreener embed ─────────────────────────────────────────────────────
+  if (status === "embed" && dexPair) {
+    const theme = isDark ? "dark" : "light";
+    const embedUrl = `https://dexscreener.com/solana/${dexPair}?embed=1&loadChartSettings=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=${theme}&theme=${theme}&chartStyle=0&chartType=usd&interval=5`;
+    return (
+      <div className="rounded-2xl overflow-hidden border border-border" style={{ height: 440 }}>
+        {!embedReady && (
+          <div className="flex items-center justify-center" style={{ height: 440 }}>
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        <iframe
+          src={embedUrl}
+          title={`${name} chart`}
+          width="100%"
+          height="440"
+          style={{ border: "none", display: embedReady ? "block" : "none" }}
+          onLoad={() => setEmbedReady(true)}
+          allow="clipboard-write"
+        />
+      </div>
+    );
+  }
 
+  // ── GeckoTerminal / loading / error states ────────────────────────────────
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: isDark ? "#000" : "#fff" }}>
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border gap-2">
-        {/* Chart type toggle */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            type="button"
-            disabled={status !== "ready"}
-            onClick={() => switchType("candle")}
-            title="Candlestick"
-            className={`p-1.5 rounded-lg transition-colors ${
-              chartType === "candle"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            }`}
-          >
-            <CandlestickChart className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            disabled={status !== "ready"}
-            onClick={() => switchType("line")}
-            title="Live line"
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-              chartType === "line"
-                ? "bg-violet-600 text-white"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            }`}
-          >
-            <TrendingUp className="size-3.5" />
-            Live
-          </button>
-        </div>
-
-        {/* Timeframe buttons */}
-        <div className="flex items-center gap-0.5">
-          {TIMEFRAMES.map(tf => (
+      {/* Toolbar — only for GeckoTerminal */}
+      {status === "ready" && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border gap-2">
+          <div className="flex items-center gap-0.5 shrink-0">
             <button
-              key={tf.label}
               type="button"
-              disabled={status !== "ready" || tfLoading}
-              onClick={() => switchTf(tf)}
-              className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                activeTf.label === tf.label
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              onClick={() => switchType("candle")}
+              title="Candlestick"
+              className={`p-1.5 rounded-lg transition-colors ${
+                chartType === "candle" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
-              {tf.label}
+              <CandlestickChart className="size-3.5" />
             </button>
-          ))}
-          {tfLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground ml-1" />}
-        </div>
-
-        {/* Live indicator */}
-        {chartType === "line" && !tfLoading && (
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] text-emerald-500 font-medium">Live</span>
+            <button
+              type="button"
+              onClick={() => switchType("line")}
+              title="Live line"
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                chartType === "line" ? "bg-violet-600 text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <TrendingUp className="size-3.5" />
+              Live
+            </button>
           </div>
-        )}
-      </div>
+          <div className="flex items-center gap-0.5">
+            {TIMEFRAMES.map(tf => (
+              <button
+                key={tf.label}
+                type="button"
+                disabled={tfLoading}
+                onClick={() => switchTf(tf)}
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                  activeTf.label === tf.label ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {tf.label}
+              </button>
+            ))}
+            {tfLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground ml-1" />}
+          </div>
+          {chartType === "line" && !tfLoading && (
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] text-emerald-500 font-medium">Live</span>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* States */}
       {status === "loading" && (
         <div className="flex items-center justify-center" style={{ height: 440 }}>
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -372,7 +391,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
       )}
       {status === "error" && (
         <div className="flex items-center justify-center" style={{ height: 440 }}>
-          <p className="text-sm text-muted-foreground">{errorMsg}</p>
+          <p className="text-sm text-muted-foreground">{errorMsg || "No chart data available"}</p>
         </div>
       )}
       {status === "nodata" && (
@@ -381,7 +400,6 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
         </div>
       )}
 
-      {/* Chart */}
       <div ref={wrapperRef} style={{ display: status === "ready" ? "block" : "none" }} />
     </div>
   );
