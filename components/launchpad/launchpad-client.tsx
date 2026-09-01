@@ -137,9 +137,7 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
         )}
         {token.is_verified && (
           <div className="absolute left-2 bottom-2">
-            <span className="flex items-center gap-0.5 rounded-full bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold text-orange-400 border border-orange-500/30">
-              <BadgeCheck className="size-2.5" /> Verified
-            </span>
+            <BadgeCheck className="size-4 text-orange-400 drop-shadow-sm" />
           </div>
         )}
       </div>
