@@ -117,6 +117,8 @@ export async function getLaunchpadTokens({
   if (excludeStatuses && excludeStatuses.length > 0) {
     q = q.not("status", "in", `(${excludeStatuses.join(",")})`);
   }
+  // Always exclude hidden tokens from public queries
+  q = q.not("is_hidden", "is", true);
   if (category) q = q.eq("category", category);
 
   // "verified" sort = only verified tokens, newest first
