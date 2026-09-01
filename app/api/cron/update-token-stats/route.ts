@@ -13,13 +13,35 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
+const DS_BASE = "https://api.dexscreener.com/latest/dex/tokens";
 const GT_BASE = "https://api.geckoterminal.com/api/v2/networks/solana/tokens";
 
-async function fetchGeckoStats(mint: string): Promise<{
-  priceUsd:    number | null;
-  marketCap:   number | null;
-  volume24h:   number | null;
-} | null> {
+type TokenStats = { priceUsd: number | null; marketCap: number | null; volume24h: number | null };
+
+/** DexScreener — primary source, indexes Meteora DBC pools */
+async function fetchDexStats(mint: string): Promise<TokenStats | null> {
+  try {
+    const res = await fetch(`${DS_BASE}/${mint}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = await res.json() as any;
+    const pair = json?.pairs?.[0];
+    if (!pair) return null;
+    return {
+      priceUsd:  pair.priceUsd   ? parseFloat(pair.priceUsd)   : null,
+      marketCap: pair.marketCap  ? parseFloat(pair.marketCap)  : null,
+      volume24h: pair.volume?.h24 ? parseFloat(pair.volume.h24) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** GeckoTerminal — fallback for graduated pools */
+async function fetchGeckoStats(mint: string): Promise<TokenStats | null> {
   try {
     const res = await fetch(`${GT_BASE}/${mint}`, {
       headers: { Accept: "application/json" },
@@ -31,13 +53,19 @@ async function fetchGeckoStats(mint: string): Promise<{
     const a = json?.data?.attributes;
     if (!a) return null;
     return {
-      priceUsd:  a.price_usd        ? parseFloat(a.price_usd)        : null,
-      marketCap: a.market_cap_usd   ? parseFloat(a.market_cap_usd)   : null,
-      volume24h: a.volume_usd?.h24  ? parseFloat(a.volume_usd.h24)   : null,
+      priceUsd:  a.price_usd       ? parseFloat(a.price_usd)       : null,
+      marketCap: a.market_cap_usd  ? parseFloat(a.market_cap_usd)  : null,
+      volume24h: a.volume_usd?.h24 ? parseFloat(a.volume_usd.h24)  : null,
     };
   } catch {
     return null;
   }
+}
+
+async function fetchStats(mint: string): Promise<TokenStats | null> {
+  const ds = await fetchDexStats(mint);
+  if (ds && (ds.priceUsd !== null || ds.marketCap !== null)) return ds;
+  return fetchGeckoStats(mint);
 }
 
 function sleep(ms: number) {
@@ -78,7 +106,7 @@ export async function GET(req: Request) {
 
       await Promise.all(
         batch.map(async (t) => {
-          const stats = await fetchGeckoStats(t.mint_address);
+          const stats = await fetchStats(t.mint_address);
           if (!stats) { skipped++; return; }
 
           const { error: upErr } = await admin

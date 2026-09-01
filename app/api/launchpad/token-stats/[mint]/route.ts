@@ -6,6 +6,7 @@
  *   - RPC public Solana (getProgramAccounts) : nombre de holders on-chain
  */
 import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -49,7 +50,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const { mint } = await params;
   if (!mint) return NextResponse.json({ error: "mint required" }, { status: 400 });
 
-  const [gtRes, holders] = await Promise.all([
+  const [dsRes, gtRes, holders] = await Promise.all([
+    fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${mint}`,
+      { headers: { Accept: "application/json" } }
+    ).catch(() => null),
     fetch(
       `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`,
       { headers: { Accept: "application/json" } }
@@ -57,23 +62,66 @@ export async function GET(_req: Request, { params }: RouteParams) {
     fetchHolderCount(mint),
   ]);
 
+  // Try DexScreener first (indexes Meteora DBC), then GeckoTerminal
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let gtAttrs: any = null;
-  if (gtRes?.ok) {
+  let priceUsd: number | null = null, marketCap: number | null = null,
+      fdv: number | null = null, volume24h: number | null = null,
+      priceChange: number | null = null;
+
+  if (dsRes?.ok) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json = await gtRes.json() as any;
-      gtAttrs = json?.data?.attributes ?? null;
+      const json = await dsRes.json() as any;
+      const pair = json?.pairs?.[0];
+      if (pair) {
+        priceUsd  = pair.priceUsd        ? parseFloat(pair.priceUsd)        : null;
+        marketCap = pair.marketCap       ? parseFloat(pair.marketCap)       : null;
+        fdv       = pair.fdv             ? parseFloat(pair.fdv)             : null;
+        volume24h = pair.volume?.h24     ? parseFloat(pair.volume.h24)      : null;
+        priceChange = pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) : null;
+      }
     } catch { /* ignore */ }
   }
 
-  return NextResponse.json({
-    priceUsd:    gtAttrs?.price_usd       ? parseFloat(gtAttrs.price_usd)      : null,
-    marketCap:   gtAttrs?.market_cap_usd  ? parseFloat(gtAttrs.market_cap_usd) : null,
-    fdv:         gtAttrs?.fdv_usd         ? parseFloat(gtAttrs.fdv_usd)        : null,
-    volume24h:   gtAttrs?.volume_usd?.h24 ? parseFloat(gtAttrs.volume_usd.h24) : null,
-    priceChange: gtAttrs?.price_change_percentage?.h24
-                   ? parseFloat(gtAttrs.price_change_percentage.h24)           : null,
-    holders,
-  });
+  if (priceUsd === null && gtRes?.ok) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json = await gtRes.json() as any;
+      const a = json?.data?.attributes;
+      if (a) {
+        priceUsd    = a.price_usd       ? parseFloat(a.price_usd)      : null;
+        marketCap   = a.market_cap_usd  ? parseFloat(a.market_cap_usd) : null;
+        fdv         = a.fdv_usd         ? parseFloat(a.fdv_usd)        : null;
+        volume24h   = a.volume_usd?.h24 ? parseFloat(a.volume_usd.h24) : null;
+        priceChange = a.price_change_percentage?.h24
+                        ? parseFloat(a.price_change_percentage.h24) : null;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: if GeckoTerminal has no data, use values stored in DB by the cron
+  if (priceUsd === null && marketCap === null && volume24h === null) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = createAdminClient() as any;
+      const { data: row } = await admin
+        .from("launchpad_tokens")
+        .select("price_usd, market_cap_usd, volume_24h_usd")
+        .eq("mint_address", mint)
+        .maybeSingle();
+
+      if (row) {
+        return NextResponse.json({
+          priceUsd:    row.price_usd    ?? null,
+          marketCap:   row.market_cap_usd ?? null,
+          fdv:         null,
+          volume24h:   row.volume_24h_usd ?? null,
+          priceChange: null,
+          holders,
+        });
+      }
+    } catch { /* ignore, fall through */ }
+  }
+
+  return NextResponse.json({ priceUsd, marketCap, fdv, volume24h, priceChange, holders });
 }
