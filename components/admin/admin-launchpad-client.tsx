@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck, Trash2 } from "lucide-react";
+import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck, Trash2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -24,6 +24,11 @@ type TokenRow = {
   supply: number;
   vanity_job_id: string | null;
   created_at: string;
+  is_hidden: boolean;
+  price_usd: number | null;
+  market_cap_usd: number | null;
+  volume_24h_usd: number | null;
+  stats_updated_at: string | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -57,6 +62,21 @@ function fmtSupply(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(0)}B`;
   if (n >= 1_000_000)     return `${(n / 1_000_000).toFixed(0)}M`;
   return n.toLocaleString();
+}
+
+function fmtUsd(n: number | null): string {
+  if (n === null || n === 0) return "—";
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)         return `$${(n / 1_000).toFixed(1)}k`;
+  return `$${n.toFixed(4)}`;
+}
+
+function fmtPrice(n: number | null): string {
+  if (n === null || n === 0) return "—";
+  if (n < 0.0001) return `$${n.toExponential(2)}`;
+  if (n < 1)      return `$${n.toFixed(6)}`;
+  return `$${n.toFixed(4)}`;
 }
 
 // ── VerifyTokenToggle ─────────────────────────────────────────────────────────
@@ -99,6 +119,53 @@ function VerifyTokenToggle({ tokenId, initial }: { tokenId: string; initial: boo
       {loading
         ? <LoaderCircle className="size-3 animate-spin" />
         : <BadgeCheck className="size-3.5" />
+      }
+    </Button>
+  );
+}
+
+// ── HideTokenToggle ───────────────────────────────────────────────────────────
+
+function HideTokenToggle({ tokenId, initial }: { tokenId: string; initial: boolean }) {
+  const [hidden,  setHidden]  = useState(initial);
+  const [loading, setLoading] = useState(false);
+
+  const toggle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/launchpad/${tokenId}/hide`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hidden: !hidden }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setHidden(h => !h);
+      toast.success(hidden ? "Token visible ✓" : "Token masqué");
+    } catch {
+      toast.error("Erreur");
+    } finally {
+      setLoading(false);
+    }
+  }, [tokenId, hidden]);
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={loading}
+      onClick={toggle}
+      title={hidden ? "Rendre visible" : "Masquer du launchpad"}
+      className={`rounded-full px-2 ${
+        hidden
+          ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {loading
+        ? <LoaderCircle className="size-3 animate-spin" />
+        : hidden
+          ? <EyeOff className="size-3.5" />
+          : <Eye className="size-3.5" />
       }
     </Button>
   );
@@ -274,7 +341,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/40">
             <tr>
-              {["Token", "Creator", "Supply", "Status", "Created", "Actions"].map(h => (
+              {["Token", "Creator", "Supply", "Price", "Mkt Cap", "Vol 24h", "Status", "Created", "Actions"].map(h => (
                 <th
                   key={h}
                   className="px-4 py-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap"
@@ -289,7 +356,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
               const isBusy = (key: string) => loading === token.id + key;
 
               return (
-                <tr key={token.id} className="hover:bg-muted/20">
+                <tr key={token.id} className={`hover:bg-muted/20 ${token.is_hidden ? "opacity-50" : ""}`}>
 
                   {/* Token */}
                   <td className="px-4 py-3">
@@ -318,6 +385,26 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                     {fmtSupply(token.supply)}
                   </td>
 
+                  {/* Price */}
+                  <td className="px-4 py-3 text-xs whitespace-nowrap font-mono">
+                    {fmtPrice(token.price_usd)}
+                  </td>
+
+                  {/* Market cap */}
+                  <td className="px-4 py-3 text-xs whitespace-nowrap font-semibold text-emerald-600 dark:text-emerald-400">
+                    {fmtUsd(token.market_cap_usd)}
+                  </td>
+
+                  {/* Volume 24h */}
+                  <td className="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground">
+                    {fmtUsd(token.volume_24h_usd)}
+                    {token.stats_updated_at && (
+                      <p className="text-[10px] text-muted-foreground/40 mt-0.5">
+                        {new Date(token.stats_updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
+                  </td>
+
                   {/* Status */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[token.status] ?? ""}`}>
@@ -341,6 +428,9 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
 
                       {/* Verify token */}
                       <VerifyTokenToggle tokenId={token.id} initial={token.is_verified} />
+
+                      {/* Hide/show token */}
+                      <HideTokenToggle tokenId={token.id} initial={token.is_hidden} />
 
                       {/* View token page */}
                       <a
