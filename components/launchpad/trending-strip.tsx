@@ -59,7 +59,7 @@ export function TrendingStrip() {
           : tokens.map((t, i) => (
               <Link
                 key={t.id}
-                href={`/launchpad/${t.id}`}
+                href={`/launchpad/${t.mint_address ?? t.id}`}
                 className="shrink-0 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors min-w-[148px]"
               >
                 {/* Rank */}
