@@ -17,7 +17,7 @@ type TrendingToken = {
 };
 
 function fmtCompact(n: number | null): string {
-  if (n === null) return "—";
+  if (n === null || n === 0) return "—";
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
   if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)         return `$${(n / 1_000).toFixed(1)}k`;

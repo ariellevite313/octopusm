@@ -20,6 +20,7 @@ export async function GET() {
       .not("status", "in", "(pending,cancelled)")
       .not("mint_address", "is", null)
       .not("volume_24h_usd", "is", null)
+      .gt("volume_24h_usd", 0)
       .order("volume_24h_usd", { ascending: false, nullsFirst: false })
       .limit(10);
 

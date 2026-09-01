@@ -1,6 +1,6 @@
 import { cache } from "react";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ExternalLink } from "lucide-react";
@@ -193,9 +193,6 @@ export default async function TokenDetailPage({ params }: Props) {
 
   const isCreator = walletAddress === token.creator_wallet;
 
-  if (id.length <= 36 && token.mint_address) {
-    redirect(`/launchpad/${token.mint_address}`);
-  }
 
   const initialComments = await getInitialComments(token.id, walletAddress);
 
