@@ -1,9 +1,8 @@
 /**
  * GET /api/launchpad/token-stats/[mint]
  *
- * Agrège les données de marché depuis deux sources gratuites, sans clé API.
- *   - GeckoTerminal : prix, market cap, FDV, volume 24h, variation 24h
- *   - RPC public Solana (getProgramAccounts) : nombre de holders on-chain
+ * Agrège les données de marché depuis DexScreener (primary) + GeckoTerminal (fallback).
+ * Retourne aussi pairAddress pour l'embed chart DexScreener.
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -26,10 +25,10 @@ async function fetchHolderCount(mint: string): Promise<number | null> {
           TOKEN_PROGRAM,
           {
             encoding: "base64",
-            dataSlice: { offset: 0, length: 0 }, // ne renvoie pas les données, juste le compte
+            dataSlice: { offset: 0, length: 0 },
             filters: [
-              { dataSize: 165 },                        // taille d'un compte token SPL
-              { memcmp: { offset: 0, bytes: mint } },   // filtre sur le mint
+              { dataSize: 165 },
+              { memcmp: { offset: 0, bytes: mint } },
             ],
           },
         ],
@@ -62,27 +61,31 @@ export async function GET(_req: Request, { params }: RouteParams) {
     fetchHolderCount(mint),
   ]);
 
-  // Try DexScreener first (indexes Meteora DBC), then GeckoTerminal
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let priceUsd: number | null = null, marketCap: number | null = null,
-      fdv: number | null = null, volume24h: number | null = null,
-      priceChange: number | null = null;
+  let priceUsd: number | null = null;
+  let marketCap: number | null = null;
+  let fdv: number | null = null;
+  let volume24h: number | null = null;
+  let priceChange: number | null = null;
+  let pairAddress: string | null = null;
 
+  // DexScreener first (indexes Meteora DBC)
   if (dsRes?.ok) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json = await dsRes.json() as any;
       const pair = json?.pairs?.[0];
       if (pair) {
-        priceUsd  = pair.priceUsd        ? parseFloat(pair.priceUsd)        : null;
-        marketCap = pair.marketCap       ? parseFloat(pair.marketCap)       : null;
-        fdv       = pair.fdv             ? parseFloat(pair.fdv)             : null;
-        volume24h = pair.volume?.h24     ? parseFloat(pair.volume.h24)      : null;
+        priceUsd    = pair.priceUsd        ? parseFloat(pair.priceUsd)        : null;
+        marketCap   = pair.marketCap       ? parseFloat(pair.marketCap)       : null;
+        fdv         = pair.fdv             ? parseFloat(pair.fdv)             : null;
+        volume24h   = pair.volume?.h24     ? parseFloat(pair.volume.h24)      : null;
         priceChange = pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) : null;
+        pairAddress = pair.pairAddress     ?? null;
       }
     } catch { /* ignore */ }
   }
 
+  // GeckoTerminal fallback
   if (priceUsd === null && gtRes?.ok) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,7 +102,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     } catch { /* ignore */ }
   }
 
-  // Fallback: if GeckoTerminal has no data, use values stored in DB by the cron
+  // DB fallback when both external sources return null
   if (priceUsd === null && marketCap === null && volume24h === null) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,10 +121,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
           volume24h:   row.volume_24h_usd ?? null,
           priceChange: null,
           holders,
+          pairAddress,
         });
       }
-    } catch { /* ignore, fall through */ }
+    } catch { /* ignore */ }
   }
 
-  return NextResponse.json({ priceUsd, marketCap, fdv, volume24h, priceChange, holders });
+  return NextResponse.json({ priceUsd, marketCap, fdv, volume24h, priceChange, holders, pairAddress });
 }
