@@ -328,15 +328,18 @@ export default async function TokenDetailPage({ params }: Props) {
         </div>
       )}
 
+      {/* ── Chart — full width ──────────────────────────────────────────────── */}
+      {showChart && (
+        <div className="mt-4 px-4 md:px-6">
+          <TokenChart mintAddress={token.mint_address!} name={token.name} />
+        </div>
+      )}
+
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div className="mt-6 px-4 md:px-6 pb-10 grid gap-8 md:grid-cols-[1fr_280px] items-start">
 
         {/* ── Left column ─────────────────────────────────────────────────── */}
         <div className="space-y-8">
-
-          {showChart && (
-            <TokenChart mintAddress={token.mint_address!} name={token.name} />
-          )}
 
           {showChart && token.mint_address && (
             <TokenTradeStats mintAddress={token.mint_address} />
