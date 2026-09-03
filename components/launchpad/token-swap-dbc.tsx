@@ -13,14 +13,13 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const RPC_URL      = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const TOKEN_DECIMALS = 6;
 
 const SLIP_OPTIONS  = [{ label: "0.5%", bps: 50 }, { label: "1%", bps: 100 }, { label: "3%", bps: 300 }];
@@ -63,14 +62,16 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker }: Props) {
   const lastLamportsRef = useRef<number>(0);
   const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Fetch real SOL balance ──────────────────────────────────────────────────
-  useEffect(() => {
+  // ── Fetch real SOL balance (via server-side route using SOLANA_RPC_URL) ──────
+  const fetchBalance = useCallback(() => {
     if (!walletAddress) { setSolBalance(null); return; }
-    const conn = new Connection(RPC_URL, "confirmed");
-    conn.getBalance(new PublicKey(walletAddress))
-      .then(l => setSolBalance(l / 1e9))
+    fetch(`/api/solana/balance?wallet=${walletAddress}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { sol: number } | null) => setSolBalance(d?.sol ?? null))
       .catch(() => setSolBalance(null));
   }, [walletAddress]);
+
+  useEffect(() => { fetchBalance(); }, [fetchBalance]);
 
   // ── Quote: call server to build tx + get estimate ───────────────────────────
   const fetchQuote = useCallback(async (amount: string, slip: number) => {
@@ -133,8 +134,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker }: Props) {
     setTxSig(null);
 
     try {
-      const rawBytes  = Buffer.from(lastTxRef.current, "base64");
-      const conn      = new Connection(RPC_URL, "confirmed");
+      const rawBytes = Buffer.from(lastTxRef.current, "base64");
 
       // Try VersionedTransaction first; fall back to legacy Transaction
       let signature: string;
@@ -144,7 +144,11 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker }: Props) {
           const r = await provider.signAndSendTransaction(vtx, { skipPreflight: false, maxRetries: 3 });
           signature = r.signature;
         } else if (provider.signTransaction) {
+          // Wallet handles RPC internally for raw send
           const signed = await provider.signTransaction(vtx);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { Connection } = await import("@solana/web3.js");
+          const conn = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signature = await conn.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
         } else {
@@ -154,13 +158,14 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker }: Props) {
         // Fallback: legacy Transaction
         const tx = Transaction.from(rawBytes);
         tx.feePayer = new PublicKey(walletAddress);
-        const { blockhash } = await conn.getLatestBlockhash("confirmed");
-        tx.recentBlockhash  = blockhash;
-
         if (provider.signAndSendTransaction) {
           const r = await provider.signAndSendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
           signature = r.signature;
         } else if (provider.signTransaction) {
+          const { Connection } = await import("@solana/web3.js");
+          const conn = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+          const { blockhash } = await conn.getLatestBlockhash("confirmed");
+          tx.recentBlockhash  = blockhash;
           const signed = await provider.signTransaction(tx);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signature = await conn.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
@@ -176,9 +181,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker }: Props) {
       lastTxRef.current = null;
 
       // Refresh balance after swap
-      conn.getBalance(new PublicKey(walletAddress))
-        .then(l => setSolBalance(l / 1e9))
-        .catch(() => {});
+      setTimeout(() => fetchBalance(), 2000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Swap failed";
       setError(
