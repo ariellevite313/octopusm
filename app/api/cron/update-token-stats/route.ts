@@ -113,7 +113,15 @@ export async function GET(req: Request) {
       await Promise.all(
         batch.map(async (t) => {
           const stats = await fetchStats(t.mint_address);
-          if (!stats) { skipped++; return; }
+          if (!stats) {
+            skipped++;
+            // Still stamp stats_updated_at so we know the token was attempted
+            await admin
+              .from("launchpad_tokens")
+              .update({ stats_updated_at: new Date().toISOString() })
+              .eq("id", t.id);
+            return;
+          }
 
           // Accumulate cumulative volume: add the positive delta vs last snapshot
           const newVol24h     = stats.volume24h ?? 0;

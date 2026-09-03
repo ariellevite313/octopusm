@@ -204,10 +204,12 @@ export default async function TokenDetailPage({ params }: Props) {
     { label: "Whitepaper", href: token.whitepaper_url, icon: "ti-file-text" },
   ].filter(s => s.href);
 
-  const isPending   = token.status === "pending";
-  const isActive    = token.status === "active" || token.status === "graduating";
-  const isGraduated = token.status === "graduated";
-  const showChart   = (isActive || isGraduated) && !!token.mint_address;
+  const isPending    = token.status === "pending";
+  const isOnCurve    = token.status === "active";      // bonding curve — Meteora DBC
+  const isGraduating = token.status === "graduating";  // has DAMM pool — Jupiter routable
+  const isActive     = isOnCurve || isGraduating;      // generic "live" flag for chart/stats
+  const isGraduated  = token.status === "graduated";
+  const showChart    = (isActive || isGraduated) && !!token.mint_address;
 
   // Birdeye uses mint address for token pages
   const birdeyeTokenUrl = token.mint_address
@@ -389,18 +391,35 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="space-y-6">
 
           <div className="space-y-2">
-            {/* Jupiter swap widget — active + tradeable only */}
-            {isActive && token.is_tradeable && token.mint_address && (
+            {/* Bonding curve (active) — Meteora DBC */}
+            {isOnCurve && token.is_tradeable && token.mint_address && (
+              <a
+                href={`https://app.meteora.ag/dynamic-amm/${token.pool_address ?? token.mint_address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-400 transition-colors"
+              >
+                Buy on Meteora →
+              </a>
+            )}
+
+            {/* Graduating — has DAMM pool, Jupiter can route */}
+            {isGraduating && token.mint_address && (
               <TokenSwap mintAddress={token.mint_address} ticker={token.ticker} />
             )}
 
-            {/* Graduated — link to Birdeye */}
+            {/* Graduated — Jupiter swap */}
+            {isGraduated && token.mint_address && (
+              <TokenSwap mintAddress={token.mint_address} ticker={token.ticker} />
+            )}
+
+            {/* Graduated — also link to Birdeye */}
             {isGraduated && birdeyeTokenUrl && (
               <a
                 href={birdeyeTokenUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-400 transition-colors"
+                className="flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
               >
                 Trade on Birdeye →
               </a>
