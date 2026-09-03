@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
 import { TrendingStrip } from "@/components/launchpad/trending-strip";
+import { PlatformStats } from "@/components/launchpad/platform-stats";
 
 export const metadata: Metadata = {
   title: "Launchpad",
@@ -79,6 +80,9 @@ export default function LaunchpadPage() {
           + Launch
         </Link>
       </div>
+
+      {/* Platform stats */}
+      <PlatformStats />
 
       {/* Trending strip (client, fetches /api/launchpad/trending) */}
       <TrendingStrip />
