@@ -20,8 +20,7 @@ export async function GET() {
     const { data, error } = await admin
       .from("launchpad_tokens")
       .select("status, volume_total_usd, volume_24h_usd")
-      .not("status", "in", "(pending,cancelled)")
-      .eq("is_hidden", false);
+      .not("status", "in", "(pending,cancelled)");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
