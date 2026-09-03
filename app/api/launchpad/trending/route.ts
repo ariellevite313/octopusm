@@ -21,6 +21,7 @@ export async function GET() {
       .not("mint_address", "is", null)
       .not("volume_24h_usd", "is", null)
       .gt("volume_24h_usd", 0)
+      .eq("is_hidden", false)
       .order("volume_24h_usd", { ascending: false, nullsFirst: false })
       .limit(10);
 
