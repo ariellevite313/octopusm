@@ -27,7 +27,7 @@ export function PlatformStats() {
   return (
     <div className="flex items-baseline gap-3 mb-5">
       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
-        Volume cumulé
+        Total volume
       </span>
       {stats ? (
         <>
@@ -36,7 +36,7 @@ export function PlatformStats() {
           </span>
           {stats.volume24h > 0 && (
             <span className="text-xs text-emerald-500 font-medium">
-              +{fmtUsd(stats.volume24h)} aujourd&apos;hui
+              +{fmtUsd(stats.volume24h)} today
             </span>
           )}
         </>
