@@ -6,8 +6,15 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, Trophy } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
+import { useAuth } from "@/providers/auth-provider";
 
-const NAV_LINKS = [
+const PUBLIC_NAV_LINKS = [
+  { href: "/launchpad",              label: "Tokens"       },
+  { href: "/launchpad/create",       label: "+ Launch"     },
+  { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
+];
+
+const AUTH_NAV_LINKS = [
   { href: "/launchpad",              label: "Tokens"       },
   { href: "/launchpad/create",       label: "+ Launch"     },
   { href: "/dashboard/launchpad",    label: "My tokens"    },
@@ -32,6 +39,8 @@ function isActive(href: string, pathname: string) {
 export function LaunchpadHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
+  const NAV_LINKS = isAuthenticated ? AUTH_NAV_LINKS : PUBLIC_NAV_LINKS;
 
   return (
     <>
