@@ -4,6 +4,7 @@ import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad
 export const alt         = "Token on OMdotfun Launchpad";
 export const size        = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const revalidate  = 300; // cache 5 min — regenerate only when token data changes
 
 type Props = { params: Promise<{ id: string }> };
 

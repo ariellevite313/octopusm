@@ -14,29 +14,35 @@ function fmtUsd(n: number): string {
   return `$${n.toFixed(0)}`;
 }
 
+const FALLBACK: Stats = { totalVolume: 0, volume24h: 0 };
+
 export function PlatformStats() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats]     = useState<Stats | null>(null);
+  const [loaded, setLoaded]   = useState(false);
 
   useEffect(() => {
     fetch("/api/launchpad/platform-stats")
-      .then(r => r.ok ? r.json() : null)
-      .then((d: Stats | null) => { if (d) setStats(d); })
-      .catch(() => {});
+      .then(r => r.ok ? r.json() : FALLBACK)
+      .then((d: Stats) => setStats(d))
+      .catch(() => setStats(FALLBACK))
+      .finally(() => setLoaded(true));
   }, []);
+
+  const display = stats ?? (loaded ? FALLBACK : null);
 
   return (
     <div className="flex items-baseline gap-3 mb-5">
       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
         Total volume
       </span>
-      {stats ? (
+      {display ? (
         <>
           <span className="text-2xl font-semibold text-foreground">
-            {fmtUsd(stats.totalVolume)}
+            {fmtUsd(display.totalVolume)}
           </span>
-          {stats.volume24h > 0 && (
+          {display.volume24h > 0 && (
             <span className="text-xs text-emerald-500 font-medium">
-              +{fmtUsd(stats.volume24h)} today
+              +{fmtUsd(display.volume24h)} today
             </span>
           )}
         </>
