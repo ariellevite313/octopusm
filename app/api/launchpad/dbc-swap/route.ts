@@ -134,19 +134,22 @@ export async function POST(req: Request) {
     // ── Attach blockhash and serialize ───────────────────────────────────────
     const { blockhash } = await connection.getLatestBlockhash("confirmed");
 
-    // buyTx may be a Transaction or VersionedTransaction
-    if (typeof buyTx.recentBlockhash !== "undefined") {
-      // Legacy Transaction
+    // Detect transaction type:
+    // - Legacy Transaction: has .instructions[] directly on the object
+    // - VersionedTransaction: has .message with compiled instructions
+    const isLegacy = "instructions" in buyTx && Array.isArray(buyTx.instructions);
+
+    let serialized: Uint8Array;
+    if (isLegacy) {
       buyTx.recentBlockhash = blockhash;
       buyTx.feePayer        = buyer;
-    } else if (buyTx.message?.recentBlockhash !== undefined) {
-      // VersionedTransaction — can't easily patch blockhash, use as-is
-      // (SDK should have fetched a fresh one internally)
+      serialized = buyTx.serialize({ requireAllSignatures: false });
+    } else {
+      // VersionedTransaction — SDK sets blockhash internally; serialize as-is
+      serialized = buyTx.serialize();
     }
 
-    const txBase64 = Buffer.from(
-      buyTx.serialize({ requireAllSignatures: false })
-    ).toString("base64");
+    const txBase64 = Buffer.from(serialized).toString("base64");
 
     return NextResponse.json({
       txBase64,
