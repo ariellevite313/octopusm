@@ -12,6 +12,7 @@ import { TokenMarketStats } from "@/components/launchpad/token-market-stats";
 import { CopyMint } from "@/components/launchpad/copy-mint";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { TokenSwap } from "@/components/launchpad/token-swap";
+import { TokenSwapDBC } from "@/components/launchpad/token-swap-dbc";
 import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
 import { TokenShareButton } from "@/components/launchpad/token-share-button";
@@ -391,16 +392,13 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="space-y-6">
 
           <div className="space-y-2">
-            {/* Bonding curve (active) — Meteora DBC */}
-            {isOnCurve && token.is_tradeable && token.mint_address && (
-              <a
-                href={`https://app.meteora.ag/dynamic-amm/${token.pool_address ?? token.mint_address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-400 transition-colors"
-              >
-                Buy on Meteora →
-              </a>
+            {/* Bonding curve (active) — native DBC swap */}
+            {isOnCurve && token.is_tradeable && token.pool_address && token.mint_address && (
+              <TokenSwapDBC
+                poolAddress={token.pool_address}
+                mintAddress={token.mint_address}
+                ticker={token.ticker}
+              />
             )}
 
             {/* Graduating — has DAMM pool, Jupiter can route */}
