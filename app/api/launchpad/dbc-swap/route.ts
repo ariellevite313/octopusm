@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     let minimumAmountOut = new BN(0);
 
     try {
-      const poolState = await client.state.getPool(pool);
+      const poolState = await (client.state?.getPool ?? client.pool?.getPool ?? (() => null)).call(client.state ?? client.pool, pool);
       if (poolState) {
         const inner = poolState.poolState ?? poolState;
 
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let buyTx: any;
     try {
-      buyTx = await client.swap({
+      buyTx = await client.pool.swap({
         owner:                buyer,
         pool,
         amountIn:             new BN(lamports),
