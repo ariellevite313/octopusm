@@ -5,7 +5,7 @@ const CLT_CA = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 
 export function Footer() {
   return (
-    <footer className="hidden md:block mt-12 px-4 pb-6">
+    <footer className="mt-12 px-4 pb-6">
       <div className="mx-auto max-w-7xl rounded-2xl px-6 py-10 bg-muted/40 dark:bg-zinc-950">
 
         {/* Main grid */}
