@@ -128,6 +128,8 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   // ── Step 1: try DexScreener embed ─────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    let geckoCleanup: (() => void) | undefined;
+
     async function tryDex() {
       const pair = await resolveDexPair(mintAddress);
       if (cancelled) return;
@@ -135,12 +137,15 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
         setDexPair(pair);
         setStatus("embed");
       } else {
-        // No DexScreener pair — try GeckoTerminal
-        initGecko();
+        // No DexScreener pair — try GeckoTerminal (capture cleanup!)
+        geckoCleanup = initGecko();
       }
     }
     void tryDex();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      geckoCleanup?.();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mintAddress]);
 

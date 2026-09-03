@@ -11,6 +11,7 @@ import { TokenChart } from "@/components/launchpad/token-chart";
 import { TokenMarketStats } from "@/components/launchpad/token-market-stats";
 import { CopyMint } from "@/components/launchpad/copy-mint";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
+import { TokenSwap } from "@/components/launchpad/token-swap";
 import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
 import { TokenShareButton } from "@/components/launchpad/token-share-button";
@@ -117,8 +118,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `${siteUrl}/launchpad/${id}`;
   const title       = `${token.name} ($${token.ticker}) — OMdotfun`;
   const description = token.description ?? `${token.name} on OMdotfun Launchpad`;
-  const ogImage     = (token.logo_url as string | null) ?? `${siteUrl}/branding-logo.jpeg`;
-
   return {
     title,
     description,
@@ -129,13 +128,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: "OMdotfun",
       type:     "website",
       url:      canonical,
-      images:   [{ url: ogImage, width: 400, height: 400, alt: token.name as string }],
+      // images intentionally omitted — opengraph-image.tsx generates the dynamic card
     },
     twitter: {
       card:        "summary_large_image",
       title,
       description,
-      images:      [ogImage],
+      // images intentionally omitted — picked up from opengraph-image.tsx automatically
     },
   };
 }
@@ -390,8 +389,13 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="space-y-6">
 
           <div className="space-y-2">
-            {/* Trade CTA — active + tradeable only */}
-            {isActive && token.is_tradeable && birdeyeTokenUrl && (
+            {/* Jupiter swap widget — active + tradeable only */}
+            {isActive && token.is_tradeable && token.mint_address && (
+              <TokenSwap mintAddress={token.mint_address} ticker={token.ticker} />
+            )}
+
+            {/* Graduated — link to Birdeye */}
+            {isGraduated && birdeyeTokenUrl && (
               <a
                 href={birdeyeTokenUrl}
                 target="_blank"
@@ -456,11 +460,15 @@ export default async function TokenDetailPage({ params }: Props) {
               <div className="size-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground border border-border shrink-0">
                 {creatorInitials}
               </div>
-              <div className="min-w-0">
-                <a
-                  href={`/profile/${token.creator_wallet}`}
-                  className="block hover:text-primary transition-colors"
-                >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-500 shrink-0">
+                    1% fees
+                  </span>
+                  <a
+                    href={`/profile/${token.creator_wallet}`}
+                    className="block hover:text-primary transition-colors min-w-0"
+                  >
                   {creatorDisplayName ? (
                     <>
                       <span className="block text-xs font-medium text-foreground">{creatorDisplayName}</span>
@@ -469,7 +477,8 @@ export default async function TokenDetailPage({ params }: Props) {
                   ) : (
                     <span className="font-mono text-[11px] text-foreground break-all">{shortAddr(token.creator_wallet, 6, 6)}</span>
                   )}
-                </a>
+                  </a>
+                </div>
               </div>
             </div>
           </div>

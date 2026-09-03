@@ -31,9 +31,9 @@ async function fetchDexStats(mint: string): Promise<TokenStats | null> {
     const pair = json?.pairs?.[0];
     if (!pair) return null;
     return {
-      priceUsd:  pair.priceUsd   ? parseFloat(pair.priceUsd)   : null,
-      marketCap: pair.marketCap  ? parseFloat(pair.marketCap)  : null,
-      volume24h: pair.volume?.h24 ? parseFloat(pair.volume.h24) : null,
+      priceUsd:  pair.priceUsd   != null ? parseFloat(pair.priceUsd)   : null,
+      marketCap: pair.marketCap  != null ? parseFloat(pair.marketCap)  : null,
+      volume24h: pair.volume?.h24 != null ? parseFloat(pair.volume.h24) : null,
     };
   } catch {
     return null;
@@ -53,9 +53,9 @@ async function fetchGeckoStats(mint: string): Promise<TokenStats | null> {
     const a = json?.data?.attributes;
     if (!a) return null;
     return {
-      priceUsd:  a.price_usd       ? parseFloat(a.price_usd)       : null,
-      marketCap: a.market_cap_usd  ? parseFloat(a.market_cap_usd)  : null,
-      volume24h: a.volume_usd?.h24 ? parseFloat(a.volume_usd.h24)  : null,
+      priceUsd:  a.price_usd       != null ? parseFloat(a.price_usd)       : null,
+      marketCap: a.market_cap_usd  != null ? parseFloat(a.market_cap_usd)  : null,
+      volume24h: a.volume_usd?.h24 != null ? parseFloat(a.volume_usd.h24)  : null,
     };
   } catch {
     return null;
@@ -64,7 +64,8 @@ async function fetchGeckoStats(mint: string): Promise<TokenStats | null> {
 
 async function fetchStats(mint: string): Promise<TokenStats | null> {
   const ds = await fetchDexStats(mint);
-  if (ds && (ds.priceUsd !== null || ds.marketCap !== null)) return ds;
+  // Use DexScreener data if we got ANY field from it (price, MC, or volume)
+  if (ds && (ds.priceUsd !== null || ds.marketCap !== null || ds.volume24h !== null)) return ds;
   return fetchGeckoStats(mint);
 }
 
@@ -88,7 +89,7 @@ export async function GET(req: Request) {
     // Get all active tokens with a mint address (so GeckoTerminal can find them)
     const { data: tokens, error } = await admin
       .from("launchpad_tokens")
-      .select("id, mint_address")
+      .select("id, mint_address, volume_total_usd, volume_24h_snapshot_usd")
       .not("status", "in", "(pending,cancelled)")
       .not("mint_address", "is", null)
       .limit(200);
@@ -102,20 +103,34 @@ export async function GET(req: Request) {
     let skipped = 0;
 
     for (let i = 0; i < tokens.length; i += BATCH) {
-      const batch = tokens.slice(i, i + BATCH) as { id: string; mint_address: string }[];
+      const batch = tokens.slice(i, i + BATCH) as {
+        id: string;
+        mint_address: string;
+        volume_total_usd: number | null;
+        volume_24h_snapshot_usd: number | null;
+      }[];
 
       await Promise.all(
         batch.map(async (t) => {
           const stats = await fetchStats(t.mint_address);
           if (!stats) { skipped++; return; }
 
+          // Accumulate cumulative volume: add the positive delta vs last snapshot
+          const newVol24h     = stats.volume24h ?? 0;
+          const prevSnapshot  = t.volume_24h_snapshot_usd ?? 0;
+          const prevTotal     = t.volume_total_usd ?? 0;
+          const delta         = Math.max(0, newVol24h - prevSnapshot);
+          const newTotal      = prevTotal + delta;
+
           const { error: upErr } = await admin
             .from("launchpad_tokens")
             .update({
-              price_usd:        stats.priceUsd,
-              market_cap_usd:   stats.marketCap,
-              volume_24h_usd:   stats.volume24h,
-              stats_updated_at: new Date().toISOString(),
+              price_usd:               stats.priceUsd,
+              market_cap_usd:          stats.marketCap,
+              volume_24h_usd:          stats.volume24h,
+              volume_total_usd:        newTotal,
+              volume_24h_snapshot_usd: stats.volume24h ?? prevSnapshot,
+              stats_updated_at:        new Date().toISOString(),
             })
             .eq("id", t.id);
 
