@@ -340,8 +340,8 @@ export default async function TokenDetailPage({ params }: Props) {
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div className="mt-6 px-4 md:px-6 pb-10 grid gap-8 md:grid-cols-[1fr_280px] items-start">
 
-        {/* ── Left column ─────────────────────────────────────────────────── */}
-        <div className="space-y-8">
+        {/* ── Left column (stats + description) — row 1 col 1 ────────────── */}
+        <div className="space-y-8 md:row-start-1 md:col-start-1">
 
           {showChart && token.mint_address && (
             <TokenTradeStats mintAddress={token.mint_address} />
@@ -376,20 +376,10 @@ export default async function TokenDetailPage({ params }: Props) {
               {token.description}
             </p>
           )}
-
-          <div>
-            <SectionLabel>Comments</SectionLabel>
-            <LaunchpadComments
-              tokenId={token.id}
-              initialComments={initialComments}
-              isAuthenticated={!!walletAddress}
-              walletAddress={walletAddress}
-            />
-          </div>
         </div>
 
-        {/* ── Right sidebar ───────────────────────────────────────────────── */}
-        <div className="space-y-6">
+        {/* ── Right sidebar — row 1 col 2, spans both rows on desktop ────── */}
+        <div className="space-y-6 md:row-start-1 md:col-start-2 md:row-span-2">
 
           <div className="space-y-2">
             {/* Bonding curve (active) — native DBC swap */}
@@ -518,6 +508,18 @@ export default async function TokenDetailPage({ params }: Props) {
             </>
           )}
         </div>
+
+        {/* ── Comments — last on mobile, row 2 col 1 on desktop ───────────── */}
+        <div className="md:row-start-2 md:col-start-1">
+          <SectionLabel>Comments</SectionLabel>
+          <LaunchpadComments
+            tokenId={token.id}
+            initialComments={initialComments}
+            isAuthenticated={!!walletAddress}
+            walletAddress={walletAddress}
+          />
+        </div>
+
       </div>
     </main>
   );
