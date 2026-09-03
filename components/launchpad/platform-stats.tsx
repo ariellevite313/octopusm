@@ -32,7 +32,8 @@ export function PlatformStats() {
 
   return (
     <div className="flex items-baseline gap-3 mb-5">
-      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+      <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+        <i className="ti ti-flame text-orange-500 text-sm not-italic" aria-hidden="true" />
         Total volume
       </span>
       {display ? (

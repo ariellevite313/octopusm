@@ -201,9 +201,9 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker }: Props) {
     <div className="rounded-2xl overflow-hidden border border-border bg-[#111111]">
 
       {/* ── Bonding curve info banner ── */}
-      <div className="flex items-center gap-2 bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2">
-        <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        <span className="text-[11px] font-medium text-emerald-400">Live on bonding curve</span>
+      <div className="flex items-center gap-2 bg-orange-500/10 border-b border-orange-500/20 px-4 py-2">
+        <span className="size-2 rounded-full bg-orange-400 animate-pulse shrink-0" />
+        <span className="text-[11px] font-medium text-orange-400">Live on bonding curve</span>
       </div>
 
       <div className="p-4 space-y-2">

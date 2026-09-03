@@ -113,31 +113,22 @@ export async function POST(req: Request) {
     }
 
     // ── Build buy transaction ────────────────────────────────────────────────
+    // SDK method: client.swap({ owner, pool, amountIn, minimumAmountOut, swapBaseForQuote, referralTokenAccount })
+    // swapBaseForQuote: false = buy token with SOL (quote → base)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let buyTx: any;
     try {
-      // Try the most common DBC SDK v2 signature first
-      buyTx = await client.user.buy({
+      buyTx = await client.swap({
+        owner:                buyer,
         pool,
-        buyer,
-        buyAmount:        new BN(lamports),
+        amountIn:             new BN(lamports),
         minimumAmountOut,
+        swapBaseForQuote:     false, // false = SOL → token (buy)
         referralTokenAccount: null,
       });
-    } catch {
-      // Fallback: some SDK versions use `inAmount` / `outAmount` naming
-      try {
-        buyTx = await client.swap({
-          pool,
-          user:             buyer,
-          inAmount:         new BN(lamports),
-          minimumOutAmount: minimumAmountOut,
-          referralTokenAccount: null,
-        });
-      } catch (e2) {
-        const msg = e2 instanceof Error ? e2.message : "Failed to build buy transaction";
-        return NextResponse.json({ error: msg }, { status: 500 });
-      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to build buy transaction";
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
 
     // ── Attach blockhash and serialize ───────────────────────────────────────
