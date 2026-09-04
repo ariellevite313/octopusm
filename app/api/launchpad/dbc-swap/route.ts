@@ -99,8 +99,9 @@ export async function POST(req: Request) {
         eligibleForFirstSwapWithMinFee: false,
       });
 
-      estimatedOut    = bnToNumber(quote.outputAmount ?? quote.amountOut ?? quote.minAmountOut ?? 0);
-      minimumAmountOut = new BN(bnToNumber(quote.minimumAmountOut ?? quote.minAmountOut ?? 0));
+      // Use string → BigInt to avoid 53-bit precision loss on large token amounts
+      estimatedOut    = parseInt(quote.outputAmount.toString(), 10);
+      minimumAmountOut = quote.minimumAmountOut ?? new BN(0);
     } catch (e) {
       console.warn("[dbc-swap] quote estimation failed:", e instanceof Error ? e.message : e);
       // Continue — swap will execute at market price with no slippage guard
