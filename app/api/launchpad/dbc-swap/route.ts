@@ -4,8 +4,8 @@
  * Builds a Meteora DBC swap transaction server-side (buy OR sell).
  *
  * Body: { poolAddress, mintAddress, walletAddress, amountIn, slippageBps, swapBaseForQuote }
- *   swapBaseForQuote: false = buy  (SOL → token),  amountIn in lamports
- *   swapBaseForQuote: true  = sell (token → SOL),  amountIn in raw token units
+ *   swapBaseForQuote: false = buy  (SOL → token),  amountIn in lamports (integer)
+ *   swapBaseForQuote: true  = sell (token → SOL),  amountIn in raw token units (integer)
  *
  * Response: { txBase64, estimatedOut, amountIn } | { error }
  *   Buy:  estimatedOut = raw token units
@@ -13,12 +13,16 @@
  */
 
 import { NextResponse } from "next/server";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 
 function getConnection() {
   return new Connection(RPC_URL, "confirmed");
+}
+
+function tryPublicKey(str: string): PublicKey | null {
+  try { return new PublicKey(str); } catch { return null; }
 }
 
 export async function POST(req: Request) {
@@ -27,7 +31,7 @@ export async function POST(req: Request) {
       poolAddress?:      string;
       mintAddress?:      string;
       walletAddress?:    string;
-      amountIn?:         number;   // lamports (buy) OR raw token units (sell)
+      amountIn?:         number;   // lamports (buy) OR raw token units (sell) — must be integer ≥ 1
       slippageBps?:      number;
       swapBaseForQuote?: boolean;  // false = buy, true = sell
     };
@@ -40,9 +44,23 @@ export async function POST(req: Request) {
       swapBaseForQuote = false,
     } = body;
 
-    if (!poolAddress || !walletAddress || !amountIn || amountIn <= 0) {
+    // ── Input validation ────────────────────────────────────────────────────────
+    if (!poolAddress || !walletAddress || !amountIn) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    // amountIn must be a positive integer (lamports or raw token units, never a float)
+    if (!Number.isInteger(amountIn) || amountIn < 1) {
+      return NextResponse.json(
+        { error: "amountIn must be a positive integer (lamports or raw token units)" },
+        { status: 400 },
+      );
+    }
+
+    const poolPk = tryPublicKey(poolAddress);
+    const userPk = tryPublicKey(walletAddress);
+    if (!poolPk) return NextResponse.json({ error: "Invalid pool address" }, { status: 400 });
+    if (!userPk) return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
 
     // ── Load DBC SDK ─────────────────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,18 +76,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "DBC SDK not installed" }, { status: 500 });
     }
 
-    const connection = getConnection();
-    const client     = new DynamicBondingCurveClient(connection, "confirmed");
-    const pool       = new PublicKey(poolAddress);
-    const user       = new PublicKey(walletAddress);
-    const amountInBN = new BN(amountIn);
+    const connection  = getConnection();
+    const client      = new DynamicBondingCurveClient(connection, "confirmed");
+    const amountInBN  = new BN(amountIn);
 
     // ── Quote estimation via SDK ─────────────────────────────────────────────
     let estimatedOut     = 0;
     let minimumAmountOut = new BN(0);
 
     try {
-      const virtualPool = await client.state.getPool(pool);
+      const virtualPool = await client.state.getPool(poolPk);
       const config      = await client.state.getPoolConfig(virtualPool.poolState.config);
 
       const quote = client.pool.swapQuote({
@@ -94,8 +110,8 @@ export async function POST(req: Request) {
     let swapTx: any;
     try {
       swapTx = await client.pool.swap({
-        owner:                user,
-        pool,
+        owner:                userPk,
+        pool:                 poolPk,
         amountIn:             amountInBN,
         minimumAmountOut,
         swapBaseForQuote,
@@ -113,7 +129,7 @@ export async function POST(req: Request) {
     let serialized: Uint8Array;
     if (isLegacy) {
       swapTx.recentBlockhash = blockhash;
-      swapTx.feePayer        = user;
+      swapTx.feePayer        = userPk;
       serialized = swapTx.serialize({ requireAllSignatures: false });
     } else {
       serialized = swapTx.serialize();
@@ -121,14 +137,7 @@ export async function POST(req: Request) {
 
     const txBase64 = Buffer.from(serialized).toString("base64");
 
-    return NextResponse.json({
-      txBase64,
-      estimatedOut,
-      amountIn,
-      // helpers for display
-      solIn:    swapBaseForQuote ? estimatedOut / LAMPORTS_PER_SOL : amountIn / LAMPORTS_PER_SOL,
-      solOut:   swapBaseForQuote ? estimatedOut / LAMPORTS_PER_SOL : undefined,
-    });
+    return NextResponse.json({ txBase64, estimatedOut, amountIn });
 
   } catch (err) {
     console.error("[dbc-swap] error:", err);
