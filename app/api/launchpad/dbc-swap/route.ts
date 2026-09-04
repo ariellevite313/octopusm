@@ -84,32 +84,26 @@ export async function POST(req: Request) {
     let minimumAmountOut = new BN(0);
 
     try {
-      const poolState = await (client.state?.getPool ?? client.pool?.getPool ?? (() => null)).call(client.state ?? client.pool, pool);
-      if (poolState) {
-        const inner = poolState.poolState ?? poolState;
+      const { poolState } = await client.state.getPool(pool);
+      const config = await client.state.getPoolConfig(poolState.config);
 
-        // Virtual reserves — field names may vary by SDK version
-        const vSol = bnToNumber(
-          inner?.virtualSolReserves ??
-          inner?.virtualQuoteReserves ??
-          inner?.virtualQuoteAmount
-        );
-        const vTok = bnToNumber(
-          inner?.virtualTokenReserves ??
-          inner?.virtualBaseReserves ??
-          inner?.virtualBaseAmount
-        );
+      // Use SDK's swapQuote for accurate estimate
+      const quote = client.pool.swapQuote({
+        virtualPool:                    poolState,
+        config,
+        swapBaseForQuote:               false, // SOL → token
+        amountIn:                       new BN(lamports),
+        slippageBps,
+        hasReferral:                    false,
+        currentPoint:                   null,
+        eligibleForFirstSwapWithMinFee: false,
+      });
 
-        estimatedOut = estimateOut(vSol, vTok, lamports);
-
-        // Apply slippage to get minimum amount out
-        const slippageFactor = 1 - slippageBps / 10000;
-        const minOut = Math.floor(estimatedOut * slippageFactor);
-        minimumAmountOut = new BN(minOut);
-      }
+      estimatedOut    = bnToNumber(quote.outputAmount ?? quote.amountOut ?? quote.minAmountOut ?? 0);
+      minimumAmountOut = new BN(bnToNumber(quote.minimumAmountOut ?? quote.minAmountOut ?? 0));
     } catch (e) {
-      console.warn("[dbc-swap] Could not fetch pool state for quote:", e instanceof Error ? e.message : e);
-      // Continue with minimumAmountOut = 0 (no slippage protection, riskier but functional)
+      console.warn("[dbc-swap] quote estimation failed:", e instanceof Error ? e.message : e);
+      // Continue — swap will execute at market price with no slippage guard
     }
 
     // ── Build buy transaction ────────────────────────────────────────────────
