@@ -7,6 +7,7 @@ export type LaunchpadToken = {
   category: string;
   description: string | null;
   logo_url: string | null;
+  banner_url: string | null;
   whitepaper_url: string | null;
   website: string | null;
   twitter: string | null;
@@ -64,7 +65,7 @@ export function isProtectedName(value: string): boolean {
 
 // Colonnes publiques — exclut vanity_secret_key, tx_base64, tx_prepared_at, vanity_job_id
 const PUBLIC_COLUMNS = [
-  "id","name","ticker","category","description","logo_url","whitepaper_url",
+  "id","name","ticker","category","description","logo_url","banner_url","whitepaper_url",
   "website","twitter","telegram","discord","other_social",
   "mint_address","pool_address","creator_wallet","supply",
   "creator_fee_pct","platform_fee_pct","fee_recipients",

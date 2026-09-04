@@ -13,9 +13,11 @@ import { CopyMint } from "@/components/launchpad/copy-mint";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { TokenSwap } from "@/components/launchpad/token-swap";
 import { TokenSwapDBC } from "@/components/launchpad/token-swap-dbc";
+import { TokenSwapJupiter } from "@/components/launchpad/token-swap-jupiter";
 import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
 import { TokenShareButton } from "@/components/launchpad/token-share-button";
+import { BannerUploadButton } from "@/components/launchpad/banner-upload-button";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -224,11 +226,22 @@ export default async function TokenDetailPage({ params }: Props) {
     <main className="mx-auto max-w-5xl">
 
       {/* ── Hero banner ─────────────────────────────────────────────────────── */}
-      <div className="relative h-36 md:h-48">
+      {/* Ratio 3:1 when banner_url is set, otherwise compact fallback */}
+      <div className={`relative ${token.banner_url ? "aspect-[3/1]" : "h-36 md:h-48"}`}>
 
-        {/* Background clipped */}
+        {/* Background */}
         <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
-          {token.logo_url && (
+          {token.banner_url ? (
+            <Image
+              src={token.banner_url}
+              alt=""
+              fill
+              className="object-cover"
+              unoptimized
+              priority
+              role="presentation"
+            />
+          ) : token.logo_url ? (
             <Image
               src={token.logo_url}
               alt=""
@@ -237,7 +250,7 @@ export default async function TokenDetailPage({ params }: Props) {
               unoptimized
               role="presentation"
             />
-          )}
+          ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
         </div>
 
@@ -250,6 +263,13 @@ export default async function TokenDetailPage({ params }: Props) {
             ← Launchpad
           </Link>
         </div>
+
+        {/* Creator banner upload button */}
+        {isCreator && (
+          <div className="absolute top-4 right-4">
+            <BannerUploadButton tokenId={token.id} />
+          </div>
+        )}
 
         {/* Floating avatar */}
         <div className="absolute bottom-0 translate-y-1/2 left-4 md:left-6">
@@ -392,14 +412,11 @@ export default async function TokenDetailPage({ params }: Props) {
               />
             )}
 
-            {/* Graduating — has DAMM pool, Jupiter can route */}
-            {isGraduating && token.mint_address && (
-              <TokenSwap mintAddress={token.mint_address} ticker={token.ticker} />
-            )}
-
-            {/* Graduated — Jupiter swap */}
-            {isGraduated && token.mint_address && (
-              <TokenSwap mintAddress={token.mint_address} ticker={token.ticker} />
+            {/* Graduating / Graduated — Jupiter Terminal */}
+            {(isGraduating || isGraduated) && token.mint_address && (
+              <TokenSwapJupiter
+                mintAddress={token.mint_address}
+              />
             )}
 
             {/* Graduated — also link to Birdeye */}
