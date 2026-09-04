@@ -388,6 +388,7 @@ export default async function TokenDetailPage({ params }: Props) {
                 poolAddress={token.pool_address}
                 mintAddress={token.mint_address}
                 ticker={token.ticker}
+                logoUrl={token.logo_url ?? undefined}
               />
             )}
 
