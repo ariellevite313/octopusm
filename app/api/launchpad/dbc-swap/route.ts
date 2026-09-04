@@ -84,12 +84,12 @@ export async function POST(req: Request) {
     let minimumAmountOut = new BN(0);
 
     try {
-      const { poolState } = await client.state.getPool(pool);
-      const config = await client.state.getPoolConfig(poolState.config);
+      const virtualPool = await client.state.getPool(pool);  // { poolState: {...} }
+      const config = await client.state.getPoolConfig(virtualPool.poolState.config);
 
       // Use SDK's swapQuote for accurate estimate
       const quote = client.pool.swapQuote({
-        virtualPool:                    poolState,
+        virtualPool,                    // pass full { poolState } wrapper
         config,
         swapBaseForQuote:               false, // SOL → token
         amountIn:                       new BN(lamports),
