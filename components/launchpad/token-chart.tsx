@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * TokenChart — DexScreener embed (primary, indexes Meteora DBC)
- *              falls back to GeckoTerminal OHLCV chart for graduated pools
+ * TokenChart — candlestick chart styled like a professional trading UI.
+ * Primary: DexScreener embed (indexes Meteora DBC).
+ * Fallback: GeckoTerminal OHLCV via lightweight-charts.
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -11,42 +12,47 @@ import { Loader2, CandlestickChart, TrendingUp } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Bar = { time: number; open: number; high: number; low: number; close: number };
+type Bar    = { time: number; open: number; high: number; low: number; close: number };
 type Status = "loading" | "nodata" | "error" | "ready" | "embed";
 type ChartType = "candle" | "line";
 
-type Timeframe = { label: string; path: string };
+type Timeframe = { label: string; gecko: string; dexInterval: number };
 
 const TIMEFRAMES: Timeframe[] = [
-  { label: "1m",  path: "minute?aggregate=1&limit=200"  },
-  { label: "5m",  path: "minute?aggregate=5&limit=200"  },
-  { label: "15m", path: "minute?aggregate=15&limit=200" },
-  { label: "1h",  path: "hour?aggregate=1&limit=200"    },
-  { label: "4h",  path: "hour?aggregate=4&limit=200"    },
-  { label: "1j",  path: "day?aggregate=1&limit=200"     },
+  { label: "1m",  gecko: "minute?aggregate=1&limit=200",  dexInterval: 1    },
+  { label: "5m",  gecko: "minute?aggregate=5&limit=200",  dexInterval: 5    },
+  { label: "15m", gecko: "minute?aggregate=15&limit=200", dexInterval: 15   },
+  { label: "1h",  gecko: "hour?aggregate=1&limit=200",    dexInterval: 60   },
+  { label: "4h",  gecko: "hour?aggregate=4&limit=200",    dexInterval: 240  },
+  { label: "1D",  gecko: "day?aggregate=1&limit=200",     dexInterval: 1440 },
 ];
 
-const DEFAULT_TF = TIMEFRAMES[1]; // 5m
+const DEFAULT_TF     = TIMEFRAMES[1]; // 5m
 const LIVE_REFRESH_MS = 30_000;
 
-// ── DexScreener helpers ───────────────────────────────────────────────────────
+// ── DexScreener ───────────────────────────────────────────────────────────────
 
-async function resolveDexPair(mintAddress: string): Promise<string | null> {
+type DexData = { pairAddress: string; priceUsd: string; priceChange: { h24: number } };
+
+async function resolveDex(mintAddress: string): Promise<DexData | null> {
   try {
-    const res = await fetch(
-      `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
-      { headers: { Accept: "application/json" } }
-    );
+    const res  = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`, {
+      headers: { Accept: "application/json" },
+    });
     if (!res.ok) return null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json = await res.json() as any;
-    return json?.pairs?.[0]?.pairAddress ?? null;
-  } catch {
-    return null;
-  }
+    const pair = json?.pairs?.[0];
+    if (!pair?.pairAddress) return null;
+    return {
+      pairAddress:  pair.pairAddress,
+      priceUsd:     pair.priceUsd   ?? "0",
+      priceChange:  { h24: pair.priceChange?.h24 ?? 0 },
+    };
+  } catch { return null; }
 }
 
-// ── GeckoTerminal helpers (fallback) ──────────────────────────────────────────
+// ── GeckoTerminal ─────────────────────────────────────────────────────────────
 
 type RawList = [number, string | number, string | number, string | number, string | number, string | number][];
 
@@ -66,20 +72,20 @@ function parseOHLCV(list: RawList): Bar[] {
 async function resolveGeckoPool(mintAddress: string): Promise<string> {
   const res = await fetch(
     `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}/pools?page=1`,
-    { headers: { Accept: "application/json" } }
+    { headers: { Accept: "application/json" } },
   );
   if (!res.ok) throw new Error("Pool introuvable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const json = await res.json() as any;
-  const addr = json?.data?.[0]?.attributes?.address as string | undefined;
+  const json  = await res.json() as any;
+  const addr  = json?.data?.[0]?.attributes?.address as string | undefined;
   if (!addr) throw new Error("Pool not found");
   return addr;
 }
 
 async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
   const res = await fetch(
-    `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${tf.path}&currency=usd`,
-    { headers: { Accept: "application/json" } }
+    `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${tf.gecko}&currency=usd`,
+    { headers: { Accept: "application/json" } },
   );
   if (!res.ok) throw new Error("Data unavailable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,33 +95,45 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
   return parseOHLCV(list);
 }
 
-// ── Chart theme ───────────────────────────────────────────────────────────────
+// ── Price formatting ──────────────────────────────────────────────────────────
 
-function getChartTheme(isDark: boolean) {
-  return isDark
-    ? { background: "#000000", text: "#555555", grid: "#111111", border: "#1a1a1a" }
-    : { background: "#ffffff", text: "#666666", grid: "#e5e7eb", border: "#d1d5db" };
+function fmtPrice(n: number): string {
+  if (n === 0) return "—";
+  if (n >= 1)      return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  if (n >= 0.01)   return n.toFixed(6);
+  // small numbers: show up to 8 significant digits
+  return n.toPrecision(4);
 }
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+type Props = {
+  mintAddress: string;
+  name:        string;
+  ticker?:     string;
+  logoUrl?:    string;
+};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TokenChart({ mintAddress, name }: { mintAddress: string; name: string }) {
+export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme !== "light";
 
-  // DexScreener embed
-  const [dexPair, setDexPair] = useState<string | null>(null);
+  // DexScreener
+  const [dexData,    setDexData]    = useState<DexData | null>(null);
   const [embedReady, setEmbedReady] = useState(false);
+  const [activeDexTf, setActiveDexTf] = useState<Timeframe>(DEFAULT_TF);
 
-  // GeckoTerminal fallback
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const poolRef    = useRef<string | null>(null);
+  // GeckoTerminal
+  const wrapperRef   = useRef<HTMLDivElement>(null);
+  const poolRef      = useRef<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartRef   = useRef<any>(null);
+  const chartRef     = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const seriesRef  = useRef<any>(null);
-  const roRef      = useRef<ResizeObserver | null>(null);
-  const liveTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seriesRef    = useRef<any>(null);
+  const roRef        = useRef<ResizeObserver | null>(null);
+  const liveTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeTfRef  = useRef<Timeframe>(DEFAULT_TF);
   const chartTypeRef = useRef<ChartType>("candle");
 
@@ -125,31 +143,33 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
   const [chartType, setChartType] = useState<ChartType>("candle");
   const [tfLoading, setTfLoading] = useState(false);
 
-  // ── Step 1: try DexScreener embed ─────────────────────────────────────────
+  // Price state (both paths)
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [priceChange,  setPriceChange]  = useState<number | null>(null); // % over selected TF
+
+  // ── Step 1: try DexScreener ────────────────────────────────────────────────
   useEffect(() => {
-    let cancelled = false;
-    let geckoCleanup: (() => void) | undefined;
+    let cancelled  = false;
+    let geckoClean: (() => void) | undefined;
 
     async function tryDex() {
-      const pair = await resolveDexPair(mintAddress);
+      const data = await resolveDex(mintAddress);
       if (cancelled) return;
-      if (pair) {
-        setDexPair(pair);
+      if (data) {
+        setDexData(data);
         setStatus("embed");
+        setCurrentPrice(parseFloat(data.priceUsd));
+        setPriceChange(data.priceChange.h24);
       } else {
-        // No DexScreener pair — try GeckoTerminal (capture cleanup!)
-        geckoCleanup = initGecko();
+        geckoClean = initGecko();
       }
     }
     void tryDex();
-    return () => {
-      cancelled = true;
-      geckoCleanup?.();
-    };
+    return () => { cancelled = true; geckoClean?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mintAddress]);
 
-  // ── Build / rebuild GeckoTerminal series ──────────────────────────────────
+  // ── Build GeckoTerminal series ─────────────────────────────────────────────
   const buildSeries = useCallback(async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lw: any,
@@ -179,7 +199,7 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     } else {
       const SeriesClass = lw.AreaSeries ?? lw.LineSeries;
       const lineData = bars.map(b => ({ time: b.time, value: b.close }));
-      const series = chartRef.current.addSeries(SeriesClass, {
+      const series   = chartRef.current.addSeries(SeriesClass, {
         lineColor:   "#00e87a",
         topColor:    "rgba(0,232,122,0.15)",
         bottomColor: "rgba(0,232,122,0.0)",
@@ -192,9 +212,18 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     }
 
     chartRef.current.timeScale().fitContent();
+
+    // Update price display from bars
+    if (bars.length >= 1) {
+      const last  = bars[bars.length - 1];
+      const first = bars[0];
+      setCurrentPrice(last.close);
+      const pct = first.open > 0 ? ((last.close - first.open) / first.open) * 100 : 0;
+      setPriceChange(pct);
+    }
   }, []);
 
-  // ── GeckoTerminal init (fallback) ─────────────────────────────────────────
+  // ── GeckoTerminal init ─────────────────────────────────────────────────────
   function initGecko() {
     let cancelled = false;
 
@@ -212,22 +241,21 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
         if (!bars.length) { setStatus("nodata"); return; }
 
         const { createChart, ColorType } = lw;
-        const t = getChartTheme(isDark);
 
         const chart = createChart(wrapperRef.current, {
           width:  wrapperRef.current.clientWidth,
-          height: 440,
+          height: 380,
           layout: {
-            background: { type: ColorType.Solid, color: t.background },
-            textColor: t.text,
+            background: { type: ColorType.Solid, color: "#000000" },
+            textColor:  "#555555",
           },
           grid: {
-            vertLines: { color: t.grid },
-            horzLines: { color: t.grid, style: 3 },
+            vertLines: { color: "#111111" },
+            horzLines: { color: "#111111", style: 3 },
           },
           crosshair: { mode: 1 },
-          rightPriceScale: { borderColor: t.border },
-          timeScale:       { borderColor: t.border, timeVisible: true, secondsVisible: false },
+          rightPriceScale: { borderColor: "#1a1a1a" },
+          timeScale:       { borderColor: "#1a1a1a", timeVisible: true, secondsVisible: false },
           watermark:       { visible: false },
         });
 
@@ -259,28 +287,28 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     };
   }
 
-  // ── Re-apply GeckoTerminal theme ──────────────────────────────────────────
+  // ── GeckoTerminal theme ────────────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
-    const t = getChartTheme(isDark);
     import("lightweight-charts").then(({ ColorType }) => {
       chartRef.current?.applyOptions({
-        layout: { background: { type: ColorType.Solid, color: t.background }, textColor: t.text },
-        grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid, style: 3 } },
-        rightPriceScale: { borderColor: t.border },
-        timeScale:       { borderColor: t.border },
+        layout: { background: { type: ColorType.Solid, color: "#000000" }, textColor: "#555555" },
+        grid: { vertLines: { color: "#111111" }, horzLines: { color: "#111111", style: 3 } },
       });
     });
   }, [isDark]);
 
-  // ── GeckoTerminal timeframe switch ────────────────────────────────────────
+  // ── GeckoTerminal TF switch ────────────────────────────────────────────────
   const switchTf = useCallback(async (tf: Timeframe) => {
     if (!poolRef.current || !chartRef.current || tfLoading) return;
     setActiveTf(tf);
     activeTfRef.current = tf;
     setTfLoading(true);
     try {
-      const [lw, bars] = await Promise.all([import("lightweight-charts"), fetchBars(poolRef.current, tf)]);
+      const [lw, bars] = await Promise.all([
+        import("lightweight-charts"),
+        fetchBars(poolRef.current, tf),
+      ]);
       if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
     } catch { /* keep existing */ }
     finally { setTfLoading(false); }
@@ -294,14 +322,20 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     if (liveTimer.current) { clearInterval(liveTimer.current); liveTimer.current = null; }
     setTfLoading(true);
     try {
-      const [lw, bars] = await Promise.all([import("lightweight-charts"), fetchBars(poolRef.current, activeTfRef.current)]);
+      const [lw, bars] = await Promise.all([
+        import("lightweight-charts"),
+        fetchBars(poolRef.current, activeTfRef.current),
+      ]);
       if (bars.length) await buildSeries(lw, bars, type);
       if (type === "line") {
         liveTimer.current = setInterval(async () => {
           if (!poolRef.current || !seriesRef.current) return;
           try {
-            const [lw2, freshBars] = await Promise.all([import("lightweight-charts"), fetchBars(poolRef.current, activeTfRef.current)]);
-            await buildSeries(lw2, freshBars, "line");
+            const [lw2, fresh] = await Promise.all([
+              import("lightweight-charts"),
+              fetchBars(poolRef.current, activeTfRef.current),
+            ]);
+            await buildSeries(lw2, fresh, "line");
           } catch { /* ignore */ }
         }, LIVE_REFRESH_MS);
       }
@@ -309,103 +343,174 @@ export function TokenChart({ mintAddress, name }: { mintAddress: string; name: s
     finally { setTfLoading(false); }
   }, [buildSeries]);
 
-  // ── DexScreener embed ─────────────────────────────────────────────────────
-  if (status === "embed" && dexPair) {
-    const theme = isDark ? "dark" : "light";
-    const embedUrl = `https://dexscreener.com/solana/${dexPair}?embed=1&loadChartSettings=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=${theme}&theme=${theme}&chartStyle=0&chartType=usd&interval=5`;
+  // ── Shared header ──────────────────────────────────────────────────────────
+  const isPositive = (priceChange ?? 0) >= 0;
+  const changeColor = isPositive ? "text-emerald-400" : "text-red-400";
+
+  const Header = () => (
+    <div className="flex items-start justify-between px-4 py-3 border-b border-white/5">
+      <div className="flex items-center gap-2.5">
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={ticker ?? name} className="size-7 rounded-full object-cover" />
+        ) : (
+          <div className="size-7 rounded-full bg-orange-500/80 flex items-center justify-center text-[10px] font-bold text-white">
+            {(ticker ?? name).slice(0, 1)}
+          </div>
+        )}
+        <div>
+          <p className="text-[13px] font-semibold text-white leading-tight">{ticker ?? name}</p>
+          <p className="text-[10px] text-white/30 leading-tight">{name}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-[18px] font-bold text-white leading-tight">
+          {currentPrice != null ? `$${fmtPrice(currentPrice)}` : "—"}
+        </p>
+        {priceChange != null && (
+          <p className={`text-[12px] font-semibold leading-tight ${changeColor}`}>
+            {isPositive ? "↑" : "↓"} {Math.abs(priceChange).toFixed(2)}%
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Timeframe bar (bottom) ─────────────────────────────────────────────────
+  const TfBar = ({
+    active,
+    onSelect,
+    loading = false,
+    showType = false,
+  }: {
+    active: Timeframe;
+    onSelect: (tf: Timeframe) => void;
+    loading?: boolean;
+    showType?: boolean;
+  }) => (
+    <div className="flex items-center justify-between px-3 py-2 border-t border-white/5">
+      {showType ? (
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => switchType("candle")}
+            title="Candlestick"
+            className={`p-1.5 rounded-lg transition-colors ${
+              chartType === "candle"
+                ? "bg-white/10 text-white"
+                : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            <CandlestickChart className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => switchType("line")}
+            title="Live line"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+              chartType === "line"
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            <TrendingUp className="size-3.5" />
+            Live
+          </button>
+        </div>
+      ) : (
+        <div />
+      )}
+
+      <div className="flex items-center gap-0.5">
+        {TIMEFRAMES.map(tf => (
+          <button
+            key={tf.label}
+            type="button"
+            disabled={loading}
+            onClick={() => onSelect(tf)}
+            className={`px-2.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+              active.label === tf.label
+                ? "bg-white/15 text-white"
+                : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            {tf.label}
+          </button>
+        ))}
+        {loading && <Loader2 className="size-3.5 animate-spin text-white/30 ml-1" />}
+      </div>
+
+      {showType && chartType === "line" && !loading && (
+        <div className="flex items-center gap-1">
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] text-emerald-400 font-medium">Live</span>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── DexScreener embed ──────────────────────────────────────────────────────
+  if (status === "embed" && dexData) {
+    const embedUrl = `https://dexscreener.com/solana/${dexData.pairAddress}?embed=1&loadChartSettings=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=${activeDexTf.dexInterval}`;
     return (
-      <div className="rounded-2xl overflow-hidden border border-border" style={{ height: 440 }}>
+      <div className="rounded-2xl overflow-hidden border border-white/5 bg-black">
+        <Header />
         {!embedReady && (
-          <div className="flex items-center justify-center" style={{ height: 440 }}>
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center" style={{ height: 380 }}>
+            <Loader2 className="size-5 animate-spin text-white/30" />
           </div>
         )}
         <iframe
+          key={activeDexTf.label} // remounts on TF change
           src={embedUrl}
           title={`${name} chart`}
           width="100%"
-          height="440"
+          height="380"
           style={{ border: "none", display: embedReady ? "block" : "none" }}
           onLoad={() => setEmbedReady(true)}
           allow="clipboard-write"
+        />
+        <TfBar
+          active={activeDexTf}
+          onSelect={tf => { setActiveDexTf(tf); setEmbedReady(false); }}
         />
       </div>
     );
   }
 
-  // ── GeckoTerminal / loading / error states ────────────────────────────────
+  // ── GeckoTerminal / loading / error ───────────────────────────────────────
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: isDark ? "#000" : "#fff" }}>
+    <div className="rounded-2xl overflow-hidden border border-white/5 bg-black">
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
-      {/* Toolbar — only for GeckoTerminal */}
-      {status === "ready" && (
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border gap-2">
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => switchType("candle")}
-              title="Candlestick"
-              className={`p-1.5 rounded-lg transition-colors ${
-                chartType === "candle" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              <CandlestickChart className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => switchType("line")}
-              title="Live line"
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                chartType === "line" ? "bg-violet-600 text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              <TrendingUp className="size-3.5" />
-              Live
-            </button>
-          </div>
-          <div className="flex items-center gap-0.5">
-            {TIMEFRAMES.map(tf => (
-              <button
-                key={tf.label}
-                type="button"
-                disabled={tfLoading}
-                onClick={() => switchTf(tf)}
-                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  activeTf.label === tf.label ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {tf.label}
-              </button>
-            ))}
-            {tfLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground ml-1" />}
-          </div>
-          {chartType === "line" && !tfLoading && (
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] text-emerald-500 font-medium">Live</span>
-            </div>
-          )}
-        </div>
-      )}
+      <Header />
 
       {status === "loading" && (
-        <div className="flex items-center justify-center" style={{ height: 440 }}>
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center" style={{ height: 380 }}>
+          <Loader2 className="size-5 animate-spin text-white/30" />
         </div>
       )}
       {status === "error" && (
-        <div className="flex items-center justify-center" style={{ height: 440 }}>
-          <p className="text-sm text-muted-foreground">{errorMsg || "No chart data available"}</p>
+        <div className="flex items-center justify-center" style={{ height: 380 }}>
+          <p className="text-sm text-white/30">{errorMsg || "No chart data available"}</p>
         </div>
       )}
       {status === "nodata" && (
-        <div className="flex items-center justify-center" style={{ height: 440 }}>
-          <p className="text-sm text-muted-foreground">No price data yet.</p>
+        <div className="flex items-center justify-center" style={{ height: 380 }}>
+          <p className="text-sm text-white/30">No price data yet.</p>
         </div>
       )}
 
       <div ref={wrapperRef} style={{ display: status === "ready" ? "block" : "none" }} />
+
+      {status === "ready" && (
+        <TfBar
+          active={activeTf}
+          onSelect={switchTf}
+          loading={tfLoading}
+          showType
+        />
+      )}
     </div>
   );
 }

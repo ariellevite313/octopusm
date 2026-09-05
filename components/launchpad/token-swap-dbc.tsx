@@ -64,6 +64,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
   const [error,        setError]        = useState<string | null>(null);
   const [txSig,        setTxSig]        = useState<string | null>(null);
   const [spinning,     setSpinning]     = useState(false);
+  const [omeroEarned,  setOmeroEarned]  = useState<number | null>(null);
 
   // quoteReady: true if the last quote fetch succeeded and the amount hasn't changed since
   const [quoteReady,   setQuoteReady]   = useState(false);
@@ -257,6 +258,28 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
       setEstimatedOut(null);
       setQuoteReady(false);
       setTimeout(() => fetchBalances(), 2000);
+
+      // Reward OMERO for buy swaps (fire-and-forget — errors don't affect UX)
+      if (isBuy) {
+        void fetch("/api/launchpad/dbc-swap/reward", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            txSignature:   signature,
+            walletAddress,
+            amountLamports: amountIn,
+          }),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then((d: { omeroAwarded?: number } | null) => {
+            if (d?.omeroAwarded && d.omeroAwarded > 0) {
+              // Small toast-like state to show reward
+              setOmeroEarned(d.omeroAwarded);
+              setTimeout(() => setOmeroEarned(null), 5000);
+            }
+          })
+          .catch(() => { /* ignore — reward is best-effort */ });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Swap failed";
       setError(
@@ -425,15 +448,22 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
 
         {/* ── Success ── */}
         {txSig && (
-          <a
-            href={`https://solscan.io/tx/${txSig}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
-          >
-            <CheckCircle2 className="size-3.5" />
-            Swap confirmed — View on Solscan
-          </a>
+          <div className="space-y-1">
+            <a
+              href={`https://solscan.io/tx/${txSig}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
+            >
+              <CheckCircle2 className="size-3.5" />
+              Swap confirmed — View on Solscan
+            </a>
+            {omeroEarned != null && omeroEarned > 0 && (
+              <p className="text-center text-[11px] font-semibold text-orange-400 animate-pulse">
+                🎉 +{omeroEarned.toLocaleString("en-US")} OMERO earned
+              </p>
+            )}
+          </div>
         )}
 
         {/* ── CTA ── */}

@@ -353,7 +353,12 @@ export default async function TokenDetailPage({ params }: Props) {
       {/* ── Chart — full width ──────────────────────────────────────────────── */}
       {showChart && (
         <div className="mt-4 px-4 md:px-6">
-          <TokenChart mintAddress={token.mint_address!} name={token.name} />
+          <TokenChart
+            mintAddress={token.mint_address!}
+            name={token.name}
+            ticker={token.ticker}
+            logoUrl={token.logo_url ?? undefined}
+          />
         </div>
       )}
 
