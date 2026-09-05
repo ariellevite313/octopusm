@@ -23,10 +23,16 @@ export function octoForBet(amount: number, token: string): number {
  * Never throws — errors are swallowed so they don't affect the caller's response.
  * Call with `.catch(() => {})` or fire-and-forget via void.
  */
+/** 100 OMERO per 0.01 SOL bought (buy direction only). Returns 0 if below threshold. */
+export function omeroForSwap(lamports: number): number {
+  const sol = lamports / 1e9;
+  return Math.min(10_000, Math.floor(sol / 0.01) * 100);
+}
+
 export async function awardOcto(
   walletAddress: string,
   amount: number,
-  type: "bet" | "task" | "referral" | "launch",
+  type: "bet" | "task" | "referral" | "launch" | "swap",
   _label?: string,
   betAmountUsd?: number,
 ): Promise<void> {
@@ -39,6 +45,7 @@ export async function awardOcto(
     wallet_address: walletAddress,
     type,
     amount,
+    label: _label ?? "",
   };
   if (betAmountUsd !== undefined) row.bet_amount_usd = betAmountUsd;
 
