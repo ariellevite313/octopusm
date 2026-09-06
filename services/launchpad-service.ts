@@ -89,6 +89,7 @@ export async function getLaunchpadTokens({
   status,
   excludeStatuses,
   category,
+  search,
   sort = "new",
   limit = 20,
   offset = 0,
@@ -97,6 +98,7 @@ export async function getLaunchpadTokens({
   status?: LaunchpadToken["status"] | "coming_soon";
   excludeStatuses?: LaunchpadToken["status"][];
   category?: string;
+  search?: string;
   sort?: SortOption;
   limit?: number;
   offset?: number;
@@ -121,6 +123,11 @@ export async function getLaunchpadTokens({
   // Always exclude hidden tokens from public queries
   q = q.not("is_hidden", "is", true);
   if (category) q = q.eq("category", category);
+  // Full-text search on name and ticker (case-insensitive)
+  if (search && search.trim()) {
+    const s = search.trim();
+    q = q.or(`name.ilike.%${s}%,ticker.ilike.%${s}%`);
+  }
 
   // "verified" sort = only verified tokens, newest first
   if (sort === "verified") {

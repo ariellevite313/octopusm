@@ -75,7 +75,7 @@ export default function LaunchpadPage() {
         </div>
         <Link
           href="/launchpad/create"
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           + Launch
         </Link>

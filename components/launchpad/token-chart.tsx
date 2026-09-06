@@ -95,6 +95,14 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
   return parseOHLCV(list);
 }
 
+// ── Chart theme ───────────────────────────────────────────────────────────────
+
+function getChartTheme(isDark: boolean) {
+  return isDark
+    ? { background: "#000000", text: "#555555", grid: "#111111", border: "#1a1a1a" }
+    : { background: "#ffffff", text: "#888888", grid: "#f0f0f0", border: "#e5e5e5" };
+}
+
 // ── Price formatting ──────────────────────────────────────────────────────────
 
 function fmtPrice(n: number): string {
@@ -240,16 +248,16 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
           width:  wrapperRef.current.clientWidth,
           height: 380,
           layout: {
-            background: { type: ColorType.Solid, color: "#000000" },
-            textColor:  "#555555",
+            background: { type: ColorType.Solid, color: getChartTheme(isDark).background },
+            textColor:  getChartTheme(isDark).text,
           },
           grid: {
-            vertLines: { color: "#111111" },
-            horzLines: { color: "#111111", style: 3 },
+            vertLines: { color: getChartTheme(isDark).grid },
+            horzLines: { color: getChartTheme(isDark).grid, style: 3 },
           },
           crosshair: { mode: 1 },
-          rightPriceScale: { borderColor: "#1a1a1a" },
-          timeScale:       { borderColor: "#1a1a1a", timeVisible: true, secondsVisible: false },
+          rightPriceScale: { borderColor: getChartTheme(isDark).border },
+          timeScale:       { borderColor: getChartTheme(isDark).border, timeVisible: true, secondsVisible: false },
           watermark:       { visible: false },
         });
 
@@ -285,9 +293,12 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
   useEffect(() => {
     if (!chartRef.current) return;
     import("lightweight-charts").then(({ ColorType }) => {
+      const t = getChartTheme(isDark);
       chartRef.current?.applyOptions({
-        layout: { background: { type: ColorType.Solid, color: "#000000" }, textColor: "#555555" },
-        grid: { vertLines: { color: "#111111" }, horzLines: { color: "#111111", style: 3 } },
+        layout: { background: { type: ColorType.Solid, color: t.background }, textColor: t.text },
+        grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid, style: 3 } },
+        rightPriceScale: { borderColor: t.border },
+        timeScale:       { borderColor: t.border },
       });
     });
   }, [isDark]);
@@ -342,7 +353,7 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
   const changeColor = isPositive ? "text-emerald-400" : "text-red-400";
 
   const Header = () => (
-    <div className="flex items-start justify-between px-4 py-3 border-b border-white/5">
+    <div className="flex items-start justify-between px-4 py-3 border-b border-border">
       <div className="flex items-center gap-2.5">
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -353,12 +364,12 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
           </div>
         )}
         <div>
-          <p className="text-[13px] font-semibold text-white leading-tight">{ticker ?? name}</p>
-          <p className="text-[10px] text-white/30 leading-tight">{name}</p>
+          <p className="text-[13px] font-semibold text-foreground leading-tight">{ticker ?? name}</p>
+          <p className="text-[10px] text-muted-foreground leading-tight">{name}</p>
         </div>
       </div>
       <div className="text-right">
-        <p className="text-[18px] font-bold text-white leading-tight">
+        <p className="text-[18px] font-bold text-foreground leading-tight">
           {currentPrice != null ? `$${fmtPrice(currentPrice)}` : "—"}
         </p>
         {priceChange != null && (
@@ -382,7 +393,7 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
     loading?: boolean;
     showType?: boolean;
   }) => (
-    <div className="flex items-center justify-between px-3 py-2 border-t border-white/5">
+    <div className="flex items-center justify-between px-3 py-2 border-t border-border">
       {showType ? (
         <div className="flex items-center gap-0.5">
           <button
@@ -392,7 +403,7 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
             className={`p-1.5 rounded-lg transition-colors ${
               chartType === "candle"
                 ? "bg-white/10 text-white"
-                : "text-white/30 hover:text-white/60"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <CandlestickChart className="size-3.5" />
@@ -404,7 +415,7 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
               chartType === "line"
                 ? "bg-emerald-500/20 text-emerald-400"
-                : "text-white/30 hover:text-white/60"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <TrendingUp className="size-3.5" />
@@ -424,14 +435,14 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
             onClick={() => onSelect(tf)}
             className={`px-2.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
               active.label === tf.label
-                ? "bg-white/15 text-white"
-                : "text-white/30 hover:text-white/60"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tf.label}
           </button>
         ))}
-        {loading && <Loader2 className="size-3.5 animate-spin text-white/30 ml-1" />}
+        {loading && <Loader2 className="size-3.5 animate-spin text-muted-foreground ml-1" />}
       </div>
 
       {showType && chartType === "line" && !loading && (
@@ -447,11 +458,11 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
   if (status === "embed" && dexData) {
     const embedUrl = `https://dexscreener.com/solana/${dexData.pairAddress}?embed=1&loadChartSettings=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=${activeDexTf.dexInterval}`;
     return (
-      <div className="rounded-2xl overflow-hidden border border-white/5 bg-black">
+      <div className="rounded-2xl overflow-hidden border border-border bg-card">
         <Header />
         {!embedReady && (
           <div className="flex items-center justify-center" style={{ height: 380 }}>
-            <Loader2 className="size-5 animate-spin text-white/30" />
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
         )}
         <iframe
@@ -474,24 +485,24 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
 
   // ── GeckoTerminal / loading / error ───────────────────────────────────────
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/5 bg-black">
+    <div className="rounded-2xl overflow-hidden border border-border bg-card">
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
       <Header />
 
       {status === "loading" && (
         <div className="flex items-center justify-center" style={{ height: 380 }}>
-          <Loader2 className="size-5 animate-spin text-white/30" />
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       )}
       {status === "error" && (
         <div className="flex items-center justify-center" style={{ height: 380 }}>
-          <p className="text-sm text-white/30">{errorMsg || "No chart data available"}</p>
+          <p className="text-sm text-muted-foreground">{errorMsg || "No chart data available"}</p>
         </div>
       )}
       {status === "nodata" && (
         <div className="flex items-center justify-center" style={{ height: 380 }}>
-          <p className="text-sm text-white/30">No price data yet.</p>
+          <p className="text-sm text-muted-foreground">No price data yet.</p>
         </div>
       )}
 
