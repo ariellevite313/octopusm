@@ -459,9 +459,13 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
               Swap confirmed — View on Solscan
             </a>
             {omeroEarned != null && omeroEarned > 0 && (
-              <p className="text-center text-[11px] font-semibold text-orange-400 animate-pulse">
-                🎉 +{omeroEarned.toLocaleString("en-US")} OMERO earned
-              </p>
+              <div className="flex items-center justify-center gap-1.5 animate-pulse">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/octo-coin.png" alt="OMERO" className="size-4 rounded-full object-cover" />
+                <span className="text-[11px] font-semibold text-orange-400">
+                  +{omeroEarned.toLocaleString("en-US")} OMERO earned
+                </span>
+              </div>
             )}
           </div>
         )}

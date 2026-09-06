@@ -488,6 +488,10 @@ function ProfileDrawer({
             </Link>
           )}
 
+        </div>
+
+        {/* ── Fixed bottom bar — always visible, never scrolled away ── */}
+        <div className="shrink-0 border-t border-border px-5 py-4">
           <div className="flex items-center gap-2">
             {/* Settings dropdown */}
             <div className="relative" ref={settingsRef}>
