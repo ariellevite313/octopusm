@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
@@ -363,16 +363,18 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
     tabVal: TabId,
     sortVal: SortOption,
     pageVal: number,
+    searchVal = "",
   ) => {
     if (tabVal === "watchlist") return;
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        tab:  tabVal,
-        sort: sortVal,
-        page: String(pageVal),
+        tab:   tabVal,
+        sort:  sortVal,
+        page:  String(pageVal),
         limit: String(LIMIT),
       });
+      if (searchVal) params.set("search", searchVal);
       const res = await fetch(`/api/launchpad/tokens?${params}`);
       if (!res.ok) return;
       const data: ApiResponse = await res.json();
@@ -384,25 +386,50 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
     }
   }, []);
 
+  // Watchlist tokens (full data — not just IDs)
+  const [watchlistTokens, setWatchlistTokens] = useState<LaunchpadToken[]>([]);
+
   // Load watchlist
   useEffect(() => {
     if (tab !== "watchlist" || !walletAddress) return;
     setWatchlistLoading(true);
     fetch(`/api/launchpad/watchlist?wallet=${encodeURIComponent(walletAddress)}`)
-      .then(r => r.ok ? r.json() : { tokenIds: [] })
-      .then((d: { tokenIds: string[] }) => setWatchlistIds(new Set(d.tokenIds)))
+      .then(r => r.ok ? r.json() : { tokenIds: [], tokens: [] })
+      .then((d: { tokenIds: string[]; tokens?: LaunchpadToken[] }) => {
+        setWatchlistIds(new Set(d.tokenIds));
+        setWatchlistTokens(d.tokens ?? []);
+      })
       .catch(() => {})
       .finally(() => setWatchlistLoading(false));
   }, [tab, walletAddress]);
 
-  // Fetch on tab/sort/page change (skip initial render — use SSR data)
-  const isInitial = useState(true)[0];
+  // Debounced search (400ms) — triggers server-side filtering
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
-    // Skip very first render (SSR data already loaded)
-    if (isInitial && tab === "all" && sort === "new" && page === 0) return;
-    fetchTokens(tab, sort, page);
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Fetch on tab/sort/page/search change (skip very first mount — use SSR data)
+  const isInitialRef = useRef(true);
+  const prevSearchRef = useRef("");
+  useEffect(() => {
+    // Skip initial mount (SSR data already loaded)
+    if (isInitialRef.current) {
+      isInitialRef.current = false;
+      prevSearchRef.current = debouncedSearch;
+      return;
+    }
+    // When search changes, reset to page 0 first; let that trigger the actual fetch
+    const searchChanged = prevSearchRef.current !== debouncedSearch;
+    prevSearchRef.current = debouncedSearch;
+    if (searchChanged && page !== 0) {
+      setPage(0);
+      return;
+    }
+    fetchTokens(tab, sort, page, debouncedSearch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, sort, page]);
+  }, [tab, sort, page, debouncedSearch]);
 
   const handleTabChange = (t: TabId) => {
     setTab(t);
@@ -419,17 +446,18 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Filter watchlist + search client-side
+  // Watchlist: use dedicated token list; other tabs: use paginated API results
+  // Search on watchlist is client-side (no pagination); on other tabs it's server-side via debouncedSearch
   const visibleTokens = (() => {
-    let list = tab === "watchlist"
-      ? tokens.filter(t => watchlistIds.has(t.id))
-      : tokens;
-    const q = search.toLowerCase().trim();
-    if (q) list = list.filter(t =>
-      t.name.toLowerCase().includes(q) ||
-      t.ticker.toLowerCase().includes(q),
-    );
-    return list;
+    if (tab === "watchlist") {
+      const q = search.toLowerCase().trim();
+      if (!q) return watchlistTokens;
+      return watchlistTokens.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        t.ticker.toLowerCase().includes(q),
+      );
+    }
+    return tokens;
   })();
 
   return (
