@@ -147,25 +147,19 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceChange,  setPriceChange]  = useState<number | null>(null); // % over selected TF
 
-  // ── Step 1: try DexScreener ────────────────────────────────────────────────
+  // ── Step 1: GeckoTerminal only (DexScreener embed disabled) ───────────────
   useEffect(() => {
-    let cancelled  = false;
-    let geckoClean: (() => void) | undefined;
-
-    async function tryDex() {
-      const data = await resolveDex(mintAddress);
-      if (cancelled) return;
+    // Fetch DexScreener price data for the header only (no embed)
+    resolveDex(mintAddress).then(data => {
       if (data) {
         setDexData(data);
-        setStatus("embed");
         setCurrentPrice(parseFloat(data.priceUsd));
         setPriceChange(data.priceChange.h24);
-      } else {
-        geckoClean = initGecko();
       }
-    }
-    void tryDex();
-    return () => { cancelled = true; geckoClean?.(); };
+    }).catch(() => {});
+
+    const clean = initGecko();
+    return clean;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mintAddress]);
 
