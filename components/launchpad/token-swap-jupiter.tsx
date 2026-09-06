@@ -31,21 +31,27 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
 
     const init = () => {
       if (!window.Jupiter) return;
-      window.Jupiter.init({
-        displayMode:          "integrated",
-        integratedTargetId:   containerId,
-        defaultExplorer:      "Solscan",
-        formProps: {
-          fixedOutputMint:    true,
-          initialOutputMint:  mintAddress,
-          swapMode:           "ExactIn",
-        },
-        containerStyles: {
-          borderRadius: "16px",
-          background:   "#111111",
-        },
-      });
+      // Mark ready FIRST so the container div is visible before Jupiter.init()
       setReady(true);
+      // Small tick to let React flush the DOM update before Jupiter mounts
+      setTimeout(() => {
+        try {
+          window.Jupiter.init({
+            displayMode:          "integrated",
+            integratedTargetId:   containerId,
+            defaultExplorer:      "Solscan",
+            formProps: {
+              fixedOutputMint:    true,
+              initialOutputMint:  mintAddress,
+              swapMode:           "ExactIn",
+            },
+            containerStyles: {
+              borderRadius: "16px",
+              background:   "#111111",
+            },
+          });
+        } catch { /* ignore */ }
+      }, 0);
     };
 
     // If already loaded (e.g. navigated back)
@@ -59,7 +65,7 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
     script.src      = JUPITER_SCRIPT;
     script.async    = true;
     script.onload   = () => {
-      loaded.current = true; // mark loaded only after script is ready
+      loaded.current = true;
       init();
     };
     document.head.appendChild(script);
@@ -71,16 +77,17 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
 
   return (
     <div className="rounded-2xl overflow-hidden border border-orange-500/20 bg-[#111111]">
+      {/* Loading overlay — shown until Jupiter signals it's ready */}
       {!ready && (
         <div className="flex items-center justify-center gap-2 py-12 text-white/30">
           <Loader2 className="size-4 animate-spin" />
           <span className="text-[13px]">Loading swap…</span>
         </div>
       )}
+      {/* Container always in DOM; hidden only before ready so Jupiter can mount into a visible div */}
       <div
         id={containerId}
-        className={ready ? "block" : "hidden"}
-        style={{ minHeight: 420 }}
+        style={{ minHeight: ready ? 420 : 0, display: ready ? "block" : "none" }}
       />
     </div>
   );
