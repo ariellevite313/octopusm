@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, Trophy } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -21,9 +21,7 @@ const AUTH_NAV_LINKS = [
   { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
 ];
 
-const MOBILE_EXTRA_LINKS = [
-  { href: "/leaderboard/launchpad", label: "Leaderboard", icon: Trophy },
-];
+const MOBILE_EXTRA_LINKS: never[] = [];
 
 function isActive(href: string, pathname: string) {
   if (href === "/launchpad") {
