@@ -254,7 +254,7 @@ function ProfileDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="w-80 sm:w-96 flex flex-col gap-0 p-0">
+      <SheetContent side="right" className="w-80 sm:w-96 flex flex-col gap-0 p-0 h-[100dvh]">
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle className="text-base font-bold">{t.myWallet}</SheetTitle>
         </SheetHeader>
@@ -491,7 +491,7 @@ function ProfileDrawer({
         </div>
 
         {/* ── Fixed bottom bar — always visible, never scrolled away ── */}
-        <div className="shrink-0 border-t border-border px-5 py-4">
+        <div className="shrink-0 border-t border-border px-5 pt-4 pb-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex items-center gap-2">
             {/* Settings dropdown */}
             <div className="relative" ref={settingsRef}>
