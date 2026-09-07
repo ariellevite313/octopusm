@@ -160,7 +160,7 @@ export function BottomNav() {
     <>
       <MoreSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
         {navItems.map(({ label, href, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
