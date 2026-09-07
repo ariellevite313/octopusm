@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import { Providers } from "@/providers/providers";
 import { HeaderSwitch } from "@/components/layout/header-switch";
@@ -10,6 +10,10 @@ import { getDistinctCategories } from "@/services/prediction-service";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
