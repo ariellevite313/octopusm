@@ -407,8 +407,8 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="space-y-6 md:row-start-1 md:col-start-2 md:row-span-2">
 
           <div className="space-y-2">
-            {/* Bonding curve (active) — native DBC swap */}
-            {isOnCurve && token.is_tradeable && token.pool_address && token.mint_address && (
+            {/* Bonding curve (active or graduating with DBC pool) — native DBC swap */}
+            {(isOnCurve || isGraduating) && token.is_tradeable && token.pool_address && token.mint_address && (
               <TokenSwapDBC
                 poolAddress={token.pool_address}
                 mintAddress={token.mint_address}
@@ -417,8 +417,8 @@ export default async function TokenDetailPage({ params }: Props) {
               />
             )}
 
-            {/* Graduating / Graduated — Jupiter Terminal */}
-            {(isGraduating || isGraduated) && token.mint_address && (
+            {/* Graduated — Jupiter Terminal (DAMM pool, fully indexed) */}
+            {isGraduated && token.mint_address && (
               <TokenSwapJupiter
                 mintAddress={token.mint_address}
               />
