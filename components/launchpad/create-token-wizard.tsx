@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -9,6 +9,11 @@ import {
   Globe, Twitter, MessageCircle, Hash, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
+import { arcTestnet } from "@/lib/arc-chain";
+import {
+  ARC_LAUNCHPAD_ADDRESS, ARC_DEFAULT_SUPPLY, ARC_DEFAULT_BASE_PRICE, LAUNCHPAD_ABI,
+} from "@/lib/arc-launchpad";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -70,14 +75,14 @@ function maxSchedule(): string {
 
 const STEPS = ["Identity", "Socials", "Advanced", "Review"];
 
-function StepBar({ current }: { current: number }) {
+function StepBar({ current, steps = STEPS }: { current: number; steps?: string[] }) {
   return (
     <div className="mb-8 flex items-center gap-0">
-      {STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <div key={label} className="flex flex-1 flex-col items-center">
+          <div key={`${label}-${i}`} className="flex flex-1 flex-col items-center">
             <div className="flex w-full items-center">
               {i > 0 && <div className={`h-px flex-1 ${done ? "bg-primary" : "bg-border"}`} />}
               <div className={`flex size-7 items-center justify-center rounded-full text-xs font-bold transition-colors
@@ -455,10 +460,10 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
 
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
-function StepReview({ data }: { data: WizardData }) {
+function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "solana" | "arc" }) {
   // 0.05 SOL platform fee + 0.02449768 SOL Solana/Meteora account rent + optional scheduled fee
   const PLATFORM_FEE = 0.05;
-  const NETWORK_RENT = 0.02449768; // exact rent for pool + mint + metadata accounts (Meteora DBC)
+  const NETWORK_RENT = 0.02449768;
   const mintCost = PLATFORM_FEE + NETWORK_RENT + (data.is_scheduled ? 0.1 : 0);
 
   return (
@@ -513,21 +518,38 @@ function StepReview({ data }: { data: WizardData }) {
       </div>
 
       {/* Coût */}
-      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost</p>
-        <div className="space-y-1">
-          <Row label="Platform fee" value="0.05 SOL" />
-          <Row label="Network rent (Meteora)" value="~0.0245 SOL" />
-          {data.is_scheduled && <Row label="Scheduled launch" value="0.10 SOL" />}
-          {data.first_buy_enabled && <Row label="First buy" value={`${data.first_buy_amount} SOL`} />}
-          <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-            <span className="text-sm font-semibold text-foreground">Total</span>
-            <span className="text-sm font-bold text-primary">
-              ~{(mintCost + (data.first_buy_enabled ? data.first_buy_amount : 0)).toFixed(2)} SOL
-            </span>
+      {chain === "arc" ? (
+        <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost — Arc Testnet</p>
+          <div className="space-y-1">
+            <Row label="Gas (deploy ~1M gas)" value="~0.02 USDC" />
+            <Row label="Platform fee" value="Free (testnet)" />
+            <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+              <span className="text-sm font-semibold text-foreground">Total</span>
+              <span className="text-sm font-bold text-blue-500">~0.02 USDC</span>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            MetaMask will open to sign the transaction on Arc Testnet (Chain ID 5042002).
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost</p>
+          <div className="space-y-1">
+            <Row label="Platform fee" value="0.05 SOL" />
+            <Row label="Network rent (Meteora)" value="~0.0245 SOL" />
+            {data.is_scheduled && <Row label="Scheduled launch" value="0.10 SOL" />}
+            {data.first_buy_enabled && <Row label="First buy" value={`${data.first_buy_amount} SOL`} />}
+            <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+              <span className="text-sm font-semibold text-foreground">Total</span>
+              <span className="text-sm font-bold text-primary">
+                ~{(mintCost + (data.first_buy_enabled ? data.first_buy_amount : 0)).toFixed(2)} SOL
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -586,13 +608,22 @@ type InitialData = Partial<Pick<WizardData,
   "website" | "twitter" | "telegram" | "discord" | "other_social"
 >>;
 
-export function CreateTokenWizard({ initialData }: { initialData?: InitialData }) {
+export function CreateTokenWizard({
+  initialData,
+  chain = "solana",
+}: {
+  initialData?: InitialData;
+  chain?: "solana" | "arc";
+}) {
   const router = useRouter();
   const { walletAddress } = useAuth();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Réinitialiser le step quand on change de chaîne
+  useEffect(() => { setStep(0); setErrors({}); }, [chain]);
 
   function set(k: keyof WizardData, v: unknown) {
     setData((prev) => ({ ...prev, [k]: v }));
@@ -608,49 +639,159 @@ export function CreateTokenWizard({ initialData }: { initialData?: InitialData }
 
   function back() { setStep((s) => s - 1); }
 
-  async function submit() {
+  async function submitSolana() {
     if (!walletAddress) { toast.error("Connect your wallet first"); return; }
+    const form = new FormData();
+    if (data.logo_file) form.append("logo", data.logo_file);
+    if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
+    form.append("payload", JSON.stringify({
+      name: data.name, ticker: data.ticker, category: data.category,
+      description: data.description, website: data.website,
+      twitter: data.twitter, telegram: data.telegram,
+      discord: data.discord, other_social: data.other_social,
+      supply: 1_000_000_000,
+      creator_fee_pct: data.creator_fee_pct,
+      fee_recipients: data.fee_recipients,
+      share_top100: false,
+      share_top100_pct: 0,
+      first_buy_enabled: data.first_buy_enabled,
+      first_buy_amount: data.first_buy_amount,
+      is_scheduled: data.is_scheduled,
+      scheduled_at: data.is_scheduled ? data.scheduled_at : null,
+      creator_wallet: walletAddress,
+    }));
+
+    const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
+    const json = await res.json() as { id?: string; error?: string };
+    if (!res.ok || json.error) throw new Error(json.error ?? "Failed to create token");
+    toast.success("Token created! Redirecting to your launch page…");
+    router.push(`/launchpad/${json.id}`);
+  }
+
+  async function submitArc() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eth = (window as any).ethereum;
+    if (!eth) {
+      toast.error("MetaMask not found — install it to deploy on Arc");
+      return;
+    }
+
+    // 1. Request account
+    const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
+    const account = accounts[0] as `0x${string}`;
+
+    // 2. Switch to Arc Testnet if needed
+    try {
+      await eth.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x4CEF52" }], // 5042002
+      });
+    } catch (switchErr: unknown) {
+      // 4902 = chaîne inconnue → on l'ajoute
+      // 4001 = rejet utilisateur → on propage
+      if ((switchErr as { code?: number })?.code === 4001) {
+        throw new Error("Network switch rejected by user");
+      }
+      await eth.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: "0x4CEF52",
+          chainName: "Arc Testnet",
+          nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+          rpcUrls: ["https://rpc.testnet.arc.network"],
+          blockExplorerUrls: ["https://testnet.arcscan.app"],
+        }],
+      });
+    }
+
+    // 3. Create viem clients
+    const walletClient = createWalletClient({
+      account,
+      chain: arcTestnet,
+      transport: custom(eth),
+    });
+    const publicClient = createPublicClient({
+      chain: arcTestnet,
+      transport: http("https://rpc.testnet.arc.network"),
+    });
+
+    // 4. Call create() on Arc Launchpad
+    toast.info("Sending transaction to Arc…");
+    const txHash = await walletClient.writeContract({
+      address: ARC_LAUNCHPAD_ADDRESS,
+      abi: LAUNCHPAD_ABI,
+      functionName: "create",
+      args: [data.name, data.ticker, ARC_DEFAULT_SUPPLY, ARC_DEFAULT_BASE_PRICE],
+      gasPrice: BigInt("20000000000"), // 20 gwei minimum sur Arc
+    });
+
+    toast.info("Waiting for confirmation…");
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+    // 5. Extraire l'adresse du token depuis l'event Created
+    const logs = parseEventLogs({
+      abi: LAUNCHPAD_ABI,
+      eventName: "Created",
+      logs: receipt.logs,
+    });
+    const arcTokenAddress = logs[0]?.args?.token ?? "";
+    const arcLaunchId = logs[0]?.args?.id?.toString() ?? "0";
+
+    // 6. Sauvegarder les métadonnées en base
+    const form = new FormData();
+    if (data.logo_file) form.append("logo", data.logo_file);
+    form.append("payload", JSON.stringify({
+      name: data.name, ticker: data.ticker, category: data.category,
+      description: data.description, website: data.website,
+      twitter: data.twitter, telegram: data.telegram,
+      discord: data.discord, other_social: data.other_social,
+      supply: 1_000_000_000,
+      chain: "arc",
+      arc_token_address: arcTokenAddress,
+      arc_launch_id: arcLaunchId,
+      arc_tx_hash: txHash,
+      creator_wallet: account,
+      creator_fee_pct: 1,
+      fee_recipients: [],
+      share_top100: false, share_top100_pct: 0,
+      first_buy_enabled: false, first_buy_amount: 0,
+      is_scheduled: false, scheduled_at: null,
+    }));
+
+    const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
+    const json = await res.json() as { id?: string; error?: string };
+    if (!res.ok || json.error) throw new Error(json.error ?? "Failed to save token metadata");
+
+    toast.success("Token deployed on Arc! Redirecting…");
+    router.push(`/launchpad/${json.id}`);
+  }
+
+  async function submit() {
     setSubmitting(true);
     try {
-      const form = new FormData();
-      if (data.logo_file) form.append("logo", data.logo_file);
-      if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
-      form.append("payload", JSON.stringify({
-        name: data.name, ticker: data.ticker, category: data.category,
-        description: data.description, website: data.website,
-        twitter: data.twitter, telegram: data.telegram,
-        discord: data.discord, other_social: data.other_social,
-        supply: 1_000_000_000,
-        creator_fee_pct: data.creator_fee_pct,
-        fee_recipients: data.fee_recipients,
-        share_top100: false,
-        share_top100_pct: 0,
-        first_buy_enabled: data.first_buy_enabled,
-        first_buy_amount: data.first_buy_amount,
-        is_scheduled: data.is_scheduled,
-        scheduled_at: data.is_scheduled ? data.scheduled_at : null,
-        creator_wallet: walletAddress,
-      }));
-
-      const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
-      const json = await res.json() as { id?: string; error?: string };
-
-      if (!res.ok || json.error) {
-        toast.error(json.error ?? "Failed to create token");
-        return;
+      if (chain === "arc") {
+        await submitArc();
+      } else {
+        await submitSolana();
       }
-
-      toast.success("Token created! Redirecting to your launch page…");
-      router.push(`/launchpad/${json.id}`);
     } catch (e) {
-      toast.error("Unexpected error");
+      toast.error(e instanceof Error ? e.message : "Unexpected error");
       console.error(e);
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (!walletAddress) {
+  // Pour Arc, on saute l'étape Advanced (index 2) — STEPS devient 3 étapes
+  const arcSteps = ["Identity", "Socials", "Review"];
+  const effectiveSteps = chain === "arc" ? arcSteps : STEPS;
+  const maxStep = effectiveSteps.length - 1;
+
+  // Résoudre l'index réel pour le wizard Solana (step 2 = Advanced, step 3 = Review)
+  // Pour Arc : step 0 = Identity, step 1 = Socials, step 2 = Review (= step 3 en Solana)
+  const solanaStep = chain === "arc" && step === 2 ? 3 : step;
+
+  if (chain === "solana" && !walletAddress) {
     return (
       <div className="rounded-2xl border border-border bg-card p-8 text-center">
         <p className="text-sm font-medium text-foreground mb-1">Connect your wallet to launch a token</p>
@@ -661,13 +802,13 @@ export function CreateTokenWizard({ initialData }: { initialData?: InitialData }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
-      <StepBar current={step} />
+      <StepBar current={step} steps={effectiveSteps} />
 
       <div className="min-h-[400px]">
-        {step === 0 && <StepIdentity data={data} set={set} errors={errors} />}
-        {step === 1 && <StepSocials  data={data} set={set} errors={errors} />}
-        {step === 2 && <StepAdvanced data={data} set={set} errors={errors} />}
-        {step === 3 && <StepReview   data={data} />}
+        {solanaStep === 0 && <StepIdentity data={data} set={set} errors={errors} />}
+        {solanaStep === 1 && <StepSocials  data={data} set={set} errors={errors} />}
+        {solanaStep === 2 && <StepAdvanced data={data} set={set} errors={errors} />}
+        {solanaStep === 3 && <StepReview   data={data} chain={chain} />}
       </div>
 
       {/* Navigation */}
@@ -679,7 +820,7 @@ export function CreateTokenWizard({ initialData }: { initialData?: InitialData }
           </button>
         ) : <div />}
 
-        {step < 3 ? (
+        {step < maxStep ? (
           <button type="button" onClick={next}
             className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
             Continue <ChevronRight className="size-4" />
@@ -687,7 +828,9 @@ export function CreateTokenWizard({ initialData }: { initialData?: InitialData }
         ) : (
           <button type="button" onClick={submit} disabled={submitting}
             className="flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
-            {submitting ? "Creating…" : "🚀 Launch Token"}
+            {submitting
+              ? chain === "arc" ? "Deploying on Arc…" : "Creating…"
+              : chain === "arc" ? "🚀 Deploy on Arc" : "🚀 Launch Token"}
           </button>
         )}
       </div>
