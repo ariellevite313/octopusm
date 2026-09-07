@@ -119,7 +119,12 @@ export function getProviderByType(type: WalletType): SolanaProvider | null {
     case "backpack":
       return w.backpack ?? null;
     case "trustwallet":
-      return w.trustwallet?.solana ?? null;
+      // Extension desktop : window.trustwallet.solana
+      // Browser mobile Trust Wallet : window.solana (isTrust ou isTrustWallet)
+      return (
+        w.trustwallet?.solana ??
+        ((w.solana as any)?.isTrust || (w.solana as any)?.isTrustWallet ? w.solana! : null)
+      );
     case "robinhood":
       return w.robinhood?.solana ?? null;
     default:

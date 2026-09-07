@@ -65,7 +65,15 @@ export async function connectWalletAndAuth(
     const nonce = generateNonce();
     const message = buildSignMessage(address, nonce);
 
-    const { signature } = await provider.signMessage(message, "utf8");
+    // Trust Wallet ne supporte pas le 2e argument "utf8" et peut retourner
+    // directement un Uint8Array au lieu de { signature: Uint8Array }
+    const signResult = await provider.signMessage(message).catch(() =>
+      provider.signMessage!(message, "utf8")
+    );
+    const signature: Uint8Array =
+      signResult instanceof Uint8Array
+        ? signResult
+        : (signResult as { signature: Uint8Array }).signature;
 
     const { data, error } = await supabase.functions.invoke("wallet-auth", {
       body: {
@@ -102,9 +110,25 @@ export async function connectWalletAndAuth(
 
     return { success: true, walletAddress: address };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error("[wallet-auth]", msg);
-    return { success: false, walletAddress: null, error: msg };
+    // Trust Wallet et d'autres wallets lancent des objets { code, message }
+    // qui ne sont pas des instances Error standard
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+          ? String((err as { message: unknown }).message)
+          : typeof err === "string"
+            ? err
+            : "Connection failed";
+    console.error("[wallet-auth]", err);
+    // Masquer "User rejected" / annulation volontaire
+    const isUserCancel = /reject|cancel|denied|refused/i.test(msg) ||
+      (typeof err === "object" && err !== null && "code" in err && (err as { code: unknown }).code === 4001);
+    return {
+      success: false,
+      walletAddress: null,
+      error: isUserCancel ? "Connection cancelled." : msg,
+    };
   }
 }
 
