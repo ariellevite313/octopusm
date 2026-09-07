@@ -19,11 +19,15 @@ export function LaunchpadBottomNav() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  if (!mounted || !isAuthenticated) return null;
+  if (!mounted) return null;
+
+  const visibleItems = isAuthenticated
+    ? NAV_ITEMS
+    : NAV_ITEMS.filter(({ href }) => href !== "/dashboard/launchpad");
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 20px)' }}>
-      {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {visibleItems.map(({ label, href, icon: Icon }) => {
         const active =
           href === "/launchpad"
             ? pathname === "/launchpad" ||

@@ -151,7 +151,7 @@ export function BottomNav() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  if (!mounted || !isAuthenticated) return null;
+  if (!mounted) return null;
 
   const isLaunchpad = pathname === "/launchpad" || pathname.startsWith("/launchpad/") || pathname.startsWith("/dashboard/launchpad") || pathname === "/leaderboard/launchpad";
   const navItems = isLaunchpad ? LAUNCHPAD_NAV : PREDICT_NAV;
