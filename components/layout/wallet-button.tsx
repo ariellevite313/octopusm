@@ -497,7 +497,7 @@ function ProfileDrawer({
         </div>
 
         {/* ── Fixed bottom bar — always visible, never scrolled away ── */}
-        <div className="shrink-0 border-t border-border px-5 pt-4 pb-4" style={{ paddingBottom: isPhantom ? '60px' : 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="shrink-0 border-t border-border px-5 pt-4 pb-4" style={{ paddingBottom: isPhantom ? '90px' : 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex items-center gap-2">
             {/* Settings dropdown */}
             <div className="relative" ref={settingsRef}>
