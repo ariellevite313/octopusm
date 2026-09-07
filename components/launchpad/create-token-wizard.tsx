@@ -532,6 +532,9 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
           <p className="mt-3 text-xs text-muted-foreground">
             MetaMask will open to sign the transaction on Arc Testnet (Chain ID 5042002).
           </p>
+          <p className="mt-1 text-xs text-amber-500">
+            ⚠️ Phantom must not be set as default EVM wallet. Go to Phantom → Settings → Default wallet → Always ask.
+          </p>
         </div>
       ) : (
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
@@ -670,9 +673,25 @@ export function CreateTokenWizard({
 
   async function submitArc() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eth = (window as any).ethereum;
-    if (!eth) {
-      toast.error("MetaMask not found — install it to deploy on Arc");
+    const w = window as any;
+
+    // Chercher MetaMask spécifiquement — Phantom injecte aussi window.ethereum
+    // mais ne supporte pas les réseaux EVM custom comme Arc.
+    let eth = w.ethereum;
+
+    // EIP-6963 / multi-provider : chercher MetaMask dans la liste
+    if (Array.isArray(eth?.providers)) {
+      eth = eth.providers.find((p: any) => p.isMetaMask && !p.isPhantom) ?? eth;
+    }
+
+    // Phantom comme provider EVM → rejeter explicitement
+    if (!eth || eth.isPhantom) {
+      toast.error("Arc requires MetaMask. In Phantom, go to Settings → Default wallet → Always ask, then reload and use MetaMask.", { duration: 8000 });
+      return;
+    }
+
+    if (!eth.isMetaMask) {
+      toast.error("Arc requires MetaMask — please install it and set it as default EVM wallet.");
       return;
     }
 
