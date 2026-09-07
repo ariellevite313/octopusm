@@ -141,6 +141,12 @@ function ProfileDrawer({
   const [lang, toggleLang] = useLang();
   const t = T[lang];
   const { theme, setTheme } = useTheme();
+  const [isPhantom, setIsPhantom] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (w.phantom?.solana?.isPhantom || w.solana?.isPhantom) setIsPhantom(true);
+  }, []);
   const isDark = theme === "dark";
 
   const qc = useQueryClient();
@@ -491,7 +497,7 @@ function ProfileDrawer({
         </div>
 
         {/* ── Fixed bottom bar — always visible, never scrolled away ── */}
-        <div className="shrink-0 border-t border-border px-5 pt-4 pb-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="shrink-0 border-t border-border px-5 pt-4 pb-4" style={{ paddingBottom: isPhantom ? '60px' : 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex items-center gap-2">
             {/* Settings dropdown */}
             <div className="relative" ref={settingsRef}>

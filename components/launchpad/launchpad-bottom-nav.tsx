@@ -14,10 +14,18 @@ const NAV_ITEMS = [
 
 export function LaunchpadBottomNav() {
   const [mounted, setMounted] = useState(false);
+  const [isPhantom, setIsPhantom] = useState(false);
   const { isAuthenticated } = useAuth();
   const pathname = usePathname();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (w.phantom?.solana?.isPhantom || w.solana?.isPhantom) {
+      setIsPhantom(true);
+    }
+  }, []);
 
   if (!mounted) return null;
 
@@ -26,7 +34,7 @@ export function LaunchpadBottomNav() {
     : NAV_ITEMS.filter(({ href }) => href !== "/dashboard/launchpad");
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: isPhantom ? '60px' : 'env(safe-area-inset-bottom, 0px)' }}>
       {visibleItems.map(({ label, href, icon: Icon }) => {
         const active =
           href === "/launchpad"
