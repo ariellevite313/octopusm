@@ -34,7 +34,7 @@ export function LaunchpadBottomNav() {
     : NAV_ITEMS.filter(({ href }) => href !== "/dashboard/launchpad");
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: isPhantom ? '60px' : 'env(safe-area-inset-bottom, 0px)' }}>
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: isPhantom ? '90px' : 'env(safe-area-inset-bottom, 0px)' }}>
       {visibleItems.map(({ label, href, icon: Icon }) => {
         const active =
           href === "/launchpad"
