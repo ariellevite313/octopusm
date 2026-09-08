@@ -28,9 +28,110 @@ function generateNonce(): string {
     .join("");
 }
 
+// ─── MetaMask (EVM) ──────────────────────────────────────────────────────────
+
+function getMetaMaskEthProvider(): {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+} | null {
+  if (typeof window === "undefined") return null;
+  const eth = (window as any).ethereum;
+  if (!eth) return null;
+  if (Array.isArray(eth.providers)) {
+    const mm = eth.providers.find((p: any) => p.isMetaMask && !p.isPhantom);
+    return mm ?? null;
+  }
+  return eth.isMetaMask && !eth.isPhantom ? eth : null;
+}
+
+async function connectMetaMaskAndAuth(refCode?: string): Promise<WalletAuthResult> {
+  const eth = getMetaMaskEthProvider();
+  if (!eth) {
+    return { success: false, walletAddress: null, error: "MetaMask not detected. Please install the extension." };
+  }
+
+  try {
+    const accounts = await eth.request({ method: "eth_requestAccounts" }) as string[];
+    const address = accounts[0];
+    if (!address) throw new Error("Could not retrieve address from MetaMask.");
+
+    const supabase = createClient();
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user?.user_metadata?.wallet_address?.toLowerCase() === address.toLowerCase()) {
+      return { success: true, walletAddress: address };
+    }
+
+    const nonce = generateNonce();
+    const timestamp = new Date().toISOString();
+    const messageText = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
+
+    // personal_sign expects hex-encoded message
+    const msgBytes = new TextEncoder().encode(messageText);
+    const msgHex = "0x" + Array.from(msgBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+    const signature = await eth.request({
+      method: "personal_sign",
+      params: [msgHex, address],
+    }) as string;
+
+    const { data, error } = await supabase.functions.invoke("wallet-auth", {
+      body: {
+        walletAddress: address,
+        signature,
+        nonce,
+        message: btoa(messageText),
+        chain: "evm",
+        ...(refCode ? { ref_code: refCode } : {}),
+      },
+    });
+
+    if (typeof window !== "undefined") sessionStorage.removeItem("referral_code");
+
+    if (error) {
+      let errorMsg = error.message;
+      if ("context" in error && error.context instanceof Response) {
+        try { const body = await (error.context as Response).json(); errorMsg = body?.error ?? errorMsg; } catch { /* ignore */ }
+      }
+      throw new Error(`Edge Function : ${errorMsg}`);
+    }
+    if (!data?.access_token || !data?.refresh_token) {
+      throw new Error("Authentication failed: no token returned from Edge Function.");
+    }
+
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+    if (sessionError) throw new Error(`Session : ${sessionError.message}`);
+
+    return { success: true, walletAddress: address };
+  } catch (err) {
+    const msg =
+      err instanceof Error ? err.message
+      : typeof err === "object" && err !== null && "message" in err
+        ? String((err as { message: unknown }).message)
+        : typeof err === "string" ? err : "Connection failed";
+    const isUserCancel = /reject|cancel|denied|refused/i.test(msg) ||
+      (typeof err === "object" && err !== null && "code" in err && (err as { code: unknown }).code === 4001);
+    return { success: false, walletAddress: null, error: isUserCancel ? "Connection cancelled." : msg };
+  }
+}
+
+// ─── Main entry point ─────────────────────────────────────────────────────────
+
 export async function connectWalletAndAuth(
   walletType: WalletType
 ): Promise<WalletAuthResult> {
+  // MetaMask uses EVM signing — separate flow
+  if (walletType === "metamask") {
+    const refCode =
+      typeof window !== "undefined"
+        ? (sessionStorage.getItem("referral_code") ??
+           new URLSearchParams(window.location.search).get("ref") ??
+           undefined)
+        : undefined;
+    return connectMetaMaskAndAuth(refCode ?? undefined);
+  }
+
   const supabase = createClient();
 
   // Capture the referral code — sessionStorage first (survives navigation), fallback to URL param
@@ -136,7 +237,8 @@ export async function disconnectWallet(walletType: WalletType | null): Promise<v
   const supabase = createClient();
   try {
     await supabase.auth.signOut();
-    if (walletType) {
+    // MetaMask has no disconnect API — just sign out of Supabase
+    if (walletType && walletType !== "metamask") {
       const provider = getProviderByType(walletType);
       if (provider?.isConnected && provider.disconnect) {
         await provider.disconnect();
