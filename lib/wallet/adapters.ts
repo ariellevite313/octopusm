@@ -39,7 +39,7 @@ export type SolanaProvider = {
   ) => void;
 };
 
-export type WalletType = "phantom" | "solflare" | "backpack" | "trustwallet" | "robinhood";
+export type WalletType = "phantom" | "solflare" | "backpack" | "trustwallet" | "robinhood" | "metamask";
 
 export type WalletInfo = {
   type: WalletType;
@@ -59,6 +59,12 @@ type WindowWithWallets = Window & {
   backpack?: SolanaProvider & { isBackpack?: boolean };
   trustwallet?: { solana?: SolanaProvider };
   robinhood?: { solana?: SolanaProvider };
+  ethereum?: {
+    isMetaMask?: boolean;
+    isPhantom?: boolean;
+    providers?: Array<{ isMetaMask?: boolean; isPhantom?: boolean }>;
+    request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  };
 };
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
@@ -104,6 +110,14 @@ const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
     mobileDeepLink: (url) =>
       `https://robinhood.com/web3?redirect=${encodeURIComponent(url)}`,
   },
+  {
+    type: "metamask",
+    name: "MetaMask",
+    icon: "/metamask-logo.svg",
+    downloadUrl: "https://metamask.io/download",
+    mobileDeepLink: (url) =>
+      `https://metamask.app.link/dapp/${encodeURIComponent(url.replace(/^https?:\/\//, ""))}`,
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -127,6 +141,17 @@ export function getProviderByType(type: WalletType): SolanaProvider | null {
       );
     case "robinhood":
       return w.robinhood?.solana ?? null;
+    case "metamask": {
+      const eth = w.ethereum;
+      if (!eth) return null;
+      // EIP-6963 multi-provider: pick MetaMask specifically
+      if (Array.isArray(eth.providers)) {
+        const mm = eth.providers.find((p) => p.isMetaMask && !p.isPhantom);
+        // Return a shim so `detected` check works; actual signing uses eth_requestAccounts
+        return mm ? (mm as unknown as SolanaProvider) : null;
+      }
+      return (eth.isMetaMask && !eth.isPhantom) ? (eth as unknown as SolanaProvider) : null;
+    }
     default:
       return null;
   }
@@ -145,4 +170,5 @@ export const WALLET_COLORS: Record<WalletType, string> = {
   backpack:    "bg-[#e33e3f]",
   trustwallet: "bg-[#3375bb]",
   robinhood:   "bg-[#00c805]",
+  metamask:    "bg-[#e4761b]",
 };

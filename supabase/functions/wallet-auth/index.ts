@@ -17,6 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import nacl from "https://esm.sh/tweetnacl@1.0.3";
 import bs58 from "https://esm.sh/bs58@5.0.0";
+import { ethers } from "https://esm.sh/ethers@6.13.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,7 +43,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { walletAddress, signature, nonce, message, ref_code } = await req.json();
+    const { walletAddress, signature, nonce, message, ref_code, chain } = await req.json();
 
     // ── Validation ────────────────────────────────────────────────────────
     if (!walletAddress || !signature || !nonce || !message) {
@@ -52,20 +53,45 @@ serve(async (req: Request) => {
       );
     }
 
-    // ── Vérification signature ed25519 ────────────────────────────────────
-    const signatureBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
-    const messageBytes   = Uint8Array.from(atob(message),   (c) => c.charCodeAt(0));
-    const publicKeyBytes = bs58.decode(walletAddress);
+    const isEvm = chain === "evm" || (typeof walletAddress === "string" && walletAddress.startsWith("0x"));
 
-    if (!nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid signature." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // ── Vérification signature ────────────────────────────────────────────
+    let decoded: string;
+
+    if (isEvm) {
+      // EVM: personal_sign ECDSA — message was base64(plaintext), signature is 0x hex
+      decoded = atob(message); // plaintext message
+      let recovered: string;
+      try {
+        recovered = ethers.verifyMessage(decoded, signature);
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "Invalid EVM signature." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (recovered.toLowerCase() !== walletAddress.toLowerCase()) {
+        return new Response(
+          JSON.stringify({ error: "Signature does not match address." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      // Solana: ed25519
+      const signatureBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
+      const messageBytes   = Uint8Array.from(atob(message),   (c) => c.charCodeAt(0));
+      const publicKeyBytes = bs58.decode(walletAddress);
+
+      if (!nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid signature." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      decoded = new TextDecoder().decode(messageBytes);
     }
 
     // ── Anti-replay < 5 min ───────────────────────────────────────────────
-    const decoded = new TextDecoder().decode(messageBytes);
     const timeMatch = decoded.match(/Timestamp:\s+(\S+)/);
     if (timeMatch) {
       const msgTime = new Date(timeMatch[1]).getTime();

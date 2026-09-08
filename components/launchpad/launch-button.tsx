@@ -274,7 +274,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       setHasTxA(txABase64 !== null);
       if (body.mintAddress) setMintAddress(body.mintAddress);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
+      const raw2 = e instanceof Error ? e.message : typeof e === "object" && e !== null && "message" in e ? String((e as {message:unknown}).message) : "Preparation failed";
+      const msg = /rejected|cancel|annul|refus|abort/i.test(raw2) ? "Cancelled." : raw2;
       setError(msg); setPhase("error"); toast.error(msg); return;
     }
 
@@ -284,7 +285,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         txASig = await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
       } catch (e) {
         const raw = e instanceof Error ? e.message : "TX A failed";
-        setError(/rejected|cancel/i.test(raw) ? "Cancelled." : raw);
+        setError(/rejected|cancel|annul|refus|abort/i.test(raw) ? "Cancelled." : raw);
         setPhase("error");
         return;
       }
