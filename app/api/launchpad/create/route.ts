@@ -37,6 +37,11 @@ type CreatePayload = {
   is_scheduled: boolean;
   scheduled_at: string | null;
   creator_wallet: string;
+  // Arc EVM fields
+  chain?: "solana" | "arc";
+  arc_token_address?: string;
+  arc_launch_id?: string;
+  arc_tx_hash?: string;
 };
 
 export async function POST(req: Request) {
@@ -83,9 +88,14 @@ export async function POST(req: Request) {
       }
     }
 
-    // First buy amount must be between 0.01 and 100 SOL
-    if (payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
+    // First buy amount must be between 0.01 and 100 SOL (Solana only)
+    if (payload.chain !== "arc" && payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
       return NextResponse.json({ error: "First buy amount must be between 0.01 and 100 SOL" }, { status: 400 });
+    }
+
+    // Arc: arc_token_address is required
+    if (payload.chain === "arc" && !payload.arc_token_address) {
+      return NextResponse.json({ error: "arc_token_address is required for Arc tokens" }, { status: 400 });
     }
 
     // Validate social URLs server-side — reject javascript: and other non-http(s) schemes
@@ -174,9 +184,16 @@ export async function POST(req: Request) {
         scheduled_at:        payload.is_scheduled ? payload.scheduled_at : null,
         scheduled_paid_sol:  payload.is_scheduled ? 0.1 : null,
         creator_wallet:      payload.creator_wallet,
-        status:           "pending",
-        is_tradeable:     false,
-        // mint_address and vanity_secret_key are set lazily in prepare-tx
+        status:           payload.chain === "arc" ? "active" : "pending",
+        is_tradeable:     payload.chain === "arc",
+        chain:            payload.chain ?? "solana",
+        // Arc EVM fields
+        ...(payload.chain === "arc" ? {
+          arc_token_address: payload.arc_token_address,
+          arc_launch_id:     payload.arc_launch_id ?? null,
+          arc_tx_hash:       payload.arc_tx_hash ?? null,
+          mint_address:      payload.arc_token_address, // utilise l'adresse ERC-20 comme identifiant
+        } : {}),
       })
       .select("id")
       .single();
