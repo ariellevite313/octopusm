@@ -37,9 +37,9 @@ type CreatePayload = {
   is_scheduled: boolean;
   scheduled_at: string | null;
   creator_wallet: string;
-  // Arc EVM fields
+  // Arc EVM fields (arc_token_address stocké dans mint_address)
   chain?: "solana" | "arc";
-  arc_token_address?: string;
+  arc_token_address?: string; // adresse ERC-20, stockée dans mint_address
   arc_launch_id?: string;
   arc_tx_hash?: string;
 };
@@ -187,12 +187,11 @@ export async function POST(req: Request) {
         status:           payload.chain === "arc" ? "active" : "pending",
         is_tradeable:     payload.chain === "arc",
         chain:            payload.chain ?? "solana",
-        // Arc EVM fields
+        // Arc EVM — réutilise mint_address pour l'adresse ERC-20
         ...(payload.chain === "arc" ? {
-          arc_token_address: payload.arc_token_address,
-          arc_launch_id:     payload.arc_launch_id ?? null,
-          arc_tx_hash:       payload.arc_tx_hash ?? null,
-          mint_address:      payload.arc_token_address, // utilise l'adresse ERC-20 comme identifiant
+          mint_address:  payload.arc_token_address,
+          arc_launch_id: payload.arc_launch_id ?? null,
+          arc_tx_hash:   payload.arc_tx_hash ?? null,
         } : {}),
       })
       .select("id")
