@@ -745,7 +745,7 @@ export function CreateTokenWizard({
     });
 
     toast.info("Waiting for confirmation…");
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 300_000 }); // 5 min — Arc Testnet est lent
 
     // 5. Extraire l'adresse du token depuis l'event Created
     const logs = parseEventLogs({
