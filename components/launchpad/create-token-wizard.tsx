@@ -34,7 +34,7 @@ type WizardData = {
   telegram: string;
   discord: string;
   other_social: string;
-  // Étape 3 — Options avancées
+  // Étape 3 — Options avancées (Solana)
   creator_fee_pct: 1;
   fee_recipients: FeeRecipient[];
   share_top100: boolean;
@@ -43,6 +43,10 @@ type WizardData = {
   first_buy_amount: number;
   is_scheduled: boolean;
   scheduled_at: string;
+  // Étape 3 — Options Arc
+  arc_supply: number;          // nombre de tokens (ex: 1_000_000_000)
+  arc_first_buy_enabled: boolean;
+  arc_first_buy_usdc: number;  // montant USDC pour le premier achat
 };
 
 const INITIAL: WizardData = {
@@ -54,6 +58,9 @@ const INITIAL: WizardData = {
   share_top100: false, share_top100_pct: 5,
   first_buy_enabled: false, first_buy_amount: 0.1,
   is_scheduled: false, scheduled_at: "",
+  arc_supply: 1_000_000_000,
+  arc_first_buy_enabled: false,
+  arc_first_buy_usdc: 10,
 };
 
 const CATEGORIES = ["Meme","Utility","AI","Gaming","DeFi","NFT","x402"];
@@ -458,6 +465,98 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
   );
 }
 
+// ─── Étape 3 Arc — Options ──────────────────────────────────────────────────
+
+const ARC_SUPPLY_PRESETS = [
+  { label: "100M",  value: 100_000_000 },
+  { label: "500M",  value: 500_000_000 },
+  { label: "1B",    value: 1_000_000_000 },
+];
+
+function StepArcOptions({
+  data, set, errors,
+}: {
+  data: WizardData;
+  set: (k: keyof WizardData, v: unknown) => void;
+  errors: Record<string, string>;
+}) {
+  return (
+    <div className="space-y-5 pt-2">
+
+      {/* Supply */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div>
+          <p className="text-sm font-medium text-foreground">Token Supply</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Total number of tokens minted at launch.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {ARC_SUPPLY_PRESETS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => set("arc_supply", p.value)}
+              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                data.arc_supply === p.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {errors.arc_supply && <p className="text-xs text-red-500">{errors.arc_supply}</p>}
+      </div>
+
+      {/* First buy en USDC */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">First Buy</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Buy tokens immediately after deployment.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => set("arc_first_buy_enabled", !data.arc_first_buy_enabled)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              data.arc_first_buy_enabled ? "bg-primary" : "bg-muted"
+            }`}
+          >
+            <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${
+              data.arc_first_buy_enabled ? "translate-x-4" : "translate-x-0.5"
+            }`} />
+          </button>
+        </div>
+        {data.arc_first_buy_enabled && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={1} max={1000} step={1}
+                value={data.arc_first_buy_usdc}
+                onChange={(e) => set("arc_first_buy_usdc", Number(e.target.value))}
+                className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-sm text-muted-foreground">USDC</span>
+            </div>
+            {errors.arc_first_buy_usdc && (
+              <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Info bonding curve */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/10 p-4">
+        <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve</p>
+        <p className="text-xs text-blue-700 dark:text-blue-400">
+          Linear curve · Graduates at 10,000 USDC raised · 1% platform fee · Fully on-chain via Arc Launchpad contract.
+        </p>
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "solana" | "arc" }) {
@@ -479,7 +578,11 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
           )}
           <div>
             <p className="font-semibold text-foreground">{data.name} <span className="text-muted-foreground font-normal">${data.ticker}</span></p>
-            <p className="text-xs text-muted-foreground">{data.category} · 1B supply</p>
+            <p className="text-xs text-muted-foreground">
+              {data.category} · {chain === "arc"
+                ? `${(data.arc_supply / 1_000_000_000).toFixed(data.arc_supply % 1_000_000_000 === 0 ? 0 : 1)}B supply`
+                : "1B supply"}
+            </p>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">{data.description}</p>
@@ -505,16 +608,30 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
       {/* Options */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Options</p>
-        {data.fee_recipients.length > 0 && (
-          <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
+        {chain === "arc" ? (
+          <>
+            <Row label="Supply" value={`${(data.arc_supply / 1_000_000_000).toFixed(data.arc_supply % 1_000_000_000 === 0 ? 0 : 1)}B tokens`} />
+            <Row label="Bonding curve" value="Linear" />
+            <Row label="Graduation" value="10,000 USDC" />
+            {data.arc_first_buy_enabled && (
+              <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
+            )}
+            <Row label="Token address" value="Auto-generated" highlight />
+          </>
+        ) : (
+          <>
+            {data.fee_recipients.length > 0 && (
+              <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
+            )}
+            {data.first_buy_enabled && (
+              <Row label="First buy" value={`${data.first_buy_amount} SOL`} />
+            )}
+            {data.is_scheduled && data.scheduled_at && (
+              <Row label="Launch date" value={new Date(data.scheduled_at).toLocaleString()} />
+            )}
+            <Row label="Mint address" value="Auto-generated" highlight />
+          </>
         )}
-        {data.first_buy_enabled && (
-          <Row label="First buy" value={`${data.first_buy_amount} SOL`} />
-        )}
-        {data.is_scheduled && data.scheduled_at && (
-          <Row label="Launch date" value={new Date(data.scheduled_at).toLocaleString()} />
-        )}
-        <Row label="Mint address" value="Auto-generated" highlight />
       </div>
 
       {/* Coût */}
@@ -740,12 +857,26 @@ export function CreateTokenWizard({
       address: ARC_LAUNCHPAD_ADDRESS,
       abi: LAUNCHPAD_ABI,
       functionName: "create",
-      args: [data.name, data.ticker, ARC_DEFAULT_SUPPLY, ARC_DEFAULT_BASE_PRICE],
+      args: [
+        data.name,
+        data.ticker,
+        // supply en 18 décimales (ex: 1B tokens = 1e27)
+        BigInt(data.arc_supply) * BigInt("1000000000000000000"),
+        ARC_DEFAULT_BASE_PRICE,
+      ],
       gasPrice: BigInt("20000000000"), // 20 gwei minimum sur Arc
     });
 
+    // Retry loop — plus robuste sur mobile (le polling viem s'interrompt quand
+    // le navigateur passe en arrière-plan pendant l'ouverture de MetaMask)
     toast.info("Waiting for confirmation…");
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 300_000 }); // 5 min — Arc Testnet est lent
+    let receipt = null;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await new Promise((r) => setTimeout(r, 3_000));
+      receipt = await publicClient.getTransactionReceipt({ hash: txHash }).catch(() => null);
+      if (receipt) break;
+    }
+    if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
 
     // 5. Extraire l'adresse du token depuis l'event Created
     const logs = parseEventLogs({
@@ -764,7 +895,7 @@ export function CreateTokenWizard({
       description: data.description, website: data.website,
       twitter: data.twitter, telegram: data.telegram,
       discord: data.discord, other_social: data.other_social,
-      supply: 1_000_000_000,
+      supply: data.arc_supply,
       chain: "arc",
       arc_token_address: arcTokenAddress,
       arc_launch_id: arcLaunchId,
@@ -801,14 +932,14 @@ export function CreateTokenWizard({
     }
   }
 
-  // Pour Arc, on saute l'étape Advanced (index 2) — STEPS devient 3 étapes
-  const arcSteps = ["Identity", "Socials", "Review"];
+  // Pour Arc : 4 étapes — Identity, Socials, Options, Review
+  const arcSteps = ["Identity", "Socials", "Options", "Review"];
   const effectiveSteps = chain === "arc" ? arcSteps : STEPS;
   const maxStep = effectiveSteps.length - 1;
 
-  // Résoudre l'index réel pour le wizard Solana (step 2 = Advanced, step 3 = Review)
-  // Pour Arc : step 0 = Identity, step 1 = Socials, step 2 = Review (= step 3 en Solana)
-  const solanaStep = chain === "arc" && step === 2 ? 3 : step;
+  // Résoudre l'index réel pour les composants Solana partagés
+  // Arc step 0 = Identity, 1 = Socials, 2 = ArcOptions (nouveau), 3 = Review (= solana step 3)
+  const solanaStep = chain === "arc" && step === 3 ? 3 : step;
 
   if (chain === "solana" && !walletAddress) {
     return (
@@ -824,10 +955,11 @@ export function CreateTokenWizard({
       <StepBar current={step} steps={effectiveSteps} />
 
       <div className="min-h-[400px]">
-        {solanaStep === 0 && <StepIdentity data={data} set={set} errors={errors} />}
-        {solanaStep === 1 && <StepSocials  data={data} set={set} errors={errors} />}
-        {solanaStep === 2 && <StepAdvanced data={data} set={set} errors={errors} />}
-        {solanaStep === 3 && <StepReview   data={data} chain={chain} />}
+        {solanaStep === 0 && <StepIdentity   data={data} set={set} errors={errors} />}
+        {solanaStep === 1 && <StepSocials    data={data} set={set} errors={errors} />}
+        {chain === "arc"  && step === 2 && <StepArcOptions data={data} set={set} errors={errors} />}
+        {chain !== "arc"  && solanaStep === 2 && <StepAdvanced data={data} set={set} errors={errors} />}
+        {solanaStep === 3 && <StepReview     data={data} chain={chain} />}
       </div>
 
       {/* Navigation */}

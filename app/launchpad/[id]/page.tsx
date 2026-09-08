@@ -14,6 +14,7 @@ import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { TokenSwap } from "@/components/launchpad/token-swap";
 import { TokenSwapDBC } from "@/components/launchpad/token-swap-dbc";
 import { TokenSwapJupiter } from "@/components/launchpad/token-swap-jupiter";
+import { TokenSwapArc } from "@/components/launchpad/token-swap-arc";
 import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
 import { TokenShareButton } from "@/components/launchpad/token-share-button";
@@ -207,16 +208,22 @@ export default async function TokenDetailPage({ params }: Props) {
     { label: "Whitepaper", href: token.whitepaper_url, icon: "ti-file-text" },
   ].filter(s => s.href);
 
+  const isArc        = token.chain === "arc";
   const isPending    = token.status === "pending";
-  const isOnCurve    = token.status === "active";      // bonding curve — Meteora DBC
+  const isOnCurve    = token.status === "active";      // bonding curve — Meteora DBC ou Arc
   const isGraduating = token.status === "graduating";  // has DAMM pool — Jupiter routable
   const isActive     = isOnCurve || isGraduating;      // generic "live" flag for chart/stats
   const isGraduated  = token.status === "graduated";
-  const showChart    = (isActive || isGraduated) && !!token.mint_address;
+  const showChart    = !isArc && (isActive || isGraduated) && !!token.mint_address;
 
-  // Birdeye uses mint address for token pages
-  const birdeyeTokenUrl = token.mint_address
+  // Birdeye uses mint address for token pages (Solana only)
+  const birdeyeTokenUrl = !isArc && token.mint_address
     ? `https://birdeye.so/token/${token.mint_address}?chain=solana`
+    : null;
+
+  // Arc explorer
+  const arcScanTokenUrl = isArc && token.mint_address
+    ? `https://testnet.arcscan.app/token/${token.mint_address}`
     : null;
 
   const creatorInitials     = token.creator_wallet.slice(0, 2).toUpperCase();
@@ -313,11 +320,13 @@ export default async function TokenDetailPage({ params }: Props) {
               </span>
               <CopyMint address={token.mint_address} />
               <a
-                href={`https://solscan.io/token/${token.mint_address}`}
+                href={isArc
+                  ? `https://testnet.arcscan.app/token/${token.mint_address}`
+                  : `https://solscan.io/token/${token.mint_address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-foreground transition-colors"
-                title="View on Solscan"
+                title={isArc ? "View on ArcScan" : "View on Solscan"}
               >
                 <ExternalLink className="size-3" />
               </a>
@@ -407,8 +416,30 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="space-y-6 md:row-start-1 md:col-start-2 md:row-span-2">
 
           <div className="space-y-2">
-            {/* Bonding curve (active or graduating with DBC pool) — native DBC swap */}
-            {(isOnCurve || isGraduating) && token.is_tradeable && token.pool_address && token.mint_address && (
+            {/* ── Arc bonding curve swap ── */}
+            {isArc && token.mint_address && token.arc_launch_id && (
+              <TokenSwapArc
+                curveAddress={token.arc_launch_id}
+                tokenAddress={token.mint_address}
+                ticker={token.ticker}
+                logoUrl={token.logo_url ?? undefined}
+              />
+            )}
+
+            {/* Arc — link to ArcScan */}
+            {isArc && arcScanTokenUrl && (
+              <a
+                href={arcScanTokenUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                View on ArcScan →
+              </a>
+            )}
+
+            {/* ── Solana bonding curve (active or graduating with DBC pool) ── */}
+            {!isArc && (isOnCurve || isGraduating) && token.is_tradeable && token.pool_address && token.mint_address && (
               <TokenSwapDBC
                 poolAddress={token.pool_address}
                 mintAddress={token.mint_address}
@@ -418,14 +449,14 @@ export default async function TokenDetailPage({ params }: Props) {
             )}
 
             {/* Graduated — Jupiter Terminal (DAMM pool, fully indexed) */}
-            {isGraduated && token.mint_address && (
+            {!isArc && isGraduated && token.mint_address && (
               <TokenSwapJupiter
                 mintAddress={token.mint_address}
               />
             )}
 
             {/* Graduated — also link to Birdeye */}
-            {isGraduated && birdeyeTokenUrl && (
+            {!isArc && isGraduated && birdeyeTokenUrl && (
               <a
                 href={birdeyeTokenUrl}
                 target="_blank"
@@ -468,7 +499,7 @@ export default async function TokenDetailPage({ params }: Props) {
           {/* Token info */}
           <div>
             <SectionLabel>Token info</SectionLabel>
-            <InfoRow label="Network" value="Solana" />
+            <InfoRow label="Network" value={isArc ? "Arc" : "Solana"} />
             <InfoRow label="Supply"  value={formatSupply(token.supply)} />
             {token.first_buy_amount && (
               <InfoRow label="First buy" value={`${token.first_buy_amount} SOL`} />

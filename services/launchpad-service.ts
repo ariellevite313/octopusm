@@ -38,6 +38,10 @@ export type LaunchpadToken = {
   volume_24h_usd:   number | null;
   stats_updated_at: string | null;
   creator_display_name?: string | null;
+  // Arc-specific fields
+  chain:          string | null;
+  arc_launch_id:  string | null;
+  arc_tx_hash:    string | null;
 };
 
 export type TokenReservation = {
@@ -73,6 +77,7 @@ const PUBLIC_COLUMNS = [
   "first_buy_amount","status","is_verified","is_tradeable","metadata_uri",
   "created_at","updated_at",
   "price_usd","market_cap_usd","volume_24h_usd","stats_updated_at",
+  "chain","arc_launch_id","arc_tx_hash",
 ].join(",");
 
 export type SortOption = "new" | "old" | "verified" | "market_cap_desc" | "market_cap_asc" | "volume";
