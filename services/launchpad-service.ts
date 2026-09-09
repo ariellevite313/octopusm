@@ -95,6 +95,7 @@ export async function getLaunchpadTokens({
   excludeStatuses,
   category,
   search,
+  chain,
   sort = "new",
   limit = 20,
   offset = 0,
@@ -104,6 +105,7 @@ export async function getLaunchpadTokens({
   excludeStatuses?: LaunchpadToken["status"][];
   category?: string;
   search?: string;
+  chain?: "solana" | "arc";
   sort?: SortOption;
   limit?: number;
   offset?: number;
@@ -127,6 +129,12 @@ export async function getLaunchpadTokens({
   }
   // Always exclude hidden tokens from public queries
   q = q.not("is_hidden", "is", true);
+  // Chain filter — "solana" includes rows where chain = 'solana' OR chain IS NULL (legacy)
+  if (chain === "arc") {
+    q = q.eq("chain", "arc");
+  } else if (chain === "solana") {
+    q = q.or("chain.eq.solana,chain.is.null");
+  }
   if (category) q = q.eq("category", category);
   // Full-text search on name and ticker (case-insensitive)
   if (search && search.trim()) {

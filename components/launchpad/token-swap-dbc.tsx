@@ -48,6 +48,27 @@ function openWalletModal() {
 export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Props) {
   const { walletAddress, walletType, isAuthenticated } = useAuth();
 
+  // Solana tokens require a Solana wallet — MetaMask can't sign Solana txs
+  const isSolanaWallet = walletType !== "metamask";
+
+  if (isAuthenticated && !isSolanaWallet) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">Solana wallet required</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          This token runs on Solana.<br />
+          Disconnect MetaMask and connect a Solana wallet (Phantom, Solflare…) to trade.
+        </p>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+        >
+          Switch wallet
+        </button>
+      </div>
+    );
+  }
+
   const [direction,    setDirection]    = useState<Direction>("buy");
   const [amount,       setAmount]       = useState("");
   const [slippageBps,  setSlippageBps]  = useState(100);
