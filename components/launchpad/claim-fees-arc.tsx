@@ -122,6 +122,25 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
   // ── Don't show anything if not the creator ────────────────────────────────
   if (!isCreator) return null;
 
+  // Arc fees require an EVM wallet
+  if (walletType !== "metamask") {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center space-y-3">
+        <CoinsIcon className="size-5 text-orange-400 mx-auto" />
+        <p className="text-sm font-semibold text-foreground">MetaMask required to claim fees</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Connect MetaMask to receive your USDC creator fees on Arc.
+        </p>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+        >
+          Switch wallet
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2">

@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { Loader2, CoinsIcon } from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
+import { getProviderByType } from "@/lib/wallet/adapters";
 
 type SolanaWallet = {
   publicKey: PublicKey;
@@ -12,11 +14,6 @@ type SolanaWallet = {
   connect: () => Promise<{ publicKey: PublicKey }>;
 };
 
-function getWallet(): SolanaWallet | null {
-  if (typeof window === "undefined") return null;
-  return (window as unknown as { solana?: SolanaWallet }).solana ?? null;
-}
-
 type Props = {
   tokenId: string;
   walletAddress: string;
@@ -24,6 +21,7 @@ type Props = {
 };
 
 export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddress }: Props) {
+  const { walletType } = useAuth();
   const [phase, setPhase]           = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg]     = useState("");
   const [claimable, setClaimable]     = useState<number | null>(null);
@@ -46,9 +44,9 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
     setPhase("building");
     setErrorMsg("");
 
-    const wallet = getWallet();
+    const wallet = walletType ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
     if (!wallet) {
-      toast.error("Phantom wallet not found");
+      toast.error("Solana wallet not found — connect Phantom, Solflare or Backpack");
       setPhase("idle");
       return;
     }

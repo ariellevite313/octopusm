@@ -514,8 +514,8 @@ export default async function TokenDetailPage({ params }: Props) {
               </div>
             )}
 
-            {/* Claim fees — creator only */}
-            {isCreator && (isActive || isGraduated) && (
+            {/* Claim fees — creator only, Solana tokens only (Arc uses ClaimFeesArc above) */}
+            {!isArc && isCreator && (isActive || isGraduated) && (
               <div className="pt-2 space-y-1.5">
                 <SectionLabel>Creator fees</SectionLabel>
                 <p className="text-xs text-muted-foreground mb-2">Claim your accumulated trading fees.</p>
