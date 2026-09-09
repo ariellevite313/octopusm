@@ -419,7 +419,7 @@ export default async function TokenDetailPage({ params }: Props) {
             {/* ── Arc bonding curve swap ── */}
             {isArc && token.mint_address && token.arc_launch_id && (
               <TokenSwapArc
-                curveAddress={token.arc_launch_id}
+                launchId={token.arc_launch_id}
                 tokenAddress={token.mint_address}
                 ticker={token.ticker}
                 logoUrl={token.logo_url ?? undefined}
