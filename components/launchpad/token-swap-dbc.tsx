@@ -66,6 +66,11 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
   const [spinning,     setSpinning]     = useState(false);
   const [omeroEarned,  setOmeroEarned]  = useState<number | null>(null);
 
+  // ── Pool graduation progress ─────────────────────────────────────────────────
+  const [poolProgress, setPoolProgress] = useState<{
+    solRaised: number; gradThresholdSol: number; progressPct: number; graduated: boolean;
+  } | null>(null);
+
   // quoteReady: true if the last quote fetch succeeded and the amount hasn't changed since
   const [quoteReady,   setQuoteReady]   = useState(false);
   const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +97,23 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
   }, [walletAddress, mintAddress]);
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
+
+  // ── Pool progress ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchProgress = () => {
+      fetch(`/api/launchpad/dbc-pool-state?poolAddress=${encodeURIComponent(poolAddress)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((d: { solRaised: number; gradThresholdSol: number; progressPct: number; graduated: boolean } | null) => {
+          if (!cancelled && d && d.gradThresholdSol > 0) setPoolProgress(d);
+        })
+        .catch(() => { /* non-fatal */ });
+    };
+    fetchProgress();
+    const interval = setInterval(fetchProgress, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [poolAddress]);
 
   // ── Quote ────────────────────────────────────────────────────────────────────
   // Only fetches the estimated output — the actual tx is always built fresh at swap time.
@@ -520,6 +542,28 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
               </span>
             ) : ctaLabel}
           </button>
+        )}
+
+        {/* ── Graduation progress bar ── */}
+        {poolProgress && !poolProgress.graduated && (
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground/60 font-medium">Bonding curve</span>
+              <span className="text-[10px] text-muted-foreground/60 font-medium tabular-nums">
+                {poolProgress.solRaised.toFixed(2)} / {poolProgress.gradThresholdSol.toFixed(0)} SOL
+                <span className="ml-1 text-orange-400 font-semibold">{poolProgress.progressPct.toFixed(1)}%</span>
+              </span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-orange-400 transition-all duration-700"
+                style={{ width: `${Math.min(100, poolProgress.progressPct)}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {poolProgress?.graduated && (
+          <p className="text-[10px] text-center text-indigo-400 font-semibold pt-1">🎓 Graduated to DAMM</p>
         )}
 
         <p className="text-center text-[10px] text-muted-foreground/40 pb-1">
