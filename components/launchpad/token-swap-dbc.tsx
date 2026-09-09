@@ -153,17 +153,21 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
 
   // ── Toggle direction ─────────────────────────────────────────────────────────
 
-  const toggleDirection = () => {
+  const switchDirection = (d: Direction) => {
+    if (d === direction) return;
     setSpinning(true);
     setTimeout(() => setSpinning(false), 400);
-    setDirection(d => d === "buy" ? "sell" : "buy");
+    setDirection(d);
     setAmount("");
     setActivePct(null);
     setEstimatedOut(null);
     setQuoteReady(false);
+    setQuoteError(false); // ← reset sinon "No quote available" reste affiché
     setError(null);
     setTxSig(null);
   };
+
+  const toggleDirection = () => switchDirection(direction === "buy" ? "sell" : "buy");
 
   // ── Swap ─────────────────────────────────────────────────────────────────────
   // Always builds a fresh transaction at click time to avoid stale blockhash.
@@ -336,6 +340,25 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
     <div className="rounded-2xl overflow-hidden border border-border bg-card">
 
       <div className="p-4 space-y-2">
+
+        {/* ── Buy / Sell tabs ── */}
+        <div className="flex rounded-xl overflow-hidden border border-border">
+          {(["buy", "sell"] as Direction[]).map(d => (
+            <button
+              key={d}
+              onClick={() => switchDirection(d)}
+              className={`flex-1 py-2.5 text-[13px] font-semibold transition-colors capitalize ${
+                direction === d
+                  ? d === "buy"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-red-500 text-white"
+                  : "bg-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
 
         {/* ── Pay box ── */}
         <div className="rounded-2xl bg-muted/40 px-4 py-3.5 space-y-1">
