@@ -113,7 +113,7 @@ const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
   {
     type: "metamask",
     name: "MetaMask",
-    icon: "/metamask-logo.svg",
+    icon: "/logo-metamask.jpeg",
     downloadUrl: "https://metamask.io/download",
     mobileDeepLink: (url) =>
       `https://metamask.app.link/dapp/${encodeURIComponent(url.replace(/^https?:\/\//, ""))}`,
