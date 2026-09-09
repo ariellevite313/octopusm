@@ -240,6 +240,30 @@ export const BONDING_CURVE_ABI = [
     ],
     anonymous: false,
   },
+  // ── Fees créateur ─────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "creatorFeesAccrued",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "claimFees",
+    inputs: [{ name: "to", type: "address", internalType: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "FeesClaimed",
+    inputs: [
+      { name: "to",     type: "address", indexed: true,  internalType: "address" },
+      { name: "amount", type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
   {
     type: "event",
     name: "Graduated",
