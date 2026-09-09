@@ -57,6 +57,26 @@ function fmtTokens(raw: bigint, dec = 18): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
 }
 
+/**
+ * Convertit une string décimale en bigint sans perte de précision float64.
+ * Ex: parseDecimalToBigInt("12345678.9", 18) → 12345678900000000000000000n
+ */
+function parseDecimalToBigInt(value: string, decimals: number): bigint {
+  const [intStr, fracStr = ""] = value.split(".");
+  const frac = fracStr.padEnd(decimals, "0").slice(0, decimals);
+  return BigInt(intStr || "0") * BigInt(10 ** decimals) + BigInt(frac || "0");
+}
+
+/** Affiche un bigint (18 dec) en string lisible pour l'input. */
+function bigintToInputString(raw: bigint, decimals: number, maxFrac = 6): string {
+  const divisor = BigInt(10 ** decimals);
+  const intPart  = raw / divisor;
+  const fracPart = raw % divisor;
+  if (fracPart === 0n) return intPart.toString();
+  const fracStr  = fracPart.toString().padStart(decimals, "0").slice(0, maxFrac).replace(/0+$/, "");
+  return fracStr ? `${intPart}.${fracStr}` : intPart.toString();
+}
+
 function openWalletModal() {
   window.dispatchEvent(new CustomEvent("open-wallet-connect"));
 }
@@ -206,7 +226,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             }) as [bigint, bigint];
             setEstimatedOut(tokensOut);
           } else {
-            const tokensIn = BigInt(Math.round(parsed * 1e18));
+            const tokensIn = parseDecimalToBigInt(amount, 18);
             const [usdcOut] = await client.readContract({
               address: curveAddr, abi: BONDING_CURVE_ABI,
               functionName: "quoteTokensToUsdc", args: [tokensIn],
@@ -318,7 +338,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
         } else {
           // SELL
-          const tokensIn = BigInt(Math.round(parsed * 1e18));
+          const tokensIn = parseDecimalToBigInt(amount, 18);
           const minUsdc  = (estimatedOut * slipMul) / 1000n;
 
           if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error("Solde token insuffisant");
@@ -413,10 +433,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const inputBalance  = direction === "buy" ? usdcBalance  : tokenBalance;
-  const inputSymbol   = direction === "buy" ? "USDC"       : ticker;
-  const outputSymbol  = direction === "buy" ? ticker       : "USDC";
-  const inputDecimals = direction === "buy" ? 6            : 18;
+  const inputBalance = direction === "buy" ? usdcBalance : tokenBalance;
+  const inputSymbol  = direction === "buy" ? "USDC"      : ticker;
+  const outputSymbol = direction === "buy" ? ticker      : "USDC";
 
   const balFmt = inputBalance !== null
     ? `${direction === "buy" ? fmtUsdc(inputBalance) : fmtTokens(inputBalance)} ${inputSymbol}`
@@ -556,10 +575,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
               <button
                 key={pct}
                 onClick={() => {
-                  const base = inputBalance !== null
-                    ? Number(inputBalance) / Math.pow(10, inputDecimals)
-                    : 0;
-                  setAmount(((base * pct) / 100).toFixed(direction === "buy" ? 2 : 4));
+                  if (!inputBalance) return;
+                  // Division bigint pour éviter la perte de précision float64
+                  const portion = (inputBalance * BigInt(pct)) / 100n;
+                  const decimals = direction === "buy" ? 6 : 18;
+                  setAmount(bigintToInputString(portion, decimals, direction === "buy" ? 2 : 4));
                 }}
                 className="flex-1 py-2 rounded-full text-[12px] font-semibold border bg-muted/40 border-border text-muted-foreground hover:border-border-strong hover:text-foreground transition-colors"
               >
