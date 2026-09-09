@@ -19,6 +19,7 @@ import { LaunchpadComments } from "@/components/launchpad/launchpad-comments";
 import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
 import { TokenShareButton } from "@/components/launchpad/token-share-button";
 import { BannerUploadButton } from "@/components/launchpad/banner-upload-button";
+import { PoolRecoveryPrompt } from "@/components/launchpad/pool-recovery-prompt";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -446,6 +447,17 @@ export default async function TokenDetailPage({ params }: Props) {
                 ticker={token.ticker}
                 logoUrl={token.logo_url ?? undefined}
               />
+            )}
+
+            {/* ── Solana active but pool_address missing — recovery prompt ── */}
+            {!isArc && isOnCurve && token.is_tradeable && !token.pool_address && isCreator && (
+              <PoolRecoveryPrompt tokenId={token.id} walletAddress={token.creator_wallet} />
+            )}
+            {!isArc && isOnCurve && token.is_tradeable && !token.pool_address && !isCreator && (
+              <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-1">
+                <p className="text-sm font-medium text-foreground">Pool indexing…</p>
+                <p className="text-xs text-muted-foreground">The swap will appear shortly.</p>
+              </div>
             )}
 
             {/* Graduated — Jupiter Terminal (DAMM pool, fully indexed) */}
