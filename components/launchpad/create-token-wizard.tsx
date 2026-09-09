@@ -12,7 +12,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { createWalletClient, createPublicClient, custom, parseEventLogs } from "viem";
 import { arcTestnet } from "@/lib/arc-chain";
 import {
-  ARC_LAUNCHPAD_ADDRESS, ARC_DEFAULT_SUPPLY, ARC_DEFAULT_BASE_PRICE, LAUNCHPAD_ABI,
+  ARC_FACTORY_ADDRESS, FACTORY_ABI,
   ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
 } from "@/lib/arc-launchpad";
 
@@ -854,26 +854,50 @@ export function CreateTokenWizard({
       transport: custom(eth),
     });
 
-    // 4. Call create() on Arc Launchpad
+    // 4. Si first buy activé, approuver USDC pour la factory AVANT de créer
+    //    La factory fait le buy en interne, donc elle doit déjà avoir l'allowance.
+    const firstBuyUsdcRaw = data.arc_first_buy_enabled && data.arc_first_buy_usdc > 0
+      ? BigInt(Math.round(data.arc_first_buy_usdc * 1_000_000)) // 6 décimales
+      : 0n;
+
+    if (firstBuyUsdcRaw > 0n) {
+      toast.info("Approving USDC for first buy…");
+      const approveTx = await walletClient.writeContract({
+        address:      ARC_USDC_ADDRESS,
+        abi:          ERC20_APPROVE_ABI,
+        functionName: "approve",
+        args:         [ARC_FACTORY_ADDRESS, firstBuyUsdcRaw * 2n], // ×2 marge
+        gasPrice:     BigInt("20000000000"),
+      });
+      // Attendre la confirmation de l'approval
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 3_000));
+        const r = await publicClient.getTransactionReceipt({ hash: approveTx }).catch(() => null);
+        if (r) break;
+      }
+    }
+
+    // 5. Call createToken() sur LaunchpadFactory
+    //    La factory déploie un clone BondingCurve, crée l'OMToken,
+    //    et exécute le first buy si firstBuyUsdc > 0.
     toast.info("Sending transaction to Arc…");
     const txHash = await walletClient.writeContract({
-      address: ARC_LAUNCHPAD_ADDRESS,
-      abi: LAUNCHPAD_ABI,
-      functionName: "create",
+      address:  ARC_FACTORY_ADDRESS,
+      abi:      FACTORY_ABI,
+      functionName: "createToken",
       args: [
         data.name,
         data.ticker,
-        // supply en 18 décimales (ex: 1B tokens = 1e27)
-        BigInt(data.arc_supply) * BigInt("1000000000000000000"),
-        ARC_DEFAULT_BASE_PRICE,
+        "",           // imageUri — vide pour l'instant (logo stocké sur notre CDN)
+        data.description || "",
+        firstBuyUsdcRaw,
       ],
       gasPrice: BigInt("20000000000"), // 20 gwei minimum sur Arc
     });
 
-    // Afficher le hash immédiatement — l'utilisateur peut le vérifier sur ArcScan
-    // même si le polling prend du temps.
     toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
     toast.info("Waiting for confirmation…");
+
     let receipt = null;
     for (let attempt = 0; attempt < 60; attempt++) {
       await new Promise((r) => setTimeout(r, 3_000));
@@ -882,76 +906,17 @@ export function CreateTokenWizard({
     }
     if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
 
-    // 5. Extraire l'adresse du token depuis l'event Created
+    // 6. Extraire curve + token depuis l'event TokenCreated
     const logs = parseEventLogs({
-      abi: LAUNCHPAD_ABI,
-      eventName: "Created",
-      logs: receipt.logs,
+      abi:       FACTORY_ABI,
+      eventName: "TokenCreated",
+      logs:      receipt.logs,
     });
-    const arcTokenAddress = logs[0]?.args?.token ?? "";
-    const arcLaunchId    = logs[0]?.args?.id ?? 0n;
+    // curveAddress = adresse du clone BondingCurve = nouvel arc_launch_id
+    const curveAddress     = (logs[0]?.args?.curve ?? "") as string;
+    const arcTokenAddress  = (logs[0]?.args?.token ?? "") as string;
 
-    // 5b. First buy optionnel — approuver USDC puis appeler buy()
-    if (data.arc_first_buy_enabled && data.arc_first_buy_usdc > 0) {
-      const usdcRaw = BigInt(Math.round(data.arc_first_buy_usdc * 1_000_000)); // 6 dec
-
-      // Calculer combien de tokens on peut acheter pour ce montant USDC
-      // getBuyCost(id, tokenAmount) retourne le coût en USDC raw.
-      // On cherche tokenAmount tel que getBuyCost ≈ usdcRaw.
-      // Approximation : getBuyCost(id, 1e18) donne le coût d'1 token.
-      const costPerToken: bigint = await publicClient.readContract({
-        address: ARC_LAUNCHPAD_ADDRESS,
-        abi:     LAUNCHPAD_ABI,
-        functionName: "getBuyCost",
-        args: [arcLaunchId, BigInt("1000000000000000000")], // 1 token (18 dec)
-      }) as bigint;
-
-      let tokensToBuy: bigint;
-      if (costPerToken > 0n) {
-        // tokensToBuy (18 dec) = usdcRaw * 1e18 / costPerToken
-        tokensToBuy = (usdcRaw * BigInt("1000000000000000000")) / costPerToken;
-      } else {
-        // fallback : passer usdcRaw converti en 18 dec (si basePrice=1 et déc symétriques)
-        tokensToBuy = usdcRaw * BigInt("1000000000000"); // 1e6 → 1e18
-      }
-
-      if (tokensToBuy > 0n) {
-        toast.info("Approving USDC for first buy…");
-
-        // Approve USDC
-        await walletClient.writeContract({
-          address:      ARC_USDC_ADDRESS,
-          abi:          ERC20_APPROVE_ABI,
-          functionName: "approve",
-          args:         [ARC_LAUNCHPAD_ADDRESS, usdcRaw * 2n], // ×2 pour absorber les frais
-        });
-
-        toast.info("Executing first buy…");
-
-        // Buy
-        const buyHash = await walletClient.writeContract({
-          address:      ARC_LAUNCHPAD_ADDRESS,
-          abi:          LAUNCHPAD_ABI,
-          functionName: "buy",
-          args:         [arcLaunchId, tokensToBuy],
-          gasPrice:     BigInt("20000000000"),
-        });
-
-        // Attendre confirmation du first buy
-        let buyReceipt = null;
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 3_000));
-          buyReceipt = await publicClient.getTransactionReceipt({ hash: buyHash }).catch(() => null);
-          if (buyReceipt) break;
-        }
-        // Si le first buy échoue, on ne bloque pas — le token est déjà créé
-        if (!buyReceipt) {
-          toast.warning("First buy not confirmed — token created, buy manually.");
-        }
-      }
-    }
-
-    // 6. Sauvegarder les métadonnées en base
+    // 7. Sauvegarder les métadonnées en base
     const form = new FormData();
     if (data.logo_file) form.append("logo", data.logo_file);
     form.append("payload", JSON.stringify({
@@ -959,10 +924,10 @@ export function CreateTokenWizard({
       description: data.description, website: data.website,
       twitter: data.twitter, telegram: data.telegram,
       discord: data.discord, other_social: data.other_social,
-      supply: data.arc_supply,
+      supply: 1_000_000_000, // fixe — OMToken mint toujours 1B
       chain: "arc",
       arc_token_address: arcTokenAddress,
-      arc_launch_id: arcLaunchId.toString(),
+      arc_launch_id: curveAddress,   // adresse du clone BondingCurve (0x...)
       arc_tx_hash: txHash,
       creator_wallet: account,
       creator_fee_pct: 1,
