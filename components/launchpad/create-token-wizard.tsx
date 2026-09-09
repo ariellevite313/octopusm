@@ -9,10 +9,11 @@ import {
   Globe, Twitter, MessageCircle, Hash, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
+import { createWalletClient, createPublicClient, custom, parseEventLogs } from "viem";
 import { arcTestnet } from "@/lib/arc-chain";
 import {
   ARC_LAUNCHPAD_ADDRESS, ARC_DEFAULT_SUPPLY, ARC_DEFAULT_BASE_PRICE, LAUNCHPAD_ABI,
+  ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
 } from "@/lib/arc-launchpad";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -841,6 +842,8 @@ export function CreateTokenWizard({
     }
 
     // 3. Create viem clients
+    // Utilise custom(eth) pour les deux clients — route via MetaMask au lieu d'un
+    // appel HTTP direct qui échoue souvent sur mobile (CORS / réseau instable).
     const walletClient = createWalletClient({
       account,
       chain: arcTestnet,
@@ -848,7 +851,7 @@ export function CreateTokenWizard({
     });
     const publicClient = createPublicClient({
       chain: arcTestnet,
-      transport: http("https://rpc.testnet.arc.network"),
+      transport: custom(eth),
     });
 
     // 4. Call create() on Arc Launchpad
@@ -867,8 +870,9 @@ export function CreateTokenWizard({
       gasPrice: BigInt("20000000000"), // 20 gwei minimum sur Arc
     });
 
-    // Retry loop — plus robuste sur mobile (le polling viem s'interrompt quand
-    // le navigateur passe en arrière-plan pendant l'ouverture de MetaMask)
+    // Afficher le hash immédiatement — l'utilisateur peut le vérifier sur ArcScan
+    // même si le polling prend du temps.
+    toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
     toast.info("Waiting for confirmation…");
     let receipt = null;
     for (let attempt = 0; attempt < 60; attempt++) {
@@ -885,7 +889,67 @@ export function CreateTokenWizard({
       logs: receipt.logs,
     });
     const arcTokenAddress = logs[0]?.args?.token ?? "";
-    const arcLaunchId = logs[0]?.args?.id?.toString() ?? "0";
+    const arcLaunchId    = logs[0]?.args?.id ?? 0n;
+
+    // 5b. First buy optionnel — approuver USDC puis appeler buy()
+    if (data.arc_first_buy_enabled && data.arc_first_buy_usdc > 0) {
+      const usdcRaw = BigInt(Math.round(data.arc_first_buy_usdc * 1_000_000)); // 6 dec
+
+      // Calculer combien de tokens on peut acheter pour ce montant USDC
+      // getBuyCost(id, tokenAmount) retourne le coût en USDC raw.
+      // On cherche tokenAmount tel que getBuyCost ≈ usdcRaw.
+      // Approximation : getBuyCost(id, 1e18) donne le coût d'1 token.
+      const costPerToken: bigint = await publicClient.readContract({
+        address: ARC_LAUNCHPAD_ADDRESS,
+        abi:     LAUNCHPAD_ABI,
+        functionName: "getBuyCost",
+        args: [arcLaunchId, BigInt("1000000000000000000")], // 1 token (18 dec)
+      }) as bigint;
+
+      let tokensToBuy: bigint;
+      if (costPerToken > 0n) {
+        // tokensToBuy (18 dec) = usdcRaw * 1e18 / costPerToken
+        tokensToBuy = (usdcRaw * BigInt("1000000000000000000")) / costPerToken;
+      } else {
+        // fallback : passer usdcRaw converti en 18 dec (si basePrice=1 et déc symétriques)
+        tokensToBuy = usdcRaw * BigInt("1000000000000"); // 1e6 → 1e18
+      }
+
+      if (tokensToBuy > 0n) {
+        toast.info("Approving USDC for first buy…");
+
+        // Approve USDC
+        await walletClient.writeContract({
+          address:      ARC_USDC_ADDRESS,
+          abi:          ERC20_APPROVE_ABI,
+          functionName: "approve",
+          args:         [ARC_LAUNCHPAD_ADDRESS, usdcRaw * 2n], // ×2 pour absorber les frais
+        });
+
+        toast.info("Executing first buy…");
+
+        // Buy
+        const buyHash = await walletClient.writeContract({
+          address:      ARC_LAUNCHPAD_ADDRESS,
+          abi:          LAUNCHPAD_ABI,
+          functionName: "buy",
+          args:         [arcLaunchId, tokensToBuy],
+          gasPrice:     BigInt("20000000000"),
+        });
+
+        // Attendre confirmation du first buy
+        let buyReceipt = null;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 3_000));
+          buyReceipt = await publicClient.getTransactionReceipt({ hash: buyHash }).catch(() => null);
+          if (buyReceipt) break;
+        }
+        // Si le first buy échoue, on ne bloque pas — le token est déjà créé
+        if (!buyReceipt) {
+          toast.warning("First buy not confirmed — token created, buy manually.");
+        }
+      }
+    }
 
     // 6. Sauvegarder les métadonnées en base
     const form = new FormData();
@@ -898,7 +962,7 @@ export function CreateTokenWizard({
       supply: data.arc_supply,
       chain: "arc",
       arc_token_address: arcTokenAddress,
-      arc_launch_id: arcLaunchId,
+      arc_launch_id: arcLaunchId.toString(),
       arc_tx_hash: txHash,
       creator_wallet: account,
       creator_fee_pct: 1,
