@@ -21,6 +21,7 @@ import { TokenShareButton } from "@/components/launchpad/token-share-button";
 import { BannerUploadButton } from "@/components/launchpad/banner-upload-button";
 import { PoolRecoveryPrompt } from "@/components/launchpad/pool-recovery-prompt";
 import { ClaimFeesArc } from "@/components/launchpad/claim-fees-arc";
+import { ArcTokenChart } from "@/components/launchpad/arc-token-chart";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -217,6 +218,7 @@ export default async function TokenDetailPage({ params }: Props) {
   const isActive     = isOnCurve || isGraduating;      // generic "live" flag for chart/stats
   const isGraduated  = token.status === "graduated";
   const showChart    = !isArc && (isActive || isGraduated) && !!token.mint_address;
+  const showArcChart = isArc && !!token.arc_launch_id?.startsWith("0x");
 
   // Birdeye uses mint address for token pages (Solana only)
   const birdeyeTokenUrl = !isArc && token.mint_address
@@ -367,6 +369,17 @@ export default async function TokenDetailPage({ params }: Props) {
           <TokenChart
             mintAddress={token.mint_address!}
             name={token.name}
+            ticker={token.ticker}
+            logoUrl={token.logo_url ?? undefined}
+          />
+        </div>
+      )}
+
+      {/* ── Arc chart (on-chain Trade events) ───────────────────────────────── */}
+      {showArcChart && (
+        <div className="mt-4 px-4 md:px-6">
+          <ArcTokenChart
+            curveAddress={token.arc_launch_id!}
             ticker={token.ticker}
             logoUrl={token.logo_url ?? undefined}
           />
