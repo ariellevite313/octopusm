@@ -171,12 +171,19 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
     );
   }
 
-  if (error || points.length === 0) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-48 gap-2">
-        <p className="text-sm text-muted-foreground">
-          {points.length === 0 ? "No trades yet — be the first!" : "Chart unavailable"}
-        </p>
+        <p className="text-sm text-muted-foreground">Chart unavailable</p>
+        <p className="text-[11px] text-muted-foreground/50">{error}</p>
+      </div>
+    );
+  }
+
+  if (points.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 gap-2">
+        <p className="text-sm text-muted-foreground">No trades yet — be the first!</p>
       </div>
     );
   }

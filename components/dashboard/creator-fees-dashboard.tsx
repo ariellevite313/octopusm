@@ -14,6 +14,8 @@ import Image from "next/image";
 import { Loader2, RefreshCw, Copy, Check } from "lucide-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/auth-provider";
+import { getProviderByType } from "@/lib/wallet/adapters";
 import type { CreatorStatsResponse } from "@/app/api/dashboard/creator-stats/route";
 import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/pending-fees/route";
 
@@ -37,10 +39,6 @@ type SolanaWallet = {
   signAndSendTransaction?: (tx: Transaction, opts?: object) => Promise<{ signature: string }>;
 };
 
-function getPhantom(): SolanaWallet | null {
-  if (typeof window === "undefined") return null;
-  return (window as unknown as { solana?: SolanaWallet }).solana ?? null;
-}
 
 // ── WalletCopyButton ──────────────────────────────────────────────────────────
 
@@ -145,6 +143,7 @@ function TokenFeeRow({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string }) {
+  const { walletType } = useAuth();
   const [stats,       setStats]       = useState<CreatorStatsResponse | null>(null);
   const [pending,     setPending]     = useState<PendingFeesResponse  | null>(null);
   const [loading,     setLoading]     = useState(true);
@@ -170,8 +169,8 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
   // ── Claim a single token ──────────────────────────────────────────────────
 
   async function claimToken(token: PendingFeeToken): Promise<boolean> {
-    const phantom = getPhantom();
-    if (!phantom) { toast.error("Phantom wallet not found"); return false; }
+    const phantom = walletType ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
+    if (!phantom) { toast.error("Solana wallet not found — connect Phantom, Solflare or Backpack"); return false; }
     try { await phantom.connect(); } catch { toast.error("Connect your wallet first"); return false; }
     if (phantom.publicKey?.toBase58() !== walletAddress) {
       toast.error(`Wrong wallet — use …${shortAddr(walletAddress, 4, 4)}`);

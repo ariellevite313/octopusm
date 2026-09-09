@@ -41,16 +41,27 @@ export async function GET(req: Request) {
     const headBlock = await client.getBlock({ blockNumber: currentBlock });
     const headTimestamp = Number(headBlock.timestamp);
 
-    // ── Fetch Trade logs ───────────────────────────────────────────────────
-    // Scan last 100k blocks (~55 hours at 2s/block)
-    const fromBlock = currentBlock > 100_000n ? currentBlock - 100_000n : 0n;
+    // ── Fetch Trade logs in chunks (RPC usually limits to 2k-10k blocks) ───
+    // Scan last 100k blocks (~55h at 2s/block), split into 5k-block chunks
+    const SCAN_DEPTH  = 100_000n;
+    const CHUNK_SIZE  = 5_000n;
+    const fromBlock   = currentBlock > SCAN_DEPTH ? currentBlock - SCAN_DEPTH : 0n;
 
-    const logs = await client.getLogs({
-      address:   curveAddress as `0x${string}`,
-      event:     TRADE_EVENT,
-      fromBlock,
-      toBlock:   "latest",
-    });
+    const logs = [];
+    for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE) {
+      const end = start + CHUNK_SIZE - 1n < currentBlock ? start + CHUNK_SIZE - 1n : currentBlock;
+      try {
+        const chunk = await client.getLogs({
+          address:   curveAddress as `0x${string}`,
+          event:     TRADE_EVENT,
+          fromBlock: start,
+          toBlock:   end,
+        });
+        logs.push(...chunk);
+      } catch {
+        // If this chunk fails, skip it and continue
+      }
+    }
 
     if (logs.length === 0) {
       return NextResponse.json({ trades: [] }, {
