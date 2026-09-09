@@ -20,6 +20,7 @@ import { TokenTradeStats } from "@/components/launchpad/token-trade-stats";
 import { TokenShareButton } from "@/components/launchpad/token-share-button";
 import { BannerUploadButton } from "@/components/launchpad/banner-upload-button";
 import { PoolRecoveryPrompt } from "@/components/launchpad/pool-recovery-prompt";
+import { ClaimFeesArc } from "@/components/launchpad/claim-fees-arc";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -424,6 +425,14 @@ export default async function TokenDetailPage({ params }: Props) {
                 tokenAddress={token.mint_address}
                 ticker={token.ticker}
                 logoUrl={token.logo_url ?? undefined}
+              />
+            )}
+
+            {/* Arc — claim creator fees (new contract only, creator only) */}
+            {isArc && isCreator && token.arc_launch_id?.startsWith("0x") && token.arc_launch_id.length === 42 && (
+              <ClaimFeesArc
+                curveAddress={token.arc_launch_id}
+                creatorWallet={token.creator_wallet}
               />
             )}
 
