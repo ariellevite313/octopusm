@@ -1,19 +1,27 @@
 "use client";
 
 /**
- * TokenSwapArc — widget buy pour les tokens Arc Launchpad.
- * Appelle ARC_LAUNCHPAD_ADDRESS.buy(launchId, tokenAmount) via MetaMask.
- * launchId = arc_launch_id stocké en DB (uint256 de l'event Created).
+ * TokenSwapArc — widget buy/sell pour les tokens Arc.
+ *
+ * Deux modes selon le format de arc_launch_id :
+ *  - "old" : arc_launch_id est un uint256 stringifié (ex: "3") → ancien contrat flat
+ *  - "new" : arc_launch_id est une adresse 0x...              → clone BondingCurve AMM
+ *
+ * Mode "new" (tous les tokens créés après la migration) :
+ *   - Approve USDC → BondingCurve.buy(usdcIn, minTokensOut, recipient)
+ *   - Approve TOKEN → BondingCurve.sell(tokensIn, minUsdcOut, recipient)
+ *   - Quote via quoteUsdcToTokens / quoteTokensToUsdc
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { createPublicClient, custom, parseAbi, encodeFunctionData } from "viem";
-import { Loader2, CheckCircle2, ExternalLink } from "lucide-react";
+import { createPublicClient, custom, encodeFunctionData, parseAbi } from "viem";
+import { Loader2, CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import {
   ARC_LAUNCHPAD_ADDRESS,
   ARC_USDC_ADDRESS,
   LAUNCHPAD_ABI,
+  BONDING_CURVE_ABI,
   ERC20_APPROVE_ABI,
 } from "@/lib/arc-launchpad";
 import { arcTestnet } from "@/lib/arc-chain";
@@ -21,21 +29,24 @@ import { arcTestnet } from "@/lib/arc-chain";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  launchId:     string;   // arc_launch_id (stringified uint256)
-  tokenAddress: string;   // mint_address (ERC-20)
+  launchId:     string;   // arc_launch_id — numeric string (old) ou 0x... (new)
+  tokenAddress: string;   // mint_address (ERC-20 du token)
   ticker:       string;
   logoUrl?:     string;
 };
 
-const USDC_DECIMALS = 6;
+type Direction = "buy" | "sell";
 
-const ERC20_BALANCE_ABI = parseAbi([
-  "function balanceOf(address) view returns (uint256)",
-  "function allowance(address,address) view returns (uint256)",
-]);
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function isNewContract(launchId: string): boolean {
+  return launchId.startsWith("0x") || launchId.startsWith("0X");
+}
 
 function fmtUsdc(raw: bigint): string {
-  return (Number(raw) / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (Number(raw) / 1e6).toLocaleString("en-US", {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
 }
 
 function fmtTokens(raw: bigint, dec = 18): string {
@@ -50,29 +61,45 @@ function openWalletModal() {
   window.dispatchEvent(new CustomEvent("open-wallet-connect"));
 }
 
+const ERC20_BALANCE_ABI = parseAbi([
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address,address) view returns (uint256)",
+]);
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, logoUrl }: Props) {
+export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props) {
   const { walletAddress, isAuthenticated } = useAuth();
 
-  const id = BigInt(launchId || "0");
+  const isNew    = isNewContract(launchId);
+  const curveAddr = isNew ? (launchId as `0x${string}`) : ARC_LAUNCHPAD_ADDRESS;
+  const oldId     = isNew ? 0n : BigInt(launchId || "0");
 
+  const [direction,   setDirection]   = useState<Direction>("buy");
   const [amount,      setAmount]      = useState("");
-  const [slippagePct, setSlippagePct] = useState(2); // %
-  const [usdcBalance, setUsdcBalance] = useState<bigint | null>(null);
-  const [graduated,   setGraduated]   = useState(false);
+  const [slippagePct, setSlippagePct] = useState(2);
 
-  // Quote
-  const [estimatedTokens, setEstimatedTokens] = useState<bigint | null>(null);
-  const [costPerToken,    setCostPerToken]     = useState<bigint | null>(null); // USDC raw per 1e18 tokens
-  const [quoteLoading,    setQuoteLoading]     = useState(false);
+  // Balances
+  const [usdcBalance,  setUsdcBalance]  = useState<bigint | null>(null);
+  const [tokenBalance, setTokenBalance] = useState<bigint | null>(null);
+
+  // State on-chain
+  const [graduated,     setGraduated]     = useState(false);
+  const [progressBps,   setProgressBps]   = useState<bigint>(0n);
+  const [gradThreshold, setGradThreshold] = useState<bigint>(0n);
+  const [realRaised,    setRealRaised]    = useState<bigint>(0n);
+
+  // Quote (new contract)
+  const [estimatedOut, setEstimatedOut] = useState<bigint | null>(null);
+  // Quote (old contract)
+  const [costPerToken, setCostPerToken] = useState<bigint | null>(null); // USDC raw per 1e18 tokens
 
   // Tx
   const [swapping, setSwapping] = useState(false);
   const [txHash,   setTxHash]   = useState<string | null>(null);
   const [error,    setError]    = useState<string | null>(null);
 
-  // ── Get eth provider ─────────────────────────────────────────────────────
+  // ── Provider ──────────────────────────────────────────────────────────────
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function getEth(): any {
@@ -80,86 +107,164 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
     const w = window as any;
     let eth = w.ethereum;
     if (Array.isArray(eth?.providers)) {
-      eth = eth.providers.find((p: { isMetaMask?: boolean; isPhantom?: boolean }) => p.isMetaMask && !p.isPhantom) ?? eth;
+      eth = eth.providers.find(
+        (p: { isMetaMask?: boolean; isPhantom?: boolean }) => p.isMetaMask && !p.isPhantom
+      ) ?? eth;
     }
     if (!eth) throw new Error("MetaMask introuvable");
     return eth;
   }
 
   function getPublicClient() {
-    const eth = getEth();
-    return createPublicClient({ chain: arcTestnet, transport: custom(eth) });
+    return createPublicClient({ chain: arcTestnet, transport: custom(getEth()) });
   }
 
-  // ── Load state on-chain ──────────────────────────────────────────────────
+  // ── Load on-chain state ───────────────────────────────────────────────────
 
   const loadState = useCallback(async () => {
-    if (id === 0n) return;
+    if (!launchId) return;
     try {
       const client = getPublicClient();
 
-      // Cost of 1 full token (18 dec)
-      const cost1 = await client.readContract({
-        address:      ARC_LAUNCHPAD_ADDRESS,
-        abi:          LAUNCHPAD_ABI,
-        functionName: "getBuyCost",
-        args:         [id, BigInt("1000000000000000000")],
-      }) as bigint;
-      setCostPerToken(cost1);
+      if (isNew) {
+        // New BondingCurve clone
+        const [grad, progress, threshold, raised] = await Promise.all([
+          client.readContract({ address: curveAddr, abi: BONDING_CURVE_ABI, functionName: "graduated" }) as Promise<boolean>,
+          client.readContract({ address: curveAddr, abi: BONDING_CURVE_ABI, functionName: "graduationProgressBps" }) as Promise<bigint>,
+          client.readContract({ address: curveAddr, abi: BONDING_CURVE_ABI, functionName: "GRAD_THRESHOLD" }) as Promise<bigint>,
+          client.readContract({ address: curveAddr, abi: BONDING_CURVE_ABI, functionName: "realUsdcRaised" }) as Promise<bigint>,
+        ]);
+        setGraduated(grad);
+        setProgressBps(progress);
+        setGradThreshold(threshold);
+        setRealRaised(raised);
+      } else {
+        // Old flat contract
+        const cost1 = await client.readContract({
+          address:      ARC_LAUNCHPAD_ADDRESS,
+          abi:          LAUNCHPAD_ABI,
+          functionName: "getBuyCost",
+          args:         [oldId, BigInt("1000000000000000000")],
+        }) as bigint;
+        setCostPerToken(cost1);
 
-      // Launch state — graduated flag
-      const launch = await client.readContract({
-        address:      ARC_LAUNCHPAD_ADDRESS,
-        abi:          LAUNCHPAD_ABI,
-        functionName: "launches",
-        args:         [id],
-      }) as [string, string, bigint, bigint, bigint, bigint, boolean];
-      setGraduated(launch[6]);
-
+        const launch = await client.readContract({
+          address:      ARC_LAUNCHPAD_ADDRESS,
+          abi:          LAUNCHPAD_ABI,
+          functionName: "launches",
+          args:         [oldId],
+        }) as [string, string, bigint, bigint, bigint, bigint, boolean];
+        setGraduated(launch[6]);
+      }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [launchId]);
 
-  const loadBalance = useCallback(async () => {
-    if (!walletAddress) { setUsdcBalance(null); return; }
+  const loadBalances = useCallback(async () => {
+    if (!walletAddress) { setUsdcBalance(null); setTokenBalance(null); return; }
     try {
       const client = getPublicClient();
-      const bal = await client.readContract({
-        address:      ARC_USDC_ADDRESS,
-        abi:          ERC20_BALANCE_ABI,
-        functionName: "balanceOf",
-        args:         [walletAddress as `0x${string}`],
-      }) as bigint;
-      setUsdcBalance(bal);
-    } catch { setUsdcBalance(null); }
+      const addr   = walletAddress as `0x${string}`;
+
+      const [usdcBal, tokBal] = await Promise.all([
+        client.readContract({
+          address: ARC_USDC_ADDRESS, abi: ERC20_BALANCE_ABI,
+          functionName: "balanceOf", args: [addr],
+        }) as Promise<bigint>,
+        tokenAddress
+          ? client.readContract({
+              address: tokenAddress as `0x${string}`, abi: ERC20_BALANCE_ABI,
+              functionName: "balanceOf", args: [addr],
+            }) as Promise<bigint>
+          : Promise.resolve(0n),
+      ]);
+      setUsdcBalance(usdcBal);
+      setTokenBalance(tokBal);
+    } catch { setUsdcBalance(null); setTokenBalance(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletAddress]);
+  }, [walletAddress, tokenAddress]);
 
   useEffect(() => { void loadState(); }, [loadState]);
-  useEffect(() => { void loadBalance(); }, [loadBalance]);
+  useEffect(() => { void loadBalances(); }, [loadBalances]);
 
-  // ── Quote ────────────────────────────────────────────────────────────────
+  // ── Quote ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0 || !costPerToken || costPerToken === 0n) {
-      setEstimatedTokens(null);
-      return;
+    if (!parsed || parsed <= 0) { setEstimatedOut(null); return; }
+
+    if (isNew) {
+      void (async () => {
+        try {
+          const client  = getPublicClient();
+          const usdcRaw = BigInt(Math.round(parsed * 1e6));
+
+          if (direction === "buy") {
+            const [tokensOut] = await client.readContract({
+              address: curveAddr, abi: BONDING_CURVE_ABI,
+              functionName: "quoteUsdcToTokens", args: [usdcRaw],
+            }) as [bigint, bigint];
+            setEstimatedOut(tokensOut);
+          } else {
+            const tokensIn = BigInt(Math.round(parsed * 1e18));
+            const [usdcOut] = await client.readContract({
+              address: curveAddr, abi: BONDING_CURVE_ABI,
+              functionName: "quoteTokensToUsdc", args: [tokensIn],
+            }) as [bigint, bigint];
+            setEstimatedOut(usdcOut);
+          }
+        } catch { setEstimatedOut(null); }
+      })();
+    } else {
+      // Old contract — buy only, derived from costPerToken
+      if (!costPerToken || costPerToken === 0n) { setEstimatedOut(null); return; }
+      const usdcRaw = BigInt(Math.round(parsed * 1e6));
+      setEstimatedOut((usdcRaw * BigInt("1000000000000000000")) / costPerToken);
     }
-    setQuoteLoading(true);
-    // tokensToBuy (18 dec) = usdcRaw * 1e18 / costPerToken
-    const usdcRaw = BigInt(Math.round(parsed * 1e6));
-    const tokens  = (usdcRaw * BigInt("1000000000000000000")) / costPerToken;
-    setEstimatedTokens(tokens);
-    setQuoteLoading(false);
-  }, [amount, costPerToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, direction, costPerToken, launchId]);
 
-  // ── Swap ─────────────────────────────────────────────────────────────────
+  // ── Ensure Arc Testnet ────────────────────────────────────────────────────
 
-  const handleBuy = async () => {
-    if (!walletAddress || !amount) return;
+  async function ensureArcChain(eth: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = eth as any;
+    const chainHex = await e.request({ method: "eth_chainId" }) as string;
+    if (parseInt(chainHex, 16) !== 5042002) {
+      await e.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x4CEF52" }],
+      }).catch(async (err: { code?: number }) => {
+        if (err?.code === 4902) {
+          await e.request({ method: "wallet_addEthereumChain", params: [{
+            chainId: "0x4CEF52", chainName: "Arc Testnet",
+            nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+            rpcUrls: ["https://rpc.testnet.arc.network"],
+            blockExplorerUrls: ["https://testnet.arcscan.app"],
+          }]});
+        } else throw err;
+      });
+    }
+  }
+
+  // ── Wait receipt helper ───────────────────────────────────────────────────
+
+  async function waitReceipt(hash: string) {
+    const client = getPublicClient();
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const r = await client.getTransactionReceipt({ hash: hash as `0x${string}` }).catch(() => null);
+      if (r) return r;
+    }
+    return null;
+  }
+
+  // ── Swap handler ──────────────────────────────────────────────────────────
+
+  const handleSwap = async () => {
+    if (!walletAddress || !amount || !estimatedOut) return;
     const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0 || !estimatedTokens) return;
+    if (!parsed || parsed <= 0) return;
 
     setSwapping(true);
     setError(null);
@@ -167,81 +272,132 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
 
     try {
       const eth = getEth();
+      await ensureArcChain(eth);
+      const client = getPublicClient();
 
-      // Ensure Arc Testnet
-      const chainHex = await eth.request({ method: "eth_chainId" }) as string;
-      if (parseInt(chainHex, 16) !== 5042002) {
-        await eth.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: "0x4CEF52" }],
-        }).catch(async (e: { code?: number }) => {
-          if (e?.code === 4902) {
-            await eth.request({ method: "wallet_addEthereumChain", params: [{
-              chainId: "0x4CEF52", chainName: "Arc Testnet",
-              nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-              rpcUrls: ["https://rpc.testnet.arc.network"],
-              blockExplorerUrls: ["https://testnet.arcscan.app"],
-            }]});
-          } else throw e;
-        });
-      }
+      if (isNew) {
+        // ── NEW BondingCurve AMM ────────────────────────────────────────────
+        const slipMul = BigInt(Math.round((100 - slippagePct) * 10));
 
-      const client    = getPublicClient();
-      const usdcRaw   = BigInt(Math.round(parsed * 1e6));
-      const minTokens = estimatedTokens * BigInt(Math.round((100 - slippagePct) * 10)) / 1000n;
+        if (direction === "buy") {
+          const usdcRaw   = BigInt(Math.round(parsed * 1e6));
+          const minTokens = (estimatedOut * slipMul) / 1000n;
 
-      // Balance check
-      if (usdcBalance !== null && usdcRaw > usdcBalance) {
-        throw new Error("Solde USDC insuffisant");
-      }
+          if (usdcBalance !== null && usdcRaw > usdcBalance) throw new Error("Solde USDC insuffisant");
 
-      // 1. Check allowance
-      const allowance = await client.readContract({
-        address:      ARC_USDC_ADDRESS,
-        abi:          ERC20_BALANCE_ABI,
-        functionName: "allowance",
-        args:         [walletAddress as `0x${string}`, ARC_LAUNCHPAD_ADDRESS],
-      }) as bigint;
+          // Allowance check
+          const allowance = await client.readContract({
+            address: ARC_USDC_ADDRESS, abi: ERC20_BALANCE_ABI,
+            functionName: "allowance",
+            args: [walletAddress as `0x${string}`, curveAddr],
+          }) as bigint;
 
-      // 2. Approve if needed
-      if (allowance < usdcRaw) {
-        const approveData = encodeApprove(ARC_LAUNCHPAD_ADDRESS as `0x${string}`, usdcRaw * 2n);
-        const approveTx = await eth.request({
-          method: "eth_sendTransaction",
-          params: [{ from: walletAddress, to: ARC_USDC_ADDRESS, data: approveData }],
-        }) as string;
-        // Wait for approval
-        for (let i = 0; i < 20; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const r = await client.getTransactionReceipt({ hash: approveTx as `0x${string}` }).catch(() => null);
-          if (r) break;
-        }
-      }
-
-      // 3. Buy
-      const buyData = encodeBuy(id, minTokens);
-      const hash = await eth.request({
-        method: "eth_sendTransaction",
-        params: [{ from: walletAddress, to: ARC_LAUNCHPAD_ADDRESS, data: buyData }],
-      }) as string;
-
-      setTxHash(hash);
-
-      // 4. Wait receipt
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        const receipt = await client.getTransactionReceipt({ hash: hash as `0x${string}` }).catch(() => null);
-        if (receipt) {
-          if ((receipt as { status?: string }).status === "0x0") {
-            throw new Error("Transaction revertée — vérifiez ArcScan");
+          if (allowance < usdcRaw) {
+            const approveData = encodeFunctionData({
+              abi: ERC20_APPROVE_ABI, functionName: "approve",
+              args: [curveAddr, usdcRaw * 2n],
+            });
+            const approveTx = await eth.request({
+              method: "eth_sendTransaction",
+              params: [{ from: walletAddress, to: ARC_USDC_ADDRESS, data: approveData }],
+            }) as string;
+            await waitReceipt(approveTx);
           }
-          break;
+
+          // buy(usdcIn, minTokensOut, recipient)
+          const buyData = encodeFunctionData({
+            abi: BONDING_CURVE_ABI, functionName: "buy",
+            args: [usdcRaw, minTokens, walletAddress as `0x${string}`],
+          });
+          const hash = await eth.request({
+            method: "eth_sendTransaction",
+            params: [{ from: walletAddress, to: curveAddr, data: buyData }],
+          }) as string;
+          setTxHash(hash);
+          await waitReceipt(hash);
+
+        } else {
+          // SELL
+          const tokensIn = BigInt(Math.round(parsed * 1e18));
+          const minUsdc  = (estimatedOut * slipMul) / 1000n;
+
+          if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error("Solde token insuffisant");
+
+          // Approve token → curve
+          const tokenAllowance = await client.readContract({
+            address: tokenAddress as `0x${string}`, abi: ERC20_BALANCE_ABI,
+            functionName: "allowance",
+            args: [walletAddress as `0x${string}`, curveAddr],
+          }) as bigint;
+
+          if (tokenAllowance < tokensIn) {
+            const approveData = encodeFunctionData({
+              abi: ERC20_APPROVE_ABI, functionName: "approve",
+              args: [curveAddr, tokensIn * 2n],
+            });
+            const approveTx = await eth.request({
+              method: "eth_sendTransaction",
+              params: [{ from: walletAddress, to: tokenAddress, data: approveData }],
+            }) as string;
+            await waitReceipt(approveTx);
+          }
+
+          // sell(tokensIn, minUsdcOut, recipient)
+          const sellData = encodeFunctionData({
+            abi: BONDING_CURVE_ABI, functionName: "sell",
+            args: [tokensIn, minUsdc, walletAddress as `0x${string}`],
+          });
+          const hash = await eth.request({
+            method: "eth_sendTransaction",
+            params: [{ from: walletAddress, to: curveAddr, data: sellData }],
+          }) as string;
+          setTxHash(hash);
+          await waitReceipt(hash);
         }
+
+      } else {
+        // ── OLD flat contract (buy only) ─────────────────────────────────────
+        const usdcRaw   = BigInt(Math.round(parsed * 1e6));
+        const minTokens = (estimatedOut * BigInt(Math.round((100 - slippagePct) * 10))) / 1000n;
+
+        if (usdcBalance !== null && usdcRaw > usdcBalance) throw new Error("Solde USDC insuffisant");
+
+        // Allowance
+        const allowance = await client.readContract({
+          address: ARC_USDC_ADDRESS, abi: ERC20_BALANCE_ABI,
+          functionName: "allowance",
+          args: [walletAddress as `0x${string}`, ARC_LAUNCHPAD_ADDRESS],
+        }) as bigint;
+
+        if (allowance < usdcRaw) {
+          const approveData = encodeFunctionData({
+            abi: ERC20_APPROVE_ABI, functionName: "approve",
+            args: [ARC_LAUNCHPAD_ADDRESS as `0x${string}`, usdcRaw * 2n],
+          });
+          const approveTx = await eth.request({
+            method: "eth_sendTransaction",
+            params: [{ from: walletAddress, to: ARC_USDC_ADDRESS, data: approveData }],
+          }) as string;
+          await waitReceipt(approveTx);
+        }
+
+        // buy(id, tokenAmount)
+        const buyData = encodeFunctionData({
+          abi: LAUNCHPAD_ABI, functionName: "buy",
+          args: [oldId, minTokens],
+        });
+        const hash = await eth.request({
+          method: "eth_sendTransaction",
+          params: [{ from: walletAddress, to: ARC_LAUNCHPAD_ADDRESS, data: buyData }],
+        }) as string;
+        setTxHash(hash);
+        await waitReceipt(hash);
       }
 
       setAmount("");
-      setEstimatedTokens(null);
-      setTimeout(() => void loadBalance(), 2000);
+      setEstimatedOut(null);
+      setTimeout(() => void loadBalances(), 2000);
+      setTimeout(() => void loadState(),    2500);
 
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Échec de la transaction";
@@ -255,23 +411,27 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
     }
   };
 
-  // ── ABI encoders via viem (sélecteurs calculés automatiquement) ──────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
-  function encodeApprove(spender: `0x${string}`, amount: bigint): `0x${string}` {
-    return encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: "approve", args: [spender, amount] });
-  }
+  const inputBalance  = direction === "buy" ? usdcBalance  : tokenBalance;
+  const inputSymbol   = direction === "buy" ? "USDC"       : ticker;
+  const outputSymbol  = direction === "buy" ? ticker       : "USDC";
+  const inputDecimals = direction === "buy" ? 6            : 18;
 
-  function encodeBuy(id: bigint, tokenAmount: bigint): `0x${string}` {
-    return encodeFunctionData({ abi: LAUNCHPAD_ABI, functionName: "buy", args: [id, tokenAmount] });
-  }
+  const balFmt = inputBalance !== null
+    ? `${direction === "buy" ? fmtUsdc(inputBalance) : fmtTokens(inputBalance)} ${inputSymbol}`
+    : "—";
 
-  // ── Render ───────────────────────────────────────────────────────────────
-
-  const balFmt = usdcBalance !== null ? `${fmtUsdc(usdcBalance)} USDC` : "—";
-  const outFmt = estimatedTokens && estimatedTokens > 0n
-    ? `~${fmtTokens(estimatedTokens)} ${ticker}`
+  const outFmt = estimatedOut && estimatedOut > 0n
+    ? `~${direction === "buy" ? fmtTokens(estimatedOut) : fmtUsdc(estimatedOut)} ${outputSymbol}`
     : "";
-  const canBuy = !!amount && parseFloat(amount) > 0 && !swapping && !graduated && !!estimatedTokens;
+
+  const canSwap = !!amount && parseFloat(amount) > 0 && !swapping && !graduated && !!estimatedOut;
+
+  // Progress bar data (new contract only)
+  const progressPct = gradThreshold > 0n
+    ? Math.min(100, Number((realRaised * 10000n) / gradThreshold) / 100)
+    : 0;
 
   const UsdcBadge = () => (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
@@ -294,6 +454,9 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
     </div>
   );
 
+  const PayBadge  = () => direction === "buy" ? <UsdcBadge />  : <TokenBadge />;
+  const RecvBadge = () => direction === "buy" ? <TokenBadge /> : <UsdcBadge />;
+
   return (
     <div className="rounded-2xl overflow-hidden border border-border bg-card">
       <div className="p-4 space-y-2">
@@ -301,6 +464,46 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
         {graduated && (
           <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 text-center">
             <p className="text-xs font-semibold text-indigo-400">🎓 Graduated — trade on Uniswap V2</p>
+          </div>
+        )}
+
+        {/* Buy / Sell tabs — new contract only (old has no sell) */}
+        {isNew && !graduated && (
+          <div className="flex rounded-xl overflow-hidden border border-border">
+            {(["buy", "sell"] as Direction[]).map(d => (
+              <button
+                key={d}
+                onClick={() => { setDirection(d); setAmount(""); setEstimatedOut(null); }}
+                className={`flex-1 py-2.5 text-[13px] font-semibold transition-colors capitalize ${
+                  direction === d
+                    ? d === "buy"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-red-500 text-white"
+                    : "bg-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Bonding curve progress (new contract) */}
+        {isNew && !graduated && gradThreshold > 0n && (
+          <div className="space-y-1 px-0.5">
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>Bonding curve</span>
+              <span>{fmtUsdc(realRaised)} / {fmtUsdc(gradThreshold)} USDC</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground/50 text-right">
+              {progressBps > 0n ? `${(Number(progressBps) / 100).toFixed(1)}%` : "0%"} to graduation
+            </p>
           </div>
         )}
 
@@ -316,10 +519,17 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
             className="w-full bg-transparent text-[28px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/30 disabled:opacity-50"
           />
           <div className="flex items-center justify-between mt-1">
-            <UsdcBadge />
+            <PayBadge />
             <span className="text-[11px] text-muted-foreground/60">
               {walletAddress ? `Balance: ${balFmt}` : "—"}
             </span>
+          </div>
+        </div>
+
+        {/* Arrow */}
+        <div className="flex justify-center -my-0.5">
+          <div className="size-7 rounded-full bg-muted flex items-center justify-center">
+            <ArrowUpDown className="size-3.5 text-muted-foreground" />
           </div>
         </div>
 
@@ -327,16 +537,14 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
         <div className="rounded-2xl bg-muted/40 px-4 py-3.5 space-y-1">
           <p className="text-[12px] text-muted-foreground font-medium">You receive</p>
           <div className="min-h-[40px] flex items-center">
-            {quoteLoading ? (
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            ) : outFmt ? (
+            {outFmt ? (
               <span className="text-[28px] font-semibold text-foreground">{outFmt}</span>
             ) : (
               <span className="text-[28px] font-semibold text-muted-foreground/30">0</span>
             )}
           </div>
           <div className="flex items-center justify-between mt-1">
-            <TokenBadge />
+            <RecvBadge />
             <span className="text-[11px] text-muted-foreground/60">estimated</span>
           </div>
         </div>
@@ -348,8 +556,10 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
               <button
                 key={pct}
                 onClick={() => {
-                  const base = Number(usdcBalance ?? 0n) / 1e6;
-                  setAmount(((base * pct) / 100).toFixed(2));
+                  const base = inputBalance !== null
+                    ? Number(inputBalance) / Math.pow(10, inputDecimals)
+                    : 0;
+                  setAmount(((base * pct) / 100).toFixed(direction === "buy" ? 2 : 4));
                 }}
                 className="flex-1 py-2 rounded-full text-[12px] font-semibold border bg-muted/40 border-border text-muted-foreground hover:border-border-strong hover:text-foreground transition-colors"
               >
@@ -368,7 +578,9 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
                 key={s}
                 onClick={() => setSlippagePct(s)}
                 className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
-                  slippagePct === s ? "bg-blue-500 border-blue-500 text-white" : "bg-muted/40 border-border text-muted-foreground"
+                  slippagePct === s
+                    ? "bg-blue-500 border-blue-500 text-white"
+                    : "bg-muted/40 border-border text-muted-foreground"
                 }`}
               >
                 {s}%
@@ -401,25 +613,31 @@ export function TokenSwapArc({ launchId, tokenAddress: _tokenAddress, ticker, lo
           </button>
         ) : (
           <button
-            onClick={() => void handleBuy()}
-            disabled={!canBuy}
+            onClick={() => void handleSwap()}
+            disabled={!canSwap}
             className={`w-full rounded-full py-4 text-[15px] font-semibold transition-colors mt-1 ${
-              !canBuy
+              !canSwap
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-blue-500 hover:bg-blue-400 text-white"
+                : direction === "sell"
+                  ? "bg-red-500 hover:bg-red-400 text-white"
+                  : "bg-blue-500 hover:bg-blue-400 text-white"
             }`}
           >
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
-                Buying…
+                {direction === "buy" ? "Buying…" : "Selling…"}
               </span>
-            ) : graduated ? "Graduated" : `Buy $${ticker}`}
+            ) : graduated
+              ? "Graduated"
+              : direction === "buy"
+                ? `Buy $${ticker}`
+                : `Sell $${ticker}`}
           </button>
         )}
 
         <p className="text-center text-[10px] text-muted-foreground/40 pb-1">
-          Arc Network · Bonding curve
+          Arc Network · {isNew ? "AMM Bonding curve" : "Bonding curve"}
         </p>
       </div>
     </div>
