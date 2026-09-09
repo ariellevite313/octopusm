@@ -6,31 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../src/BondingCurve.sol";
 import "../src/LaunchpadFactory.sol";
 
-/**
- * @title Interactions
- * @notice Scripts d'interaction post-déploiement sur Arc testnet :
- *         - CreateToken  : crée OMTEST avec first buy de 50 USDC
- *         - BuyTokens    : achat depuis un second wallet
- *         - PushToGrad   : pousse la courbe jusqu'à graduation
- *
- * Usage :
- *   # Créer un token
- *   forge script script/Interactions.s.sol:CreateToken \
- *     --rpc-url arc_testnet --broadcast --private-key $ALICE_PK -vvvv
- *
- *   # Acheter depuis Bob
- *   CURVE_ADDRESS=0x... forge script script/Interactions.s.sol:BuyTokens \
- *     --rpc-url arc_testnet --broadcast --private-key $BOB_PK -vvvv
- *
- *   # Pousser à la graduation
- *   CURVE_ADDRESS=0x... forge script script/Interactions.s.sol:PushToGrad \
- *     --rpc-url arc_testnet --broadcast --private-key $ALICE_PK -vvvv
- *
- * Variables d'environnement :
- *   FACTORY_ADDRESS — adresse de LaunchpadFactory déployée
- *   CURVE_ADDRESS   — adresse du clone BondingCurve (après CreateToken)
- *   ALICE_PK / BOB_PK — clés privées de test
- */
+// Scripts d'interaction post-déploiement — voir commentaires dans chaque contrat.
+// Usage: forge script script/Interactions.s.sol:CreateToken --rpc-url arc_testnet --broadcast ...
 
 address constant USDC_ARC = 0x3600000000000000000000000000000000000000;
 
