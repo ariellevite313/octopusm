@@ -24,9 +24,13 @@ export async function GET(req: Request) {
     const rawSort  = searchParams.get("sort")   ?? "new";
     const tab      = searchParams.get("tab")    ?? "all";
     const search   = searchParams.get("search") ?? "";
+    const rawChain = searchParams.get("chain")  ?? "";
     const page     = Math.max(0, parseInt(searchParams.get("page") ?? "0", 10));
     const limit    = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
     const offset   = page * limit;
+
+    const chain: "solana" | "arc" | undefined =
+      rawChain === "solana" || rawChain === "arc" ? rawChain : undefined;
 
     const sort: SortOption = VALID_SORTS.includes(rawSort as SortOption)
       ? (rawSort as SortOption)
@@ -49,6 +53,7 @@ export async function GET(req: Request) {
       status,
       excludeStatuses,
       search: search || undefined,
+      chain,
       limit,
       offset,
       withCount: true,

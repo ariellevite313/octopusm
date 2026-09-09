@@ -64,13 +64,20 @@ function CopyButton({ text, children }: { text: string; children?: React.ReactNo
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
-type TabId = "all" | "graduated" | "scheduled" | "watchlist";
+type TabId   = "all" | "graduated" | "scheduled" | "watchlist";
+type ChainId = "all" | "solana" | "arc";
 
 const TABS: { id: TabId; label: string; icon?: React.ReactNode }[] = [
   { id: "all",       label: "All" },
   { id: "graduated", label: "Graduated" },
   { id: "scheduled", label: "Scheduled" },
   { id: "watchlist", label: "Watchlist", icon: <Bell className="size-3" /> },
+];
+
+const CHAINS: { id: ChainId; label: string; dot?: string }[] = [
+  { id: "all",    label: "All" },
+  { id: "solana", label: "SOL", dot: "#14F195" },
+  { id: "arc",    label: "ARC", dot: "#6366f1" },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -135,6 +142,17 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
             </span>
           </div>
         )}
+        {/* Chain badge — bottom-left corner */}
+        {/* Chain badge — bottom-left corner */}
+        <div className="absolute bottom-2 left-2">
+          <Image
+            src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
+            alt={token.chain === "arc" ? "Arc" : "Solana"}
+            width={18} height={18}
+            className="rounded-full ring-1 ring-white/20"
+            unoptimized
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5 p-3">
@@ -204,6 +222,14 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
             {token.name}
           </span>
           {token.is_verified && <BadgeCheck className="size-3.5 shrink-0 text-orange-400" />}
+          {/* Chain icon */}
+          <Image
+            src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
+            alt={token.chain === "arc" ? "Arc" : "Solana"}
+            width={14} height={14}
+            className="rounded-full shrink-0 ring-1 ring-white/10"
+            unoptimized
+          />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] text-muted-foreground">${token.ticker}</span>
@@ -342,6 +368,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
   initialTotal: number;
 }) {
   const [tab,      setTab]      = useState<TabId>("all");
+  const [chain,    setChain]    = useState<ChainId>("all");
   const [sort,     setSort]     = useState<SortOption>("new");
   const [page,     setPage]     = useState(0);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -364,6 +391,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
     sortVal: SortOption,
     pageVal: number,
     searchVal = "",
+    chainVal: ChainId = "all",
   ) => {
     if (tabVal === "watchlist") return;
     setLoading(true);
@@ -375,6 +403,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
         limit: String(LIMIT),
       });
       if (searchVal) params.set("search", searchVal);
+      if (chainVal !== "all") params.set("chain", chainVal);
       const res = await fetch(`/api/launchpad/tokens?${params}`);
       if (!res.ok) return;
       const data: ApiResponse = await res.json();
@@ -427,12 +456,17 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       setPage(0);
       return;
     }
-    fetchTokens(tab, sort, page, debouncedSearch);
+    fetchTokens(tab, sort, page, debouncedSearch, chain);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, sort, page, debouncedSearch]);
+  }, [tab, sort, page, debouncedSearch, chain]);
 
   const handleTabChange = (t: TabId) => {
     setTab(t);
+    setPage(0);
+  };
+
+  const handleChainChange = (c: ChainId) => {
+    setChain(c);
     setPage(0);
   };
 
@@ -464,8 +498,8 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
     <div className="space-y-4">
       {/* Top bar */}
       <div className="border-b border-border pb-3 space-y-2">
-        {/* Row 1: Tabs + view toggle */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Row 1: Tabs + chain filter + view toggle */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
             {TABS.map(t => (
               <button
@@ -481,6 +515,33 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                 {t.label}
               </button>
             ))}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Chain filter — segmented tabs (Option B) */}
+            <div className="flex items-center border border-border rounded-lg overflow-hidden">
+              {CHAINS.map((c, i) => (
+                <button
+                  key={c.id}
+                  onClick={() => handleChainChange(c.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    i < CHAINS.length - 1 ? "border-r border-border" : ""
+                  } ${
+                    chain === c.id
+                      ? "bg-card text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  style={undefined}
+                >
+                  {c.id === "arc" ? (
+                    <Image src="/arc-logo.jpeg" alt="Arc" width={14} height={14} className="rounded-full shrink-0" unoptimized />
+                  ) : c.id === "solana" ? (
+                    <Image src="/solana.png" alt="Solana" width={14} height={14} className="rounded-full shrink-0" unoptimized />
+                  ) : null}
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">

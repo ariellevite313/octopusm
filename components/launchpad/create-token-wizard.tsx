@@ -737,7 +737,7 @@ export function CreateTokenWizard({
   chain?: "solana" | "arc";
 }) {
   const router = useRouter();
-  const { walletAddress } = useAuth();
+  const { walletAddress, walletType } = useAuth();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -970,11 +970,45 @@ export function CreateTokenWizard({
   // Arc step 0 = Identity, 1 = Socials, 2 = ArcOptions (nouveau), 3 = Review (= solana step 3)
   const solanaStep = chain === "arc" && step === 3 ? 3 : step;
 
-  if (chain === "solana" && !walletAddress) {
+  if (chain === "solana" && (!walletAddress || walletType === "metamask")) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center">
-        <p className="text-sm font-medium text-foreground mb-1">Connect your wallet to launch a token</p>
-        <p className="text-xs text-muted-foreground">You need a Solana wallet to create and sign the transaction.</p>
+      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">
+          {walletType === "metamask" ? "Solana wallet required" : "Connect your wallet to launch a token"}
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {walletType === "metamask"
+            ? "Deploying on Solana requires a Solana wallet.\nDisconnect MetaMask and connect Phantom or Solflare."
+            : "You need a Solana wallet to create and sign the transaction."}
+        </p>
+        {walletType === "metamask" && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+          >
+            Switch wallet
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (chain === "arc" && walletType !== "metamask") {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">MetaMask required</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Deploying on Arc requires an EVM wallet.<br />
+          {walletAddress
+            ? "Disconnect your Solana wallet and connect MetaMask."
+            : "Connect MetaMask to deploy on Arc."}
+        </p>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+        >
+          Switch wallet
+        </button>
       </div>
     );
   }

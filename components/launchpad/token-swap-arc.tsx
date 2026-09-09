@@ -89,7 +89,28 @@ const ERC20_BALANCE_ABI = parseAbi([
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props) {
-  const { walletAddress, isAuthenticated } = useAuth();
+  const { walletAddress, walletType, isAuthenticated } = useAuth();
+
+  // Arc runs on EVM — a Solana wallet can't sign EVM transactions
+  const isEvmWallet = walletType === "metamask";
+
+  if (isAuthenticated && !isEvmWallet) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">MetaMask required</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Arc tokens run on an EVM chain.<br />
+          Disconnect your Solana wallet and connect MetaMask to trade.
+        </p>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+          className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+        >
+          Switch wallet
+        </button>
+      </div>
+    );
+  }
 
   const isNew    = isNewContract(launchId);
   const curveAddr = isNew ? (launchId as `0x${string}`) : ARC_LAUNCHPAD_ADDRESS;
