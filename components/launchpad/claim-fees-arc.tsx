@@ -35,7 +35,7 @@ function fmtUsdc(raw: bigint): string {
 }
 
 export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
-  const { walletAddress, walletType, isAuthenticated } = useAuth();
+  const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
 
   const [accrued,   setAccrued]   = useState<bigint | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -122,8 +122,8 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
   // ── Don't show anything if not the creator ────────────────────────────────
   if (!isCreator) return null;
 
-  // Arc fees require an EVM wallet
-  if (walletType !== "metamask") {
+  // Arc fees require an Arc (EVM) wallet
+  if (selectedChain !== "arc") {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center space-y-3">
         <CoinsIcon className="size-5 text-orange-400 mx-auto" />

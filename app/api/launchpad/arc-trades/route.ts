@@ -21,7 +21,7 @@ const BLOCK_TIME_SEC = 2; // Arc testnet approximate block time
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const curveAddress = searchParams.get("curveAddress");
-  const limit        = Math.min(parseInt(searchParams.get("limit") ?? "500"), 1000);
+  const limit        = Math.min(parseInt(searchParams.get("limit") ?? "500") || 500, 1000);
 
   if (!curveAddress || !/^0x[0-9a-fA-F]{40}$/.test(curveAddress)) {
     return NextResponse.json({ error: "curveAddress required (0x…)" }, { status: 400 });
@@ -41,27 +41,29 @@ export async function GET(req: Request) {
     const headBlock = await client.getBlock({ blockNumber: currentBlock });
     const headTimestamp = Number(headBlock.timestamp);
 
-    // ── Fetch Trade logs in chunks (RPC usually limits to 2k-10k blocks) ───
+    // ── Fetch Trade logs in parallel chunks (RPC limits to 2k-10k blocks) ──
     // Scan last 100k blocks (~55h at 2s/block), split into 5k-block chunks
-    const SCAN_DEPTH  = 100_000n;
-    const CHUNK_SIZE  = 5_000n;
-    const fromBlock   = currentBlock > SCAN_DEPTH ? currentBlock - SCAN_DEPTH : 0n;
+    // Parallel to avoid Vercel 10-30s timeout from sequential requests
+    const SCAN_DEPTH = 100_000n;
+    const CHUNK_SIZE = 5_000n;
+    const fromBlock  = currentBlock > SCAN_DEPTH ? currentBlock - SCAN_DEPTH : 0n;
 
-    const logs = [];
-    for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE) {
-      const end = start + CHUNK_SIZE - 1n < currentBlock ? start + CHUNK_SIZE - 1n : currentBlock;
-      try {
-        const chunk = await client.getLogs({
+    const chunkStarts: bigint[] = [];
+    for (let s = fromBlock; s <= currentBlock; s += CHUNK_SIZE) chunkStarts.push(s);
+
+    const chunkResults = await Promise.allSettled(
+      chunkStarts.map(start => {
+        const end = start + CHUNK_SIZE - 1n < currentBlock ? start + CHUNK_SIZE - 1n : currentBlock;
+        return client.getLogs({
           address:   curveAddress as `0x${string}`,
           event:     TRADE_EVENT,
           fromBlock: start,
           toBlock:   end,
         });
-        logs.push(...chunk);
-      } catch {
-        // If this chunk fails, skip it and continue
-      }
-    }
+      }),
+    );
+
+    const logs = chunkResults.flatMap(r => r.status === "fulfilled" ? r.value : []);
 
     if (logs.length === 0) {
       return NextResponse.json({ trades: [] }, {
@@ -115,7 +117,8 @@ export async function GET(req: Request) {
         const tokRaw   = BigInt(l.args!.tokenAmt! as bigint);
         const usdcAmt  = Number(usdcRaw) / 1e6;
         const tokenAmt = Number(tokRaw)  / 1e18;
-        const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
+        // Divide in bigint space to preserve precision for large token amounts
+        const price    = tokRaw > 0n ? Number(usdcRaw * 10n**12n / tokRaw) / 1e12 : 0;
         const ts       = blockTimestamps.get(l.blockNumber ?? 0n) ?? headTimestamp;
         return {
           timestamp: ts,

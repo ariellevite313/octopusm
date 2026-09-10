@@ -46,18 +46,16 @@ function openWalletModal() {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Props) {
-  const { walletAddress, walletType, isAuthenticated } = useAuth();
+  const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
 
-  // Solana tokens require a Solana wallet — MetaMask can't sign Solana txs
-  const isSolanaWallet = walletType !== "metamask";
-
-  if (isAuthenticated && !isSolanaWallet) {
+  // Solana tokens require a Solana wallet
+  if (isAuthenticated && selectedChain !== "solana") {
     return (
       <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-3">
         <p className="text-sm font-semibold text-foreground">Solana wallet required</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           This token runs on Solana.<br />
-          Disconnect MetaMask and connect a Solana wallet (Phantom, Solflare…) to trade.
+          Connect a Solana wallet (Phantom, Solflare…) to trade.
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}

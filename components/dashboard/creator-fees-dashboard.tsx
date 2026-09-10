@@ -143,7 +143,7 @@ function TokenFeeRow({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string }) {
-  const { walletType } = useAuth();
+  const { walletType, selectedChain } = useAuth();
   const [stats,       setStats]       = useState<CreatorStatsResponse | null>(null);
   const [pending,     setPending]     = useState<PendingFeesResponse  | null>(null);
   const [loading,     setLoading]     = useState(true);
@@ -169,7 +169,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
   // ── Claim a single token ──────────────────────────────────────────────────
 
   async function claimToken(token: PendingFeeToken): Promise<boolean> {
-    const phantom = walletType ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
+    const phantom = (walletType && selectedChain === "solana") ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
     if (!phantom) { toast.error("Solana wallet not found — connect Phantom, Solflare or Backpack"); return false; }
     try { await phantom.connect(); } catch { toast.error("Connect your wallet first"); return false; }
     if (phantom.publicKey?.toBase58() !== walletAddress) {

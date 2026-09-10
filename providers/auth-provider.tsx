@@ -10,25 +10,28 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { isAdminWallet } from "@/lib/wallet/auth";
 import type { WalletType } from "@/lib/wallet/adapters";
+import { detectChain, type ChainId } from "@/lib/chains";
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
-  walletAddress: string | null;
-  walletType: WalletType | null;
-  isAdmin: boolean;
-  isLoading: boolean;
+  walletAddress:  string | null;
+  walletType:     WalletType | null;
+  selectedChain:  ChainId | null;   // auto-détecté depuis walletType
+  isAdmin:        boolean;
+  isLoading:      boolean;
   isAuthenticated: boolean;
-  setWalletType: (type: WalletType | null) => void;
+  setWalletType:  (type: WalletType | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
-  walletAddress: null,
-  walletType: null,
-  isAdmin: false,
-  isLoading: true,
+  walletAddress:  null,
+  walletType:     null,
+  selectedChain:  null,
+  isAdmin:        false,
+  isLoading:      true,
   isAuthenticated: false,
-  setWalletType: () => {},
+  setWalletType:  () => {},
 });
 
 export function useAuth() {
@@ -47,6 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // selectedChain est toujours dérivé de walletType — pas de state séparé
+  const selectedChain: ChainId | null = detectChain(walletType);
 
   const supabase = createClient();
 
@@ -67,20 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Vérifier session existante au démarrage
     supabase.auth.getSession().then(({ data }) => {
       const address = data.session?.user?.user_metadata?.wallet_address;
       if (address) {
         setWalletAddress(address);
         void checkAdmin();
       } else {
-        // No session — clear persisted wallet type
         setWalletType(null);
       }
       setIsLoading(false);
     });
 
-    // Écouter les changements de session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         const address = session?.user?.user_metadata?.wallet_address;
@@ -103,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         walletAddress,
         walletType,
+        selectedChain,
         isAdmin,
         isLoading,
         isAuthenticated: !!walletAddress,
