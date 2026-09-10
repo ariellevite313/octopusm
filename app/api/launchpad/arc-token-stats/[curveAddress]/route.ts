@@ -17,26 +17,7 @@ const TOTAL_SUPPLY = 1_000_000_000; // 1B tokens (fixe pour tous les tokens Arc)
 
 type RouteParams = { params: Promise<{ curveAddress: string }> };
 
-async function getVolume24h(curveAddress: string, baseUrl: string): Promise<number | null> {
-  try {
-    const res = await fetch(
-      `${baseUrl}/api/launchpad/arc-trades?curveAddress=${curveAddress}&limit=1000`,
-      { next: { revalidate: 30 } }
-    );
-    if (!res.ok) return null;
-    const json = await res.json() as { trades?: { timestamp: number; usdcAmt: number }[] };
-    if (!json.trades?.length) return 0;
-    const since = Date.now() / 1000 - 86400; // 24h ago (unix)
-    const vol = json.trades
-      .filter(t => t.timestamp >= since)
-      .reduce((s, t) => s + t.usdcAmt, 0);
-    return vol;
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: Request, { params }: RouteParams) {
+export async function GET(_req: Request, { params }: RouteParams) {
   const { curveAddress } = await params;
 
   if (!curveAddress || !/^0x[0-9a-fA-F]{40}$/.test(curveAddress)) {
@@ -68,16 +49,15 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     const marketCap = priceUsd !== null ? priceUsd * TOTAL_SUPPLY : null;
 
-    // Volume 24h depuis arc-trades
-    const origin = new URL(req.url).origin;
-    const volume24h = await getVolume24h(curveAddress, origin);
+    // Volume 24h : non calculé ici pour éviter le timeout (scan RPC long).
+    // Il est mis à jour toutes les 5 min par le cron /api/cron/update-arc-stats.
 
     return NextResponse.json(
       {
         priceUsd,
         marketCap,
         fdv: marketCap,        // FDV = MarketCap pour bonding curve (supply fixe)
-        volume24h,
+        volume24h: null,
         priceChange: null,     // pas d'historique OHLC disponible facilement
         holders: null,         // nécessite un indexeur EVM
         graduated: Boolean(graduated),

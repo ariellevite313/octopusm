@@ -934,8 +934,9 @@ export function CreateTokenWizard({
       logs:      receipt.logs,
     });
     // curveAddress = adresse du clone BondingCurve = nouvel arc_launch_id
-    const curveAddress     = (logs[0]?.args?.curve ?? "") as string;
-    const arcTokenAddress  = (logs[0]?.args?.token ?? "") as string;
+    const curveAddress        = (logs[0]?.args?.curve ?? "") as string;
+    const arcTokenAddress     = (logs[0]?.args?.token ?? "") as string;
+    const arcCreationBlock    = receipt.blockNumber ? Number(receipt.blockNumber) : null;
 
     // 7. Sauvegarder les métadonnées en base
     const form = new FormData();
@@ -948,8 +949,9 @@ export function CreateTokenWizard({
       supply: 1_000_000_000, // fixe — OMToken mint toujours 1B
       chain: "arc",
       arc_token_address: arcTokenAddress,
-      arc_launch_id: curveAddress,   // adresse du clone BondingCurve (0x...)
+      arc_launch_id: curveAddress,        // adresse du clone BondingCurve (0x...)
       arc_tx_hash: txHash,
+      arc_creation_block: arcCreationBlock, // bloc de création pour arc-trades
       creator_wallet: account,
       creator_fee_pct: 1,
       fee_recipients: [],
