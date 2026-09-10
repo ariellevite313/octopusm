@@ -8,6 +8,12 @@ export const ARC_FACTORY_ADDRESS   = "0x5221798179A89Ff55dd8d119a929E4AF15eB0158
 
 export const ARC_USDC_ADDRESS      = "0x3600000000000000000000000000000000000000" as const;
 
+// ─── Platform revenue ─────────────────────────────────────────────────────────
+/** Treasury wallet that receives the 10 USDC creation fee on Arc */
+export const ARC_TREASURY_ADDRESS  = (process.env.NEXT_PUBLIC_ARC_TREASURY_ADDRESS ?? "") as `0x${string}`;
+/** Creation fee in USDC (human-readable). Charged once per token deployed on Arc. */
+export const ARC_CREATION_FEE_USDC = 10; // 10 USDC
+
 // Supply standard : 1 milliard de tokens (18 décimales)
 export const ARC_DEFAULT_SUPPLY    = BigInt("1000000000000000000000000000"); // 1e27
 
@@ -279,6 +285,16 @@ export const BONDING_CURVE_ABI = [
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
 export const ERC20_APPROVE_ABI = [
+  {
+    type: "function",
+    name: "transfer",
+    inputs: [
+      { name: "to",     type: "address", internalType: "address" },
+      { name: "amount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "nonpayable",
+  },
   {
     type: "function",
     name: "approve",

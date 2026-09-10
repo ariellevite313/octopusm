@@ -89,18 +89,16 @@ const ERC20_BALANCE_ABI = parseAbi([
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props) {
-  const { walletAddress, walletType, isAuthenticated } = useAuth();
+  const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
 
-  // Arc runs on EVM — a Solana wallet can't sign EVM transactions
-  const isEvmWallet = walletType === "metamask";
-
-  if (isAuthenticated && !isEvmWallet) {
+  // Arc tokens require an Arc (EVM) wallet
+  if (isAuthenticated && selectedChain !== "arc") {
     return (
       <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">MetaMask required</p>
+        <p className="text-sm font-semibold text-foreground">Arc wallet required</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Arc tokens run on an EVM chain.<br />
-          Disconnect your Solana wallet and connect MetaMask to trade.
+          This token runs on Arc (EVM).<br />
+          Connect an EVM wallet (MetaMask, Rabby…) to trade.
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}

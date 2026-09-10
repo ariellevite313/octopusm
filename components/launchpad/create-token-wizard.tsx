@@ -14,6 +14,7 @@ import { arcTestnet } from "@/lib/arc-chain";
 import {
   ARC_FACTORY_ADDRESS, FACTORY_ABI,
   ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
+  ARC_TREASURY_ADDRESS, ARC_CREATION_FEE_USDC,
 } from "@/lib/arc-launchpad";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -614,6 +615,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Supply" value={`${(data.arc_supply / 1_000_000_000).toFixed(data.arc_supply % 1_000_000_000 === 0 ? 0 : 1)}B tokens`} />
             <Row label="Bonding curve" value="Linear" />
             <Row label="Graduation" value="10,000 USDC" />
+            <Row label="Platform fee" value={`${ARC_CREATION_FEE_USDC} USDC`} highlight />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
             )}
@@ -737,7 +739,7 @@ export function CreateTokenWizard({
   chain?: "solana" | "arc";
 }) {
   const router = useRouter();
-  const { walletAddress, walletType } = useAuth();
+  const { walletAddress, walletType, selectedChain } = useAuth();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -877,7 +879,26 @@ export function CreateTokenWizard({
       }
     }
 
-    // 5. Call createToken() sur LaunchpadFactory
+    // 5. Platform creation fee — 10 USDC transféré au treasury
+    //    Simple transfer ERC20 depuis le wallet du créateur.
+    //    Pas d'approval nécessaire (msg.sender = créateur).
+    const creationFeeRaw = BigInt(Math.round(ARC_CREATION_FEE_USDC * 1_000_000)); // 6 décimales
+    toast.info(`Platform fee: ${ARC_CREATION_FEE_USDC} USDC…`);
+    const feeTxHash = await walletClient.writeContract({
+      address:      ARC_USDC_ADDRESS,
+      abi:          ERC20_APPROVE_ABI,
+      functionName: "transfer",
+      args:         [ARC_TREASURY_ADDRESS, creationFeeRaw],
+      gasPrice:     BigInt("20000000000"),
+    });
+    // Attendre confirmation du paiement
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 3_000));
+      const r = await publicClient.getTransactionReceipt({ hash: feeTxHash }).catch(() => null);
+      if (r) break;
+    }
+
+    // 7. Call createToken() sur LaunchpadFactory
     //    La factory déploie un clone BondingCurve, crée l'OMToken,
     //    et exécute le first buy si firstBuyUsdc > 0.
     toast.info("Sending transaction to Arc…");
@@ -970,18 +991,18 @@ export function CreateTokenWizard({
   // Arc step 0 = Identity, 1 = Socials, 2 = ArcOptions (nouveau), 3 = Review (= solana step 3)
   const solanaStep = chain === "arc" && step === 3 ? 3 : step;
 
-  if (chain === "solana" && (!walletAddress || walletType === "metamask")) {
+  if (chain === "solana" && (!walletAddress || selectedChain !== "solana")) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
         <p className="text-sm font-semibold text-foreground">
-          {walletType === "metamask" ? "Solana wallet required" : "Connect your wallet to launch a token"}
+          {walletAddress ? "Solana wallet required" : "Connect your wallet to launch a token"}
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {walletType === "metamask"
-            ? "Deploying on Solana requires a Solana wallet.\nDisconnect MetaMask and connect Phantom or Solflare."
+          {walletAddress
+            ? "Connect a Solana wallet (Phantom, Solflare…) to deploy on Solana."
             : "You need a Solana wallet to create and sign the transaction."}
         </p>
-        {walletType === "metamask" && (
+        {walletAddress && (
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
             className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
@@ -993,15 +1014,15 @@ export function CreateTokenWizard({
     );
   }
 
-  if (chain === "arc" && walletType !== "metamask") {
+  if (chain === "arc" && selectedChain !== "arc") {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">MetaMask required</p>
+        <p className="text-sm font-semibold text-foreground">Arc wallet required</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Deploying on Arc requires an EVM wallet.<br />
           {walletAddress
-            ? "Disconnect your Solana wallet and connect MetaMask."
-            : "Connect MetaMask to deploy on Arc."}
+            ? "Connect an EVM wallet (MetaMask, Rabby…) to deploy on Arc."
+            : "Connect an EVM wallet to deploy on Arc."}
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}

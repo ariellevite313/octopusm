@@ -21,7 +21,7 @@ type Props = {
 };
 
 export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddress }: Props) {
-  const { walletType } = useAuth();
+  const { walletType, selectedChain } = useAuth();
   const [phase, setPhase]           = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg]     = useState("");
   const [claimable, setClaimable]     = useState<number | null>(null);
@@ -44,7 +44,7 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
     setPhase("building");
     setErrorMsg("");
 
-    const wallet = walletType ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
+    const wallet = (walletType && selectedChain === "solana") ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
     if (!wallet) {
       toast.error("Solana wallet not found — connect Phantom, Solflare or Backpack");
       setPhase("idle");

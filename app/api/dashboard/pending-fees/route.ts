@@ -75,8 +75,9 @@ export async function GET(req: Request) {
     .from("launchpad_tokens")
     .select("id, name, ticker, logo_url, pool_address")
     .eq("creator_wallet", wallet)
-    .in("status", ["active", "graduating", "graduated"]);
-  // Note: tokens without pool_address are included — they show 0 pending
+    .in("status", ["active", "graduating", "graduated"])
+    // Arc tokens earn USDC fees claimed via ClaimFeesArc — exclude them here
+    .or("chain.eq.solana,chain.is.null");
 
   if (!tokenRows || tokenRows.length === 0) {
     return NextResponse.json({ total: 0, tokens: [] } satisfies PendingFeesResponse);

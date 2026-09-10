@@ -531,7 +531,6 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                       ? "bg-card text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  style={undefined}
                 >
                   {c.id === "arc" ? (
                     <Image src="/arc-logo.jpeg" alt="Arc" width={14} height={14} className="rounded-full shrink-0" unoptimized />
