@@ -52,8 +52,11 @@ function fmtHolders(n: number | null): string {
   return n.toLocaleString();
 }
 
-async function fetchStats(mintAddress: string): Promise<Stats> {
-  const res = await fetch(`/api/launchpad/token-stats/${mintAddress}`);
+async function fetchStats(address: string, chain: "solana" | "arc"): Promise<Stats> {
+  const url = chain === "arc"
+    ? `/api/launchpad/arc-token-stats/${address}`
+    : `/api/launchpad/token-stats/${address}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Stats unavailable");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return await res.json() as any;
@@ -72,7 +75,7 @@ function StatItem({ label, value, accent }: { label: string; value: React.ReactN
   );
 }
 
-function StatBar({ stats }: { stats: Stats }) {
+function StatBar({ stats, chain = "solana" }: { stats: Stats; chain?: "solana" | "arc" }) {
   const changeColor =
     stats.priceChange === null ? "" :
     stats.priceChange > 0 ? "text-emerald-500" : "text-red-500";
@@ -106,7 +109,7 @@ function StatBar({ stats }: { stats: Stats }) {
         <StatItem label="Holders" value={fmtHolders(stats.holders)} />
       )}
       <span className="ml-auto text-[9px] text-muted-foreground/50 shrink-0 hidden md:block">
-        GeckoTerminal · Birdeye
+        {chain === "arc" ? "Arc BondingCurve" : "GeckoTerminal · Birdeye"}
       </span>
     </div>
   );
@@ -162,9 +165,11 @@ function StatCard({ stats }: { stats: Stats }) {
 export function TokenMarketStats({
   mintAddress,
   variant = "card",
+  chain = "solana",
 }: {
   mintAddress: string;
   variant?: "bar" | "card";
+  chain?: "solana" | "arc";
 }) {
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,11 +177,11 @@ export function TokenMarketStats({
 
   useEffect(() => {
     setLoading(true);
-    fetchStats(mintAddress)
+    fetchStats(mintAddress, chain)
       .then(s  => setStats(s))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [mintAddress]);
+  }, [mintAddress, chain]);
 
   if (loading) {
     if (variant === "bar") {
@@ -197,5 +202,5 @@ export function TokenMarketStats({
 
   if (error || !stats) return null;
 
-  return variant === "bar" ? <StatBar stats={stats} /> : <StatCard stats={stats} />;
+  return variant === "bar" ? <StatBar stats={stats} chain={chain} /> : <StatCard stats={stats} />;
 }

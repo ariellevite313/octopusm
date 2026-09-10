@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/activate-scheduled-tokens",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/update-arc-stats",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
