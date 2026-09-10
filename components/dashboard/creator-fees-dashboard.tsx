@@ -21,12 +21,15 @@ import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/p
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtSol(n: number): string {
-  if (n === 0) return "0 SOL";
-  if (n >= 1000) return `${n.toFixed(2)} SOL`;
-  if (n >= 1)    return `${n.toFixed(4)} SOL`;
-  return `${n.toFixed(6)} SOL`;
+function fmtAmount(n: number, currency = "SOL"): string {
+  if (n === 0) return `0 ${currency}`;
+  if (n >= 1000) return `${n.toFixed(2)} ${currency}`;
+  if (n >= 1)    return `${n.toFixed(4)} ${currency}`;
+  return `${n.toFixed(6)} ${currency}`;
 }
+
+/** @deprecated use fmtAmount */
+function fmtSol(n: number): string { return fmtAmount(n, "SOL"); }
 
 function shortAddr(s: string, h = 4, t = 4) {
   return `${s.slice(0, h)}…${s.slice(-t)}`;
@@ -93,12 +96,16 @@ function TokenFeeRow({
   onClaim,
   claiming,
   disabled,
+  currency = "SOL",
+  showClaim = true,
 }: {
-  token:    PendingFeeToken;
-  earned:   number;
-  onClaim:  (token: PendingFeeToken) => void;
-  claiming: boolean;
-  disabled: boolean;
+  token:      PendingFeeToken;
+  earned:     number;
+  onClaim:    (token: PendingFeeToken) => void;
+  claiming:   boolean;
+  disabled:   boolean;
+  currency?:  string;
+  showClaim?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border last:border-b-0">
@@ -124,15 +131,15 @@ function TokenFeeRow({
         {earned > 0 && (
           <p className="text-[10px] text-muted-foreground">fees earned</p>
         )}
-        <p className="text-sm font-bold text-foreground">{fmtSol(earned)}</p>
-        {token.pending > 0 && (
+        <p className="text-sm font-bold text-foreground">{fmtAmount(earned, currency)}</p>
+        {token.pending > 0 && showClaim && (
           <button
             onClick={() => onClaim(token)}
             disabled={claiming || disabled}
             className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-primary underline underline-offset-2 disabled:opacity-50"
           >
             {claiming && <Loader2 className="size-2.5 animate-spin" />}
-            {claiming ? "Claiming…" : `+${fmtSol(token.pending)} pending`}
+            {claiming ? "Claiming…" : `+${fmtAmount(token.pending, currency)} pending`}
           </button>
         )}
       </div>
@@ -144,6 +151,10 @@ function TokenFeeRow({
 
 export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string }) {
   const { walletType, selectedChain } = useAuth();
+  const isArc      = selectedChain === "arc";
+  const currency   = isArc ? "USDC" : "SOL";
+  const fmt        = (n: number) => fmtAmount(n, currency);
+
   const [stats,       setStats]       = useState<CreatorStatsResponse | null>(null);
   const [pending,     setPending]     = useState<PendingFeesResponse  | null>(null);
   const [loading,     setLoading]     = useState(true);
@@ -310,12 +321,12 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
               <path d="M6.47 21.41a.8.8 0 0 1 .57-.24h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H3.78a.4.4 0 0 1-.28-.68l2.97-2.97Zm0-13.82A.8.8 0 0 1 7.04 7.35h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H4.78a.4.4 0 0 1-.28-.68l1.97-1.97Zm17.06 6.88a.8.8 0 0 0-.57-.24H5.09a.4.4 0 0 0-.28.68l2.97 2.97a.8.8 0 0 0 .57.24h17.87a.4.4 0 0 0 .28-.68l-2.97-2.97Z"/>
             </svg>
           </div>
-          <span className="text-4xl font-bold tracking-tight">{fmtSol(stats.totalClaimed)}</span>
+          <span className="text-4xl font-bold tracking-tight">{fmt(stats.totalClaimed)}</span>
         </div>
 
         {stats.todayClaimed > 0 && (
           <p className="mt-1.5 text-sm opacity-80">
-            +{fmtSol(stats.todayClaimed)} claimed today
+            +{fmt(stats.todayClaimed)} claimed today
           </p>
         )}
 
@@ -337,17 +348,19 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
                 <path d="M6.47 21.41a.8.8 0 0 1 .57-.24h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H3.78a.4.4 0 0 1-.28-.68l2.97-2.97Zm0-13.82A.8.8 0 0 1 7.04 7.35h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H4.78a.4.4 0 0 1-.28-.68l1.97-1.97Zm17.06 6.88a.8.8 0 0 0-.57-.24H5.09a.4.4 0 0 0-.28.68l2.97 2.97a.8.8 0 0 0 .57.24h17.87a.4.4 0 0 0 .28-.68l-2.97-2.97Z"/>
               </svg>
             </div>
-            <span className="text-base font-bold text-primary">{fmtSol(pending.total)}</span>
+            <span className="text-base font-bold text-primary">{fmt(pending.total)}</span>
           </div>
 
-          <button
-            onClick={handleClaimAll}
-            disabled={claimingAll || hasPendingTokens.length === 0}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
-          >
-            {claimingAll && <Loader2 className="size-4 animate-spin" />}
-            Claim All
-          </button>
+          {!isArc && (
+            <button
+              onClick={handleClaimAll}
+              disabled={claimingAll || hasPendingTokens.length === 0}
+              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            >
+              {claimingAll && <Loader2 className="size-4 animate-spin" />}
+              Claim All
+            </button>
+          )}
         </div>
       )}
 
@@ -362,6 +375,8 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
               onClaim={handleClaimOne}
               claiming={claimingId === token.tokenId}
               disabled={claimingAll || (claimingId !== null && claimingId !== token.tokenId)}
+              currency={currency}
+              showClaim={!isArc}
             />
           ))}
         </div>

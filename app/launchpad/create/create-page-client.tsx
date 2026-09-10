@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CreateTokenWizard } from "@/components/launchpad/create-token-wizard";
 import { useAuth } from "@/providers/auth-provider";
@@ -12,8 +12,13 @@ export function CreatePageClient({
 }: {
   initialData?: Record<string, unknown>;
 }) {
-  const { isAdmin } = useAuth();
-  const [chain, setChain] = useState<Chain>("solana");
+  const { selectedChain } = useAuth();
+  const [chain, setChain] = useState<Chain>(selectedChain === "arc" ? "arc" : "solana");
+
+  // Sync automatique quand le wallet connecté change
+  useEffect(() => {
+    setChain(selectedChain === "arc" ? "arc" : "solana");
+  }, [selectedChain]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -32,8 +37,8 @@ export function CreatePageClient({
         </p>
       </div>
 
-      {/* Chain selector — admin only */}
-      {isAdmin && <div className="mb-6 flex items-center gap-1.5 rounded-2xl border border-border bg-muted/30 p-1.5">
+      {/* Chain selector */}
+      <div className="mb-6 flex items-center gap-1.5 rounded-2xl border border-border bg-muted/30 p-1.5">
         <button
           type="button"
           onClick={() => setChain("solana")}
@@ -62,7 +67,7 @@ export function CreatePageClient({
             Testnet
           </span>
         </button>
-      </div>}
+      </div>
 
       <CreateTokenWizard
         chain={chain}
