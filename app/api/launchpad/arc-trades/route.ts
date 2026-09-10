@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { arcTestnet } from "@/lib/arc-chain";
+import { createAdminClient } from "@/lib/supabase/server";
 
 const TRADE_EVENT = parseAbiItem(
   "event Trade(address indexed trader, bool isBuy, uint256 usdcAmt, uint256 tokenAmt, uint256 fee)",
@@ -42,11 +43,27 @@ export async function GET(req: Request) {
     const headTimestamp = Number(headBlock.timestamp);
 
     // ── Fetch Trade logs in parallel chunks (RPC limits to 2k-10k blocks) ──
-    // Scan last 100k blocks (~55h at 2s/block), split into 5k-block chunks
-    // Parallel to avoid Vercel 10-30s timeout from sequential requests
-    const SCAN_DEPTH = 100_000n;
-    const CHUNK_SIZE = 5_000n;
-    const fromBlock  = currentBlock > SCAN_DEPTH ? currentBlock - SCAN_DEPTH : 0n;
+    // Utilise arc_creation_block depuis la DB si dispo (précis),
+    // sinon fallback sur 5M blocs (~115 jours à 2s/bloc).
+    const CHUNK_SIZE = 50_000n;
+
+    // Chercher le bloc de création en DB
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const { data: tokenRow } = await admin
+      .from("launchpad_tokens")
+      .select("arc_creation_block")
+      .eq("arc_launch_id", curveAddress)
+      .maybeSingle();
+
+    const creationBlock: bigint | null = tokenRow?.arc_creation_block
+      ? BigInt(tokenRow.arc_creation_block)
+      : null;
+
+    const SCAN_DEPTH = 5_000_000n;
+    const fromBlock  = creationBlock
+      ? creationBlock                                                         // précis : depuis la création
+      : (currentBlock > SCAN_DEPTH ? currentBlock - SCAN_DEPTH : 0n);       // fallback : 5M blocs
 
     const chunkStarts: bigint[] = [];
     for (let s = fromBlock; s <= currentBlock; s += CHUNK_SIZE) chunkStarts.push(s);

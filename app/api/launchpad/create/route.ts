@@ -42,6 +42,7 @@ type CreatePayload = {
   arc_token_address?: string; // adresse ERC-20, stockée dans mint_address
   arc_launch_id?: string;
   arc_tx_hash?: string;
+  arc_creation_block?: number | null;
 };
 
 export async function POST(req: Request) {
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
     if (payload.chain === "arc" && !payload.arc_token_address) {
       return NextResponse.json({ error: "arc_token_address is required for Arc tokens" }, { status: 400 });
     }
+
 
     // Validate social URLs server-side — reject javascript: and other non-http(s) schemes
     const socialFields = ["website", "twitter", "telegram", "discord", "other_social"] as const;
@@ -189,9 +191,10 @@ export async function POST(req: Request) {
         chain:            payload.chain ?? "solana",
         // Arc EVM — réutilise mint_address pour l'adresse ERC-20
         ...(payload.chain === "arc" ? {
-          mint_address:  payload.arc_token_address,
-          arc_launch_id: payload.arc_launch_id ?? null,
-          arc_tx_hash:   payload.arc_tx_hash ?? null,
+          mint_address:       payload.arc_token_address,
+          arc_launch_id:      payload.arc_launch_id ?? null,
+          arc_tx_hash:        payload.arc_tx_hash ?? null,
+          arc_creation_block: payload.arc_creation_block ?? null,
         } : {}),
       })
       .select("id")
