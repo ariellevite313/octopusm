@@ -469,12 +469,6 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
 
 // ─── Étape 3 Arc — Options ──────────────────────────────────────────────────
 
-const ARC_SUPPLY_PRESETS = [
-  { label: "100M",  value: 100_000_000 },
-  { label: "500M",  value: 500_000_000 },
-  { label: "1B",    value: 1_000_000_000 },
-];
-
 function StepArcOptions({
   data, set, errors,
 }: {
@@ -484,31 +478,6 @@ function StepArcOptions({
 }) {
   return (
     <div className="space-y-5 pt-2">
-
-      {/* Supply */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div>
-          <p className="text-sm font-medium text-foreground">Token Supply</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Total number of tokens minted at launch.</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {ARC_SUPPLY_PRESETS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => set("arc_supply", p.value)}
-              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
-                data.arc_supply === p.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-foreground hover:bg-muted"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        {errors.arc_supply && <p className="text-xs text-red-500">{errors.arc_supply}</p>}
-      </div>
 
       {/* First buy en USDC */}
       <div className="rounded-xl border border-border p-4 space-y-3">
