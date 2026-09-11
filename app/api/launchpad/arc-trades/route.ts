@@ -62,6 +62,10 @@ async function fetchLogsFromArcScan(
     next: { revalidate: 60 }, // cache 60s côté serveur Next.js
   });
 
+  if (res.status === 429) {
+    // Rate limited — return empty gracefully, client will retry on next refresh
+    return [];
+  }
   if (!res.ok) {
     throw new Error(`ArcScan API error: ${res.status} ${res.statusText}`);
   }
