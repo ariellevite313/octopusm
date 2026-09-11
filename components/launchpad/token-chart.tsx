@@ -2,8 +2,8 @@
 
 /**
  * TokenChart — candlestick chart styled like a professional trading UI.
- * Primary: DexScreener embed (indexes Meteora DBC).
- * Fallback: GeckoTerminal OHLCV via lightweight-charts.
+ * Solana : DexScreener embed (primary) + GeckoTerminal OHLCV (fallback).
+ * Arc    : on-chain trades via /api/launchpad/arc-trades → OHLCV buckets.
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -16,19 +16,55 @@ type Bar    = { time: number; open: number; high: number; low: number; close: nu
 type Status = "loading" | "nodata" | "error" | "ready" | "embed";
 type ChartType = "candle" | "line";
 
-type Timeframe = { label: string; gecko: string; dexInterval: number };
+type Timeframe = {
+  label:       string;
+  gecko?:      string;   // Solana / GeckoTerminal
+  dexInterval?: number;  // Solana / DexScreener
+  bucketSec?:  number;   // Arc — bucket size in seconds
+};
 
 const TIMEFRAMES: Timeframe[] = [
-  { label: "1m",  gecko: "minute?aggregate=1&limit=200",  dexInterval: 1    },
-  { label: "5m",  gecko: "minute?aggregate=5&limit=200",  dexInterval: 5    },
-  { label: "15m", gecko: "minute?aggregate=15&limit=200", dexInterval: 15   },
-  { label: "1h",  gecko: "hour?aggregate=1&limit=200",    dexInterval: 60   },
-  { label: "4h",  gecko: "hour?aggregate=4&limit=200",    dexInterval: 240  },
-  { label: "1D",  gecko: "day?aggregate=1&limit=200",     dexInterval: 1440 },
+  { label: "1m",  gecko: "minute?aggregate=1&limit=200",  dexInterval: 1,    bucketSec: 60    },
+  { label: "5m",  gecko: "minute?aggregate=5&limit=200",  dexInterval: 5,    bucketSec: 300   },
+  { label: "15m", gecko: "minute?aggregate=15&limit=200", dexInterval: 15,   bucketSec: 900   },
+  { label: "1h",  gecko: "hour?aggregate=1&limit=200",    dexInterval: 60,   bucketSec: 3600  },
+  { label: "4h",  gecko: "hour?aggregate=4&limit=200",    dexInterval: 240,  bucketSec: 14400 },
+  { label: "1D",  gecko: "day?aggregate=1&limit=200",     dexInterval: 1440, bucketSec: 86400 },
 ];
 
-const DEFAULT_TF     = TIMEFRAMES[1]; // 5m
+const DEFAULT_TF      = TIMEFRAMES[1]; // 5m
 const LIVE_REFRESH_MS = 30_000;
+
+// ── Arc helpers ───────────────────────────────────────────────────────────────
+
+type ArcTrade = { timestamp: number; price: number };
+
+function buildOHLCV(trades: ArcTrade[], bucketSec: number): Bar[] {
+  if (!trades.length) return [];
+  const map = new Map<number, Bar>();
+  for (const t of trades) {
+    const bucket = Math.floor(t.timestamp / bucketSec) * bucketSec;
+    const ex = map.get(bucket);
+    if (!ex) {
+      map.set(bucket, { time: bucket, open: t.price, high: t.price, low: t.price, close: t.price });
+    } else {
+      ex.high  = Math.max(ex.high,  t.price);
+      ex.low   = Math.min(ex.low,   t.price);
+      ex.close = t.price;
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.time - b.time);
+}
+
+async function fetchArcBars(curveAddress: string, bucketSec: number): Promise<Bar[]> {
+  const res = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=1000`);
+  if (!res.ok) throw new Error("Arc trades unavailable");
+  const data = await res.json() as { trades?: ArcTrade[]; error?: string };
+  if (data.error) throw new Error(data.error);
+  const trades = data.trades ?? [];
+  if (!trades.length) throw new Error("No trades yet");
+  return buildOHLCV(trades, bucketSec);
+}
 
 // ── DexScreener ───────────────────────────────────────────────────────────────
 
@@ -116,15 +152,17 @@ function fmtPrice(n: number): string {
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 type Props = {
-  mintAddress: string;
-  name:        string;
-  ticker?:     string;
-  logoUrl?:    string;
+  mintAddress?:     string;   // Solana mint
+  arcCurveAddress?: string;   // Arc BondingCurve address
+  name:             string;
+  ticker?:          string;
+  logoUrl?:         string;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
+export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl }: Props) {
+  const isArc = Boolean(arcCurveAddress);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme !== "light";
 
@@ -155,21 +193,27 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceChange,  setPriceChange]  = useState<number | null>(null); // % over selected TF
 
-  // ── Step 1: GeckoTerminal only (DexScreener embed disabled) ───────────────
+  // ── Step 1: init chart source ─────────────────────────────────────────────
   useEffect(() => {
-    // Fetch DexScreener price data for the header only (no embed)
-    resolveDex(mintAddress).then(data => {
-      if (data) {
-        setDexData(data);
-        setCurrentPrice(parseFloat(data.priceUsd));
-        setPriceChange(data.priceChange.h24);
-      }
-    }).catch(() => {});
-
+    if (isArc) {
+      // Arc path — no DexScreener/Gecko, fetch on-chain trades
+      const clean = initArc();
+      return clean;
+    }
+    // Solana path
+    if (mintAddress) {
+      resolveDex(mintAddress).then(data => {
+        if (data) {
+          setDexData(data);
+          setCurrentPrice(parseFloat(data.priceUsd));
+          setPriceChange(data.priceChange.h24);
+        }
+      }).catch(() => {});
+    }
     const clean = initGecko();
     return clean;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mintAddress]);
+  }, [mintAddress, arcCurveAddress]);
 
   // ── Build GeckoTerminal series ─────────────────────────────────────────────
   const buildSeries = useCallback(async (
@@ -289,6 +333,79 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
     };
   }
 
+  // ── Arc init ──────────────────────────────────────────────────────────────
+  function initArc() {
+    let cancelled = false;
+
+    async function init() {
+      try {
+        const curve = arcCurveAddress!;
+        const [lw, bars] = await Promise.all([
+          import("lightweight-charts"),
+          fetchArcBars(curve, DEFAULT_TF.bucketSec ?? 300),
+        ]);
+        if (cancelled || !wrapperRef.current) return;
+        if (!bars.length) { setStatus("nodata"); return; }
+
+        const { createChart, ColorType } = lw;
+        const chart = createChart(wrapperRef.current, {
+          width:  wrapperRef.current.clientWidth,
+          height: 380,
+          layout: {
+            background: { type: ColorType.Solid, color: getChartTheme(isDark).background },
+            textColor:  getChartTheme(isDark).text,
+          },
+          grid: {
+            vertLines: { color: getChartTheme(isDark).grid },
+            horzLines: { color: getChartTheme(isDark).grid, style: 3 },
+          },
+          crosshair: { mode: 1 },
+          rightPriceScale: { borderColor: getChartTheme(isDark).border },
+          timeScale:       { borderColor: getChartTheme(isDark).border, timeVisible: true, secondsVisible: false },
+          watermark:       { visible: false },
+        });
+
+        chartRef.current = chart;
+        await buildSeries(lw, bars, "candle");
+        setStatus("ready");
+
+        const ro = new ResizeObserver(() => {
+          if (wrapperRef.current) chart.applyOptions({ width: wrapperRef.current.clientWidth });
+        });
+        ro.observe(wrapperRef.current);
+        roRef.current = ro;
+
+        // Auto-refresh every 30s
+        liveTimer.current = setInterval(async () => {
+          if (!chartRef.current || !arcCurveAddress) return;
+          try {
+            const [lw2, fresh] = await Promise.all([
+              import("lightweight-charts"),
+              fetchArcBars(arcCurveAddress, activeTfRef.current.bucketSec ?? 300),
+            ]);
+            await buildSeries(lw2, fresh, chartTypeRef.current);
+          } catch { /* ignore */ }
+        }, LIVE_REFRESH_MS);
+
+      } catch (e) {
+        if (!cancelled) {
+          setErrorMsg(e instanceof Error ? e.message : "Chart unavailable");
+          setStatus("error");
+        }
+      }
+    }
+
+    void init();
+    return () => {
+      cancelled = true;
+      if (liveTimer.current) clearInterval(liveTimer.current);
+      chartRef.current?.remove();
+      roRef.current?.disconnect();
+      chartRef.current  = null;
+      seriesRef.current = null;
+    };
+  }
+
   // ── GeckoTerminal theme ────────────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
@@ -303,50 +420,66 @@ export function TokenChart({ mintAddress, name, ticker, logoUrl }: Props) {
     });
   }, [isDark]);
 
-  // ── GeckoTerminal TF switch ────────────────────────────────────────────────
+  // ── TF switch (Solana + Arc) ───────────────────────────────────────────────
   const switchTf = useCallback(async (tf: Timeframe) => {
-    if (!poolRef.current || !chartRef.current || tfLoading) return;
+    if (!chartRef.current || tfLoading) return;
     setActiveTf(tf);
     activeTfRef.current = tf;
     setTfLoading(true);
     try {
-      const [lw, bars] = await Promise.all([
-        import("lightweight-charts"),
-        fetchBars(poolRef.current, tf),
-      ]);
-      if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
+      if (isArc && arcCurveAddress) {
+        const [lw, bars] = await Promise.all([
+          import("lightweight-charts"),
+          fetchArcBars(arcCurveAddress, tf.bucketSec ?? 300),
+        ]);
+        if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
+      } else if (poolRef.current) {
+        const [lw, bars] = await Promise.all([
+          import("lightweight-charts"),
+          fetchBars(poolRef.current, tf),
+        ]);
+        if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
+      }
     } catch { /* keep existing */ }
     finally { setTfLoading(false); }
-  }, [tfLoading, buildSeries]);
+  }, [tfLoading, buildSeries, isArc, arcCurveAddress]);
 
-  // ── GeckoTerminal chart type switch ───────────────────────────────────────
+  // ── Chart type switch (Solana + Arc) ──────────────────────────────────────
   const switchType = useCallback(async (type: ChartType) => {
-    if (!poolRef.current || !chartRef.current) return;
+    if (!chartRef.current) return;
     setChartType(type);
     chartTypeRef.current = type;
     if (liveTimer.current) { clearInterval(liveTimer.current); liveTimer.current = null; }
     setTfLoading(true);
     try {
-      const [lw, bars] = await Promise.all([
-        import("lightweight-charts"),
-        fetchBars(poolRef.current, activeTfRef.current),
-      ]);
-      if (bars.length) await buildSeries(lw, bars, type);
-      if (type === "line") {
-        liveTimer.current = setInterval(async () => {
-          if (!poolRef.current || !seriesRef.current) return;
-          try {
-            const [lw2, fresh] = await Promise.all([
-              import("lightweight-charts"),
-              fetchBars(poolRef.current, activeTfRef.current),
-            ]);
-            await buildSeries(lw2, fresh, "line");
-          } catch { /* ignore */ }
-        }, LIVE_REFRESH_MS);
+      if (isArc && arcCurveAddress) {
+        const [lw, bars] = await Promise.all([
+          import("lightweight-charts"),
+          fetchArcBars(arcCurveAddress, activeTfRef.current.bucketSec ?? 300),
+        ]);
+        if (bars.length) await buildSeries(lw, bars, type);
+      } else if (poolRef.current) {
+        const [lw, bars] = await Promise.all([
+          import("lightweight-charts"),
+          fetchBars(poolRef.current, activeTfRef.current),
+        ]);
+        if (bars.length) await buildSeries(lw, bars, type);
+        if (type === "line") {
+          liveTimer.current = setInterval(async () => {
+            if (!poolRef.current || !seriesRef.current) return;
+            try {
+              const [lw2, fresh] = await Promise.all([
+                import("lightweight-charts"),
+                fetchBars(poolRef.current, activeTfRef.current),
+              ]);
+              await buildSeries(lw2, fresh, "line");
+            } catch { /* ignore */ }
+          }, LIVE_REFRESH_MS);
+        }
       }
     } catch { /* keep existing */ }
     finally { setTfLoading(false); }
-  }, [buildSeries]);
+  }, [buildSeries, isArc, arcCurveAddress]);
 
   // ── Shared header ──────────────────────────────────────────────────────────
   const isPositive = (priceChange ?? 0) >= 0;
