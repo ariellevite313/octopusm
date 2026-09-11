@@ -5,7 +5,7 @@
  * - price    : reserveUsdc / reserveTokens (USDC par token)
  * - marketCap: price * 1 000 000 000 (supply fixe = 1B tokens)
  * - volume24h: somme des usdcAmt des trades des dernières 24h
- * - holders  : non disponible on-chain sans indexeur (retourné null)
+ * - holders  : nb d'adresses uniques ayant tradé (topics[1] des logs ArcScan)
  */
 
 import { NextResponse } from "next/server";
@@ -13,7 +13,36 @@ import { createPublicClient, http } from "viem";
 import { arcTestnet } from "@/lib/arc-chain";
 import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
 
-const TOTAL_SUPPLY = 1_000_000_000; // 1B tokens (fixe pour tous les tokens Arc)
+const TOTAL_SUPPLY = 1_000_000_000;
+const ARCSCAN_API  = "https://testnet.arcscan.app/api";
+const TRADE_TOPIC  = "0x0c668488dc690d00c35c03638df49a1c8a7b63511eba0f88eeed1bd471719b16";
+
+async function fetchUniqueTraders(address: string): Promise<number | null> {
+  try {
+    const params = new URLSearchParams({
+      module: "logs", action: "getLogs",
+      address, topic0: TRADE_TOPIC, toBlock: "latest",
+    });
+    const res = await fetch(`${ARCSCAN_API}?${params}`, {
+      headers: { Accept: "application/json" },
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { status: string; result: unknown[] | string };
+    if (!Array.isArray(json.result)) return null;
+    // topics[1] = trader address (first indexed param)
+    const traders = new Set(
+      json.result
+        .map((l: unknown) => (l as { topics?: string[] }).topics?.[1])
+        .filter((t): t is string => typeof t === "string" && t.length === 66)
+        // normalize to checksummed-length address (last 40 hex chars)
+        .map(t => t.toLowerCase())
+    );
+    return traders.size;
+  } catch {
+    return null;
+  }
+}
 
 type RouteParams = { params: Promise<{ curveAddress: string }> };
 
@@ -32,11 +61,14 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
     const curve = curveAddress as `0x${string}`;
 
-    // Lire les réserves du contrat en parallèle
-    const [reserveUsdcRaw, reserveTokensRaw, graduated] = await Promise.all([
-      client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "reserveUsdc" }),
-      client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "reserveTokens" }),
-      client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "graduated" }),
+    // Lire les réserves + compter les holders en parallèle
+    const [[reserveUsdcRaw, reserveTokensRaw, graduated], holders] = await Promise.all([
+      Promise.all([
+        client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "reserveUsdc" }),
+        client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "reserveTokens" }),
+        client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "graduated" }),
+      ]),
+      fetchUniqueTraders(curveAddress),
     ]);
 
     // Convertir en float avant la division pour éviter la troncature bigint
@@ -57,8 +89,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
         marketCap,
         fdv: marketCap,        // FDV = MarketCap pour bonding curve (supply fixe)
         volume24h: null,
-        priceChange: null,     // pas d'historique OHLC disponible facilement
-        holders: null,         // nécessite un indexeur EVM
+        priceChange: null,
+        holders,               // nb d'adresses uniques ayant tradé (proxy holders)
         graduated: Boolean(graduated),
         reserveUsdc,
         reserveTokens,
