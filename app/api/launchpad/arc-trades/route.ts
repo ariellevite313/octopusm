@@ -59,7 +59,7 @@ async function fetchLogsFromArcScan(
   const url = `${ARCSCAN_API}?${params.toString()}`;
   const res = await fetch(url, {
     headers: { "Accept": "application/json" },
-    next: { revalidate: 0 },
+    next: { revalidate: 60 }, // cache 60s côté serveur Next.js
   });
 
   if (!res.ok) {
@@ -202,7 +202,7 @@ export async function GET(req: Request) {
       .slice(-limit);
 
     return NextResponse.json({ trades }, {
-      headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30" },
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
     });
 
   } catch (err) {

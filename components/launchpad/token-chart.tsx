@@ -375,7 +375,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl
         ro.observe(wrapperRef.current);
         roRef.current = ro;
 
-        // Auto-refresh every 30s
+        // Auto-refresh every 2min (ArcScan rate limit)
         liveTimer.current = setInterval(async () => {
           if (!chartRef.current || !arcCurveAddress) return;
           try {
@@ -385,7 +385,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl
             ]);
             await buildSeries(lw2, fresh, chartTypeRef.current);
           } catch { /* ignore */ }
-        }, LIVE_REFRESH_MS);
+        }, 120_000);
 
       } catch (e) {
         if (!cancelled) {
