@@ -21,7 +21,6 @@ import { TokenShareButton } from "@/components/launchpad/token-share-button";
 import { BannerUploadButton } from "@/components/launchpad/banner-upload-button";
 import { PoolRecoveryPrompt } from "@/components/launchpad/pool-recovery-prompt";
 import { ClaimFeesArc } from "@/components/launchpad/claim-fees-arc";
-import { ArcTokenChart } from "@/components/launchpad/arc-token-chart";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
@@ -383,8 +382,9 @@ export default async function TokenDetailPage({ params }: Props) {
       {/* ── Arc chart (on-chain Trade events) ───────────────────────────────── */}
       {showArcChart && (
         <div className="mt-4 px-4 md:px-6">
-          <ArcTokenChart
-            curveAddress={token.arc_launch_id!}
+          <TokenChart
+            arcCurveAddress={token.arc_launch_id!}
+            name={token.name}
             ticker={token.ticker}
             logoUrl={token.logo_url ?? undefined}
           />
