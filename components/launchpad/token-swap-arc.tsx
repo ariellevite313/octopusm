@@ -646,7 +646,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {!isAuthenticated ? (
           <button
             onClick={openWalletModal}
-            className="w-full rounded-md py-4 text-[15px] font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-colors mt-1"
+            className="w-full rounded-md py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1"
           >
             Connect wallet
           </button>
@@ -654,12 +654,12 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           <button
             onClick={() => void handleSwap()}
             disabled={!canSwap}
-            className={`w-full rounded-2xl py-4 text-[15px] font-semibold transition-colors mt-1 ${
+            className={`w-full rounded-md py-4 text-[15px] font-semibold transition-colors mt-1 ${
               !canSwap
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : direction === "sell"
                   ? "bg-red-500 hover:bg-red-400 text-white"
-                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                  : "bg-orange-500 hover:bg-orange-400 text-white"
             }`}
           >
             {swapping ? (
