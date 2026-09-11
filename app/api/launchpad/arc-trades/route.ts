@@ -184,7 +184,8 @@ export async function GET(req: Request) {
           const tokRaw   = decoded[2] as bigint;
           const usdcAmt  = Number(usdcRaw) / 1e6;
           const tokenAmt = Number(tokRaw)  / 1e18;
-          const price    = tokRaw > 0n ? Number(usdcRaw * 10n ** 12n / tokRaw) / 1e12 : 0;
+          // Use float division — bigint integer division truncates to 0 for tiny prices
+          const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
           const timestamp = hexOrDecToNumber(l.timeStamp);
           return {
             timestamp,
