@@ -177,9 +177,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function formatSupply(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(0)}B`;
-  if (n >= 1_000_000)     return `${(n / 1_000_000).toFixed(0)}M`;
-  return n.toLocaleString();
+  return n.toLocaleString("en-US");
 }
 
 function shortAddr(s: string, head = 4, tail = 4) {
