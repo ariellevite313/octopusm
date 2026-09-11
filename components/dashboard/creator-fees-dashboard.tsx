@@ -316,10 +316,8 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
 
         {/* Amount */}
         <div className="flex items-center gap-3 mt-2">
-          <div className="size-10 rounded-full bg-black/20 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 32 32" className="size-6 fill-white" aria-hidden>
-              <path d="M6.47 21.41a.8.8 0 0 1 .57-.24h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H3.78a.4.4 0 0 1-.28-.68l2.97-2.97Zm0-13.82A.8.8 0 0 1 7.04 7.35h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H4.78a.4.4 0 0 1-.28-.68l1.97-1.97Zm17.06 6.88a.8.8 0 0 0-.57-.24H5.09a.4.4 0 0 0-.28.68l2.97 2.97a.8.8 0 0 0 .57.24h17.87a.4.4 0 0 0 .28-.68l-2.97-2.97Z"/>
-            </svg>
+          <div className="size-10 rounded-full bg-black/20 flex items-center justify-center shrink-0 overflow-hidden">
+            <img src="/arc-logo.jpeg" alt="Arc" className="size-10 object-cover" />
           </div>
           <span className="text-4xl font-bold tracking-tight">{fmt(stats.totalClaimed)}</span>
         </div>
