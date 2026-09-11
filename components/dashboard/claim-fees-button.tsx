@@ -177,7 +177,7 @@ export function ClaimFeesButton({ tokenId, walletAddress, poolAddress: _poolAddr
         type="button"
         disabled={busy || (claimable !== null && claimable <= 0)}
         onClick={handleClaim}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
       >
         {busy && <Loader2 className="size-3.5 animate-spin" />}
         {label}

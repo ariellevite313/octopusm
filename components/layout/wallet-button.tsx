@@ -312,7 +312,7 @@ function ProfileDrawer({
             </div>
 
             <button type="button" onClick={startEdit}
-              className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
               title="Edit profile">
               <Pencil className="size-4" />
             </button>
@@ -454,7 +454,7 @@ function ProfileDrawer({
                   {t.cancel}
                 </button>
                 <button type="button" onClick={saveProfile} disabled={saving}
-                  className="flex-1 rounded-xl bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60">
+                  className="flex-1 rounded-md bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60">
                   {saving ? t.saving : t.save}
                 </button>
               </div>
@@ -539,7 +539,7 @@ function ProfileDrawer({
             <button
               type="button"
               onClick={onDisconnect}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 transition-colors"
             >
               <LogOut className="size-4" />
               {t.disconnect}

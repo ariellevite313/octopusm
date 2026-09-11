@@ -106,7 +106,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           <span className="text-sm font-semibold text-foreground">More</span>
           <button
             onClick={onClose}
-            className="flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close"
           >
             <X className="size-4" />

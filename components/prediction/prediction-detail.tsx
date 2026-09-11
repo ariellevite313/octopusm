@@ -128,7 +128,7 @@ function ShareButton() {
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {copied ? <Check className="size-3.5 text-emerald-500" /> : <Share2 className="size-3.5" />}
       {copied ? "Copied!" : "Share"}

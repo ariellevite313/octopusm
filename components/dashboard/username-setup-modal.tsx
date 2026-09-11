@@ -234,7 +234,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
             <button
               type="submit"
               disabled={isLoading || !canSubmit}
-              className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60 transition-colors"
+              className="w-full rounded-md bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60 transition-colors"
             >
               {uploading ? "Uploading photo..." : saving ? "Saving..." : "Complete setup"}
             </button>

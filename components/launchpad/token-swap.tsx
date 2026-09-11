@@ -352,7 +352,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
 
         {/* ── CTA ── */}
         {!isAuthenticated ? (
-          <button className="w-full rounded-full py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1">
+          <button className="w-full rounded-md py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1">
             Connect wallet
           </button>
         ) : (

@@ -355,7 +355,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
             <button
               onClick={handleClaimAll}
               disabled={claimingAll || hasPendingTokens.length === 0}
-              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
+              className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
             >
               {claimingAll && <Loader2 className="size-4 animate-spin" />}
               Claim All

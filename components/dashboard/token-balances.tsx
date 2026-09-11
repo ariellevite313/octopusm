@@ -111,7 +111,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
         <button
           type="button"
           onClick={onWithdraw}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 transition-colors"
         >
           <ArrowUpRight className="size-4" />
           Withdraw USDC
@@ -165,7 +165,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
         <button
           type="button"
           onClick={onWithdraw}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 transition-colors"
         >
           <ArrowUpRight className="size-4" />
           Withdraw CLT

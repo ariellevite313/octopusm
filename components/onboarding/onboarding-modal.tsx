@@ -147,7 +147,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10"
+            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10"
           >
             <X className="size-5" />
           </button>
@@ -232,7 +232,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
         <button
           type="button"
           onClick={handleClose}
-          className="mt-4 w-full rounded-2xl bg-orange-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+          className="mt-4 w-full rounded-md bg-orange-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
         >
           {"Let's Go"}
         </button>

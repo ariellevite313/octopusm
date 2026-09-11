@@ -1028,12 +1028,12 @@ export function CreateTokenWizard({
 
         {step < maxStep ? (
           <button type="button" onClick={next}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
+            className="flex items-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
             Continue <ChevronRight className="size-4" />
           </button>
         ) : (
           <button type="button" onClick={submit} disabled={submitting}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
+            className="flex items-center gap-1.5 rounded-md bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
             {submitting
               ? chain === "arc" ? "Deploying on Arc…" : "Creating…"
               : chain === "arc" ? "🚀 Deploy on Arc" : "🚀 Launch Token"}

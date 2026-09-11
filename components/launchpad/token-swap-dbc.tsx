@@ -423,7 +423,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
         <div className="flex justify-center -my-1 relative z-10">
           <button
             onClick={toggleDirection}
-            className="size-9 rounded-full bg-muted border-2 border-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="size-9 rounded-md bg-muted border-2 border-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             style={{ transform: spinning ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.35s ease" }}
           >
             <ArrowUpDown className="size-4" />
@@ -538,7 +538,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
         {!isAuthenticated ? (
           <button
             onClick={openWalletModal}
-            className="w-full rounded-full py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1"
+            className="w-full rounded-md py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1"
           >
             Connect wallet
           </button>

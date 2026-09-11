@@ -45,7 +45,7 @@ export function WatchlistButton({ tokenId }: Props) {
       type="button"
       onClick={toggle}
       disabled={loading}
-      className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+      className={`flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 ${
         watching
           ? "border-primary/40 bg-primary/10 text-primary"
           : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"

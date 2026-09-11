@@ -141,7 +141,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+          className="absolute right-4 top-4 rounded-md p-1.5 text-muted-foreground hover:bg-muted transition-colors"
         >
           <X className="size-5" />
         </button>
@@ -186,7 +186,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             </div>
             <button
               onClick={onClose}
-              className="mt-3 w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+              className="mt-3 w-full rounded-md border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
               Close
             </button>
@@ -223,7 +223,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               <button
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
               >
                 {cancelling ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 Cancel pending request
@@ -232,7 +232,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
 
             <button
               onClick={onClose}
-              className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+              className="w-full rounded-md border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
               Close
             </button>
@@ -308,7 +308,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             <button
               type="submit"
               disabled={!valid || submitting}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-colors ${btnClass}`}
+              className={`flex w-full items-center justify-center gap-2 rounded-md py-3 text-sm font-semibold text-white transition-colors ${btnClass}`}
             >
               {submitting ? (
                 <>
