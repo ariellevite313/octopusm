@@ -62,7 +62,7 @@ async function fetchArcBars(curveAddress: string, bucketSec: number): Promise<Ba
   const data = await res.json() as { trades?: ArcTrade[]; error?: string };
   if (data.error) throw new Error(data.error);
   const trades = data.trades ?? [];
-  if (!trades.length) throw new Error("No trades yet");
+  if (!trades.length) throw new Error("No trades yet — be the first!");
   return buildOHLCV(trades, bucketSec);
 }
 
