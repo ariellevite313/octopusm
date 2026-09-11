@@ -39,13 +39,12 @@ export async function GET(_req: Request, { params }: RouteParams) {
       client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "graduated" }),
     ]);
 
-    const reserveUsdc   = Number(reserveUsdcRaw as bigint);   // 6 décimales
-    const reserveTokens = Number(reserveTokensRaw as bigint); // 18 décimales
+    // Convertir en float avant la division pour éviter la troncature bigint
+    const reserveUsdc   = Number(reserveUsdcRaw   as bigint) / 1e6;   // USDC
+    const reserveTokens = Number(reserveTokensRaw as bigint) / 1e18;  // tokens
 
-    // Prix = reserveUsdc (6 dec) / reserveTokens (18 dec) → USDC par token
-    const priceUsd = reserveTokens > 0
-      ? Number((reserveUsdcRaw as bigint) * 10n ** 12n / (reserveTokensRaw as bigint)) / 1e12
-      : null;
+    // Prix = reserveUsdc / reserveTokens → USDC par token
+    const priceUsd = reserveTokens > 0 ? reserveUsdc / reserveTokens : null;
 
     const marketCap = priceUsd !== null ? priceUsd * TOTAL_SUPPLY : null;
 
@@ -61,8 +60,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
         priceChange: null,     // pas d'historique OHLC disponible facilement
         holders: null,         // nécessite un indexeur EVM
         graduated: Boolean(graduated),
-        reserveUsdc:   reserveUsdc / 1e6,
-        reserveTokens: reserveTokens / 1e18,
+        reserveUsdc,
+        reserveTokens,
       },
       {
         headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30" },
