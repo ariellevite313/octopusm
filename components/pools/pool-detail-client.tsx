@@ -280,7 +280,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       <button
         type="submit"
         disabled={isBusy}
-        className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="w-full rounded-md bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {isBusy && <Loader2 className="size-4 animate-spin" />}
         {isBusy ? "Approving..." : "Predict"}

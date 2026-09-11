@@ -45,7 +45,7 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Close"
           >
             <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -108,7 +108,7 @@ function WalletItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary"
+      className="flex w-full items-center gap-3 rounded-md border border-border bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary"
     >
       {/* Logo with initial fallback */}
       <div className={`relative size-9 shrink-0 rounded-xl overflow-hidden flex items-center justify-center ${WALLET_COLORS[wallet.type] ?? "bg-muted"}`}>

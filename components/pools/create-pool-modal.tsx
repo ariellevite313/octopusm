@@ -227,7 +227,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       <div className="relative w-full max-w-lg rounded-t-2xl border border-border bg-card p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+          className="absolute right-4 top-4 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted"
         >
           <X className="size-5" />
         </button>
@@ -332,7 +332,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               <button
                 type="button"
                 onClick={addOption}
-                className="flex items-center gap-1.5 self-start rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                className="flex items-center gap-1.5 self-start rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
               >
                 <Plus className="size-3.5" />
                 Add option
@@ -454,7 +454,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           <button
             type="submit"
             disabled={submitting || step === "done"}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {step === "paying"  ? "Waiting for payment…"
              : step === "sending" ? "Submitting…"

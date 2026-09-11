@@ -9,14 +9,19 @@
  */
 
 import { NextResponse } from "next/server";
-import { createPublicClient, http, parseAbiItem } from "viem";
+import { createPublicClient, http, decodeAbiParameters, parseAbiParameters } from "viem";
 import { arcTestnet } from "@/lib/arc-chain";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60; // 60s max (Vercel Pro/Hobby)
 
-const TRADE_EVENT = parseAbiItem(
-  "event Trade(address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens)",
+// Topic réel du contrat déployé (vérifié sur ArcScan)
+// keccak256("Trade(address,bool,uint256,uint256,uint256,uint256,uint256,uint256)")
+const TRADE_TOPIC = "0x0c668488dc690d00c35c03638df49a1c8a7b63511eba0f88eeed1bd471719b16" as `0x${string}`;
+
+// ABI des paramètres non-indexés dans data (dans l'ordre d'émission)
+const TRADE_DATA_PARAMS = parseAbiParameters(
+  "bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens"
 );
 
 const BLOCK_TIME_SEC = 2; // Arc testnet approximate block time
@@ -86,7 +91,7 @@ export async function GET(req: Request) {
           const end = start + CHUNK_SIZE - 1n < currentBlock ? start + CHUNK_SIZE - 1n : currentBlock;
           return client.getLogs({
             address:   curveAddress as `0x${string}`,
-            event:     TRADE_EVENT,
+            topics:    [TRADE_TOPIC],
             fromBlock: start,
             toBlock:   end,
           });
@@ -100,9 +105,31 @@ export async function GET(req: Request) {
     const logs = allLogs;
 
     if (logs.length === 0) {
+      // Debug: fetch raw logs (no event filter) for first chunk to inspect actual topics
+      let rawLogs: { topics: readonly string[]; data: string; blockNumber: bigint | null }[] = [];
+      if (debug) {
+        try {
+          rawLogs = await client.getLogs({
+            address:   curveAddress as `0x${string}`,
+            topics:    [TRADE_TOPIC],
+            fromBlock: fromBlock,
+            toBlock:   fromBlock + CHUNK_SIZE - 1n < currentBlock ? fromBlock + CHUNK_SIZE - 1n : currentBlock,
+          });
+        } catch { /* ignore */ }
+      }
       return NextResponse.json({
         trades: [],
-        ...(debug ? { _debug: { currentBlock: currentBlock.toString(), fromBlock: fromBlock.toString(), creationBlock: creationBlock?.toString() ?? null, chunks: chunkStarts.length, ...debugInfo } } : {}),
+        ...(debug ? {
+          _debug: {
+            currentBlock: currentBlock.toString(),
+            fromBlock: fromBlock.toString(),
+            creationBlock: creationBlock?.toString() ?? null,
+            chunks: chunkStarts.length,
+            rawLogsCount: rawLogs.length,
+            rawLogTopics: rawLogs.slice(0, 5).map(l => ({ topic0: l.topics[0], blockNumber: l.blockNumber?.toString() })),
+            ...debugInfo,
+          }
+        } : {}),
       }, {
         headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" },
       });
@@ -148,25 +175,23 @@ export async function GET(req: Request) {
     };
 
     const trades: Trade[] = logs
-      .filter(l => l.args?.usdcAmount !== undefined && l.args?.tokenAmount !== undefined)
+      .filter(l => l.data && l.data !== "0x")
       .map(l => {
-        const usdcRaw  = BigInt(l.args!.usdcAmount!  as bigint);
-        const tokRaw   = BigInt(l.args!.tokenAmount! as bigint);
-        const usdcAmt  = Number(usdcRaw) / 1e6;
-        const tokenAmt = Number(tokRaw)  / 1e18;
-        // Divide in bigint space to preserve precision for large token amounts
-        const price    = tokRaw > 0n ? Number(usdcRaw * 10n**12n / tokRaw) / 1e12 : 0;
-        const ts       = blockTimestamps.get(l.blockNumber ?? 0n) ?? headTimestamp;
-        return {
-          timestamp: ts,
-          isBuy:     Boolean(l.args!.isBuy),
-          usdcAmt,
-          tokenAmt,
-          price,
-          txHash:    l.transactionHash ?? "",
-        };
+        try {
+          // Trader address est dans topics[1] (indexed)
+          // Data contient: bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens
+          const decoded = decodeAbiParameters(TRADE_DATA_PARAMS, l.data as `0x${string}`);
+          const isBuy   = Boolean(decoded[0]);
+          const usdcRaw = decoded[1] as bigint;
+          const tokRaw  = decoded[2] as bigint;
+          const usdcAmt  = Number(usdcRaw) / 1e6;
+          const tokenAmt = Number(tokRaw)  / 1e18;
+          const price    = tokRaw > 0n ? Number(usdcRaw * 10n**12n / tokRaw) / 1e12 : 0;
+          const ts       = blockTimestamps.get(l.blockNumber ?? 0n) ?? headTimestamp;
+          return { timestamp: ts, isBuy, usdcAmt, tokenAmt, price, txHash: l.transactionHash ?? "" };
+        } catch { return null; }
       })
-      .filter(t => t.price > 0)
+      .filter((t): t is Trade => t !== null && t.price > 0)
       .sort((a, b) => a.timestamp - b.timestamp)
       .slice(-limit);
 
