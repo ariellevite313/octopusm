@@ -109,9 +109,9 @@ export async function GET(req: Request) {
       let rawLogs: { topics: readonly string[]; data: string; blockNumber: bigint | null }[] = [];
       if (debug) {
         try {
+          // No topic filter — get ALL logs to inspect actual topics
           rawLogs = await client.getLogs({
             address:   curveAddress as `0x${string}`,
-            topics:    [TRADE_TOPIC],
             fromBlock: fromBlock,
             toBlock:   fromBlock + CHUNK_SIZE - 1n < currentBlock ? fromBlock + CHUNK_SIZE - 1n : currentBlock,
           });
