@@ -33,8 +33,10 @@ async function getReserves(
     const tok = tokRaw as bigint;
     const usd = usdcRaw as bigint;
     if (tok === 0n) return null;
-    // price = usdcRaw (6 dec) / tokRaw (18 dec)  →  * 1e12 correction
-    const priceUsd  = Number(usd * 10n ** 12n / tok) / 1e12;
+    // Float division — bigint integer division truncates to 0 for tiny prices
+    const reserveUsdc   = Number(usd) / 1e6;   // USDC (6 dec)
+    const reserveTokens = Number(tok) / 1e18;  // tokens (18 dec)
+    const priceUsd  = reserveUsdc / reserveTokens;
     const marketCap = priceUsd * TOTAL_SUPPLY;
     return { priceUsd, marketCap };
   } catch {
