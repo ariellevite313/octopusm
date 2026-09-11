@@ -16,7 +16,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 export const maxDuration = 60; // 60s max (Vercel Pro/Hobby)
 
 const TRADE_EVENT = parseAbiItem(
-  "event Trade(address indexed trader, bool isBuy, uint256 usdcAmt, uint256 tokenAmt, uint256 fee)",
+  "event Trade(address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens)",
 );
 
 const BLOCK_TIME_SEC = 2; // Arc testnet approximate block time
@@ -148,10 +148,10 @@ export async function GET(req: Request) {
     };
 
     const trades: Trade[] = logs
-      .filter(l => l.args?.usdcAmt !== undefined && l.args?.tokenAmt !== undefined)
+      .filter(l => l.args?.usdcAmount !== undefined && l.args?.tokenAmount !== undefined)
       .map(l => {
-        const usdcRaw  = BigInt(l.args!.usdcAmt!  as bigint);
-        const tokRaw   = BigInt(l.args!.tokenAmt! as bigint);
+        const usdcRaw  = BigInt(l.args!.usdcAmount!  as bigint);
+        const tokRaw   = BigInt(l.args!.tokenAmount! as bigint);
         const usdcAmt  = Number(usdcRaw) / 1e6;
         const tokenAmt = Number(tokRaw)  / 1e18;
         // Divide in bigint space to preserve precision for large token amounts
