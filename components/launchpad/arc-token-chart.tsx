@@ -3,13 +3,12 @@
 /**
  * ArcTokenChart — Price chart for Arc BondingCurve tokens.
  *
- * Source: on-chain Trade events via /api/launchpad/arc-trades
- * Library: recharts (already installed)
- * Display: area price chart + optional buy/sell trade markers
- * Timeframes: ALL / 1H / 6H / 1D
+ * Source : on-chain Trade events via /api/launchpad/arc-trades
+ * Modes  : Line (recharts AreaChart) + Candlestick (lightweight-charts)
+ * OHLCV  : built from individual trade timestamps + prices
  */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -19,7 +18,7 @@ import {
   ResponsiveContainer,
   ReferenceDot,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingUp, CandlestickChart } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,19 +31,16 @@ type Trade = {
   txHash:    string;
 };
 
-type Point = {
-  time:    number;     // unix seconds
-  price:   number;
-  isBuy?:  boolean;
-};
+type Point = { time: number; price: number; isBuy?: boolean };
+type Bar   = { time: number; open: number; high: number; low: number; close: number };
+type TfKey      = "ALL" | "1D" | "6H" | "1H";
+type ChartMode  = "line" | "candle";
 
-type TfKey = "ALL" | "1D" | "6H" | "1H";
-
-const TIMEFRAMES: { key: TfKey; label: string; seconds: number }[] = [
-  { key: "ALL", label: "ALL", seconds: Infinity  },
-  { key: "1D",  label: "1D",  seconds: 86400     },
-  { key: "6H",  label: "6H",  seconds: 21600     },
-  { key: "1H",  label: "1H",  seconds: 3600      },
+const TIMEFRAMES: { key: TfKey; label: string; seconds: number; bucketSec: number }[] = [
+  { key: "ALL", label: "ALL", seconds: Infinity, bucketSec: 3600  },
+  { key: "1D",  label: "1D",  seconds: 86400,   bucketSec: 900   },
+  { key: "6H",  label: "6H",  seconds: 21600,   bucketSec: 300   },
+  { key: "1H",  label: "1H",  seconds: 3600,    bucketSec: 60    },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,7 +59,25 @@ function fmtTime(unix: number, range: number): string {
   return d.toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// ── Custom tooltip ────────────────────────────────────────────────────────────
+/** Aggregate trade list into OHLCV bars using bucket size in seconds */
+function buildOHLCV(trades: Trade[], bucketSec: number): Bar[] {
+  if (!trades.length) return [];
+  const map = new Map<number, Bar>();
+  for (const t of trades) {
+    const bucket = Math.floor(t.timestamp / bucketSec) * bucketSec;
+    const existing = map.get(bucket);
+    if (!existing) {
+      map.set(bucket, { time: bucket, open: t.price, high: t.price, low: t.price, close: t.price });
+    } else {
+      existing.high  = Math.max(existing.high,  t.price);
+      existing.low   = Math.min(existing.low,   t.price);
+      existing.close = t.price;
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.time - b.time);
+}
+
+// ── Custom line tooltip ───────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload }: any) {
@@ -83,6 +97,91 @@ function ChartTooltip({ active, payload }: any) {
   );
 }
 
+// ── Candlestick chart (lightweight-charts) ────────────────────────────────────
+
+function CandleChart({ bars, isPositive }: { bars: Bar[]; isPositive: boolean }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chartRef   = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const seriesRef  = useRef<any>(null);
+
+  // Create chart on mount
+  useEffect(() => {
+    if (!wrapperRef.current) return;
+    let destroyed = false;
+
+    import("lightweight-charts").then(({ createChart, ColorType }) => {
+      if (destroyed || !wrapperRef.current) return;
+
+      const upColor   = "#10b981";
+      const downColor = "#ef4444";
+
+      const chart = createChart(wrapperRef.current, {
+        width:  wrapperRef.current.clientWidth,
+        height: 220,
+        layout: {
+          background: { type: ColorType.Solid, color: "transparent" },
+          textColor:  "rgba(156,163,175,0.9)",
+          fontSize:   10,
+        },
+        grid: {
+          vertLines:  { color: "rgba(255,255,255,0.04)" },
+          horzLines:  { color: "rgba(255,255,255,0.04)" },
+        },
+        crosshair:  { mode: 1 },
+        rightPriceScale: { borderVisible: false },
+        timeScale:       { borderVisible: false, timeVisible: true, secondsVisible: false },
+        handleScroll:    true,
+        handleScale:     true,
+      });
+
+      const series = chart.addCandlestickSeries({
+        upColor,
+        downColor,
+        borderUpColor:   upColor,
+        borderDownColor: downColor,
+        wickUpColor:     upColor,
+        wickDownColor:   downColor,
+      });
+
+      chartRef.current  = chart;
+      seriesRef.current = series;
+
+      if (bars.length) series.setData(bars);
+      chart.timeScale().fitContent();
+
+      // Resize observer
+      const ro = new ResizeObserver(entries => {
+        if (chartRef.current && entries[0]) {
+          chartRef.current.applyOptions({ width: entries[0].contentRect.width });
+        }
+      });
+      ro.observe(wrapperRef.current);
+
+      return () => { ro.disconnect(); };
+    });
+
+    return () => {
+      destroyed = true;
+      chartRef.current?.remove();
+      chartRef.current  = null;
+      seriesRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update data when bars change
+  useEffect(() => {
+    if (seriesRef.current && bars.length) {
+      seriesRef.current.setData(bars);
+      chartRef.current?.timeScale().fitContent();
+    }
+  }, [bars, isPositive]);
+
+  return <div ref={wrapperRef} className="w-full" style={{ height: 220 }} />;
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -94,17 +193,18 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
-  const [trades,    setTrades]    = useState<Trade[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [activeTf,  setActiveTf]  = useState<TfKey>("ALL");
+  const [trades,     setTrades]     = useState<Trade[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+  const [activeTf,   setActiveTf]   = useState<TfKey>("ALL");
+  const [mode,       setMode]       = useState<ChartMode>("line");
   const [showTrades, setShowTrades] = useState(true);
 
-  // ── Fetch ────────────────────────────────────────────────────────────────────
+  // ── Fetch ──────────────────────────────────────────────────────────────────
 
   const fetchTrades = useCallback(async () => {
     try {
-      const res = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=500`);
+      const res  = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=500`);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json() as { trades?: Trade[]; error?: string };
       if (data.error) throw new Error(data.error);
@@ -123,26 +223,31 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
     return () => clearInterval(id);
   }, [fetchTrades]);
 
-  // ── Filter by timeframe ───────────────────────────────────────────────────────
+  // ── Filter by timeframe ────────────────────────────────────────────────────
+
+  const tfConfig = TIMEFRAMES.find(t => t.key === activeTf)!;
 
   const filtered = useMemo(() => {
-    const tf = TIMEFRAMES.find(t => t.key === activeTf)!;
-    if (tf.seconds === Infinity) return trades;
-    const cutoff = Date.now() / 1000 - tf.seconds;
+    if (tfConfig.seconds === Infinity) return trades;
+    const cutoff = Date.now() / 1000 - tfConfig.seconds;
     return trades.filter(t => t.timestamp >= cutoff);
-  }, [trades, activeTf]);
+  }, [trades, activeTf, tfConfig.seconds]);
 
-  // ── Build chart data ──────────────────────────────────────────────────────────
+  // ── Build line data ────────────────────────────────────────────────────────
 
   const points: Point[] = useMemo(() =>
     filtered.map(t => ({ time: t.timestamp, price: t.price, isBuy: t.isBuy })),
     [filtered],
   );
 
-  // ── Derived stats ─────────────────────────────────────────────────────────────
+  // ── Build OHLCV bars ───────────────────────────────────────────────────────
 
-  const latestPrice   = points.at(-1)?.price ?? null;
-  const firstPrice    = points[0]?.price ?? null;
+  const bars = useMemo(() => buildOHLCV(filtered, tfConfig.bucketSec), [filtered, tfConfig.bucketSec]);
+
+  // ── Derived stats ──────────────────────────────────────────────────────────
+
+  const latestPrice    = points.at(-1)?.price ?? null;
+  const firstPrice     = points[0]?.price ?? null;
   const priceChangePct = latestPrice && firstPrice && firstPrice > 0
     ? ((latestPrice - firstPrice) / firstPrice) * 100
     : null;
@@ -152,15 +257,13 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
     ? filtered.at(-1)!.timestamp - filtered[0]!.timestamp
     : 3600;
 
-  // Y domain with 10% padding
-  const prices  = points.map(p => p.price).filter(Boolean);
+  const prices   = points.map(p => p.price).filter(Boolean);
   const minPrice = prices.length ? Math.min(...prices) : 0;
   const maxPrice = prices.length ? Math.max(...prices) : 1;
   const pad      = (maxPrice - minPrice) * 0.1 || maxPrice * 0.1;
+  const gradId   = isPositive ? "arcGreenGrad" : "arcRedGrad";
 
-  const gradId = isPositive ? "arcGreenGrad" : "arcRedGrad";
-
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -211,6 +314,32 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
           <p className="text-xs text-muted-foreground">{ticker ?? "Token"} · Arc Testnet · {points.length} trades</p>
         </div>
 
+        {/* Chart mode toggle */}
+        <div className="flex items-center gap-1 mr-1">
+          <button
+            onClick={() => setMode("line")}
+            title="Line chart"
+            className={`p-1.5 rounded-md transition-colors ${
+              mode === "line"
+                ? "bg-orange-500/20 text-orange-400"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <TrendingUp className="size-3.5" />
+          </button>
+          <button
+            onClick={() => setMode("candle")}
+            title="Candlestick chart"
+            className={`p-1.5 rounded-md transition-colors ${
+              mode === "candle"
+                ? "bg-orange-500/20 text-orange-400"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CandlestickChart className="size-3.5" />
+          </button>
+        </div>
+
         {/* Timeframe pills */}
         <div className="flex gap-1">
           {TIMEFRAMES.map(tf => (
@@ -231,77 +360,83 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
 
       {/* ── Chart ── */}
       <div className="px-1 pb-2">
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="arcGreenGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#10b981" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0}   />
-              </linearGradient>
-              <linearGradient id="arcRedGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#ef4444" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0}   />
-              </linearGradient>
-            </defs>
-
-            <XAxis
-              dataKey="time"
-              tickFormatter={t => fmtTime(t as number, timeRange)}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              axisLine={false}
-              tickLine={false}
-              minTickGap={60}
-            />
-            <YAxis
-              domain={[Math.max(0, minPrice - pad), maxPrice + pad]}
-              tickFormatter={v => fmtPrice(v as number)}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              axisLine={false}
-              tickLine={false}
-              width={72}
-            />
-            <Tooltip content={<ChartTooltip />} />
-
-            <Area
-              type="monotone"
-              dataKey="price"
-              stroke={isPositive ? "#10b981" : "#ef4444"}
-              strokeWidth={2}
-              fill={`url(#${gradId})`}
-              dot={false}
-              activeDot={{ r: 4, fill: isPositive ? "#10b981" : "#ef4444", strokeWidth: 0 }}
-              isAnimationActive={false}
-            />
-
-            {/* Buy / sell dots */}
-            {showTrades && points.map((p, i) =>
-              p.isBuy !== undefined ? (
-                <ReferenceDot
-                  key={i}
-                  x={p.time}
-                  y={p.price}
-                  r={3}
-                  fill={p.isBuy ? "#10b981" : "#ef4444"}
-                  stroke="none"
-                />
-              ) : null,
-            )}
-          </AreaChart>
-        </ResponsiveContainer>
+        {mode === "line" ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="arcGreenGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0}   />
+                </linearGradient>
+                <linearGradient id="arcRedGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity={0}   />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="time"
+                tickFormatter={t => fmtTime(t as number, timeRange)}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                minTickGap={60}
+              />
+              <YAxis
+                domain={[Math.max(0, minPrice - pad), maxPrice + pad]}
+                tickFormatter={v => fmtPrice(v as number)}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={72}
+              />
+              <Tooltip content={<ChartTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="price"
+                stroke={isPositive ? "#10b981" : "#ef4444"}
+                strokeWidth={2}
+                fill={`url(#${gradId})`}
+                dot={false}
+                activeDot={{ r: 4, fill: isPositive ? "#10b981" : "#ef4444", strokeWidth: 0 }}
+                isAnimationActive={false}
+              />
+              {showTrades && points.map((p, i) =>
+                p.isBuy !== undefined ? (
+                  <ReferenceDot
+                    key={i}
+                    x={p.time}
+                    y={p.price}
+                    r={3}
+                    fill={p.isBuy ? "#10b981" : "#ef4444"}
+                    stroke="none"
+                  />
+                ) : null,
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <CandleChart key={activeTf} bars={bars} isPositive={isPositive} />
+        )}
       </div>
 
       {/* ── Footer ── */}
       <div className="px-4 pb-3 flex items-center justify-between">
-        <button
-          onClick={() => setShowTrades(s => !s)}
-          className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
-            showTrades
-              ? "border-orange-500/40 text-orange-400"
-              : "border-border text-muted-foreground"
-          }`}
-        >
-          {showTrades ? "● Trades on" : "○ Trades off"}
-        </button>
+        {mode === "line" ? (
+          <button
+            onClick={() => setShowTrades(s => !s)}
+            className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+              showTrades
+                ? "border-orange-500/40 text-orange-400"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            {showTrades ? "● Trades on" : "○ Trades off"}
+          </button>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">
+            {bars.length} candle{bars.length !== 1 ? "s" : ""} · {tfConfig.bucketSec / 60}m bucket
+          </span>
+        )}
         <span className="text-[10px] text-muted-foreground/40">On-chain · Arc Testnet</span>
       </div>
     </div>
