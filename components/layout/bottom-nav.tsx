@@ -7,7 +7,7 @@ import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Trophy, Rocket,
 import { useAuth } from "@/providers/auth-provider";
 
 const PREDICT_NAV = [
-  { label: "Markets",     href: "/",                        icon: BarChart2,  exact: true  },
+  { label: "Markets",     href: "/prediction",              icon: BarChart2,  exact: true  },
   { label: "Leaderboard", href: "/leaderboard/predictions", icon: Trophy,     exact: false },
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
 ];
