@@ -15,7 +15,8 @@ const NAV_LINKS = [
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
 function isActive(href: string, pathname: string) {
-  if (href === "/") return pathname === "/";
+  // "/" is now the launchpad homepage
+  if (href === "/launchpad") return pathname === "/" || pathname === "/launchpad" || pathname.startsWith("/launchpad/");
   return pathname === href || pathname.startsWith(href + "/");
 }
 

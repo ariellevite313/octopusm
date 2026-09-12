@@ -170,9 +170,11 @@ export function BottomNav() {
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: isPhantom ? '90px' : 'env(safe-area-inset-bottom, 0px)' }}>
         {navItems.map(({ label, href, icon: Icon, exact }) => {
+          // Treat "/" as "/launchpad" for active-state purposes (homepage = launchpad)
+          const effectivePath = pathname === "/" ? "/launchpad" : pathname;
           const active = exact
-            ? pathname === href
-            : pathname === href || pathname.startsWith(href + "/");
+            ? effectivePath === href
+            : effectivePath === href || effectivePath.startsWith(href + "/");
           return (
             <Link
               key={href}
