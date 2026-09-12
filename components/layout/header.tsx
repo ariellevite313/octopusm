@@ -8,7 +8,7 @@ import { Menu, X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 
 const NAV_LINKS = [
-  { href: "/",                        label: "Markets",     badge: undefined, disabled: false },
+  { href: "/prediction",              label: "Markets",     badge: undefined, disabled: false },
   { href: "/leaderboard/predictions", label: "Leaderboard", badge: undefined, disabled: false },
   { href: "/launchpad",               label: "Launchpad",   badge: undefined, disabled: false },
   { href: "/archive",                 label: "Archive",     badge: undefined, disabled: false },

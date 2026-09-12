@@ -51,7 +51,7 @@ export function Footer() {
             </p>
             <ul className="space-y-1">
               {[
-                { href: "/",              icon: "ti-chart-bar",    label: "Markets",     internal: true },
+                { href: "/prediction",    icon: "ti-chart-bar",    label: "Markets",     internal: true },
                 { href: "/launchpad",     icon: "ti-rocket",       label: "Launchpad",   internal: true },
                 { href: "/leaderboard",   icon: "ti-trophy",       label: "Leaderboard", internal: true },
                 { href: "/faq",           icon: "ti-help-circle",  label: "FAQ",         internal: true },
