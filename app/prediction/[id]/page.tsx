@@ -56,7 +56,7 @@ export default async function PredictionPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <Link
-        href="/"
+        href="/prediction"
         className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
