@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
     return config;
   },
 
+  // Rewrite silencieux : / → /launchpad (URL reste /)
+  async rewrites() {
+    return [
+      { source: "/", destination: "/launchpad" },
+    ];
+  },
+
   // Headers de securite
   async headers() {
     return [
