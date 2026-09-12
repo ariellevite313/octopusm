@@ -8,9 +8,9 @@ type Props = { categories: string[] };
 export function CategoryNavWrapper({ categories }: Props) {
   const pathname = usePathname();
 
-  // Affiche uniquement sur les pages market
+  // Affiche uniquement sur les pages market (pas sur la homepage = launchpad)
   const isMarketPage =
-    pathname === "/" ||
+    pathname === "/prediction" ||
     categories.some((c) => pathname === `/${c}` || pathname.startsWith(`/${c}/`)) ||
     pathname.startsWith("/market") ||
     pathname.startsWith("/updown") ||
