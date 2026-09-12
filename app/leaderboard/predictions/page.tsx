@@ -14,7 +14,7 @@ export default function PredictionsLeaderboardPage() {
 
       {/* Back */}
       <Link
-        href="/"
+        href="/prediction"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="size-4" />

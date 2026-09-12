@@ -11,7 +11,7 @@ export function CategoryNav({ categories, active }: Props) {
     <nav className="mb-6 border-b border-border bg-card">
       <div className="mx-auto flex max-w-7xl gap-6 overflow-x-auto px-4 scrollbar-hide [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         <Link
-          href="/"
+          href="/prediction"
           className={`shrink-0 py-3 text-sm font-medium transition-colors ${
             active === "all"
               ? "text-orange-500"

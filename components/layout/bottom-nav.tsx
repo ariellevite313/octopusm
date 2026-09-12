@@ -161,7 +161,7 @@ export function BottomNav() {
 
   if (!mounted) return null;
 
-  const isLaunchpad = pathname === "/launchpad" || pathname.startsWith("/launchpad/") || pathname.startsWith("/dashboard/launchpad") || pathname === "/leaderboard/launchpad";
+  const isLaunchpad = pathname === "/" || pathname === "/launchpad" || pathname.startsWith("/launchpad/") || pathname.startsWith("/dashboard/launchpad") || pathname === "/leaderboard/launchpad";
   const navItems = isLaunchpad ? LAUNCHPAD_NAV : PREDICT_NAV;
 
   return (
