@@ -12,6 +12,7 @@ const PUBLIC_NAV_LINKS = [
   { href: "/launchpad",              label: "Tokens"       },
   { href: "/launchpad/create",       label: "+ Launch"     },
   { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
+  { href: "/prediction",             label: "Predictions"  },
 ];
 
 const AUTH_NAV_LINKS = [
@@ -19,6 +20,7 @@ const AUTH_NAV_LINKS = [
   { href: "/launchpad/create",       label: "+ Launch"     },
   { href: "/dashboard/launchpad",    label: "My tokens"    },
   { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
+  { href: "/prediction",             label: "Predictions"  },
 ];
 
 const MOBILE_EXTRA_LINKS: never[] = [];
@@ -53,14 +55,6 @@ export function LaunchpadHeader() {
 
           {/* Nav desktop */}
           <nav className="hidden items-center gap-6 text-sm md:flex">
-            {/* Back link */}
-            <Link
-              href="/"
-              className="flex items-center gap-1 text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground border-r border-border pr-6"
-            >
-              ← Predictions
-            </Link>
-
             {NAV_LINKS.map(({ href, label }) => (
               <Link
                 key={href}
@@ -109,14 +103,6 @@ export function LaunchpadHeader() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {/* Back */}
-              <Link
-                href="/"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2 rounded-xl px-4 py-3 text-xs text-muted-foreground/50 hover:text-muted-foreground border-b border-border mb-1 transition-colors"
-              >
-                ← Predictions
-              </Link>
               {NAV_LINKS.map(({ href, label }) => (
                 <Link
                   key={href}
