@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Header } from "./header";
 import { LaunchpadHeader } from "@/components/launchpad/launchpad-header";
 
-const LAUNCHPAD_PATHS = ["/launchpad", "/dashboard/launchpad"];
+const LAUNCHPAD_PATHS = ["/", "/launchpad", "/dashboard/launchpad"];
 
 export function HeaderSwitch() {
   const pathname = usePathname();
