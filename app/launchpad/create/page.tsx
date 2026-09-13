@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { createAdminClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { CreatePageClient } from "./create-page-client";
 
 export const metadata: Metadata = {
@@ -11,6 +12,12 @@ export const metadata: Metadata = {
 type Props = { searchParams: Promise<{ from?: string }> };
 
 export default async function CreateTokenPage({ searchParams }: Props) {
+  // Guard — redirect to launchpad if not authenticated
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = await createClient() as any;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/launchpad?connect=1");
+
   const { from } = await searchParams;
 
   let initialData: Record<string, unknown> | undefined;

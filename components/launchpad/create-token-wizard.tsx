@@ -520,18 +520,13 @@ function StepArcOptions({
             <p className="text-sm font-semibold text-foreground">💵 USDC Meme</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Classic. Buy/sell with USDC.</p>
           </button>
-          <button
-            type="button"
-            onClick={() => { set("arc_token_type", "stock"); if (!data.arc_stock_symbol) selectStock("xNVDA"); }}
-            className={`rounded-xl border p-3 text-left transition-colors ${
-              data.arc_token_type === "stock"
-                ? "border-orange-500 bg-orange-500/5"
-                : "border-border hover:border-muted-foreground/40"
-            }`}
-          >
+          <div className="relative rounded-xl border border-border p-3 text-left opacity-50 cursor-not-allowed select-none">
+            <span className="absolute top-2 right-2 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-400 border border-orange-500/30">
+              Soon
+            </span>
             <p className="text-sm font-semibold text-foreground">📈 Stock-Paired</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Paired with a tokenized stock.</p>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -960,7 +955,8 @@ export function CreateTokenWizard({
     // 7. Call createToken() ou createStockPairedToken() selon le type
     toast.info("Sending transaction to Arc…");
 
-    const isStockPaired = data.arc_token_type === "stock" && !!data.arc_quote_asset;
+    // Stock-paired is disabled until xStocks launches on Arc
+    const isStockPaired = false;
 
     let txHash: `0x${string}`;
     if (isStockPaired) {

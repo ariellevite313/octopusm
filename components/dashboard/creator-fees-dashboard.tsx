@@ -18,6 +18,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import type { CreatorStatsResponse } from "@/app/api/dashboard/creator-stats/route";
 import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/pending-fees/route";
+import { ArcCreatorFees } from "@/components/dashboard/arc-creator-fees";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -379,6 +380,9 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
           ))}
         </div>
       )}
+
+      {/* ── Arc tokens fees ─────────────────────────────────────────────── */}
+      <ArcCreatorFees />
 
     </div>
   );
