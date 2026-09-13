@@ -433,8 +433,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
 
       setAmount("");
       setEstimatedOut(null);
-      setTimeout(() => void loadBalances(), 2000);
-      setTimeout(() => void loadState(),    2500);
+      // Refresh balances + bonding curve state — retry a few times in case the block isn't indexed yet
+      [1500, 3000, 6000].forEach(ms => setTimeout(() => void loadBalances(), ms));
+      [2000, 4000, 8000].forEach(ms => setTimeout(() => void loadState(),    ms));
 
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Échec de la transaction";
@@ -662,6 +663,17 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
             ))}
           </div>
         </div>
+
+        {/* Fee breakdown */}
+        {amount && parseFloat(amount) > 0 && direction === "buy" && (
+          <div className="flex items-center justify-between px-1 pt-0.5">
+            <span className="text-[11px] text-muted-foreground">Fee (2%)</span>
+            <span className="text-[11px] text-muted-foreground">
+              ~{(parseFloat(amount) * 0.02).toFixed(4)} {quoteSymbol}
+              <span className="opacity-50 ml-1">(1% creator · 1% platform)</span>
+            </span>
+          </div>
+        )}
 
         {error && <p className="text-[11px] text-red-400 text-center">{error}</p>}
 
