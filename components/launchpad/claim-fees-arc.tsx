@@ -201,7 +201,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
       </button>
 
       <p className="text-[10px] text-center text-muted-foreground/40">
-        1% de chaque trade vous revient en USDC
+        1% of every trade goes to you in USDC
       </p>
     </div>
   );

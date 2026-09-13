@@ -67,6 +67,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This name or ticker is reserved" }, { status: 409 });
     }
 
+    // Stock-paired disabled until xStocks launches on Arc
+    if (payload.quote_asset || payload.stock_symbol) {
+      return NextResponse.json({ error: "Stock-paired tokens are not available yet" }, { status: 403 });
+    }
+
     const { nameAvailable, tickerAvailable } = await checkNameAvailability(payload.name, payload.ticker);
     if (!nameAvailable)   return NextResponse.json({ error: "Name is already taken" }, { status: 409 });
     if (!tickerAvailable) return NextResponse.json({ error: "Ticker is already taken" }, { status: 409 });

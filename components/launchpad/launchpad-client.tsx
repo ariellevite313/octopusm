@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -392,6 +393,14 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
   const [total,      setTotal]      = useState(initialTotal);
   const [totalPages, setTotalPages] = useState(Math.ceil(initialTotal / LIMIT));
   const [loading,    setLoading]    = useState(false);
+
+  // Open wallet connect modal if redirected from /launchpad/create unauthenticated
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("connect") === "1") {
+      window.dispatchEvent(new CustomEvent("open-wallet-connect"));
+    }
+  }, [searchParams]);
 
   // Watchlist
   const { walletAddress }               = useAuth();

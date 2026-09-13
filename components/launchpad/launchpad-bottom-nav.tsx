@@ -45,6 +45,19 @@ export function LaunchpadBottomNav() {
                 !pathname.startsWith("/launchpad/coming-soon"))
             : pathname === href || pathname.startsWith(href + "/");
 
+        const isLaunch = href === "/launchpad/create";
+        if (isLaunch && !isAuthenticated) {
+          return (
+            <button
+              key={href}
+              onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors text-muted-foreground hover:text-foreground`}
+            >
+              <Icon className="size-5" strokeWidth={1.75} />
+              <span>{label}</span>
+            </button>
+          );
+        }
         return (
           <Link
             key={href}

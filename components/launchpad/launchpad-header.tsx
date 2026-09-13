@@ -55,19 +55,33 @@ export function LaunchpadHeader() {
 
           {/* Nav desktop */}
           <nav className="hidden items-center gap-6 text-sm md:flex">
-            {NAV_LINKS.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`transition-colors hover:text-foreground ${
-                  isActive(href, pathname)
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
+            {NAV_LINKS.map(({ href, label }) => {
+              const isLaunch = href === "/launchpad/create";
+              if (isLaunch && !isAuthenticated) {
+                return (
+                  <button
+                    key={href}
+                    onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+                    className="transition-colors hover:text-foreground text-muted-foreground"
+                  >
+                    {label}
+                  </button>
+                );
+              }
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`transition-colors hover:text-foreground ${
+                    isActive(href, pathname)
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Right */}
@@ -103,20 +117,34 @@ export function LaunchpadHeader() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {NAV_LINKS.map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-colors hover:bg-muted ${
-                    isActive(href, pathname)
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </Link>
-              ))}
+              {NAV_LINKS.map(({ href, label }) => {
+                const isLaunch = href === "/launchpad/create";
+                if (isLaunch && !isAuthenticated) {
+                  return (
+                    <button
+                      key={href}
+                      onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-wallet-connect")); }}
+                      className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground w-full text-left"
+                    >
+                      {label}
+                    </button>
+                  );
+                }
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-colors hover:bg-muted ${
+                      isActive(href, pathname)
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
               {[...MOBILE_EXTRA_LINKS].map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
