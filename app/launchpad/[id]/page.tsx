@@ -194,7 +194,7 @@ export default async function TokenDetailPage({ params }: Props) {
   ]);
   if (!token) notFound();
 
-  const isCreator = walletAddress === token.creator_wallet;
+  const isCreator = !!walletAddress && walletAddress.toLowerCase() === token.creator_wallet?.toLowerCase();
 
 
   const initialComments = await getInitialComments(token.id, walletAddress);
