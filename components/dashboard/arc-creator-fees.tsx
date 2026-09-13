@@ -131,7 +131,7 @@ export function ArcCreatorFees() {
     }
   }
 
-  if (!isAuthenticated || selectedChain !== "arc") return null;
+  if (!isAuthenticated) return null;
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin" /> Loading Arc tokens…
@@ -177,19 +177,25 @@ export function ArcCreatorFees() {
           </div>
 
           {/* Claim button */}
-          <button
-            onClick={() => void handleClaim(idx)}
-            disabled={token.claiming || !token.accrued || token.accrued === 0n}
-            className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 ${
-              token.claiming || !token.accrued || token.accrued === 0n
-                ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-orange-500 hover:bg-orange-400 text-white"
-            }`}
-          >
-            {token.claiming
-              ? <Loader2 className="size-3.5 animate-spin" />
-              : "Claim"}
-          </button>
+          {selectedChain !== "arc" ? (
+            <span className="text-[10px] text-muted-foreground text-right shrink-0">
+              Connect<br />MetaMask
+            </span>
+          ) : (
+            <button
+              onClick={() => void handleClaim(idx)}
+              disabled={token.claiming || !token.accrued || token.accrued === 0n}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 ${
+                token.claiming || !token.accrued || token.accrued === 0n
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-400 text-white"
+              }`}
+            >
+              {token.claiming
+                ? <Loader2 className="size-3.5 animate-spin" />
+                : "Claim"}
+            </button>
+          )}
         </div>
       ))}
     </div>

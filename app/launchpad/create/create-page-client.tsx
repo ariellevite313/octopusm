@@ -13,13 +13,20 @@ export function CreatePageClient({
 }: {
   initialData?: Record<string, unknown>;
 }) {
-  const { selectedChain } = useAuth();
+  const { selectedChain, isAuthenticated } = useAuth();
   const [chain, setChain] = useState<Chain>(selectedChain === "arc" ? "arc" : "solana");
 
   // Sync automatique quand le wallet connecté change
   useEffect(() => {
     setChain(selectedChain === "arc" ? "arc" : "solana");
   }, [selectedChain]);
+
+  // Guard client-side — ouvre le modal wallet si non connecté
+  useEffect(() => {
+    if (!isAuthenticated) {
+      window.dispatchEvent(new CustomEvent("open-wallet-connect"));
+    }
+  }, [isAuthenticated]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
