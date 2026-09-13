@@ -39,10 +39,13 @@ type CreatePayload = {
   creator_wallet: string;
   // Arc EVM fields (arc_token_address stocké dans mint_address)
   chain?: "solana" | "arc";
-  arc_token_address?: string; // adresse ERC-20, stockée dans mint_address
+  arc_token_address?: string;
   arc_launch_id?: string;
   arc_tx_hash?: string;
   arc_creation_block?: number | null;
+  // Stock-paired
+  quote_asset?: string | null;
+  stock_symbol?: string | null;
 };
 
 export async function POST(req: Request) {
@@ -195,6 +198,8 @@ export async function POST(req: Request) {
           arc_launch_id:      payload.arc_launch_id ?? null,
           arc_tx_hash:        payload.arc_tx_hash ?? null,
           arc_creation_block: payload.arc_creation_block ?? null,
+          quote_asset:        payload.quote_asset ?? null,
+          stock_symbol:       payload.stock_symbol ?? null,
         } : {}),
       })
       .select("id")

@@ -15,7 +15,17 @@ import {
   ARC_FACTORY_ADDRESS, FACTORY_ABI,
   ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
   ARC_TREASURY_ADDRESS, ARC_CREATION_FEE_USDC,
+  ARC_XSTOCK_ADDRESSES,
 } from "@/lib/arc-launchpad";
+
+// ─── xStock catalogue (mock testnet) ────────────────────────────────────────
+const XSTOCK_CATALOG = [
+  { symbol: "xNVDA", name: "Nvidia",       ticker: "NVDA", emoji: "🟢" },
+  { symbol: "xTSLA", name: "Tesla",        ticker: "TSLA", emoji: "⚡" },
+  { symbol: "xMSTR", name: "MicroStrategy",ticker: "MSTR", emoji: "🟠" },
+  { symbol: "xAAPL", name: "Apple",        ticker: "AAPL", emoji: "🍎" },
+  { symbol: "xSPY",  name: "S&P 500 ETF", ticker: "SPY",  emoji: "📈" },
+] as const;
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -46,9 +56,13 @@ type WizardData = {
   is_scheduled: boolean;
   scheduled_at: string;
   // Étape 3 — Options Arc
-  arc_supply: number;          // nombre de tokens (ex: 1_000_000_000)
+  arc_supply: number;
   arc_first_buy_enabled: boolean;
-  arc_first_buy_usdc: number;  // montant USDC pour le premier achat
+  arc_first_buy_usdc: number;
+  // Stock-paired
+  arc_token_type: "usdc" | "stock";
+  arc_stock_symbol: string;      // ex: "xNVDA"
+  arc_quote_asset: `0x${string}`; // adresse ERC-20 du stock
 };
 
 const INITIAL: WizardData = {
@@ -63,6 +77,9 @@ const INITIAL: WizardData = {
   arc_supply: 1_000_000_000,
   arc_first_buy_enabled: false,
   arc_first_buy_usdc: 10,
+  arc_token_type: "usdc",
+  arc_stock_symbol: "xNVDA",
+  arc_quote_asset: "" as `0x${string}`,
 };
 
 const CATEGORIES = ["Meme","Utility","AI","Gaming","DeFi","NFT","x402"];
@@ -476,10 +493,81 @@ function StepArcOptions({
   set: (k: keyof WizardData, v: unknown) => void;
   errors: Record<string, string>;
 }) {
+  const quoteSymbol = data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC";
+
+  function selectStock(sym: string) {
+    const addr = ARC_XSTOCK_ADDRESSES[sym] ?? ("" as `0x${string}`);
+    set("arc_stock_symbol", sym);
+    set("arc_quote_asset", addr);
+  }
+
   return (
     <div className="space-y-5 pt-2">
 
-      {/* First buy en USDC */}
+      {/* Token type selector */}
+      <div>
+        <p className="mb-2 text-sm font-medium text-foreground">Token type</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => set("arc_token_type", "usdc")}
+            className={`rounded-xl border p-3 text-left transition-colors ${
+              data.arc_token_type === "usdc"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <p className="text-sm font-semibold text-foreground">💵 USDC Meme</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Classic. Buy/sell with USDC.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => { set("arc_token_type", "stock"); if (!data.arc_stock_symbol) selectStock("xNVDA"); }}
+            className={`rounded-xl border p-3 text-left transition-colors ${
+              data.arc_token_type === "stock"
+                ? "border-orange-500 bg-orange-500/5"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <p className="text-sm font-semibold text-foreground">📈 Stock-Paired</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Paired with a tokenized stock.</p>
+          </button>
+        </div>
+      </div>
+
+      {/* Stock selector */}
+      {data.arc_token_type === "stock" && (
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">Choose the paired stock</p>
+          <div className="flex flex-wrap gap-2">
+            {XSTOCK_CATALOG.map((s) => (
+              <button
+                key={s.symbol}
+                type="button"
+                onClick={() => selectStock(s.symbol)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  data.arc_stock_symbol === s.symbol
+                    ? "bg-orange-500 text-white"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>{s.emoji}</span>
+                <span>${s.ticker}</span>
+              </button>
+            ))}
+          </div>
+          {data.arc_stock_symbol && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Traders will need <span className="font-semibold text-foreground">{data.arc_stock_symbol}</span> to buy your token.
+            </p>
+          )}
+          {errors.arc_quote_asset && (
+            <p className="mt-1 text-xs text-red-500">{errors.arc_quote_asset}</p>
+          )}
+        </div>
+      )}
+
+      {/* First buy */}
       <div className="rounded-xl border border-border p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -502,12 +590,12 @@ function StepArcOptions({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <input
-                type="number" min={1} max={1000} step={1}
+                type="number" min={1} max={480} step={1}
                 value={data.arc_first_buy_usdc}
                 onChange={(e) => set("arc_first_buy_usdc", Number(e.target.value))}
                 className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
-              <span className="text-sm text-muted-foreground">USDC</span>
+              <span className="text-sm text-muted-foreground">{quoteSymbol}</span>
             </div>
             {errors.arc_first_buy_usdc && (
               <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
@@ -520,7 +608,7 @@ function StepArcOptions({
       <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/10 p-4">
         <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve</p>
         <p className="text-xs text-blue-700 dark:text-blue-400">
-          Linear curve · Graduates at 10,000 USDC raised · 1% platform fee · Fully on-chain via Arc Launchpad contract.
+          Constant-product AMM · Graduates at 4,800 {quoteSymbol} raised · 2% trading fee · Fully on-chain on Arc.
         </p>
       </div>
 
@@ -581,12 +669,14 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Options</p>
         {chain === "arc" ? (
           <>
-            <Row label="Supply" value={`${(data.arc_supply / 1_000_000_000).toFixed(data.arc_supply % 1_000_000_000 === 0 ? 0 : 1)}B tokens`} />
-            <Row label="Bonding curve" value="Linear" />
-            <Row label="Graduation" value="10,000 USDC" />
+            <Row label="Supply" value="1,000,000,000 tokens" />
+            <Row label="Type" value={data.arc_token_type === "stock" ? `Stock-Paired (${data.arc_stock_symbol})` : "USDC Meme"} />
+            <Row label="Bonding curve" value="Constant-product AMM" />
+            <Row label="Graduation" value={`4,800 ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
+            <Row label="Trading fee" value="2%" />
             <Row label="Platform fee" value={`${ARC_CREATION_FEE_USDC} USDC`} highlight />
             {data.arc_first_buy_enabled && (
-              <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
+              <Row label="First buy" value={`${data.arc_first_buy_usdc} ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
             )}
             <Row label="Token address" value="Auto-generated" highlight />
           </>
@@ -867,23 +957,58 @@ export function CreateTokenWizard({
       if (r) break;
     }
 
-    // 7. Call createToken() sur LaunchpadFactory
-    //    La factory déploie un clone BondingCurve, crée l'OMToken,
-    //    et exécute le first buy si firstBuyUsdc > 0.
+    // 7. Call createToken() ou createStockPairedToken() selon le type
     toast.info("Sending transaction to Arc…");
-    const txHash = await walletClient.writeContract({
-      address:  ARC_FACTORY_ADDRESS,
-      abi:      FACTORY_ABI,
-      functionName: "createToken",
-      args: [
-        data.name,
-        data.ticker,
-        "",           // imageUri — vide pour l'instant (logo stocké sur notre CDN)
-        data.description || "",
-        firstBuyUsdcRaw,
-      ],
-      gasPrice: BigInt("20000000000"), // 20 gwei minimum sur Arc
-    });
+
+    const isStockPaired = data.arc_token_type === "stock" && !!data.arc_quote_asset;
+
+    let txHash: `0x${string}`;
+    if (isStockPaired) {
+      // Approuver le quote asset (xStock) pour la factory si first buy
+      if (firstBuyUsdcRaw > 0n) {
+        toast.info(`Approving ${data.arc_stock_symbol} for first buy…`);
+        const approveStock = await walletClient.writeContract({
+          address:      data.arc_quote_asset,
+          abi:          ERC20_APPROVE_ABI,
+          functionName: "approve",
+          args:         [ARC_FACTORY_ADDRESS, firstBuyUsdcRaw * 2n],
+          gasPrice:     BigInt("20000000000"),
+        });
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 3_000));
+          const r = await publicClient.getTransactionReceipt({ hash: approveStock }).catch(() => null);
+          if (r) break;
+        }
+      }
+      txHash = await walletClient.writeContract({
+        address:      ARC_FACTORY_ADDRESS,
+        abi:          FACTORY_ABI,
+        functionName: "createStockPairedToken",
+        args: [
+          data.name,
+          data.ticker,
+          "",
+          data.description || "",
+          data.arc_quote_asset,
+          firstBuyUsdcRaw,
+        ],
+        gasPrice: BigInt("20000000000"),
+      });
+    } else {
+      txHash = await walletClient.writeContract({
+        address:      ARC_FACTORY_ADDRESS,
+        abi:          FACTORY_ABI,
+        functionName: "createToken",
+        args: [
+          data.name,
+          data.ticker,
+          "",
+          data.description || "",
+          firstBuyUsdcRaw,
+        ],
+        gasPrice: BigInt("20000000000"),
+      });
+    }
 
     toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
     toast.info("Waiting for confirmation…");
@@ -896,16 +1021,16 @@ export function CreateTokenWizard({
     }
     if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
 
-    // 6. Extraire curve + token depuis l'event TokenCreated
+    // 6. Extraire curve + token depuis l'event
+    const eventName = isStockPaired ? "StockPairedTokenCreated" : "TokenCreated";
     const logs = parseEventLogs({
       abi:       FACTORY_ABI,
-      eventName: "TokenCreated",
+      eventName,
       logs:      receipt.logs,
     });
-    // curveAddress = adresse du clone BondingCurve = nouvel arc_launch_id
-    const curveAddress        = (logs[0]?.args?.curve ?? "") as string;
-    const arcTokenAddress     = (logs[0]?.args?.token ?? "") as string;
-    const arcCreationBlock    = receipt.blockNumber ? Number(receipt.blockNumber) : null;
+    const curveAddress     = (logs[0]?.args?.curve ?? "") as string;
+    const arcTokenAddress  = (logs[0]?.args?.token ?? "") as string;
+    const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
 
     // 7. Sauvegarder les métadonnées en base
     const form = new FormData();
@@ -918,9 +1043,11 @@ export function CreateTokenWizard({
       supply: 1_000_000_000, // fixe — OMToken mint toujours 1B
       chain: "arc",
       arc_token_address: arcTokenAddress,
-      arc_launch_id: curveAddress,        // adresse du clone BondingCurve (0x...)
+      arc_launch_id: curveAddress,
       arc_tx_hash: txHash,
-      arc_creation_block: arcCreationBlock, // bloc de création pour arc-trades
+      arc_creation_block: arcCreationBlock,
+      quote_asset:   isStockPaired ? data.arc_quote_asset : null,
+      stock_symbol:  isStockPaired ? data.arc_stock_symbol.replace("x", "") : null,
       creator_wallet: account,
       creator_fee_pct: 1,
       fee_recipients: [],

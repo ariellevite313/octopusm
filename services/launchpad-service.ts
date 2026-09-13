@@ -42,6 +42,9 @@ export type LaunchpadToken = {
   chain:          string | null;
   arc_launch_id:  string | null;
   arc_tx_hash:    string | null;
+  // Stock-paired fields (Arc only)
+  quote_asset:    string | null;
+  stock_symbol:   string | null;
 };
 
 export type TokenReservation = {
@@ -78,6 +81,7 @@ const PUBLIC_COLUMNS = [
   "created_at","updated_at",
   "price_usd","market_cap_usd","volume_24h_usd","stats_updated_at",
   "chain","arc_launch_id","arc_tx_hash",
+  "quote_asset","stock_symbol",
 ].join(",");
 
 export type SortOption = "new" | "old" | "verified" | "market_cap_desc" | "market_cap_asc" | "volume";

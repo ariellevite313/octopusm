@@ -142,7 +142,14 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
             </span>
           </div>
         )}
-        {/* Chain badge — bottom-left corner */}
+        {/* Stock-paired badge */}
+        {token.stock_symbol && !isScheduled && (
+          <div className="absolute left-2 top-2">
+            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
+              📈 ${token.stock_symbol}
+            </span>
+          </div>
+        )}
         {/* Chain badge — bottom-left corner */}
         <div className="absolute bottom-2 left-2">
           <Image
@@ -230,6 +237,12 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
             className="rounded-full shrink-0 ring-1 ring-white/10"
             unoptimized
           />
+          {/* Stock-paired badge */}
+          {token.stock_symbol && (
+            <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/30 shrink-0">
+              📈 ${token.stock_symbol}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] text-muted-foreground">${token.ticker}</span>

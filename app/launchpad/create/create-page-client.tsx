@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { CreateTokenWizard } from "@/components/launchpad/create-token-wizard";
 import { useAuth } from "@/providers/auth-provider";
@@ -48,8 +49,7 @@ export function CreatePageClient({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          {/* Solana gradient dot */}
-          <span className="size-3.5 rounded-full bg-gradient-to-br from-[#9945FF] to-[#14F195]" />
+          <Image src="/solana.png" alt="Solana" width={18} height={18} className="rounded-full" unoptimized />
           Solana
         </button>
         <button
@@ -61,7 +61,7 @@ export function CreatePageClient({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <span className="flex size-3.5 items-center justify-center rounded-full bg-blue-500 text-[8px] font-bold text-white">A</span>
+          <Image src="/arc-logo.jpeg" alt="Arc" width={18} height={18} className="rounded-full" unoptimized />
           Arc
           <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
             Testnet

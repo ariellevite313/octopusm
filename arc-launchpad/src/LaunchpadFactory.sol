@@ -5,18 +5,18 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./BondingCurve.sol";
+import "./GenericBondingCurve.sol";
 import "./OMToken.sol";
+import "./WhitelistRegistry.sol";
 
 /**
  * @title LaunchpadFactory
- * @notice Déploie des paires (BondingCurve clone + OMToken) via EIP-1167.
+ * @notice Déploie deux types de meme tokens :
  *
- * Flow createToken :
- *   1. Clone l'implémentation BondingCurve
- *   2. Déploie OMToken (minte au clone)
- *   3. Initialise le clone (references usdc, treasury, router, factory)
- *   4. Si firstBuyUsdc > 0 : transfère l'USDC de l'appelant → this → approve → BondingCurve.buy
- *   5. Émet TokenCreated
+ *   1. createToken()             → USDC-paired (BondingCurve, identique à avant)
+ *   2. createStockPairedToken()  → Stock-paired (GenericBondingCurve, quoteAsset whitelisté)
+ *
+ * Les deux chemins partagent le même OMToken et le même pattern clone EIP-1167.
  */
 contract LaunchpadFactory {
     using SafeERC20 for IERC20;
@@ -24,22 +24,27 @@ contract LaunchpadFactory {
 
     // ─── Configuration immuable ───────────────────────────────────────────
 
-    address public immutable curveImplementation;
+    address public immutable curveImplementation;        // BondingCurve impl (USDC)
+    address public immutable genericCurveImplementation; // GenericBondingCurve impl (any quote)
     address public immutable usdc;
     address public immutable treasury;
     address public immutable uniswapRouter;
     address public immutable uniswapFactory;
+    address public immutable whitelistRegistry;
 
-    /// @dev Plafond first buy (= BondingCurve.MAX_FIRST_BUY = 10 % de GRAD_THRESHOLD)
-    uint256 public constant MAX_FIRST_BUY = 480_000_000; // 480 USDC (6 dec)
+    /// @dev Plafond first buy = 10 % du GRAD_THRESHOLD (480 unités, 6 dec)
+    uint256 public constant MAX_FIRST_BUY = 480_000_000;
 
-    // ─── Stockage des tokens créés ────────────────────────────────────────
+    // ─── Stockage ────────────────────────────────────────────────────────
 
-    /// @notice Tous les tokens dans l'ordre de création
+    /// @notice Toutes les courbes (USDC + stock-paired) dans l'ordre de création
     address[] public allCurves;
 
-    /// @notice Vrai ssi l'adresse est un clone déployé par cette factory
+    /// @notice true si l'adresse est un clone déployé par cette factory
     mapping(address => bool) public isCurve;
+
+    /// @notice Pour les stock-paired : quote asset utilisé par la courbe
+    mapping(address => address) public curveQuoteAsset;
 
     // ─── Events ──────────────────────────────────────────────────────────
 
@@ -54,47 +59,60 @@ contract LaunchpadFactory {
         uint256 firstBuyUsdc
     );
 
+    event StockPairedTokenCreated(
+        address indexed curve,
+        address indexed token,
+        address indexed creator,
+        address quoteAsset,
+        string  name,
+        string  symbol,
+        string  imageUri,
+        string  description,
+        uint256 firstBuyQuote
+    );
+
     // ─── Constructor ─────────────────────────────────────────────────────
 
     /**
-     * @param curveImplementation_ Adresse de l'implémentation BondingCurve (pas un clone)
-     * @param usdc_                USDC ERC-20 sur Arc (0x3600...0000, 6 dec)
-     * @param treasury_            Adresse OM treasury qui reçoit 50 % des fees
-     * @param uniswapRouter_       Uniswap V2 Router sur Arc testnet
-     * @param uniswapFactory_      Uniswap V2 Factory sur Arc testnet
+     * @param curveImplementation_        Adresse impl BondingCurve (USDC-paired)
+     * @param genericCurveImplementation_ Adresse impl GenericBondingCurve (stock-paired)
+     * @param usdc_                       USDC ERC-20 Arc (0x3600…0000, 6 dec)
+     * @param treasury_                   Treasury OM
+     * @param uniswapRouter_              Uniswap V2 Router sur Arc
+     * @param uniswapFactory_             Uniswap V2 Factory sur Arc
+     * @param whitelistRegistry_          WhitelistRegistry des quote assets approuvés
      */
     constructor(
         address curveImplementation_,
+        address genericCurveImplementation_,
         address usdc_,
         address treasury_,
         address uniswapRouter_,
-        address uniswapFactory_
+        address uniswapFactory_,
+        address whitelistRegistry_
     ) {
-        require(curveImplementation_ != address(0), "Factory: zero impl");
-        require(usdc_                != address(0), "Factory: zero usdc");
-        require(treasury_            != address(0), "Factory: zero treasury");
-        require(uniswapRouter_       != address(0), "Factory: zero router");
-        require(uniswapFactory_      != address(0), "Factory: zero factory");
+        require(curveImplementation_        != address(0), "Factory: zero impl");
+        require(genericCurveImplementation_ != address(0), "Factory: zero generic impl");
+        require(usdc_                       != address(0), "Factory: zero usdc");
+        require(treasury_                   != address(0), "Factory: zero treasury");
+        require(uniswapRouter_              != address(0), "Factory: zero router");
+        require(uniswapFactory_             != address(0), "Factory: zero uniswap factory");
+        require(whitelistRegistry_          != address(0), "Factory: zero registry");
 
-        curveImplementation = curveImplementation_;
-        usdc                = usdc_;
-        treasury            = treasury_;
-        uniswapRouter       = uniswapRouter_;
-        uniswapFactory      = uniswapFactory_;
+        curveImplementation        = curveImplementation_;
+        genericCurveImplementation = genericCurveImplementation_;
+        usdc                       = usdc_;
+        treasury                   = treasury_;
+        uniswapRouter              = uniswapRouter_;
+        uniswapFactory             = uniswapFactory_;
+        whitelistRegistry          = whitelistRegistry_;
     }
 
-    // ─── Fonction principale ──────────────────────────────────────────────
+    // ─── 1. USDC-paired (chemin existant) ────────────────────────────────
 
     /**
-     * @notice Crée un nouveau token avec sa courbe de bonding.
-     * @param name          Nom du token
-     * @param symbol        Symbole du token
-     * @param imageUri      URI de l'image (IPFS ou HTTPS)
-     * @param description   Description du projet
-     * @param firstBuyUsdc  USDC bruts à acheter immédiatement (0 = désactivé). 6 dec.
-     *                      Doit être approuvé sur USDC avant l'appel si > 0.
-     * @return curve  Adresse du clone BondingCurve
-     * @return token  Adresse du OMToken
+     * @notice Crée un meme token classique paired avec USDC.
+     *         Comportement identique à l'ancienne factory.
      */
     function createToken(
         string calldata name,
@@ -107,18 +125,11 @@ contract LaunchpadFactory {
         require(bytes(symbol).length > 0, "Factory: empty symbol");
         require(firstBuyUsdc <= MAX_FIRST_BUY, "Factory: first buy too large");
 
-        // 1. Cloner l'implémentation BondingCurve
+        // 1. Cloner BondingCurve
         curve = curveImplementation.clone();
 
-        // 2. Déployer le token (mint intégral au clone)
-        token = address(new OMToken(
-            name,
-            symbol,
-            imageUri,
-            description,
-            curve,
-            msg.sender
-        ));
+        // 2. Déployer OMToken (mint intégral au clone)
+        token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
 
         // 3. Initialiser le clone
         BondingCurve(curve).initialize(
@@ -133,42 +144,90 @@ contract LaunchpadFactory {
         // 4. Enregistrer
         allCurves.push(curve);
         isCurve[curve] = true;
+        curveQuoteAsset[curve] = usdc;
 
         // 5. First buy optionnel
         if (firstBuyUsdc > 0) {
-            // Transférer les USDC du créateur vers la factory
             IERC20(usdc).safeTransferFrom(msg.sender, address(this), firstBuyUsdc);
-            // Approuver le clone
             IERC20(usdc).approve(curve, firstBuyUsdc);
-            // Exécuter le buy — les tokens vont directement au créateur
             BondingCurve(curve).buy(firstBuyUsdc, 0, msg.sender);
-            // Réinitialiser l'allowance par sécurité
             IERC20(usdc).approve(curve, 0);
         }
 
-        emit TokenCreated(
-            curve,
+        emit TokenCreated(curve, token, msg.sender, name, symbol, imageUri, description, firstBuyUsdc);
+    }
+
+    // ─── 2. Stock-paired (nouveau chemin) ────────────────────────────────
+
+    /**
+     * @notice Crée un meme token paired avec un stock tokenisé (xNVDA, xTSLA…).
+     * @param name          Nom du meme token (ex: "NvidiaFrog")
+     * @param symbol        Symbole (ex: "NVFROG")
+     * @param imageUri      URI de l'image
+     * @param description   Description du projet
+     * @param quoteAsset_   Adresse du token xStock (doit être whitelisté)
+     * @param firstBuyQuote Unités de quoteAsset à acheter immédiatement (0 = désactivé, 6 dec)
+     *                      Doit être approuvé sur quoteAsset_ avant l'appel si > 0.
+     */
+    function createStockPairedToken(
+        string calldata name,
+        string calldata symbol,
+        string calldata imageUri,
+        string calldata description,
+        address         quoteAsset_,
+        uint256         firstBuyQuote
+    ) external returns (address curve, address token) {
+        require(bytes(name).length   > 0, "Factory: empty name");
+        require(bytes(symbol).length > 0, "Factory: empty symbol");
+        require(firstBuyQuote <= MAX_FIRST_BUY, "Factory: first buy too large");
+        require(
+            WhitelistRegistry(whitelistRegistry).isWhitelisted(quoteAsset_),
+            "Factory: quote asset not whitelisted"
+        );
+
+        // 1. Cloner GenericBondingCurve
+        curve = genericCurveImplementation.clone();
+
+        // 2. Déployer OMToken (mint intégral au clone)
+        token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
+
+        // 3. Initialiser le clone avec le quoteAsset choisi
+        GenericBondingCurve(curve).initialize(
             token,
             msg.sender,
-            name,
-            symbol,
-            imageUri,
-            description,
-            firstBuyUsdc
+            quoteAsset_,
+            treasury,
+            uniswapRouter,
+            uniswapFactory
+        );
+
+        // 4. Enregistrer
+        allCurves.push(curve);
+        isCurve[curve] = true;
+        curveQuoteAsset[curve] = quoteAsset_;
+
+        // 5. First buy optionnel
+        if (firstBuyQuote > 0) {
+            IERC20(quoteAsset_).safeTransferFrom(msg.sender, address(this), firstBuyQuote);
+            IERC20(quoteAsset_).approve(curve, firstBuyQuote);
+            GenericBondingCurve(curve).buy(firstBuyQuote, 0, msg.sender);
+            IERC20(quoteAsset_).approve(curve, 0);
+        }
+
+        emit StockPairedTokenCreated(
+            curve, token, msg.sender, quoteAsset_,
+            name, symbol, imageUri, description, firstBuyQuote
         );
     }
 
     // ─── View helpers ─────────────────────────────────────────────────────
 
-    /// @notice Nombre total de tokens créés
     function allCurvesLength() external view returns (uint256) {
         return allCurves.length;
     }
 
     /**
      * @notice Retourne une page de courbes dans l'ordre chronologique inverse.
-     * @param offset  Index de départ (0 = plus récent)
-     * @param limit   Nombre maximum d'éléments
      */
     function getCurvesPaginated(uint256 offset, uint256 limit)
         external view
@@ -177,12 +236,20 @@ contract LaunchpadFactory {
         uint256 total = allCurves.length;
         if (offset >= total) return new address[](0);
 
-        uint256 end = total - offset;
+        uint256 end   = total - offset;
         uint256 count = end < limit ? end : limit;
         result = new address[](count);
 
         for (uint256 i = 0; i < count; i++) {
             result[i] = allCurves[end - 1 - i];
         }
+    }
+
+    /**
+     * @notice Vrai si la courbe est un GenericBondingCurve (stock-paired).
+     *         Approximation : quoteAsset != usdc.
+     */
+    function isStockPaired(address curve) external view returns (bool) {
+        return isCurve[curve] && curveQuoteAsset[curve] != usdc;
     }
 }

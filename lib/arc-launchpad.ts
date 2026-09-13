@@ -97,6 +97,15 @@ export const LAUNCHPAD_ABI = [
 // ─── NOUVEAU — LaunchpadFactory (ARC_FACTORY_ADDRESS) ────────────────────────
 // ABI minimal pour créer un token via la factory AMM.
 
+// Adresses des mock xStock tokens (remplir après Deploy.s.sol)
+export const ARC_XSTOCK_ADDRESSES: Record<string, `0x${string}`> = {
+  xNVDA: (process.env.NEXT_PUBLIC_XNVDA_ADDRESS ?? "") as `0x${string}`,
+  xTSLA: (process.env.NEXT_PUBLIC_XTSLA_ADDRESS ?? "") as `0x${string}`,
+  xMSTR: (process.env.NEXT_PUBLIC_XMSTR_ADDRESS ?? "") as `0x${string}`,
+  xAAPL: (process.env.NEXT_PUBLIC_XAAPL_ADDRESS ?? "") as `0x${string}`,
+  xSPY:  (process.env.NEXT_PUBLIC_XSPY_ADDRESS  ?? "") as `0x${string}`,
+};
+
 export const FACTORY_ABI = [
   {
     type: "function",
@@ -126,6 +135,187 @@ export const FACTORY_ABI = [
       { name: "imageUri",     type: "string",  indexed: false, internalType: "string"  },
       { name: "description",  type: "string",  indexed: false, internalType: "string"  },
       { name: "firstBuyUsdc", type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
+  // ─── createStockPairedToken ───────────────────────────────────────────────
+  {
+    type: "function",
+    name: "createStockPairedToken",
+    inputs: [
+      { name: "name",           type: "string",  internalType: "string"  },
+      { name: "symbol",         type: "string",  internalType: "string"  },
+      { name: "imageUri",       type: "string",  internalType: "string"  },
+      { name: "description",    type: "string",  internalType: "string"  },
+      { name: "quoteAsset_",    type: "address", internalType: "address" },
+      { name: "firstBuyQuote",  type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [
+      { name: "curve", type: "address", internalType: "address" },
+      { name: "token", type: "address", internalType: "address" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "StockPairedTokenCreated",
+    inputs: [
+      { name: "curve",          type: "address", indexed: true,  internalType: "address" },
+      { name: "token",          type: "address", indexed: true,  internalType: "address" },
+      { name: "creator",        type: "address", indexed: true,  internalType: "address" },
+      { name: "quoteAsset",     type: "address", indexed: false, internalType: "address" },
+      { name: "name",           type: "string",  indexed: false, internalType: "string"  },
+      { name: "symbol",         type: "string",  indexed: false, internalType: "string"  },
+      { name: "imageUri",       type: "string",  indexed: false, internalType: "string"  },
+      { name: "description",    type: "string",  indexed: false, internalType: "string"  },
+      { name: "firstBuyQuote",  type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
+  // ─── isStockPaired ────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "isStockPaired",
+    inputs: [{ name: "curve", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "curveQuoteAsset",
+    inputs: [{ name: "", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+] as const;
+
+// ─── GenericBondingCurve ABI (stock-paired curves) ────────────────────────────
+
+export const GENERIC_BONDING_CURVE_ABI = [
+  {
+    type: "function",
+    name: "graduated",
+    inputs: [],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "reserveQuote",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "reserveTokens",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "realQuoteRaised",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "quoteAsset",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "spotPrice",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "graduationProgressBps",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "GRAD_THRESHOLD",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "quoteToTokens",
+    inputs: [{ name: "quoteIn", type: "uint256", internalType: "uint256" }],
+    outputs: [
+      { name: "tokensOut", type: "uint256", internalType: "uint256" },
+      { name: "fee",       type: "uint256", internalType: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "tokensToQuote",
+    inputs: [{ name: "tokensIn", type: "uint256", internalType: "uint256" }],
+    outputs: [
+      { name: "quoteOut", type: "uint256", internalType: "uint256" },
+      { name: "fee",      type: "uint256", internalType: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "buy",
+    inputs: [
+      { name: "quoteIn",    type: "uint256", internalType: "uint256" },
+      { name: "minTokens",  type: "uint256", internalType: "uint256" },
+      { name: "recipient",  type: "address", internalType: "address" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "sell",
+    inputs: [
+      { name: "tokensIn",   type: "uint256", internalType: "uint256" },
+      { name: "minQuote",   type: "uint256", internalType: "uint256" },
+      { name: "recipient",  type: "address", internalType: "address" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "creatorFeesAccrued",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "claimFees",
+    inputs: [{ name: "to", type: "address", internalType: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "Trade",
+    inputs: [
+      { name: "trader",         type: "address", indexed: true,  internalType: "address" },
+      { name: "isBuy",          type: "bool",    indexed: false, internalType: "bool"    },
+      { name: "quoteAmount",    type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "tokenAmount",    type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "fee",            type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "realQuoteRaised",type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "reserveQuote",   type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "reserveTokens",  type: "uint256", indexed: false, internalType: "uint256" },
     ],
     anonymous: false,
   },
