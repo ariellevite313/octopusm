@@ -23,6 +23,7 @@ import { PoolRecoveryPrompt } from "@/components/launchpad/pool-recovery-prompt"
 import { ClaimFeesArc } from "@/components/launchpad/claim-fees-arc";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 
 export const revalidate = 30;
@@ -473,6 +474,8 @@ export default async function TokenDetailPage({ params }: Props) {
                 mintAddress={token.mint_address}
                 ticker={token.ticker}
                 logoUrl={token.logo_url ?? undefined}
+                stockSymbol={token.stock_symbol ?? undefined}
+                quoteMintAddress={token.stock_symbol ? (getXStockMint(token.stock_symbol) ?? undefined) : undefined}
               />
             )}
 

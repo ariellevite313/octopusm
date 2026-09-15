@@ -4,8 +4,8 @@
  * Builds a Meteora DBC swap transaction server-side (buy OR sell).
  *
  * Body: { poolAddress, mintAddress, walletAddress, amountIn, slippageBps, swapBaseForQuote }
- *   swapBaseForQuote: false = buy  (SOL → token),  amountIn in lamports (integer)
- *   swapBaseForQuote: true  = sell (token → SOL),  amountIn in raw token units (integer)
+ *   swapBaseForQuote: false = buy  (quote → token),  amountIn in quote raw units (lamports for SOL, token units for xStock)
+ *   swapBaseForQuote: true  = sell (token → quote),  amountIn in raw base token units
  *
  * Response: { txBase64, estimatedOut, amountIn } | { error }
  *   Buy:  estimatedOut = raw token units
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       poolAddress?:      string;
       mintAddress?:      string;
       walletAddress?:    string;
-      amountIn?:         number;   // lamports (buy) OR raw token units (sell) — must be integer ≥ 1
+      amountIn?:         number;   // quote raw units (buy) OR raw base token units (sell) — must be integer ≥ 1
       slippageBps?:      number;
       swapBaseForQuote?: boolean;  // false = buy, true = sell
     };
