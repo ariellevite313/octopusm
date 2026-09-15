@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./BondingCurve.sol";
 import "./GenericBondingCurve.sol";
+import "./V3LPVault.sol";
+import "./FeeDistributor.sol";
 import "./OMToken.sol";
 import "./WhitelistRegistry.sol";
 
@@ -15,10 +17,10 @@ contract LaunchpadFactory {
 
     address public immutable curveImplementation;
     address public immutable genericCurveImplementation;
+    address public immutable vaultImplementation;
+    address public immutable distributorImplementation;
     address public immutable usdc;
     address public immutable treasury;
-    address public immutable uniswapRouter;
-    address public immutable uniswapFactory;
     address public immutable whitelistRegistry;
 
     uint256 public constant MAX_FIRST_BUY = 480_000_000;
@@ -27,58 +29,145 @@ contract LaunchpadFactory {
     mapping(address => bool)    public isCurve;
     mapping(address => address) public curveQuoteAsset;
 
-    event TokenCreated(address indexed curve, address indexed token, address indexed creator, string name, string symbol, string imageUri, string description, uint256 firstBuyUsdc);
-    event StockPairedTokenCreated(address indexed curve, address indexed token, address indexed creator, address quoteAsset, string name, string symbol, string imageUri, string description, uint256 firstBuyQuote);
+    event TokenCreated(
+        address indexed curve,
+        address indexed token,
+        address indexed creator,
+        address vault,
+        address feeDistributor,
+        bool    holderRewards,
+        string  name,
+        string  symbol,
+        string  imageUri,
+        string  description,
+        uint256 firstBuyUsdc
+    );
+    event StockPairedTokenCreated(
+        address indexed curve,
+        address indexed token,
+        address indexed creator,
+        address quoteAsset,
+        string  name,
+        string  symbol,
+        string  imageUri,
+        string  description,
+        uint256 firstBuyQuote
+    );
 
     constructor(
         address curveImplementation_,
         address genericCurveImplementation_,
+        address vaultImplementation_,
+        address distributorImplementation_,
         address usdc_,
         address treasury_,
-        address uniswapRouter_,
-        address uniswapFactory_,
         address whitelistRegistry_
     ) {
-        require(curveImplementation_ != address(0) && genericCurveImplementation_ != address(0) && usdc_ != address(0) && treasury_ != address(0) && uniswapRouter_ != address(0) && uniswapFactory_ != address(0) && whitelistRegistry_ != address(0));
+        require(
+            curveImplementation_        != address(0) &&
+            genericCurveImplementation_ != address(0) &&
+            vaultImplementation_        != address(0) &&
+            distributorImplementation_  != address(0) &&
+            usdc_                       != address(0) &&
+            treasury_                   != address(0) &&
+            whitelistRegistry_          != address(0),
+            "Factory: zero address"
+        );
         curveImplementation        = curveImplementation_;
         genericCurveImplementation = genericCurveImplementation_;
+        vaultImplementation        = vaultImplementation_;
+        distributorImplementation  = distributorImplementation_;
         usdc                       = usdc_;
         treasury                   = treasury_;
-        uniswapRouter              = uniswapRouter_;
-        uniswapFactory             = uniswapFactory_;
         whitelistRegistry          = whitelistRegistry_;
     }
 
-    function createToken(string calldata name, string calldata symbol, string calldata imageUri, string calldata description, uint256 firstBuyUsdc) external returns (address curve, address token) {
-        require(bytes(name).length > 0 && bytes(symbol).length > 0);
+    /**
+     * @notice Crée un token OM avec bonding curve USDC + vault V3.
+     * @param holderRewards_ true → la part creator des fees V3 va au FeeDistributor
+     */
+    function createToken(
+        string calldata name,
+        string calldata symbol,
+        string calldata imageUri,
+        string calldata description,
+        uint256 firstBuyUsdc,
+        bool holderRewards_
+    ) external returns (address curve, address token, address vault_, address distributor_) {
+        require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
         require(firstBuyUsdc <= MAX_FIRST_BUY, "Factory: first buy too large");
-        curve = curveImplementation.clone();
-        token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
-        BondingCurve(curve).initialize(token, msg.sender, usdc, treasury, uniswapRouter, uniswapFactory);
-        allCurves.push(curve); isCurve[curve] = true; curveQuoteAsset[curve] = usdc;
+
+        // Clone tous les contrats d'abord (order matters: vault → distributor → curve → token)
+        vault_       = vaultImplementation.clone();
+        distributor_ = distributorImplementation.clone();
+        curve        = curveImplementation.clone();
+        token        = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
+
+        // Initialize distributor (stakingToken=meme token, vault + curve autorisés à notifyReward)
+        FeeDistributor(distributor_).initialize(token, usdc, vault_, curve);
+
+        // Initialize vault
+        V3LPVault(vault_).initialize(
+            usdc,
+            treasury,
+            msg.sender,
+            holderRewards_,
+            holderRewards_ ? distributor_ : address(0)
+        );
+
+        // Initialize bonding curve avec référence au vault
+        BondingCurve(curve).initialize(token, msg.sender, usdc, treasury, vault_);
+
+        allCurves.push(curve);
+        isCurve[curve] = true;
+        curveQuoteAsset[curve] = usdc;
+
         if (firstBuyUsdc > 0) {
             IERC20(usdc).safeTransferFrom(msg.sender, address(this), firstBuyUsdc);
             IERC20(usdc).approve(curve, firstBuyUsdc);
             BondingCurve(curve).buy(firstBuyUsdc, 0, msg.sender);
             IERC20(usdc).approve(curve, 0);
         }
-        emit TokenCreated(curve, token, msg.sender, name, symbol, imageUri, description, firstBuyUsdc);
+
+        emit TokenCreated(curve, token, msg.sender, vault_, distributor_, holderRewards_, name, symbol, imageUri, description, firstBuyUsdc);
     }
 
-    function createStockPairedToken(string calldata name, string calldata symbol, string calldata imageUri, string calldata description, address quoteAsset_, uint256 firstBuyQuote) external returns (address curve, address token) {
-        require(bytes(name).length > 0 && bytes(symbol).length > 0);
+    /**
+     * @notice Crée un token xStock (quote asset != USDC).
+     *         Le router/factory V3 n'est pas utilisé sur Arc → address(0).
+     */
+    function createStockPairedToken(
+        string calldata name,
+        string calldata symbol,
+        string calldata imageUri,
+        string calldata description,
+        address quoteAsset_,
+        uint256 firstBuyQuote
+    ) external returns (address curve, address token) {
+        require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
         require(firstBuyQuote <= MAX_FIRST_BUY, "Factory: first buy too large");
         require(WhitelistRegistry(whitelistRegistry).isWhitelisted(quoteAsset_), "Factory: quote asset not whitelisted");
+
         curve = genericCurveImplementation.clone();
         token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
-        GenericBondingCurve(curve).initialize(token, msg.sender, quoteAsset_, treasury, uniswapRouter, uniswapFactory);
-        allCurves.push(curve); isCurve[curve] = true; curveQuoteAsset[curve] = quoteAsset_;
+
+        GenericBondingCurve(curve).initialize(
+            token, msg.sender, quoteAsset_, treasury,
+            address(0), // router — non utilisé sur Arc (graduation V3)
+            address(0)  // factory — non utilisé sur Arc (graduation V3)
+        );
+
+        allCurves.push(curve);
+        isCurve[curve] = true;
+        curveQuoteAsset[curve] = quoteAsset_;
+
         if (firstBuyQuote > 0) {
             IERC20(quoteAsset_).safeTransferFrom(msg.sender, address(this), firstBuyQuote);
             IERC20(quoteAsset_).approve(curve, firstBuyQuote);
             GenericBondingCurve(curve).buy(firstBuyQuote, 0, msg.sender);
             IERC20(quoteAsset_).approve(curve, 0);
         }
+
         emit StockPairedTokenCreated(curve, token, msg.sender, quoteAsset_, name, symbol, imageUri, description, firstBuyQuote);
     }
 
