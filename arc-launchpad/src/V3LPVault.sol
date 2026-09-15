@@ -179,15 +179,17 @@ contract V3LPVault is ReentrancyGuard {
         require(_initialized,    "V3LPVault: not initialized");
 
         // Lire la position pour identifier quel side est USDC
-        // positions() retourne 12 valeurs :
-        // (nonce, operator, token0, token1, fee, tickLower, tickUpper,
-        //  liquidity, feeGrowth0, feeGrowth1, tokensOwed0, tokensOwed1)
+        // positions() retourne 12 valeurs — on nomme tout pour éviter l'ambiguïté des virgules
         (
-            ,,
-            address token0,
-            address token1,
-            ,,,,,,,
+            uint96  _nonce, address _operator,
+            address token0, address token1,
+            uint24  _fee, int24 _tickLower, int24 _tickUpper,
+            uint128 _liquidity,
+            uint256 _fg0, uint256 _fg1,
+            uint128 _ow0, uint128 _ow1
         ) = INonfungiblePositionManager(NFPM).positions(tokenId_);
+        // Supprime les warnings "unused variable"
+        (_nonce, _operator, _fee, _tickLower, _tickUpper, _liquidity, _fg0, _fg1, _ow0, _ow1);
 
         address _usdc = address(usdc);
         require(token0 == _usdc || token1 == _usdc, "V3LPVault: no USDC in position");
@@ -241,10 +243,16 @@ contract V3LPVault is ReentrancyGuard {
 
         // Renvoyer les meme tokens au creator (évite qu'ils restent bloqués)
         if (tokenFees > 0) {
-            // Récupérer l'adresse du token depuis la position
-            (,, address token0, address token1,,,,,,,) =
-                INonfungiblePositionManager(NFPM).positions(positionTokenId);
-            address memeToken = usdcIsToken0 ? token1 : token0;
+            (
+                uint96  _n2, address _op2,
+                address token0_, address token1_,
+                uint24  _f2, int24 _tl2, int24 _tu2,
+                uint128 _liq2,
+                uint256 _fg02, uint256 _fg12,
+                uint128 _ow02, uint128 _ow12
+            ) = INonfungiblePositionManager(NFPM).positions(positionTokenId);
+            (_n2, _op2, _f2, _tl2, _tu2, _liq2, _fg02, _fg12, _ow02, _ow12);
+            address memeToken = usdcIsToken0 ? token1_ : token0_;
             IERC20(memeToken).safeTransfer(creator, tokenFees);
         }
     }
@@ -256,8 +264,15 @@ contract V3LPVault is ReentrancyGuard {
      */
     function pendingUsdcFees() external view returns (uint256) {
         if (!locked) return 0;
-        (,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) =
-            INonfungiblePositionManager(NFPM).positions(positionTokenId);
+        (
+            uint96  _n3, address _op3,
+            address _t03, address _t13,
+            uint24  _f3, int24 _tl3, int24 _tu3,
+            uint128 _liq3,
+            uint256 _fg03, uint256 _fg13,
+            uint128 tokensOwed0, uint128 tokensOwed1
+        ) = INonfungiblePositionManager(NFPM).positions(positionTokenId);
+        (_n3, _op3, _t03, _t13, _f3, _tl3, _tu3, _liq3, _fg03, _fg13);
         return usdcIsToken0 ? uint256(tokensOwed0) : uint256(tokensOwed1);
     }
 }
