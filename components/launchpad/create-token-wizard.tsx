@@ -1081,6 +1081,7 @@ export function CreateTokenWizard({
           "",
           data.description || "",
           firstBuyUsdcRaw,
+          false, // holderRewards_ — UI toggle à ajouter plus tard
         ],
         gasPrice: BigInt("20000000000"),
       });
@@ -1108,6 +1109,11 @@ export function CreateTokenWizard({
     const arcTokenAddress  = (logs[0]?.args?.token ?? "") as string;
     const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
 
+    // Extraire vault + feeDistributor depuis l'event TokenCreated (non-stock-paired)
+    const vaultAddress       = !isStockPaired ? ((logs[0]?.args as Record<string, unknown>)?.vault          as string | undefined) ?? null : null;
+    const feeDistributorAddr = !isStockPaired ? ((logs[0]?.args as Record<string, unknown>)?.feeDistributor as string | undefined) ?? null : null;
+    const holderRewardsOn    = !isStockPaired ? !!((logs[0]?.args as Record<string, unknown>)?.holderRewards) : false;
+
     // 7. Sauvegarder les métadonnées en base
     const form = new FormData();
     if (data.logo_file) form.append("logo", data.logo_file);
@@ -1130,6 +1136,10 @@ export function CreateTokenWizard({
       share_top100: false, share_top100_pct: 0,
       first_buy_enabled: false, first_buy_amount: 0,
       is_scheduled: false, scheduled_at: null,
+      // V3LPVault + FeeDistributor (Arc uniquement)
+      vault_address:            vaultAddress,
+      fee_distributor_address:  feeDistributorAddr,
+      holder_rewards:           holderRewardsOn,
     }));
 
     const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
