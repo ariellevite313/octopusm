@@ -12,7 +12,7 @@ export const ARC_USDC_ADDRESS      = "0x3600000000000000000000000000000000000000
 /** Treasury wallet that receives the 10 USDC creation fee on Arc */
 export const ARC_TREASURY_ADDRESS  = (process.env.NEXT_PUBLIC_ARC_TREASURY_ADDRESS ?? "") as `0x${string}`;
 /** Creation fee in USDC (human-readable). Charged once per token deployed on Arc. */
-export const ARC_CREATION_FEE_USDC = 10; // 10 USDC
+export const ARC_CREATION_FEE_USDC = 0; // Free for now — set to e.g. 10 to re-enable
 
 // Supply standard : 1 milliard de tokens (18 décimales)
 export const ARC_DEFAULT_SUPPLY    = BigInt("1000000000000000000000000000"); // 1e27

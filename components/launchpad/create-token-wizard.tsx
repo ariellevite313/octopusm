@@ -744,7 +744,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Bonding curve" value="Constant-product AMM" />
             <Row label="Graduation" value={`4,800 ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
             <Row label="Trading fee" value="2%" />
-            <Row label="Platform fee" value={`${ARC_CREATION_FEE_USDC} USDC`} highlight />
+            <Row label="Platform fee" value={ARC_CREATION_FEE_USDC === 0 ? "Free 🎉" : `${ARC_CREATION_FEE_USDC} USDC`} highlight />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
             )}
@@ -1019,23 +1019,22 @@ export function CreateTokenWizard({
       }
     }
 
-    // 5. Platform creation fee — 10 USDC transféré au treasury
-    //    Simple transfer ERC20 depuis le wallet du créateur.
-    //    Pas d'approval nécessaire (msg.sender = créateur).
-    const creationFeeRaw = BigInt(Math.round(ARC_CREATION_FEE_USDC * 1_000_000)); // 6 décimales
-    toast.info(`Platform fee: ${ARC_CREATION_FEE_USDC} USDC…`);
-    const feeTxHash = await walletClient.writeContract({
-      address:      ARC_USDC_ADDRESS,
-      abi:          ERC20_APPROVE_ABI,
-      functionName: "transfer",
-      args:         [ARC_TREASURY_ADDRESS, creationFeeRaw],
-      gasPrice:     BigInt("20000000000"),
-    });
-    // Attendre confirmation du paiement
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 3_000));
-      const r = await publicClient.getTransactionReceipt({ hash: feeTxHash }).catch(() => null);
-      if (r) break;
+    // 5. Platform creation fee — skipped when ARC_CREATION_FEE_USDC = 0 (free launch period)
+    if (ARC_CREATION_FEE_USDC > 0) {
+      const creationFeeRaw = BigInt(Math.round(ARC_CREATION_FEE_USDC * 1_000_000)); // 6 décimales
+      toast.info(`Platform fee: ${ARC_CREATION_FEE_USDC} USDC…`);
+      const feeTxHash = await walletClient.writeContract({
+        address:      ARC_USDC_ADDRESS,
+        abi:          ERC20_APPROVE_ABI,
+        functionName: "transfer",
+        args:         [ARC_TREASURY_ADDRESS, creationFeeRaw],
+        gasPrice:     BigInt("20000000000"),
+      });
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 3_000));
+        const r = await publicClient.getTransactionReceipt({ hash: feeTxHash }).catch(() => null);
+        if (r) break;
+      }
     }
 
     // 7. Call createToken() ou createStockPairedToken() selon le type
