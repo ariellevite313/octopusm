@@ -43,6 +43,10 @@ type CreatePayload = {
   arc_launch_id?: string;
   arc_tx_hash?: string;
   arc_creation_block?: number | null;
+  // V3LPVault + FeeDistributor (Arc uniquement)
+  vault_address?: string | null;
+  fee_distributor_address?: string | null;
+  holder_rewards?: boolean;
   // Stock-paired
   quote_asset?: string | null;
   stock_symbol?: string | null;
@@ -200,12 +204,15 @@ export async function POST(req: Request) {
         chain:            payload.chain ?? "solana",
         // Arc EVM — réutilise mint_address pour l'adresse ERC-20
         ...(payload.chain === "arc" ? {
-          mint_address:       payload.arc_token_address,
-          arc_launch_id:      payload.arc_launch_id ?? null,
-          arc_tx_hash:        payload.arc_tx_hash ?? null,
-          arc_creation_block: payload.arc_creation_block ?? null,
-          quote_asset:        payload.quote_asset ?? null,
-          stock_symbol:       payload.stock_symbol ?? null,
+          mint_address:             payload.arc_token_address,
+          arc_launch_id:            payload.arc_launch_id ?? null,
+          arc_tx_hash:              payload.arc_tx_hash ?? null,
+          arc_creation_block:       payload.arc_creation_block ?? null,
+          vault_address:            payload.vault_address ?? null,
+          fee_distributor_address:  payload.fee_distributor_address ?? null,
+          holder_rewards:           payload.holder_rewards ?? false,
+          quote_asset:              payload.quote_asset ?? null,
+          stock_symbol:             payload.stock_symbol ?? null,
         } : {
           // Solana: store stock info if stock-paired
           ...(payload.stock_symbol ? {
