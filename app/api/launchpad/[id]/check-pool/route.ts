@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getXStockMint } from "@/lib/solana/xstocks";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -34,29 +35,57 @@ async function findPoolOnChain(
   connection: Connection,
   mintAddress: string,
   dbcProgramId: PublicKey,
+  xStockConfigAddress?: string | null,  // dbc_config_address (xStock only)
+  xStockSymbol?: string | null,          // stock_symbol (xStock only)
 ): Promise<string | null> {
-  const mint = new PublicKey(mintAddress);
-  const configKey = process.env.DBC_CONFIG_KEY ? new PublicKey(process.env.DBC_CONFIG_KEY) : null;
+  const baseMint  = new PublicKey(mintAddress);
+  const solConfig = process.env.DBC_CONFIG_KEY ? new PublicKey(process.env.DBC_CONFIG_KEY) : null;
 
-  // Meteora DBC virtual pool PDA seeds (try all known variants):
-  // v1: ["virtual_pool", configKey, baseMint]
-  // v2: ["virtual_pool", baseMint]
-  // v3: ["pool", baseMint]
-  const seedSets: Buffer[][] = [
-    ...(configKey ? [
-      [Buffer.from("virtual_pool"), configKey.toBuffer(), mint.toBuffer()],
-      [Buffer.from("pool"), configKey.toBuffer(), mint.toBuffer()],
-    ] : []),
-    [Buffer.from("virtual_pool"), mint.toBuffer()],
-    [Buffer.from("pool"), mint.toBuffer()],
-  ];
+  const seedSets: Buffer[][] = [];
+
+  // ── xStock pool: ["pool", configKey, sorted(quoteMint, baseMint)] ──────────
+  // The DBC pool PDA canonical ordering: larger buffer key first.
+  if (xStockConfigAddress && xStockSymbol) {
+    const xStockMintStr = getXStockMint(xStockSymbol);
+    if (xStockMintStr) {
+      try {
+        const xConfig  = new PublicKey(xStockConfigAddress);
+        const quoteMint = new PublicKey(xStockMintStr);
+        const isQuoteBigger = quoteMint.toBuffer().compare(baseMint.toBuffer()) > 0;
+        seedSets.push([
+          Buffer.from("pool"),
+          xConfig.toBuffer(),
+          isQuoteBigger ? quoteMint.toBuffer() : baseMint.toBuffer(),
+          isQuoteBigger ? baseMint.toBuffer()  : quoteMint.toBuffer(),
+        ]);
+      } catch { /* invalid key — fall through */ }
+    }
+  }
+
+  // ── SOL pool: ["pool", solConfig, sorted(SOL, baseMint)] and legacy variants ─
+  if (solConfig) {
+    const wsol = new PublicKey("So11111111111111111111111111111111111111112");
+    const isWsolBigger = wsol.toBuffer().compare(baseMint.toBuffer()) > 0;
+    seedSets.push([
+      Buffer.from("pool"),
+      solConfig.toBuffer(),
+      isWsolBigger ? wsol.toBuffer()     : baseMint.toBuffer(),
+      isWsolBigger ? baseMint.toBuffer() : wsol.toBuffer(),
+    ]);
+    // Legacy 3-seed variants (older SDK versions)
+    seedSets.push([Buffer.from("virtual_pool"), solConfig.toBuffer(), baseMint.toBuffer()]);
+    seedSets.push([Buffer.from("pool"),         solConfig.toBuffer(), baseMint.toBuffer()]);
+  }
+  // Legacy 2-seed fallbacks
+  seedSets.push([Buffer.from("virtual_pool"), baseMint.toBuffer()]);
+  seedSets.push([Buffer.from("pool"),         baseMint.toBuffer()]);
 
   for (const seeds of seedSets) {
     try {
       const [pda] = PublicKey.findProgramAddressSync(seeds, dbcProgramId);
       const info = await connection.getAccountInfo(pda);
       if (info !== null) {
-        console.log("[check-pool] found pool at PDA:", pda.toBase58(), "seeds:", seeds.map(s => s.toString("hex").slice(0,16)));
+        console.log("[check-pool] found pool at PDA:", pda.toBase58());
         return pda.toBase58();
       }
     } catch { /* try next */ }
@@ -77,7 +106,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token } = await admin
       .from("launchpad_tokens")
-      .select("status, creator_wallet, mint_address, tx_base64, is_scheduled")
+      .select("status, creator_wallet, mint_address, tx_base64, is_scheduled, stock_symbol, dbc_config_address")
       .eq("id", id)
       .maybeSingle();
 
@@ -121,9 +150,18 @@ export async function POST(req: Request, { params }: RouteParams) {
       ? [dbcProgramId, new PublicKey(KNOWN_DBC_PROGRAM)]
       : [new PublicKey(KNOWN_DBC_PROGRAM)];
 
+    const xStockSymbol      = (token.stock_symbol     as string | null) ?? null;
+    const xStockConfigAddr  = (token.dbc_config_address as string | null) ?? null;
+
     let poolAddress: string | null = null;
     for (const prog of programsToTry) {
-      poolAddress = await findPoolOnChain(connection, token.mint_address as string, prog);
+      poolAddress = await findPoolOnChain(
+        connection,
+        token.mint_address as string,
+        prog,
+        xStockConfigAddr,
+        xStockSymbol,
+      );
       if (poolAddress) break;
     }
 
@@ -141,6 +179,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       tx_base64:      null,
       tx_prepared_at: null,
       vanity_secret_key: null,
+      // xStock: clear ephemeral config keypair — no longer needed after pool is live
+      ...(xStockSymbol ? { dbc_config_secret: null } : {}),
     }).eq("id", id);
 
     return NextResponse.json({ found: true, poolAddress });

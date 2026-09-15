@@ -67,9 +67,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This name or ticker is reserved" }, { status: 409 });
     }
 
-    // Stock-paired disabled until xStocks launches on Arc
-    if (payload.quote_asset || payload.stock_symbol) {
-      return NextResponse.json({ error: "Stock-paired tokens are not available yet" }, { status: 403 });
+    // Stock-paired on Arc is disabled (xStocks not yet live on Arc testnet).
+    // On Solana, Meteora DBC now supports xStock quote tokens — allowed.
+    if (payload.chain === "arc" && (payload.quote_asset || payload.stock_symbol)) {
+      return NextResponse.json({ error: "Stock-paired tokens are not available on Arc yet" }, { status: 403 });
     }
 
     const { nameAvailable, tickerAvailable } = await checkNameAvailability(payload.name, payload.ticker);
@@ -205,7 +206,13 @@ export async function POST(req: Request) {
           arc_creation_block: payload.arc_creation_block ?? null,
           quote_asset:        payload.quote_asset ?? null,
           stock_symbol:       payload.stock_symbol ?? null,
-        } : {}),
+        } : {
+          // Solana: store stock info if stock-paired
+          ...(payload.stock_symbol ? {
+            stock_symbol: payload.stock_symbol,
+            quote_asset:  payload.quote_asset ?? null,
+          } : {}),
+        }),
       })
       .select("id")
       .single();

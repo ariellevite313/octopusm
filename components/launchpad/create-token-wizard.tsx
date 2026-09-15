@@ -17,8 +17,9 @@ import {
   ARC_TREASURY_ADDRESS, ARC_CREATION_FEE_USDC,
   ARC_XSTOCK_ADDRESSES,
 } from "@/lib/arc-launchpad";
+import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
 
-// ─── xStock catalogue (mock testnet) ────────────────────────────────────────
+// ─── xStock catalogue (Arc testnet — mock ERC-20s) ───────────────────────────
 const XSTOCK_CATALOG = [
   { symbol: "xNVDA", name: "Nvidia",       ticker: "NVDA", emoji: "🟢" },
   { symbol: "xTSLA", name: "Tesla",        ticker: "TSLA", emoji: "⚡" },
@@ -59,10 +60,13 @@ type WizardData = {
   arc_supply: number;
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
-  // Stock-paired
+  // Stock-paired (Arc)
   arc_token_type: "usdc" | "stock";
   arc_stock_symbol: string;      // ex: "xNVDA"
   arc_quote_asset: `0x${string}`; // adresse ERC-20 du stock
+  // Stock-paired (Solana)
+  sol_token_type: "sol" | "stock";
+  sol_stock_symbol: string;      // ex: "xNVDA"
 };
 
 const INITIAL: WizardData = {
@@ -80,6 +84,8 @@ const INITIAL: WizardData = {
   arc_token_type: "usdc",
   arc_stock_symbol: "xNVDA",
   arc_quote_asset: "" as `0x${string}`,
+  sol_token_type: "sol",
+  sol_stock_symbol: "xNVDA",
 };
 
 const CATEGORIES = ["Meme","Utility","AI","Gaming","DeFi","NFT","x402"];
@@ -363,6 +369,71 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
   return (
     <div className="space-y-6">
 
+      {/* Token type — SOL Meme vs Stock-Paired */}
+      <div>
+        <p className="mb-2 text-sm font-medium text-foreground">Token type</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => set("sol_token_type", "sol")}
+            className={`rounded-xl border p-3 text-left transition-colors ${
+              data.sol_token_type === "sol"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <p className="text-sm font-semibold text-foreground">◎ SOL Meme</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Classic. Buy/sell with SOL.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => set("sol_token_type", "stock")}
+            className={`rounded-xl border p-3 text-left transition-colors ${
+              data.sol_token_type === "stock"
+                ? "border-orange-500 bg-orange-500/5"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <p className="text-sm font-semibold text-foreground">📈 Stock-Paired</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Paired with an xStock token.</p>
+          </button>
+        </div>
+
+        {/* Stock selector */}
+        {data.sol_token_type === "stock" && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Choose the paired stock</p>
+            <div className="flex flex-wrap gap-2">
+              {XSTOCK_CATALOG_SOLANA.map((s) => (
+                <button
+                  key={s.symbol}
+                  type="button"
+                  onClick={() => set("sol_stock_symbol", s.symbol)}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    data.sol_stock_symbol === s.symbol
+                      ? "bg-orange-500 text-white"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>{s.emoji}</span>
+                  <span>${s.ticker}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Traders will need{" "}
+              <span className="font-semibold text-foreground">{data.sol_stock_symbol}</span>{" "}
+              to buy your token (via Meteora DBC).
+            </p>
+            <div className="rounded-lg bg-orange-500/8 border border-orange-500/20 px-3 py-2">
+              <p className="text-[11px] text-orange-400">
+                ⚡ Powered by Meteora DBC — supports Token-2022 xStocks as quote token.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Frais créateur — fixé à 1% */}
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
         <p className="text-sm font-medium text-foreground">Trading fees</p>
@@ -415,70 +486,74 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
         )}
       </div>
 
-      {/* First buy */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">First Buy</p>
-            <p className="text-xs text-muted-foreground">Buy tokens immediately at mint</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => set("first_buy_enabled", !data.first_buy_enabled)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.first_buy_enabled ? "bg-primary" : "bg-muted"}`}
-          >
-            <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.first_buy_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
-          </button>
-        </div>
-        {data.first_buy_enabled && (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="number" min={0.01} max={100} step={0.01}
-                value={data.first_buy_amount}
-                onChange={(e) => set("first_buy_amount", Number(e.target.value))}
-                className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <span className="text-sm text-muted-foreground">SOL</span>
+      {/* First buy — SOL only (not supported for stock-paired) */}
+      {data.sol_token_type === "sol" && (
+        <div className="rounded-xl border border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">First Buy</p>
+              <p className="text-xs text-muted-foreground">Buy tokens immediately at mint</p>
             </div>
-            {errors.first_buy_amount && (
-              <p className="text-xs text-red-500">{errors.first_buy_amount}</p>
-            )}
+            <button
+              type="button"
+              onClick={() => set("first_buy_enabled", !data.first_buy_enabled)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.first_buy_enabled ? "bg-primary" : "bg-muted"}`}
+            >
+              <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.first_buy_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
           </div>
-        )}
-      </div>
-
-      {/* Lancement programmé */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Scheduled Launch</p>
-            <p className="text-xs text-muted-foreground">+0.1 SOL · Token not tradeable until chosen date</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => set("is_scheduled", !data.is_scheduled)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.is_scheduled ? "bg-primary" : "bg-muted"}`}
-          >
-            <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.is_scheduled ? "translate-x-4" : "translate-x-0.5"}`} />
-          </button>
+          {data.first_buy_enabled && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0.01} max={100} step={0.01}
+                  value={data.first_buy_amount}
+                  onChange={(e) => set("first_buy_amount", Number(e.target.value))}
+                  className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-sm text-muted-foreground">SOL</span>
+              </div>
+              {errors.first_buy_amount && (
+                <p className="text-xs text-red-500">{errors.first_buy_amount}</p>
+              )}
+            </div>
+          )}
         </div>
-        {data.is_scheduled && (
-          <div className="space-y-1">
-            <input
-              type="datetime-local"
-              min={tomorrowMin()}
-              max={maxSchedule()}
-              value={data.scheduled_at}
-              onChange={(e) => set("scheduled_at", e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {errors.scheduled_at && (
-              <p className="text-xs text-red-500">{errors.scheduled_at}</p>
-            )}
+      )}
+
+      {/* Lancement programmé — SOL only (not supported for stock-paired) */}
+      {data.sol_token_type === "sol" && (
+        <div className="rounded-xl border border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Scheduled Launch</p>
+              <p className="text-xs text-muted-foreground">+0.1 SOL · Token not tradeable until chosen date</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => set("is_scheduled", !data.is_scheduled)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.is_scheduled ? "bg-primary" : "bg-muted"}`}
+            >
+              <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.is_scheduled ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
           </div>
-        )}
-      </div>
+          {data.is_scheduled && (
+            <div className="space-y-1">
+              <input
+                type="datetime-local"
+                min={tomorrowMin()}
+                max={maxSchedule()}
+                value={data.scheduled_at}
+                onChange={(e) => set("scheduled_at", e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {errors.scheduled_at && (
+                <p className="text-xs text-red-500">{errors.scheduled_at}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );
@@ -614,9 +689,9 @@ function StepArcOptions({
 // ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
 
 function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "solana" | "arc" }) {
-  // 0.05 SOL platform fee + 0.02449768 SOL Solana/Meteora account rent + optional scheduled fee
-  const PLATFORM_FEE = 0.05;
-  const NETWORK_RENT = 0.02449768;
+  const PLATFORM_FEE  = 0.05;
+  // xStock: 3 TXs — config + pool accounts add ~0.013 SOL extra rent vs SOL path
+  const NETWORK_RENT  = data.sol_token_type === "stock" ? 0.038 : 0.02449768;
   const mintCost = PLATFORM_FEE + NETWORK_RENT + (data.is_scheduled ? 0.1 : 0);
 
   return (
@@ -677,13 +752,17 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
           </>
         ) : (
           <>
+            <Row label="Type" value={data.sol_token_type === "stock" ? `Stock-Paired (${data.sol_stock_symbol})` : "SOL Meme"} />
+            {data.sol_token_type === "stock" && (
+              <Row label="Signatures" value="3 (fee + DBC config + pool)" />
+            )}
             {data.fee_recipients.length > 0 && (
               <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
             )}
-            {data.first_buy_enabled && (
+            {data.first_buy_enabled && data.sol_token_type === "sol" && (
               <Row label="First buy" value={`${data.first_buy_amount} SOL`} />
             )}
-            {data.is_scheduled && data.scheduled_at && (
+            {data.is_scheduled && data.scheduled_at && data.sol_token_type === "sol" && (
               <Row label="Launch date" value={new Date(data.scheduled_at).toLocaleString()} />
             )}
             <Row label="Mint address" value="Auto-generated" highlight />
@@ -821,6 +900,7 @@ export function CreateTokenWizard({
     const form = new FormData();
     if (data.logo_file) form.append("logo", data.logo_file);
     if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
+    const isStockPaired = data.sol_token_type === "stock";
     form.append("payload", JSON.stringify({
       name: data.name, ticker: data.ticker, category: data.category,
       description: data.description, website: data.website,
@@ -836,6 +916,12 @@ export function CreateTokenWizard({
       is_scheduled: data.is_scheduled,
       scheduled_at: data.is_scheduled ? data.scheduled_at : null,
       creator_wallet: walletAddress,
+      // Stock-Paired (Solana via Meteora DBC)
+      ...(isStockPaired ? {
+        stock_symbol: data.sol_stock_symbol,
+        // quote_asset is the SPL mint of the xStock — stored for reference
+        // the DBC config key (with that mint as quoteMint) is used server-side
+      } : {}),
     }));
 
     const res = await fetch("/api/launchpad/create", { method: "POST", body: form });

@@ -101,7 +101,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token } = await admin
       .from("launchpad_tokens")
-      .select("status, creator_wallet, is_scheduled, scheduled_at, mint_address")
+      .select("status, creator_wallet, is_scheduled, scheduled_at, mint_address, stock_symbol, dbc_config_address")
       .eq("id", id)
       .maybeSingle();
 
@@ -169,8 +169,10 @@ export async function POST(req: Request, { params }: RouteParams) {
         // Clear cached transaction so prepare-tx builds a fresh one if user re-launches
         tx_base64:      null,
         tx_prepared_at: null,
-        // Only clear the mint secret if tx is confirmed on-chain; keep it for retry otherwise
+        // Only clear secrets if tx is confirmed on-chain; keep them for retry otherwise
         ...(isConfirmed ? { vanity_secret_key: null } : {}),
+        // xStock: clear the ephemeral config keypair — no longer needed after pool creation
+        ...(isConfirmed && token.stock_symbol ? { dbc_config_secret: null } : {}),
         // Store pool_address if we could extract it from the tx
         ...(poolAddress ? { pool_address: poolAddress } : {}),
       })

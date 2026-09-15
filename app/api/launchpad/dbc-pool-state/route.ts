@@ -1,20 +1,21 @@
 /**
- * GET /api/launchpad/dbc-pool-state?poolAddress=...
+ * GET /api/launchpad/dbc-pool-state?poolAddress=...&quoteDecimals=...
  *
  * Returns the graduation progress for a Meteora DBC pool.
  * Response: { solRaised, gradThresholdSol, progressPct, graduated }
  *
- * solRaised        — SOL currently raised (real quote reserves, in SOL)
- * gradThresholdSol — SOL needed for graduation (from pool config)
+ * solRaised        — quote raised (in human-readable units: SOL or xStock)
+ * gradThresholdSol — quote needed for graduation (human-readable)
  * progressPct      — 0-100
  * graduated        — true if the pool has already migrated
+ *
+ * quoteDecimals (optional, default 9):
+ *   9 for SOL pools (default, backwards-compatible)
+ *   6 for xStock pools (Token-2022, 6 decimals)
  */
 
 import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
-
-const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
-const LAMPORTS = 1_000_000_000;
 
 function tryPublicKey(s: string): PublicKey | null {
   try { return new PublicKey(s); } catch { return null; }
@@ -36,6 +37,9 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const poolAddress = searchParams.get("poolAddress");
+    // quoteDecimals: 9 for SOL (default), 6 for xStock (Token-2022)
+    const quoteDecimals = parseInt(searchParams.get("quoteDecimals") ?? "9", 10);
+    const QUOTE_DIVISOR = Math.pow(10, quoteDecimals);
 
     if (!poolAddress) {
       return NextResponse.json({ error: "poolAddress required" }, { status: 400 });
@@ -79,18 +83,18 @@ export async function GET(req: Request) {
       configState.quoteThreshold ??
       0,
     );
-    const gradThresholdSol = gradThresholdLamports / LAMPORTS;
+    const gradThresholdSol = gradThresholdLamports / QUOTE_DIVISOR;
 
-    // ── Get current SOL raised ─────────────────────────────────────────────────
+    // ── Get current quote raised ───────────────────────────────────────────────
     // Try various field names from different SDK versions
-    const quoteRaisedLamports = readBN(
+    const quoteRaisedRaw = readBN(
       poolState.quoteReserve ??
       poolState.realQuoteReserve ??
       poolState.currentQuoteReserve ??
       poolState.swappedQuoteAmount ??
       0,
     );
-    const solRaised = quoteRaisedLamports / LAMPORTS;
+    const solRaised = quoteRaisedRaw / QUOTE_DIVISOR;
 
     // ── Compute progress ──────────────────────────────────────────────────────
     const progressPct = gradThresholdSol > 0

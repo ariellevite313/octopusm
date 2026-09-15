@@ -31,10 +31,14 @@ function fmtSol(lamports: number): string {
 type Direction = "buy" | "sell";
 
 type Props = {
-  poolAddress: string;
-  mintAddress: string;
-  ticker:      string;
-  logoUrl?:    string;
+  poolAddress:       string;
+  mintAddress:       string;
+  ticker:            string;
+  logoUrl?:          string;
+  /** If set, the quote token is an xStock (Token-2022) rather than SOL */
+  stockSymbol?:      string;
+  /** Token-2022 mint address for the xStock quote token */
+  quoteMintAddress?: string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,7 +49,8 @@ function openWalletModal() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Props) {
+export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockSymbol, quoteMintAddress }: Props) {
+  const isXStock = Boolean(stockSymbol && quoteMintAddress);
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
 
   // Solana tokens require a Solana wallet
@@ -73,7 +78,9 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
   const [showSlip,     setShowSlip]     = useState(false);
   const [activePct,    setActivePct]    = useState<number | null>(null);
 
-  const [solBalance,   setSolBalance]   = useState<number | null>(null);  // lamports
+  const [solBalance,    setSolBalance]   = useState<number | null>(null);  // lamports (always needed for TX fees)
+  const [quoteBalance,  setQuoteBalance] = useState<number | null>(null);  // raw units — xStock quote (when isXStock)
+  const [quoteDecimals, setQuoteDecimals] = useState(6);                   // xStock decimals (typically 6)
   const [tokBalance,   setTokBalance]   = useState<number | null>(null);  // raw units
   const [tokDecimals,  setTokDecimals]  = useState(6);                    // dynamic from balance API
   const [estimatedOut, setEstimatedOut] = useState<number | null>(null);
@@ -99,13 +106,17 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
   // ── Balances ────────────────────────────────────────────────────────────────
 
   const fetchBalances = useCallback(() => {
-    if (!walletAddress) { setSolBalance(null); setTokBalance(null); return; }
+    if (!walletAddress) {
+      setSolBalance(null); setTokBalance(null); setQuoteBalance(null); return;
+    }
 
+    // SOL balance — always needed for TX fees
     fetch(`/api/solana/balance?wallet=${walletAddress}`)
       .then(r => r.ok ? r.json() : null)
       .then((d: { lamports: number } | null) => setSolBalance(d?.lamports ?? null))
       .catch(() => setSolBalance(null));
 
+    // Base token balance
     fetch(`/api/solana/balance?wallet=${walletAddress}&mint=${mintAddress}`)
       .then(r => r.ok ? r.json() : null)
       .then((d: { raw: number; decimals: number } | null) => {
@@ -113,7 +124,18 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
         if (d?.decimals != null) setTokDecimals(d.decimals);
       })
       .catch(() => setTokBalance(null));
-  }, [walletAddress, mintAddress]);
+
+    // xStock quote token balance (Token-2022)
+    if (isXStock && quoteMintAddress) {
+      fetch(`/api/solana/balance?wallet=${walletAddress}&mint=${quoteMintAddress}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((d: { raw: number; decimals: number } | null) => {
+          setQuoteBalance(d?.raw ?? 0);
+          if (d?.decimals != null) setQuoteDecimals(d.decimals);
+        })
+        .catch(() => setQuoteBalance(null));
+    }
+  }, [walletAddress, mintAddress, isXStock, quoteMintAddress]);
 
   useEffect(() => { fetchBalances(); }, [fetchBalances]);
 
@@ -122,7 +144,10 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
   useEffect(() => {
     let cancelled = false;
     const fetchProgress = () => {
-      fetch(`/api/launchpad/dbc-pool-state?poolAddress=${encodeURIComponent(poolAddress)}`)
+      // Pass quoteDecimals so the API divides by the correct power of 10:
+      // 9 for SOL pools (default), 6 for xStock (Token-2022)
+      const qd = isXStock ? 6 : 9;
+      fetch(`/api/launchpad/dbc-pool-state?poolAddress=${encodeURIComponent(poolAddress)}&quoteDecimals=${qd}`)
         .then(r => r.ok ? r.json() : null)
         .then((d: { solRaised: number; gradThresholdSol: number; progressPct: number; graduated: boolean } | null) => {
           if (!cancelled && d && d.gradThresholdSol > 0) setPoolProgress(d);
@@ -146,7 +171,9 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
     }
 
     const amountIn = dir === "buy"
-      ? Math.round(parsed * 1e9)
+      ? isXStock
+        ? Math.round(parsed * Math.pow(10, quoteDecimals))   // xStock quote units
+        : Math.round(parsed * 1e9)                            // SOL lamports
       : Math.round(parsed * Math.pow(10, tokDecimals));
 
     if (amountIn < 1) { setEstimatedOut(null); setQuoteReady(false); return; }
@@ -183,7 +210,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
     } finally {
       setQuoteLoading(false);
     }
-  }, [poolAddress, mintAddress, walletAddress, tokDecimals]);
+  }, [poolAddress, mintAddress, walletAddress, tokDecimals, isXStock, quoteDecimals]);
 
   useEffect(() => {
     setQuoteReady(false);
@@ -223,10 +250,19 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
 
     // Balance check
     if (isBuy) {
-      const neededLamports = Math.round(parsed * 1e9) + 2_000_000; // +0.002 SOL for fees
-      if (solBalance !== null && neededLamports > solBalance) {
-        setError("Insufficient SOL balance");
-        return;
+      if (isXStock) {
+        // Quote is xStock — check xStock balance (SOL is always available for TX fees separately)
+        const neededRaw = Math.round(parsed * Math.pow(10, quoteDecimals));
+        if (quoteBalance !== null && neededRaw > quoteBalance) {
+          setError(`Insufficient ${stockSymbol} balance`);
+          return;
+        }
+      } else {
+        const neededLamports = Math.round(parsed * 1e9) + 2_000_000; // +0.002 SOL for fees
+        if (solBalance !== null && neededLamports > solBalance) {
+          setError("Insufficient SOL balance");
+          return;
+        }
       }
     } else {
       const neededRaw = Math.round(parsed * Math.pow(10, tokDecimals));
@@ -243,7 +279,9 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
     try {
       // Fresh transaction with a new blockhash — avoids expiry if user waited
       const amountIn = isBuy
-        ? Math.round(parsed * 1e9)
+        ? isXStock
+          ? Math.round(parsed * Math.pow(10, quoteDecimals))  // xStock quote units
+          : Math.round(parsed * 1e9)                           // SOL lamports
         : Math.round(parsed * Math.pow(10, tokDecimals));
 
       const swapRes = await fetch("/api/launchpad/dbc-swap", {
@@ -339,14 +377,20 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
 
   // ── Derived ──────────────────────────────────────────────────────────────────
 
+  // Quote token label + balance display
+  const quoteLabel = isXStock ? (stockSymbol ?? "xStock") : "SOL";
   const activeBalanceFmt = isBuy
-    ? (solBalance !== null ? `${(solBalance / 1e9).toFixed(4)} SOL` : "—")
+    ? isXStock
+      ? (quoteBalance !== null ? `${(quoteBalance / Math.pow(10, quoteDecimals)).toFixed(4)} ${quoteLabel}` : "—")
+      : (solBalance  !== null ? `${(solBalance  / 1e9).toFixed(4)} SOL` : "—")
     : (tokBalance !== null ? `${fmtTokens(tokBalance, tokDecimals)} ${ticker}` : "—");
 
   const outFormatted = estimatedOut != null && estimatedOut > 0
     ? isBuy
       ? `~${fmtTokens(estimatedOut, tokDecimals)} ${ticker}`
-      : `~${fmtSol(estimatedOut)} SOL`
+      : isXStock
+        ? `~${(estimatedOut / Math.pow(10, quoteDecimals)).toFixed(4)} ${quoteLabel}`
+        : `~${fmtSol(estimatedOut)} SOL`
     : "";
 
   const ctaLabel = !amount
@@ -369,7 +413,15 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
     </div>
   );
 
-  const SolBadge = () => (
+  /** Renders SOL badge for SOL pools, xStock badge for xStock pools */
+  const QuoteBadge = () => isXStock ? (
+    <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
+      <div className="size-5 rounded-full bg-blue-500/80 flex items-center justify-center text-[8px] font-bold text-white">
+        {(stockSymbol ?? "X").replace(/^x/, "").slice(0, 2)}
+      </div>
+      <span className="text-[13px] font-semibold text-foreground">{quoteLabel}</span>
+    </div>
+  ) : (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/solana.png" alt="SOL" className="size-5 rounded-full object-cover" />
@@ -412,7 +464,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
             className="w-full bg-transparent text-[28px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/30"
           />
           <div className="flex items-center justify-between mt-1">
-            {isBuy ? <SolBadge /> : <TokenBadge />}
+            {isBuy ? <QuoteBadge /> : <TokenBadge />}
             <span className="text-[11px] text-muted-foreground/60">
               {walletAddress ? `Balance: ${activeBalanceFmt}` : "—"}
             </span>
@@ -445,7 +497,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
             )}
           </div>
           <div className="flex items-center justify-between mt-1">
-            {isBuy ? <TokenBadge /> : <SolBadge />}
+            {isBuy ? <TokenBadge /> : <QuoteBadge />}
             <span className="text-[11px] text-muted-foreground/60">estimated</span>
           </div>
         </div>
@@ -457,10 +509,18 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
               key={pct}
               onClick={() => {
                 setActivePct(pct);
-                const base = isBuy
-                  ? (solBalance ?? 0) / 1e9
-                  : (tokBalance ?? 0) / Math.pow(10, tokDecimals);
-                const effective = (isBuy && pct === 100) ? Math.max(0, base - 0.002) : base;
+                let base: number;
+                if (isBuy) {
+                  if (isXStock) {
+                    base = (quoteBalance ?? 0) / Math.pow(10, quoteDecimals);
+                  } else {
+                    base = (solBalance ?? 0) / 1e9;
+                  }
+                } else {
+                  base = (tokBalance ?? 0) / Math.pow(10, tokDecimals);
+                }
+                // For SOL 100%, leave 0.002 SOL for fees; xStock has no fee buffer needed
+                const effective = (!isXStock && isBuy && pct === 100) ? Math.max(0, base - 0.002) : base;
                 setAmount(((effective * pct) / 100).toFixed(isBuy ? 4 : 2));
               }}
               className={`flex-1 py-2 rounded-full text-[12px] font-semibold transition-colors border ${
@@ -569,7 +629,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl }: Prop
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/60 font-medium">Bonding curve</span>
               <span className="text-[10px] text-muted-foreground/60 font-medium tabular-nums">
-                {poolProgress.solRaised.toFixed(2)} / {poolProgress.gradThresholdSol.toFixed(0)} SOL
+                {poolProgress.solRaised.toFixed(2)} / {poolProgress.gradThresholdSol.toFixed(0)} {quoteLabel}
                 <span className="ml-1 text-orange-400 font-semibold">{poolProgress.progressPct.toFixed(1)}%</span>
               </span>
             </div>

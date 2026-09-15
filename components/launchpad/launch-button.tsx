@@ -1,12 +1,18 @@
 "use client";
 
 /**
- * LaunchButton — two-transaction flow.
+ * LaunchButton — multi-transaction launch flow.
  *
- * TX A  mint + metadata + platform fee   → no Phantom warning
- * TX B  Meteora DBC create_virtual_pool  → "Proceed anyway" in Phantom
+ * SOL meme token (no stockSymbol):
+ *   TX A  mint + metadata + platform fee   → no Phantom warning
+ *   TX B  Meteora DBC create_virtual_pool  → "Proceed anyway" in Phantom
  *
- * When TX B throws (Phantom fires error even after "Proceed anyway"), we
+ * xStock-paired token (stockSymbol set):
+ *   TX A  platform fee only               → no Phantom warning
+ *   TX B  DBC createConfig               → "Proceed anyway" in Phantom (warn-phantom shown)
+ *   TX C  DBC createPool                 → "Proceed anyway" in Phantom
+ *
+ * When TX B/C throws (Phantom fires error even after "Proceed anyway"), we
  * immediately call /check-pool to detect if the pool was actually created
  * on-chain before showing any error to the user.
  */
@@ -24,9 +30,11 @@ type Phase =
   | "pick-wallet"    // Wallet selector shown before TX A
   | "signing-a"
   | "sending-a"
-  | "warn-phantom"   // Modal shown before TX B
+  | "warn-phantom"   // Modal shown before TX B (first DBC interaction)
   | "signing-b"
   | "sending-b"
+  | "signing-c"      // xStock only — TX C (DBC createPool)
+  | "sending-c"      // xStock only
   | "confirming"
   | "done"
   | "error";
@@ -159,14 +167,14 @@ async function waitForConfirmation(sig: string): Promise<void> {
         const status = await new Connection(rpc, "confirmed").getSignatureStatus(sig);
         const cs = status.value?.confirmationStatus;
         if (cs === "confirmed" || cs === "finalized") return;
-        if (status.value?.err) throw new Error("TX A failed on-chain");
+        if (status.value?.err) throw new Error("TX failed on-chain");
       } catch (e) {
         if (e instanceof Error && e.message.includes("failed on-chain")) throw e;
         /* try next RPC */
       }
     }
   }
-  // 30s timeout — proceed anyway, TX B may still work
+  // 30s timeout — proceed anyway
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -179,9 +187,12 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]     = useState<string | null>(null);
   const [hasTxA, setHasTxA]  = useState(true);
+  // Whether this is a 3-TX xStock flow (determines labels + TX C step)
+  const [hasThreeTx, setHasThreeTx] = useState(false);
 
-  // Stores the TX B base64 while the warn-phantom modal is shown
+  // Stores pending TXs while the warn-phantom modal is shown
   const pendingTxBRef = useRef<string | null>(null);
+  const pendingTxCRef = useRef<string | null>(null);
   // The wallet chosen by the user in the picker
   const selectedWalletRef   = useRef<SolanaWallet | null>(null);
   // ID of the selected wallet config (e.g. "phantom", "solflare")
@@ -198,12 +209,11 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   }, [tokenId]);
 
   /**
-   * After a TX B error, check if the pool was actually created on-chain.
+   * After a TX B/C error, check if the pool was actually created on-chain.
    * Phantom often fires an error callback even after "Proceed anyway" succeeds.
    * Returns true if we detected success and navigated away.
    */
   const checkPoolAndFinish = useCallback(async (): Promise<boolean> => {
-    // Immediate check-pool (derives PDA from mint, getAccountInfo)
     try {
       const r = await fetch(`/api/launchpad/${tokenId}/check-pool`, {
         method: "POST",
@@ -219,7 +229,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       }
     } catch { /* non-fatal */ }
 
-    // Poll up to 30s — Meteora tx may take a few seconds to finalize
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 3000));
       try {
@@ -232,7 +241,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         }
       } catch { /* non-fatal */ }
 
-      // Re-check PDA every 3 polls
       if (i % 3 === 2) {
         try {
           const r2 = await fetch(`/api/launchpad/${tokenId}/check-pool`, {
@@ -253,67 +261,12 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     return false;
   }, [tokenId, walletAddress, isScheduled, router]);
 
-  // ── Core launch flow (runs after wallet is selected) ─────────────────────────
-  const runLaunchFlow = useCallback(async (wallet: SolanaWallet) => {
-    setError(null);
-
-    setPhase("signing-a");
-    let txABase64: string | null, txBBase64: string;
-    try {
-      const res = await fetch(`/api/launchpad/${tokenId}/prepare-tx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress }),
-      });
-      const body = await res.json() as {
-        txABase64?: string | null; txBBase64?: string; mintAddress?: string; error?: string;
-      };
-      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? "Failed to prepare transactions");
-      txABase64 = body.txABase64 ?? null;
-      txBBase64 = body.txBBase64;
-      setHasTxA(txABase64 !== null);
-      if (body.mintAddress) setMintAddress(body.mintAddress);
-    } catch (e) {
-      const raw2 = e instanceof Error ? e.message : typeof e === "object" && e !== null && "message" in e ? String((e as {message:unknown}).message) : "Preparation failed";
-      const msg = /rejected|cancel|annul|refus|abort/i.test(raw2) ? "Cancelled." : raw2;
-      setError(msg); setPhase("error"); toast.error(msg); return;
-    }
-
-    if (txABase64) {
-      let txASig = "";
-      try {
-        txASig = await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
-      } catch (e) {
-        const raw = e instanceof Error ? e.message : "TX A failed";
-        setError(/rejected|cancel|annul|refus|abort/i.test(raw) ? "Cancelled." : raw);
-        setPhase("error");
-        return;
-      }
-      try {
-        await waitForConfirmation(txASig);
-      } catch {
-        setError("Mint creation failed on-chain. Click Retry.");
-        setPhase("error");
-        return;
-      }
-    } else {
-      toast.info("Mint already created — approving pool creation only.");
-    }
-
-    pendingTxBRef.current = txBBase64;
-
-    // Only Phantom shows the Blowfish "Are you sure?" warning for unverified programs.
-    // For all other wallets, skip the modal and go straight to signing.
-    if (selectedWalletIdRef.current === "phantom") {
-      setPhase("warn-phantom");
-      return; // proceedToTxB() called by button click
-    }
-
-    // ── Non-Phantom: sign TX B immediately ───────────────────────────────────
-    setPhase("signing-b");
+  /** Sign TX C and confirm (xStock only). */
+  const signTxC = useCallback(async (wallet: SolanaWallet, txCBase64: string) => {
+    setPhase("signing-c");
     let poolSig = "";
     try {
-      poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+      poolSig = await signAndBroadcast(wallet, txCBase64, () => setPhase("sending-c"));
     } catch {
       setPhase("confirming");
       const found = await checkPoolAndFinish();
@@ -344,18 +297,134 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
   }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish]);
 
-  // ── TX B: pool creation (called from warn-phantom modal button) ──────────────
+  // ── Core launch flow (runs after wallet is selected) ─────────────────────────
+  const runLaunchFlow = useCallback(async (wallet: SolanaWallet) => {
+    setError(null);
+
+    setPhase("signing-a");
+    let txABase64: string | null;
+    let txBBase64: string;
+    let txCBase64: string | null = null;
+    try {
+      const res = await fetch(`/api/launchpad/${tokenId}/prepare-tx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress }),
+      });
+      const body = await res.json() as {
+        txABase64?: string | null;
+        txBBase64?: string;
+        txCBase64?: string | null;
+        mintAddress?: string;
+        error?: string;
+      };
+      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? "Failed to prepare transactions");
+      txABase64  = body.txABase64  ?? null;
+      txBBase64  = body.txBBase64;
+      txCBase64  = body.txCBase64  ?? null;
+      setHasTxA(txABase64 !== null);
+      setHasThreeTx(txCBase64 !== null);
+      if (body.mintAddress) setMintAddress(body.mintAddress);
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : "Preparation failed";
+      const msg = /rejected|cancel|annul|refus|abort/i.test(raw) ? "Cancelled." : raw;
+      setError(msg); setPhase("error"); toast.error(msg); return;
+    }
+
+    // ── TX A ─────────────────────────────────────────────────────────────────
+    if (txABase64) {
+      let txASig = "";
+      try {
+        txASig = await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : "TX A failed";
+        setError(/rejected|cancel|annul|refus|abort/i.test(raw) ? "Cancelled." : raw);
+        setPhase("error");
+        return;
+      }
+      try {
+        await waitForConfirmation(txASig);
+      } catch {
+        setError("Mint creation failed on-chain. Click Retry.");
+        setPhase("error");
+        return;
+      }
+    } else {
+      toast.info("Fee already paid — approving pool creation only.");
+    }
+
+    // Store TX B (and TX C if present) for use after warn-phantom modal
+    pendingTxBRef.current = txBBase64;
+    pendingTxCRef.current = txCBase64;
+
+    // Show Phantom warning before any DBC transaction (TX B)
+    if (selectedWalletIdRef.current === "phantom") {
+      setPhase("warn-phantom");
+      return; // proceedToTxB() called by button click
+    }
+
+    // ── Non-Phantom: sign TX B immediately ───────────────────────────────────
+    setPhase("signing-b");
+    let txBSig = "";
+    try {
+      txBSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+    } catch {
+      setPhase("confirming");
+      const found = await checkPoolAndFinish();
+      if (!found) {
+        setError("Pool creation cancelled. Click Retry — your fee won't be charged again.");
+        setPhase("error");
+      }
+      return;
+    }
+
+    // ── xStock: wait for TX B, then sign TX C ────────────────────────────────
+    if (txCBase64) {
+      try {
+        await waitForConfirmation(txBSig);
+      } catch {
+        setError("DBC config creation failed on-chain. Click Retry.");
+        setPhase("error");
+        return;
+      }
+      await signTxC(wallet, txCBase64);
+      return;
+    }
+
+    // ── SOL path: confirm TX B ───────────────────────────────────────────────
+    setPhase("confirming");
+    try {
+      const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txSignature: txBSig, walletAddress }),
+      });
+      const body = await res.json() as { ok?: boolean; error?: string };
+      if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
+      if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
+      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+    } catch {
+      toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+    }
+
+    setPhase("done");
+    toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
+    setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC]);
+
+  // ── TX B: called from warn-phantom modal "Got it" button ─────────────────────
   const proceedToTxB = useCallback(async () => {
     const txBBase64 = pendingTxBRef.current;
+    const txCBase64 = pendingTxCRef.current;
     if (!txBBase64) { setError("Session expired. Click Retry."); setPhase("error"); return; }
 
     const wallet = selectedWalletRef.current;
     if (!wallet) { setError("Wallet disconnected. Click Retry."); setPhase("error"); return; }
 
     setPhase("signing-b");
-    let poolSig = "";
+    let txBSig = "";
     try {
-      poolSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+      txBSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
     } catch {
       setPhase("confirming");
       const found = await checkPoolAndFinish();
@@ -369,25 +438,39 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
 
+    // ── xStock: wait for TX B (createConfig), then sign TX C (createPool) ────
+    if (txCBase64) {
+      try {
+        await waitForConfirmation(txBSig);
+      } catch {
+        setError("DBC config creation failed on-chain. Click Retry.");
+        setPhase("error");
+        return;
+      }
+      await signTxC(wallet, txCBase64);
+      return;
+    }
+
+    // ── SOL path: confirm TX B ───────────────────────────────────────────────
     setPhase("confirming");
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txSignature: poolSig, walletAddress }),
+        body: JSON.stringify({ txSignature: txBSig, walletAddress }),
       });
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
       if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
     } catch {
-      toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
     }
 
     setPhase("done");
     toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish]);
+  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC]);
 
   // ── Called when user picks a wallet from the picker ──────────────────────────
   const handleWalletSelected = useCallback(async (cfg: WalletConfig) => {
@@ -411,11 +494,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       return;
     }
     if (installed.length === 1) {
-      // Only one wallet — skip picker, go straight to flow
       await handleWalletSelected(installed[0]);
       return;
     }
-    // Multiple wallets — show picker
     setPhase("pick-wallet");
   }, [handleWalletSelected]);
 
@@ -448,12 +529,11 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
   if (phase === "pick-wallet") {
     const installed = getInstalledWallets();
-    const allWallets = WALLET_CONFIGS;
     return (
       <div className="space-y-3">
         <p className="text-sm font-medium text-foreground">Choose your wallet</p>
         <div className="space-y-2">
-          {allWallets.map(cfg => {
+          {WALLET_CONFIGS.map(cfg => {
             const isInstalled = installed.some(wc => wc.id === cfg.id);
             return (
               <button
@@ -501,6 +581,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   }
 
   if (phase === "warn-phantom") {
+    const isXStock = pendingTxCRef.current !== null;
     return (
       <div className="space-y-4">
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
@@ -511,14 +592,17 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
             </p>
           </div>
           <p className="text-xs text-amber-700/90 dark:text-amber-300/90 leading-relaxed">
-            The second transaction creates your trading pool via <strong>Meteora DBC</strong>.
+            {isXStock
+              ? <>The next transaction creates a <strong>Meteora DBC config</strong> for your stock-paired pool. Followed by a second pool transaction.</>
+              : <>The second transaction creates your trading pool via <strong>Meteora DBC</strong>.</>
+            }{" "}
             This program is not yet verified by all wallets, which may trigger a warning — this is normal and safe.
           </p>
           <div className="rounded-lg bg-amber-500/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 font-medium">
             👉 In your wallet: scroll down → confirm the transaction
           </div>
           <p className="text-xs text-amber-700/70 dark:text-amber-300/70">
-            Funds go directly to the Meteora protocol to create your liquidity — not to omdot.fun.
+            Funds go directly to the Meteora protocol — not to omdot.fun.
           </p>
         </div>
         <button
@@ -527,11 +611,11 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           <Rocket className="size-4" />
-          Got it — create the pool
+          Got it — {isXStock ? "create the config" : "create the pool"}
         </button>
         <button
           type="button"
-          onClick={() => { pendingTxBRef.current = null; setPhase("ready"); }}
+          onClick={() => { pendingTxBRef.current = null; pendingTxCRef.current = null; setPhase("ready"); }}
           className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           Cancel
@@ -557,19 +641,25 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     );
   }
 
-  const busy = phase !== "ready";
+  const totalSteps = hasThreeTx ? 3 : 2;
   const labels: Record<Phase, string> = {
-    ready:           isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
-    "pick-wallet":   "Choose wallet…",
-    "signing-a":     "Step 1/2 — Approve in wallet…",
-    "sending-a":     "Creating mint…",
-    "warn-phantom":  "Security notice",
-    "signing-b":     "Step 2/2 — Approve pool in wallet…",
-    "sending-b":     "Creating pool…",
-    confirming:      "Confirming…",
-    done:            "Done",
-    error:           "Error",
+    ready:          isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
+    "pick-wallet":  "Choose wallet…",
+    "signing-a":    `Step 1/${totalSteps} — Approve in wallet…`,
+    "sending-a":    hasThreeTx ? "Paying creation fee…" : hasTxA ? "Creating mint…" : "Sending fee…",
+    "warn-phantom": "Security notice",
+    "signing-b":    hasThreeTx
+                      ? `Step 2/${totalSteps} — Approve DBC config in wallet…`
+                      : `Step 2/${totalSteps} — Approve pool in wallet…`,
+    "sending-b":    hasThreeTx ? "Creating DBC config…" : "Creating pool…",
+    "signing-c":    `Step 3/${totalSteps} — Approve pool in wallet…`,
+    "sending-c":    "Creating pool…",
+    confirming:     "Confirming…",
+    done:           "Done",
+    error:          "Error",
   };
+
+  const busy = phase !== "ready";
 
   return (
     <div className="space-y-4">
@@ -592,7 +682,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
 
       {phase === "ready" && (
         <p className="text-center text-xs text-muted-foreground">
-          2 signatures : mint + pool.
+          2 signatures: mint + pool (3 for stock-paired tokens).
         </p>
       )}
     </div>
