@@ -1,16 +1,22 @@
 "use client";
 
 /**
- * ClaimFeesArc — permet au créateur d'un token Arc de réclamer ses USDC
- * accumulés depuis les frais de trading (1% sur chaque trade, côté créateur).
+ * ClaimFeesArc — permet au créateur d'un token Arc de réclamer ses USDC.
  *
- * Flux :
- *  1. Lit `creatorFeesAccrued()` sur le contrat BondingCurve (lecture gratuite)
- *  2. Quand le créateur clique, appelle `claimFees(walletAddress)` via MetaMask/EVM
+ * Deux modes selon l'état du token :
+ *
+ * Pré-graduation (bonding curve active) :
+ *   - Lit `creatorFeesAccrued()` sur BondingCurve
+ *   - Appelle `claimFees(walletAddress)` → envoie l'USDC au créateur
+ *
+ * Post-graduation (V3LPVault) :
+ *   - Lit `pendingUsdcFees()` sur V3LPVault
+ *   - Appelle `collectFees()` (keeper-friendly, n'importe qui peut déclencher)
+ *     → distribue 67% treasury / 33% créateur (ou holders si holderRewards)
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { CoinsIcon, Loader2, CheckCircle2 } from "lucide-react";
+import { CoinsIcon, Loader2, CheckCircle2, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import {
@@ -21,6 +27,43 @@ import {
 } from "viem";
 import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
 import { arcTestnet } from "@/lib/arc-chain";
+
+// ── ABI V3LPVault (minimal) ───────────────────────────────────────────────────
+const V3LP_VAULT_ABI = [
+  {
+    name: "pendingUsdcFees",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "collectFees",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+] as const;
+
+// ── ABI BondingCurve étendu (graduated + vault) ───────────────────────────────
+const CURVE_ABI_EXT = [
+  ...BONDING_CURVE_ABI,
+  {
+    name: "graduated",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "vault",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
 
 type Props = {
   curveAddress: string; // arc_launch_id (0x… BondingCurve clone)
@@ -37,28 +80,54 @@ function fmtUsdc(raw: bigint): string {
 export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
 
-  const [accrued,   setAccrued]   = useState<bigint | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [claiming,  setClaiming]  = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
-  const [txHash,    setTxHash]    = useState<string | null>(null);
+  const [graduated,    setGraduated]    = useState<boolean | null>(null);
+  const [vaultAddress, setVaultAddress] = useState<string | null>(null);
+  const [accrued,      setAccrued]      = useState<bigint | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [claiming,     setClaiming]     = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [txHash,       setTxHash]       = useState<string | null>(null);
 
   const isCreator = isAuthenticated && walletAddress?.toLowerCase() === creatorWallet.toLowerCase();
 
-  // ── Read accrued fees ──────────────────────────────────────────────────────
+  // ── Read fees ──────────────────────────────────────────────────────────────
 
-  const fetchAccrued = useCallback(async () => {
+  const fetchFees = useCallback(async () => {
+    setLoading(true);
     try {
-      const client = createPublicClient({
-        chain:     arcTestnet,
-        transport: http(),
-      });
-      const raw = await client.readContract({
-        address:      curveAddress as `0x${string}`,
-        abi:          BONDING_CURVE_ABI,
-        functionName: "creatorFeesAccrued",
-      }) as bigint;
-      setAccrued(raw);
+      const client = createPublicClient({ chain: arcTestnet, transport: http() });
+      const curve  = curveAddress as `0x${string}`;
+
+      // 1. Vérifier si gradué
+      const isGrad = await client.readContract({
+        address: curve, abi: CURVE_ABI_EXT, functionName: "graduated",
+      }).catch(() => false) as boolean;
+
+      setGraduated(isGrad);
+
+      if (isGrad) {
+        // 2a. Lire l'adresse du vault depuis la courbe
+        const vault = await client.readContract({
+          address: curve, abi: CURVE_ABI_EXT, functionName: "vault",
+        }).catch(() => null) as `0x${string}` | null;
+
+        if (vault && vault !== "0x0000000000000000000000000000000000000000") {
+          setVaultAddress(vault);
+          // 2b. Lire les fees pendantes dans le vault
+          const pending = await client.readContract({
+            address: vault, abi: V3LP_VAULT_ABI, functionName: "pendingUsdcFees",
+          }).catch(() => 0n) as bigint;
+          setAccrued(pending);
+        } else {
+          setAccrued(0n);
+        }
+      } else {
+        // 2c. Pré-graduation : lire fees accumulées sur la courbe
+        const raw = await client.readContract({
+          address: curve, abi: BONDING_CURVE_ABI, functionName: "creatorFeesAccrued",
+        }).catch(() => 0n) as bigint;
+        setAccrued(raw);
+      }
     } catch {
       setAccrued(null);
     } finally {
@@ -66,9 +135,9 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
     }
   }, [curveAddress]);
 
-  useEffect(() => { void fetchAccrued(); }, [fetchAccrued]);
+  useEffect(() => { void fetchFees(); }, [fetchFees]);
 
-  // ── Claim ──────────────────────────────────────────────────────────────────
+  // ── Claim / Collect ────────────────────────────────────────────────────────
 
   const handleClaim = async () => {
     if (!walletAddress || !walletType) return;
@@ -81,32 +150,44 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
 
     try {
       const walletClient = createWalletClient({
-        chain:     arcTestnet,
-        transport: custom(provider),
+        chain: arcTestnet, transport: custom(provider),
       });
 
-      // Switch to Arc chain if needed
+      // Switch to Arc si nécessaire
       try {
         await provider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: `0x${arcTestnet.id.toString(16)}` }],
         });
-      } catch { /* ignore — wallet may handle it */ }
+      } catch { /* ignore */ }
 
       const [account] = await walletClient.getAddresses();
+      let hash: `0x${string}`;
 
-      const hash = await walletClient.writeContract({
-        address:      curveAddress as `0x${string}`,
-        abi:          BONDING_CURVE_ABI,
-        functionName: "claimFees",
-        args:         [account],
-        account,
-        chain:        arcTestnet,
-      });
+      if (graduated && vaultAddress) {
+        // Post-graduation : collectFees() sur V3LPVault
+        hash = await walletClient.writeContract({
+          address:      vaultAddress as `0x${string}`,
+          abi:          V3LP_VAULT_ABI,
+          functionName: "collectFees",
+          args:         [],
+          account,
+          chain:        arcTestnet,
+        });
+      } else {
+        // Pré-graduation : claimFees(to) sur BondingCurve
+        hash = await walletClient.writeContract({
+          address:      curveAddress as `0x${string}`,
+          abi:          BONDING_CURVE_ABI,
+          functionName: "claimFees",
+          args:         [account],
+          account,
+          chain:        arcTestnet,
+        });
+      }
 
       setTxHash(hash);
-      // Refresh balance after a short delay
-      setTimeout(() => { void fetchAccrued(); }, 3000);
+      setTimeout(() => { void fetchFees(); }, 3000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Transaction failed";
       setError(
@@ -119,10 +200,10 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
     }
   };
 
-  // ── Don't show anything if not the creator ────────────────────────────────
+  // ── Guards ─────────────────────────────────────────────────────────────────
+
   if (!isCreator) return null;
 
-  // Arc fees require an Arc (EVM) wallet
   if (selectedChain !== "arc") {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center space-y-3">
@@ -141,11 +222,24 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
     );
   }
 
+  // ── UI ─────────────────────────────────────────────────────────────────────
+
+  const buttonLabel = graduated ? "Collect V3 fees" : "Claim USDC fees";
+  const subLabel    = graduated
+    ? "V3 LP fees are distributed 67% platform / 33% you"
+    : "1% of every trade goes to you in USDC";
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2">
         <CoinsIcon className="size-4 text-orange-400 shrink-0" />
         <span className="text-sm font-semibold text-foreground">Creator fees (USDC)</span>
+        {graduated && (
+          <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+            <TrendingUpIcon className="size-3" />
+            Graduated · V3
+          </span>
+        )}
       </div>
 
       {/* Amount */}
@@ -175,7 +269,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
           className="flex items-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
         >
           <CheckCircle2 className="size-3.5" />
-          Claimed — View on ArcScan
+          {graduated ? "Collected" : "Claimed"} — View on ArcScan
         </a>
       )}
 
@@ -195,14 +289,12 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
         {claiming ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 className="size-4 animate-spin" />
-            Claiming…
+            {graduated ? "Collecting…" : "Claiming…"}
           </span>
-        ) : "Claim USDC fees"}
+        ) : buttonLabel}
       </button>
 
-      <p className="text-[10px] text-center text-muted-foreground/40">
-        1% of every trade goes to you in USDC
-      </p>
+      <p className="text-[10px] text-center text-muted-foreground/40">{subLabel}</p>
     </div>
   );
 }

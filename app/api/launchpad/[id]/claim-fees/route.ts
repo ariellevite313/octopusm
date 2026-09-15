@@ -23,10 +23,43 @@ const BONDING_CURVE_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    name: "graduated",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "vault",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
     name: "claimFees",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [{ name: "to", type: "address" }],
+    outputs: [],
+  },
+] as const;
+
+// ── ABI minimal V3LPVault Arc (post-graduation) ───────────────────────────────
+const V3LP_VAULT_ABI = [
+  {
+    name: "pendingUsdcFees",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // collectFees est keeper-friendly : n'importe qui peut l'appeler
+    name: "collectFees",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
     outputs: [],
   },
 ] as const;
@@ -81,14 +114,41 @@ export async function GET(_req: Request, { params }: RouteParams) {
     // ── Arc EVM ───────────────────────────────────────────────────────────────
     if (token.chain === "arc" && token.arc_launch_id) {
       try {
-        const raw = await arcPublicClient.readContract({
-          address:      token.arc_launch_id as `0x${string}`,
+        const curveAddress = token.arc_launch_id as `0x${string}`;
+
+        // Déterminer si le token a gradué
+        const isGraduated = await arcPublicClient.readContract({
+          address:      curveAddress,
           abi:          BONDING_CURVE_ABI,
-          functionName: "creatorFeesAccrued",
-        });
-        // USDC sur Arc : 6 décimales
-        const claimableUsdc = Number(raw) / 1_000_000;
-        return NextResponse.json({ claimableUsdc });
+          functionName: "graduated",
+        }).catch(() => false);
+
+        if (isGraduated) {
+          // Post-graduation : lire pendingUsdcFees() depuis V3LPVault
+          const vaultAddress = await arcPublicClient.readContract({
+            address:      curveAddress,
+            abi:          BONDING_CURVE_ABI,
+            functionName: "vault",
+          }) as `0x${string}`;
+
+          const pending = await arcPublicClient.readContract({
+            address:      vaultAddress,
+            abi:          V3LP_VAULT_ABI,
+            functionName: "pendingUsdcFees",
+          });
+
+          const claimableUsdc = Number(pending) / 1_000_000;
+          return NextResponse.json({ claimableUsdc, graduated: true, vaultAddress });
+        } else {
+          // Pré-graduation : lire creatorFeesAccrued sur BondingCurve
+          const raw = await arcPublicClient.readContract({
+            address:      curveAddress,
+            abi:          BONDING_CURVE_ABI,
+            functionName: "creatorFeesAccrued",
+          });
+          const claimableUsdc = Number(raw) / 1_000_000;
+          return NextResponse.json({ claimableUsdc, graduated: false });
+        }
       } catch (e) {
         console.error("[claim-fees GET] Arc read error:", e);
         return NextResponse.json({ claimableUsdc: null });
@@ -191,34 +251,85 @@ export async function POST(req: Request, { params }: RouteParams) {
         return NextResponse.json({ error: "Curve address not found — token not yet launched" }, { status: 409 });
       }
 
-      // Vérifier qu'il y a bien des fees à claim
-      const raw = await arcPublicClient.readContract({
-        address:      token.arc_launch_id as `0x${string}`,
-        abi:          BONDING_CURVE_ABI,
-        functionName: "creatorFeesAccrued",
-      }).catch(() => 0n);
+      const curveAddress = token.arc_launch_id as `0x${string}`;
 
-      if (raw === 0n) {
-        return NextResponse.json({ error: "Nothing to claim — no fees accumulated yet" }, { status: 409 });
+      // Détecter si gradué
+      const isGraduated = await arcPublicClient.readContract({
+        address:      curveAddress,
+        abi:          BONDING_CURVE_ABI,
+        functionName: "graduated",
+      }).catch(() => false);
+
+      if (isGraduated) {
+        // ── Post-graduation : collectFees() sur V3LPVault ────────────────────
+        const vaultAddress = await arcPublicClient.readContract({
+          address:      curveAddress,
+          abi:          BONDING_CURVE_ABI,
+          functionName: "vault",
+        }).catch(() => null) as `0x${string}` | null;
+
+        if (!vaultAddress || vaultAddress === "0x0000000000000000000000000000000000000000") {
+          return NextResponse.json({ error: "Vault address not found on curve" }, { status: 409 });
+        }
+
+        const pending = await arcPublicClient.readContract({
+          address:      vaultAddress,
+          abi:          V3LP_VAULT_ABI,
+          functionName: "pendingUsdcFees",
+        }).catch(() => 0n);
+
+        if (pending === 0n) {
+          return NextResponse.json({ error: "Nothing to collect — no V3 fees accumulated yet" }, { status: 409 });
+        }
+
+        const claimableUsdc = Number(pending) / 1_000_000;
+
+        // collectFees() est keeper-friendly (pas de contrôle msg.sender)
+        // Le frontend peut l'appeler avec n'importe quel wallet
+        const calldata = encodeFunctionData({
+          abi:          V3LP_VAULT_ABI,
+          functionName: "collectFees",
+          args:         [],
+        });
+
+        return NextResponse.json({
+          chain:        "arc",
+          graduated:    true,
+          vaultAddress,
+          calldata,
+          claimableUsdc,
+          abi:          V3LP_VAULT_ABI,
+        });
+
+      } else {
+        // ── Pré-graduation : claimFees(to) sur BondingCurve ─────────────────
+        const raw = await arcPublicClient.readContract({
+          address:      curveAddress,
+          abi:          BONDING_CURVE_ABI,
+          functionName: "creatorFeesAccrued",
+        }).catch(() => 0n);
+
+        if (raw === 0n) {
+          return NextResponse.json({ error: "Nothing to claim — no fees accumulated yet" }, { status: 409 });
+        }
+
+        const claimableUsdc = Number(raw) / 1_000_000;
+
+        const calldata = encodeFunctionData({
+          abi:          BONDING_CURVE_ABI,
+          functionName: "claimFees",
+          args:         [body.walletAddress as `0x${string}`],
+        });
+
+        return NextResponse.json({
+          chain:        "arc",
+          graduated:    false,
+          curveAddress,
+          calldata,
+          claimableUsdc,
+          abi:          BONDING_CURVE_ABI,
+        });
       }
-
-      const claimableUsdc = Number(raw) / 1_000_000;
-
-      // Retourner les infos pour que le frontend appelle directement via wagmi
-      // (pas de tx côté serveur pour Arc — le créateur signe lui-même)
-      const calldata = encodeFunctionData({
-        abi:          BONDING_CURVE_ABI,
-        functionName: "claimFees",
-        args:         [body.walletAddress as `0x${string}`],
-      });
-
-      return NextResponse.json({
-        chain:        "arc",
-        curveAddress: token.arc_launch_id,
-        calldata,
-        claimableUsdc,
-        abi:          BONDING_CURVE_ABI,
-      });
     }
 
     // ── Solana DBC ────────────────────────────────────────────────────────────
