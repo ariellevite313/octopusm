@@ -4,7 +4,7 @@
 export const ARC_LAUNCHPAD_ADDRESS = "0xC41000636c9952ebBBa5b3e08F8aE885748862b1" as const;
 
 /** NEW — LaunchpadFactory déployé le 2026-09-09 (constant-product AMM) */
-export const ARC_FACTORY_ADDRESS   = "0x376c02911209df5C40A2672fA7452884578fEbb1" as const;
+export const ARC_FACTORY_ADDRESS   = "0x003d8e0608877a3Bd73a41CE52Ba89F394675f86" as const;
 
 export const ARC_USDC_ADDRESS      = "0x3600000000000000000000000000000000000000" as const;
 
