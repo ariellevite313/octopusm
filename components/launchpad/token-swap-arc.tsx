@@ -488,6 +488,23 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     ? Math.min(100, Number((realRaised * 10000n) / gradThreshold) / 100)
     : 0;
 
+  // Market cap calculé depuis la formule AMM constant-product :
+  // mcap = (VIRTUAL_USDC + realRaised)² × totalSupply / (VIRTUAL_USDC × curveSupply)
+  // En USDC (sans décimales) — graduation à ~$25,000
+  const VIRTUAL_USDC_N  = 3_200_000_000n;
+  const CURVE_SUPPLY_N  = 800_000_000n;
+  const TOTAL_SUPPLY_N  = 1_000_000_000n;
+  const reserveUsdc     = VIRTUAL_USDC_N + realRaised;
+  const currentMcapRaw  = reserveUsdc * reserveUsdc * TOTAL_SUPPLY_N / (VIRTUAL_USDC_N * CURVE_SUPPLY_N);
+  const currentMcapUsdc = Number(currentMcapRaw) / 1_000_000; // 6 dec → USD
+  const GRAD_MCAP_USDC  = 25_000; // constant — graduation toujours à ~$25K
+
+  function fmtMcap(usd: number): string {
+    if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M`;
+    if (usd >= 1_000)     return `$${(usd / 1_000).toFixed(1)}K`;
+    return `$${usd.toFixed(0)}`;
+  }
+
   const QuoteBadge = () => (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
       {isStockPaired ? (
@@ -568,7 +585,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
           <div className="space-y-1 px-0.5">
             <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>Bonding curve</span>
-              <span>{fmtUsdc(realRaised)} / {fmtUsdc(gradThreshold)} {quoteSymbol}</span>
+              <span>MC {fmtMcap(currentMcapUsdc)} / {fmtMcap(GRAD_MCAP_USDC)}</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div

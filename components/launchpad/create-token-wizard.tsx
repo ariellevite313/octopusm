@@ -425,11 +425,6 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
               <span className="font-semibold text-foreground">{data.sol_stock_symbol}</span>{" "}
               to buy your token (via Meteora DBC).
             </p>
-            <div className="rounded-lg bg-orange-500/8 border border-orange-500/20 px-3 py-2">
-              <p className="text-[11px] text-orange-400">
-                ⚡ Powered by Meteora DBC — supports Token-2022 xStocks as quote token.
-              </p>
-            </div>
           </div>
         )}
       </div>
@@ -678,7 +673,7 @@ function StepArcOptions({
       <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/10 p-4">
         <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve</p>
         <p className="text-xs text-blue-700 dark:text-blue-400">
-          Constant-product AMM · Graduates at 4,800 {quoteSymbol} raised · 2% trading fee · Fully on-chain on Arc.
+          Constant-product AMM · Graduates at ~$25,000 market cap · 2% trading fee · Fully on-chain on Arc.
         </p>
       </div>
 
@@ -742,7 +737,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Supply" value="1,000,000,000 tokens" />
             <Row label="Type" value={data.arc_token_type === "stock" ? `Stock-Paired (${data.arc_stock_symbol})` : "USDC Meme"} />
             <Row label="Bonding curve" value="Constant-product AMM" />
-            <Row label="Graduation" value={`4,800 ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
+            <Row label="Graduation" value="~$25,000 market cap" />
             <Row label="Trading fee" value="2%" />
             <Row label="Platform fee" value={ARC_CREATION_FEE_USDC === 0 ? "Free 🎉" : `${ARC_CREATION_FEE_USDC} USDC`} highlight />
             {data.arc_first_buy_enabled && (
@@ -773,17 +768,17 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
       {/* Coût */}
       {chain === "arc" ? (
         <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost — Arc Testnet</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost — Arc</p>
           <div className="space-y-1">
             <Row label="Gas (deploy ~1M gas)" value="~0.02 USDC" />
-            <Row label="Platform fee" value="Free (testnet)" />
+            <Row label="Platform fee" value="Free" />
             <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
               <span className="text-sm font-semibold text-foreground">Total</span>
               <span className="text-sm font-bold text-blue-500">~0.02 USDC</span>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            MetaMask will open to sign the transaction on Arc Testnet (Chain ID 5042002).
+            MetaMask will open to sign the transaction on Arc.
           </p>
           <p className="mt-1 text-xs text-amber-500">
             ⚠️ Phantom must not be set as default EVM wallet. Go to Phantom → Settings → Default wallet → Always ask.
@@ -1129,7 +1124,7 @@ export function CreateTokenWizard({
       arc_creation_block: arcCreationBlock,
       quote_asset:   isStockPaired ? data.arc_quote_asset : null,
       stock_symbol:  isStockPaired ? data.arc_stock_symbol.replace("x", "") : null,
-      creator_wallet: account,
+      creator_wallet: walletAddress,
       creator_fee_pct: 1,
       fee_recipients: [],
       share_top100: false, share_top100_pct: 0,

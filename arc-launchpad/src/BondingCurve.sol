@@ -4,26 +4,8 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-// ─── Interfaces Uniswap V2 (minimales) ──────────────────────────────────────
-
-interface IUniswapV2Router02 {
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 amountADesired,
-        uint256 amountBDesired,
-        uint256 amountAMin,
-        uint256 amountBMin,
-        address to,
-        uint256 deadline
-    ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
-}
-
-interface IUniswapV2Factory {
-    function getPair(address tokenA, address tokenB) external view returns (address pair);
-    function createPair(address tokenA, address tokenB) external returns (address pair);
-}
+// INonfungiblePositionManager et V3LPVault importés ensemble — pas de redéfinition d'interface
+import "./V3LPVault.sol";
 
 /**
  * @title BondingCurve
@@ -39,6 +21,11 @@ interface IUniswapV2Factory {
  *
  * Ce contrat est déployé via un clone EIP-1167 ; initialize() remplace le constructeur.
  * Aucune fonction admin post-initialize.
+ *
+ * Graduation V3 :
+ *   - 4 800 USDC net levés + 200 M tokens → position Uniswap V3 full-range (fee tier 1%)
+ *   - NFT de position envoyé au V3LPVault déployé par la factory
+ *   - fees V3 (1% sur chaque swap) → 67% treasury / 33% creator (ou holders)
  */
 contract BondingCurve is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -69,8 +56,15 @@ contract BondingCurve is ReentrancyGuard {
     /// @dev Plafond first buy : 10 % du GRAD_THRESHOLD
     uint256 public constant MAX_FIRST_BUY = GRAD_THRESHOLD / 10; // 480 USDC
 
-    /// @dev Adresse dead pour burn LP
-    address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
+    /// @dev NonfungiblePositionManager Uniswap V3 sur Arc
+    address public constant NFPM = 0x6049c9a0e26405c0985f9e3685c87d0ae917f82b;
+
+    /// @dev Fee tier Uniswap V3 utilisé pour la paire post-graduation (1%)
+    uint24 public constant V3_FEE_TIER = 10_000;
+
+    /// @dev Ticks full-range pour V3 (fee tier 1% → tickSpacing 200)
+    int24 public constant TICK_LOWER = -887200;
+    int24 public constant TICK_UPPER =  887200;
 
     // ─── État ────────────────────────────────────────────────────────────
 
@@ -78,8 +72,9 @@ contract BondingCurve is ReentrancyGuard {
     IERC20  public token;
     address public creator;
     address public treasury;
-    address public uniswapRouter;
-    address public uniswapFactory;
+
+    /// @notice V3LPVault qui recevra le NFT à la graduation
+    address public vault;
 
     /// @notice Réserve USDC courante (virtual + real), 6 dec
     uint256 public reserveUsdc;
@@ -112,7 +107,7 @@ contract BondingCurve is ReentrancyGuard {
         uint256 reserveTokens
     );
 
-    event Graduated(address indexed pair, uint256 usdcToLP, uint256 tokensToLP);
+    event Graduated(uint256 indexed tokenId, uint256 usdcToLP, uint256 tokensToLP);
 
     event FeesPaid(
         address indexed creator,
@@ -127,30 +122,32 @@ contract BondingCurve is ReentrancyGuard {
 
     /**
      * @notice Initialise le clone. Appelé une seule fois par la factory.
+     * @param token_    Adresse du meme token
+     * @param creator_  Créateur du token
+     * @param usdc_     USDC ERC-20 Arc (0x3600…0000)
+     * @param treasury_ Treasury platform
+     * @param vault_    V3LPVault qui recevra le NFT à la graduation
      */
     function initialize(
         address token_,
         address creator_,
         address usdc_,
         address treasury_,
-        address uniswapRouter_,
-        address uniswapFactory_
+        address vault_
     ) external {
-        require(!_initialized,         "BondingCurve: already initialized");
-        require(token_          != address(0), "BondingCurve: zero token");
-        require(creator_        != address(0), "BondingCurve: zero creator");
-        require(usdc_           != address(0), "BondingCurve: zero usdc");
-        require(treasury_       != address(0), "BondingCurve: zero treasury");
-        require(uniswapRouter_  != address(0), "BondingCurve: zero router");
-        require(uniswapFactory_ != address(0), "BondingCurve: zero factory");
+        require(!_initialized,          "BondingCurve: already initialized");
+        require(token_    != address(0), "BondingCurve: zero token");
+        require(creator_  != address(0), "BondingCurve: zero creator");
+        require(usdc_     != address(0), "BondingCurve: zero usdc");
+        require(treasury_ != address(0), "BondingCurve: zero treasury");
+        require(vault_    != address(0), "BondingCurve: zero vault");
 
-        _initialized    = true;
-        token           = IERC20(token_);
-        creator         = creator_;
-        usdc            = IERC20(usdc_);
-        treasury        = treasury_;
-        uniswapRouter   = uniswapRouter_;
-        uniswapFactory  = uniswapFactory_;
+        _initialized  = true;
+        token         = IERC20(token_);
+        creator       = creator_;
+        usdc          = IERC20(usdc_);
+        treasury      = treasury_;
+        vault         = vault_;
 
         // Réserves initiales
         reserveUsdc   = VIRTUAL_USDC;
@@ -318,44 +315,74 @@ contract BondingCurve is ReentrancyGuard {
 
     /**
      * @dev Appelé une seule fois quand realUsdcRaised >= GRAD_THRESHOLD.
-     *      Crée la paire Uniswap V2, ajoute la liquidité et brûle les LP tokens.
+     *
+     * Crée une position Uniswap V3 full-range avec :
+     *   - 4 800 USDC net levés
+     *   - 200 M tokens réservés (LP_RESERVE)
+     *
+     * Le NFT de position est envoyé directement au V3LPVault qui collectera
+     * les fees (1% sur chaque swap) et les distribuera 67% treasury / 33% creator.
+     * La liquidité n'est jamais retirée (vault.lockPosition() le garantit).
      */
     function _graduate() internal {
         require(!graduated, "BondingCurve: already graduated");
         graduated = true;
 
-        uint256 usdcForLP   = realUsdcRaised;  // USDC net levés (sans les virtual)
-        uint256 tokensForLP = LP_RESERVE;       // 200 M tokens réservés
+        uint256 usdcForLP   = realUsdcRaised; // 4 800 USDC (6 dec)
+        uint256 tokensForLP = LP_RESERVE;      // 200 M tokens (18 dec)
 
-        // S'assurer que la paire existe (la créer si besoin)
-        address factory = uniswapFactory;
-        address _token  = address(token);
-        address _usdc   = address(usdc);
+        address _token = address(token);
+        address _usdc  = address(usdc);
+        address _vault = vault;
 
-        if (IUniswapV2Factory(factory).getPair(_token, _usdc) == address(0)) {
-            IUniswapV2Factory(factory).createPair(_token, _usdc);
-        }
-        address pair = IUniswapV2Factory(factory).getPair(_token, _usdc);
+        // Uniswap V3 exige token0 < token1 (ordre lexicographique des adresses)
+        (address token0, address token1, uint256 amt0, uint256 amt1) =
+            _token < _usdc
+                ? (_token, _usdc, tokensForLP, usdcForLP)
+                : (_usdc, _token, usdcForLP, tokensForLP);
 
-        // Approuver le router
-        token.approve(uniswapRouter, tokensForLP);
-        usdc.approve(uniswapRouter, usdcForLP);
+        // Calculer le sqrtPriceX96 correspondant au ratio graduation
+        // (4 800 USDC / 200 M tokens) afin d'initialiser la pool si elle n'existe pas.
+        // sqrtPriceX96 = sqrt(amt1 / amt0) × 2^96
+        //             = sqrt(amt1 × 2^128 / amt0) × 2^32  (évite l'overflow uint256)
+        uint160 sqrtPriceX96 = _computeSqrtPriceX96(amt0, amt1);
 
-        // Ajouter la liquidité — LP tokens envoyés directement à DEAD
-        (,, uint256 liquidity) = IUniswapV2Router02(uniswapRouter).addLiquidity(
-            _token,
-            _usdc,
-            tokensForLP,
-            usdcForLP,
-            0,      // amountAMin — accepter toute la liquidité (on contrôle les deux côtés)
-            0,      // amountBMin
-            DEAD,   // LP tokens → dead, non récupérables
-            block.timestamp + 600
+        // Créer et initialiser la pool si elle n'existe pas (no-op si déjà existante)
+        INonfungiblePositionManager(NFPM).createAndInitializePoolIfNecessary(
+            token0, token1, V3_FEE_TIER, sqrtPriceX96
         );
 
-        require(liquidity > 0, "BondingCurve: no LP minted");
+        // Approuver le NFPM
+        token.approve(NFPM, tokensForLP);
+        usdc.approve(NFPM, usdcForLP);
 
-        emit Graduated(pair, usdcForLP, tokensForLP);
+        // Mint position full-range — NFT envoyé directement au vault
+        (uint256 tokenId, uint128 liquidity,,) = INonfungiblePositionManager(NFPM).mint(
+            INonfungiblePositionManager.MintParams({
+                token0:         token0,
+                token1:         token1,
+                fee:            V3_FEE_TIER,   // 1%
+                tickLower:      TICK_LOWER,     // -887200
+                tickUpper:      TICK_UPPER,     //  887200
+                amount0Desired: amt0,
+                amount1Desired: amt1,
+                amount0Min:     0,              // on contrôle les deux côtés, pas de slippage tiers
+                amount1Min:     0,
+                recipient:      _vault,         // NFT → vault directement
+                deadline:       block.timestamp + 600
+            })
+        );
+
+        require(liquidity > 0, "BondingCurve: no liquidity minted");
+
+        // Révoquer les approbations restantes (sécurité)
+        token.approve(NFPM, 0);
+        usdc.approve(NFPM, 0);
+
+        // Notifier le vault qu'il détient maintenant la position
+        V3LPVault(_vault).lockPosition(tokenId);
+
+        emit Graduated(tokenId, usdcForLP, tokensForLP);
     }
 
     // ─── Helpers internes ─────────────────────────────────────────────────
@@ -396,16 +423,35 @@ contract BondingCurve is ReentrancyGuard {
     }
 
     /**
-     * @dev Distribue la fee : moitié accumulée pour le créateur, moitié envoyée à la treasury.
+     * @dev Distribue la fee : moitié treasury, moitié créateur.
+     *
+     * Si le vault a holderRewards = true, la part créateur est envoyée immédiatement
+     * au FeeDistributor (notifyReward) plutôt qu'accumulée dans creatorFeesAccrued.
+     * Cela permet aux holders de gagner des rewards dès le premier trade,
+     * avant même la graduation V3.
      */
     function _distributeFees(uint256 fee) internal {
         if (fee == 0) return;
         uint256 creatorShare  = fee / 2;
         uint256 treasuryShare = fee - creatorShare; // absorbe le reste (rounding)
-        creatorFeesAccrued   += creatorShare;
+
         if (treasuryShare > 0) {
             usdc.safeTransfer(treasury, treasuryShare);
         }
+
+        if (creatorShare > 0) {
+            V3LPVault _vault = V3LPVault(vault);
+            if (_vault.holderRewards()) {
+                // Holder rewards activés : envoyer la part créateur au FeeDistributor
+                address dist = _vault.feeDistributor();
+                usdc.safeTransfer(dist, creatorShare);
+                IFeeDistributor(dist).notifyReward(creatorShare);
+            } else {
+                // Pas de holder rewards : accumuler pour que le créateur claim manuellement
+                creatorFeesAccrued += creatorShare;
+            }
+        }
+
         emit FeesPaid(creator, creatorShare, treasury, treasuryShare);
     }
 
@@ -414,6 +460,40 @@ contract BondingCurve is ReentrancyGuard {
      */
     function _ceilDiv(uint256 a, uint256 b) internal pure returns (uint256) {
         return (a + b - 1) / b;
+    }
+
+    /**
+     * @dev Calcule le sqrtPriceX96 Uniswap V3 à partir des montants de chaque côté.
+     *
+     *   sqrtPriceX96 = sqrt(amount1 / amount0) × 2^96
+     *
+     * Pour éviter l'overflow uint256 (amount1 × 2^192 peut dépasser 2^256),
+     * on utilise la décomposition :
+     *   sqrt(amount1 × 2^192 / amount0)
+     *   = sqrt(amount1 × 2^128 / amount0) × 2^32
+     *
+     * Validité : amount0 et amount1 < 2^128 (nos montants max : ~2e26 < 2^88). ✓
+     */
+    function _computeSqrtPriceX96(uint256 amount0, uint256 amount1)
+        internal pure
+        returns (uint160)
+    {
+        uint256 ratioX128 = (amount1 << 128) / amount0;
+        return uint160(_sqrt(ratioX128) << 32);
+    }
+
+    /**
+     * @dev Racine carrée entière (méthode de Babylone).
+     *      Retourne floor(sqrt(x)).
+     */
+    function _sqrt(uint256 x) internal pure returns (uint256 y) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
     }
 
     // ─── View helpers ─────────────────────────────────────────────────────

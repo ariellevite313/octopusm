@@ -645,10 +645,6 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           <p className="text-[10px] text-center text-indigo-400 font-semibold pt-1">🎓 Graduated to DAMM</p>
         )}
 
-        <p className="text-center text-[10px] text-muted-foreground/40 pb-1">
-          Powered by Meteora DBC
-        </p>
-
       </div>
     </div>
   );

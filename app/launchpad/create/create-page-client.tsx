@@ -70,9 +70,6 @@ export function CreatePageClient({
         >
           <Image src="/arc-logo.jpeg" alt="Arc" width={18} height={18} className="rounded-full" unoptimized />
           Arc
-          <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
-            Testnet
-          </span>
         </button>
       </div>
 

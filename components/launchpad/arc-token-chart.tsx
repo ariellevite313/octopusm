@@ -311,7 +311,7 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">{ticker ?? "Token"} · Arc Testnet · {points.length} trades</p>
+          <p className="text-xs text-muted-foreground">{ticker ?? "Token"} · {points.length} trades</p>
         </div>
 
         {/* Chart mode toggle */}
@@ -437,7 +437,7 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
             {bars.length} candle{bars.length !== 1 ? "s" : ""} · {tfConfig.bucketSec / 60}m bucket
           </span>
         )}
-        <span className="text-[10px] text-muted-foreground/40">On-chain · Arc Testnet</span>
+        <span className="text-[10px] text-muted-foreground/40">On-chain</span>
       </div>
     </div>
   );
