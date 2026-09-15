@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import "forge-std/Script.sol";
 import "../src/BondingCurve.sol";
 import "../src/GenericBondingCurve.sol";
+import "../src/V3LPVault.sol";
+import "../src/FeeDistributor.sol";
 import "../src/LaunchpadFactory.sol";
 import "../src/WhitelistRegistry.sol";
 import "../src/MockXStock.sol";
@@ -23,16 +25,14 @@ import "../src/MockXStock.sol";
  *   DEPLOYER_PK  — clé privée du déployeur
  *   TREASURY     — adresse treasury OM
  *
- * Adresses Arc testnet :
- *   USDC     : 0x3600000000000000000000000000000000000000
- *   V2Router : 0x54599C3e0bcb99ca37b286242b5eC5D331AB9D18
- *   V2Factory: 0xB56B00C38EF85633A789644415A16b4C8ea12EF8
+ * Adresses Arc :
+ *   USDC     : 0x3600000000000000000000000000000000000000  (gas token natif)
+ *   NFPM V3  : 0x6049c9a0e26405c0985f9e3685c87d0ae917f82b  (NonfungiblePositionManager)
  */
 contract Deploy is Script {
-    // ─── Adresses Arc testnet ─────────────────────────────────────────────
-    address constant USDC_ARC        = 0x3600000000000000000000000000000000000000;
-    address constant UNI_ROUTER_ARC  = 0x54599C3e0bcb99ca37b286242b5eC5D331AB9D18;
-    address constant UNI_FACTORY_ARC = 0xB56B00C38EF85633A789644415A16b4C8ea12EF8;
+    // ─── Adresses Arc (testnet 5042002 / mainnet 5042) ───────────────────────
+    address constant USDC_ARC = 0x3600000000000000000000000000000000000000;
+    // NFPM est hard-codé dans V3LPVault.sol et BondingCurve.sol — pas besoin ici
 
     function run() external {
         address treasury   = vm.envAddress("TREASURY");
@@ -42,35 +42,43 @@ contract Deploy is Script {
         console.log("=== OM Launchpad Deploy ===");
         console.log("Deployer  :", deployer);
         console.log("Treasury  :", treasury);
-        console.log("Network   : Arc Testnet (chainId 5042002)");
+        console.log("Network   : Arc (chainId 5042002 testnet / 5042 mainnet)");
 
         vm.startBroadcast(deployerPk);
 
         // 1. Implémentation BondingCurve (USDC-paired)
         BondingCurve curveImpl = new BondingCurve();
-        console.log("BondingCurve impl       :", address(curveImpl));
+        console.log("BondingCurve impl        :", address(curveImpl));
 
         // 2. Implémentation GenericBondingCurve (stock-paired)
         GenericBondingCurve genericCurveImpl = new GenericBondingCurve();
-        console.log("GenericBondingCurve impl:", address(genericCurveImpl));
+        console.log("GenericBondingCurve impl :", address(genericCurveImpl));
 
-        // 3. WhitelistRegistry
+        // 3. Implémentation V3LPVault (clone template)
+        V3LPVault vaultImpl = new V3LPVault();
+        console.log("V3LPVault impl           :", address(vaultImpl));
+
+        // 4. Implémentation FeeDistributor (clone template)
+        FeeDistributor distributorImpl = new FeeDistributor();
+        console.log("FeeDistributor impl      :", address(distributorImpl));
+
+        // 5. WhitelistRegistry
         WhitelistRegistry registry = new WhitelistRegistry(deployer);
-        console.log("WhitelistRegistry       :", address(registry));
+        console.log("WhitelistRegistry        :", address(registry));
 
-        // 4. Mock xStock tokens (testnet uniquement)
-        MockXStock xNVDA = new MockXStock("Nvidia Stock Token",       "xNVDA");
-        MockXStock xTSLA = new MockXStock("Tesla Stock Token",        "xTSLA");
-        MockXStock xMSTR = new MockXStock("MicroStrategy Stock Token","xMSTR");
-        MockXStock xAAPL = new MockXStock("Apple Stock Token",        "xAAPL");
-        MockXStock xSPY  = new MockXStock("S&P 500 ETF Token",        "xSPY");
-        console.log("xNVDA                   :", address(xNVDA));
-        console.log("xTSLA                   :", address(xTSLA));
-        console.log("xMSTR                   :", address(xMSTR));
-        console.log("xAAPL                   :", address(xAAPL));
-        console.log("xSPY                    :", address(xSPY));
+        // 6. Mock xStock tokens (testnet uniquement)
+        MockXStock xNVDA = new MockXStock("Nvidia Stock Token",        "xNVDA");
+        MockXStock xTSLA = new MockXStock("Tesla Stock Token",         "xTSLA");
+        MockXStock xMSTR = new MockXStock("MicroStrategy Stock Token", "xMSTR");
+        MockXStock xAAPL = new MockXStock("Apple Stock Token",         "xAAPL");
+        MockXStock xSPY  = new MockXStock("S&P 500 ETF Token",         "xSPY");
+        console.log("xNVDA                    :", address(xNVDA));
+        console.log("xTSLA                    :", address(xTSLA));
+        console.log("xMSTR                    :", address(xMSTR));
+        console.log("xAAPL                    :", address(xAAPL));
+        console.log("xSPY                     :", address(xSPY));
 
-        // 5. Ajouter les mocks dans le registry
+        // 7. Ajouter les mocks dans le registry
         registry.addAsset(
             address(xNVDA), "Nvidia Stock Token", "xNVDA",
             "https://cdn.omdot.fun/stocks/nvda.svg", 6
@@ -93,20 +101,19 @@ contract Deploy is Script {
         );
         console.log("Registry: 5 assets whitelisted");
 
-        // 6. LaunchpadFactory (USDC + stock-paired)
+        // 8. LaunchpadFactory — nouveau constructeur 7 params
         LaunchpadFactory factory = new LaunchpadFactory(
-            address(curveImpl),
-            address(genericCurveImpl),
-            USDC_ARC,
-            treasury,
-            UNI_ROUTER_ARC,
-            UNI_FACTORY_ARC,
-            address(registry)
+            address(curveImpl),          // BondingCurve impl (USDC-paired)
+            address(genericCurveImpl),   // GenericBondingCurve impl (stock-paired)
+            address(vaultImpl),          // V3LPVault impl
+            address(distributorImpl),    // FeeDistributor impl
+            USDC_ARC,                    // USDC (gas token Arc)
+            treasury,                    // treasury OM
+            address(registry)            // WhitelistRegistry
         );
-        console.log("LaunchpadFactory        :", address(factory));
+        console.log("LaunchpadFactory         :", address(factory));
 
-        // 7. Mint quelques tokens de test pour le deployer (faucet interne)
-        // 10 000 de chaque pour tester
+        // 9. Mint quelques tokens de test pour le deployer (faucet interne)
         uint256 faucetAmount = 10_000 * 1e6; // 10 000 unités (6 dec)
         xNVDA.mint(deployer, faucetAmount);
         xTSLA.mint(deployer, faucetAmount);
@@ -119,15 +126,20 @@ contract Deploy is Script {
 
         // Résumé
         console.log("\n=== DEPLOY SUMMARY ===");
-        console.log("BondingCurve impl       :", address(curveImpl));
-        console.log("GenericBondingCurve impl:", address(genericCurveImpl));
-        console.log("WhitelistRegistry       :", address(registry));
-        console.log("LaunchpadFactory        :", address(factory));
-        console.log("xNVDA                   :", address(xNVDA));
-        console.log("xTSLA                   :", address(xTSLA));
-        console.log("xMSTR                   :", address(xMSTR));
-        console.log("xAAPL                   :", address(xAAPL));
-        console.log("xSPY                    :", address(xSPY));
+        console.log("BondingCurve impl        :", address(curveImpl));
+        console.log("GenericBondingCurve impl :", address(genericCurveImpl));
+        console.log("V3LPVault impl           :", address(vaultImpl));
+        console.log("FeeDistributor impl      :", address(distributorImpl));
+        console.log("WhitelistRegistry        :", address(registry));
+        console.log("LaunchpadFactory         :", address(factory));
+        console.log("--- xStock mocks ---");
+        console.log("xNVDA                    :", address(xNVDA));
+        console.log("xTSLA                    :", address(xTSLA));
+        console.log("xMSTR                    :", address(xMSTR));
+        console.log("xAAPL                    :", address(xAAPL));
+        console.log("xSPY                     :", address(xSPY));
         console.log("======================");
+        console.log("NOTE: Copier LaunchpadFactory dans .env.local (NEXT_PUBLIC_LAUNCHPAD_FACTORY_ADDRESS)");
+        console.log("NOTE: Verifier NFPM sur Arc: 0x6049c9a0e26405c0985f9e3685c87d0ae917f82b");
     }
 }

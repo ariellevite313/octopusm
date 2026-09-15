@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./BondingCurve.sol";
 import "./GenericBondingCurve.sol";
+import "./V3LPVault.sol";
+import "./FeeDistributor.sol";
 import "./OMToken.sol";
 import "./WhitelistRegistry.sol";
 
@@ -26,10 +28,10 @@ contract LaunchpadFactory {
 
     address public immutable curveImplementation;        // BondingCurve impl (USDC)
     address public immutable genericCurveImplementation; // GenericBondingCurve impl (any quote)
+    address public immutable vaultImplementation;        // V3LPVault impl (clone)
+    address public immutable distributorImplementation;  // FeeDistributor impl (clone)
     address public immutable usdc;
     address public immutable treasury;
-    address public immutable uniswapRouter;
-    address public immutable uniswapFactory;
     address public immutable whitelistRegistry;
 
     /// @dev Plafond first buy = 10 % du GRAD_THRESHOLD (480 unités, 6 dec)
@@ -46,12 +48,21 @@ contract LaunchpadFactory {
     /// @notice Pour les stock-paired : quote asset utilisé par la courbe
     mapping(address => address) public curveQuoteAsset;
 
+    /// @notice V3LPVault associé à chaque courbe
+    mapping(address => address) public curveVault;
+
+    /// @notice FeeDistributor associé à chaque courbe (address(0) si pas de holder rewards)
+    mapping(address => address) public curveDistributor;
+
     // ─── Events ──────────────────────────────────────────────────────────
 
     event TokenCreated(
         address indexed curve,
         address indexed token,
         address indexed creator,
+        address vault,
+        address feeDistributor,   // address(0) si holderRewards = false
+        bool    holderRewards,
         string  name,
         string  symbol,
         string  imageUri,
@@ -76,35 +87,35 @@ contract LaunchpadFactory {
     /**
      * @param curveImplementation_        Adresse impl BondingCurve (USDC-paired)
      * @param genericCurveImplementation_ Adresse impl GenericBondingCurve (stock-paired)
+     * @param vaultImplementation_        Adresse impl V3LPVault
+     * @param distributorImplementation_  Adresse impl FeeDistributor
      * @param usdc_                       USDC ERC-20 Arc (0x3600…0000, 6 dec)
      * @param treasury_                   Treasury OM
-     * @param uniswapRouter_              Uniswap V2 Router sur Arc
-     * @param uniswapFactory_             Uniswap V2 Factory sur Arc
      * @param whitelistRegistry_          WhitelistRegistry des quote assets approuvés
      */
     constructor(
         address curveImplementation_,
         address genericCurveImplementation_,
+        address vaultImplementation_,
+        address distributorImplementation_,
         address usdc_,
         address treasury_,
-        address uniswapRouter_,
-        address uniswapFactory_,
         address whitelistRegistry_
     ) {
         require(curveImplementation_        != address(0), "Factory: zero impl");
         require(genericCurveImplementation_ != address(0), "Factory: zero generic impl");
+        require(vaultImplementation_        != address(0), "Factory: zero vault impl");
+        require(distributorImplementation_  != address(0), "Factory: zero distributor impl");
         require(usdc_                       != address(0), "Factory: zero usdc");
         require(treasury_                   != address(0), "Factory: zero treasury");
-        require(uniswapRouter_              != address(0), "Factory: zero router");
-        require(uniswapFactory_             != address(0), "Factory: zero uniswap factory");
         require(whitelistRegistry_          != address(0), "Factory: zero registry");
 
         curveImplementation        = curveImplementation_;
         genericCurveImplementation = genericCurveImplementation_;
+        vaultImplementation        = vaultImplementation_;
+        distributorImplementation  = distributorImplementation_;
         usdc                       = usdc_;
         treasury                   = treasury_;
-        uniswapRouter              = uniswapRouter_;
-        uniswapFactory             = uniswapFactory_;
         whitelistRegistry          = whitelistRegistry_;
     }
 
@@ -112,17 +123,18 @@ contract LaunchpadFactory {
 
     /**
      * @notice Crée un meme token classique paired avec USDC.
-     *         Comportement identique à l'ancienne factory.
+     * @param holderRewards_ true → le créateur cède sa part de fees V3 aux stakers
      */
     function createToken(
         string calldata name,
         string calldata symbol,
         string calldata imageUri,
         string calldata description,
-        uint256         firstBuyUsdc
-    ) external returns (address curve, address token) {
-        require(bytes(name).length   > 0, "Factory: empty name");
-        require(bytes(symbol).length > 0, "Factory: empty symbol");
+        uint256         firstBuyUsdc,
+        bool            holderRewards_
+    ) external returns (address curve, address token, address vault_, address distributor_) {
+        require(bytes(name).length   > 0,    "Factory: empty name");
+        require(bytes(symbol).length > 0,    "Factory: empty symbol");
         require(firstBuyUsdc <= MAX_FIRST_BUY, "Factory: first buy too large");
 
         // 1. Cloner BondingCurve
@@ -131,22 +143,41 @@ contract LaunchpadFactory {
         // 2. Déployer OMToken (mint intégral au clone)
         token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
 
-        // 3. Initialiser le clone
+        // 3. Déployer V3LPVault (clone)
+        vault_ = vaultImplementation.clone();
+
+        // 4. Déployer FeeDistributor si holderRewards (clone)
+        if (holderRewards_) {
+            distributor_ = distributorImplementation.clone();
+            FeeDistributor(distributor_).initialize(token, usdc, vault_, curve);
+        }
+
+        // 5. Initialiser le vault
+        V3LPVault(vault_).initialize(
+            usdc,
+            treasury,
+            msg.sender,
+            holderRewards_,
+            distributor_   // address(0) si holderRewards_ = false
+        );
+
+        // 6. Initialiser la bonding curve (pointe vers le vault)
         BondingCurve(curve).initialize(
             token,
             msg.sender,
             usdc,
             treasury,
-            uniswapRouter,
-            uniswapFactory
+            vault_
         );
 
-        // 4. Enregistrer
+        // 7. Enregistrer
         allCurves.push(curve);
-        isCurve[curve] = true;
-        curveQuoteAsset[curve] = usdc;
+        isCurve[curve]          = true;
+        curveQuoteAsset[curve]  = usdc;
+        curveVault[curve]       = vault_;
+        curveDistributor[curve] = distributor_;
 
-        // 5. First buy optionnel
+        // 8. First buy optionnel
         if (firstBuyUsdc > 0) {
             IERC20(usdc).safeTransferFrom(msg.sender, address(this), firstBuyUsdc);
             IERC20(usdc).approve(curve, firstBuyUsdc);
@@ -154,7 +185,11 @@ contract LaunchpadFactory {
             IERC20(usdc).approve(curve, 0);
         }
 
-        emit TokenCreated(curve, token, msg.sender, name, symbol, imageUri, description, firstBuyUsdc);
+        emit TokenCreated(
+            curve, token, msg.sender,
+            vault_, distributor_, holderRewards_,
+            name, symbol, imageUri, description, firstBuyUsdc
+        );
     }
 
     // ─── 2. Stock-paired (nouveau chemin) ────────────────────────────────
@@ -192,13 +227,14 @@ contract LaunchpadFactory {
         token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
 
         // 3. Initialiser le clone avec le quoteAsset choisi
+        // NOTE: GenericBondingCurve graduation V3 — router/factory non requis sur Arc
         GenericBondingCurve(curve).initialize(
             token,
             msg.sender,
             quoteAsset_,
             treasury,
-            uniswapRouter,
-            uniswapFactory
+            address(0), // router — non utilisé sur Arc (graduation V3)
+            address(0)  // factory — non utilisé sur Arc (graduation V3)
         );
 
         // 4. Enregistrer
