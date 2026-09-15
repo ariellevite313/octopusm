@@ -23,6 +23,9 @@ type MyToken = {
   creator_wallet: string | null;
   supply: number;
   created_at: string;
+  stock_symbol: string | null;
+  chain: string | null;
+  arc_launch_id: string | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -125,7 +128,13 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
 
           {/* Meta */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>{token.category}</span>
+            {token.stock_symbol ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                📈 ${token.stock_symbol}
+              </span>
+            ) : (
+              <span>{token.category}</span>
+            )}
             <span>·</span>
             <span>Supply {formatSupply(token.supply)}</span>
             <span>·</span>
@@ -192,14 +201,17 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
               </Link>
             )}
 
-            {/* Claim trading fees — only for live/graduated tokens with a pool */}
-            {token.pool_address &&
-              (token.status === "active" || token.status === "graduating" || token.status === "graduated") &&
-              token.is_tradeable && (
+            {/* Claim fees — Arc (EVM) ou Solana (DBC / DAMM V2) */}
+            {(token.status === "active" || token.status === "graduating" || token.status === "graduated") &&
+              token.is_tradeable &&
+              (token.chain === "arc" ? !!token.arc_launch_id : !!token.pool_address) && (
                 <ClaimFeesButton
                   tokenId={token.id}
                   walletAddress={token.creator_wallet ?? ""}
-                  poolAddress={token.pool_address}
+                  poolAddress={token.pool_address ?? ""}
+                  chain={token.chain ?? undefined}
+                  arcCurveAddress={token.arc_launch_id ?? undefined}
+                  graduated={token.status === "graduated"}
                 />
             )}
 

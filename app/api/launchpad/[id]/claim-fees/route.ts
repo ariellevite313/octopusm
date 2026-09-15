@@ -1,49 +1,69 @@
 /**
- * POST /api/launchpad/[id]/claim-fees
+ * GET  /api/launchpad/[id]/claim-fees  — montant claimable
+ * POST /api/launchpad/[id]/claim-fees  — exécuter le claim
  *
- * Builds the creator trading-fee claim transaction for the DBC pool.
- * The client wallet (creator) signs and submits it.
- *
- * Body: { walletAddress: string }
- * Returns: { transactionBase64: string; claimableSol: number | null }
+ * Arc tokens  : lit/appelle BondingCurve.claimFees(to) via viem (EVM)
+ * Solana tokens : lit/appelle DBC SDK claimCreatorTradingFee
  */
 import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { createPublicClient, http, encodeFunctionData } from "viem";
 import BN from "bn.js";
 import { createAdminClient } from "@/lib/supabase/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-/** Convert a BN object, number, or decimal string → lamports (number) */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function bnToNumber(raw: any): number {
+// ── ABI minimal BondingCurve Arc ──────────────────────────────────────────────
+const BONDING_CURVE_ABI = [
+  {
+    name: "creatorFeesAccrued",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "claimFees",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "to", type: "address" }],
+    outputs: [],
+  },
+] as const;
+
+// ── Arc RPC client (server-side) ──────────────────────────────────────────────
+const arcPublicClient = createPublicClient({
+  transport: http("https://rpc.testnet.arc.network"),
+});
+
+// ── Solana helpers ────────────────────────────────────────────────────────────
+function bnToNumber(raw: unknown): number {
   if (!raw) return 0;
   if (typeof raw === "number") return raw;
-  if (typeof raw.toNumber === "function") return raw.toNumber(); // BN object
-  const str = String(raw).trim();
-  if (!str || str === "0" || str === "00") return 0;
-  return parseInt(str, 10); // decimal string
+  if (typeof raw === "object" && raw !== null && "toNumber" in raw) {
+    try { return (raw as BN).toNumber(); } catch { return Number(raw.toString()); }
+  }
+  return Number(String(raw));
 }
 
-/** Convert a BN object, number, or decimal string → BN */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rawToBN(raw: any): BN {
+function rawToBN(raw: unknown): BN {
   if (!raw) return new BN(0);
   if (raw instanceof BN) return raw;
   if (typeof raw === "number") return new BN(raw);
-  if (typeof raw.toNumber === "function") return new BN(raw.toNumber()); // BN-like
+  if (typeof raw === "object" && raw !== null && "toNumber" in raw) return new BN((raw as BN).toNumber());
   const str = String(raw).trim();
-  if (!str || str === "0" || str === "00") return new BN(0);
-  return new BN(str); // decimal string
+  return str && str !== "0" ? new BN(str) : new BN(0);
 }
 
-function getConnection(): Connection {
+function getSolanaConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
   return new Connection(rpc, "confirmed");
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
+// GET — montant claimable
+// ─────────────────────────────────────────────────────────────────────────────
 export async function GET(_req: Request, { params }: RouteParams) {
   const { id } = await params;
 
@@ -52,40 +72,55 @@ export async function GET(_req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("pool_address, mint_address")
+      .select("chain, arc_launch_id, pool_address, mint_address")
       .eq("id", id)
       .maybeSingle();
 
     if (error || !token) return NextResponse.json({ claimableSol: null });
 
+    // ── Arc EVM ───────────────────────────────────────────────────────────────
+    if (token.chain === "arc" && token.arc_launch_id) {
+      try {
+        const raw = await arcPublicClient.readContract({
+          address:      token.arc_launch_id as `0x${string}`,
+          abi:          BONDING_CURVE_ABI,
+          functionName: "creatorFeesAccrued",
+        });
+        // USDC sur Arc : 6 décimales
+        const claimableUsdc = Number(raw) / 1_000_000;
+        return NextResponse.json({ claimableUsdc });
+      } catch (e) {
+        console.error("[claim-fees GET] Arc read error:", e);
+        return NextResponse.json({ claimableUsdc: null });
+      }
+    }
+
+    // ── Solana DBC ────────────────────────────────────────────────────────────
     const poolAddress = token.pool_address as string | null;
     const mintAddress = token.mint_address as string | null;
 
     if (!poolAddress && !mintAddress) return NextResponse.json({ claimableSol: null });
 
-    // 1. Try DBC SDK first — exact on-chain amount
+    // 1. DBC SDK — montant exact on-chain
     if (poolAddress) {
       try {
         const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const DynamicBondingCurveClient = (sdk as any).DynamicBondingCurveClient;
-        const connection = getConnection();
+        const connection = getSolanaConnection();
         const client     = new DynamicBondingCurveClient(connection, "confirmed");
         const pool       = new PublicKey(poolAddress);
         const poolState  = await client.state.getPool(pool);
         if (poolState) {
           const inner  = poolState.poolState ?? poolState;
-          const rawQ   = inner?.creatorQuoteFee;
-          const rawB   = inner?.creatorBaseFee;
-          const quoteL = bnToNumber(rawQ);
-          const baseL  = bnToNumber(rawB);
-          // Always return the SDK value — even if 0 (so UI shows 0, not a GeckoTerminal estimate)
+          const quoteL = bnToNumber(inner?.creatorQuoteFee);
+          const baseL  = bnToNumber(inner?.creatorBaseFee);
           return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
         }
-      } catch { /* SDK failed — fall through to GeckoTerminal */ }
+      } catch { /* fallthrough */ }
     }
 
-    // 2. Fallback: GeckoTerminal 24h fee estimate (approximate, USD only)
+    // 2. Fallback GeckoTerminal
     try {
       let gtPool = poolAddress;
       if (!gtPool && mintAddress) {
@@ -111,22 +146,23 @@ export async function GET(_req: Request, { params }: RouteParams) {
           const volumeUsd24h = parseFloat(attrs?.volume_usd?.h24 ?? "0");
           let feePct = parseFloat(attrs?.pool_fee ?? attrs?.swap_fee ?? "0");
           if (feePct > 0 && feePct < 1) feePct = feePct * 100;
-          // Creator gets 1% out of 2% total fee (1/2 of pool fees)
           const feesUsd24h = volumeUsd24h * (feePct / 100) * (1 / 2);
-          if (feesUsd24h > 0) {
-            return NextResponse.json({ claimableSol: null, feesUsd24h: Number(feesUsd24h.toFixed(4)) });
-          }
+          if (feesUsd24h > 0) return NextResponse.json({ claimableSol: null, feesUsd24h: Number(feesUsd24h.toFixed(4)) });
         }
       }
     } catch { /* GeckoTerminal failed */ }
 
     return NextResponse.json({ claimableSol: null, feesUsd24h: null });
+
   } catch (err) {
-    console.error("claimable-fees GET error:", err);
+    console.error("[claim-fees GET] error:", err);
     return NextResponse.json({ claimableSol: null, feesUsd24h: null });
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST — construire la transaction de claim
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
@@ -140,21 +176,56 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("id, creator_wallet, status, pool_address, mint_address")
+      .select("id, chain, arc_launch_id, creator_wallet, status, pool_address, mint_address")
       .eq("id", id)
       .maybeSingle();
 
-    if (error || !token) {
-      return NextResponse.json({ error: "Token not found" }, { status: 404 });
-    }
-    if ((token.creator_wallet as string) !== body.walletAddress) {
+    if (error || !token) return NextResponse.json({ error: "Token not found" }, { status: 404 });
+    if ((token.creator_wallet as string).toLowerCase() !== body.walletAddress.toLowerCase()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
+
+    // ── Arc EVM ───────────────────────────────────────────────────────────────
+    if (token.chain === "arc") {
+      if (!token.arc_launch_id) {
+        return NextResponse.json({ error: "Curve address not found — token not yet launched" }, { status: 409 });
+      }
+
+      // Vérifier qu'il y a bien des fees à claim
+      const raw = await arcPublicClient.readContract({
+        address:      token.arc_launch_id as `0x${string}`,
+        abi:          BONDING_CURVE_ABI,
+        functionName: "creatorFeesAccrued",
+      }).catch(() => 0n);
+
+      if (raw === 0n) {
+        return NextResponse.json({ error: "Nothing to claim — no fees accumulated yet" }, { status: 409 });
+      }
+
+      const claimableUsdc = Number(raw) / 1_000_000;
+
+      // Retourner les infos pour que le frontend appelle directement via wagmi
+      // (pas de tx côté serveur pour Arc — le créateur signe lui-même)
+      const calldata = encodeFunctionData({
+        abi:          BONDING_CURVE_ABI,
+        functionName: "claimFees",
+        args:         [body.walletAddress as `0x${string}`],
+      });
+
+      return NextResponse.json({
+        chain:        "arc",
+        curveAddress: token.arc_launch_id,
+        calldata,
+        claimableUsdc,
+        abi:          BONDING_CURVE_ABI,
+      });
+    }
+
+    // ── Solana DBC ────────────────────────────────────────────────────────────
     if (!token.pool_address) {
       return NextResponse.json({ error: "No pool address — token not yet launched" }, { status: 409 });
     }
 
-    // Load DBC SDK
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let DynamicBondingCurveClient: any;
     try {
@@ -164,77 +235,50 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "DBC SDK not installed" }, { status: 500 });
     }
 
-    const connection = getConnection();
+    const connection = getSolanaConnection();
     const client     = new DynamicBondingCurveClient(connection, "confirmed");
     const creator    = new PublicKey(token.creator_wallet as string);
     const pool       = new PublicKey(token.pool_address as string);
 
-    // Fetch pool state — required before building the tx.
-    // poolState.poolState is the nested structure per DBC SDK docs.
-    // tokenA = base (project token fees), tokenB = quote (SOL fees).
-    // Block if both are 0 to prevent the SDK from drawing from the payer.
     let claimableSol: number;
     let maxBaseAmount: BN;
     let maxQuoteAmount: BN;
     try {
       const poolState = await client.state.getPool(pool);
       if (!poolState) throw new Error("Pool not found");
-      const inner = poolState.poolState ?? poolState; // handle both SDK versions
-
-      // creatorBaseFee / creatorQuoteFee can be BN objects, numbers, or decimal strings
-      const rawBase  = inner?.creatorBaseFee;
-      const rawQuote = inner?.creatorQuoteFee;
-      maxBaseAmount  = rawToBN(rawBase);
-      maxQuoteAmount = rawToBN(rawQuote);
-
+      const inner = poolState.poolState ?? poolState;
+      maxBaseAmount  = rawToBN(inner?.creatorBaseFee);
+      maxQuoteAmount = rawToBN(inner?.creatorQuoteFee);
       if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
-        return NextResponse.json(
-          { error: "Nothing to claim — no fees accumulated in this pool yet" },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "Nothing to claim — no fees accumulated in this pool yet" }, { status: 409 });
       }
-      // claimableSol = SOL (quote) portion
       claimableSol = maxQuoteAmount.toNumber() / 1e9;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown";
-      return NextResponse.json(
-        { error: `Could not fetch pool state: ${msg}` },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: `Could not fetch pool state: ${e instanceof Error ? e.message : "Unknown"}` }, { status: 503 });
     }
 
-    // Per Meteora docs, claimCreatorTradingFeeToReceiver takes:
-    //   { creator, pool, payer, maxBaseAmount, maxQuoteAmount, receiver }
-    // Platform wallet is NOT involved in this transaction.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let claimTx: any;
     try {
       claimTx = await client.creator.claimCreatorTradingFeeToReceiver({
-        creator,
-        pool,
-        payer:          creator, // creator pays their own gas
-        receiver:       creator, // claimed SOL goes to creator
-        maxBaseAmount,
-        maxQuoteAmount,
+        creator, pool, payer: creator, receiver: creator, maxBaseAmount, maxQuoteAmount,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to build claim transaction";
-      return NextResponse.json({ error: msg }, { status: 500 });
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to build claim transaction" }, { status: 500 });
     }
 
     const { blockhash } = await connection.getLatestBlockhash("confirmed");
     claimTx.recentBlockhash = blockhash;
     claimTx.feePayer = creator;
 
-    const transactionBase64 = Buffer.from(
-      claimTx.serialize({ requireAllSignatures: false })
-    ).toString("base64");
-
-    return NextResponse.json({ transactionBase64, claimableSol });
+    return NextResponse.json({
+      chain: "solana",
+      transactionBase64: Buffer.from(claimTx.serialize({ requireAllSignatures: false })).toString("base64"),
+      claimableSol,
+    });
 
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error("claim-fees error:", err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[claim-fees POST] error:", err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
   }
 }
