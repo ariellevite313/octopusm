@@ -98,7 +98,7 @@ contract V3LPVault is ReentrancyGuard {
     // ─── Constantes ───────────────────────────────────────────────────────
 
     /// @dev NonfungiblePositionManager sur Arc (chainId 5042 et 5042002)
-    address public constant NFPM = 0x6049c9a0e26405c0985f9e3685c87d0ae917f82b;
+    address public constant NFPM = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
     uint256 public constant PLATFORM_BPS = 6700; // 67%
     uint256 public constant BPS          = 10_000;
@@ -186,7 +186,7 @@ contract V3LPVault is ReentrancyGuard {
             ,,
             address token0,
             address token1,
-            ,,,,,,,,
+            ,,,,,,,
         ) = INonfungiblePositionManager(NFPM).positions(tokenId_);
 
         address _usdc = address(usdc);
@@ -242,7 +242,7 @@ contract V3LPVault is ReentrancyGuard {
         // Renvoyer les meme tokens au creator (évite qu'ils restent bloqués)
         if (tokenFees > 0) {
             // Récupérer l'adresse du token depuis la position
-            (,, address token0, address token1,,,,,,,,) =
+            (,, address token0, address token1,,,,,,,) =
                 INonfungiblePositionManager(NFPM).positions(positionTokenId);
             address memeToken = usdcIsToken0 ? token1 : token0;
             IERC20(memeToken).safeTransfer(creator, tokenFees);
@@ -256,7 +256,7 @@ contract V3LPVault is ReentrancyGuard {
      */
     function pendingUsdcFees() external view returns (uint256) {
         if (!locked) return 0;
-        (,,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) =
+        (,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) =
             INonfungiblePositionManager(NFPM).positions(positionTokenId);
         return usdcIsToken0 ? uint256(tokensOwed0) : uint256(tokensOwed1);
     }

@@ -57,7 +57,7 @@ contract BondingCurve is ReentrancyGuard {
     uint256 public constant MAX_FIRST_BUY = GRAD_THRESHOLD / 10; // 480 USDC
 
     /// @dev NonfungiblePositionManager Uniswap V3 sur Arc
-    address public constant NFPM = 0x6049c9a0e26405c0985f9e3685c87d0ae917f82b;
+    address public constant NFPM = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
     /// @dev Fee tier Uniswap V3 utilisé pour la paire post-graduation (1%)
     uint24 public constant V3_FEE_TIER = 10_000;
