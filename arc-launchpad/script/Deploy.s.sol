@@ -4,30 +4,37 @@ pragma solidity ^0.8.24;
 import "forge-std/Script.sol";
 import "../src/BondingCurve.sol";
 import "../src/GenericBondingCurve.sol";
+import "../src/V3LPVault.sol";
+import "../src/FeeDistributor.sol";
 import "../src/LaunchpadFactory.sol";
 import "../src/WhitelistRegistry.sol";
 import "../src/MockXStock.sol";
 
 contract Deploy is Script {
-    address constant USDC_ARC        = 0x3600000000000000000000000000000000000000;
-    address constant UNI_ROUTER_ARC  = 0x54599C3e0bcb99ca37b286242b5eC5D331AB9D18;
-    address constant UNI_FACTORY_ARC = 0xB56B00C38EF85633A789644415A16b4C8ea12EF8;
+    // Arc testnet
+    address constant USDC_ARC = 0x3600000000000000000000000000000000000000;
 
     function run() external {
         address treasury   = vm.envAddress("TREASURY");
         uint256 deployerPk = vm.envUint("DEPLOYER_PK");
         address deployer   = vm.addr(deployerPk);
 
-        console.log("=== OM Launchpad Deploy ===");
+        console.log("=== OM Launchpad Deploy (V3) ===");
         console.log("Deployer :", deployer);
         console.log("Treasury :", treasury);
 
         vm.startBroadcast(deployerPk);
 
+        // ── Implementations ────────────────────────────────────────────────
         BondingCurve        curveImpl        = new BondingCurve();
         GenericBondingCurve genericCurveImpl = new GenericBondingCurve();
-        WhitelistRegistry   registry         = new WhitelistRegistry(deployer);
+        V3LPVault           vaultImpl        = new V3LPVault();
+        FeeDistributor      distributorImpl  = new FeeDistributor();
 
+        // ── WhitelistRegistry ──────────────────────────────────────────────
+        WhitelistRegistry registry = new WhitelistRegistry(deployer);
+
+        // ── Mock xStocks (testnet only) ────────────────────────────────────
         MockXStock xNVDA = new MockXStock("Nvidia Stock Token",        "xNVDA");
         MockXStock xTSLA = new MockXStock("Tesla Stock Token",         "xTSLA");
         MockXStock xMSTR = new MockXStock("MicroStrategy Stock Token", "xMSTR");
@@ -40,11 +47,18 @@ contract Deploy is Script {
         registry.addAsset(address(xAAPL), "Apple Stock Token",         "xAAPL", "https://cdn.omdot.fun/stocks/aapl.svg", 6);
         registry.addAsset(address(xSPY),  "S&P 500 ETF Token",         "xSPY",  "https://cdn.omdot.fun/stocks/spy.svg",  6);
 
+        // ── LaunchpadFactory ───────────────────────────────────────────────
         LaunchpadFactory factory = new LaunchpadFactory(
-            address(curveImpl), address(genericCurveImpl),
-            USDC_ARC, treasury, UNI_ROUTER_ARC, UNI_FACTORY_ARC, address(registry)
+            address(curveImpl),
+            address(genericCurveImpl),
+            address(vaultImpl),
+            address(distributorImpl),
+            USDC_ARC,
+            treasury,
+            address(registry)
         );
 
+        // ── Faucet xStocks au deployer ─────────────────────────────────────
         uint256 faucet = 10_000 * 1e6;
         xNVDA.mint(deployer, faucet); xTSLA.mint(deployer, faucet);
         xMSTR.mint(deployer, faucet); xAAPL.mint(deployer, faucet);
@@ -53,15 +67,17 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         console.log("\n=== DEPLOY SUMMARY ===");
-        console.log("LaunchpadFactory        :", address(factory));
-        console.log("BondingCurve impl       :", address(curveImpl));
-        console.log("GenericBondingCurve impl:", address(genericCurveImpl));
-        console.log("WhitelistRegistry       :", address(registry));
-        console.log("xNVDA                   :", address(xNVDA));
-        console.log("xTSLA                   :", address(xTSLA));
-        console.log("xMSTR                   :", address(xMSTR));
-        console.log("xAAPL                   :", address(xAAPL));
-        console.log("xSPY                    :", address(xSPY));
+        console.log("LaunchpadFactory         :", address(factory));
+        console.log("BondingCurve impl        :", address(curveImpl));
+        console.log("GenericBondingCurve impl :", address(genericCurveImpl));
+        console.log("V3LPVault impl           :", address(vaultImpl));
+        console.log("FeeDistributor impl      :", address(distributorImpl));
+        console.log("WhitelistRegistry        :", address(registry));
+        console.log("xNVDA                    :", address(xNVDA));
+        console.log("xTSLA                    :", address(xTSLA));
+        console.log("xMSTR                    :", address(xMSTR));
+        console.log("xAAPL                    :", address(xAAPL));
+        console.log("xSPY                     :", address(xSPY));
         console.log("======================");
     }
 }
