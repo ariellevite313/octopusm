@@ -109,17 +109,12 @@ contract LaunchpadFactoryV4 {
         // 1. Collecter la fee de création
         IERC20(USDC).safeTransferFrom(msg.sender, treasury, CREATION_FEE);
 
-        // 2. Déployer le token meme
-        OMToken memeToken = new OMToken(name, symbol, TOTAL_SUPPLY, address(this));
+        // 2. Déployer le token meme — TOTAL_SUPPLY minté directement au hook par le constructeur
+        //    OMToken(name, symbol, imageUri, description, curve=hook, creator)
+        OMToken memeToken = new OMToken(name, symbol, imageUri, "", address(hook), msg.sender);
         tokenAddr = address(memeToken);
 
-        // 3. Approuver le hook pour le CURVE_SUPPLY (hook le tirera dans afterInitialize)
-        //    CURVE_SUPPLY = 800 M tokens — restera dans le hook pendant la bonding phase
-        //    LP_RESERVE   = 200 M tokens — sera utilisé à la graduation
-        //    Total = 1 B — tout vient de la factory (msg.sender = factory)
-        IERC20(tokenAddr).approve(address(hook), TOTAL_SUPPLY);
-
-        // 4. Construire le PoolKey
+        // 3. Construire le PoolKey — currency0 < currency1 (ordre lexicographique)
         //    currency0 < currency1 (ordre lexicographique des adresses)
         (Currency currency0, Currency currency1) = address(USDC) < tokenAddr
             ? (Currency.wrap(USDC), Currency.wrap(tokenAddr))
@@ -142,11 +137,12 @@ contract LaunchpadFactoryV4 {
         //    On utilise un sqrtPrice fixe correspondant au ratio initial
         uint160 initialSqrtPrice = _computeInitialSqrtPrice(USDC < tokenAddr);
 
-        // hookData encode : (memeToken, creator, treasury, feeDistributor, creatorKeepBps)
-        bytes memory hookData = abi.encode(tokenAddr, msg.sender, treasury, feeDistributor, creatorKeepBps);
+        // 5. Initialiser la pool V4 (cette version de v4-core : 2 args seulement, pas de hookData)
+        poolManager.initialize(key, initialSqrtPrice);
 
-        // 6. Initialiser la pool → déclenche afterInitialize sur le hook
-        poolManager.initialize(key, initialSqrtPrice, hookData);
+        // 6. Enregistrer l'état de la bonding curve dans le hook
+        //    (remplace hookData/afterInitialize absent dans cette version de v4-core)
+        hook.setupCurve(key, tokenAddr, msg.sender, treasury, feeDistributor, creatorKeepBps);
 
         // Stocker le PoolKey
         tokenPool[tokenAddr] = key;

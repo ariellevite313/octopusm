@@ -26,23 +26,28 @@ import {LaunchpadFactoryV4} from "../src/LaunchpadFactoryV4.sol";
  */
 contract DeployV4 is Script {
 
-    // ─── Adresses Arc Mainnet ──────────────────────────────────────────────
-    // ⚠️  À mettre à jour quand les adresses V4 seront confirmées sur Arc mainnet
-    address constant USDC_ARC_MAINNET = 0x3600000000000000000000000000000000000000;
-    address V4_POOL_MANAGER; // lu depuis l'env
+    // ─── Adresses Arc Mainnet (Chain ID 5042) ─────────────────────────────
+    // Source : Uniswap V4 official deployment, ARC_ADDRESSES SDK, PR #144
+    address constant USDC_ARC_MAINNET        = 0x3600000000000000000000000000000000000000;
+    address constant ARC_V4_POOL_MANAGER     = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
+    address constant ARC_V4_POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
+    address constant ARC_PERMIT2             = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+    address V4_POOL_MANAGER; // lu depuis l'env (fallback) ou ARC_V4_POOL_MANAGER ci-dessus
 
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        V4_POOL_MANAGER     = vm.envAddress("ARC_V4_POOL_MANAGER");
+        // Utilise la constante connue ; peut être overridée via env pour tests
+        V4_POOL_MANAGER     = vm.envOr("ARC_V4_POOL_MANAGER", ARC_V4_POOL_MANAGER);
         address treasury    = vm.envAddress("TREASURY");
 
         vm.startBroadcast(deployerKey);
 
         // 1. Miner l'adresse du BondingCurveHook
+        //    Flags : BEFORE_SWAP + BEFORE_SWAP_RETURNS_DELTA (pas AFTER_INITIALIZE — init via setupCurve)
         uint160 flags = uint160(
-            Hooks.BEFORE_SWAP_FLAG          |
-            Hooks.BEFORE_SWAP_RETURN_DELTA  |
-            Hooks.AFTER_INITIALIZE_FLAG
+            Hooks.BEFORE_SWAP_FLAG               |
+            Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
         bytes memory constructorArgs = abi.encode(V4_POOL_MANAGER);
@@ -69,9 +74,12 @@ contract DeployV4 is Script {
         );
         console.log("LaunchpadFactoryV4 deployed at:", address(factory));
 
+        // 4. Lier le hook à la factory (une seule fois)
+        hook.setFactory(address(factory));
+
         vm.stopBroadcast();
 
-        // 4. Afficher le résumé
+        // 5. Afficher le résumé
         console.log("\n=== DEPLOYMENT SUMMARY ===");
         console.log("Network:            Arc Mainnet (5042)");
         console.log("PoolManager:       ", V4_POOL_MANAGER);

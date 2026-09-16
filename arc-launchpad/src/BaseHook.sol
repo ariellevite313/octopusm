@@ -10,7 +10,8 @@ import {BeforeSwapDelta} from "v4-core/src/types/BeforeSwapDelta.sol";
 
 /**
  * @title BaseHook
- * @notice Minimal BaseHook for V4 hooks (local replacement — not in this v4-periphery version).
+ * @notice Minimal BaseHook for V4 hooks (local — absent from this v4-periphery version).
+ *         afterInitialize has 4 params (no hookData) per this v4-core version.
  */
 abstract contract BaseHook is IHooks {
 
@@ -31,16 +32,17 @@ abstract contract BaseHook is IHooks {
 
     function getHookPermissions() public pure virtual returns (Hooks.Permissions memory);
 
-    // ─── IHooks — stubs that revert unless overridden ─────────────────────
+    // ─── IHooks stubs ─────────────────────────────────────────────────────────
 
     function beforeInitialize(address, PoolKey calldata, uint160)
         external virtual onlyPoolManager returns (bytes4)
     { revert HookNotImplemented(); }
 
-    function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPrice, int24 tick, bytes calldata hookData)
+    // afterInitialize: 4 params — no hookData in this v4-core version
+    function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPrice, int24 tick)
         external virtual onlyPoolManager returns (bytes4)
     {
-        return _afterInitialize(sender, key, sqrtPrice, tick, hookData);
+        return _afterInitialize(sender, key, sqrtPrice, tick);
     }
 
     function beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
@@ -77,9 +79,9 @@ abstract contract BaseHook is IHooks {
         external virtual onlyPoolManager returns (bytes4)
     { revert HookNotImplemented(); }
 
-    // ─── Internal hooks to override ────────────────────────────────────────
+    // ─── Internal overrideable hooks ──────────────────────────────────────────
 
-    function _afterInitialize(address, PoolKey calldata, uint160, int24, bytes calldata)
+    function _afterInitialize(address, PoolKey calldata, uint160, int24)
         internal virtual returns (bytes4)
     { revert HookNotImplemented(); }
 

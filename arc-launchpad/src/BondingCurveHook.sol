@@ -112,9 +112,24 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
     event FeesClaimed(PoolId indexed poolId, address indexed to, uint256 amount);
     event Graduated(PoolId indexed poolId, uint256 usdcToLP, uint256 tokensToLP);
 
+    // ─── Ownership (pour setFactory) ───────────────────────────────────────
+
+    address public owner;
+    address public factory;
+
     // ─── Constructor ───────────────────────────────────────────────────────
 
-    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
+    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {
+        owner = msg.sender;
+    }
+
+    /// @notice Appelé une seule fois par le déployeur après déploiement de la factory.
+    function setFactory(address factory_) external {
+        require(msg.sender == owner,       "BondingCurveHook: not owner");
+        require(factory == address(0),     "BondingCurveHook: factory already set");
+        require(factory_ != address(0),    "BondingCurveHook: zero factory");
+        factory = factory_;
+    }
 
     // ─── Hook permissions ──────────────────────────────────────────────────
 
@@ -130,57 +145,66 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         returns (Hooks.Permissions memory)
     {
         return Hooks.Permissions({
-            beforeInitialize:              false,
-            afterInitialize:               true,  // pour initialiser l'état
-            beforeAddLiquidity:            false,
-            afterAddLiquidity:             false,
-            beforeRemoveLiquidity:         false,
-            afterRemoveLiquidity:          false,
-            beforeSwap:                    true,
-            afterSwap:                     false,
-            beforeDonate:                  false,
-            afterDonate:                   false,
-            beforeSwapReturnDelta:         true,  // CRITIQUE — override swap amounts
-            afterSwapReturnDelta:          false,
-            afterAddLiquidityReturnDelta:  false,
+            beforeInitialize:                false,
+            afterInitialize:                 false, // init via setupCurve() — hookData absent dans cette version
+            beforeAddLiquidity:              false,
+            afterAddLiquidity:               false,
+            beforeRemoveLiquidity:           false,
+            afterRemoveLiquidity:            false,
+            beforeSwap:                      true,
+            afterSwap:                       false,
+            beforeDonate:                    false,
+            afterDonate:                     false,
+            beforeSwapReturnDelta:           true,  // CRITIQUE — override swap amounts
+            afterSwapReturnDelta:            false,
+            afterAddLiquidityReturnDelta:    false,
             afterRemoveLiquidityReturnDelta: false
         });
     }
 
-    // ─── afterInitialize : enregistrer l'état du pool ─────────────────────
+    // ─── setupCurve : appelé par la factory après initialize() ───────────────
 
     /**
-     * @notice Appelé par le PoolManager après l'initialisation d'un pool.
-     *         hookData encode : (memeToken, creator, treasury)
+     * @notice Enregistre l'état d'une nouvelle bonding curve.
+     *         Remplace hookData/afterInitialize car cette version de v4-core
+     *         ne passe pas hookData à afterInitialize.
+     *
+     *         Les tokens (TOTAL_SUPPLY) doivent déjà être dans ce contrat
+     *         (mintés directement au hook par le constructeur OMToken).
+     *
+     * @param key            PoolKey de la pool V4
+     * @param memeToken      Adresse du token meme
+     * @param creator        Créateur
+     * @param treasury_      Treasury plateforme
+     * @param feeDistributor FeeDistributor (address(0) = 100% creator)
+     * @param creatorKeepBps Part créateur en bps (10000 = 100%, 5000 = 50/50)
      */
-    function _afterInitialize(
-        address,
+    function setupCurve(
         PoolKey calldata key,
-        uint160,
-        int24,
-        bytes calldata hookData
-    ) internal override returns (bytes4) {
-        // hookData encode : (memeToken, creator, treasury, feeDistributor, creatorKeepBps)
-        (
-            address memeToken,
-            address creator,
-            address treasury,
-            address feeDistributor,
-            uint256 creatorKeepBps
-        ) = abi.decode(hookData, (address, address, address, address, uint256));
-
-        require(creatorKeepBps <= BPS, "BondingCurveHook: invalid creatorKeepBps");
-        // Si creatorKeepBps < 10000, un feeDistributor est obligatoire
+        address memeToken,
+        address creator,
+        address treasury_,
+        address feeDistributor,
+        uint256 creatorKeepBps
+    ) external {
+        require(msg.sender == factory,          "BondingCurveHook: not factory");
+        require(creatorKeepBps <= BPS,          "BondingCurveHook: invalid bps");
         if (creatorKeepBps < BPS) {
             require(feeDistributor != address(0), "BondingCurveHook: need distributor");
         }
+        require(memeToken  != address(0),       "BondingCurveHook: zero token");
+        require(creator    != address(0),       "BondingCurveHook: zero creator");
+        require(treasury_  != address(0),       "BondingCurveHook: zero treasury");
 
         PoolId id = key.toId();
         CurveState storage s = curves[id];
-        require(!s.initialized,        "BondingCurveHook: already initialized");
-        require(memeToken  != address(0), "BondingCurveHook: zero token");
-        require(creator    != address(0), "BondingCurveHook: zero creator");
-        require(treasury   != address(0), "BondingCurveHook: zero treasury");
+        require(!s.initialized, "BondingCurveHook: already initialized");
+
+        // Vérifier que le hook a bien les tokens (mintés directement par OMToken)
+        require(
+            IERC20(memeToken).balanceOf(address(this)) >= CURVE_SUPPLY + LP_RESERVE,
+            "BondingCurveHook: insufficient tokens"
+        );
 
         // Déterminer quelle currency est l'USDC
         address usdcAddr = Currency.unwrap(key.currency0) == memeToken
@@ -190,18 +214,14 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         s.memeToken         = memeToken;
         s.usdc              = usdcAddr;
         s.creator           = creator;
-        s.treasury          = treasury;
+        s.treasury          = treasury_;
         s.feeDistributor    = feeDistributor;
         s.creatorKeepBps    = creatorKeepBps;
         s.reserveUsdc       = VIRTUAL_USDC;
         s.reserveTokens     = CURVE_SUPPLY;
         s.initialized       = true;
 
-        // Transférer le CURVE_SUPPLY dans ce hook (la factory doit le faire avant)
-        IERC20(memeToken).safeTransferFrom(msg.sender, address(this), CURVE_SUPPLY);
-
         emit CurveInitialized(id, memeToken, creator);
-        return IHooks.afterInitialize.selector;
     }
 
     // ─── beforeSwap : intercepter les swaps phase bonding ─────────────────
@@ -259,16 +279,14 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
             }
 
             // Flash accounting V4 :
-            //   take(currency0, address(this), usdcGross)  → hook reçoit l'USDC
-            //   settle(currency1, ...)                     → hook envoie les tokens
+            //   take(currency0, hook, usdcGross)  → hook reçoit l'USDC du PoolManager
+            //   sync + transfer + settle()         → hook dépose les tokens dans le PM
+            //   Le PM distribue les tokens au swapper via BeforeSwapDelta
             poolManager.take(key.currency0, address(this), usdcGross);
-            IERC20(s.memeToken).safeTransfer(
-                Currency.unwrap(key.currency1) == address(0) ? sender : sender,
-                tokensOut
-            );
-            // Settle la currency1 (tokens) au PoolManager qui les forward au recipient
-            IERC20(s.memeToken).approve(address(poolManager), tokensOut);
-            poolManager.settle(key.currency1);
+            // Settle tokens (currency1) vers le PoolManager
+            poolManager.sync(key.currency1);
+            IERC20(s.memeToken).safeTransfer(address(poolManager), tokensOut);
+            poolManager.settle();
 
             // Mettre à jour l'état
             s.reserveUsdc    += usdcNet;
@@ -302,9 +320,12 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
             uint256 newReserveUsdc = s.reserveUsdc - (usdcOut + fee);
             require(newReserveUsdc >= VIRTUAL_USDC, "BondingCurveHook: below virtual");
 
-            // Flash accounting
+            // Flash accounting : hook prend les tokens, dépose l'USDC pour le swapper
             poolManager.take(key.currency1, address(this), tokensIn);
-            poolManager.settle(key.currency0); // envoie l'USDC au sender
+            // Settle USDC (currency0) vers le PoolManager
+            poolManager.sync(key.currency0);
+            IERC20(s.usdc).safeTransfer(address(poolManager), usdcOut);
+            poolManager.settle();
 
             // Mettre à jour l'état
             s.reserveTokens  += tokensIn;

@@ -111,11 +111,11 @@ contract BondingCurveHookTest is Test {
         // 3. FeeDistributor mock
         feeDistributor = new MockFeeDistributor(address(usdc));
 
-        // 4. Miner l'adresse du hook (flags : BEFORE_SWAP + RETURN_DELTA + AFTER_INITIALIZE)
+        // 4. Miner l'adresse du hook (flags : BEFORE_SWAP + BEFORE_SWAP_RETURNS_DELTA)
+        //    Pas de AFTER_INITIALIZE — init via setupCurve() dans cette version de v4-core
         uint160 flags = uint160(
-            Hooks.BEFORE_SWAP_FLAG         |
-            Hooks.BEFORE_SWAP_RETURN_DELTA |
-            Hooks.AFTER_INITIALIZE_FLAG
+            Hooks.BEFORE_SWAP_FLAG               |
+            Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
         bytes memory constructorArgs = abi.encode(address(poolManager));
@@ -130,8 +130,12 @@ contract BondingCurveHookTest is Test {
         hook = new BondingCurveHook{salt: salt}(IPoolManager(address(poolManager)));
         require(address(hook) == hookAddr, "Hook address mismatch");
 
+        // 5b. Enregistrer le test contract comme "factory" pour pouvoir appeler setupCurve
+        hook.setFactory(address(this));
+
         // 6. Suite A — pool avec creatorKeepBps = 10000 (tout au créateur)
-        memeToken = new OMToken("TestMeme", "TM", TOTAL_SUPPLY, address(this));
+        //    OMToken minte TOTAL_SUPPLY directement au hook (curve_=address(hook))
+        memeToken = new OMToken("TestMeme", "TM", "", "", address(hook), CREATOR);
         deal(address(usdc), BUYER1,  2_000_000_000_000);
         deal(address(usdc), BUYER2,  2_000_000_000_000);
 
@@ -148,18 +152,13 @@ contract BondingCurveHookTest is Test {
         });
         idA = keyA.toId();
 
-        memeToken.approve(address(hook), CURVE_SUPPLY);
-        bytes memory hookDataA = abi.encode(
-            address(memeToken),
-            CREATOR,
-            TREASURY,
-            address(0),   // pas de FeeDistributor
-            uint256(10_000) // 100% creator
-        );
-        poolManager.initialize(keyA, TickMath.getSqrtPriceAtTick(0), hookDataA);
+        // initialize sans hookData (cette version de v4-core : 2 args)
+        poolManager.initialize(keyA, TickMath.getSqrtPriceAtTick(0));
+        // Enregistrer l'état via setupCurve (remplace hookData/afterInitialize)
+        hook.setupCurve(keyA, address(memeToken), CREATOR, TREASURY, address(0), 10_000);
 
         // 7. Suite B — pool avec creatorKeepBps = 5000 (50% creator, 50% holders)
-        memeTokenB = new OMToken("TestMemeB", "TMB", TOTAL_SUPPLY, address(this));
+        memeTokenB = new OMToken("TestMemeB", "TMB", "", "", address(hook), CREATOR);
 
         (address t0B, address t1B) = address(usdc) < address(memeTokenB)
             ? (address(usdc), address(memeTokenB))
@@ -174,15 +173,8 @@ contract BondingCurveHookTest is Test {
         });
         idB = keyB.toId();
 
-        memeTokenB.approve(address(hook), CURVE_SUPPLY);
-        bytes memory hookDataB = abi.encode(
-            address(memeTokenB),
-            CREATOR,
-            TREASURY,
-            address(feeDistributor), // distributor actif
-            uint256(5_000)           // 50% au créateur, 50% holders
-        );
-        poolManager.initialize(keyB, TickMath.getSqrtPriceAtTick(0), hookDataB);
+        poolManager.initialize(keyB, TickMath.getSqrtPriceAtTick(0));
+        hook.setupCurve(keyB, address(memeTokenB), CREATOR, TREASURY, address(feeDistributor), 5_000);
     }
 
     // ─── SUITE A : 100% creator ────────────────────────────────────────────
@@ -204,8 +196,9 @@ contract BondingCurveHookTest is Test {
         assertFalse(s.graduated,                        "not graduated");
         assertTrue(s.initialized,                       "initialized");
 
-        // Le hook doit détenir CURVE_SUPPLY tokens
-        assertEq(memeToken.balanceOf(address(hook)), CURVE_SUPPLY, "hook holds CURVE_SUPPLY");
+        // Le hook détient TOTAL_SUPPLY (CURVE_SUPPLY bonding + LP_RESERVE graduation)
+        // OMToken minte directement au hook, donc 1B tokens dès le départ
+        assertEq(memeToken.balanceOf(address(hook)), TOTAL_SUPPLY, "hook holds TOTAL_SUPPLY");
     }
 
     /**
