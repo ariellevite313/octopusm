@@ -447,8 +447,11 @@ export default async function TokenDetailPage({ params }: Props) {
               />
             )}
 
-            {/* Arc — claim creator fees (new contract only, creator only) */}
-            {isArc && isCreator && token.arc_launch_id?.startsWith("0x") && token.arc_launch_id.length === 42 && (
+            {/* Arc — claim creator fees (new contract only).
+                Le composant gère lui-même le check isCreator côté client
+                avec l'adresse EVM MetaMask — pas de guard serveur ici
+                car creator_wallet peut être une adresse Solana (anciens tokens). */}
+            {isArc && token.arc_launch_id?.startsWith("0x") && token.arc_launch_id.length === 42 && (
               <ClaimFeesArc
                 curveAddress={token.arc_launch_id}
                 creatorWallet={token.creator_wallet}
