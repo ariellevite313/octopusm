@@ -289,7 +289,12 @@ contract BondingCurveHookTest is Test {
         usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
+        // Donner à BUYER1 suffisamment de meme tokens pour déclencher la protection
+        // du hook (newReserveUsdc < VIRTUAL_USDC). Sans deal(), transferFrom() échoue
+        // avant d'atteindre le hook, et vm.expectRevert() swallow ce premier revert
+        // mais laisse le code continuer jusqu'à un second revert inattendu.
         uint256 tooMany = CURVE_SUPPLY;
+        deal(address(memeToken), BUYER1, tooMany);
         vm.prank(BUYER1);
         memeToken.approve(address(this), tooMany);
         vm.expectRevert();
