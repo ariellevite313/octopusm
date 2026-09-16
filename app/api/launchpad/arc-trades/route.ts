@@ -14,7 +14,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
 
-const ARCSCAN_API = "https://testnet.arcscan.app/api";
+const ARCSCAN_API = "https://explorer.arc.io/api";
 
 // Topic réel du contrat déployé (vérifié sur ArcScan CSV export)
 const TRADE_TOPIC = "0x0c668488dc690d00c35c03638df49a1c8a7b63511eba0f88eeed1bd471719b16";

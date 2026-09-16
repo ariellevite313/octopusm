@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { createWalletClient, createPublicClient, custom, parseEventLogs } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 import {
   ARC_FACTORY_ADDRESS, FACTORY_ABI,
   ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
@@ -954,11 +954,11 @@ export function CreateTokenWizard({
     const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
     const account = accounts[0] as `0x${string}`;
 
-    // 2. Switch to Arc Testnet if needed
+    // 2. Switch to Arc Mainnet if needed
     try {
       await eth.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x4CEF52" }], // 5042002
+        params: [{ chainId: "0x13B2" }], // 5042
       });
     } catch (switchErr: unknown) {
       // 4902 = chaîne inconnue → on l'ajoute
@@ -969,11 +969,11 @@ export function CreateTokenWizard({
       await eth.request({
         method: "wallet_addEthereumChain",
         params: [{
-          chainId: "0x4CEF52",
-          chainName: "Arc Testnet",
+          chainId: "0x13B2",
+          chainName: "Arc",
           nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-          rpcUrls: ["https://rpc.testnet.arc.network"],
-          blockExplorerUrls: ["https://testnet.arcscan.app"],
+          rpcUrls: ["https://rpc.mainnet.arc.io"],
+          blockExplorerUrls: ["https://explorer.arc.io"],
         }],
       });
     }
@@ -983,11 +983,11 @@ export function CreateTokenWizard({
     // appel HTTP direct qui échoue souvent sur mobile (CORS / réseau instable).
     const walletClient = createWalletClient({
       account,
-      chain: arcTestnet,
+      chain: arc,
       transport: custom(eth),
     });
     const publicClient = createPublicClient({
-      chain: arcTestnet,
+      chain: arc,
       transport: custom(eth),
     });
 

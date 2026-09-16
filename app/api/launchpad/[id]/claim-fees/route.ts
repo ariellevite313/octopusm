@@ -66,7 +66,7 @@ const V3LP_VAULT_ABI = [
 
 // ── Arc RPC client (server-side) ──────────────────────────────────────────────
 const arcPublicClient = createPublicClient({
-  transport: http("https://rpc.testnet.arc.network"),
+  transport: http("https://rpc.mainnet.arc.io"),
 });
 
 // ── Solana helpers ────────────────────────────────────────────────────────────

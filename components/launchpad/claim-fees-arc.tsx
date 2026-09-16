@@ -26,7 +26,7 @@ import {
   http,
 } from "viem";
 import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 
 // ── ABI V3LPVault (minimal) ───────────────────────────────────────────────────
 const V3LP_VAULT_ABI = [
@@ -113,7 +113,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
   const fetchFees = useCallback(async () => {
     setLoading(true);
     try {
-      const client = createPublicClient({ chain: arcTestnet, transport: http() });
+      const client = createPublicClient({ chain: arc, transport: http() });
       const curve  = curveAddress as `0x${string}`;
 
       // 1. Lire graduated depuis le slot de stockage (slot 9, byte 0)
@@ -167,14 +167,14 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
 
     try {
       const walletClient = createWalletClient({
-        chain: arcTestnet, transport: custom(provider),
+        chain: arc, transport: custom(provider),
       });
 
       // Switch to Arc si nécessaire
       try {
         await provider.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: `0x${arcTestnet.id.toString(16)}` }],
+          params: [{ chainId: `0x${arc.id.toString(16)}` }],
         });
       } catch { /* ignore */ }
 
@@ -189,7 +189,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
           functionName: "collectFees",
           args:         [],
           account,
-          chain:        arcTestnet,
+          chain:        arc,
         });
       } else {
         // Pré-graduation : claimFees(to) sur BondingCurve
@@ -199,7 +199,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
           functionName: "claimFees",
           args:         [account],
           account,
-          chain:        arcTestnet,
+          chain:        arc,
         });
       }
 
@@ -280,7 +280,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
       {/* Success */}
       {txHash && (
         <a
-          href={`https://testnet.arcscan.app/tx/${txHash}`}
+          href={`https://explorer.arc.io/tx/${txHash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
