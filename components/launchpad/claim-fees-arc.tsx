@@ -87,8 +87,26 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
   const [claiming,     setClaiming]     = useState(false);
   const [error,        setError]        = useState<string | null>(null);
   const [txHash,       setTxHash]       = useState<string | null>(null);
+  // evmAddress: adresse MetaMask réelle (peut différer de walletAddress Solana)
+  const [evmAddress,   setEvmAddress]   = useState<string | null>(null);
 
-  const isCreator = isAuthenticated && walletAddress?.toLowerCase() === creatorWallet.toLowerCase();
+  // Récupérer l'adresse EVM depuis MetaMask au montage
+  useEffect(() => {
+    const eth = (window as unknown as Record<string, unknown>).ethereum as { request?: (a: unknown) => Promise<string[]>; providers?: unknown[] } | undefined;
+    if (!eth?.request) return;
+    const provider = Array.isArray(eth.providers)
+      ? (eth.providers as Array<{ isMetaMask?: boolean; isPhantom?: boolean; request?: unknown }>).find(p => p.isMetaMask && !p.isPhantom) ?? eth
+      : eth;
+    (provider as { request?: (a: unknown) => Promise<string[]> }).request?.({ method: "eth_accounts" })
+      .then((accounts: string[]) => { if (accounts[0]) setEvmAddress(accounts[0].toLowerCase()); })
+      .catch(() => null);
+  }, []);
+
+  // isCreator : true si l'adresse EVM MetaMask OU walletAddress auth correspond au creator
+  const isCreator = isAuthenticated && !!(
+    (evmAddress && creatorWallet && evmAddress === creatorWallet.toLowerCase()) ||
+    (walletAddress && creatorWallet && walletAddress.toLowerCase() === creatorWallet.toLowerCase())
+  );
 
   // ── Read fees ──────────────────────────────────────────────────────────────
 
