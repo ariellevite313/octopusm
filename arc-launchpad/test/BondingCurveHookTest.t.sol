@@ -235,7 +235,7 @@ contract BondingCurveHookTest is Test {
         assertLt(s.reserveTokens, CURVE_SUPPLY,  "reserveTokens decreased");
         assertGt(s.realUsdcRaised, 0,            "raised > 0");
 
-        console.log("Buy 100 USDC → tokens:", tokensReceived / 1e18);
+        console.log("Buy 100 USDC -> tokens:", tokensReceived / 1e18);
         console.log("Creator fees accrued:", s.creatorFeesAccrued);
     }
 
@@ -386,7 +386,7 @@ contract BondingCurveHookTest is Test {
         vm.stopPrank();
 
         uint256 actualBps = hook.graduationProgressBps(keyA);
-        assertApproxEqAbs(actualBps, expectedBps, 100, "progress ≈ correct");
+        assertApproxEqAbs(actualBps, expectedBps, 100, "progress ~= correct");
         console.log("Progress:", actualBps / 100, "%");
     }
 
@@ -469,10 +469,10 @@ contract BondingCurveHookTest is Test {
         BondingCurveHook.CurveState memory s = _getState(keyB);
 
         // Créateur : 50% × 50% = 25% des fees totales
-        assertApproxEqRel(s.creatorFeesAccrued, expectedKeep, 0.01e18, "creator keep ≈ 25% fees");
+        assertApproxEqRel(s.creatorFeesAccrued, expectedKeep, 0.01e18, "creator keep ~= 25% fees");
 
         // FeeDistributor : 50% × 50% = 25% des fees totales
-        assertApproxEqRel(feeDistributor.totalNotified, expectedHolder, 0.01e18, "holder share ≈ 25%");
+        assertApproxEqRel(feeDistributor.totalNotified, expectedHolder, 0.01e18, "holder share ~= 25%");
         assertGt(feeDistributor.notifyCallCount, 0, "notifyReward called");
 
         // Treasury : 50% fixe
