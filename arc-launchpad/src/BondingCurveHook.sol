@@ -347,6 +347,17 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         }
     }
 
+    // ─── View helpers ─────────────────────────────────────────────────────
+
+    /**
+     * @notice Retourne l'état complet d'une curve (contournement du getter struct auto-généré).
+     *         Solidity décompose les structs dans les getters de mappings publics — cette
+     *         fonction retourne le struct entier pour simplifier les tests et le frontend.
+     */
+    function getCurveState(PoolId id) external view returns (CurveState memory) {
+        return curves[id];
+    }
+
     // ─── Claim fees créateur ───────────────────────────────────────────────
 
     /**

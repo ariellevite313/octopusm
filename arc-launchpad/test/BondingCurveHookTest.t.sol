@@ -552,7 +552,8 @@ contract BondingCurveHookTest is Test {
         keepBps = bound(keepBps, 0, 10_000);
 
         // Déployer un token et une pool ad-hoc avec ce keepBps
-        OMToken t = new OMToken("FuzzToken", "FZZ", TOTAL_SUPPLY, address(this));
+        // OMToken minte TOTAL_SUPPLY directement au hook (curve_=address(hook))
+        OMToken t = new OMToken("FuzzToken", "FZZ", "", "", address(hook), CREATOR);
         MockFeeDistributor fd = new MockFeeDistributor(address(usdc));
 
         (address c0, address c1) = address(usdc) < address(t)
@@ -567,10 +568,9 @@ contract BondingCurveHookTest is Test {
             hooks: IHooks(address(hook))
         });
 
-        t.approve(address(hook), CURVE_SUPPLY);
         address distAddr = keepBps < BPS ? address(fd) : address(0);
-        bytes memory hd  = abi.encode(address(t), CREATOR, TREASURY, distAddr, keepBps);
-        poolManager.initialize(key, TickMath.getSqrtPriceAtTick(0), hd);
+        poolManager.initialize(key, TickMath.getSqrtPriceAtTick(0));
+        hook.setupCurve(key, address(t), CREATOR, TREASURY, distAddr, keepBps);
 
         uint256 usdcIn = 100_000_000;
         deal(address(usdc), BUYER1, usdcIn);
@@ -579,7 +579,7 @@ contract BondingCurveHookTest is Test {
         _swap(key, true, -int256(usdcIn), BUYER1);
         vm.stopPrank();
 
-        BondingCurveHook.CurveState memory s = hook.curves(key.toId());
+        BondingCurveHook.CurveState memory s = hook.getCurveState(key.toId());
         uint256 totalFee     = usdcIn * FEE_BPS / BPS;
         uint256 creatorShare = totalFee / 2;
         uint256 expectedKeep = creatorShare * keepBps / BPS;
@@ -596,9 +596,9 @@ contract BondingCurveHookTest is Test {
 
     function _getState(PoolKey memory key)
         internal view
-        returns (BondingCurveHook.CurveState memory s)
+        returns (BondingCurveHook.CurveState memory)
     {
-        return hook.curves(key.toId());
+        return hook.getCurveState(key.toId());
     }
 
     function _swap(

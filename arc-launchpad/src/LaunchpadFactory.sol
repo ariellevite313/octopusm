@@ -28,6 +28,8 @@ contract LaunchpadFactory {
     address[] public allCurves;
     mapping(address => bool)    public isCurve;
     mapping(address => address) public curveQuoteAsset;
+    mapping(address => address) public curveVault;       // curve → V3LPVault
+    mapping(address => address) public curveDistributor; // curve → FeeDistributor
 
     event TokenCreated(
         address indexed curve,
@@ -119,8 +121,10 @@ contract LaunchpadFactory {
         BondingCurve(curve).initialize(token, msg.sender, usdc, treasury, vault_);
 
         allCurves.push(curve);
-        isCurve[curve] = true;
-        curveQuoteAsset[curve] = usdc;
+        isCurve[curve]           = true;
+        curveQuoteAsset[curve]   = usdc;
+        curveVault[curve]        = vault_;
+        curveDistributor[curve]  = distributor_;
 
         if (firstBuyUsdc > 0) {
             IERC20(usdc).safeTransferFrom(msg.sender, address(this), firstBuyUsdc);

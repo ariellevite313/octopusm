@@ -139,7 +139,7 @@ contract V3GraduationTest is Test {
         nfpm = new MockNFPM();
 
         // Déployer le mock NFPM à l'adresse constante utilisée par V3LPVault et BondingCurve
-        address NFPM_ADDR = 0x6049c9a0e26405c0985f9e3685c87d0ae917f82b;
+        address NFPM_ADDR = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
         vm.etch(NFPM_ADDR, address(nfpm).code);
         // Copier le storage du mock aussi
         // Note : vm.etch copie uniquement le bytecode. On utilise une référence directe.

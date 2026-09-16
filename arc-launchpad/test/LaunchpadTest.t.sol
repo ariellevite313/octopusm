@@ -3,8 +3,12 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "../src/BondingCurve.sol";
+import "../src/GenericBondingCurve.sol";
 import "../src/LaunchpadFactory.sol";
 import "../src/OMToken.sol";
+import "../src/V3LPVault.sol";
+import "../src/FeeDistributor.sol";
+import "../src/WhitelistRegistry.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // ─── Mock USDC ────────────────────────────────────────────────────────────────
@@ -64,6 +68,10 @@ contract LaunchpadTest is Test {
     MockUniswapFactory uniFactory;
     MockUniswapRouter  uniRouter;
     BondingCurve       curveImpl;
+    GenericBondingCurve genericImpl;
+    V3LPVault          vaultImpl;
+    FeeDistributor     distributorImpl;
+    WhitelistRegistry  registry;
     LaunchpadFactory   factory;
 
     address treasury = address(0xBEEF);
@@ -77,17 +85,23 @@ contract LaunchpadTest is Test {
     // ─── Setup ────────────────────────────────────────────────────────────
 
     function setUp() public {
-        usdc       = new MockUSDC();
-        uniFactory = new MockUniswapFactory();
-        uniRouter  = new MockUniswapRouter();
-        curveImpl  = new BondingCurve();
+        usdc            = new MockUSDC();
+        uniFactory      = new MockUniswapFactory();
+        uniRouter       = new MockUniswapRouter();
+        curveImpl       = new BondingCurve();
+        genericImpl     = new GenericBondingCurve();
+        vaultImpl       = new V3LPVault();
+        distributorImpl = new FeeDistributor();
+        registry        = new WhitelistRegistry(address(this));
 
         factory = new LaunchpadFactory(
             address(curveImpl),
+            address(genericImpl),
+            address(vaultImpl),
+            address(distributorImpl),
             address(usdc),
             treasury,
-            address(uniRouter),
-            address(uniFactory)
+            address(registry)
         );
 
         // Fonds initiaux
@@ -105,8 +119,8 @@ contract LaunchpadTest is Test {
         if (firstBuy > 0) {
             usdc.approve(address(factory), firstBuy);
         }
-        (address c, address t) = factory.createToken(
-            "OM Test", "OMTEST", "ipfs://img", "desc", firstBuy
+        (address c, address t, , ) = factory.createToken(
+            "OM Test", "OMTEST", "ipfs://img", "desc", firstBuy, false
         );
         vm.stopPrank();
         curve = BondingCurve(c);
@@ -144,7 +158,7 @@ contract LaunchpadTest is Test {
         vm.startPrank(alice);
         usdc.approve(address(factory), tooLarge);
         vm.expectRevert("Factory: first buy too large");
-        factory.createToken("X", "X", "", "", tooLarge);
+        factory.createToken("X", "X", "", "", tooLarge, false);
         vm.stopPrank();
     }
 
