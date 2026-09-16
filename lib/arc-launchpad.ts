@@ -1,10 +1,10 @@
 // ─── Adresses sur Arc Mainnet (Chain ID 5042) ─────────────────────────────────
 
-/** OLD contract (tokens créés avant la migration AMM) */
-export const ARC_LAUNCHPAD_ADDRESS = "0xC41000636c9952ebBBa5b3e08F8aE885748862b1" as const;
+/** OLD contract (tokens créés avant la migration AMM — BondingCurve impl réutilise la même adresse) */
+export const ARC_LAUNCHPAD_ADDRESS = "0xc41000636c9952ebbba5b3e08f8ae885748862b1" as const;
 
-/** NEW — LaunchpadFactory déployé le 2026-09-09 (constant-product AMM) */
-export const ARC_FACTORY_ADDRESS   = "0x003d8e0608877a3Bd73a41CE52Ba89F394675f86" as const;
+/** LaunchpadFactory déployé sur Arc Mainnet le 2026-09-17 */
+export const ARC_FACTORY_ADDRESS   = "0x499B87502A8d8aDad03a579f8231D0c42Af23E16" as const;
 
 export const ARC_USDC_ADDRESS      = "0x3600000000000000000000000000000000000000" as const;
 
@@ -97,13 +97,13 @@ export const LAUNCHPAD_ABI = [
 // ─── NOUVEAU — LaunchpadFactory (ARC_FACTORY_ADDRESS) ────────────────────────
 // ABI minimal pour créer un token via la factory AMM.
 
-// Adresses des mock xStock tokens (remplir après Deploy.s.sol)
+// Adresses des xStock tokens déployés sur Arc Mainnet le 2026-09-17
 export const ARC_XSTOCK_ADDRESSES: Record<string, `0x${string}`> = {
-  xNVDA: (process.env.NEXT_PUBLIC_XNVDA_ADDRESS ?? "") as `0x${string}`,
-  xTSLA: (process.env.NEXT_PUBLIC_XTSLA_ADDRESS ?? "") as `0x${string}`,
-  xMSTR: (process.env.NEXT_PUBLIC_XMSTR_ADDRESS ?? "") as `0x${string}`,
-  xAAPL: (process.env.NEXT_PUBLIC_XAAPL_ADDRESS ?? "") as `0x${string}`,
-  xSPY:  (process.env.NEXT_PUBLIC_XSPY_ADDRESS  ?? "") as `0x${string}`,
+  xNVDA: "0x5221798179a89ff55dd8d119a929e4af15eb0158",
+  xTSLA: "0x855b52f99d3cd9a9e7ada322a454919d44dc4805",
+  xMSTR: "0xbd98109f05114a94cd9ee52d2f11c9fbc412c73c",
+  xAAPL: "0x8f0e096f5d8fe61c60400d6d1d371901ec2d3199",
+  xSPY:  "0xfa6dd9eeb6d117bd95ab0765dae5563de0550803",
 };
 
 export const FACTORY_ABI = [

@@ -1,11 +1,20 @@
 # Arc Launchpad — Adresses déployées
 
-## Arc Mainnet (Chain ID 5042)
+## Arc Mainnet (Chain ID 5042) — déployé le 2026-09-17
 
-| Contrat | Adresse | Tx hash |
-|---|---|---|
-| BondingCurve (impl) | _À remplir après deploy_ | — |
-| LaunchpadFactory    | _À remplir après deploy_ | — |
+| Contrat | Adresse |
+|---|---|
+| BondingCurve (impl)        | `0xc41000636c9952ebbba5b3e08f8ae885748862b1` |
+| GenericBondingCurve (impl) | `0xc986b666fa5e786ada022e897cd3ebeb9c2ec8db` |
+| V3LPVault (impl)           | `0x3d37982585a03833afa731189851b9085b95d31a` |
+| FeeDistributor (impl)      | `0x4fdaeb7193aed86671d533b57e758e0262e254bb` |
+| WhitelistRegistry          | `0xeca3443c6b8e892b280bdff73f2d5c11ee85dc78` |
+| **LaunchpadFactory**       | **`0x499B87502A8d8aDad03a579f8231D0c42Af23E16`** |
+| xNVDA (MockXStock)         | `0x5221798179a89ff55dd8d119a929e4af15eb0158` |
+| xTSLA (MockXStock)         | `0x855b52f99d3cd9a9e7ada322a454919d44dc4805` |
+| xMSTR (MockXStock)         | `0xbd98109f05114a94cd9ee52d2f11c9fbc412c73c` |
+| xAAPL (MockXStock)         | `0x8f0e096f5d8fe61c60400d6d1d371901ec2d3199` |
+| xSPY  (MockXStock)         | `0xfa6dd9eeb6d117bd95ab0765dae5563de0550803` |
 
 ## Adresses externes (Arc Mainnet)
 
