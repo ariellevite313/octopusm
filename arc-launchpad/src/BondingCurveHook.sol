@@ -98,6 +98,7 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         uint256 creatorKeepBps;
         bool    graduated;
         bool    initialized;
+        bool    lpAdded;          // true après addGraduationLiquidity()
     }
 
     /// @notice État de chaque pool (indexé par PoolId)
@@ -400,28 +401,85 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         uint256 usdcForLP   = s.realUsdcRaised; // 4 800 USDC
         uint256 tokensForLP = LP_RESERVE;        // 200 M tokens
 
-        address usdc      = Currency.unwrap(key.currency0);
-        address memeToken = s.memeToken;
+        // NOTE: l'ajout de liquidité V4 est effectué APRÈS la graduation via
+        // addGraduationLiquidity(), appelé hors d'un lock actif.  L'appel à
+        // modifyLiquidity() depuis l'intérieur de beforeSwap (= dans un lock)
+        // exige de régler les deltas retournés ; or la liquidité requise au
+        // prix d'initialisation de la pool (tick 0) peut dépasser les réserves
+        // disponibles du hook. Pour garantir l'atomicité et éviter tout revert,
+        // on se contente de marquer la graduation ici et d'émettre l'événement.
+        emit Graduated(id, usdcForLP, tokensForLP);
+    }
 
-        // Approuver le PoolManager pour les deux tokens
-        IERC20(usdc).approve(address(poolManager), usdcForLP);
-        IERC20(memeToken).approve(address(poolManager), tokensForLP);
+    /**
+     * @notice Ajoute la liquidité full-range dans la pool V4 post-graduation.
+     *         Doit être appelé hors de tout lock actif, après que la pool a été
+     *         ré-initialisée au bon sqrtPrice de graduation par la factory.
+     *
+     *         Les deltas de modifyLiquidity sont réglés via sync/transfer/settle.
+     *
+     * @param key PoolKey de la pool graduée.
+     */
+    function addGraduationLiquidity(PoolKey calldata key) external nonReentrant {
+        PoolId id = key.toId();
+        CurveState storage s = curves[id];
+        require(s.graduated,      "BondingCurveHook: not graduated");
+        require(!s.lpAdded,       "BondingCurveHook: LP already added");
+        s.lpAdded = true;
 
-        // Ajouter la liquidité full-range dans la pool V4
-        // sqrtPriceX96 du ratio de graduation :
-        //   4 800 USDC (6 dec) / 200 M tokens (18 dec)
-        //   = 2.4e-8 USDC/token = 24 * 1e-9 USDC/token
-        // Cette liquidité est locked (ce hook ne retire jamais)
+        uint256 usdcForLP   = s.realUsdcRaised;
+        uint256 tokensForLP = LP_RESERVE;
+
+        // Appel unlock → unlockCallback → modifyLiquidity + settle delta
+        poolManager.unlock(abi.encode(GradLPData({key: key, usdcForLP: usdcForLP, tokensForLP: tokensForLP})));
+    }
+
+    struct GradLPData {
+        PoolKey  key;
+        uint256  usdcForLP;
+        uint256  tokensForLP;
+    }
+
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        require(msg.sender == address(poolManager), "BondingCurveHook: not PM");
+
+        GradLPData memory d = abi.decode(data, (GradLPData));
+        PoolKey memory key  = d.key;
+
+        address usdcAddr = curves[key.toId()].usdc;
+        address memeAddr = curves[key.toId()].memeToken;
+
         IPoolManager.ModifyLiquidityParams memory lpParams = IPoolManager.ModifyLiquidityParams({
             tickLower:      TICK_LOWER,
             tickUpper:      TICK_UPPER,
-            liquidityDelta: int256(_computeLiquidity(usdcForLP, tokensForLP)),
+            liquidityDelta: int256(_computeLiquidity(d.usdcForLP, d.tokensForLP)),
             salt:           bytes32(0)
         });
 
-        poolManager.modifyLiquidity(key, lpParams, "");
+        (BalanceDelta callerDelta, ) = poolManager.modifyLiquidity(key, lpParams, "");
 
-        emit Graduated(id, usdcForLP, tokensForLP);
+        int128 delta0 = callerDelta.amount0();
+        int128 delta1 = callerDelta.amount1();
+
+        if (delta0 < 0) {
+            uint256 amt = uint256(uint128(-delta0));
+            poolManager.sync(key.currency0);
+            IERC20(usdcAddr).safeTransfer(address(poolManager), amt);
+            poolManager.settle();
+        } else if (delta0 > 0) {
+            poolManager.take(key.currency0, address(this), uint256(uint128(delta0)));
+        }
+
+        if (delta1 < 0) {
+            uint256 amt = uint256(uint128(-delta1));
+            poolManager.sync(key.currency1);
+            IERC20(memeAddr).safeTransfer(address(poolManager), amt);
+            poolManager.settle();
+        } else if (delta1 > 0) {
+            poolManager.take(key.currency1, address(this), uint256(uint128(delta1)));
+        }
+
+        return "";
     }
 
     // ─── Helpers internes ──────────────────────────────────────────────────
