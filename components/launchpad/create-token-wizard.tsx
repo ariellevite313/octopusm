@@ -1130,7 +1130,7 @@ export function CreateTokenWizard({
       arc_creation_block: arcCreationBlock,
       quote_asset:   isStockPaired ? data.arc_quote_asset : null,
       stock_symbol:  isStockPaired ? data.arc_stock_symbol.replace("x", "") : null,
-      creator_wallet: walletAddress,
+      creator_wallet: account, // EVM address du signataire MetaMask (pas walletAddress Solana)
       creator_fee_pct: 1,
       fee_recipients: [],
       share_top100: false, share_top100_pct: 0,
