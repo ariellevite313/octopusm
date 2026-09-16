@@ -116,22 +116,20 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
       const client = createPublicClient({ chain: arcTestnet, transport: http() });
       const curve  = curveAddress as `0x${string}`;
 
-      // 1. Vérifier si gradué
-      const isGrad = await client.readContract({
-        address: curve, abi: CURVE_ABI_EXT, functionName: "graduated",
-      }).catch(() => false) as boolean;
-
+      // 1. Lire graduated depuis le slot de stockage (slot 9, byte 0)
+      //    Plus fiable que readContract car le sélecteur ABI peut différer du bytecode déployé
+      const slot9 = await client.getStorageAt({ address: curve, slot: "0x9" }).catch(() => null);
+      const isGrad = slot9 ? (parseInt(slot9, 16) & 0xFF) === 1 : false;
       setGraduated(isGrad);
 
       if (isGrad) {
-        // 2a. Lire l'adresse du vault depuis la courbe
+        // 2a. vault() — sélecteur 0xfbfa77cf (confirmé sur bytecode déployé)
         const vault = await client.readContract({
           address: curve, abi: CURVE_ABI_EXT, functionName: "vault",
         }).catch(() => null) as `0x${string}` | null;
 
         if (vault && vault !== "0x0000000000000000000000000000000000000000") {
           setVaultAddress(vault);
-          // 2b. Lire les fees pendantes dans le vault
           const pending = await client.readContract({
             address: vault, abi: V3LP_VAULT_ABI, functionName: "pendingUsdcFees",
           }).catch(() => 0n) as bigint;
@@ -140,10 +138,11 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
           setAccrued(0n);
         }
       } else {
-        // 2c. Pré-graduation : lire fees accumulées sur la courbe
-        const raw = await client.readContract({
-          address: curve, abi: BONDING_CURVE_ABI, functionName: "creatorFeesAccrued",
-        }).catch(() => 0n) as bigint;
+        // 2c. Pré-graduation : lire creatorFeesAccrued depuis slot 8
+        //     Le getter ABI génère un sélecteur différent du bytecode déployé (via_ir),
+        //     donc on lit le storage directement.
+        const slot8 = await client.getStorageAt({ address: curve, slot: "0x8" }).catch(() => null);
+        const raw   = slot8 ? BigInt(slot8) : 0n;
         setAccrued(raw);
       }
     } catch {
