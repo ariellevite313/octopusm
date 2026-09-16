@@ -29,7 +29,7 @@ import {MockERC20}         from "forge-std/mocks/MockERC20.sol";
 /**
  * @title MockFeeDistributor
  * @notice Mock minimal du FeeDistributor pour les tests.
- *         Enregistre les appels notifyReward et accepte les transferts USDC.
+ *         Enregistre les oui appels notifyReward et accepte les transferts USDC.
  */
 contract MockFeeDistributor {
     address public usdc;
