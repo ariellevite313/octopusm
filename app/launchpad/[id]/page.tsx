@@ -225,7 +225,7 @@ export default async function TokenDetailPage({ params }: Props) {
 
   // Arc explorer
   const arcScanTokenUrl = isArc && token.mint_address
-    ? `https://testnet.arcscan.app/token/${token.mint_address}`
+    ? `https://explorer.arc.io/token/${token.mint_address}`
     : null;
 
   const creatorInitials     = token.creator_wallet.slice(0, 2).toUpperCase();
@@ -323,7 +323,7 @@ export default async function TokenDetailPage({ params }: Props) {
               <CopyMint address={token.mint_address} />
               <a
                 href={isArc
-                  ? `https://testnet.arcscan.app/token/${token.mint_address}`
+                  ? `https://explorer.arc.io/token/${token.mint_address}`
                   : `https://solscan.io/token/${token.mint_address}`}
                 target="_blank"
                 rel="noopener noreferrer"

@@ -10,11 +10,11 @@
 
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
 
 const TOTAL_SUPPLY = 1_000_000_000;
-const ARCSCAN_API  = "https://testnet.arcscan.app/api";
+const ARCSCAN_API  = "https://explorer.arc.io/api";
 const TRADE_TOPIC  = "0x0c668488dc690d00c35c03638df49a1c8a7b63511eba0f88eeed1bd471719b16";
 
 async function fetchUniqueTraders(address: string): Promise<number | null> {
@@ -55,7 +55,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
   try {
     const client = createPublicClient({
-      chain: arcTestnet,
+      chain: arc,
       transport: http(),
     });
 

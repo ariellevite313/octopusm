@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Loader2, CoinsIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 
 // ── ABI minimal BondingCurve Arc ──────────────────────────────────────────────
 const CLAIM_FEES_ABI = [
@@ -99,7 +99,7 @@ export function ClaimFeesButton({
 
     const walletClient: WalletClient = createWalletClient({
       account:   walletAddress as `0x${string}`,
-      chain:     arcTestnet,
+      chain:     arc,
       transport: custom(eth),
     });
 

@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -91,7 +91,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ updated: 0 });
     }
 
-    const client = createPublicClient({ chain: arcTestnet, transport: http() });
+    const client = createPublicClient({ chain: arc, transport: http() });
 
     type TokenRow = { id: string; arc_launch_id: string };
 

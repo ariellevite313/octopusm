@@ -14,7 +14,7 @@ import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 
 const USDC_DECIMALS = 6;
 
@@ -73,7 +73,7 @@ export function ArcCreatorFees() {
   // 2. Read creatorFeesAccrued for each token
   useEffect(() => {
     if (tokens.length === 0) return;
-    const client = createPublicClient({ chain: arcTestnet, transport: http() });
+    const client = createPublicClient({ chain: arc, transport: http() });
 
     tokens.forEach(async (token, idx) => {
       if (!token.arc_launch_id) return;
@@ -100,11 +100,11 @@ export function ArcCreatorFees() {
     setTokens(prev => prev.map((t, i) => i === idx ? { ...t, claiming: true, error: null } : t));
 
     try {
-      const walletClient = createWalletClient({ chain: arcTestnet, transport: custom(provider) });
+      const walletClient = createWalletClient({ chain: arc, transport: custom(provider) });
       try {
         await provider.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: `0x${arcTestnet.id.toString(16)}` }],
+          params: [{ chainId: `0x${arc.id.toString(16)}` }],
         });
       } catch { /* ignore */ }
 
@@ -117,7 +117,7 @@ export function ArcCreatorFees() {
         functionName: "claimFees",
         args: [account],
         account,
-        chain: arcTestnet,
+        chain: arc,
       });
 
       setTokens(prev => prev.map((t, i) =>
@@ -166,7 +166,7 @@ export function ArcCreatorFees() {
             </p>
             {token.txHash && (
               <a
-                href={`https://testnet.arcscan.app/tx/${token.txHash}`}
+                href={`https://explorer.arc.io/tx/${token.txHash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
               >

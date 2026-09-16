@@ -21,7 +21,7 @@ import {
   GENERIC_BONDING_CURVE_ABI,
   ERC20_APPROVE_ABI,
 } from "@/lib/arc-launchpad";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arc } from "@/lib/arc-chain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
   }
 
   function getPublicClient() {
-    return createPublicClient({ chain: arcTestnet, transport: custom(getEth()) });
+    return createPublicClient({ chain: arc, transport: custom(getEth()) });
   }
 
   // ── Stock price fetch ─────────────────────────────────────────────────────
@@ -267,17 +267,17 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = eth as any;
     const chainHex = await e.request({ method: "eth_chainId" }) as string;
-    if (parseInt(chainHex, 16) !== 5042002) {
+    if (parseInt(chainHex, 16) !== 5042) {
       await e.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x4CEF52" }],
+        params: [{ chainId: "0x13B2" }],
       }).catch(async (err: { code?: number }) => {
         if (err?.code === 4902) {
           await e.request({ method: "wallet_addEthereumChain", params: [{
-            chainId: "0x4CEF52", chainName: "Arc Testnet",
+            chainId: "0x13B2", chainName: "Arc",
             nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-            rpcUrls: ["https://rpc.testnet.arc.network"],
-            blockExplorerUrls: ["https://testnet.arcscan.app"],
+            rpcUrls: ["https://rpc.mainnet.arc.io"],
+            blockExplorerUrls: ["https://explorer.arc.io"],
           }]});
         } else throw err;
       });
@@ -696,7 +696,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
 
         {txHash && (
           <a
-            href={`https://testnet.arcscan.app/tx/${txHash}`}
+            href={`https://explorer.arc.io/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
