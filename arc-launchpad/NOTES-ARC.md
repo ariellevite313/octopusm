@@ -104,12 +104,12 @@ forge test -vvvv
 # Déployer
 export DEPLOYER_PK=0x...
 export TREASURY=0x...
-forge script script/Deploy.s.sol --rpc-url arc_testnet --broadcast --private-key $DEPLOYER_PK -vvvv
+forge script script/Deploy.s.sol --rpc-url arc_mainnet --broadcast --private-key $DEPLOYER_PK -vvvv
 
 # Créer un token test
 export FACTORY_ADDRESS=0x...
 export ALICE_PK=0x...
-forge script script/Interactions.s.sol:CreateToken --rpc-url arc_testnet --broadcast --private-key $ALICE_PK -vvvv
+forge script script/Interactions.s.sol:CreateToken --rpc-url arc_mainnet --broadcast --private-key $ALICE_PK -vvvv
 ```
 
 ## §7. Intégration frontend

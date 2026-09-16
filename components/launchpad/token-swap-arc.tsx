@@ -261,7 +261,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount, direction, costPerToken, launchId, isStockPaired]);
 
-  // ── Ensure Arc Testnet ────────────────────────────────────────────────────
+  // ── Ensure Arc Mainnet ───────────────────────────────────────────────────
 
   async function ensureArcChain(eth: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

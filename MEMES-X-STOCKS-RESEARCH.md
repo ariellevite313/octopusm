@@ -9,16 +9,15 @@
 
 | Paramètre | Valeur |
 |---|---|
-| **Chain ID mainnet** | `5042` |
-| **Chain ID testnet** | `5042002` |
+| **Chain ID** | `5042` (hex `0x13b2`) |
 | **Gas token** | USDC natif (18 decimals via `eth_getBalance`) |
-| **USDC ERC-20 address** | `0x3600000000000000000000000000000000000000` (6 decimals) |
+| **USDC ERC-20** | `0x3600000000000000000000000000000000000000` (6 decimals) |
+| **EURC ERC-20** | `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1` |
+| **USYC ERC-20** | `0x8a5D989Bbb96929F689B0200f435f53dA42bF490` |
 | **Block time** | ~500ms (2 blocs/s) |
 | **Finality** | Déterministe, sub-seconde (Malachite BFT) |
-| **RPC testnet** | `https://rpc.testnet.arc.io` |
-| **Explorer testnet** | `https://testnet.arcscan.app` |
-| **Explorer mainnet** | `https://explorer.arc.io` |
-| **Faucet** | `https://faucet.circle.com` |
+| **RPC mainnet** | `https://rpc.mainnet.arc.io` |
+| **Explorer** | `https://explorer.arc.io` |
 
 ### ⚠️ Piège critique : double représentation USDC
 

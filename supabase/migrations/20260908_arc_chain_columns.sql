@@ -1,5 +1,5 @@
 -- Arc EVM chain columns for launchpad_tokens
--- Ajoutées pour supporter la création de tokens via Arc Testnet (EVM)
+-- Ajoutées pour supporter la création de tokens via Arc Mainnet (Chain ID 5042, EVM)
 
 -- arc_token_address est stockée dans la colonne existante mint_address (UNIQUE)
 ALTER TABLE launchpad_tokens

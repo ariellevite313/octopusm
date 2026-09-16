@@ -7,7 +7,7 @@ import "../src/BondingCurve.sol";
 import "../src/LaunchpadFactory.sol";
 
 // Scripts d'interaction post-déploiement — voir commentaires dans chaque contrat.
-// Usage: forge script script/Interactions.s.sol:CreateToken --rpc-url arc_testnet --broadcast ...
+// Usage: forge script script/Interactions.s.sol:CreateToken --rpc-url arc_mainnet --broadcast ...
 
 address constant USDC_ARC = 0x3600000000000000000000000000000000000000;
 
