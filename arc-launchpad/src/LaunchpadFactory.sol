@@ -101,12 +101,15 @@ contract LaunchpadFactory {
 
         // Clone tous les contrats d'abord (order matters: vault → distributor → curve → token)
         vault_       = vaultImplementation.clone();
-        distributor_ = distributorImplementation.clone();
         curve        = curveImplementation.clone();
         token        = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
 
-        // Initialize distributor (stakingToken=meme token, vault + curve autorisés à notifyReward)
-        FeeDistributor(distributor_).initialize(token, usdc, vault_, curve);
+        // Distributor uniquement si holderRewards_ = true
+        if (holderRewards_) {
+            distributor_ = distributorImplementation.clone();
+            FeeDistributor(distributor_).initialize(token, usdc, vault_, curve);
+        }
+        // else: distributor_ reste address(0) (valeur par défaut des return vars)
 
         // Initialize vault
         V3LPVault(vault_).initialize(
@@ -114,7 +117,7 @@ contract LaunchpadFactory {
             treasury,
             msg.sender,
             holderRewards_,
-            holderRewards_ ? distributor_ : address(0)
+            distributor_   // address(0) si pas de holderRewards
         );
 
         // Initialize bonding curve avec référence au vault
@@ -123,8 +126,8 @@ contract LaunchpadFactory {
         allCurves.push(curve);
         isCurve[curve]           = true;
         curveQuoteAsset[curve]   = usdc;
-        curveVault[curve]        = vault_;
-        curveDistributor[curve]  = distributor_;
+        curveVault[curve]       = vault_;
+        curveDistributor[curve] = distributor_; // address(0) si holderRewards_=false
 
         if (firstBuyUsdc > 0) {
             IERC20(usdc).safeTransferFrom(msg.sender, address(this), firstBuyUsdc);

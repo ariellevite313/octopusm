@@ -13,6 +13,8 @@ import {PoolKey}           from "v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/src/types/PoolId.sol";
 import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
 import {TickMath}          from "v4-core/src/libraries/TickMath.sol";
+import {BalanceDelta}      from "v4-core/src/types/BalanceDelta.sol";
+import {IERC20}            from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // V4 periphery
 import {HookMiner}         from "v4-periphery/test/shared/HookMiner.sol";
@@ -63,6 +65,13 @@ contract MockFeeDistributor {
 contract BondingCurveHookTest is Test {
     using PoolIdLibrary     for PoolKey;
     using CurrencyLibrary   for Currency;
+
+    // ─── Struct pour l'unlock callback ────────────────────────────────────────
+    struct SwapCallbackData {
+        PoolKey               key;
+        IPoolManager.SwapParams params;
+        address               recipient;
+    }
 
     // ─── Constantes ────────────────────────────────────────────────────────
 
@@ -601,6 +610,50 @@ contract BondingCurveHookTest is Test {
         return hook.getCurveState(key.toId());
     }
 
+    // ─── Unlock callback ──────────────────────────────────────────────────────
+
+    /**
+     * @notice Appelé par PoolManager lors du unlock().
+     *         Exécute le swap et règle les deltas.
+     *         NOTE : avec vm.startPrank(BUYER1) actif, les appels ERC20.transfer()
+     *         ici sont effectués en tant que BUYER1 (prank propagé à tous les
+     *         appels externes du test contract), ce qui débite le bon compte.
+     */
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        require(msg.sender == address(poolManager), "not PM");
+
+        SwapCallbackData memory d = abi.decode(data, (SwapCallbackData));
+
+        BalanceDelta delta = poolManager.swap(d.key, d.params, abi.encode(d.recipient));
+
+        int128 delta0 = delta.amount0();
+        int128 delta1 = delta.amount1();
+
+        // delta < 0 → le callback doit payer PM (sync + transfer + settle)
+        // delta > 0 → PM doit payer le recipient (take)
+        if (delta0 < 0) {
+            poolManager.sync(d.key.currency0);
+            IERC20(Currency.unwrap(d.key.currency0)).transfer(
+                address(poolManager), uint256(uint128(-delta0))
+            );
+            poolManager.settle();
+        } else if (delta0 > 0) {
+            poolManager.take(d.key.currency0, d.recipient, uint256(uint128(delta0)));
+        }
+
+        if (delta1 < 0) {
+            poolManager.sync(d.key.currency1);
+            IERC20(Currency.unwrap(d.key.currency1)).transfer(
+                address(poolManager), uint256(uint128(-delta1))
+            );
+            poolManager.settle();
+        } else if (delta1 > 0) {
+            poolManager.take(d.key.currency1, d.recipient, uint256(uint128(delta1)));
+        }
+
+        return "";
+    }
+
     function _swap(
         PoolKey memory key,
         bool zeroForOne,
@@ -614,7 +667,7 @@ contract BondingCurveHookTest is Test {
                 ? TickMath.MIN_SQRT_PRICE + 1
                 : TickMath.MAX_SQRT_PRICE - 1
         });
-        poolManager.swap(key, params, abi.encode(recipient));
+        poolManager.unlock(abi.encode(SwapCallbackData({key: key, params: params, recipient: recipient})));
     }
 
     function _forceGraduation(PoolKey memory key, OMToken token) internal {
