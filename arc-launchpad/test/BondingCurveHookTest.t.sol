@@ -224,7 +224,7 @@ contract BondingCurveHookTest is Test {
         uint256 buyerTokensBefore = memeToken.balanceOf(BUYER1);
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         uint256 tokensReceived = memeToken.balanceOf(BUYER1) - buyerTokensBefore;
@@ -247,7 +247,7 @@ contract BondingCurveHookTest is Test {
     function test_A_Invariant_AfterBuy() public {
         uint256 usdcIn = 200_000_000;
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         BondingCurveHook.CurveState memory s = _getState(keyA);
@@ -262,14 +262,14 @@ contract BondingCurveHookTest is Test {
         uint256 usdcIn = 100_000_000;
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         uint256 tokenBalance = memeToken.balanceOf(BUYER1);
         uint256 usdcBefore   = usdc.balanceOf(BUYER1);
 
         vm.prank(BUYER1);
-        memeToken.approve(address(poolManager), tokenBalance);
+        memeToken.approve(address(this), tokenBalance);
         _swap(keyA, false, -int256(tokenBalance), BUYER1);
 
         uint256 usdcReturned = usdc.balanceOf(BUYER1) - usdcBefore;
@@ -286,12 +286,12 @@ contract BondingCurveHookTest is Test {
     function test_A_Sell_CannotGoBelowVirtual() public {
         uint256 usdcIn = 10_000_000;
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         uint256 tooMany = CURVE_SUPPLY;
         vm.prank(BUYER1);
-        memeToken.approve(address(poolManager), tooMany);
+        memeToken.approve(address(this), tooMany);
         vm.expectRevert();
         _swap(keyA, false, -int256(tooMany), BUYER1);
     }
@@ -306,7 +306,7 @@ contract BondingCurveHookTest is Test {
         uint256 treasuryBefore = usdc.balanceOf(TREASURY);
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         uint256 totalFee      = usdcIn * FEE_BPS / BPS;  // 20 USDC
@@ -336,7 +336,7 @@ contract BondingCurveHookTest is Test {
     function test_A_ClaimFees() public {
         uint256 usdcIn = 100_000_000;
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         uint256 accrued = _getState(keyA).creatorFeesAccrued;
@@ -380,7 +380,7 @@ contract BondingCurveHookTest is Test {
         uint256 expectedBps = usdcNet * BPS / GRAD_THRESHOLD;
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         uint256 actualBps = hook.graduationProgressBps(keyA);
@@ -395,7 +395,7 @@ contract BondingCurveHookTest is Test {
         uint256 priceBefore = hook.spotPrice(keyA);
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), 500_000_000);
+        usdc.approve(address(this), 500_000_000);
         _swap(keyA, true, -int256(500_000_000), BUYER1);
 
         assertGt(hook.spotPrice(keyA), priceBefore, "price increases after buy");
@@ -409,16 +409,15 @@ contract BondingCurveHookTest is Test {
             address buyer = address(uint160(0xABC0 + i));
             deal(address(usdc), buyer, 1_000_000_000);
             vm.prank(buyer);
-            usdc.approve(address(poolManager), 500_000_000);
+            usdc.approve(address(this), 500_000_000);
             _swap(keyA, true, -int256(500_000_000), buyer);
         }
 
-        // Vendeur partiel
-        vm.startPrank(address(uint160(0xABC0)));
+        // Vendeur partiel — approve depuis seller0, puis _swap sans prank actif
         address seller0 = address(uint160(0xABC0));
         uint256 bal = memeToken.balanceOf(seller0);
         vm.prank(seller0);
-        memeToken.approve(address(poolManager), bal / 2);
+        memeToken.approve(address(this), bal / 2);
         _swap(keyA, false, -int256(bal / 2), seller0);
 
         _forceGraduation(keyA, memeToken);
@@ -453,7 +452,7 @@ contract BondingCurveHookTest is Test {
         uint256 treasuryBefore = usdc.balanceOf(TREASURY);
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyB, true, -int256(usdcIn), BUYER1);
 
         uint256 totalFee         = usdcIn * FEE_BPS / BPS;  // 20 USDC
@@ -489,7 +488,7 @@ contract BondingCurveHookTest is Test {
 
         for (uint i = 1; i <= 3; i++) {
             vm.prank(BUYER1);
-            usdc.approve(address(poolManager), 50_000_000);
+            usdc.approve(address(this), 50_000_000);
             _swap(keyB, true, -int256(50_000_000), BUYER1);
             assertEq(feeDistributor.notifyCallCount(), i, "notifyReward called each swap");
         }
@@ -501,7 +500,7 @@ contract BondingCurveHookTest is Test {
     function test_B_ClaimFees_Partial() public {
         uint256 usdcIn = 100_000_000;
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyB, true, -int256(usdcIn), BUYER1);
 
         uint256 accrued = _getState(keyB).creatorFeesAccrued;
@@ -536,7 +535,7 @@ contract BondingCurveHookTest is Test {
         deal(address(usdc), BUYER1, usdcIn);
 
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
         BondingCurveHook.CurveState memory s = _getState(keyA);
@@ -574,7 +573,7 @@ contract BondingCurveHookTest is Test {
         uint256 usdcIn = 100_000_000;
         deal(address(usdc), BUYER1, usdcIn);
         vm.prank(BUYER1);
-        usdc.approve(address(poolManager), usdcIn);
+        usdc.approve(address(this), usdcIn);
         _swap(key, true, -int256(usdcIn), BUYER1);
 
         BondingCurveHook.CurveState memory s = hook.getCurveState(key.toId());
@@ -605,48 +604,69 @@ contract BondingCurveHookTest is Test {
      * @notice Unlock callback — appelé par PoolManager.
      *         IMPORTANT : unlock() doit être appelé depuis le test contract (pas sous prank
      *         d'une adresse sans code), sinon PM essaie d'appeler unlockCallback sur l'adresse
-     *         pranked qui n'a pas de bytecode. On utilise vm.prank(payer) à l'intérieur pour
-     *         que les transferts soient débités du bon compte.
+     *         pranked qui n'a pas de bytecode.
+     *
+     *         Schéma de règlement :
+     *         - delta < 0 → callback doit payer PM : transferFrom(payer, PM, amt) + settle()
+     *           Le payer doit avoir approuvé le test contract (router) avant le swap.
+     *           Pas besoin de sync() car take() ou settle() dans le hook ont déjà mis à jour
+     *           reserveOf[currency], donc settle() calcule correctement le delta.
+     *         - delta > 0 → PM doit payer recipient : poolManager.take(currency, recipient, amt)
      */
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         require(msg.sender == address(poolManager), "not PM");
 
         SwapCallbackData memory d = abi.decode(data, (SwapCallbackData));
 
-        BalanceDelta delta = poolManager.swap(d.key, d.params, abi.encode(d.recipient));
+        // Montant d'entrée que le payer fournit (peut être partiellement consommé en partial fill)
+        uint256 amountIn = d.params.amountSpecified < 0
+            ? uint256(-d.params.amountSpecified)
+            : uint256(d.params.amountSpecified);
 
-        int128 delta0 = delta.amount0();
-        int128 delta1 = delta.amount1();
+        // 1. Pré-déposer les tokens d'entrée dans le PoolManager.
+        //    Le hook appelle take(currencyIn, hook, consumed) dans beforeSwap — PM doit déjà
+        //    avoir les tokens physiquement disponibles pour que le transfert réussisse.
+        Currency currencyIn = d.params.zeroForOne ? d.key.currency0 : d.key.currency1;
+        poolManager.sync(currencyIn);
+        IERC20(Currency.unwrap(currencyIn)).transferFrom(d.payer, address(poolManager), amountIn);
+        poolManager.settle(); // locker.deltaIn = +amountIn
 
-        // delta < 0 → callback doit payer PM (sync + transfer depuis payer + settle)
-        // delta > 0 → PM doit payer le recipient (take)
-        if (delta0 < 0) {
-            uint256 amt = uint256(uint128(-delta0));
-            poolManager.sync(d.key.currency0);
-            vm.prank(d.payer);
-            IERC20(Currency.unwrap(d.key.currency0)).transfer(address(poolManager), amt);
-            poolManager.settle();
-        } else if (delta0 > 0) {
-            poolManager.take(d.key.currency0, d.recipient, uint256(uint128(delta0)));
+        // 2. Exécuter le swap.
+        //    BUY : hook.take(currency0, hook, consumed) + hook.settle(meme)
+        //           → swapDelta = (−consumed, +tokensOut)
+        //    SELL: hook.take(currency1, hook, consumed) + hook.settle(usdc)
+        //           → swapDelta = (+usdcOut, −consumed)
+        BalanceDelta swapDelta = poolManager.swap(d.key, d.params, abi.encode(d.recipient));
+
+        // 3. Calculer le delta net réel du locker pour chaque currency.
+        //    locker.deltaIn  = +amountIn (pré-dépôt) + swapDelta.deltaIn (≤0, consommé par hook)
+        //                    = amountIn − consumed  (0 si full fill, >0 si partial fill = remboursement)
+        //    locker.deltaOut = swapDelta.deltaOut (>0, PM doit payer le locker)
+        int256 netDelta0;
+        int256 netDelta1;
+        if (d.params.zeroForOne) {
+            // BUY : currency0 = entrée (USDC), currency1 = sortie (meme)
+            netDelta0 = int256(amountIn) + int256(swapDelta.amount0()); // remboursement éventuel
+            netDelta1 = int256(swapDelta.amount1());                     // meme reçu
+        } else {
+            // SELL : currency1 = entrée (meme), currency0 = sortie (USDC)
+            netDelta0 = int256(swapDelta.amount0());                     // USDC reçu
+            netDelta1 = int256(amountIn) + int256(swapDelta.amount1()); // remboursement éventuel
         }
 
-        if (delta1 < 0) {
-            uint256 amt = uint256(uint128(-delta1));
-            poolManager.sync(d.key.currency1);
-            vm.prank(d.payer);
-            IERC20(Currency.unwrap(d.key.currency1)).transfer(address(poolManager), amt);
-            poolManager.settle();
-        } else if (delta1 > 0) {
-            poolManager.take(d.key.currency1, d.recipient, uint256(uint128(delta1)));
-        }
+        // 4. Prendre tous les deltas positifs pour le recipient (tokens de sortie + remboursements).
+        //    Les deltas négatifs sont déjà couverts par le pré-dépôt ci-dessus.
+        if (netDelta0 > 0) poolManager.take(d.key.currency0, d.recipient, uint256(netDelta0));
+        if (netDelta1 > 0) poolManager.take(d.key.currency1, d.recipient, uint256(netDelta1));
 
         return "";
     }
 
     /**
      * @notice Helper swap — NE PAS appeler depuis vm.startPrank(adresse_sans_code).
-     *         Le payer (= recipient dans tous nos tests) est encodé dans le callback data
-     *         et vm.prank(payer) est utilisé à l'intérieur du unlockCallback.
+     *         Le payer (= recipient dans tous nos tests) est encodé dans le callback data.
+     *         Le payer doit avoir approuvé le test contract (approve(address(this), amountIn))
+     *         avant d'appeler _swap, car unlockCallback fait transferFrom(payer, PM, amountIn).
      */
     function _swap(
         PoolKey memory key,
@@ -674,8 +694,9 @@ contract BondingCurveHookTest is Test {
         address whale  = address(uint160(0x13370000));
         deal(address(usdc), whale, needed * 2);
         vm.prank(whale);
-        usdc.approve(address(poolManager), type(uint256).max);
-        // unlock appelé depuis test contract (pas de prank actif ici) — vm.prank(whale) dans unlockCallback
+        usdc.approve(address(this), type(uint256).max);
+        // unlock appelé depuis test contract (prank whale déjà consommé par approve ci-dessus)
+        // unlockCallback fera transferFrom(whale, PM, needed) — whale a approuvé address(this)
         _swap(key, true, -int256(needed), whale);
     }
 

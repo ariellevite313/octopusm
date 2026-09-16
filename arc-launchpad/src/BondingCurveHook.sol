@@ -301,10 +301,14 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
                 _graduate(key, s, id);
             }
 
-            // BeforeSwapDelta : spécified = -usdcGross (consommé), unspecified = tokensOut
+            // BeforeSwapDelta : spécified = +usdcGross (hook a absorbé l'entrée spécifiée),
+            //                   unspecified = -tokensOut (hook fournit la sortie non-spécifiée)
+            // V4 flash accounting : hookDelta attribué au hook = toBalanceDelta(+usdcGross, -tokensOut)
+            //   → annule exactement les deltas produits par take (−usdcGross) et settle (+tokensOut)
+            //   → swapDelta locker = (−usdcGross, +tokensOut) : locker paie USDC, reçoit meme
             BeforeSwapDelta delta = toBeforeSwapDelta(
-                -int128(uint128(usdcGross)),
-                int128(uint128(tokensOut))
+                int128(uint128(usdcGross)),
+                -int128(uint128(tokensOut))
             );
             return (BaseHook.beforeSwap.selector, delta, 0);
 
