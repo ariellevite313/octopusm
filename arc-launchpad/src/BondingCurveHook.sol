@@ -201,7 +201,7 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         IERC20(memeToken).safeTransferFrom(msg.sender, address(this), CURVE_SUPPLY);
 
         emit CurveInitialized(id, memeToken, creator);
-        return BaseHook.afterInitialize.selector;
+        return IHooks.afterInitialize.selector;
     }
 
     // ─── beforeSwap : intercepter les swaps phase bonding ─────────────────

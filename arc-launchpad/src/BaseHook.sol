@@ -10,8 +10,7 @@ import {BeforeSwapDelta} from "v4-core/src/types/BeforeSwapDelta.sol";
 
 /**
  * @title BaseHook
- * @notice Implémentation minimale de BaseHook pour les hooks V4.
- *         Remplacement local de v4-periphery/BaseHook (absent dans cette version).
+ * @notice Minimal BaseHook for V4 hooks (local replacement — not in this v4-periphery version).
  */
 abstract contract BaseHook is IHooks {
 
@@ -27,28 +26,17 @@ abstract contract BaseHook is IHooks {
 
     constructor(IPoolManager _poolManager) {
         poolManager = _poolManager;
-        validateHookAddress(this);
-    }
-
-    function validateHookAddress(BaseHook _this) internal pure {
-        Hooks.validateHookPermissions(_this, getHookPermissions());
+        Hooks.validateHookPermissions(IHooks(address(this)), getHookPermissions());
     }
 
     function getHookPermissions() public pure virtual returns (Hooks.Permissions memory);
 
-    // ─── IHooks implementation ─────────────────────────────────────────────
+    // ─── IHooks — stubs that revert unless overridden ─────────────────────
 
     function beforeInitialize(address, PoolKey calldata, uint160)
         external virtual onlyPoolManager returns (bytes4)
     { revert HookNotImplemented(); }
 
-    function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPrice, int24 tick)
-        external virtual onlyPoolManager returns (bytes4)
-    {
-        return _afterInitialize(sender, key, sqrtPrice, tick, "");
-    }
-
-    // afterInitialize with hookData — called by PoolManager
     function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPrice, int24 tick, bytes calldata hookData)
         external virtual onlyPoolManager returns (bytes4)
     {
@@ -89,7 +77,7 @@ abstract contract BaseHook is IHooks {
         external virtual onlyPoolManager returns (bytes4)
     { revert HookNotImplemented(); }
 
-    // ─── Hooks internes à surcharger ───────────────────────────────────────
+    // ─── Internal hooks to override ────────────────────────────────────────
 
     function _afterInitialize(address, PoolKey calldata, uint160, int24, bytes calldata)
         internal virtual returns (bytes4)
@@ -98,10 +86,4 @@ abstract contract BaseHook is IHooks {
     function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
         internal virtual returns (bytes4, BeforeSwapDelta, uint24)
     { revert HookNotImplemented(); }
-
-    // ─── Selectors ─────────────────────────────────────────────────────────
-
-    // Expose selectors for return values
-    bytes4 internal constant _AFTER_INITIALIZE_SELECTOR  = IHooks.afterInitialize.selector;
-    bytes4 internal constant _BEFORE_SWAP_SELECTOR       = IHooks.beforeSwap.selector;
 }
