@@ -624,11 +624,11 @@ contract BondingCurveHookTest is Test {
             : uint256(d.params.amountSpecified);
 
         // 1. Pré-déposer les tokens d'entrée dans le PoolManager.
-        //    Le hook appelle take(currencyIn, hook, consumed) dans beforeSwap — PM doit déjà
-        //    avoir les tokens physiquement disponibles pour que le transfert réussisse.
+        //    Les tokens sont déjà dans le test contract (tirés par _swap avant unlock).
+        //    On utilise transfer() (pas transferFrom) car d.payer == address(this).
         Currency currencyIn = d.params.zeroForOne ? d.key.currency0 : d.key.currency1;
         poolManager.sync(currencyIn);
-        IERC20(Currency.unwrap(currencyIn)).transferFrom(d.payer, address(poolManager), amountIn);
+        IERC20(Currency.unwrap(currencyIn)).transfer(address(poolManager), amountIn);
         poolManager.settle(); // locker.deltaIn = +amountIn
 
         // 2. Exécuter le swap.
@@ -663,10 +663,11 @@ contract BondingCurveHookTest is Test {
     }
 
     /**
-     * @notice Helper swap — NE PAS appeler depuis vm.startPrank(adresse_sans_code).
-     *         Le payer (= recipient dans tous nos tests) est encodé dans le callback data.
-     *         Le payer doit avoir approuvé le test contract (approve(address(this), amountIn))
-     *         avant d'appeler _swap, car unlockCallback fait transferFrom(payer, PM, amountIn).
+     * @notice Helper swap.
+     *         Le recipient (= payer) doit avoir approuvé address(this) pour les tokens d'entrée
+     *         avant d'appeler _swap. _swap fait transferFrom(recipient → this) AVANT unlock,
+     *         puis unlockCallback fait transfer(this → PM) à l'intérieur du lock.
+     *         NE PAS appeler depuis vm.startPrank() actif — unlock doit venir du test contract.
      */
     function _swap(
         PoolKey memory key,
@@ -674,6 +675,18 @@ contract BondingCurveHookTest is Test {
         int256 amountSpecified,
         address recipient
     ) internal {
+        // Identifier currency d'entrée et montant
+        Currency currencyIn = zeroForOne ? key.currency0 : key.currency1;
+        uint256 amountIn = amountSpecified < 0
+            ? uint256(-amountSpecified)
+            : uint256(amountSpecified);
+
+        // Tirer les tokens du payer vers le test contract AVANT le lock.
+        // Le hook appelle take(currencyIn) en beforeSwap — PM doit avoir les tokens physiquement.
+        // On fait transferFrom(recipient → testContract) ici (hors lock), puis transfer(testContract → PM)
+        // dans unlockCallback, évitant tout problème d'allowance dans les callbacks Foundry.
+        IERC20(Currency.unwrap(currencyIn)).transferFrom(recipient, address(this), amountIn);
+
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne:        zeroForOne,
             amountSpecified:   amountSpecified,
@@ -685,7 +698,7 @@ contract BondingCurveHookTest is Test {
             key:       key,
             params:    params,
             recipient: recipient,
-            payer:     recipient   // payer == recipient dans tous les tests
+            payer:     address(this)  // le test contract détient les tokens, les transfère dans unlock
         })));
     }
 
@@ -695,8 +708,7 @@ contract BondingCurveHookTest is Test {
         deal(address(usdc), whale, needed * 2);
         vm.prank(whale);
         usdc.approve(address(this), type(uint256).max);
-        // unlock appelé depuis test contract (prank whale déjà consommé par approve ci-dessus)
-        // unlockCallback fera transferFrom(whale, PM, needed) — whale a approuvé address(this)
+        // _swap fait transferFrom(whale, testContract, needed) hors lock puis transfer(testContract → PM) dans lock
         _swap(key, true, -int256(needed), whale);
     }
 
