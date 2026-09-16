@@ -113,7 +113,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
   const fetchFees = useCallback(async () => {
     setLoading(true);
     try {
-      const client = createPublicClient({ chain: arc, transport: http() });
+      const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
       const curve  = curveAddress as `0x${string}`;
 
       // 1. Lire graduated depuis le slot de stockage (slot 9, byte 0)

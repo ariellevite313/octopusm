@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { createPublicClient, custom, encodeFunctionData, parseAbi } from "viem";
+import { createPublicClient, custom, http, encodeFunctionData, parseAbi } from "viem";
 import { Loader2, CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -144,8 +144,12 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     return eth;
   }
 
+  /** Client lecture seule : HTTP public, pas besoin de MetaMask. */
   function getPublicClient() {
-    return createPublicClient({ chain: arc, transport: custom(getEth()) });
+    return createPublicClient({
+      chain: arc,
+      transport: http("https://rpc.mainnet.arc.io"),
+    });
   }
 
   // ── Stock price fetch ─────────────────────────────────────────────────────

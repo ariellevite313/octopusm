@@ -11,7 +11,7 @@ import "../src/WhitelistRegistry.sol";
 import "../src/MockXStock.sol";
 
 contract Deploy is Script {
-    // Arc testnet
+    // Arc Mainnet (Chain ID 5042)
     address constant USDC_ARC = 0x3600000000000000000000000000000000000000;
 
     function run() external {
@@ -34,7 +34,7 @@ contract Deploy is Script {
         // ── WhitelistRegistry ──────────────────────────────────────────────
         WhitelistRegistry registry = new WhitelistRegistry(deployer);
 
-        // ── Mock xStocks (testnet only) ────────────────────────────────────
+        // ── Mock xStocks ───────────────────────────────────────────────────
         MockXStock xNVDA = new MockXStock("Nvidia Stock Token",        "xNVDA");
         MockXStock xTSLA = new MockXStock("Tesla Stock Token",         "xTSLA");
         MockXStock xMSTR = new MockXStock("MicroStrategy Stock Token", "xMSTR");
