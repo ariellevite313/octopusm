@@ -626,7 +626,7 @@ contract BondingCurveHookTest is Test {
 
     function _forceGraduation(PoolKey memory key, OMToken token) internal {
         uint256 needed = GRAD_THRESHOLD + (GRAD_THRESHOLD * FEE_BPS / (BPS - FEE_BPS)) + 1;
-        address whale  = address(uint160(0x1337_WHALE));
+        address whale  = address(uint160(0x13370000));
         deal(address(usdc), whale, needed * 2);
         vm.startPrank(whale);
         usdc.approve(address(poolManager), type(uint256).max);
