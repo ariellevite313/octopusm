@@ -36,7 +36,7 @@ contract DeployV4 is Script {
     address V4_POOL_MANAGER; // lu depuis l'env (fallback) ou ARC_V4_POOL_MANAGER ci-dessus
 
     function run() external {
-        uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        uint256 deployerKey = vm.envUint("DEPLOYER_PK");
         // Utilise la constante connue ; peut être overridée via env pour tests
         V4_POOL_MANAGER     = vm.envOr("ARC_V4_POOL_MANAGER", ARC_V4_POOL_MANAGER);
         address treasury    = vm.envAddress("TREASURY");
