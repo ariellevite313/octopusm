@@ -289,12 +289,15 @@ contract BondingCurveHookTest is Test {
         usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
-        // Donner à BUYER1 suffisamment de meme tokens pour déclencher la protection
-        // du hook (newReserveUsdc < VIRTUAL_USDC). Sans deal(), transferFrom() échoue
-        // avant d'atteindre le hook, et vm.expectRevert() swallow ce premier revert
-        // mais laisse le code continuer jusqu'à un second revert inattendu.
-        uint256 tooMany = CURVE_SUPPLY;
-        deal(address(memeToken), BUYER1, tooMany);
+        // Après le buy : s.reserveTokens = CURVE_SUPPLY - tokenBalance
+        // Vendre (tokenBalance + 1) donne newReserveTokens = CURVE_SUPPLY + 1
+        // → newReserveUsdc = K/(CURVE_SUPPLY+1) < VIRTUAL_USDC → revert garanti.
+        // On utilise deal() pour donner 1 token supplémentaire à BUYER1 sans
+        // passer par un second swap (évite d'atteindre le seuil de graduation).
+        uint256 tokenBalance = memeToken.balanceOf(BUYER1);
+        uint256 tooMany = tokenBalance + 1;
+        deal(address(memeToken), BUYER1, tooMany);  // BUYER1 balance = tokenBalance + 1
+
         vm.prank(BUYER1);
         memeToken.approve(address(this), tooMany);
         vm.expectRevert();
