@@ -37,12 +37,13 @@ contract CreateToken is Script {
 
         usdc.approve(factoryAddr, firstBuy);
 
-        (address curve, address token) = factory.createToken(
+        (address curve, address token, , ) = factory.createToken(
             "OM Test Token",
             "OMTEST",
             "ipfs://QmPlaceholder",
             "Token de test pour le launchpad Arc OM",
-            firstBuy
+            firstBuy,
+            true  // holderRewards
         );
 
         vm.stopBroadcast();

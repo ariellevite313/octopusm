@@ -102,7 +102,7 @@ contract BondingCurveHookTest is Test {
 
     function setUp() public {
         // 1. Déployer PoolManager V4
-        poolManager = new PoolManager();
+        poolManager = new PoolManager(address(this)); // address(this) = test contract as initial owner
 
         // 2. Mock USDC (6 dec)
         usdc = new MockERC20();
@@ -316,7 +316,7 @@ contract BondingCurveHookTest is Test {
         assertApproxEqRel(treasuryReceived, expectedTreasury, 0.01e18, "50% treasury fees");
 
         // FeeDistributor n'a rien reçu
-        assertEq(feeDistributor.totalNotified, 0, "no holder rewards");
+        assertEq(feeDistributor.totalNotified(), 0, "no holder rewards");
 
         console.log("Total fee:", totalFee / 1e6, "USDC");
         console.log("Creator:", s.creatorFeesAccrued / 1e6, "USDC");
@@ -465,8 +465,8 @@ contract BondingCurveHookTest is Test {
         assertApproxEqRel(s.creatorFeesAccrued, expectedKeep, 0.01e18, "creator keep ~= 25% fees");
 
         // FeeDistributor : 50% × 50% = 25% des fees totales
-        assertApproxEqRel(feeDistributor.totalNotified, expectedHolder, 0.01e18, "holder share ~= 25%");
-        assertGt(feeDistributor.notifyCallCount, 0, "notifyReward called");
+        assertApproxEqRel(feeDistributor.totalNotified(), expectedHolder, 0.01e18, "holder share ~= 25%");
+        assertGt(feeDistributor.notifyCallCount(), 0, "notifyReward called");
 
         // Treasury : 50% fixe
         uint256 treasuryReceived = usdc.balanceOf(TREASURY) - treasuryBefore;
@@ -474,7 +474,7 @@ contract BondingCurveHookTest is Test {
 
         console.log("Fee total:", totalFee / 1e6, "USDC");
         console.log("Creator keep:", s.creatorFeesAccrued / 1e6, "USDC");
-        console.log("Holder share:", feeDistributor.totalNotified / 1e6, "USDC");
+        console.log("Holder share:", feeDistributor.totalNotified() / 1e6, "USDC");
         console.log("Treasury:", treasuryReceived / 1e6, "USDC");
     }
 
@@ -482,7 +482,7 @@ contract BondingCurveHookTest is Test {
      * @notice notifyReward est appelé à chaque swap (non à zéro).
      */
     function test_B_NotifyReward_CalledPerSwap() public {
-        assertEq(feeDistributor.notifyCallCount, 0, "no calls before swap");
+        assertEq(feeDistributor.notifyCallCount(), 0, "no calls before swap");
 
         for (uint i = 1; i <= 3; i++) {
             vm.startPrank(BUYER1);
@@ -490,7 +490,7 @@ contract BondingCurveHookTest is Test {
             _swap(keyB, true, -int256(50_000_000), BUYER1);
             vm.stopPrank();
 
-            assertEq(feeDistributor.notifyCallCount, i, "notifyReward called each swap");
+            assertEq(feeDistributor.notifyCallCount(), i, "notifyReward called each swap");
         }
     }
 
@@ -523,7 +523,7 @@ contract BondingCurveHookTest is Test {
     function test_B_Graduation() public {
         _forceGraduation(keyB, memeTokenB);
         assertTrue(_getState(keyB).graduated, "graduated suite B");
-        assertGt(feeDistributor.totalNotified, 0, "holders received rewards during graduation run");
+        assertGt(feeDistributor.totalNotified(), 0, "holders received rewards during graduation run");
     }
 
     // ─── FUZZ ─────────────────────────────────────────────────────────────
@@ -588,7 +588,7 @@ contract BondingCurveHookTest is Test {
 
         if (keepBps < BPS) {
             uint256 expectedHolder = creatorShare - expectedKeep;
-            assertApproxEqAbs(fd.totalNotified, expectedHolder, 2, "holder notified = remainder");
+            assertApproxEqAbs(fd.totalNotified(), expectedHolder, 2, "holder notified = remainder");
         }
     }
 
