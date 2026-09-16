@@ -1099,12 +1099,18 @@ export function CreateTokenWizard({
     if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
 
     // 6. Extraire curve + token depuis l'event
+    if (receipt.status === "reverted") {
+      throw new Error("Transaction reverted on-chain. The factory contract may not be deployed on Arc Mainnet yet. Check the explorer: https://explorer.arc.io/tx/" + txHash);
+    }
     const eventName = isStockPaired ? "StockPairedTokenCreated" : "TokenCreated";
     const logs = parseEventLogs({
       abi:       FACTORY_ABI,
       eventName,
       logs:      receipt.logs,
     });
+    if (!logs[0]?.args?.token) {
+      throw new Error("Factory did not emit a TokenCreated event. Ensure LaunchpadFactory is deployed on Arc Mainnet (chain 5042) and ARC_FACTORY_ADDRESS is up to date.");
+    }
     const curveAddress     = (logs[0]?.args?.curve ?? "") as string;
     const arcTokenAddress  = (logs[0]?.args?.token ?? "") as string;
     const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
