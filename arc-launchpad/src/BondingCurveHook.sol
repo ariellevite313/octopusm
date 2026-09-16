@@ -495,7 +495,9 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         fee     = usdcGross * FEE_BPS / BPS;
         usdcNet = usdcGross - fee;
         uint256 newReserveUsdc   = s.reserveUsdc + usdcNet;
-        uint256 newReserveTokens = K / newReserveUsdc;
+        // Utiliser le plafond pour newReserveTokens garantit k >= K après le trade
+        // (arrondi en faveur du pool : l'utilisateur reçoit légèrement moins)
+        uint256 newReserveTokens = _ceilDiv(K, newReserveUsdc);
         tokensOut = s.reserveTokens > newReserveTokens
             ? s.reserveTokens - newReserveTokens
             : 0;
