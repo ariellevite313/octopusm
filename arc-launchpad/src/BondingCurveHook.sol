@@ -260,7 +260,14 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
             );
         }
 
-        bool isBuy = params.zeroForOne; // USDC → token
+        // Déterminer quel currency est l'USDC pour gérer les deux ordres possibles
+        // (currency0 < currency1 en termes d'adresse — V4 impose cet ordre)
+        bool usdcIsC0 = (Currency.unwrap(key.currency0) == s.usdc);
+        Currency currencyUsdc = usdcIsC0 ? key.currency0 : key.currency1;
+        Currency currencyMeme = usdcIsC0 ? key.currency1 : key.currency0;
+
+        // isBuy : l'utilisateur envoie de l'USDC pour recevoir du meme
+        bool isBuy = usdcIsC0 ? params.zeroForOne : !params.zeroForOne;
 
         if (isBuy) {
             // amountSpecified < 0 = exact input (USDC in)
@@ -280,12 +287,10 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
             }
 
             // Flash accounting V4 :
-            //   take(currency0, hook, usdcGross)  → hook reçoit l'USDC du PoolManager
-            //   sync + transfer + settle()         → hook dépose les tokens dans le PM
-            //   Le PM distribue les tokens au swapper via BeforeSwapDelta
-            poolManager.take(key.currency0, address(this), usdcGross);
-            // Settle tokens (currency1) vers le PoolManager
-            poolManager.sync(key.currency1);
+            //   take(currencyUsdc, hook, usdcGross) → hook reçoit l'USDC du PoolManager
+            //   sync + transfer + settle()           → hook dépose les meme tokens dans le PM
+            poolManager.take(currencyUsdc, address(this), usdcGross);
+            poolManager.sync(currencyMeme);
             IERC20(s.memeToken).safeTransfer(address(poolManager), tokensOut);
             poolManager.settle();
 
@@ -325,10 +330,9 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
             uint256 newReserveUsdc = s.reserveUsdc - (usdcOut + fee);
             require(newReserveUsdc >= VIRTUAL_USDC, "BondingCurveHook: below virtual");
 
-            // Flash accounting : hook prend les tokens, dépose l'USDC pour le swapper
-            poolManager.take(key.currency1, address(this), tokensIn);
-            // Settle USDC (currency0) vers le PoolManager
-            poolManager.sync(key.currency0);
+            // Flash accounting : hook prend les meme tokens, dépose l'USDC pour le swapper
+            poolManager.take(currencyMeme, address(this), tokensIn);
+            poolManager.sync(currencyUsdc);
             IERC20(s.usdc).safeTransfer(address(poolManager), usdcOut);
             poolManager.settle();
 
