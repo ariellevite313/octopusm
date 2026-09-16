@@ -671,20 +671,22 @@ contract BondingCurveHookTest is Test {
      */
     function _swap(
         PoolKey memory key,
-        bool zeroForOne,
+        bool isBuy,          // true = USDC→meme (BUY), false = meme→USDC (SELL)
         int256 amountSpecified,
         address recipient
     ) internal {
-        // Identifier currency d'entrée et montant
+        // Calculer zeroForOne en fonction de l'ordre réel des currencies.
+        // V4 impose currency0 < currency1 en adresse, mais USDC peut être dans l'un ou l'autre sens.
+        bool usdcIsC0  = Currency.unwrap(key.currency0) == address(usdc);
+        bool zeroForOne = isBuy ? usdcIsC0 : !usdcIsC0;
+
+        // currency d'entrée : currency0 si zeroForOne, currency1 sinon
         Currency currencyIn = zeroForOne ? key.currency0 : key.currency1;
         uint256 amountIn = amountSpecified < 0
             ? uint256(-amountSpecified)
             : uint256(amountSpecified);
 
         // Tirer les tokens du payer vers le test contract AVANT le lock.
-        // Le hook appelle take(currencyIn) en beforeSwap — PM doit avoir les tokens physiquement.
-        // On fait transferFrom(recipient → testContract) ici (hors lock), puis transfer(testContract → PM)
-        // dans unlockCallback, évitant tout problème d'allowance dans les callbacks Foundry.
         IERC20(Currency.unwrap(currencyIn)).transferFrom(recipient, address(this), amountIn);
 
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
@@ -698,7 +700,7 @@ contract BondingCurveHookTest is Test {
             key:       key,
             params:    params,
             recipient: recipient,
-            payer:     address(this)  // le test contract détient les tokens, les transfère dans unlock
+            payer:     address(this)
         })));
     }
 
