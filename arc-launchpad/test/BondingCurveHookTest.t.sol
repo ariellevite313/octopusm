@@ -15,7 +15,7 @@ import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
 import {TickMath}          from "v4-core/src/libraries/TickMath.sol";
 
 // V4 periphery
-import {HookMiner}         from "v4-periphery/src/utils/HookMiner.sol";
+import {HookMiner}         from "v4-periphery/test/shared/HookMiner.sol";
 
 // Nos contrats
 import {BondingCurveHook}  from "../src/BondingCurveHook.sol";
@@ -227,7 +227,7 @@ contract BondingCurveHookTest is Test {
 
         uint256 tokensReceived = memeToken.balanceOf(BUYER1) - buyerTokensBefore;
 
-        assertApproxEqRel(tokensReceived, expectedTokens, 0.01e18, "tokens received ≈ expected");
+        assertApproxEqRel(tokensReceived, expectedTokens, 0.01e18, "tokens received ~= expected");
         assertGt(tokensReceived, 0, "received tokens > 0");
 
         BondingCurveHook.CurveState memory s = _getState(keyA);

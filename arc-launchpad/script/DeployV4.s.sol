@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import "forge-std/Script.sol";
 import {Hooks}            from "v4-core/src/libraries/Hooks.sol";
 import {IPoolManager}     from "v4-core/src/interfaces/IPoolManager.sol";
-import {HookMiner}        from "v4-periphery/src/utils/HookMiner.sol";
+import {HookMiner}        from "v4-periphery/test/shared/HookMiner.sol";
 import {BondingCurveHook} from "../src/BondingCurveHook.sol";
 import {LaunchpadFactoryV4} from "../src/LaunchpadFactoryV4.sol";
 
