@@ -1,4 +1,4 @@
-// ─── Adresses sur Arc Testnet ─────────────────────────────────────────────────
+// ─── Adresses sur Arc Mainnet (Chain ID 5042) ─────────────────────────────────
 
 /** OLD contract (tokens créés avant la migration AMM) */
 export const ARC_LAUNCHPAD_ADDRESS = "0xC41000636c9952ebBBa5b3e08F8aE885748862b1" as const;

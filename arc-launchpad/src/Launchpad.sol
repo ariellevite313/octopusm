@@ -25,7 +25,7 @@ contract Launchpad {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    /// @notice USDC ERC-20 sur Arc Testnet
+    /// @notice USDC ERC-20 sur Arc Mainnet
     IERC20 public immutable usdc;
 
     /// @notice Fee en basis points (100 = 1 %)

@@ -97,7 +97,7 @@ contract V3LPVault is ReentrancyGuard {
 
     // ─── Constantes ───────────────────────────────────────────────────────
 
-    /// @dev NonfungiblePositionManager sur Arc (chainId 5042 et 5042002)
+    /// @dev NonfungiblePositionManager sur Arc Mainnet (chainId 5042)
     address public constant NFPM = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
     uint256 public constant PLATFORM_BPS = 6700; // 67%
