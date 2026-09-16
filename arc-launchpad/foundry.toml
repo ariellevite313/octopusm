@@ -11,7 +11,7 @@ via_ir           = true
 evm_version      = "cancun"   # Required for V4 (EIP-1153 transient storage)
 
 [rpc_endpoints]
-arc_mainnet = "https://rpc.mainnet.arc.io"
+arc_mainnet = "https://rpc.arc-scan.org"   # Chain ID 5042 — RPC officiel Arc mainnet
 arc_testnet = "https://rpc.testnet.arc.io"
 
 [etherscan]

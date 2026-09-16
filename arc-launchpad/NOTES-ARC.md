@@ -69,7 +69,26 @@ Invariant garanti : `realUsdcRaised == GRAD_THRESHOLD` exactement après graduat
 - Approbations Uniswap remises à 0 après `addLiquidity` (dans `_graduate`)
 - `LP_RESERVE` tokens et `realUsdcRaised` USDC vont à Uniswap lors de la graduation — le reste (fees créateur non réclamées) reste dans le contrat et est récupérable via `claimFees` post-graduation si le créateur n'a pas encore claim
 
-## §6. Déploiement Foundry sur Arc testnet
+## §6. Adresses Arc Mainnet (Chain ID 5042) — Uniswap V4 officiel
+
+Sources : deployment Uniswap V4, SDK `ARC_ADDRESSES`, PR uniswap/contracts #144.
+
+| Contrat              | Adresse                                      |
+|----------------------|----------------------------------------------|
+| USDC natif (6 dec)   | `0x3600000000000000000000000000000000000000` |
+| PoolManager          | `0x8366a39CC670B4001A1121B8F6A443A643e40951` |
+| PositionManager      | `0x6049c9a0e26405C0985f9E3685C87d0aE917f82B` |
+| PositionDescriptor   | `0x516b8a945700D6bBfDeDaa6dcFc4586bA60B8707` |
+| V4Quoter             | `0x8Dc178eFB8111BB0973Dd9d722ebeFF267c98F94` |
+| StateView            | `0xF3334192D15450CdD385c8B70e03f9A6bD9E673b` |
+| Permit2              | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+| CREATE2 deployer     | `0x4e59b44847b379578588920cA78FbF26c0B4956C` |
+
+RPC officiel : `https://rpc.arc-scan.org`
+
+> Note USDC : adresse native Arc ERC-20 à 6 decimals. Ne pas traiter comme ETH natif (pas `address(0)`).
+
+## §8. Déploiement Foundry sur Arc mainnet
 
 ```bash
 # Installer les dépendances
