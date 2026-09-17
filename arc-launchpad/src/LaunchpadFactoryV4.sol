@@ -122,7 +122,7 @@ contract LaunchpadFactoryV4 {
         //    Sur Arc, USDC = address(0) < toute adresse token non-nulle.
         //    currency0 = USDC natif, currency1 = memeToken (toujours dans cet ordre).
         PoolKey memory key = PoolKey({
-            currency0:   CurrencyLibrary.NATIVE,         // address(0) = USDC natif
+            currency0:   Currency.wrap(address(0)),      // address(0) = USDC natif
             currency1:   Currency.wrap(tokenAddr),
             fee:         POOL_FEE,
             tickSpacing: 60,
