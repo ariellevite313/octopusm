@@ -128,7 +128,8 @@ contract BondingCurveHookTest is Test {
             Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
-        bytes memory constructorArgs = abi.encode(address(poolManager));
+        // Dans les tests, address(this) est à la fois le déployeur et le "owner"
+        bytes memory constructorArgs = abi.encode(address(poolManager), address(this));
         (address hookAddr, bytes32 salt) = HookMiner.find(
             address(this),
             flags,
@@ -137,7 +138,7 @@ contract BondingCurveHookTest is Test {
         );
 
         // 5. Déployer le hook à l'adresse minée
-        hook = new BondingCurveHook{salt: salt}(IPoolManager(address(poolManager)));
+        hook = new BondingCurveHook{salt: salt}(IPoolManager(address(poolManager)), address(this));
         require(address(hook) == hookAddr, "Hook address mismatch");
 
         // 5b. Enregistrer le test contract comme "factory" pour pouvoir appeler setupCurve

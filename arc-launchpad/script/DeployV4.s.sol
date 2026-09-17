@@ -38,6 +38,7 @@ contract DeployV4 is Script {
 
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYER_PK");
+        address deployerAddr = vm.addr(deployerKey);  // EOA — passé comme owner explicite
         // Utilise la constante connue ; peut être overridée via env pour tests
         V4_POOL_MANAGER     = vm.envOr("ARC_V4_POOL_MANAGER", ARC_V4_POOL_MANAGER);
         address treasury    = vm.envAddress("TREASURY");
@@ -51,7 +52,9 @@ contract DeployV4 is Script {
             Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
-        bytes memory constructorArgs = abi.encode(V4_POOL_MANAGER);
+        // Note : on passe deployerAddr comme _owner pour que l'EOA reste propriétaire
+        // même quand le déploiement passe via le CREATE2Deployer (où msg.sender != EOA).
+        bytes memory constructorArgs = abi.encode(V4_POOL_MANAGER, deployerAddr);
         (address hookAddr, bytes32 salt) = HookMiner.find(
             CREATE2_DEPLOYER,   // deployer déterministe (0x4e59b44...956C sur Arc)
             flags,
@@ -61,7 +64,8 @@ contract DeployV4 is Script {
 
         // 2. Déployer le hook via CREATE2
         BondingCurveHook hook = new BondingCurveHook{salt: salt}(
-            IPoolManager(V4_POOL_MANAGER)
+            IPoolManager(V4_POOL_MANAGER),
+            deployerAddr
         );
         require(address(hook) == hookAddr, "Hook address mismatch");
         console.log("BondingCurveHook deployed at:", address(hook));

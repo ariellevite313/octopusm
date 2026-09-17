@@ -120,8 +120,15 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
 
     // ─── Constructor ───────────────────────────────────────────────────────
 
-    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {
-        owner = msg.sender;
+    /**
+     * @param _poolManager  Uniswap V4 PoolManager
+     * @param _owner        Adresse qui pourra appeler setFactory().
+     *                      Passer explicitement le déployeur EOA car via CREATE2
+     *                      msg.sender serait le contrat CREATE2Deployer.
+     */
+    constructor(IPoolManager _poolManager, address _owner) BaseHook(_poolManager) {
+        require(_owner != address(0), "BondingCurveHook: zero owner");
+        owner = _owner;
     }
 
     /// @notice Appelé une seule fois par le déployeur après déploiement de la factory.
