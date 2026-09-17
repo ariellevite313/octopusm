@@ -6,7 +6,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   Check, ChevronRight, ChevronLeft, Upload, X, Plus, Trash2,
-  Globe, Twitter, MessageCircle, Hash, ExternalLink,
+  Globe, Twitter, MessageCircle, Hash, ExternalLink, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
@@ -16,7 +16,8 @@ import {
   ARC_TREASURY_ADDRESS,
   ARC_XSTOCK_ADDRESSES,
 } from "@/lib/arc-launchpad";
-import { XSTOCK_CATALOG_SOLANA, XSTOCK_LOGOS } from "@/lib/solana/xstocks";
+import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
+import { XStockIcon } from "@/components/shared/xstock-icon";
 
 // ─── xStock catalogue Arc (ERC-20 sur Arc Mainnet) ───────────────────────────
 const XSTOCK_CATALOG = [
@@ -28,17 +29,6 @@ const XSTOCK_CATALOG = [
   { symbol: "xQQQ",  name: "Nasdaq 100",   ticker: "QQQ",  emoji: "📊" },
   { symbol: "xGLD",  name: "Gold",          ticker: "GLD",  emoji: "🥇" },
 ] as const;
-
-/** Affiche le logo d'un xStock, ou son emoji si pas de logo. */
-function XStockIcon({ symbol, size = 16 }: { symbol: string; size?: number }) {
-  const logo = XSTOCK_LOGOS[symbol];
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={symbol} width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />;
-  }
-  const entry = [...XSTOCK_CATALOG, ...XSTOCK_CATALOG_SOLANA].find(s => s.symbol === symbol);
-  return <span style={{ fontSize: size * 0.85 }}>{entry?.emoji ?? "📈"}</span>;
-}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -406,7 +396,7 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
                 : "border-border hover:border-muted-foreground/40"
             }`}
           >
-            <p className="text-sm font-semibold text-foreground">📈 Stock-Paired</p>
+            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><TrendingUp className="size-4 text-orange-400" /> Stock-Paired</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Paired with an xStock token.</p>
           </button>
         </div>
@@ -606,7 +596,7 @@ function StepArcOptions({
             <span className="absolute top-2 right-2 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-400 border border-orange-500/30">
               Soon
             </span>
-            <p className="text-sm font-semibold text-foreground">📈 Stock-Paired</p>
+            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><TrendingUp className="size-4 text-orange-400" /> Stock-Paired</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Paired with a tokenized stock.</p>
           </div>
         </div>

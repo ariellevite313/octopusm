@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, Rocket, Clock, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
+import { XStockIcon } from "@/components/shared/xstock-icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,8 +130,9 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
           {/* Meta */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             {token.stock_symbol ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                📈 ${token.stock_symbol}
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400 border border-amber-500/25">
+                <XStockIcon symbol={token.stock_symbol} size={13} />
+                ${token.stock_symbol.replace(/^x/, "")}
               </span>
             ) : (
               <span>{token.category}</span>

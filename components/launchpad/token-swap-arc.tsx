@@ -669,8 +669,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                 onClick={() => {
                   if (!inputBalance) return;
                   const portion  = (inputBalance * BigInt(pct)) / 100n;
-                  const decimals = direction === "buy" ? 6 : 18;
-                  setAmount(bigintToInputString(portion, decimals, direction === "buy" ? 2 : 4));
+                  // Arc : USDC natif ET tokens sont tous les deux en 18 décimales
+                  setAmount(bigintToInputString(portion, 18, direction === "buy" ? 2 : 4));
                 }}
                 className="flex-1 py-2 rounded-full text-[12px] font-semibold border bg-muted/40 border-border text-muted-foreground hover:border-border-strong hover:text-foreground transition-colors"
               >

@@ -37,7 +37,7 @@ export const XSTOCK_CATALOG_SOLANA = [
 export const XSTOCK_LOGOS: Record<string, string | null> = {
   xNVDA: "/nvidia.png",
   xTSLA: "/tesla.png",
-  xMSTR: null,
+  xMSTR: "/mstr.png",
   xAAPL: "/apple.png",
   xSPY:  "/spy.png",
   xQQQ:  "/qqq.png",
