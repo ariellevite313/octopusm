@@ -28,8 +28,8 @@ import {LaunchpadFactoryV4} from "../src/LaunchpadFactoryV4.sol";
 contract DeployV4 is Script {
 
     // ─── Adresses Arc Mainnet (Chain ID 5042) ─────────────────────────────
-    // Source : Uniswap V4 official deployment, ARC_ADDRESSES SDK, PR #144
-    address constant USDC_ARC_MAINNET        = 0x3600000000000000000000000000000000000000;
+    // USDC est le token NATIF d'Arc = address(0) en Uniswap V4
+    address constant USDC_ARC_MAINNET        = address(0);
     address constant ARC_V4_POOL_MANAGER     = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address constant ARC_V4_POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
     address constant ARC_PERMIT2             = 0x000000000022D473030F116dDEE9F6B43aC78BA3;

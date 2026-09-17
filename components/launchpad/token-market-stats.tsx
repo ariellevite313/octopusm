@@ -52,9 +52,9 @@ function fmtHolders(n: number | null): string {
   return n.toLocaleString();
 }
 
-async function fetchStats(address: string, chain: "solana" | "arc"): Promise<Stats> {
+async function fetchStats(address: string, chain: "solana" | "arc", isV4 = false): Promise<Stats> {
   const url = chain === "arc"
-    ? `/api/launchpad/arc-token-stats/${address}`
+    ? `/api/launchpad/arc-token-stats/${address}${isV4 ? "?isV4=1" : ""}`
     : `/api/launchpad/token-stats/${address}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Stats unavailable");
@@ -166,10 +166,12 @@ export function TokenMarketStats({
   mintAddress,
   variant = "card",
   chain = "solana",
+  isV4 = false,
 }: {
   mintAddress: string;
   variant?: "bar" | "card";
   chain?: "solana" | "arc";
+  isV4?: boolean;
 }) {
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,11 +179,11 @@ export function TokenMarketStats({
 
   useEffect(() => {
     setLoading(true);
-    fetchStats(mintAddress, chain)
+    fetchStats(mintAddress, chain, isV4)
       .then(s  => setStats(s))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [mintAddress, chain]);
+  }, [mintAddress, chain, isV4]);
 
   if (loading) {
     if (variant === "bar") {

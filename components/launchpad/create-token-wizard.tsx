@@ -13,7 +13,6 @@ import { createWalletClient, createPublicClient, custom, http, parseEventLogs } 
 import { arc } from "@/lib/arc-chain";
 import {
   ARC_FACTORY_V4_ADDRESS, FACTORY_V4_ABI,
-  ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
   ARC_TREASURY_ADDRESS,
   ARC_XSTOCK_ADDRESSES,
 } from "@/lib/arc-launchpad";
@@ -1002,35 +1001,15 @@ export function CreateTokenWizard({
       transport: http("https://rpc.mainnet.arc.io"),
     });
 
-    // 4. Si first buy activé, calculer le montant USDC total à approuver
-    const firstBuyUsdcRaw = data.arc_first_buy_enabled && data.arc_first_buy_usdc > 0
-      ? BigInt(Math.round(data.arc_first_buy_usdc * 1_000_000)) // 6 décimales
-      : 0n;
-
     // ── Uniswap V4 + BondingCurveHook (V4 exclusif) ─────────────────────────
-      // V4 factory prend ses propres fees (CREATION_FEE = 10 USDC) uniquement.
-      // Le first buy est désactivé pour V4 (le contrat factory ne l'exécute pas — le
-      // swap doit être fait séparément via le widget de trading après la création).
-      const V4_CREATION_FEE = 10_000_000n; // 10 USDC (6 dec)
-
-      toast.info("Approving USDC for V4 factory…");
-      const approveTx = await walletClient.writeContract({
-        address:      ARC_USDC_ADDRESS,
-        abi:          ERC20_APPROVE_ABI,
-        functionName: "approve",
-        args:         [ARC_FACTORY_V4_ADDRESS, V4_CREATION_FEE * 2n], // création seule
-        gasPrice:     BigInt("20000000000"),
-      });
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 3_000));
-        const r = await publicClient.getTransactionReceipt({ hash: approveTx }).catch(() => null);
-        if (r) break;
-      }
+      // Sur Arc, USDC est le token NATIF (address(0)).
+      // La creation fee (10 USDC = 10 * 1e18 wei) est envoyée en msg.value.
+      // Aucune approbation ERC-20 nécessaire.
+      const V4_CREATION_FEE = 10n * 10n ** 18n; // 10 USDC natif (18 dec)
 
       toast.info("Deploying token on Arc V4…");
-      // createToken(name, symbol, imageUri, firstBuyUsdc, feeDistributor, creatorKeepBps)
-      // feeDistributor = address(0) + creatorKeepBps = 10000 → 100% creator, pas de staking holders.
-      // Ne pas passer une EOA comme feeDistributor : le hook appelle notifyReward() dessus → revert.
+      // createToken(name, symbol, imageUri, feeDistributor, creatorKeepBps)
+      // feeDistributor = address(0) + creatorKeepBps = 10000 → 100% creator.
       const txHash = await walletClient.writeContract({
         address:      ARC_FACTORY_V4_ADDRESS,
         abi:          FACTORY_V4_ABI,
@@ -1039,10 +1018,10 @@ export function CreateTokenWizard({
           data.name,
           data.ticker,
           "", // imageUri — non utilisé on-chain
-          0n, // firstBuyUsdc — désactivé pour V4 (factory ne l'exécute pas)
           "0x0000000000000000000000000000000000000000", // feeDistributor — address(0) = 100% creator
-          10000n, // creatorKeepBps — 100% au créateur, aucune distribution holders
+          10000n, // creatorKeepBps — 100% au créateur
         ],
+        value:    V4_CREATION_FEE, // USDC natif en msg.value
         gasPrice: BigInt("20000000000"),
       });
 

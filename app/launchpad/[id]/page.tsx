@@ -368,7 +368,7 @@ export default async function TokenDetailPage({ params }: Props) {
       )}
       {showArcChart && (
         <div className="mt-4">
-          <TokenMarketStats mintAddress={token.arc_launch_id!} variant="bar" chain="arc" />
+          <TokenMarketStats mintAddress={token.arc_launch_id!} variant="bar" chain="arc" isV4={isArcV4} />
         </div>
       )}
 

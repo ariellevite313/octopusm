@@ -66,7 +66,8 @@ async function getReservesV4(
     const tok = state.reserveTokens;
     const usd = state.reserveUsdc;
     if (tok === 0n) return null;
-    const reserveUsdc   = Number(usd) / 1e6;
+    // USDC natif Arc = 18 decimals EVM
+    const reserveUsdc   = Number(usd) / 1e18;
     const reserveTokens = Number(tok) / 1e18;
     const priceUsd  = reserveUsdc / reserveTokens;
     const marketCap = priceUsd * TOTAL_SUPPLY;

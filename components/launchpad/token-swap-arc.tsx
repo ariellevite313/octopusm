@@ -41,9 +41,10 @@ type Direction = "buy" | "sell";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Arc USDC natif = 18 decimals EVM, affiché en 6 decimals
 function fmtUsdc(raw: bigint): string {
-  return (Number(raw) / 1e6).toLocaleString("en-US", {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  return (Number(raw) / 1e18).toLocaleString("en-US", {
+    minimumFractionDigits: 2, maximumFractionDigits: 6,
   });
 }
 
@@ -193,11 +194,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       const client = getPublicClient();
       const addr   = walletAddress as `0x${string}`;
 
+      // USDC natif Arc (address(0)) → eth_getBalance (18 decimals EVM)
       const [quoteBal, tokBal] = await Promise.all([
-        client.readContract({
-          address: quoteAddress, abi: ERC20_BALANCE_ABI,
-          functionName: "balanceOf", args: [addr],
-        }) as Promise<bigint>,
+        client.getBalance({ address: addr }),
         tokenAddress
           ? client.readContract({
               address: tokenAddress as `0x${string}`, abi: ERC20_BALANCE_ABI,
@@ -223,7 +222,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     // ── V4 : calcul client-side (reproduit la logique du hook, pas de RPC) ─
     try {
       if (direction === "buy") {
-        const usdcGross = BigInt(Math.round(parsed * 1e6));
+        // USDC natif 18 decimals
+        const usdcGross = BigInt(Math.round(parsed * 1e18));
         const { tokensOut } = quoteBuyV4(v4ReserveUsdc, v4ReserveTokens, usdcGross);
         setEstimatedOut(tokensOut > 0n ? tokensOut : null);
       } else {
@@ -300,38 +300,21 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         const usdcIsC0  = usdcAddr.toLowerCase() < memeAddr.toLowerCase();
 
         if (direction === "buy") {
-          const quoteRaw  = BigInt(Math.round(parsed * 1e6));
+          // USDC natif Arc : 18 decimals EVM
+          const quoteRaw  = BigInt(Math.round(parsed * 1e18));
           const minTokens = (estimatedOut * slipMul) / 1000n;
           const zeroForOne = usdcIsC0;
 
           if (quoteBalance !== null && quoteRaw > quoteBalance) throw new Error("Solde USDC insuffisant");
 
-          // Approve USDC → router
-          const allowance = await client.readContract({
-            address: usdcAddr, abi: ERC20_BALANCE_ABI,
-            functionName: "allowance",
-            args: [walletAddress as `0x${string}`, ARC_ROUTER_ADDRESS],
-          }) as bigint;
-          if (allowance < quoteRaw) {
-            const approveData = encodeFunctionData({
-              abi: ERC20_APPROVE_ABI, functionName: "approve",
-              args: [ARC_ROUTER_ADDRESS, quoteRaw * 2n],
-            });
-            const approveTx = await eth.request({
-              method: "eth_sendTransaction",
-              params: [{ from: walletAddress, to: usdcAddr, data: approveData }],
-            }) as string;
-            await waitReceipt(approveTx);
-          }
-
-          // router.swap(poolKey, zeroForOne, -quoteRaw, recipient, minTokensOut)
+          // USDC natif → pas d'approval ERC-20, on envoie msg.value au router
           const swapData = encodeFunctionData({
             abi: BONDING_CURVE_ROUTER_ABI, functionName: "swap",
             args: [poolKey, zeroForOne, -quoteRaw, walletAddress as `0x${string}`, minTokens],
           });
           const hash = await eth.request({
             method: "eth_sendTransaction",
-            params: [{ from: walletAddress, to: ARC_ROUTER_ADDRESS, data: swapData }],
+            params: [{ from: walletAddress, to: ARC_ROUTER_ADDRESS, data: swapData, value: `0x${quoteRaw.toString(16)}` }],
           }) as string;
           setTxHash(hash);
           await waitReceipt(hash);
