@@ -15,9 +15,9 @@ export const ARC_POOL_MANAGER_ADDRESS = "0x8366a39CC670B4001A1121B8F6A443A643e40
  * Adresses V4 — à remplir après `forge script DeployV4.s.sol --broadcast`
  * Le déploiement V4 produit : BondingCurveHook, LaunchpadFactoryV4, BondingCurveRouter
  */
-export const ARC_HOOK_ADDRESS       = "0xd62D6b9Dad7dd63E2D816a488297b3609Fe34088" as `0x${string}`;
-export const ARC_ROUTER_ADDRESS     = "0x0edBFAbB739137623a3Cf29f675c9395E36eBA59" as `0x${string}`;
-export const ARC_FACTORY_V4_ADDRESS = "0x72Bd905e828a8a9A5CEc7564DA5Ede558035ADe6" as `0x${string}`;
+export const ARC_HOOK_ADDRESS       = "0x88B136529931Aa0dB9AE626AbE63921932fcC088" as `0x${string}`;
+export const ARC_ROUTER_ADDRESS     = "0xf7f3647dF999c8c49c9610211BDa2B4e59Ca2cc9" as `0x${string}`;
+export const ARC_FACTORY_V4_ADDRESS = "0x50AF0A745b6c9b001380bC12122e5a0Db890238e" as `0x${string}`;
 
 // ─── V4 PoolKey / PoolId helpers ─────────────────────────────────────────────
 
