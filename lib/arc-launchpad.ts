@@ -329,7 +329,7 @@ export const FACTORY_V4_ABI = [
       { name: "creatorKeepBps", type: "uint256", internalType: "uint256" },
     ],
     outputs: [{ name: "tokenAddr", type: "address", internalType: "address" }],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
   },
   {
     type: "event",

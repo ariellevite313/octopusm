@@ -37,8 +37,8 @@ contract LaunchpadFactoryV4 {
     IPoolManager public immutable poolManager;
     BondingCurveHook public immutable hook;
 
-    /// @dev Fee de création : 10 USDC natif (18 dec)
-    uint256 public constant CREATION_FEE = 10 * 1e18;
+    /// @dev Fee de création : gratuit
+    uint256 public constant CREATION_FEE = 0;
 
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000 * 1e18;
     uint24  public constant POOL_FEE     = 0;
@@ -96,25 +96,13 @@ contract LaunchpadFactoryV4 {
         string  calldata imageUri,
         address feeDistributor,
         uint256 creatorKeepBps
-    ) external payable returns (address tokenAddr) {
-        require(msg.value >= CREATION_FEE, "LaunchpadFactory: insufficient creation fee");
-        require(creatorKeepBps <= 10_000,  "LaunchpadFactory: invalid creatorKeepBps");
+    ) external returns (address tokenAddr) {
+        require(creatorKeepBps <= 10_000, "LaunchpadFactory: invalid creatorKeepBps");
         if (creatorKeepBps < 10_000) {
             require(feeDistributor != address(0), "LaunchpadFactory: need distributor");
         }
 
-        // 1. Forward la fee de création à la treasury (USDC natif)
-        (bool ok,) = payable(treasury).call{value: CREATION_FEE}("");
-        require(ok, "LaunchpadFactory: treasury transfer failed");
-
-        // Rembourser le surplus éventuel
-        uint256 surplus = msg.value - CREATION_FEE;
-        if (surplus > 0) {
-            (bool ok2,) = payable(msg.sender).call{value: surplus}("");
-            require(ok2, "LaunchpadFactory: refund failed");
-        }
-
-        // 2. Déployer le token meme — TOTAL_SUPPLY minté directement au hook
+        // 1. Déployer le token meme — TOTAL_SUPPLY minté directement au hook
         OMToken memeToken = new OMToken(name, symbol, imageUri, "", address(hook), msg.sender);
         tokenAddr = address(memeToken);
 

@@ -783,7 +783,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost — Arc</p>
           <div className="space-y-1">
             <Row label="Gas (deploy ~1M gas)" value="~0.02 USDC" />
-            <Row label="Platform fee" value="Free" />
+            <Row label="Platform fee" value="Free" highlight />
             <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
               <span className="text-sm font-semibold text-foreground">Total</span>
               <span className="text-sm font-bold text-blue-500">~0.02 USDC</span>
@@ -1002,14 +1002,8 @@ export function CreateTokenWizard({
     });
 
     // ── Uniswap V4 + BondingCurveHook (V4 exclusif) ─────────────────────────
-      // Sur Arc, USDC est le token NATIF (address(0)).
-      // La creation fee (10 USDC = 10 * 1e18 wei) est envoyée en msg.value.
-      // Aucune approbation ERC-20 nécessaire.
-      const V4_CREATION_FEE = 10n * 10n ** 18n; // 10 USDC natif (18 dec)
-
+      // Création gratuite — pas de creation fee, pas de msg.value.
       toast.info("Deploying token on Arc V4…");
-      // createToken(name, symbol, imageUri, feeDistributor, creatorKeepBps)
-      // feeDistributor = address(0) + creatorKeepBps = 10000 → 100% creator.
       const txHash = await walletClient.writeContract({
         address:      ARC_FACTORY_V4_ADDRESS,
         abi:          FACTORY_V4_ABI,
@@ -1021,20 +1015,19 @@ export function CreateTokenWizard({
           "0x0000000000000000000000000000000000000000", // feeDistributor — address(0) = 100% creator
           10000n, // creatorKeepBps — 100% au créateur
         ],
-        value:    V4_CREATION_FEE, // USDC natif en msg.value
-        gasPrice: BigInt("20000000000"),
+        // Pas de value — création gratuite
       });
 
       toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
       toast.info("Waiting for confirmation…");
 
       let receipt = null;
-      for (let attempt = 0; attempt < 60; attempt++) {
+      for (let attempt = 0; attempt < 100; attempt++) {
         await new Promise(r => setTimeout(r, 3_000));
         receipt = await publicClient.getTransactionReceipt({ hash: txHash }).catch(() => null);
         if (receipt) break;
       }
-      if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
+      if (!receipt) throw new Error("Transaction not confirmed after 5 minutes. Check ArcScan: https://explorer.arc.io/tx/" + txHash);
       if (receipt.status === "reverted") {
         throw new Error("Transaction reverted — check ArcScan: https://explorer.arc.io/tx/" + txHash);
       }
