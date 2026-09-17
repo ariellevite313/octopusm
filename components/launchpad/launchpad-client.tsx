@@ -8,6 +8,7 @@ import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRi
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
+import { XStockIcon } from "@/components/shared/xstock-icon";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -146,8 +147,9 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
         {/* Stock-paired badge */}
         {token.stock_symbol && !isScheduled && (
           <div className="absolute left-2 top-2">
-            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
-              📈 ${token.stock_symbol}
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
+              <XStockIcon symbol={token.stock_symbol} size={12} />
+              ${token.stock_symbol.replace(/^x/, "")}
             </span>
           </div>
         )}
@@ -240,8 +242,9 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
           />
           {/* Stock-paired badge */}
           {token.stock_symbol && (
-            <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/30 shrink-0">
-              📈 ${token.stock_symbol}
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/30 shrink-0">
+              <XStockIcon symbol={token.stock_symbol} size={11} />
+              ${token.stock_symbol.replace(/^x/, "")}
             </span>
           )}
         </div>
