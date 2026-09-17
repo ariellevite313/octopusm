@@ -1,103 +1,113 @@
+import { encodeAbiParameters, keccak256 } from "viem";
+
 // ─── Adresses sur Arc Mainnet (Chain ID 5042) ─────────────────────────────────
-
-/** OLD contract (tokens créés avant la migration AMM — BondingCurve impl réutilise la même adresse) */
-export const ARC_LAUNCHPAD_ADDRESS = "0xc41000636c9952ebbba5b3e08f8ae885748862b1" as const;
-
-/** LaunchpadFactory déployé sur Arc Mainnet le 2026-09-17 */
-export const ARC_FACTORY_ADDRESS   = "0x499B87502A8d8aDad03a579f8231D0c42Af23E16" as const;
 
 export const ARC_USDC_ADDRESS      = "0x3600000000000000000000000000000000000000" as const;
 
+// ─── Uniswap V4 sur Arc Mainnet ───────────────────────────────────────────────
+
+export const ARC_POOL_MANAGER_ADDRESS = "0x8366a39CC670B4001A1121B8F6A443A643e40951" as const;
+
+/**
+ * Adresses V4 — à remplir après `forge script DeployV4.s.sol --broadcast`
+ * Le déploiement V4 produit : BondingCurveHook, LaunchpadFactoryV4, BondingCurveRouter
+ */
+export const ARC_HOOK_ADDRESS    = "" as `0x${string}`; // TODO: fill after deploy
+export const ARC_ROUTER_ADDRESS  = "" as `0x${string}`; // TODO: fill after deploy
+export const ARC_FACTORY_V4_ADDRESS = "" as `0x${string}`; // TODO: fill after deploy
+
+// ─── V4 PoolKey / PoolId helpers ─────────────────────────────────────────────
+
+export const V4_POOL_FEE         = 0;    // 0% pool fee — hook takes 2% via beforeSwap
+export const V4_TICK_SPACING     = 60;
+
+/**
+ * Constantes de la bonding curve (doivent correspondre à BondingCurveHook.sol)
+ * K = VIRTUAL_USDC × CURVE_SUPPLY (bigint)
+ */
+export const BC_VIRTUAL_USDC    = 3_200_000_000n;               // 3 200 USDC (6 dec)
+export const BC_CURVE_SUPPLY    = 800_000_000n * 10n ** 18n;    // 800 M tokens (18 dec)
+export const BC_GRAD_THRESHOLD  = 4_800_000_000n;               // 4 800 USDC (6 dec)
+export const BC_FEE_BPS         = 200n;
+export const BC_K               = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
+
+/**
+ * Calcule le PoolKey d'un token V4 (currency0 < currency1 en adresse).
+ */
+export function getArcV4PoolKey(memeToken: `0x${string}`) {
+  const usdc = ARC_USDC_ADDRESS.toLowerCase();
+  const meme = memeToken.toLowerCase();
+  const [c0, c1] = meme < usdc
+    ? [meme as `0x${string}`, usdc as `0x${string}`]
+    : [usdc as `0x${string}`, meme as `0x${string}`];
+  return { currency0: c0, currency1: c1, fee: V4_POOL_FEE, tickSpacing: V4_TICK_SPACING, hooks: ARC_HOOK_ADDRESS };
+}
+
+/**
+ * Calcule le PoolId (keccak256 de l'ABI-encoding du PoolKey).
+ * Correspond à `key.toId()` en Solidity.
+ */
+export function getArcV4PoolId(memeToken: `0x${string}`): `0x${string}` {
+  const key = getArcV4PoolKey(memeToken);
+  return keccak256(encodeAbiParameters(
+    [
+      { type: "address" }, // currency0
+      { type: "address" }, // currency1
+      { type: "uint24"  }, // fee
+      { type: "int24"   }, // tickSpacing
+      { type: "address" }, // hooks
+    ],
+    [key.currency0, key.currency1, key.fee, key.tickSpacing, key.hooks]
+  ));
+}
+
+/**
+ * Détecte si un token Arc est un token V4 (launchId = tokenAddress)
+ * vs standalone (launchId = BondingCurve clone address ≠ tokenAddress)
+ */
+export function isArcV4Token(launchId: string, tokenAddress: string): boolean {
+  return (
+    launchId.startsWith("0x") &&
+    launchId.toLowerCase() === tokenAddress.toLowerCase()
+  );
+}
+
+/**
+ * Quote client-side pour un buy V4 (reproduit _quoteBuy du hook)
+ * @param reserveUsdc  réserve USDC actuelle (bigint, 6 dec)
+ * @param reserveTokens réserve tokens actuelle (bigint, 18 dec)
+ * @param usdcGross    USDC bruts envoyés (bigint, 6 dec)
+ */
+export function quoteBuyV4(reserveUsdc: bigint, reserveTokens: bigint, usdcGross: bigint) {
+  const fee      = usdcGross * BC_FEE_BPS / 10000n;
+  const usdcNet  = usdcGross - fee;
+  const newResU  = reserveUsdc + usdcNet;
+  // ceil division pour newReserveTokens (k / newResU, arrondi vers le haut)
+  const newResT  = (BC_K + newResU - 1n) / newResU;
+  const tokensOut = reserveTokens > newResT ? reserveTokens - newResT : 0n;
+  return { tokensOut, fee };
+}
+
+/**
+ * Quote client-side pour un sell V4 (reproduit _quoteSell du hook)
+ */
+export function quoteSellV4(reserveUsdc: bigint, reserveTokens: bigint, tokensIn: bigint) {
+  const newResT  = reserveTokens + tokensIn;
+  const newResU  = BC_K / newResT; // floor
+  const usdcGross = reserveUsdc > newResU ? reserveUsdc - newResU : 0n;
+  const fee      = usdcGross * BC_FEE_BPS / 10000n;
+  const usdcOut  = usdcGross - fee;
+  return { usdcOut, fee };
+}
+
 // ─── Platform revenue ─────────────────────────────────────────────────────────
-/** Treasury wallet that receives the 10 USDC creation fee on Arc */
+/** Treasury wallet that receives fees on Arc */
 export const ARC_TREASURY_ADDRESS  = (process.env.NEXT_PUBLIC_ARC_TREASURY_ADDRESS ?? "") as `0x${string}`;
-/** Creation fee in USDC (human-readable). Charged once per token deployed on Arc. */
-export const ARC_CREATION_FEE_USDC = 0; // Free for now — set to e.g. 10 to re-enable
 
 // Supply standard : 1 milliard de tokens (18 décimales)
 export const ARC_DEFAULT_SUPPLY    = BigInt("1000000000000000000000000000"); // 1e27
 
-// basePrice : 1 (= 0.000001 USDC par token) — utilisé par l'ANCIEN contrat
-export const ARC_DEFAULT_BASE_PRICE = BigInt(1);
-
-// ─── ANCIEN contrat (ARC_LAUNCHPAD_ADDRESS) ───────────────────────────────────
-// Utilisé pour les tokens créés AVANT la migration AMM.
-
-export const LAUNCHPAD_ABI = [
-  {
-    type: "function",
-    name: "create",
-    inputs: [
-      { name: "name",      type: "string",  internalType: "string"  },
-      { name: "symbol",    type: "string",  internalType: "string"  },
-      { name: "supply",    type: "uint256", internalType: "uint256" },
-      { name: "basePrice", type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [{ name: "id", type: "uint256", internalType: "uint256" }],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "buy",
-    inputs: [
-      { name: "id",          type: "uint256", internalType: "uint256" },
-      { name: "tokenAmount", type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "getBuyCost",
-    inputs: [
-      { name: "id",          type: "uint256", internalType: "uint256" },
-      { name: "tokenAmount", type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "launches",
-    inputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    outputs: [
-      { name: "token",     type: "address", internalType: "address" },
-      { name: "creator",   type: "address", internalType: "address" },
-      { name: "supply",    type: "uint256", internalType: "uint256" },
-      { name: "sold",      type: "uint256", internalType: "uint256" },
-      { name: "raised",    type: "uint256", internalType: "uint256" },
-      { name: "basePrice", type: "uint256", internalType: "uint256" },
-      { name: "graduated", type: "bool",    internalType: "bool"    },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "launchCount",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "event",
-    name: "Created",
-    inputs: [
-      { name: "id",        type: "uint256", indexed: true,  internalType: "uint256" },
-      { name: "token",     type: "address", indexed: true,  internalType: "address" },
-      { name: "creator",   type: "address", indexed: true,  internalType: "address" },
-      { name: "name",      type: "string",  indexed: false, internalType: "string"  },
-      { name: "symbol",    type: "string",  indexed: false, internalType: "string"  },
-      { name: "supply",    type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "basePrice", type: "uint256", indexed: false, internalType: "uint256" },
-    ],
-    anonymous: false,
-  },
-] as const;
-
-// ─── NOUVEAU — LaunchpadFactory (ARC_FACTORY_ADDRESS) ────────────────────────
-// ABI minimal pour créer un token via la factory AMM.
-
-// Adresses des xStock tokens déployés sur Arc Mainnet le 2026-09-17
+// ─── xStock addresses (Arc Mainnet) ──────────────────────────────────────────
 export const ARC_XSTOCK_ADDRESSES: Record<string, `0x${string}`> = {
   xNVDA: "0x5221798179a89ff55dd8d119a929e4af15eb0158",
   xTSLA: "0x855b52f99d3cd9a9e7ada322a454919d44dc4805",
@@ -106,229 +116,8 @@ export const ARC_XSTOCK_ADDRESSES: Record<string, `0x${string}`> = {
   xSPY:  "0xfa6dd9eeb6d117bd95ab0765dae5563de0550803",
 };
 
-export const FACTORY_ABI = [
-  {
-    type: "function",
-    name: "createToken",
-    inputs: [
-      { name: "name",           type: "string",  internalType: "string"  },
-      { name: "symbol",         type: "string",  internalType: "string"  },
-      { name: "imageUri",       type: "string",  internalType: "string"  },
-      { name: "description",    type: "string",  internalType: "string"  },
-      { name: "firstBuyUsdc",   type: "uint256", internalType: "uint256" },
-      { name: "holderRewards_", type: "bool",    internalType: "bool"    },
-    ],
-    outputs: [
-      { name: "curve",       type: "address", internalType: "address" },
-      { name: "token",       type: "address", internalType: "address" },
-      { name: "vault_",      type: "address", internalType: "address" },
-      { name: "distributor_",type: "address", internalType: "address" },
-    ],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "event",
-    name: "TokenCreated",
-    inputs: [
-      { name: "curve",          type: "address", indexed: true,  internalType: "address" },
-      { name: "token",          type: "address", indexed: true,  internalType: "address" },
-      { name: "creator",        type: "address", indexed: true,  internalType: "address" },
-      { name: "vault",          type: "address", indexed: false, internalType: "address" },
-      { name: "feeDistributor", type: "address", indexed: false, internalType: "address" },
-      { name: "holderRewards",  type: "bool",    indexed: false, internalType: "bool"    },
-      { name: "name",           type: "string",  indexed: false, internalType: "string"  },
-      { name: "symbol",         type: "string",  indexed: false, internalType: "string"  },
-      { name: "imageUri",       type: "string",  indexed: false, internalType: "string"  },
-      { name: "description",    type: "string",  indexed: false, internalType: "string"  },
-      { name: "firstBuyUsdc",   type: "uint256", indexed: false, internalType: "uint256" },
-    ],
-    anonymous: false,
-  },
-  // ─── createStockPairedToken ───────────────────────────────────────────────
-  {
-    type: "function",
-    name: "createStockPairedToken",
-    inputs: [
-      { name: "name",           type: "string",  internalType: "string"  },
-      { name: "symbol",         type: "string",  internalType: "string"  },
-      { name: "imageUri",       type: "string",  internalType: "string"  },
-      { name: "description",    type: "string",  internalType: "string"  },
-      { name: "quoteAsset_",    type: "address", internalType: "address" },
-      { name: "firstBuyQuote",  type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [
-      { name: "curve", type: "address", internalType: "address" },
-      { name: "token", type: "address", internalType: "address" },
-    ],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "event",
-    name: "StockPairedTokenCreated",
-    inputs: [
-      { name: "curve",          type: "address", indexed: true,  internalType: "address" },
-      { name: "token",          type: "address", indexed: true,  internalType: "address" },
-      { name: "creator",        type: "address", indexed: true,  internalType: "address" },
-      { name: "quoteAsset",     type: "address", indexed: false, internalType: "address" },
-      { name: "name",           type: "string",  indexed: false, internalType: "string"  },
-      { name: "symbol",         type: "string",  indexed: false, internalType: "string"  },
-      { name: "imageUri",       type: "string",  indexed: false, internalType: "string"  },
-      { name: "description",    type: "string",  indexed: false, internalType: "string"  },
-      { name: "firstBuyQuote",  type: "uint256", indexed: false, internalType: "uint256" },
-    ],
-    anonymous: false,
-  },
-  // ─── isStockPaired ────────────────────────────────────────────────────────
-  {
-    type: "function",
-    name: "isStockPaired",
-    inputs: [{ name: "curve", type: "address", internalType: "address" }],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "curveQuoteAsset",
-    inputs: [{ name: "", type: "address", internalType: "address" }],
-    outputs: [{ name: "", type: "address", internalType: "address" }],
-    stateMutability: "view",
-  },
-] as const;
-
-// ─── GenericBondingCurve ABI (stock-paired curves) ────────────────────────────
-
-export const GENERIC_BONDING_CURVE_ABI = [
-  {
-    type: "function",
-    name: "graduated",
-    inputs: [],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "reserveQuote",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "reserveTokens",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "realQuoteRaised",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "quoteAsset",
-    inputs: [],
-    outputs: [{ name: "", type: "address", internalType: "address" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "spotPrice",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "graduationProgressBps",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "GRAD_THRESHOLD",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "quoteToTokens",
-    inputs: [{ name: "quoteIn", type: "uint256", internalType: "uint256" }],
-    outputs: [
-      { name: "tokensOut", type: "uint256", internalType: "uint256" },
-      { name: "fee",       type: "uint256", internalType: "uint256" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "tokensToQuote",
-    inputs: [{ name: "tokensIn", type: "uint256", internalType: "uint256" }],
-    outputs: [
-      { name: "quoteOut", type: "uint256", internalType: "uint256" },
-      { name: "fee",      type: "uint256", internalType: "uint256" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "buy",
-    inputs: [
-      { name: "quoteIn",    type: "uint256", internalType: "uint256" },
-      { name: "minTokens",  type: "uint256", internalType: "uint256" },
-      { name: "recipient",  type: "address", internalType: "address" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "sell",
-    inputs: [
-      { name: "tokensIn",   type: "uint256", internalType: "uint256" },
-      { name: "minQuote",   type: "uint256", internalType: "uint256" },
-      { name: "recipient",  type: "address", internalType: "address" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "creatorFeesAccrued",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "claimFees",
-    inputs: [{ name: "to", type: "address", internalType: "address" }],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "event",
-    name: "Trade",
-    inputs: [
-      { name: "trader",         type: "address", indexed: true,  internalType: "address" },
-      { name: "isBuy",          type: "bool",    indexed: false, internalType: "bool"    },
-      { name: "quoteAmount",    type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "tokenAmount",    type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "fee",            type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "realQuoteRaised",type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "reserveQuote",   type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "reserveTokens",  type: "uint256", indexed: false, internalType: "uint256" },
-    ],
-    anonymous: false,
-  },
-] as const;
-
-// ─── NOUVEAU — BondingCurve clone (adresse = arc_launch_id en DB) ─────────────
-// Chaque token AMM a son propre clone BondingCurve à cette adresse.
+// ─── BondingCurve clone ABI (V1 — gardé pour les anciens tokens) ──────────────
+// claim-fees-arc.tsx et arc-creator-fees.tsx l'utilisent pour les tokens V1.
 
 export const BONDING_CURVE_ABI = [
   // ── State ──────────────────────────────────────────────────────────────────
@@ -517,5 +306,257 @@ export const ERC20_APPROVE_ABI = [
     inputs: [{ name: "account", type: "address", internalType: "address" }],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
+  },
+] as const;
+
+// ─── ABIs Uniswap V4 ─────────────────────────────────────────────────────────
+
+/** ABI pour LaunchpadFactoryV4 */
+export const FACTORY_V4_ABI = [
+  {
+    type: "function",
+    name: "createToken",
+    inputs: [
+      { name: "name",            type: "string",  internalType: "string"  },
+      { name: "symbol",          type: "string",  internalType: "string"  },
+      { name: "imageUri",        type: "string",  internalType: "string"  },
+      { name: "firstBuyUsdc",    type: "uint256", internalType: "uint256" },
+      { name: "feeDistributor",  type: "address", internalType: "address" },
+      { name: "creatorKeepBps",  type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "token", type: "address", internalType: "address" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "TokenCreated",
+    inputs: [
+      { name: "token",   type: "address", indexed: true,  internalType: "address" },
+      { name: "creator", type: "address", indexed: true,  internalType: "address" },
+      { name: "name",    type: "string",  indexed: false, internalType: "string"  },
+      { name: "symbol",  type: "string",  indexed: false, internalType: "string"  },
+      {
+        name: "poolKey",
+        type: "tuple",
+        indexed: false,
+        internalType: "struct PoolKey",
+        components: [
+          { name: "currency0",   type: "address", internalType: "Currency" },
+          { name: "currency1",   type: "address", internalType: "Currency" },
+          { name: "fee",         type: "uint24",  internalType: "uint24"   },
+          { name: "tickSpacing", type: "int24",   internalType: "int24"    },
+          { name: "hooks",       type: "address", internalType: "contract IHooks" },
+        ],
+      },
+    ],
+    anonymous: false,
+  },
+  // CREATION_FEE view function (optional — utile pour afficher le coût)
+  {
+    type: "function",
+    name: "CREATION_FEE",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
+
+/**
+ * ABI pour BondingCurveHook (singleton V4)
+ * CurveState struct correspond à `getCurveState()` on-chain.
+ */
+export const BONDING_CURVE_HOOK_ABI = [
+  // ── Lecture d'état ─────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "getCurveState",
+    inputs: [{ name: "poolId", type: "bytes32", internalType: "PoolId" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        internalType: "struct BondingCurveHook.CurveState",
+        components: [
+          { name: "memeToken",           type: "address", internalType: "address" },
+          { name: "usdc",                type: "address", internalType: "address" },
+          { name: "creator",             type: "address", internalType: "address" },
+          { name: "treasury",            type: "address", internalType: "address" },
+          { name: "feeDistributor",      type: "address", internalType: "address" },
+          { name: "reserveUsdc",         type: "uint256", internalType: "uint256" },
+          { name: "reserveTokens",       type: "uint256", internalType: "uint256" },
+          { name: "realUsdcRaised",      type: "uint256", internalType: "uint256" },
+          { name: "creatorFeesAccrued",  type: "uint256", internalType: "uint256" },
+          { name: "creatorKeepBps",      type: "uint256", internalType: "uint256" },
+          { name: "graduated",           type: "bool",    internalType: "bool"    },
+          { name: "initialized",         type: "bool",    internalType: "bool"    },
+          { name: "lpAdded",             type: "bool",    internalType: "bool"    },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
+  // ── Fees créateur ──────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "claimFees",
+    inputs: [
+      {
+        name: "key",
+        type: "tuple",
+        internalType: "struct PoolKey",
+        components: [
+          { name: "currency0",   type: "address", internalType: "Currency" },
+          { name: "currency1",   type: "address", internalType: "Currency" },
+          { name: "fee",         type: "uint24",  internalType: "uint24"   },
+          { name: "tickSpacing", type: "int24",   internalType: "int24"    },
+          { name: "hooks",       type: "address", internalType: "contract IHooks" },
+        ],
+      },
+      { name: "to", type: "address", internalType: "address" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  // ── Graduation LP ─────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "addGraduationLiquidity",
+    inputs: [
+      {
+        name: "key",
+        type: "tuple",
+        internalType: "struct PoolKey",
+        components: [
+          { name: "currency0",   type: "address", internalType: "Currency" },
+          { name: "currency1",   type: "address", internalType: "Currency" },
+          { name: "fee",         type: "uint24",  internalType: "uint24"   },
+          { name: "tickSpacing", type: "int24",   internalType: "int24"    },
+          { name: "hooks",       type: "address", internalType: "contract IHooks" },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  // ── Events ────────────────────────────────────────────────────────────────
+  {
+    type: "event",
+    name: "Trade",
+    inputs: [
+      { name: "poolId",      type: "bytes32", indexed: true,  internalType: "PoolId"  },
+      { name: "trader",      type: "address", indexed: true,  internalType: "address" },
+      { name: "isBuy",       type: "bool",    indexed: false, internalType: "bool"    },
+      { name: "usdcAmount",  type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "tokenAmount", type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "fee",         type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "Graduated",
+    inputs: [
+      { name: "poolId",      type: "bytes32", indexed: true,  internalType: "PoolId"  },
+      { name: "usdcAdded",   type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "tokensAdded", type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "FeesClaimed",
+    inputs: [
+      { name: "poolId", type: "bytes32", indexed: true,  internalType: "PoolId"  },
+      { name: "to",     type: "address", indexed: false, internalType: "address" },
+      { name: "amount", type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
+] as const;
+
+/**
+ * ABI pour BondingCurveRouter
+ * Permet aux EOA d'initier des swaps V4 (flash accounting via unlock/unlockCallback).
+ */
+export const BONDING_CURVE_ROUTER_ABI = [
+  {
+    type: "function",
+    name: "swap",
+    inputs: [
+      {
+        name: "key",
+        type: "tuple",
+        internalType: "struct PoolKey",
+        components: [
+          { name: "currency0",   type: "address", internalType: "Currency" },
+          { name: "currency1",   type: "address", internalType: "Currency" },
+          { name: "fee",         type: "uint24",  internalType: "uint24"   },
+          { name: "tickSpacing", type: "int24",   internalType: "int24"    },
+          { name: "hooks",       type: "address", internalType: "contract IHooks" },
+        ],
+      },
+      { name: "zeroForOne",       type: "bool",    internalType: "bool"    },
+      { name: "amountSpecified",  type: "int256",  internalType: "int256"  },
+      { name: "recipient",        type: "address", internalType: "address" },
+      { name: "minAmountOut",     type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "amountOut", type: "int128", internalType: "int128" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "poolManager",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "contract IPoolManager" }],
+    stateMutability: "view",
+  },
+] as const;
+
+/**
+ * Topic du Trade event V4 (BondingCurveHook)
+ * keccak256("Trade(bytes32,address,bool,uint256,uint256,uint256)")
+ * Utilisé dans arc-trades/route.ts pour filtrer les logs du hook singleton.
+ */
+export const TRADE_EVENT_TOPIC_V4 =
+  "0xb18113e1c56cce2487087581e76c857611d18d6130ba717df76423af454bdf4c" as const;
+// keccak256("Trade(bytes32,address,bool,uint256,uint256,uint256)") — vérifié via viem
+
+// ── FeeDistributor ABI ─────────────────────────────────────────────────────────
+// Synthetix-style staking rewards — holders stake meme tokens to earn USDC fees.
+// Deployed per-token by LaunchpadFactoryV4 when creatorKeepBps < 10000.
+// Address is stored in CurveState.feeDistributor (returned by getCurveState).
+export const FEE_DISTRIBUTOR_ABI = [
+  {
+    type: "function", name: "stake",
+    inputs:  [{ name: "amount", type: "uint256" }],
+    outputs: [], stateMutability: "nonpayable",
+  },
+  {
+    type: "function", name: "unstake",
+    inputs:  [{ name: "amount", type: "uint256" }],
+    outputs: [], stateMutability: "nonpayable",
+  },
+  {
+    type: "function", name: "claim",
+    inputs:  [], outputs: [], stateMutability: "nonpayable",
+  },
+  {
+    type: "function", name: "exit",
+    inputs:  [], outputs: [], stateMutability: "nonpayable",
+  },
+  {
+    type: "function", name: "staked",
+    inputs:  [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint256" }], stateMutability: "view",
+  },
+  {
+    type: "function", name: "claimable",
+    inputs:  [{ name: "user", type: "address" }],
+    outputs: [{ type: "uint256" }], stateMutability: "view",
+  },
+  {
+    type: "function", name: "totalStaked",
+    inputs:  [],
+    outputs: [{ type: "uint256" }], stateMutability: "view",
   },
 ] as const;

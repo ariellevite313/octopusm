@@ -72,10 +72,10 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
     uint256 public constant BPS             = 10_000;
     uint256 public constant MAX_FIRST_BUY   = GRAD_THRESHOLD / 10; // 480 USDC
 
-    // Ticks full-range pour fee tier 0.3% (tickSpacing = 60)
+    // Ticks full-range (tickSpacing = 60, compatible avec fee = 0)
     int24  public constant TICK_LOWER       = -887220;
     int24  public constant TICK_UPPER       =  887220;
-    uint24 public constant POOL_FEE         = 3000; // 0.3%
+    uint24 public constant POOL_FEE         = 0; // 0% — le hook prend 2% via beforeSwap
 
     // ─── État par pool ─────────────────────────────────────────────────────
 
@@ -251,11 +251,43 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         PoolId id = key.toId();
         CurveState storage s = curves[id];
 
-        // Après graduation, laisser V4 gérer normalement
+        // Après graduation : hook prend 2% de fee en exactIn, V4 AMM gère le reste (98%)
+        // POOL_FEE = 0 → pas de double-taxation. Même permissions (bits 7+3), même adresse.
         if (s.graduated) {
+            // Uniquement pour exactIn (amountSpecified < 0), cas standard du router
+            // Pour exactOut, pas de hook fee (amountSpecified > 0)
+            if (params.amountSpecified >= 0) {
+                return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+            }
+
+            bool usdcIsC0 = (Currency.unwrap(key.currency0) == s.usdc);
+            bool isBuy    = usdcIsC0 ? params.zeroForOne : !params.zeroForOne;
+
+            uint256 grossAmt = uint256(-params.amountSpecified);
+            uint256 fee      = grossAmt * FEE_BPS / BPS;
+
+            if (fee == 0) {
+                return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+            }
+
+            if (isBuy) {
+                // Specified = USDC (input) → fee en USDC → distribuer creator + treasury
+                Currency currUsdc = usdcIsC0 ? key.currency0 : key.currency1;
+                poolManager.take(currUsdc, address(this), fee);
+                _distributeFees(s, fee, id);
+                emit Trade(id, sender, true, grossAmt, 0, fee);
+            } else {
+                // Specified = meme tokens (input) → fee en tokens → treasury
+                Currency currMeme = usdcIsC0 ? key.currency1 : key.currency0;
+                poolManager.take(currMeme, s.treasury, fee);
+                emit Trade(id, sender, false, 0, grossAmt, fee);
+            }
+
+            // hookDeltaSpecified = +fee : hook absorbe `fee` du côté spécifié
+            // V4 AMM reçoit (grossAmt - fee) = 98% → prix naturel du marché
             return (
                 BaseHook.beforeSwap.selector,
-                BeforeSwapDeltaLibrary.ZERO_DELTA,
+                toBeforeSwapDelta(int128(uint128(fee)), 0),
                 0
             );
         }

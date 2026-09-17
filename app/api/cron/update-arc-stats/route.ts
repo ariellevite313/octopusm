@@ -11,7 +11,12 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { arc } from "@/lib/arc-chain";
-import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
+import {
+  BONDING_CURVE_ABI,
+  BONDING_CURVE_HOOK_ABI,
+  ARC_HOOK_ADDRESS,
+  getArcV4PoolId,
+} from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const TOTAL_SUPPLY = 1_000_000_000;
@@ -44,13 +49,42 @@ async function getReserves(
   }
 }
 
+async function getReservesV4(
+  client: ReturnType<typeof createPublicClient>,
+  tokenAddress: `0x${string}`,
+): Promise<{ priceUsd: number; marketCap: number } | null> {
+  if (!ARC_HOOK_ADDRESS) return null;
+  try {
+    const poolId = getArcV4PoolId(tokenAddress);
+    const state  = await client.readContract({
+      address:      ARC_HOOK_ADDRESS,
+      abi:          BONDING_CURVE_HOOK_ABI,
+      functionName: "getCurveState",
+      args:         [poolId],
+    }) as { reserveUsdc: bigint; reserveTokens: bigint };
+
+    const tok = state.reserveTokens;
+    const usd = state.reserveUsdc;
+    if (tok === 0n) return null;
+    const reserveUsdc   = Number(usd) / 1e6;
+    const reserveTokens = Number(tok) / 1e18;
+    const priceUsd  = reserveUsdc / reserveTokens;
+    const marketCap = priceUsd * TOTAL_SUPPLY;
+    return { priceUsd, marketCap };
+  } catch {
+    return null;
+  }
+}
+
 async function getVolume24h(
   curveAddress: string,
   origin: string,
+  isV4 = false,
 ): Promise<number | null> {
   try {
+    const v4Param = isV4 ? "&isV4=1" : "";
     const res = await fetch(
-      `${origin}/api/launchpad/arc-trades?curveAddress=${curveAddress}&limit=1000`,
+      `${origin}/api/launchpad/arc-trades?curveAddress=${curveAddress}&limit=1000${v4Param}`,
       { signal: AbortSignal.timeout(TIMEOUT_MS) },
     );
     if (!res.ok) return null;
@@ -81,7 +115,7 @@ export async function GET(req: Request) {
     // Récupérer tous les tokens Arc actifs avec un arc_launch_id (adresse curve)
     const { data: tokens, error } = await admin
       .from("launchpad_tokens")
-      .select("id, arc_launch_id")
+      .select("id, arc_launch_id, mint_address")
       .eq("chain", "arc")
       .in("status", ["active", "graduating", "graduated"])
       .not("arc_launch_id", "is", null);
@@ -91,17 +125,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ updated: 0 });
     }
 
-    const client = createPublicClient({ chain: arc, transport: http() });
+    const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
 
-    type TokenRow = { id: string; arc_launch_id: string };
+    type TokenRow = { id: string; arc_launch_id: string; mint_address: string | null };
 
     const results = await Promise.allSettled(
       (tokens as TokenRow[]).map(async (t) => {
-        const curve = t.arc_launch_id as `0x${string}`;
+        const launchId = t.arc_launch_id;
+        const mintAddr = t.mint_address ?? "";
+        // V4 : arc_launch_id === mint_address (token est son propre launch ID)
+        const isV4 = !!(mintAddr && launchId.toLowerCase() === mintAddr.toLowerCase());
 
         const [reserves, volume24h] = await Promise.all([
-          withTimeout(getReserves(client, curve)),
-          withTimeout(getVolume24h(t.arc_launch_id, origin)),
+          isV4
+            ? withTimeout(getReservesV4(client, launchId as `0x${string}`))
+            : withTimeout(getReserves(client, launchId as `0x${string}`)),
+          withTimeout(getVolume24h(launchId, origin, isV4)),
         ]);
 
         if (!reserves) return { id: t.id, skipped: true };
@@ -116,7 +155,7 @@ export async function GET(req: Request) {
           .eq("id", t.id);
 
         if (upErr) throw upErr;
-        return { id: t.id, priceUsd: reserves.priceUsd, marketCap: reserves.marketCap, volume24h };
+        return { id: t.id, priceUsd: reserves.priceUsd, marketCap: reserves.marketCap, volume24h, isV4 };
       }),
     );
 

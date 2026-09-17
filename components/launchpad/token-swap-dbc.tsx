@@ -10,6 +10,7 @@ import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
+import { XSTOCK_LOGOS } from "@/lib/solana/xstocks";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -416,9 +417,14 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   /** Renders SOL badge for SOL pools, xStock badge for xStock pools */
   const QuoteBadge = () => isXStock ? (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
-      <div className="size-5 rounded-full bg-blue-500/80 flex items-center justify-center text-[8px] font-bold text-white">
-        {(stockSymbol ?? "X").replace(/^x/, "").slice(0, 2)}
-      </div>
+      {XSTOCK_LOGOS[stockSymbol ?? ""] ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={XSTOCK_LOGOS[stockSymbol ?? ""]!} alt={stockSymbol ?? ""} className="size-5 rounded-full object-cover" />
+      ) : (
+        <div className="size-5 rounded-full bg-blue-500/80 flex items-center justify-center text-[8px] font-bold text-white">
+          {(stockSymbol ?? "X").replace(/^x/, "").slice(0, 2)}
+        </div>
+      )}
       <span className="text-[13px] font-semibold text-foreground">{quoteLabel}</span>
     </div>
   ) : (

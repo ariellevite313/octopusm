@@ -21,6 +21,7 @@ import { TokenShareButton } from "@/components/launchpad/token-share-button";
 import { BannerUploadButton } from "@/components/launchpad/banner-upload-button";
 import { PoolRecoveryPrompt } from "@/components/launchpad/pool-recovery-prompt";
 import { ClaimFeesArc } from "@/components/launchpad/claim-fees-arc";
+import { StakeArc }     from "@/components/launchpad/stake-arc";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getXStockMint } from "@/lib/solana/xstocks";
@@ -217,6 +218,11 @@ export default async function TokenDetailPage({ params }: Props) {
   const isGraduated  = token.status === "graduated";
   const showChart    = !isArc && (isActive || isGraduated) && !!token.mint_address;
   const showArcChart = isArc && !!token.arc_launch_id?.startsWith("0x");
+  // V4 : arc_launch_id === mint_address (le token est son propre launch ID)
+  const isArcV4      = isArc
+    && !!token.mint_address
+    && !!token.arc_launch_id
+    && token.arc_launch_id.toLowerCase() === token.mint_address.toLowerCase();
 
   // Birdeye uses mint address for token pages (Solana only)
   const birdeyeTokenUrl = !isArc && token.mint_address
@@ -383,6 +389,7 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="mt-4 px-4 md:px-6">
           <TokenChart
             arcCurveAddress={token.arc_launch_id!}
+            isV4={isArcV4}
             name={token.name}
             ticker={token.ticker}
             logoUrl={token.logo_url ?? undefined}
@@ -442,8 +449,6 @@ export default async function TokenDetailPage({ params }: Props) {
                 tokenAddress={token.mint_address}
                 ticker={token.ticker}
                 logoUrl={token.logo_url ?? undefined}
-                quoteAsset={token.quote_asset}
-                stockSymbol={token.stock_symbol}
               />
             )}
 
@@ -454,7 +459,18 @@ export default async function TokenDetailPage({ params }: Props) {
             {isArc && token.arc_launch_id?.startsWith("0x") && token.arc_launch_id.length === 42 && (
               <ClaimFeesArc
                 curveAddress={token.arc_launch_id}
+                tokenAddress={token.mint_address ?? undefined}
                 creatorWallet={token.creator_wallet}
+              />
+            )}
+
+            {/* Arc V4 — holder staking rewards (FeeDistributor).
+                Component self-hides when feeDistributor === address(0). */}
+            {isArcV4 && token.mint_address && (
+              <StakeArc
+                tokenAddress={token.mint_address}
+                ticker={token.ticker}
+                logoUrl={token.logo_url ?? undefined}
               />
             )}
 

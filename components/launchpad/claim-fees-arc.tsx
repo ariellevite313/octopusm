@@ -25,7 +25,13 @@ import {
   custom,
   http,
 } from "viem";
-import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
+import {
+  BONDING_CURVE_ABI,
+  BONDING_CURVE_HOOK_ABI,
+  ARC_HOOK_ADDRESS,
+  getArcV4PoolKey,
+  getArcV4PoolId,
+} from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
 // ── ABI V3LPVault (minimal) ───────────────────────────────────────────────────
@@ -66,7 +72,8 @@ const CURVE_ABI_EXT = [
 ] as const;
 
 type Props = {
-  curveAddress: string; // arc_launch_id (0x… BondingCurve clone)
+  curveAddress:  string;   // arc_launch_id — BondingCurve clone (V1) ou token address (V4)
+  tokenAddress?: string;   // mint_address — requis pour détecter V4
   creatorWallet: string;
 };
 
@@ -77,8 +84,11 @@ function fmtUsdc(raw: bigint): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
-export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
+export function ClaimFeesArc({ curveAddress, tokenAddress, creatorWallet }: Props) {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
+
+  // V4 si arc_launch_id === token_address (token est son propre launch ID)
+  const isV4 = !!(tokenAddress && curveAddress.toLowerCase() === tokenAddress.toLowerCase());
 
   const [graduated,    setGraduated]    = useState<boolean | null>(null);
   const [vaultAddress, setVaultAddress] = useState<string | null>(null);
@@ -114,16 +124,33 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
     setLoading(true);
     try {
       const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
-      const curve  = curveAddress as `0x${string}`;
+
+      if (isV4) {
+        // ── Uniswap V4 hook singleton ─────────────────────────────────────────
+        if (!ARC_HOOK_ADDRESS) { setAccrued(0n); return; }
+        const poolId = getArcV4PoolId(tokenAddress as `0x${string}`);
+        const state = await client.readContract({
+          address: ARC_HOOK_ADDRESS,
+          abi:     BONDING_CURVE_HOOK_ABI,
+          functionName: "getCurveState",
+          args:    [poolId],
+        }) as { creatorFeesAccrued: bigint; graduated: boolean };
+        setGraduated(state.graduated);
+        setAccrued(state.creatorFeesAccrued);
+        setVaultAddress(null); // V4 : pas de vault séparé
+        return;
+      }
+
+      // ── Standalone BondingCurve clone (V1) ───────────────────────────────────
+      const curve = curveAddress as `0x${string}`;
 
       // 1. Lire graduated depuis le slot de stockage (slot 9, byte 0)
-      //    Plus fiable que readContract car le sélecteur ABI peut différer du bytecode déployé
       const slot9 = await client.getStorageAt({ address: curve, slot: "0x9" }).catch(() => null);
       const isGrad = slot9 ? (parseInt(slot9, 16) & 0xFF) === 1 : false;
       setGraduated(isGrad);
 
       if (isGrad) {
-        // 2a. vault() — sélecteur 0xfbfa77cf (confirmé sur bytecode déployé)
+        // 2a. vault() — sélecteur 0xfbfa77cf
         const vault = await client.readContract({
           address: curve, abi: CURVE_ABI_EXT, functionName: "vault",
         }).catch(() => null) as `0x${string}` | null;
@@ -139,8 +166,6 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
         }
       } else {
         // 2c. Pré-graduation : lire creatorFeesAccrued depuis slot 8
-        //     Le getter ABI génère un sélecteur différent du bytecode déployé (via_ir),
-        //     donc on lit le storage directement.
         const slot8 = await client.getStorageAt({ address: curve, slot: "0x8" }).catch(() => null);
         const raw   = slot8 ? BigInt(slot8) : 0n;
         setAccrued(raw);
@@ -150,7 +175,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [curveAddress]);
+  }, [curveAddress, isV4, tokenAddress]);
 
   useEffect(() => { void fetchFees(); }, [fetchFees]);
 
@@ -181,8 +206,20 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
       const [account] = await walletClient.getAddresses();
       let hash: `0x${string}`;
 
-      if (graduated && vaultAddress) {
-        // Post-graduation : collectFees() sur V3LPVault
+      if (isV4) {
+        // ── V4 : hook.claimFees(poolKey, to) ──────────────────────────────────
+        if (!ARC_HOOK_ADDRESS) throw new Error("V4 hook not yet deployed");
+        const poolKey = getArcV4PoolKey(tokenAddress as `0x${string}`);
+        hash = await walletClient.writeContract({
+          address:      ARC_HOOK_ADDRESS,
+          abi:          BONDING_CURVE_HOOK_ABI,
+          functionName: "claimFees",
+          args:         [poolKey, account],
+          account,
+          chain:        arc,
+        });
+      } else if (graduated && vaultAddress) {
+        // Post-graduation (V1) : collectFees() sur V3LPVault
         hash = await walletClient.writeContract({
           address:      vaultAddress as `0x${string}`,
           abi:          V3LP_VAULT_ABI,
@@ -192,7 +229,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
           chain:        arc,
         });
       } else {
-        // Pré-graduation : claimFees(to) sur BondingCurve
+        // Pré-graduation (V1) : claimFees(to) sur BondingCurve
         hash = await walletClient.writeContract({
           address:      curveAddress as `0x${string}`,
           abi:          BONDING_CURVE_ABI,
@@ -241,8 +278,12 @@ export function ClaimFeesArc({ curveAddress, creatorWallet }: Props) {
 
   // ── UI ─────────────────────────────────────────────────────────────────────
 
-  const buttonLabel = graduated ? "Collect V3 fees" : "Claim USDC fees";
-  const subLabel    = graduated
+  const buttonLabel = isV4
+    ? "Claim USDC fees (V4)"
+    : graduated ? "Collect V3 fees" : "Claim USDC fees";
+  const subLabel = isV4
+    ? "Creator fees accrued via Uniswap V4 Hook"
+    : graduated
     ? "V3 LP fees are distributed 67% platform / 33% you"
     : "1% of every trade goes to you in USDC";
 

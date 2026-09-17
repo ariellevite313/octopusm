@@ -1,12 +1,10 @@
 "use client";
 
 /**
- * TokenSwapArc — widget buy/sell pour les tokens Arc.
+ * TokenSwapArc — widget buy/sell pour les tokens Arc V4.
  *
- * Trois modes selon le format de arc_launch_id :
- *  - "old"          : arc_launch_id est un uint256 stringifié → ancien contrat flat
- *  - "new"          : arc_launch_id est une adresse 0x...     → clone BondingCurve AMM (USDC)
- *  - "stock-paired" : comme "new" mais quoteAsset est un xStock ERC-20 (GenericBondingCurve)
+ * Mode unique : Uniswap V4 via BondingCurveHook + BondingCurveRouter.
+ * arc_launch_id === mint_address (token ERC-20 = son propre launch ID).
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -14,34 +12,34 @@ import { createPublicClient, custom, http, encodeFunctionData, parseAbi } from "
 import { Loader2, CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import {
-  ARC_LAUNCHPAD_ADDRESS,
   ARC_USDC_ADDRESS,
-  LAUNCHPAD_ABI,
-  BONDING_CURVE_ABI,
-  GENERIC_BONDING_CURVE_ABI,
+  ARC_HOOK_ADDRESS,
+  ARC_ROUTER_ADDRESS,
+  BONDING_CURVE_HOOK_ABI,
+  BONDING_CURVE_ROUTER_ABI,
   ERC20_APPROVE_ABI,
+  BC_GRAD_THRESHOLD,
+  BC_VIRTUAL_USDC,
+  BC_CURVE_SUPPLY,
+  getArcV4PoolKey,
+  getArcV4PoolId,
+  quoteBuyV4,
+  quoteSellV4,
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  launchId:     string;              // arc_launch_id — numeric string (old) ou 0x... (new)
-  tokenAddress: string;              // mint_address (ERC-20 du token)
+  launchId:     string;  // arc_launch_id — égal à tokenAddress pour V4
+  tokenAddress: string;  // mint_address (ERC-20 du token)
   ticker:       string;
   logoUrl?:     string;
-  // Stock-paired fields (optional — only set for stock-paired tokens)
-  quoteAsset?:  string | null;       // address of the xStock ERC-20
-  stockSymbol?: string | null;       // e.g. "NVDA" (without "x" prefix)
 };
 
 type Direction = "buy" | "sell";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function isNewContract(launchId: string): boolean {
-  return launchId.startsWith("0x") || launchId.startsWith("0X");
-}
 
 function fmtUsdc(raw: bigint): string {
   return (Number(raw) / 1e6).toLocaleString("en-US", {
@@ -87,20 +85,14 @@ const ERC20_BALANCE_ABI = parseAbi([
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAsset, stockSymbol }: Props) {
+export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props) {
   const { walletAddress, selectedChain, isAuthenticated } = useAuth();
 
-  const isNew        = isNewContract(launchId);
-  const isStockPaired = isNew && !!quoteAsset;
-  const curveAddr    = isNew ? (launchId as `0x${string}`) : ARC_LAUNCHPAD_ADDRESS;
-  const oldId        = isNew ? 0n : BigInt(launchId || "0");
+  // V4: arc_launch_id === mint_address
+  const isV4 = launchId.toLowerCase() === tokenAddress.toLowerCase();
 
-  // Quote asset: xStock address for stock-paired, USDC for standard
-  const quoteAddress = (isStockPaired ? quoteAsset! : ARC_USDC_ADDRESS) as `0x${string}`;
-  // "xNVDA" or "USDC"
-  const quoteSymbol  = isStockPaired ? `x${stockSymbol ?? "STOCK"}` : "USDC";
-  // ABI to use for the bonding curve
-  const curveAbi     = isStockPaired ? GENERIC_BONDING_CURVE_ABI : BONDING_CURVE_ABI;
+  const quoteAddress = ARC_USDC_ADDRESS as `0x${string}`;
+  const quoteSymbol  = "USDC";
 
   const [direction,   setDirection]   = useState<Direction>("buy");
   const [amount,      setAmount]      = useState("");
@@ -110,18 +102,23 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
   const [quoteBalance, setQuoteBalance] = useState<bigint | null>(null);
   const [tokenBalance, setTokenBalance] = useState<bigint | null>(null);
 
-  // Stock price (for display only)
-  const [stockPriceUsd, setStockPriceUsd] = useState<number | null>(null);
-
   // State on-chain
   const [graduated,     setGraduated]     = useState(false);
+  const [lpAdded,       setLpAdded]       = useState(false);  // V4 only — LP ajouté après graduation
   const [progressBps,   setProgressBps]   = useState<bigint>(0n);
   const [gradThreshold, setGradThreshold] = useState<bigint>(0n);
   const [realRaised,    setRealRaised]    = useState<bigint>(0n);
 
+  // Graduation tx (V4 — addGraduationLiquidity)
+  const [graduating,      setGraduating]      = useState(false);
+  const [graduateTxHash,  setGraduateTxHash]  = useState<string | null>(null);
+
+  // V4 reserves (for client-side quotes — loaded via getCurveState)
+  const [v4ReserveUsdc,   setV4ReserveUsdc]   = useState<bigint>(BC_VIRTUAL_USDC);
+  const [v4ReserveTokens, setV4ReserveTokens] = useState<bigint>(BC_CURVE_SUPPLY);
+
   // Quote
   const [estimatedOut, setEstimatedOut] = useState<bigint | null>(null);
-  const [costPerToken, setCostPerToken] = useState<bigint | null>(null); // old contract only
 
   // Tx
   const [swapping, setSwapping] = useState(false);
@@ -152,17 +149,6 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     });
   }
 
-  // ── Stock price fetch ─────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!isStockPaired || !stockSymbol) return;
-    const sym = `x${stockSymbol}`;
-    fetch(`/api/launchpad/stock-price/${sym}`)
-      .then(r => r.json())
-      .then((d: { priceUsd?: number }) => { if (d.priceUsd) setStockPriceUsd(d.priceUsd); })
-      .catch(() => {});
-  }, [isStockPaired, stockSymbol]);
-
   // ── Load on-chain state ───────────────────────────────────────────────────
 
   const loadState = useCallback(async () => {
@@ -170,35 +156,36 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     try {
       const client = getPublicClient();
 
-      if (isNew) {
-        const raisedFn = isStockPaired ? "realQuoteRaised" : "realUsdcRaised";
-        const [grad, progress, threshold, raised] = await Promise.all([
-          client.readContract({ address: curveAddr, abi: curveAbi, functionName: "graduated" }) as Promise<boolean>,
-          client.readContract({ address: curveAddr, abi: curveAbi, functionName: "graduationProgressBps" }) as Promise<bigint>,
-          client.readContract({ address: curveAddr, abi: curveAbi, functionName: "GRAD_THRESHOLD" }) as Promise<bigint>,
-          client.readContract({ address: curveAddr, abi: curveAbi, functionName: raisedFn }) as Promise<bigint>,
-        ]);
-        setGraduated(grad);
-        setProgressBps(progress);
-        setGradThreshold(threshold);
-        setRealRaised(raised);
-      } else {
-        const cost1 = await client.readContract({
-          address: ARC_LAUNCHPAD_ADDRESS, abi: LAUNCHPAD_ABI,
-          functionName: "getBuyCost",
-          args: [oldId, BigInt("1000000000000000000")],
-        }) as bigint;
-        setCostPerToken(cost1);
-
-        const launch = await client.readContract({
-          address: ARC_LAUNCHPAD_ADDRESS, abi: LAUNCHPAD_ABI,
-          functionName: "launches", args: [oldId],
-        }) as [string, string, bigint, bigint, bigint, bigint, boolean];
-        setGraduated(launch[6]);
+      if (isV4) {
+        // ── Uniswap V4 hook (singleton) ───────────────────────────────────────
+        if (!ARC_HOOK_ADDRESS) return; // hook not yet deployed
+        const poolId = getArcV4PoolId(tokenAddress as `0x${string}`);
+        const state = await client.readContract({
+          address: ARC_HOOK_ADDRESS,
+          abi: BONDING_CURVE_HOOK_ABI,
+          functionName: "getCurveState",
+          args: [poolId],
+        }) as {
+          reserveUsdc:        bigint;
+          reserveTokens:      bigint;
+          realUsdcRaised:     bigint;
+          graduated:          boolean;
+          lpAdded:            boolean;
+        };
+        setGraduated(state.graduated);
+        setLpAdded(state.lpAdded);
+        setRealRaised(state.realUsdcRaised);
+        setGradThreshold(BC_GRAD_THRESHOLD);
+        setV4ReserveUsdc(state.reserveUsdc);
+        setV4ReserveTokens(state.reserveTokens);
+        const bps = state.graduated
+          ? 10000n
+          : (state.realUsdcRaised * 10000n / BC_GRAD_THRESHOLD);
+        setProgressBps(bps);
       }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [launchId, isStockPaired]);
+  }, [launchId, isV4, tokenAddress]);
 
   const loadBalances = useCallback(async () => {
     if (!walletAddress) { setQuoteBalance(null); setTokenBalance(null); return; }
@@ -222,7 +209,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
       setTokenBalance(tokBal);
     } catch { setQuoteBalance(null); setTokenBalance(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletAddress, tokenAddress, quoteAddress]);
+  }, [walletAddress, tokenAddress]);
 
   useEffect(() => { void loadState(); }, [loadState]);
   useEffect(() => { void loadBalances(); }, [loadBalances]);
@@ -233,37 +220,20 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { setEstimatedOut(null); return; }
 
-    if (isNew) {
-      void (async () => {
-        try {
-          const client   = getPublicClient();
-          const quoteRaw = BigInt(Math.round(parsed * 1e6));
-
-          if (direction === "buy") {
-            const quoteFn = isStockPaired ? "quoteToTokens" : "quoteUsdcToTokens";
-            const [tokensOut] = await client.readContract({
-              address: curveAddr, abi: curveAbi,
-              functionName: quoteFn, args: [quoteRaw],
-            }) as [bigint, bigint];
-            setEstimatedOut(tokensOut);
-          } else {
-            const tokensIn = parseDecimalToBigInt(amount, 18);
-            const quoteFn  = isStockPaired ? "tokensToQuote" : "quoteTokensToUsdc";
-            const [quoteOut] = await client.readContract({
-              address: curveAddr, abi: curveAbi,
-              functionName: quoteFn, args: [tokensIn],
-            }) as [bigint, bigint];
-            setEstimatedOut(quoteOut);
-          }
-        } catch { setEstimatedOut(null); }
-      })();
-    } else {
-      if (!costPerToken || costPerToken === 0n) { setEstimatedOut(null); return; }
-      const quoteRaw = BigInt(Math.round(parsed * 1e6));
-      setEstimatedOut((quoteRaw * BigInt("1000000000000000000")) / costPerToken);
-    }
+    // ── V4 : calcul client-side (reproduit la logique du hook, pas de RPC) ─
+    try {
+      if (direction === "buy") {
+        const usdcGross = BigInt(Math.round(parsed * 1e6));
+        const { tokensOut } = quoteBuyV4(v4ReserveUsdc, v4ReserveTokens, usdcGross);
+        setEstimatedOut(tokensOut > 0n ? tokensOut : null);
+      } else {
+        const tokensIn = parseDecimalToBigInt(amount, 18);
+        const { usdcOut } = quoteSellV4(v4ReserveUsdc, v4ReserveTokens, tokensIn);
+        setEstimatedOut(usdcOut > 0n ? usdcOut : null);
+      }
+    } catch { setEstimatedOut(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, direction, costPerToken, launchId, isStockPaired]);
+  }, [amount, direction, launchId, v4ReserveUsdc, v4ReserveTokens]);
 
   // ── Ensure Arc Mainnet ───────────────────────────────────────────────────
 
@@ -316,123 +286,94 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
       await ensureArcChain(eth);
       const client = getPublicClient();
 
-      if (isNew) {
-        // ── NEW BondingCurve (USDC) or GenericBondingCurve (xStock) ─────────
-        const slipMul = BigInt(Math.round((100 - slippagePct) * 10));
+      {
+        // ── Uniswap V4 — BondingCurveRouter ───────────────────────────────────
+        if (!ARC_ROUTER_ADDRESS) throw new Error("Contrats V4 pas encore déployés");
+
+        const slipMul   = BigInt(Math.round((100 - slippagePct) * 10));
+        const poolKey   = getArcV4PoolKey(tokenAddress as `0x${string}`);
+        const usdcAddr  = ARC_USDC_ADDRESS as `0x${string}`;
+        const memeAddr  = tokenAddress as `0x${string}`;
+        // zeroForOne : true si currency0→currency1
+        // buy  USDC→meme : zeroForOne = (USDC is currency0)
+        // sell meme→USDC : zeroForOne = (meme is currency0) = !(USDC is currency0)
+        const usdcIsC0  = usdcAddr.toLowerCase() < memeAddr.toLowerCase();
 
         if (direction === "buy") {
           const quoteRaw  = BigInt(Math.round(parsed * 1e6));
           const minTokens = (estimatedOut * slipMul) / 1000n;
+          const zeroForOne = usdcIsC0;
 
-          if (quoteBalance !== null && quoteRaw > quoteBalance) {
-            throw new Error(`Solde ${quoteSymbol} insuffisant`);
-          }
+          if (quoteBalance !== null && quoteRaw > quoteBalance) throw new Error("Solde USDC insuffisant");
 
-          // Allowance check — approve quoteAddress (USDC or xStock)
+          // Approve USDC → router
           const allowance = await client.readContract({
-            address: quoteAddress, abi: ERC20_BALANCE_ABI,
+            address: usdcAddr, abi: ERC20_BALANCE_ABI,
             functionName: "allowance",
-            args: [walletAddress as `0x${string}`, curveAddr],
+            args: [walletAddress as `0x${string}`, ARC_ROUTER_ADDRESS],
           }) as bigint;
-
           if (allowance < quoteRaw) {
             const approveData = encodeFunctionData({
               abi: ERC20_APPROVE_ABI, functionName: "approve",
-              args: [curveAddr, quoteRaw * 2n],
+              args: [ARC_ROUTER_ADDRESS, quoteRaw * 2n],
             });
             const approveTx = await eth.request({
               method: "eth_sendTransaction",
-              params: [{ from: walletAddress, to: quoteAddress, data: approveData }],
+              params: [{ from: walletAddress, to: usdcAddr, data: approveData }],
             }) as string;
             await waitReceipt(approveTx);
           }
 
-          // buy(quoteIn, minTokensOut, recipient)
-          const buyData = encodeFunctionData({
-            abi: curveAbi, functionName: "buy",
-            args: [quoteRaw, minTokens, walletAddress as `0x${string}`],
+          // router.swap(poolKey, zeroForOne, -quoteRaw, recipient, minTokensOut)
+          const swapData = encodeFunctionData({
+            abi: BONDING_CURVE_ROUTER_ABI, functionName: "swap",
+            args: [poolKey, zeroForOne, -quoteRaw, walletAddress as `0x${string}`, minTokens],
           });
           const hash = await eth.request({
             method: "eth_sendTransaction",
-            params: [{ from: walletAddress, to: curveAddr, data: buyData }],
+            params: [{ from: walletAddress, to: ARC_ROUTER_ADDRESS, data: swapData }],
           }) as string;
           setTxHash(hash);
           await waitReceipt(hash);
 
         } else {
-          // SELL
-          const tokensIn = parseDecimalToBigInt(amount, 18);
-          const minQuote = (estimatedOut * slipMul) / 1000n;
+          // SELL meme → USDC
+          const tokensIn   = parseDecimalToBigInt(amount, 18);
+          const minQuote   = (estimatedOut * slipMul) / 1000n;
+          const zeroForOne = !usdcIsC0;
 
           if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error("Solde token insuffisant");
 
-          // Approve token → curve
+          // Approve meme → router
           const tokenAllowance = await client.readContract({
-            address: tokenAddress as `0x${string}`, abi: ERC20_BALANCE_ABI,
+            address: memeAddr, abi: ERC20_BALANCE_ABI,
             functionName: "allowance",
-            args: [walletAddress as `0x${string}`, curveAddr],
+            args: [walletAddress as `0x${string}`, ARC_ROUTER_ADDRESS],
           }) as bigint;
-
           if (tokenAllowance < tokensIn) {
             const approveData = encodeFunctionData({
               abi: ERC20_APPROVE_ABI, functionName: "approve",
-              args: [curveAddr, tokensIn * 2n],
+              args: [ARC_ROUTER_ADDRESS, tokensIn * 2n],
             });
             const approveTx = await eth.request({
               method: "eth_sendTransaction",
-              params: [{ from: walletAddress, to: tokenAddress, data: approveData }],
+              params: [{ from: walletAddress, to: memeAddr, data: approveData }],
             }) as string;
             await waitReceipt(approveTx);
           }
 
-          // sell(tokensIn, minQuoteOut, recipient)
-          const sellData = encodeFunctionData({
-            abi: curveAbi, functionName: "sell",
-            args: [tokensIn, minQuote, walletAddress as `0x${string}`],
+          // router.swap(poolKey, zeroForOne, -tokensIn, recipient, minUsdcOut)
+          const swapData = encodeFunctionData({
+            abi: BONDING_CURVE_ROUTER_ABI, functionName: "swap",
+            args: [poolKey, zeroForOne, -tokensIn, walletAddress as `0x${string}`, minQuote],
           });
           const hash = await eth.request({
             method: "eth_sendTransaction",
-            params: [{ from: walletAddress, to: curveAddr, data: sellData }],
+            params: [{ from: walletAddress, to: ARC_ROUTER_ADDRESS, data: swapData }],
           }) as string;
           setTxHash(hash);
           await waitReceipt(hash);
         }
-
-      } else {
-        // ── OLD flat contract (buy only) ─────────────────────────────────────
-        const quoteRaw  = BigInt(Math.round(parsed * 1e6));
-        const minTokens = (estimatedOut * BigInt(Math.round((100 - slippagePct) * 10))) / 1000n;
-
-        if (quoteBalance !== null && quoteRaw > quoteBalance) throw new Error("Solde USDC insuffisant");
-
-        const allowance = await client.readContract({
-          address: ARC_USDC_ADDRESS, abi: ERC20_BALANCE_ABI,
-          functionName: "allowance",
-          args: [walletAddress as `0x${string}`, ARC_LAUNCHPAD_ADDRESS],
-        }) as bigint;
-
-        if (allowance < quoteRaw) {
-          const approveData = encodeFunctionData({
-            abi: ERC20_APPROVE_ABI, functionName: "approve",
-            args: [ARC_LAUNCHPAD_ADDRESS as `0x${string}`, quoteRaw * 2n],
-          });
-          const approveTx = await eth.request({
-            method: "eth_sendTransaction",
-            params: [{ from: walletAddress, to: ARC_USDC_ADDRESS, data: approveData }],
-          }) as string;
-          await waitReceipt(approveTx);
-        }
-
-        const buyData = encodeFunctionData({
-          abi: LAUNCHPAD_ABI, functionName: "buy",
-          args: [oldId, minTokens],
-        });
-        const hash = await eth.request({
-          method: "eth_sendTransaction",
-          params: [{ from: walletAddress, to: ARC_LAUNCHPAD_ADDRESS, data: buyData }],
-        }) as string;
-        setTxHash(hash);
-        await waitReceipt(hash);
       }
 
       setAmount("");
@@ -450,6 +391,42 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
       );
     } finally {
       setSwapping(false);
+    }
+  };
+
+  // ── Graduation handler (V4 — step 2 : add LP post-graduation) ───────────
+
+  const handleGraduate = async () => {
+    if (!walletAddress || !isV4 || !ARC_HOOK_ADDRESS) return;
+    setGraduating(true);
+    setError(null);
+    setGraduateTxHash(null);
+    try {
+      const eth = getEth();
+      await ensureArcChain(eth);
+      const poolKey = getArcV4PoolKey(tokenAddress as `0x${string}`);
+      const data = encodeFunctionData({
+        abi: BONDING_CURVE_HOOK_ABI,
+        functionName: "addGraduationLiquidity",
+        args: [poolKey],
+      });
+      const hash = await eth.request({
+        method: "eth_sendTransaction",
+        params: [{ from: walletAddress, to: ARC_HOOK_ADDRESS, data }],
+      }) as string;
+      setGraduateTxHash(hash);
+      await waitReceipt(hash);
+      // Refresh state — LP is now added
+      [1500, 3000].forEach(ms => setTimeout(() => void loadState(), ms));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Graduation failed";
+      setError(
+        msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel")
+          ? "Transaction cancelled"
+          : msg,
+      );
+    } finally {
+      setGraduating(false);
     }
   };
 
@@ -511,11 +488,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
 
   const QuoteBadge = () => (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
-      {isStockPaired ? (
-        <div className="size-5 rounded-full bg-amber-400/80 flex items-center justify-center text-[8px] font-bold text-white">📈</div>
-      ) : (
-        <div className="size-5 rounded-full bg-blue-400 flex items-center justify-center text-[8px] font-bold text-white">$</div>
-      )}
+      <div className="size-5 rounded-full bg-blue-400 flex items-center justify-center text-[8px] font-bold text-white">$</div>
       <span className="text-[13px] font-semibold text-foreground">{quoteSymbol}</span>
     </div>
   );
@@ -541,30 +514,51 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
     <div className="rounded-2xl overflow-hidden border border-border bg-card">
       <div className="p-4 space-y-2">
 
-        {/* Stock-paired info banner */}
-        {isStockPaired && (
-          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-amber-400">📈 Stock-Paired</p>
-              <p className="text-[10px] text-amber-400/70 mt-0.5">Quote asset: {quoteSymbol}</p>
-            </div>
-            {stockPriceUsd !== null && (
-              <div className="text-right">
-                <p className="text-xs font-bold text-amber-400">${stockPriceUsd.toFixed(2)}</p>
-                <p className="text-[10px] text-amber-400/70">per {quoteSymbol}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {graduated && (
+        {/* Graduated + LP déjà ajouté → pool active */}
+        {graduated && lpAdded && (
           <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 text-center">
             <p className="text-xs font-semibold text-indigo-400">🎓 Graduated — trade on Uniswap V4</p>
           </div>
         )}
 
-        {/* Buy / Sell tabs — new contract only */}
-        {isNew && !graduated && (
+        {/* Graduated V4 but LP not yet added — prompt finalization */}
+        {graduated && isV4 && !lpAdded && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-3 space-y-2">
+            <p className="text-xs font-semibold text-amber-400 text-center">
+              🎓 Graduation reached — pending finalization
+            </p>
+            <p className="text-[10px] text-amber-400/70 text-center leading-relaxed">
+              The bonding curve is complete. Click below to add liquidity and activate the Uniswap V4 pool.
+            </p>
+            {graduateTxHash && (
+              <a
+                href={`https://explorer.arc.io/tx/${graduateTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
+              >
+                <CheckCircle2 className="size-3.5" />
+                TX submitted — ArcScan
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+            <button
+              onClick={() => void handleGraduate()}
+              disabled={graduating}
+              className="w-full rounded-full py-2.5 text-[13px] font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-50"
+            >
+              {graduating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Finalizing…
+                </span>
+              ) : "Finalize graduation"}
+            </button>
+          </div>
+        )}
+
+        {/* Buy / Sell tabs */}
+        {!graduated && (
           <div className="flex rounded-xl overflow-hidden border border-border">
             {(["buy", "sell"] as Direction[]).map(d => (
               <button
@@ -585,7 +579,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
         )}
 
         {/* Bonding curve progress */}
-        {isNew && !graduated && gradThreshold > 0n && (
+        {!graduated && gradThreshold > 0n && (
           <div className="space-y-1 px-0.5">
             <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>Bonding curve</span>
@@ -593,7 +587,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${isStockPaired ? "bg-amber-500" : "bg-blue-500"}`}
+                className="h-full rounded-full transition-all bg-blue-500"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
@@ -744,7 +738,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl, quoteAss
         )}
 
         <p className="text-center text-[10px] text-muted-foreground/40 pb-1">
-          Arc Network · {isNew ? (isStockPaired ? `AMM · ${quoteSymbol} paired` : "AMM Bonding curve") : "Bonding curve"}
+          Arc Network · Uniswap V4 Hook
         </p>
       </div>
     </div>

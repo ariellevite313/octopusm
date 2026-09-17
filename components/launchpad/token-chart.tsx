@@ -56,8 +56,9 @@ function buildOHLCV(trades: ArcTrade[], bucketSec: number): Bar[] {
   return Array.from(map.values()).sort((a, b) => a.time - b.time);
 }
 
-async function fetchArcBars(curveAddress: string, bucketSec: number): Promise<Bar[]> {
-  const res = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=1000`);
+async function fetchArcBars(curveAddress: string, bucketSec: number, isV4 = false): Promise<Bar[]> {
+  const v4Param = isV4 ? "&isV4=1" : "";
+  const res = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=1000${v4Param}`);
   if (!res.ok) throw new Error("Arc trades unavailable");
   const data = await res.json() as { trades?: ArcTrade[]; error?: string };
   if (data.error) throw new Error(data.error);
@@ -153,7 +154,8 @@ function fmtPrice(n: number): string {
 
 type Props = {
   mintAddress?:     string;   // Solana mint
-  arcCurveAddress?: string;   // Arc BondingCurve address
+  arcCurveAddress?: string;   // Arc BondingCurve address (V1) or token address (V4)
+  isV4?:            boolean;  // true si le token utilise le hook BondingCurveHook V4
   name:             string;
   ticker?:          string;
   logoUrl?:         string;
@@ -161,7 +163,7 @@ type Props = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl }: Props) {
+export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, ticker, logoUrl }: Props) {
   const isArc = Boolean(arcCurveAddress);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme !== "light";
@@ -342,7 +344,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl
         const curve = arcCurveAddress!;
         const [lw, bars] = await Promise.all([
           import("lightweight-charts"),
-          fetchArcBars(curve, DEFAULT_TF.bucketSec ?? 300),
+          fetchArcBars(curve, DEFAULT_TF.bucketSec ?? 300, isV4),
         ]);
         if (cancelled || !wrapperRef.current) return;
         if (!bars.length) { setStatus("nodata"); return; }
@@ -381,7 +383,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl
           try {
             const [lw2, fresh] = await Promise.all([
               import("lightweight-charts"),
-              fetchArcBars(arcCurveAddress, activeTfRef.current.bucketSec ?? 300),
+              fetchArcBars(arcCurveAddress, activeTfRef.current.bucketSec ?? 300, isV4),
             ]);
             await buildSeries(lw2, fresh, chartTypeRef.current);
           } catch { /* ignore */ }
@@ -430,7 +432,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl
       if (isArc && arcCurveAddress) {
         const [lw, bars] = await Promise.all([
           import("lightweight-charts"),
-          fetchArcBars(arcCurveAddress, tf.bucketSec ?? 300),
+          fetchArcBars(arcCurveAddress, tf.bucketSec ?? 300, isV4),
         ]);
         if (bars.length) await buildSeries(lw, bars, chartTypeRef.current);
       } else if (poolRef.current) {
@@ -455,7 +457,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, name, ticker, logoUrl
       if (isArc && arcCurveAddress) {
         const [lw, bars] = await Promise.all([
           import("lightweight-charts"),
-          fetchArcBars(arcCurveAddress, activeTfRef.current.bucketSec ?? 300),
+          fetchArcBars(arcCurveAddress, activeTfRef.current.bucketSec ?? 300, isV4),
         ]);
         if (bars.length) await buildSeries(lw, bars, type);
       } else if (poolRef.current) {

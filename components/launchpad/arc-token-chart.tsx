@@ -186,13 +186,14 @@ function CandleChart({ bars, isPositive }: { bars: Bar[]; isPositive: boolean })
 
 type Props = {
   curveAddress: string;
+  isV4?:        boolean; // true pour les tokens Uniswap V4
   ticker?:      string;
   logoUrl?:     string;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
+export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: Props) {
   const [trades,     setTrades]     = useState<Trade[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
@@ -204,7 +205,8 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
 
   const fetchTrades = useCallback(async () => {
     try {
-      const res  = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=500`);
+      const v4Param = isV4 ? "&isV4=1" : "";
+      const res  = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=500${v4Param}`);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json() as { trades?: Trade[]; error?: string };
       if (data.error) throw new Error(data.error);
@@ -215,7 +217,7 @@ export function ArcTokenChart({ curveAddress, ticker, logoUrl }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [curveAddress]);
+  }, [curveAddress, isV4]);
 
   useEffect(() => {
     void fetchTrades();

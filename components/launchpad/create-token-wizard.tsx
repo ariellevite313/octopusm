@@ -9,24 +9,37 @@ import {
   Globe, Twitter, MessageCircle, Hash, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { createWalletClient, createPublicClient, custom, parseEventLogs } from "viem";
+import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
 import { arc } from "@/lib/arc-chain";
 import {
-  ARC_FACTORY_ADDRESS, FACTORY_ABI,
+  ARC_FACTORY_V4_ADDRESS, FACTORY_V4_ABI,
   ARC_USDC_ADDRESS, ERC20_APPROVE_ABI,
-  ARC_TREASURY_ADDRESS, ARC_CREATION_FEE_USDC,
+  ARC_TREASURY_ADDRESS,
   ARC_XSTOCK_ADDRESSES,
 } from "@/lib/arc-launchpad";
-import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
+import { XSTOCK_CATALOG_SOLANA, XSTOCK_LOGOS } from "@/lib/solana/xstocks";
 
-// ─── xStock catalogue (Arc testnet — mock ERC-20s) ───────────────────────────
+// ─── xStock catalogue Arc (ERC-20 sur Arc Mainnet) ───────────────────────────
 const XSTOCK_CATALOG = [
-  { symbol: "xNVDA", name: "Nvidia",       ticker: "NVDA", emoji: "🟢" },
-  { symbol: "xTSLA", name: "Tesla",        ticker: "TSLA", emoji: "⚡" },
-  { symbol: "xMSTR", name: "MicroStrategy",ticker: "MSTR", emoji: "🟠" },
-  { symbol: "xAAPL", name: "Apple",        ticker: "AAPL", emoji: "🍎" },
-  { symbol: "xSPY",  name: "S&P 500 ETF", ticker: "SPY",  emoji: "📈" },
+  { symbol: "xNVDA", name: "Nvidia",        ticker: "NVDA", emoji: "🟢" },
+  { symbol: "xTSLA", name: "Tesla",         ticker: "TSLA", emoji: "⚡" },
+  { symbol: "xMSTR", name: "MicroStrategy", ticker: "MSTR", emoji: "🟠" },
+  { symbol: "xAAPL", name: "Apple",         ticker: "AAPL", emoji: "🍎" },
+  { symbol: "xSPY",  name: "S&P 500 ETF",  ticker: "SPY",  emoji: "📈" },
+  { symbol: "xQQQ",  name: "Nasdaq 100",   ticker: "QQQ",  emoji: "📊" },
+  { symbol: "xGLD",  name: "Gold",          ticker: "GLD",  emoji: "🥇" },
 ] as const;
+
+/** Affiche le logo d'un xStock, ou son emoji si pas de logo. */
+function XStockIcon({ symbol, size = 16 }: { symbol: string; size?: number }) {
+  const logo = XSTOCK_LOGOS[symbol];
+  if (logo) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logo} alt={symbol} width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />;
+  }
+  const entry = [...XSTOCK_CATALOG, ...XSTOCK_CATALOG_SOLANA].find(s => s.symbol === symbol);
+  return <span style={{ fontSize: size * 0.85 }}>{entry?.emoji ?? "📈"}</span>;
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -415,7 +428,7 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
                       : "bg-muted text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span>{s.emoji}</span>
+                  <XStockIcon symbol={s.symbol} size={14} />
                   <span>${s.ticker}</span>
                 </button>
               ))}
@@ -616,7 +629,7 @@ function StepArcOptions({
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <span>{s.emoji}</span>
+                <XStockIcon symbol={s.symbol} size={14} />
                 <span>${s.ticker}</span>
               </button>
             ))}
@@ -739,7 +752,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Bonding curve" value="Constant-product AMM" />
             <Row label="Graduation" value="~$25,000 market cap" />
             <Row label="Trading fee" value="2%" />
-            <Row label="Platform fee" value={ARC_CREATION_FEE_USDC === 0 ? "Free 🎉" : `${ARC_CREATION_FEE_USDC} USDC`} highlight />
+            <Row label="Platform fee" value="Free" highlight />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
             )}
@@ -979,8 +992,6 @@ export function CreateTokenWizard({
     }
 
     // 3. Create viem clients
-    // Utilise custom(eth) pour les deux clients — route via MetaMask au lieu d'un
-    // appel HTTP direct qui échoue souvent sur mobile (CORS / réseau instable).
     const walletClient = createWalletClient({
       account,
       chain: arc,
@@ -988,172 +999,110 @@ export function CreateTokenWizard({
     });
     const publicClient = createPublicClient({
       chain: arc,
-      transport: custom(eth),
+      transport: http("https://rpc.mainnet.arc.io"),
     });
 
-    // 4. Si first buy activé, approuver USDC pour la factory AVANT de créer
-    //    La factory fait le buy en interne, donc elle doit déjà avoir l'allowance.
+    // 4. Si first buy activé, calculer le montant USDC total à approuver
     const firstBuyUsdcRaw = data.arc_first_buy_enabled && data.arc_first_buy_usdc > 0
       ? BigInt(Math.round(data.arc_first_buy_usdc * 1_000_000)) // 6 décimales
       : 0n;
 
-    if (firstBuyUsdcRaw > 0n) {
-      toast.info("Approving USDC for first buy…");
+    // ── Uniswap V4 + BondingCurveHook (V4 exclusif) ─────────────────────────
+      // V4 factory prend ses propres fees (CREATION_FEE = 10 USDC) uniquement.
+      // Le first buy est désactivé pour V4 (le contrat factory ne l'exécute pas — le
+      // swap doit être fait séparément via le widget de trading après la création).
+      const V4_CREATION_FEE = 10_000_000n; // 10 USDC (6 dec)
+
+      toast.info("Approving USDC for V4 factory…");
       const approveTx = await walletClient.writeContract({
         address:      ARC_USDC_ADDRESS,
         abi:          ERC20_APPROVE_ABI,
         functionName: "approve",
-        args:         [ARC_FACTORY_ADDRESS, firstBuyUsdcRaw * 2n], // ×2 marge
+        args:         [ARC_FACTORY_V4_ADDRESS, V4_CREATION_FEE * 2n], // création seule
         gasPrice:     BigInt("20000000000"),
       });
-      // Attendre la confirmation de l'approval
       for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 3_000));
         const r = await publicClient.getTransactionReceipt({ hash: approveTx }).catch(() => null);
         if (r) break;
       }
-    }
 
-    // 5. Platform creation fee — skipped when ARC_CREATION_FEE_USDC = 0 (free launch period)
-    if (ARC_CREATION_FEE_USDC > 0) {
-      const creationFeeRaw = BigInt(Math.round(ARC_CREATION_FEE_USDC * 1_000_000)); // 6 décimales
-      toast.info(`Platform fee: ${ARC_CREATION_FEE_USDC} USDC…`);
-      const feeTxHash = await walletClient.writeContract({
-        address:      ARC_USDC_ADDRESS,
-        abi:          ERC20_APPROVE_ABI,
-        functionName: "transfer",
-        args:         [ARC_TREASURY_ADDRESS, creationFeeRaw],
-        gasPrice:     BigInt("20000000000"),
-      });
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 3_000));
-        const r = await publicClient.getTransactionReceipt({ hash: feeTxHash }).catch(() => null);
-        if (r) break;
-      }
-    }
-
-    // 7. Call createToken() ou createStockPairedToken() selon le type
-    toast.info("Sending transaction to Arc…");
-
-    // Stock-paired is disabled until xStocks launches on Arc
-    const isStockPaired = false;
-
-    let txHash: `0x${string}`;
-    if (isStockPaired) {
-      // Approuver le quote asset (xStock) pour la factory si first buy
-      if (firstBuyUsdcRaw > 0n) {
-        toast.info(`Approving ${data.arc_stock_symbol} for first buy…`);
-        const approveStock = await walletClient.writeContract({
-          address:      data.arc_quote_asset,
-          abi:          ERC20_APPROVE_ABI,
-          functionName: "approve",
-          args:         [ARC_FACTORY_ADDRESS, firstBuyUsdcRaw * 2n],
-          gasPrice:     BigInt("20000000000"),
-        });
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 3_000));
-          const r = await publicClient.getTransactionReceipt({ hash: approveStock }).catch(() => null);
-          if (r) break;
-        }
-      }
-      txHash = await walletClient.writeContract({
-        address:      ARC_FACTORY_ADDRESS,
-        abi:          FACTORY_ABI,
-        functionName: "createStockPairedToken",
-        args: [
-          data.name,
-          data.ticker,
-          "",
-          data.description || "",
-          data.arc_quote_asset,
-          firstBuyUsdcRaw,
-        ],
-        gasPrice: BigInt("20000000000"),
-      });
-    } else {
-      txHash = await walletClient.writeContract({
-        address:      ARC_FACTORY_ADDRESS,
-        abi:          FACTORY_ABI,
+      toast.info("Deploying token on Arc V4…");
+      // createToken(name, symbol, imageUri, firstBuyUsdc, feeDistributor, creatorKeepBps)
+      // feeDistributor = address(0) + creatorKeepBps = 10000 → 100% creator, pas de staking holders.
+      // Ne pas passer une EOA comme feeDistributor : le hook appelle notifyReward() dessus → revert.
+      const txHash = await walletClient.writeContract({
+        address:      ARC_FACTORY_V4_ADDRESS,
+        abi:          FACTORY_V4_ABI,
         functionName: "createToken",
         args: [
           data.name,
           data.ticker,
-          "",
-          data.description || "",
-          firstBuyUsdcRaw,
-          false, // holderRewards_ — UI toggle à ajouter plus tard
+          "", // imageUri — non utilisé on-chain
+          0n, // firstBuyUsdc — désactivé pour V4 (factory ne l'exécute pas)
+          "0x0000000000000000000000000000000000000000", // feeDistributor — address(0) = 100% creator
+          10000n, // creatorKeepBps — 100% au créateur, aucune distribution holders
         ],
         gasPrice: BigInt("20000000000"),
       });
-    }
 
-    toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
-    toast.info("Waiting for confirmation…");
+      toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
+      toast.info("Waiting for confirmation…");
 
-    let receipt = null;
-    for (let attempt = 0; attempt < 60; attempt++) {
-      await new Promise((r) => setTimeout(r, 3_000));
-      receipt = await publicClient.getTransactionReceipt({ hash: txHash }).catch(() => null);
-      if (receipt) break;
-    }
-    if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
+      let receipt = null;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        await new Promise(r => setTimeout(r, 3_000));
+        receipt = await publicClient.getTransactionReceipt({ hash: txHash }).catch(() => null);
+        if (receipt) break;
+      }
+      if (!receipt) throw new Error("Transaction not confirmed after 3 minutes. Check ArcScan.");
+      if (receipt.status === "reverted") {
+        throw new Error("Transaction reverted — check ArcScan: https://explorer.arc.io/tx/" + txHash);
+      }
 
-    // 6. Extraire curve + token depuis l'event
-    if (receipt.status === "reverted") {
-      throw new Error("Transaction reverted on-chain. The factory contract may not be deployed on Arc Mainnet yet. Check the explorer: https://explorer.arc.io/tx/" + txHash);
-    }
-    const eventName = isStockPaired ? "StockPairedTokenCreated" : "TokenCreated";
-    const logs = parseEventLogs({
-      abi:       FACTORY_ABI,
-      eventName,
-      logs:      receipt.logs,
-    });
-    if (!logs[0]?.args?.token) {
-      throw new Error("Factory did not emit a TokenCreated event. Ensure LaunchpadFactory is deployed on Arc Mainnet (chain 5042) and ARC_FACTORY_ADDRESS is up to date.");
-    }
-    const curveAddress     = (logs[0]?.args?.curve ?? "") as string;
-    const arcTokenAddress  = (logs[0]?.args?.token ?? "") as string;
-    const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
+      // Extraire l'adresse du token depuis l'event TokenCreated V4
+      const logs = parseEventLogs({
+        abi:       FACTORY_V4_ABI,
+        eventName: "TokenCreated",
+        logs:      receipt.logs,
+      });
+      if (!logs[0]?.args?.token) {
+        throw new Error("V4 Factory did not emit TokenCreated. Check ARC_FACTORY_V4_ADDRESS.");
+      }
+      const arcTokenAddress  = logs[0].args.token as string;
+      const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
 
-    // Extraire vault + feeDistributor depuis l'event TokenCreated (non-stock-paired)
-    const vaultAddress       = !isStockPaired ? ((logs[0]?.args as Record<string, unknown>)?.vault          as string | undefined) ?? null : null;
-    const feeDistributorAddr = !isStockPaired ? ((logs[0]?.args as Record<string, unknown>)?.feeDistributor as string | undefined) ?? null : null;
-    const holderRewardsOn    = !isStockPaired ? !!((logs[0]?.args as Record<string, unknown>)?.holderRewards) : false;
-
-    // 7. Sauvegarder les métadonnées en base
-    const form = new FormData();
-    if (data.logo_file) form.append("logo", data.logo_file);
-    form.append("payload", JSON.stringify({
-      name: data.name, ticker: data.ticker, category: data.category,
-      description: data.description, website: data.website,
-      twitter: data.twitter, telegram: data.telegram,
-      discord: data.discord, other_social: data.other_social,
-      supply: 1_000_000_000, // fixe — OMToken mint toujours 1B
-      chain: "arc",
-      arc_token_address: arcTokenAddress,
-      arc_launch_id: curveAddress,
-      arc_tx_hash: txHash,
-      arc_creation_block: arcCreationBlock,
-      quote_asset:   isStockPaired ? data.arc_quote_asset : null,
-      stock_symbol:  isStockPaired ? data.arc_stock_symbol.replace("x", "") : null,
-      creator_wallet: account, // EVM address du signataire MetaMask (pas walletAddress Solana)
-      creator_fee_pct: 1,
-      fee_recipients: [],
-      share_top100: false, share_top100_pct: 0,
-      first_buy_enabled: false, first_buy_amount: 0,
-      is_scheduled: false, scheduled_at: null,
-      // V3LPVault + FeeDistributor (Arc uniquement)
-      vault_address:            vaultAddress,
-      fee_distributor_address:  feeDistributorAddr,
-      holder_rewards:           holderRewardsOn,
-    }));
-
-    const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
-    const json = await res.json() as { id?: string; error?: string };
-    if (!res.ok || json.error) throw new Error(json.error ?? "Failed to save token metadata");
-
-    toast.success("Token deployed on Arc! Redirecting…");
-    router.push(`/launchpad/${json.id}`);
+      // Sauvegarder — pour V4 : arc_launch_id = arc_token_address (token est son propre launch ID)
+      const form = new FormData();
+      if (data.logo_file) form.append("logo", data.logo_file);
+      form.append("payload", JSON.stringify({
+        name: data.name, ticker: data.ticker, category: data.category,
+        description: data.description, website: data.website,
+        twitter: data.twitter, telegram: data.telegram,
+        discord: data.discord, other_social: data.other_social,
+        supply: 1_000_000_000,
+        chain: "arc",
+        arc_token_address: arcTokenAddress,
+        arc_launch_id:     arcTokenAddress, // ← V4 : launch_id = token address
+        arc_tx_hash:       txHash,
+        arc_creation_block: arcCreationBlock,
+        quote_asset:   null,
+        stock_symbol:  null,
+        creator_wallet: account,
+        creator_fee_pct: 1,
+        fee_recipients: [],
+        share_top100: false, share_top100_pct: 0,
+        first_buy_enabled: false, first_buy_amount: 0,
+        is_scheduled: false, scheduled_at: null,
+        vault_address: null,
+        fee_distributor_address: null, // V4 : address(0) passé au hook → 100% creator
+        holder_rewards: false,
+      }));
+      const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
+      const json = await res.json() as { id?: string; error?: string };
+      if (!res.ok || json.error) throw new Error(json.error ?? "Failed to save token metadata");
+      toast.success("Token deployed on Arc V4! Redirecting…");
+      router.push(`/launchpad/${json.id}`);
   }
 
   async function submit() {

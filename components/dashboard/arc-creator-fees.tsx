@@ -3,8 +3,15 @@
 /**
  * ArcCreatorFees
  *
- * Lists all Arc tokens created by the user and shows claimable USDC fees
- * for each, read directly from the BondingCurve contract onchain.
+ * Lists all Arc tokens created by the user and shows claimable USDC fees.
+ *
+ * V4 tokens  (arc_launch_id === mint_address) :
+ *   - Lit  BondingCurveHook.getCurveState(poolId).creatorFeesAccrued
+ *   - Claim BondingCurveHook.claimFees(poolKey, account)
+ *
+ * V1 tokens  (arc_launch_id = standalone BondingCurve clone) :
+ *   - Lit  BondingCurve.creatorFeesAccrued()
+ *   - Claim BondingCurve.claimFees(account)
  */
 
 import { useState, useEffect } from "react";
@@ -13,7 +20,13 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
-import { BONDING_CURVE_ABI } from "@/lib/arc-launchpad";
+import {
+  BONDING_CURVE_ABI,
+  BONDING_CURVE_HOOK_ABI,
+  ARC_HOOK_ADDRESS,
+  getArcV4PoolKey,
+  getArcV4PoolId,
+} from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
 const USDC_DECIMALS = 6;
@@ -28,14 +41,16 @@ type ArcToken = {
   name: string;
   ticker: string;
   logo_url: string | null;
-  arc_launch_id: string | null; // BondingCurve address
+  arc_launch_id: string | null;
+  mint_address:  string | null; // V4 : même valeur que arc_launch_id
 };
 
 type TokenWithFees = ArcToken & {
-  accrued: bigint | null; // null = RPC error
+  isV4:     boolean;
+  accrued:  bigint | null; // null = loading
   claiming: boolean;
-  txHash: string | null;
-  error: string | null;
+  txHash:   string | null;
+  error:    string | null;
 };
 
 export function ArcCreatorFees() {
@@ -52,17 +67,17 @@ export function ArcCreatorFees() {
         const res = await fetch("/api/launchpad/mine");
         if (!res.ok) return;
         const all = await res.json() as ArcToken[];
-        // Keep only Arc tokens with a valid BondingCurve address
+        // Keep only Arc tokens with a valid 0x address in arc_launch_id
         const arcTokens = all.filter(
           t => t.arc_launch_id?.startsWith("0x") && t.arc_launch_id.length === 42
         );
-        setTokens(arcTokens.map(t => ({
-          ...t,
-          accrued: null,
-          claiming: false,
-          txHash: null,
-          error: null,
-        })));
+        setTokens(arcTokens.map(t => {
+          const isV4 = !!(
+            t.mint_address &&
+            t.arc_launch_id?.toLowerCase() === t.mint_address.toLowerCase()
+          );
+          return { ...t, isV4, accrued: null, claiming: false, txHash: null, error: null };
+        }));
       } finally {
         setLoading(false);
       }
@@ -70,7 +85,7 @@ export function ArcCreatorFees() {
     void load();
   }, [isAuthenticated]);
 
-  // 2. Read creatorFeesAccrued for each token
+  // 2. Read creatorFeesAccrued for each token (V4 or V1)
   useEffect(() => {
     if (tokens.length === 0) return;
     const client = createPublicClient({ chain: arc, transport: http() });
@@ -78,11 +93,30 @@ export function ArcCreatorFees() {
     tokens.forEach(async (token, idx) => {
       if (!token.arc_launch_id) return;
       try {
-        const raw = await client.readContract({
-          address: token.arc_launch_id as `0x${string}`,
-          abi: BONDING_CURVE_ABI,
-          functionName: "creatorFeesAccrued",
-        }) as bigint;
+        let raw: bigint;
+
+        if (token.isV4 && token.mint_address) {
+          // ── V4 : lire depuis le hook singleton ───────────────────────────────
+          if (!ARC_HOOK_ADDRESS) { raw = 0n; }
+          else {
+            const poolId = getArcV4PoolId(token.mint_address as `0x${string}`);
+            const state = await client.readContract({
+              address:      ARC_HOOK_ADDRESS,
+              abi:          BONDING_CURVE_HOOK_ABI,
+              functionName: "getCurveState",
+              args:         [poolId],
+            }) as { creatorFeesAccrued: bigint };
+            raw = state.creatorFeesAccrued;
+          }
+        } else {
+          // ── V1 : lire depuis le clone BondingCurve ────────────────────────────
+          raw = await client.readContract({
+            address:      token.arc_launch_id as `0x${string}`,
+            abi:          BONDING_CURVE_ABI,
+            functionName: "creatorFeesAccrued",
+          }) as bigint;
+        }
+
         setTokens(prev => prev.map((t, i) => i === idx ? { ...t, accrued: raw } : t));
       } catch {
         setTokens(prev => prev.map((t, i) => i === idx ? { ...t, accrued: 0n } : t));
@@ -109,16 +143,32 @@ export function ArcCreatorFees() {
       } catch { /* ignore */ }
 
       const [account] = await walletClient.getAddresses();
-      const curveAddress = tokens[idx].arc_launch_id as `0x${string}`;
+      const token = tokens[idx];
+      let hash: `0x${string}`;
 
-      const hash = await walletClient.writeContract({
-        address: curveAddress,
-        abi: BONDING_CURVE_ABI,
-        functionName: "claimFees",
-        args: [account],
-        account,
-        chain: arc,
-      });
+      if (token.isV4 && token.mint_address) {
+        // ── V4 : hook.claimFees(poolKey, account) ────────────────────────────────
+        if (!ARC_HOOK_ADDRESS) throw new Error("V4 hook not yet deployed");
+        const poolKey = getArcV4PoolKey(token.mint_address as `0x${string}`);
+        hash = await walletClient.writeContract({
+          address:      ARC_HOOK_ADDRESS,
+          abi:          BONDING_CURVE_HOOK_ABI,
+          functionName: "claimFees",
+          args:         [poolKey, account],
+          account,
+          chain:        arc,
+        });
+      } else {
+        // ── V1 : BondingCurve.claimFees(account) ──────────────────────────────────
+        hash = await walletClient.writeContract({
+          address:      token.arc_launch_id as `0x${string}`,
+          abi:          BONDING_CURVE_ABI,
+          functionName: "claimFees",
+          args:         [account],
+          account,
+          chain:        arc,
+        });
+      }
 
       setTokens(prev => prev.map((t, i) =>
         i === idx ? { ...t, claiming: false, txHash: hash, accrued: 0n } : t
@@ -156,7 +206,12 @@ export function ArcCreatorFees() {
 
           {/* Name + accrued */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{token.name}</p>
+            <p className="text-sm font-semibold text-foreground truncate">
+              {token.name}
+              {token.isV4 && (
+                <span className="ml-1.5 text-[10px] font-medium text-orange-400/80 align-middle">V4</span>
+              )}
+            </p>
             <p className="text-xs text-muted-foreground">
               {token.accrued === null
                 ? "Reading…"

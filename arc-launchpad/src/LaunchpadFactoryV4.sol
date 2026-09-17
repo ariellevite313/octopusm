@@ -45,8 +45,8 @@ contract LaunchpadFactoryV4 {
     /// @dev Total supply : 1 milliard de tokens
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000 * 1e18;
 
-    /// @dev Fee tier de la pool (0.3%)
-    uint24 public constant POOL_FEE = 3000;
+    /// @dev Fee tier de la pool (0% — le hook prend 2% via beforeSwap, pas de double-taxation)
+    uint24 public constant POOL_FEE = 0;
 
     // ─── État ──────────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ contract LaunchpadFactoryV4 {
             currency0:   currency0,
             currency1:   currency1,
             fee:         POOL_FEE,
-            tickSpacing: 60, // tickSpacing pour 0.3%
+            tickSpacing: 60, // tickSpacing 60 compatible avec fee=0 en V4
             hooks:       IHooks(address(hook))
         });
 
