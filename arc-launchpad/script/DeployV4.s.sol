@@ -2,10 +2,11 @@
 pragma solidity ^0.8.26;
 
 import "forge-std/Script.sol";
-import {Hooks}            from "v4-core/src/libraries/Hooks.sol";
-import {IPoolManager}     from "v4-core/src/interfaces/IPoolManager.sol";
-import {HookMiner}        from "v4-periphery/test/shared/HookMiner.sol";
-import {BondingCurveHook} from "../src/BondingCurveHook.sol";
+import {Hooks}              from "v4-core/src/libraries/Hooks.sol";
+import {IPoolManager}       from "v4-core/src/interfaces/IPoolManager.sol";
+import {HookMiner}          from "v4-periphery/test/shared/HookMiner.sol";
+import {BondingCurveHook}   from "../src/BondingCurveHook.sol";
+import {BondingCurveRouter} from "../src/BondingCurveRouter.sol";
 import {LaunchpadFactoryV4} from "../src/LaunchpadFactoryV4.sol";
 
 /**
@@ -77,19 +78,24 @@ contract DeployV4 is Script {
         // 4. Lier le hook à la factory (une seule fois)
         hook.setFactory(address(factory));
 
+        // 5. Déployer le routeur (permet aux EOA de swapper via unlock/callback)
+        BondingCurveRouter router = new BondingCurveRouter(IPoolManager(V4_POOL_MANAGER));
+        console.log("BondingCurveRouter deployed at:", address(router));
+
         vm.stopBroadcast();
 
-        // 5. Afficher le résumé
+        // 6. Afficher le résumé
         console.log("\n=== DEPLOYMENT SUMMARY ===");
         console.log("Network:            Arc Mainnet (5042)");
         console.log("PoolManager:       ", V4_POOL_MANAGER);
         console.log("BondingCurveHook:  ", address(hook));
         console.log("LaunchpadFactoryV4:", address(factory));
+        console.log("BondingCurveRouter:", address(router));
         console.log("USDC:              ", USDC_ARC_MAINNET);
         console.log("Treasury:          ", treasury);
         console.log("==========================\n");
         console.log("NOTE: Mettez a jour ADDRESSES_V4.md avec ces adresses");
-        console.log("NOTE: Mettez a jour lib/arc-launchpad.ts avec la nouvelle factory ABI");
+        console.log("NOTE: Mettez a jour lib/arc-launchpad.ts : ARC_FACTORY_V4_ADDRESS, ARC_HOOK_ADDRESS, ARC_ROUTER_ADDRESS");
     }
 
     // Adresse du déployeur CREATE2 déterministe sur Arc

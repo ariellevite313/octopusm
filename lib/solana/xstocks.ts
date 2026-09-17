@@ -30,6 +30,20 @@ export const XSTOCK_CATALOG_SOLANA = [
   { symbol: "xGLD",  name: "Gold",          ticker: "GLD",  emoji: "🥇" },
 ] as const;
 
+/**
+ * Logo paths (in /public) for each xStock symbol.
+ * Null = pas de logo disponible → fallback sur l'emoji.
+ */
+export const XSTOCK_LOGOS: Record<string, string | null> = {
+  xNVDA: "/nvidia.png",
+  xTSLA: "/tesla.png",
+  xMSTR: null,
+  xAAPL: "/apple.png",
+  xSPY:  "/spy.png",
+  xQQQ:  "/qqq.png",
+  xGLD:  "/gold.png",
+};
+
 export type XStockSymbol = typeof XSTOCK_CATALOG_SOLANA[number]["symbol"];
 
 /**

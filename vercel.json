@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/update-arc-stats",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/arc-graduation",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
