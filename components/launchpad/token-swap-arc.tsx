@@ -99,6 +99,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   const [amount,      setAmount]      = useState("");
   const [slippagePct, setSlippagePct] = useState(2);
 
+  // Wallet connecté (MetaMask indépendamment de Supabase)
+  const [mmAddress, setMmAddress] = useState<string | null>(null);
+
   // Balances
   const [quoteBalance, setQuoteBalance] = useState<bigint | null>(null);
   const [tokenBalance, setTokenBalance] = useState<bigint | null>(null);
@@ -140,6 +143,20 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     }
     if (!eth) throw new Error("MetaMask introuvable");
     return eth;
+  }
+
+  /**
+   * Retourne l'adresse wallet active :
+   *   1. Session Supabase (walletAddress) si disponible
+   *   2. Sinon premier compte MetaMask/Rabby connecté (eth_accounts)
+   */
+  async function resolveActiveAddr(): Promise<`0x${string}` | null> {
+    if (walletAddress) return walletAddress as `0x${string}`;
+    try {
+      const eth = getEth();
+      const accounts: string[] = await eth.request({ method: "eth_accounts" });
+      return accounts?.[0] ? (accounts[0] as `0x${string}`) : null;
+    } catch { return null; }
   }
 
   /** Client lecture seule : HTTP public, pas besoin de MetaMask. */
@@ -189,10 +206,10 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   }, [launchId, isV4, tokenAddress]);
 
   const loadBalances = useCallback(async () => {
-    if (!walletAddress) { setQuoteBalance(null); setTokenBalance(null); return; }
+    const addr = await resolveActiveAddr();
+    if (!addr) { setQuoteBalance(null); setTokenBalance(null); return; }
     try {
       const client = getPublicClient();
-      const addr   = walletAddress as `0x${string}`;
 
       // USDC natif Arc (address(0)) → eth_getBalance (18 decimals EVM)
       const [quoteBal, tokBal] = await Promise.all([
@@ -209,6 +226,21 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     } catch { setQuoteBalance(null); setTokenBalance(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletAddress, tokenAddress]);
+
+  // Détecter MetaMask indépendamment de Supabase
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eth = (window as any).ethereum;
+    if (!eth) return;
+    const sync = (accounts: string[]) => {
+      setMmAddress(accounts[0] ?? null);
+      if (accounts[0]) void loadBalances();
+    };
+    eth.request({ method: "eth_accounts" }).then((a: string[]) => sync(a)).catch(() => {});
+    eth.on("accountsChanged", sync);
+    return () => eth.removeListener("accountsChanged", sync);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { void loadState(); }, [loadState]);
   useEffect(() => { void loadBalances(); }, [loadBalances]);
@@ -273,9 +305,12 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   // ── Swap handler ──────────────────────────────────────────────────────────
 
   const handleSwap = async () => {
-    if (!walletAddress || !amount || !estimatedOut) return;
     const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0) return;
+    if (!amount || !estimatedOut || !parsed || parsed <= 0) return;
+
+    // Résoudre l'adresse active (Supabase ou MetaMask)
+    const activeAddr = await resolveActiveAddr();
+    if (!activeAddr) { setError("Connecte ton wallet pour swapper"); return; }
 
     setSwapping(true);
     setError(null);
@@ -310,11 +345,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           // USDC natif → pas d'approval ERC-20, on envoie msg.value au router
           const swapData = encodeFunctionData({
             abi: BONDING_CURVE_ROUTER_ABI, functionName: "swap",
-            args: [poolKey, zeroForOne, -quoteRaw, walletAddress as `0x${string}`, minTokens],
+            args: [poolKey, zeroForOne, -quoteRaw, activeAddr, minTokens],
           });
           const hash = await eth.request({
             method: "eth_sendTransaction",
-            params: [{ from: walletAddress, to: ARC_ROUTER_ADDRESS, data: swapData, value: `0x${quoteRaw.toString(16)}` }],
+            params: [{ from: activeAddr, to: ARC_ROUTER_ADDRESS, data: swapData, value: `0x${quoteRaw.toString(16)}` }],
           }) as string;
           setTxHash(hash);
           await waitReceipt(hash);
@@ -331,7 +366,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           const tokenAllowance = await client.readContract({
             address: memeAddr, abi: ERC20_BALANCE_ABI,
             functionName: "allowance",
-            args: [walletAddress as `0x${string}`, ARC_ROUTER_ADDRESS],
+            args: [activeAddr, ARC_ROUTER_ADDRESS],
           }) as bigint;
           if (tokenAllowance < tokensIn) {
             const approveData = encodeFunctionData({
@@ -340,7 +375,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             });
             const approveTx = await eth.request({
               method: "eth_sendTransaction",
-              params: [{ from: walletAddress, to: memeAddr, data: approveData }],
+              params: [{ from: activeAddr, to: memeAddr, data: approveData }],
             }) as string;
             await waitReceipt(approveTx);
           }
@@ -348,11 +383,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           // router.swap(poolKey, zeroForOne, -tokensIn, recipient, minUsdcOut)
           const swapData = encodeFunctionData({
             abi: BONDING_CURVE_ROUTER_ABI, functionName: "swap",
-            args: [poolKey, zeroForOne, -tokensIn, walletAddress as `0x${string}`, minQuote],
+            args: [poolKey, zeroForOne, -tokensIn, activeAddr, minQuote],
           });
           const hash = await eth.request({
             method: "eth_sendTransaction",
-            params: [{ from: walletAddress, to: ARC_ROUTER_ADDRESS, data: swapData }],
+            params: [{ from: activeAddr, to: ARC_ROUTER_ADDRESS, data: swapData }],
           }) as string;
           setTxHash(hash);
           await waitReceipt(hash);
@@ -380,7 +415,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   // ── Graduation handler (V4 — step 2 : add LP post-graduation) ───────────
 
   const handleGraduate = async () => {
-    if (!walletAddress || !isV4 || !ARC_HOOK_ADDRESS) return;
+    if (!isV4 || !ARC_HOOK_ADDRESS) return;
+    const gradAddr = await resolveActiveAddr();
+    if (!gradAddr) return;
     setGraduating(true);
     setError(null);
     setGraduateTxHash(null);
@@ -395,7 +432,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       });
       const hash = await eth.request({
         method: "eth_sendTransaction",
-        params: [{ from: walletAddress, to: ARC_HOOK_ADDRESS, data }],
+        params: [{ from: gradAddr, to: ARC_HOOK_ADDRESS, data }],
       }) as string;
       setGraduateTxHash(hash);
       await waitReceipt(hash);
@@ -454,13 +491,14 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
   // Market cap calculé depuis la formule AMM constant-product :
   // mcap = (VIRTUAL_USDC + realRaised)² × totalSupply / (VIRTUAL_USDC × curveSupply)
-  // En USDC (sans décimales) — graduation à ~$25,000
-  const VIRTUAL_USDC_N  = 3_200_000_000n;
-  const CURVE_SUPPLY_N  = 800_000_000n;
-  const TOTAL_SUPPLY_N  = 1_000_000_000n;
+  // Tout en 18 dec (natif Arc). Résultat divisé par 1e18 → USD.
+  const VIRTUAL_USDC_N  = BC_VIRTUAL_USDC;            // 3_200n * 1e18
+  const CURVE_SUPPLY_N  = BC_CURVE_SUPPLY;             // 800_000_000n * 1e18
+  const TOTAL_SUPPLY_N  = 1_000_000_000n * 10n ** 18n; // 1 B tokens 18 dec
   const reserveUsdc     = VIRTUAL_USDC_N + realRaised;
+  // Division intermédiaire pour éviter l'overflow bigint
   const currentMcapRaw  = reserveUsdc * reserveUsdc * TOTAL_SUPPLY_N / (VIRTUAL_USDC_N * CURVE_SUPPLY_N);
-  const currentMcapUsdc = Number(currentMcapRaw) / 1_000_000; // 6 dec → USD
+  const currentMcapUsdc = Number(currentMcapRaw) / 1e18; // 18 dec → USD
   const GRAD_MCAP_USDC  = 25_000; // constant — graduation toujours à ~$25K
 
   function fmtMcap(usd: number): string {
@@ -594,7 +632,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           <div className="flex items-center justify-between mt-1">
             <PayBadge />
             <span className="text-[11px] text-muted-foreground/60">
-              {walletAddress ? `Balance: ${balFmt}` : "—"}
+              {(walletAddress || mmAddress) ? `Balance: ${balFmt}` : "—"}
             </span>
           </div>
         </div>
@@ -688,7 +726,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           </a>
         )}
 
-        {!isAuthenticated ? (
+        {/* Bouton visible dès que MetaMask OU Supabase est connecté */}
+        {!isAuthenticated && !mmAddress ? (
           <button
             onClick={openWalletModal}
             className="w-full rounded-md py-2.5 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1"
