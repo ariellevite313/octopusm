@@ -1072,7 +1072,11 @@ export function CreateTokenWizard({
       }));
       const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
       const json = await res.json() as { id?: string; error?: string };
-      if (!res.ok || json.error) throw new Error(json.error ?? "Failed to save token metadata");
+      if (!res.ok || json.error) {
+        const errMsg = json.error ?? `HTTP ${res.status}`;
+        console.error("[Arc wizard] DB save failed:", errMsg, "token:", arcTokenAddress, "tx:", txHash);
+        throw new Error(`Token deployed on-chain (${arcTokenAddress}) but DB save failed: ${errMsg}. Note the token address!`);
+      }
       toast.success("Token deployed on Arc V4! Redirecting…");
       router.push(`/launchpad/${json.id}`);
   }
