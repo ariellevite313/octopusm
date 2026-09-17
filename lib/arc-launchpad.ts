@@ -2,7 +2,10 @@ import { encodeAbiParameters, keccak256 } from "viem";
 
 // ─── Adresses sur Arc Mainnet (Chain ID 5042) ─────────────────────────────────
 
-export const ARC_USDC_ADDRESS      = "0x3600000000000000000000000000000000000000" as const;
+// Sur Arc, USDC est le token natif de la chaîne (address(0) en Uniswap V4).
+// EVM : 18 decimals (eth_getBalance). Affiché en 6 decimals pour l'UX.
+export const ARC_USDC_ADDRESS      = "0x0000000000000000000000000000000000000000" as const;
+export const ARC_USDC_DECIMALS     = 18; // EVM native decimals
 
 // ─── Uniswap V4 sur Arc Mainnet ───────────────────────────────────────────────
 
@@ -25,9 +28,9 @@ export const V4_TICK_SPACING     = 60;
  * Constantes de la bonding curve (doivent correspondre à BondingCurveHook.sol)
  * K = VIRTUAL_USDC × CURVE_SUPPLY (bigint)
  */
-export const BC_VIRTUAL_USDC    = 3_200_000_000n;               // 3 200 USDC (6 dec)
+export const BC_VIRTUAL_USDC    = 3_200n * 10n ** 18n;          // 3 200 USDC (18 dec natif Arc)
 export const BC_CURVE_SUPPLY    = 800_000_000n * 10n ** 18n;    // 800 M tokens (18 dec)
-export const BC_GRAD_THRESHOLD  = 4_800_000_000n;               // 4 800 USDC (6 dec)
+export const BC_GRAD_THRESHOLD  = 4_800n * 10n ** 18n;          // 4 800 USDC (18 dec natif Arc)
 export const BC_FEE_BPS         = 200n;
 export const BC_K               = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
 
@@ -316,16 +319,17 @@ export const FACTORY_V4_ABI = [
   {
     type: "function",
     name: "createToken",
+    // Sur Arc, USDC est le token natif → msg.value = CREATION_FEE (10 USDC, 18 dec).
+    // Plus de firstBuyUsdc — le premier achat se fait séparément via le router.
     inputs: [
-      { name: "name",            type: "string",  internalType: "string"  },
-      { name: "symbol",          type: "string",  internalType: "string"  },
-      { name: "imageUri",        type: "string",  internalType: "string"  },
-      { name: "firstBuyUsdc",    type: "uint256", internalType: "uint256" },
-      { name: "feeDistributor",  type: "address", internalType: "address" },
-      { name: "creatorKeepBps",  type: "uint256", internalType: "uint256" },
+      { name: "name",           type: "string",  internalType: "string"  },
+      { name: "symbol",         type: "string",  internalType: "string"  },
+      { name: "imageUri",       type: "string",  internalType: "string"  },
+      { name: "feeDistributor", type: "address", internalType: "address" },
+      { name: "creatorKeepBps", type: "uint256", internalType: "uint256" },
     ],
-    outputs: [{ name: "token", type: "address", internalType: "address" }],
-    stateMutability: "nonpayable",
+    outputs: [{ name: "tokenAddr", type: "address", internalType: "address" }],
+    stateMutability: "payable",
   },
   {
     type: "event",

@@ -79,8 +79,9 @@ contract BondingCurveHookTest is Test {
     uint256 constant TOTAL_SUPPLY   = 1_000_000_000 * 1e18;
     uint256 constant CURVE_SUPPLY   = 800_000_000   * 1e18;
     uint256 constant LP_RESERVE     = 200_000_000   * 1e18;
-    uint256 constant VIRTUAL_USDC   = 3_200_000_000;
-    uint256 constant GRAD_THRESHOLD = 4_800_000_000;
+    // USDC natif Arc = 18 dec (correspondant aux nouvelles constantes du hook)
+    uint256 constant VIRTUAL_USDC   = 3_200 * 1e18;
+    uint256 constant GRAD_THRESHOLD = 4_800 * 1e18;
     uint256 constant FEE_BPS        = 200;
     uint256 constant BPS            = 10_000;
 

@@ -180,7 +180,8 @@ export async function GET(req: Request) {
             const isBuy    = Boolean(decoded[0]);
             const usdcRaw  = decoded[1] as bigint;
             const tokRaw   = decoded[2] as bigint;
-            const usdcAmt  = Number(usdcRaw)  / 1e6;
+            // USDC natif Arc = 18 decimals EVM
+            const usdcAmt  = Number(usdcRaw)  / 1e18;
             const tokenAmt = Number(tokRaw)   / 1e18;
             const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
             return { timestamp: hexOrDecToNumber(l.timeStamp), isBuy, usdcAmt, tokenAmt, price, txHash: l.transactionHash ?? "" };
