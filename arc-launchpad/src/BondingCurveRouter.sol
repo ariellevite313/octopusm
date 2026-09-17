@@ -155,7 +155,7 @@ contract BondingCurveRouter is ReentrancyGuard {
         uint256  amount,
         uint256  /*nativeValue — pour info, non utilisé directement*/
     ) internal {
-        if (currency.isNative()) {
+        if (Currency.unwrap(currency) == address(0)) {
             // Native USDC Arc — déjà dans le router via msg.value
             poolManager.settle{value: amount}();
         } else {

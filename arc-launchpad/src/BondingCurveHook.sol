@@ -197,8 +197,8 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
                 return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
             }
 
-            bool usdcIsC0 = (Currency.unwrap(key.currency0) == s.usdc);
-            bool isBuy    = usdcIsC0 ? params.zeroForOne : !params.zeroForOne;
+            bool gradUsdcIsC0 = (Currency.unwrap(key.currency0) == s.usdc);
+            bool gradIsBuy    = gradUsdcIsC0 ? params.zeroForOne : !params.zeroForOne;
 
             uint256 grossAmt = uint256(-params.amountSpecified);
             uint256 fee      = grossAmt * FEE_BPS / BPS;
@@ -207,15 +207,15 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
                 return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
             }
 
-            if (isBuy) {
+            if (gradIsBuy) {
                 // USDC natif fee → take du PM vers le hook, puis distribuer
-                Currency currUsdc = usdcIsC0 ? key.currency0 : key.currency1;
+                Currency currUsdc = gradUsdcIsC0 ? key.currency0 : key.currency1;
                 poolManager.take(currUsdc, address(this), fee);
                 _distributeFees(s, fee, id);
                 emit Trade(id, sender, true, grossAmt, 0, fee);
             } else {
                 // Meme fee → take du PM vers treasury (ERC-20)
-                Currency currMeme = usdcIsC0 ? key.currency1 : key.currency0;
+                Currency currMeme = gradUsdcIsC0 ? key.currency1 : key.currency0;
                 poolManager.take(currMeme, s.treasury, fee);
                 emit Trade(id, sender, false, 0, grossAmt, fee);
             }
