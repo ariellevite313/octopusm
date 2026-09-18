@@ -505,7 +505,7 @@ export const BONDING_CURVE_ROUTER_ABI = [
       { name: "minAmountOut",     type: "uint256", internalType: "uint256" },
     ],
     outputs: [{ name: "amountOut", type: "int128", internalType: "int128" }],
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
   },
   {
     type: "function",

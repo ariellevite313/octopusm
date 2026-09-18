@@ -15,6 +15,7 @@ import {
   ARC_USDC_ADDRESS,
   ARC_HOOK_ADDRESS,
   ARC_ROUTER_ADDRESS,
+  ARC_POOL_MANAGER_ADDRESS,
   BONDING_CURVE_HOOK_ABI,
   BONDING_CURVE_ROUTER_ABI,
   ERC20_APPROVE_ABI,
@@ -367,16 +368,17 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
           if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error("Solde token insuffisant");
 
-          // Approve meme → router
+          // Approve meme → PoolManager (le router fait safeTransferFrom(user, poolManager, amt))
+          const pmAddr = ARC_POOL_MANAGER_ADDRESS as `0x${string}`;
           const tokenAllowance = await client.readContract({
             address: memeAddr, abi: ERC20_BALANCE_ABI,
             functionName: "allowance",
-            args: [activeAddr, ARC_ROUTER_ADDRESS],
+            args: [activeAddr, pmAddr],
           }) as bigint;
           if (tokenAllowance < tokensIn) {
             const approveData = encodeFunctionData({
               abi: ERC20_APPROVE_ABI, functionName: "approve",
-              args: [ARC_ROUTER_ADDRESS, tokensIn * 2n],
+              args: [pmAddr, tokensIn * 2n],
             });
             const approveTx = await eth.request({
               method: "eth_sendTransaction",
