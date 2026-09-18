@@ -12,27 +12,29 @@ import {ReentrancyGuard}           from "@openzeppelin/contracts/utils/Reentranc
 
 /**
  * @title BondingCurveRouter
- * @notice Routeur minimal permettant aux EOA d'interagir avec BondingCurveHook V4.
+ * @notice Routeur EOA pour BondingCurveHook V4 sur Arc.
  *
- * Sur Arc, USDC est le token NATIF de la chaîne (address(0) en Uniswap V4).
- * Le routeur accepte du native ETH (= USDC Arc) via msg.value pour les buys.
+ * USDC est le token NATIF d'Arc (address(0) en Uniswap V4).
  *
- * ─── Flux d'un buy (USDC natif → meme) ─────────────────────────────────────
- *   1. User appelle swap(...) avec msg.value = montant USDC natif
- *   2. Router → poolManager.unlock(encodedData)
- *   3. PM → router.unlockCallback(data) → poolManager.swap(key, params, "")
- *   4. BondingCurveHook.beforeSwap intercepte et settle les balances
- *   5. Router settle le native ETH → poolManager.settle{value: amt}()
- *   6. Router prend les meme tokens pour le recipient via poolManager.take()
+ * ─── Problème résolu ─────────────────────────────────────────────────────────
+ * Le hook appelle poolManager.take(inputCurrency, hook, amount) dans beforeSwap.
+ * Ce take() est physique : le PM doit avoir les tokens AVANT l'appel.
+ * Il faut donc pré-financer le PM AVANT poolManager.swap().
  *
- * ─── Flux d'un sell (meme → USDC natif) ────────────────────────────────────
- *   1. User approuve le meme token à ce routeur
- *   2. User appelle swap(key, zeroForOne=false, amountSpecified=-tokensIn, ...)
- *   3. Router settle le meme ERC-20 via safeTransferFrom
- *   4. Router prend le USDC natif via poolManager.take() → envoyé au recipient
+ * ─── Buy (USDC natif → meme) ─────────────────────────────────────────────────
+ *   1. msg.value = montant USDC natif envoyé au router
+ *   2. unlockCallback : poolManager.settle{value: nativeValue}() → PM reçoit le native
+ *   3. poolManager.swap() → hook.beforeSwap : take(native, hook, usdcGross) ✓ PM a le native
+ *   4. delta0 ≥ 0 (surplus si partial fill → rendu à l'user), delta1 > 0 → take(meme, user)
+ *
+ * ─── Sell (meme → USDC natif) ────────────────────────────────────────────────
+ *   1. User approuve le meme token à CE routeur
+ *   2. unlockCallback : sync + safeTransferFrom(user, PM, tokensIn) + settle → PM reçoit meme
+ *   3. poolManager.swap() → hook.beforeSwap : take(meme, hook, tokensIn) ✓ PM a les meme
+ *   4. delta1 ≥ 0 (surplus rendu à user), delta0 > 0 → take(native, user, usdcOut)
  */
 contract BondingCurveRouter is ReentrancyGuard {
-    using SafeERC20      for IERC20;
+    using SafeERC20       for IERC20;
     using CurrencyLibrary for Currency;
 
     IPoolManager public immutable poolManager;
@@ -46,7 +48,7 @@ contract BondingCurveRouter is ReentrancyGuard {
         int256   amountSpecified;
         address  payer;
         address  recipient;
-        uint256  nativeValue; // msg.value transmis pour les buys natifs
+        uint256  nativeValue; // msg.value (buys natifs)
     }
 
     error NotPoolManager();
@@ -57,7 +59,7 @@ contract BondingCurveRouter is ReentrancyGuard {
         poolManager = _poolManager;
     }
 
-    /// @notice Accepte le retour de native ETH depuis le PoolManager (take sur USDC natif).
+    /// @notice Accepte le retour de native USDC (take ou leftover depuis le PM / hook).
     receive() external payable {}
 
     // ─── swap ─────────────────────────────────────────────────────────────────
@@ -65,8 +67,8 @@ contract BondingCurveRouter is ReentrancyGuard {
     /**
      * @notice Effectue un swap via BondingCurveHook.
      *
-     * Buy  (USDC natif → meme) : envoyer msg.value = montant USDC en wei (18 dec)
-     * Sell (meme → USDC natif) : approuver le meme token d'abord, msg.value = 0
+     * Buy  (USDC natif → meme) : envoyer msg.value = montant USDC (18 dec)
+     * Sell (meme → USDC natif) : approuver ce routeur pour le meme token d'abord
      */
     function swap(
         PoolKey  calldata key,
@@ -94,7 +96,7 @@ contract BondingCurveRouter is ReentrancyGuard {
             if (got < minAmountOut) revert InsufficientOutput(got, minAmountOut);
         }
 
-        // Rembourser le surplus de native ETH (si le hook a pris moins que msg.value)
+        // Rembourser le surplus de native (partial fill ou arrondi)
         uint256 leftover = address(this).balance;
         if (leftover > 0) {
             (bool ok,) = payable(msg.sender).call{value: leftover}("");
@@ -110,6 +112,24 @@ contract BondingCurveRouter is ReentrancyGuard {
         CallbackData memory d = abi.decode(rawData, (CallbackData));
         uint160 sqrtLimit = d.zeroForOne ? SQRT_PRICE_MIN : SQRT_PRICE_MAX;
 
+        // ── Pré-financer le PM AVANT le swap ──────────────────────────────────
+        // Le hook appelle take(inputCurrency, hook, amount) dans beforeSwap.
+        // Ce take() physique nécessite que le PM ait déjà les tokens.
+        if (d.nativeValue > 0) {
+            // Buy : pré-settle le native USDC → PM reçoit le native avant le swap
+            poolManager.settle{value: d.nativeValue}();
+        } else if (!d.zeroForOne) {
+            // Sell : pré-transférer les meme tokens (currency1) du payer vers le PM
+            // amountSpecified est négatif (exact-input) → amount = -amountSpecified
+            uint256 memeAmt = uint256(-d.amountSpecified);
+            poolManager.sync(d.key.currency1);
+            IERC20(Currency.unwrap(d.key.currency1)).safeTransferFrom(
+                d.payer, address(poolManager), memeAmt
+            );
+            poolManager.settle();
+        }
+
+        // ── Appel du swap (hook.beforeSwap s'exécute ici) ────────────────────
         BalanceDelta delta = poolManager.swap(
             d.key,
             IPoolManager.SwapParams({
@@ -123,47 +143,31 @@ contract BondingCurveRouter is ReentrancyGuard {
         int128 delta0 = delta.amount0();
         int128 delta1 = delta.amount1();
 
-        // ── Régler currency0 ──────────────────────────────────────────────────
+        // ── Règlement post-swap ───────────────────────────────────────────────
+        // Après pré-financement et traitement complet par le hook, les deltas sont :
+        // Buy  : delta0 ≥ 0 (surplus natif si partial fill), delta1 > 0 (meme output)
+        // Sell : delta1 ≥ 0 (surplus meme si partial fill), delta0 > 0 (native output)
+
         if (delta0 < 0) {
-            uint256 amt = uint256(uint128(-delta0));
-            _payToManager(d.key.currency0, d.payer, amt, d.nativeValue);
+            // Ne devrait pas arriver après le pré-financement, mais on gère le cas
+            poolManager.settle{value: uint256(uint128(-delta0))}();
         } else if (delta0 > 0) {
+            // PM doit du native au locker → prendre pour le recipient (ou router pour remboursement)
             poolManager.take(d.key.currency0, d.recipient, uint256(uint128(delta0)));
         }
 
-        // ── Régler currency1 ──────────────────────────────────────────────────
         if (delta1 < 0) {
+            // Ne devrait pas arriver après le pré-financement, mais on gère
             uint256 amt = uint256(uint128(-delta1));
-            _payToManager(d.key.currency1, d.payer, amt, d.nativeValue);
+            poolManager.sync(d.key.currency1);
+            IERC20(Currency.unwrap(d.key.currency1)).safeTransferFrom(
+                d.payer, address(poolManager), amt
+            );
+            poolManager.settle();
         } else if (delta1 > 0) {
             poolManager.take(d.key.currency1, d.recipient, uint256(uint128(delta1)));
         }
 
         return abi.encode(delta0, delta1);
-    }
-
-    // ─── Internal ─────────────────────────────────────────────────────────────
-
-    /**
-     * @dev Règle `amount` de `currency` au PoolManager.
-     *      Si native : poolManager.settle{value: amount}()
-     *      Si ERC-20 : sync + safeTransferFrom + settle
-     */
-    function _payToManager(
-        Currency currency,
-        address  payer,
-        uint256  amount,
-        uint256  /*nativeValue — pour info, non utilisé directement*/
-    ) internal {
-        if (Currency.unwrap(currency) == address(0)) {
-            // Native USDC Arc — déjà dans le router via msg.value
-            poolManager.settle{value: amount}();
-        } else {
-            poolManager.sync(currency);
-            IERC20(Currency.unwrap(currency)).safeTransferFrom(
-                payer, address(poolManager), amount
-            );
-            poolManager.settle();
-        }
     }
 }
