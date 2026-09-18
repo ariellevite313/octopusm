@@ -19,19 +19,26 @@ import {ReentrancyGuard}           from "@openzeppelin/contracts/utils/Reentranc
  * ─── Problème résolu ─────────────────────────────────────────────────────────
  * Le hook appelle poolManager.take(inputCurrency, hook, amount) dans beforeSwap.
  * Ce take() est physique : le PM doit avoir les tokens AVANT l'appel.
- * Il faut donc pré-financer le PM AVANT poolManager.swap().
+ * Solution : pré-financer le PM AVANT poolManager.swap(), puis utiliser les
+ * DELTAS NETS (marginal swap + pré-financement) pour le règlement final.
  *
  * ─── Buy (USDC natif → meme) ─────────────────────────────────────────────────
  *   1. msg.value = montant USDC natif envoyé au router
- *   2. unlockCallback : poolManager.settle{value: nativeValue}() → PM reçoit le native
- *   3. poolManager.swap() → hook.beforeSwap : take(native, hook, usdcGross) ✓ PM a le native
- *   4. delta0 ≥ 0 (surplus si partial fill → rendu à l'user), delta1 > 0 → take(meme, user)
+ *   2. unlockCallback :
+ *      a. settle{value: nativeValue}() → PM reçoit native, preSettled0 = +nativeValue
+ *      b. poolManager.swap() → hook.beforeSwap prend le native depuis PM ✓
+ *         Retourne delta marginal : amount0 = -usdcGross, amount1 = +tokensOut
+ *      c. net0 = -usdcGross + nativeValue ≥ 0 (surplus rendu à l'user)
+ *         net1 = +tokensOut → take(meme, recipient) ✓
  *
  * ─── Sell (meme → USDC natif) ────────────────────────────────────────────────
  *   1. User approuve le meme token à CE routeur
- *   2. unlockCallback : sync + safeTransferFrom(user, PM, tokensIn) + settle → PM reçoit meme
- *   3. poolManager.swap() → hook.beforeSwap : take(meme, hook, tokensIn) ✓ PM a les meme
- *   4. delta1 ≥ 0 (surplus rendu à user), delta0 > 0 → take(native, user, usdcOut)
+ *   2. unlockCallback :
+ *      a. sync + safeTransferFrom(user, PM, tokensIn) + settle → preSettled1 = +tokensIn
+ *      b. poolManager.swap() → hook.beforeSwap prend les meme depuis PM ✓
+ *         Retourne delta marginal : amount0 = +usdcOut, amount1 = -tokensIn
+ *      c. net0 = +usdcOut → take(native, recipient) ✓
+ *         net1 = -tokensIn + tokensIn = 0 ✓ (pas de double-paiement)
  */
 contract BondingCurveRouter is ReentrancyGuard {
     using SafeERC20       for IERC20;
@@ -59,7 +66,7 @@ contract BondingCurveRouter is ReentrancyGuard {
         poolManager = _poolManager;
     }
 
-    /// @notice Accepte le retour de native USDC (take ou leftover depuis le PM / hook).
+    /// @notice Accepte le retour de native USDC (surplus après partial fill).
     receive() external payable {}
 
     // ─── swap ─────────────────────────────────────────────────────────────────
@@ -96,7 +103,7 @@ contract BondingCurveRouter is ReentrancyGuard {
             if (got < minAmountOut) revert InsufficientOutput(got, minAmountOut);
         }
 
-        // Rembourser le surplus de native (partial fill ou arrondi)
+        // Rembourser le surplus de native éventuel (leftover après partial fill)
         uint256 leftover = address(this).balance;
         if (leftover > 0) {
             (bool ok,) = payable(msg.sender).call{value: leftover}("");
@@ -112,24 +119,29 @@ contract BondingCurveRouter is ReentrancyGuard {
         CallbackData memory d = abi.decode(rawData, (CallbackData));
         uint160 sqrtLimit = d.zeroForOne ? SQRT_PRICE_MIN : SQRT_PRICE_MAX;
 
+        // ── Comptabilité du pré-financement ───────────────────────────────────
+        // Le delta marginal retourné par swap() ne tient pas compte des opérations
+        // déjà effectuées (settle/sync avant le swap). On doit calculer le delta NET.
+        int256 preSettled0 = 0; // crédit pré-versé sur currency0
+        int256 preSettled1 = 0; // crédit pré-versé sur currency1
+
         // ── Pré-financer le PM AVANT le swap ──────────────────────────────────
-        // Le hook appelle take(inputCurrency, hook, amount) dans beforeSwap.
-        // Ce take() physique nécessite que le PM ait déjà les tokens.
         if (d.nativeValue > 0) {
-            // Buy : pré-settle le native USDC → PM reçoit le native avant le swap
+            // Buy : settle le native → PM reçoit USDC avant que le hook l'appelle via take()
             poolManager.settle{value: d.nativeValue}();
+            preSettled0 = int256(d.nativeValue);
         } else if (!d.zeroForOne) {
-            // Sell : pré-transférer les meme tokens (currency1) du payer vers le PM
-            // amountSpecified est négatif (exact-input) → amount = -amountSpecified
+            // Sell : transférer les meme tokens → PM les reçoit avant le take() du hook
             uint256 memeAmt = uint256(-d.amountSpecified);
             poolManager.sync(d.key.currency1);
             IERC20(Currency.unwrap(d.key.currency1)).safeTransferFrom(
                 d.payer, address(poolManager), memeAmt
             );
             poolManager.settle();
+            preSettled1 = int256(memeAmt);
         }
 
-        // ── Appel du swap (hook.beforeSwap s'exécute ici) ────────────────────
+        // ── Swap (hook.beforeSwap s'exécute ici avec les tokens déjà en PM) ──
         BalanceDelta delta = poolManager.swap(
             d.key,
             IPoolManager.SwapParams({
@@ -140,34 +152,37 @@ contract BondingCurveRouter is ReentrancyGuard {
             ""
         );
 
-        int128 delta0 = delta.amount0();
-        int128 delta1 = delta.amount1();
+        // ── Delta net = delta marginal du swap + crédit du pré-financement ────
+        // Exemple buy  : marginal (−usdcGross, +tokensOut) + (nativeValue, 0)
+        //              → net (nativeValue−usdcGross, +tokensOut)
+        // Exemple sell : marginal (+usdcOut, −tokensIn)   + (0, +tokensIn)
+        //              → net (+usdcOut, 0)
+        int256 net0 = int256(delta.amount0()) + preSettled0;
+        int256 net1 = int256(delta.amount1()) + preSettled1;
 
-        // ── Règlement post-swap ───────────────────────────────────────────────
-        // Après pré-financement et traitement complet par le hook, les deltas sont :
-        // Buy  : delta0 ≥ 0 (surplus natif si partial fill), delta1 > 0 (meme output)
-        // Sell : delta1 ≥ 0 (surplus meme si partial fill), delta0 > 0 (native output)
+        // ── Règlement final basé sur le delta net ─────────────────────────────
 
-        if (delta0 < 0) {
-            // Ne devrait pas arriver après le pré-financement, mais on gère le cas
-            poolManager.settle{value: uint256(uint128(-delta0))}();
-        } else if (delta0 > 0) {
-            // PM doit du native au locker → prendre pour le recipient (ou router pour remboursement)
-            poolManager.take(d.key.currency0, d.recipient, uint256(uint128(delta0)));
+        if (net0 < 0) {
+            // Doit encore du native au PM (partial fill extrême, ne devrait pas arriver)
+            poolManager.settle{value: uint256(-net0)}();
+        } else if (net0 > 0) {
+            // PM doit du native (surplus de pré-financement ou usdcOut pour vente)
+            poolManager.take(d.key.currency0, d.recipient, uint256(net0));
         }
 
-        if (delta1 < 0) {
-            // Ne devrait pas arriver après le pré-financement, mais on gère
-            uint256 amt = uint256(uint128(-delta1));
+        if (net1 < 0) {
+            // Doit encore des meme au PM (ne devrait pas arriver après pré-financement)
+            uint256 amt = uint256(-net1);
             poolManager.sync(d.key.currency1);
             IERC20(Currency.unwrap(d.key.currency1)).safeTransferFrom(
                 d.payer, address(poolManager), amt
             );
             poolManager.settle();
-        } else if (delta1 > 0) {
-            poolManager.take(d.key.currency1, d.recipient, uint256(uint128(delta1)));
+        } else if (net1 > 0) {
+            // PM doit des meme (tokensOut pour achat, surplus meme pour vente partielle)
+            poolManager.take(d.key.currency1, d.recipient, uint256(net1));
         }
 
-        return abi.encode(delta0, delta1);
+        return abi.encode(delta.amount0(), delta.amount1());
     }
 }
