@@ -165,6 +165,9 @@ export async function POST(req: Request, { params }: RouteParams) {
                   const creator      = new PublicKey(body.walletAddress!);
                   const freshTxB     = new Tx({ recentBlockhash: blockhash, feePayer: creator });
                   for (const ix of cachedTxB.instructions) freshTxB.add(ix);
+                  // compileMessage() MUST be called before checking .signatures —
+                  // without it the array is always empty and partialSign is never called.
+                  freshTxB.compileMessage();
                   const mintStr = mintKeypair.publicKey.toBase58();
                   if (freshTxB.signatures.some((s: { publicKey: PublicKey }) => s.publicKey.toBase58() === mintStr)) {
                     freshTxB.partialSign(mintKeypair);
