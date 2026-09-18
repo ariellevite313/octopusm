@@ -84,10 +84,9 @@ const ERC20_BALANCE_ABI = parseAbi([
 ]);
 
 const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
-const RPC = "https://rpc.mainnet.arc.io";
-
+// Proxy /api/arc-rpc pour éviter les CORS depuis le navigateur
 function getPublicClient() {
-  return createPublicClient({ chain: arc, transport: http(RPC) });
+  return createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

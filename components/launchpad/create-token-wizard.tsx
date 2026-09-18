@@ -998,7 +998,7 @@ export function CreateTokenWizard({
     });
     const publicClient = createPublicClient({
       chain: arc,
-      transport: http("https://rpc.mainnet.arc.io"),
+      transport: http("/api/arc-rpc"),
     });
 
     // ── Uniswap V4 + BondingCurveHook (V4 exclusif) ─────────────────────────
