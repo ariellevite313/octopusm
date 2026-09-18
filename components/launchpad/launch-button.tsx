@@ -267,11 +267,16 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     let poolSig = "";
     try {
       poolSig = await signAndBroadcast(wallet, txCBase64, () => setPhase("sending-c"));
-    } catch {
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      console.error("[launch] TX C failed:", raw);
       setPhase("confirming");
       const found = await checkPoolAndFinish();
       if (!found) {
-        setError("Pool creation cancelled. Click Retry — your fee won't be charged again.");
+        const isCancel = /rejected|cancel|annul|refus|abort|denied/i.test(raw);
+        setError(isCancel
+          ? "Pool creation cancelled. Click Retry — your fee won't be charged again."
+          : `TX C failed: ${raw}`);
         setPhase("error");
       }
       return;
@@ -368,11 +373,16 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     let txBSig = "";
     try {
       txBSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
-    } catch {
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      console.error("[launch] TX B failed:", raw);
       setPhase("confirming");
       const found = await checkPoolAndFinish();
       if (!found) {
-        setError("Pool creation cancelled. Click Retry — your fee won't be charged again.");
+        const isCancel = /rejected|cancel|annul|refus|abort|denied/i.test(raw);
+        setError(isCancel
+          ? "Pool creation cancelled. Click Retry — your fee won't be charged again."
+          : `TX B failed: ${raw}`);
         setPhase("error");
       }
       return;
@@ -425,14 +435,16 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     let txBSig = "";
     try {
       txBSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
-    } catch {
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      console.error("[launch] TX B (Phantom) failed:", raw);
       setPhase("confirming");
       const found = await checkPoolAndFinish();
       if (!found) {
-        setError(
-          "Pool creation cancelled. Click Retry — your fee won't be charged again.\n" +
-          "In your wallet: scroll down and confirm the transaction."
-        );
+        const isCancel = /rejected|cancel|annul|refus|abort|denied/i.test(raw);
+        setError(isCancel
+          ? "Pool creation cancelled. Click Retry — your fee won't be charged again.\nIn your wallet: scroll down and confirm the transaction."
+          : `TX B failed: ${raw}`);
         setPhase("error");
       }
       return;

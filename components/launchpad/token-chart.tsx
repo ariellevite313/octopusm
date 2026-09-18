@@ -63,7 +63,8 @@ async function fetchArcBars(curveAddress: string, bucketSec: number, isV4 = fals
   const data = await res.json() as { trades?: ArcTrade[]; error?: string };
   if (data.error) throw new Error(data.error);
   const trades = data.trades ?? [];
-  if (!trades.length) throw new Error("No trades yet — be the first!");
+  // Return empty array if no trades yet — caller shows "nodata" state (not an error)
+  if (!trades.length) return [];
   return buildOHLCV(trades, bucketSec);
 }
 
@@ -396,6 +397,17 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
     };
   }
 
+  // ── fitContent once chart div becomes visible ─────────────────────────────
+  useEffect(() => {
+    if (status !== "ready" || !chartRef.current) return;
+    // The div transitions from display:none to display:block when status → "ready".
+    // Schedule fitContent one frame later so the browser has laid out the element.
+    const raf = requestAnimationFrame(() => {
+      chartRef.current?.timeScale().fitContent();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [status]);
+
   // ── GeckoTerminal theme ────────────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
@@ -624,8 +636,10 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         </div>
       )}
       {status === "nodata" && (
-        <div className="flex items-center justify-center" style={{ height: 380 }}>
-          <p className="text-sm text-muted-foreground">No price data yet.</p>
+        <div className="flex items-center justify-center flex-col gap-2" style={{ height: 380 }}>
+          <p className="text-sm text-muted-foreground">
+            {isArc ? "No trades yet — chart will appear after the first trade." : "No price data yet."}
+          </p>
         </div>
       )}
 
