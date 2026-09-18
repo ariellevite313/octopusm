@@ -103,8 +103,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   const [mmAddress, setMmAddress] = useState<string | null>(null);
 
   // Balances
-  const [quoteBalance, setQuoteBalance] = useState<bigint | null>(null);
-  const [tokenBalance, setTokenBalance] = useState<bigint | null>(null);
+  const [quoteBalance,    setQuoteBalance]    = useState<bigint | null>(null);
+  const [tokenBalance,    setTokenBalance]    = useState<bigint | null>(null);
+  const [balancesLoading, setBalancesLoading] = useState(false);
 
   // State on-chain
   const [graduated,     setGraduated]     = useState(false);
@@ -206,8 +207,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   }, [launchId, isV4, tokenAddress]);
 
   const loadBalances = useCallback(async () => {
-    const addr = await resolveActiveAddr();
+    // Prefer Supabase-auth address, fall back to MetaMask account directly.
+    // mmAddress is included in deps so this re-runs as soon as MetaMask connects.
+    const addr = (walletAddress ?? mmAddress) as `0x${string}` | null;
     if (!addr) { setQuoteBalance(null); setTokenBalance(null); return; }
+    setBalancesLoading(true);
     try {
       const client = getPublicClient();
 
@@ -224,8 +228,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       setQuoteBalance(quoteBal);
       setTokenBalance(tokBal);
     } catch { setQuoteBalance(null); setTokenBalance(null); }
+    finally { setBalancesLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletAddress, tokenAddress]);
+  }, [walletAddress, mmAddress, tokenAddress]);
 
   // Détecter MetaMask indépendamment de Supabase
   useEffect(() => {
@@ -631,8 +636,12 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           />
           <div className="flex items-center justify-between mt-1">
             <PayBadge />
-            <span className="text-[11px] text-muted-foreground/60">
-              {(walletAddress || mmAddress) ? `Balance: ${balFmt}` : "—"}
+            <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
+              {(walletAddress || mmAddress)
+                ? balancesLoading
+                  ? <><Loader2 className="size-3 animate-spin" />Loading…</>
+                  : `Balance: ${balFmt}`
+                : "—"}
             </span>
           </div>
         </div>
