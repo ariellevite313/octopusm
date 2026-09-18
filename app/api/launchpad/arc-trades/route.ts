@@ -92,9 +92,13 @@ async function fetchLogsFromArcScan(
   const json: BlockscoutResponse = await res.json();
 
   if (json.status !== "1") {
-    if (typeof json.result === "string" && json.result.toLowerCase().includes("no record")) return [];
-    if (json.message === "No records found") return [];
-    throw new Error(`ArcScan: ${json.message} — ${JSON.stringify(json.result)}`);
+    // Blockscout status "0" can mean "no records found" with various message texts
+    // (e.g. "No records found", "No transactions found", "No logs found", etc.)
+    // Treat all as empty — real HTTP errors are already handled above with !res.ok
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[arc-trades] ArcScan status 0:", json.message, json.result);
+    }
+    return [];
   }
 
   return Array.isArray(json.result) ? json.result : [];

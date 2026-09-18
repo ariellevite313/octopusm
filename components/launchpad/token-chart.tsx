@@ -58,14 +58,17 @@ function buildOHLCV(trades: ArcTrade[], bucketSec: number): Bar[] {
 
 async function fetchArcBars(curveAddress: string, bucketSec: number, isV4 = false): Promise<Bar[]> {
   const v4Param = isV4 ? "&isV4=1" : "";
-  const res = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=1000${v4Param}`);
-  if (!res.ok) throw new Error("Arc trades unavailable");
-  const data = await res.json() as { trades?: ArcTrade[]; error?: string };
-  if (data.error) throw new Error(data.error);
-  const trades = data.trades ?? [];
-  // Return empty array if no trades yet — caller shows "nodata" state (not an error)
-  if (!trades.length) return [];
-  return buildOHLCV(trades, bucketSec);
+  try {
+    const res = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=1000${v4Param}`);
+    if (!res.ok) return []; // API error → show "no trades yet" rather than an error state
+    const data = await res.json() as { trades?: ArcTrade[]; error?: string };
+    if (data.error) return []; // Soft error — same treatment
+    const trades = data.trades ?? [];
+    if (!trades.length) return [];
+    return buildOHLCV(trades, bucketSec);
+  } catch {
+    return []; // Network / parse error → graceful fallback
+  }
 }
 
 // ── DexScreener ───────────────────────────────────────────────────────────────
