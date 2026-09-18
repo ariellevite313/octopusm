@@ -88,7 +88,7 @@ export function ArcCreatorFees() {
   // 2. Read creatorFeesAccrued for each token (V4 or V1)
   useEffect(() => {
     if (tokens.length === 0) return;
-    const client = createPublicClient({ chain: arc, transport: http() });
+    const client = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
 
     tokens.forEach(async (token, idx) => {
       if (!token.arc_launch_id) return;
