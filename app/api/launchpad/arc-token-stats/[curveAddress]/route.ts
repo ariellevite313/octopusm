@@ -76,7 +76,7 @@ export async function GET(req: Request, { params }: RouteParams) {
   }
 
   try {
-    const client = createPublicClient({ chain: arc, transport: http() });
+    const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
 
     // ── V4 ────────────────────────────────────────────────────────────────────
     if (isV4) {
