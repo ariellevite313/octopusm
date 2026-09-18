@@ -291,7 +291,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         const { createChart, ColorType } = lw;
 
         const chart = createChart(wrapperRef.current, {
-          width:  wrapperRef.current.clientWidth,
+          autoSize: true,
           height: 380,
           layout: {
             background: { type: ColorType.Solid, color: getChartTheme(isDark).background },
@@ -310,12 +310,6 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         chartRef.current = chart;
         await buildSeries(lw, bars, "candle");
         setStatus("ready");
-
-        const ro = new ResizeObserver(() => {
-          if (wrapperRef.current) chart.applyOptions({ width: wrapperRef.current.clientWidth });
-        });
-        ro.observe(wrapperRef.current);
-        roRef.current = ro;
       } catch (e) {
         if (!cancelled) {
           setErrorMsg(e instanceof Error ? e.message : "Chart unavailable");
@@ -351,7 +345,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
         const { createChart, ColorType } = lw;
         const chart = createChart(wrapperRef.current, {
-          width:  wrapperRef.current.clientWidth,
+          autoSize: true,
           height: 380,
           layout: {
             background: { type: ColorType.Solid, color: getChartTheme(isDark).background },
@@ -370,12 +364,6 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         chartRef.current = chart;
         await buildSeries(lw, bars, "candle");
         setStatus("ready");
-
-        const ro = new ResizeObserver(() => {
-          if (wrapperRef.current) chart.applyOptions({ width: wrapperRef.current.clientWidth });
-        });
-        ro.observe(wrapperRef.current);
-        roRef.current = ro;
 
         // Auto-refresh every 2min (ArcScan rate limit)
         liveTimer.current = setInterval(async () => {
@@ -641,7 +629,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         </div>
       )}
 
-      <div ref={wrapperRef} style={{ display: status === "ready" ? "block" : "none" }} />
+      <div ref={wrapperRef} style={{ display: status === "ready" ? "block" : "none", width: "100%" }} />
 
       {status === "ready" && (
         <TfBar

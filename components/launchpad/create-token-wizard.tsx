@@ -894,6 +894,16 @@ export function CreateTokenWizard({
 
   async function submitSolana() {
     if (!walletAddress) { toast.error("Connect your wallet first"); return; }
+    // Guard : MetaMask est un wallet EVM — ne peut pas signer de TX Solana
+    if (walletType === "metamask") {
+      toast.error("MetaMask ne supporte pas Solana. Connecte Phantom, Solflare ou Backpack pour créer un token Solana.");
+      return;
+    }
+    // Guard : l'adresse doit ressembler à une clé publique Solana (base58, pas 0x)
+    if (walletAddress.startsWith("0x") || walletAddress.length < 32 || walletAddress.length > 44) {
+      toast.error("L'adresse connectée n'est pas une adresse Solana valide. Reconnecte un wallet Solana.");
+      return;
+    }
     const form = new FormData();
     if (data.logo_file) form.append("logo", data.logo_file);
     if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);

@@ -148,7 +148,9 @@ export async function buildStockPairedTransactions(
 
   const connection     = getConnection();
   const platformWallet = getPlatformWallet();
-  const creator        = new PublicKey(params.creatorWallet);
+  let creator: PublicKey;
+  try { creator = new PublicKey(params.creatorWallet); }
+  catch { throw new Error(`Creator wallet "${params.creatorWallet}" is not a valid Solana address. Connect Phantom, Solflare or Backpack.`); }
   const quoteMint      = new PublicKey(xStockMintStr);
 
   // Use caller-provided keypair (retry) or generate a fresh one (first build)
@@ -411,7 +413,9 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
   const connection     = getConnection();
   const platformWallet = getPlatformWallet();
   const configKey      = getSolConfigKey();
-  const creator        = new PublicKey(params.creatorWallet);
+  let creator: PublicKey;
+  try { creator = new PublicKey(params.creatorWallet); }
+  catch { throw new Error(`Creator wallet "${params.creatorWallet}" is not a valid Solana address. Connect Phantom, Solflare or Backpack.`); }
   const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
 
   const client = new DynamicBondingCurveClient(connection, "confirmed");
