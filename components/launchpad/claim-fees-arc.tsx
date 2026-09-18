@@ -123,7 +123,7 @@ export function ClaimFeesArc({ curveAddress, tokenAddress, creatorWallet }: Prop
   const fetchFees = useCallback(async () => {
     setLoading(true);
     try {
-      const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
+      const client = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
 
       if (isV4) {
         // ── Uniswap V4 hook singleton ─────────────────────────────────────────

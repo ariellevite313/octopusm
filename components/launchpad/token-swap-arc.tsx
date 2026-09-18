@@ -160,11 +160,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     } catch { return null; }
   }
 
-  /** Client lecture seule : HTTP public, pas besoin de MetaMask. */
+  /** Client lecture seule — passe par le proxy /api/arc-rpc pour éviter les CORS. */
   function getPublicClient() {
     return createPublicClient({
       chain: arc,
-      transport: http("https://rpc.mainnet.arc.io"),
+      transport: http("/api/arc-rpc"),
     });
   }
 
