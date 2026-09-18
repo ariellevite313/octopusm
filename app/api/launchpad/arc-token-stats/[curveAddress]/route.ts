@@ -48,7 +48,8 @@ async function fetchUniqueTraders(address: string, topic0: string, topic1?: stri
     });
     if (!res.ok) return null;
     const json = await res.json() as { status: string; result: unknown[] | string };
-    if (!Array.isArray(json.result)) return null;
+    // ArcScan status "0" means no records (result is a string like "No transactions found")
+    if (!Array.isArray(json.result)) return 0;
 
     // V1: topics[1] = trader (first indexed). V4: topics[2] = trader (second indexed, after poolId).
     const topicIndex = topic1 ? 2 : 1;
