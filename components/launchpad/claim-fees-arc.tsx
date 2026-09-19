@@ -77,10 +77,16 @@ type Props = {
   creatorWallet: string;
 };
 
-const USDC_DECIMALS = 6;
-
-function fmtUsdc(raw: bigint): string {
-  const n = Number(raw) / 10 ** USDC_DECIMALS;
+// V1 = USDC ERC-20 à 6 décimales, V4 = USDC natif Arc à 18 décimales EVM
+function fmtUsdc(raw: bigint, isV4token: boolean): string {
+  let n: number;
+  if (isV4token) {
+    // Évite Number() sur de grands bigints : diviser d'abord en bigint
+    const whole = raw / BigInt(1e12); // → 6 décimales restantes
+    n = Number(whole) / 1e6;
+  } else {
+    n = Number(raw) / 1e6; // 6 décimales ERC-20
+  }
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
@@ -307,7 +313,7 @@ export function ClaimFeesArc({ curveAddress, tokenAddress, creatorWallet }: Prop
         ) : accrued !== null && accrued > 0n ? (
           <>
             <span className="text-2xl font-bold text-foreground tabular-nums">
-              {fmtUsdc(accrued)}
+              {fmtUsdc(accrued, isV4)}
             </span>
             <span className="text-sm text-muted-foreground">USDC available</span>
           </>
