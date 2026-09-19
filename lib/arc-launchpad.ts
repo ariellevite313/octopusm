@@ -15,9 +15,10 @@ export const ARC_POOL_MANAGER_ADDRESS = "0x8366a39CC670B4001A1121B8F6A443A643e40
  * Adresses V4 — à remplir après `forge script DeployV4.s.sol --broadcast`
  * Le déploiement V4 produit : BondingCurveHook, LaunchpadFactoryV4, BondingCurveRouter
  */
-export const ARC_HOOK_ADDRESS       = "0xa8eba033F2ed31B79CF5c8c82b72Db6E2D818088" as `0x${string}`;
-export const ARC_ROUTER_ADDRESS     = "0x6cF7Ec4114aB8924B4f988100d5B5b830948443f" as `0x${string}`;
-export const ARC_FACTORY_V4_ADDRESS = "0x51894e8B17B53c8C98a4098F78f4d228e7b7907F" as `0x${string}`;
+export const ARC_HOOK_ADDRESS        = "0xa8eba033F2ed31B79CF5c8c82b72Db6E2D818088" as `0x${string}`;
+export const ARC_HOOK_ADDRESS_LEGACY = "0x88B136529931Aa0dDB9AE626AbE63921932fcC088" as `0x${string}`; // déploiement précédent — VIRTUAL_USDC=3200
+export const ARC_ROUTER_ADDRESS      = "0x6cF7Ec4114aB8924B4f988100d5B5b830948443f" as `0x${string}`;
+export const ARC_FACTORY_V4_ADDRESS  = "0x51894e8B17B53c8C98a4098F78f4d228e7b7907F" as `0x${string}`;
 
 // ─── V4 PoolKey / PoolId helpers ─────────────────────────────────────────────
 
@@ -28,30 +29,40 @@ export const V4_TICK_SPACING     = 60;
  * Constantes de la bonding curve (doivent correspondre à BondingCurveHook.sol)
  * K = VIRTUAL_USDC × CURVE_SUPPLY (bigint)
  */
-export const BC_VIRTUAL_USDC    = 3_200n * 10n ** 18n;          // 3 200 USDC (18 dec natif Arc)
-export const BC_CURVE_SUPPLY    = 800_000_000n * 10n ** 18n;    // 800 M tokens (18 dec)
-export const BC_GRAD_THRESHOLD  = 4_800n * 10n ** 18n;          // 4 800 USDC (18 dec natif Arc)
-export const BC_FEE_BPS         = 200n;
-export const BC_K               = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
+export const BC_VIRTUAL_USDC        = 1_920n * 10n ** 18n;          // 1 920 USDC — mcap initial = 2 400 USDC (nouveau déploiement)
+export const BC_VIRTUAL_USDC_LEGACY = 3_200n * 10n ** 18n;          // 3 200 USDC — mcap initial = 4 000 USDC (ancien déploiement)
+export const BC_CURVE_SUPPLY        = 800_000_000n * 10n ** 18n;    // 800 M tokens (18 dec)
+export const BC_GRAD_THRESHOLD      = 4_800n * 10n ** 18n;          // 4 800 USDC (18 dec natif Arc)
+export const BC_FEE_BPS             = 200n;
+export const BC_K                   = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
+export const BC_K_LEGACY            = BC_VIRTUAL_USDC_LEGACY * BC_CURVE_SUPPLY;
 
 /**
  * Calcule le PoolKey d'un token V4 (currency0 < currency1 en adresse).
+ * @param hookAddress  Adresse du hook — par défaut le hook courant.
+ *                     Passer ARC_HOOK_ADDRESS_LEGACY pour les vieux tokens.
  */
-export function getArcV4PoolKey(memeToken: `0x${string}`) {
+export function getArcV4PoolKey(
+  memeToken: `0x${string}`,
+  hookAddress: `0x${string}` = ARC_HOOK_ADDRESS,
+) {
   const usdc = ARC_USDC_ADDRESS.toLowerCase();
   const meme = memeToken.toLowerCase();
   const [c0, c1] = meme < usdc
     ? [meme as `0x${string}`, usdc as `0x${string}`]
     : [usdc as `0x${string}`, meme as `0x${string}`];
-  return { currency0: c0, currency1: c1, fee: V4_POOL_FEE, tickSpacing: V4_TICK_SPACING, hooks: ARC_HOOK_ADDRESS };
+  return { currency0: c0, currency1: c1, fee: V4_POOL_FEE, tickSpacing: V4_TICK_SPACING, hooks: hookAddress };
 }
 
 /**
  * Calcule le PoolId (keccak256 de l'ABI-encoding du PoolKey).
  * Correspond à `key.toId()` en Solidity.
  */
-export function getArcV4PoolId(memeToken: `0x${string}`): `0x${string}` {
-  const key = getArcV4PoolKey(memeToken);
+export function getArcV4PoolId(
+  memeToken: `0x${string}`,
+  hookAddress: `0x${string}` = ARC_HOOK_ADDRESS,
+): `0x${string}` {
+  const key = getArcV4PoolKey(memeToken, hookAddress);
   return keccak256(encodeAbiParameters(
     [
       { type: "address" }, // currency0
@@ -77,26 +88,35 @@ export function isArcV4Token(launchId: string, tokenAddress: string): boolean {
 
 /**
  * Quote client-side pour un buy V4 (reproduit _quoteBuy du hook)
- * @param reserveUsdc  réserve USDC actuelle (bigint, 6 dec)
- * @param reserveTokens réserve tokens actuelle (bigint, 18 dec)
- * @param usdcGross    USDC bruts envoyés (bigint, 6 dec)
+ * @param K  Constante de la courbe — BC_K (nouveau) ou BC_K_LEGACY (ancien déploiement)
  */
-export function quoteBuyV4(reserveUsdc: bigint, reserveTokens: bigint, usdcGross: bigint) {
+export function quoteBuyV4(
+  reserveUsdc: bigint,
+  reserveTokens: bigint,
+  usdcGross: bigint,
+  K: bigint = BC_K,
+) {
   const fee      = usdcGross * BC_FEE_BPS / 10000n;
   const usdcNet  = usdcGross - fee;
   const newResU  = reserveUsdc + usdcNet;
-  // ceil division pour newReserveTokens (k / newResU, arrondi vers le haut)
-  const newResT  = (BC_K + newResU - 1n) / newResU;
+  // ceil division pour newReserveTokens
+  const newResT  = (K + newResU - 1n) / newResU;
   const tokensOut = reserveTokens > newResT ? reserveTokens - newResT : 0n;
   return { tokensOut, fee };
 }
 
 /**
  * Quote client-side pour un sell V4 (reproduit _quoteSell du hook)
+ * @param K  Constante de la courbe — BC_K (nouveau) ou BC_K_LEGACY (ancien déploiement)
  */
-export function quoteSellV4(reserveUsdc: bigint, reserveTokens: bigint, tokensIn: bigint) {
+export function quoteSellV4(
+  reserveUsdc: bigint,
+  reserveTokens: bigint,
+  tokensIn: bigint,
+  K: bigint = BC_K,
+) {
   const newResT  = reserveTokens + tokensIn;
-  const newResU  = BC_K / newResT; // floor
+  const newResU  = K / newResT; // floor
   const usdcGross = reserveUsdc > newResU ? reserveUsdc - newResU : 0n;
   const fee      = usdcGross * BC_FEE_BPS / 10000n;
   const usdcOut  = usdcGross - fee;

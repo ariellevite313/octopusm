@@ -29,6 +29,7 @@ import {
   BONDING_CURVE_ABI,
   BONDING_CURVE_HOOK_ABI,
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   getArcV4PoolKey,
   getArcV4PoolId,
 } from "@/lib/arc-launchpad";
@@ -96,13 +97,15 @@ export function ClaimFeesArc({ curveAddress, tokenAddress, creatorWallet }: Prop
   // V4 si arc_launch_id === token_address (token est son propre launch ID)
   const isV4 = !!(tokenAddress && curveAddress.toLowerCase() === tokenAddress.toLowerCase());
 
-  const [graduated,    setGraduated]    = useState<boolean | null>(null);
-  const [vaultAddress, setVaultAddress] = useState<string | null>(null);
-  const [accrued,      setAccrued]      = useState<bigint | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [claiming,     setClaiming]     = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
-  const [txHash,       setTxHash]       = useState<string | null>(null);
+  const [graduated,            setGraduated]           = useState<boolean | null>(null);
+  const [vaultAddress,         setVaultAddress]         = useState<string | null>(null);
+  const [accrued,              setAccrued]              = useState<bigint | null>(null);
+  const [loading,              setLoading]              = useState(true);
+  const [claiming,             setClaiming]             = useState(false);
+  const [error,                setError]                = useState<string | null>(null);
+  const [txHash,               setTxHash]               = useState<string | null>(null);
+  // Hook actif pour ce token (peut être le legacy si créé avant le dernier redéploiement)
+  const [effectiveHookAddress, setEffectiveHookAddress] = useState<`0x${string}`>(ARC_HOOK_ADDRESS);
   // evmAddress: adresse MetaMask réelle (peut différer de walletAddress Solana)
   const [evmAddress,   setEvmAddress]   = useState<string | null>(null);
 
@@ -132,18 +135,25 @@ export function ClaimFeesArc({ curveAddress, tokenAddress, creatorWallet }: Prop
       const client = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
 
       if (isV4) {
-        // ── Uniswap V4 hook singleton ─────────────────────────────────────────
-        if (!ARC_HOOK_ADDRESS) { setAccrued(0n); return; }
-        const poolId = getArcV4PoolId(tokenAddress as `0x${string}`);
-        const state = await client.readContract({
-          address: ARC_HOOK_ADDRESS,
-          abi:     BONDING_CURVE_HOOK_ABI,
-          functionName: "getCurveState",
-          args:    [poolId],
-        }) as { creatorFeesAccrued: bigint; graduated: boolean };
+        // ── Uniswap V4 hook singleton (avec fallback legacy) ──────────────────
+        type StateResult = { creatorFeesAccrued: bigint; graduated: boolean; initialized: boolean };
+        async function readHook(addr: `0x${string}`): Promise<StateResult> {
+          const poolId = getArcV4PoolId(tokenAddress as `0x${string}`, addr);
+          return await client.readContract({
+            address: addr, abi: BONDING_CURVE_HOOK_ABI,
+            functionName: "getCurveState", args: [poolId],
+          }) as StateResult;
+        }
+        let state = await readHook(ARC_HOOK_ADDRESS);
+        let activeHook: `0x${string}` = ARC_HOOK_ADDRESS;
+        if (!state.initialized) {
+          const legacy = await readHook(ARC_HOOK_ADDRESS_LEGACY).catch(() => null);
+          if (legacy?.initialized) { state = legacy; activeHook = ARC_HOOK_ADDRESS_LEGACY; }
+        }
+        setEffectiveHookAddress(activeHook);
         setGraduated(state.graduated);
         setAccrued(state.creatorFeesAccrued);
-        setVaultAddress(null); // V4 : pas de vault séparé
+        setVaultAddress(null);
         return;
       }
 
@@ -214,10 +224,9 @@ export function ClaimFeesArc({ curveAddress, tokenAddress, creatorWallet }: Prop
 
       if (isV4) {
         // ── V4 : hook.claimFees(poolKey, to) ──────────────────────────────────
-        if (!ARC_HOOK_ADDRESS) throw new Error("V4 hook not yet deployed");
-        const poolKey = getArcV4PoolKey(tokenAddress as `0x${string}`);
+        const poolKey = getArcV4PoolKey(tokenAddress as `0x${string}`, effectiveHookAddress);
         hash = await walletClient.writeContract({
-          address:      ARC_HOOK_ADDRESS,
+          address:      effectiveHookAddress,
           abi:          BONDING_CURVE_HOOK_ABI,
           functionName: "claimFees",
           args:         [poolKey, account],
