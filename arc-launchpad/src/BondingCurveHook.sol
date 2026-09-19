@@ -352,7 +352,7 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
 
     // ─── Graduation ────────────────────────────────────────────────────────
 
-    function _graduate(PoolKey calldata key, CurveState storage s, PoolId id) internal {
+    function _graduate(PoolKey calldata /* key */, CurveState storage s, PoolId id) internal {
         require(!s.graduated, "BondingCurveHook: already graduated");
         s.graduated = true;
         emit Graduated(id, s.realUsdcRaised, LP_RESERVE);
