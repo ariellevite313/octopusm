@@ -15,6 +15,7 @@ import {
   BONDING_CURVE_ABI,
   BONDING_CURVE_HOOK_ABI,
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   getArcV4PoolId,
 } from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -53,28 +54,29 @@ async function getReservesV4(
   client: ReturnType<typeof createPublicClient>,
   tokenAddress: `0x${string}`,
 ): Promise<{ priceUsd: number; marketCap: number } | null> {
-  if (!ARC_HOOK_ADDRESS) return null;
-  try {
-    const poolId = getArcV4PoolId(tokenAddress);
-    const state  = await client.readContract({
-      address:      ARC_HOOK_ADDRESS,
-      abi:          BONDING_CURVE_HOOK_ABI,
-      functionName: "getCurveState",
-      args:         [poolId],
-    }) as { reserveUsdc: bigint; reserveTokens: bigint };
+  // Essaie le hook courant, puis le legacy (tokens créés avant le dernier redéploiement)
+  for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY]) {
+    try {
+      const poolId = getArcV4PoolId(tokenAddress, hookAddr);
+      const state  = await client.readContract({
+        address:      hookAddr,
+        abi:          BONDING_CURVE_HOOK_ABI,
+        functionName: "getCurveState",
+        args:         [poolId],
+      }) as { reserveUsdc: bigint; reserveTokens: bigint; initialized: boolean };
 
-    const tok = state.reserveTokens;
-    const usd = state.reserveUsdc;
-    if (tok === 0n) return null;
-    // USDC natif Arc = 18 decimals EVM
-    const reserveUsdc   = Number(usd) / 1e18;
-    const reserveTokens = Number(tok) / 1e18;
-    const priceUsd  = reserveUsdc / reserveTokens;
-    const marketCap = priceUsd * TOTAL_SUPPLY;
-    return { priceUsd, marketCap };
-  } catch {
-    return null;
+      if (!state.initialized) continue;
+      const tok = state.reserveTokens;
+      const usd = state.reserveUsdc;
+      if (tok === 0n) continue;
+      const reserveUsdc   = Number(usd) / 1e18;
+      const reserveTokens = Number(tok) / 1e18;
+      const priceUsd  = reserveUsdc / reserveTokens;
+      const marketCap = priceUsd * TOTAL_SUPPLY;
+      return { priceUsd, marketCap };
+    } catch { continue; }
   }
+  return null;
 }
 
 async function getVolume24h(

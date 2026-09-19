@@ -469,7 +469,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       });
       const hash = await eth.request({
         method: "eth_sendTransaction",
-        params: [{ from: gradAddr, to: ARC_HOOK_ADDRESS, data }],
+        params: [{ from: gradAddr, to: effectiveHookAddress, data }],
       }) as string;
       setGraduateTxHash(hash);
       await waitReceipt(hash);
@@ -529,7 +529,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   // Market cap calculé depuis la formule AMM constant-product :
   // mcap = (VIRTUAL_USDC + realRaised)² × totalSupply / (VIRTUAL_USDC × curveSupply)
   // Tout en 18 dec (natif Arc). Résultat divisé par 1e18 → USD.
-  const VIRTUAL_USDC_N  = BC_VIRTUAL_USDC;            // 3_200n * 1e18
+  // Utilise la constante correspondant au hook actif (nouveau = 1920, legacy = 3200)
+  const VIRTUAL_USDC_N  = effectiveK === BC_K ? BC_VIRTUAL_USDC : BC_VIRTUAL_USDC_LEGACY;
   const CURVE_SUPPLY_N  = BC_CURVE_SUPPLY;             // 800_000_000n * 1e18
   const TOTAL_SUPPLY_N  = 1_000_000_000n * 10n ** 18n; // 1 B tokens 18 dec
   const reserveUsdc     = VIRTUAL_USDC_N + realRaised;

@@ -16,6 +16,7 @@ import { decodeAbiParameters, parseAbiParameters } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   TRADE_EVENT_TOPIC_V4,
   getArcV4PoolId,
 } from "@/lib/arc-launchpad";
@@ -152,25 +153,27 @@ export async function GET(req: Request) {
     }
 
     // ── V4 : Trade events sur le hook singleton, filtrés par poolId ──────────
+    // Cherche d'abord dans le hook courant, puis dans le legacy (tokens anciens)
     if (isV4) {
-      if (!ARC_HOOK_ADDRESS) {
-        return NextResponse.json({ trades: [], _debug: { reason: "V4 hook not deployed yet" } });
-      }
+      const newPoolId    = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS);
+      const legacyPoolId = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS_LEGACY);
 
-      // Calculer le poolId pour ce token
-      const poolId = getArcV4PoolId(curveAddress as `0x${string}`);
-      // ArcScan topic1 doit être zero-padded à 32 bytes (64 hex chars + 0x)
-      const topic1Padded = poolId; // keccak256 returns 0x + 64 hex chars déjà
+      // Détermine quel hook a les trades : essaie le nouveau en premier
+      const poolId    = newPoolId;    // on merge les logs des deux hooks ci-dessous
+      const topic1Padded = poolId;
 
       let logs: BlockscoutLog[] = [];
       try {
-        logs = await fetchLogsFromArcScan(
-          ARC_HOOK_ADDRESS,
-          creationBlock,
-          "latest",
-          TRADE_EVENT_TOPIC_V4,
-          topic1Padded,
-        );
+        // Récupère les logs des deux hooks, fusionne et dédoublonne par txHash
+        const [logsNew, logsLegacy] = await Promise.all([
+          fetchLogsFromArcScan(ARC_HOOK_ADDRESS, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, newPoolId).catch(() => []),
+          fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, legacyPoolId).catch(() => []),
+        ]);
+        const seen = new Set<string>();
+        logs = [...logsNew, ...logsLegacy].filter(l => {
+          if (seen.has(l.transactionHash)) return false;
+          seen.add(l.transactionHash); return true;
+        });
       } catch (err) {
         if (debug) return NextResponse.json({ trades: [], _debug: { arcScanError: String(err), ...debugInfo } });
         throw err;
