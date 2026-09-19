@@ -135,7 +135,7 @@ contract LaunchpadFactoryV4 {
         string  calldata imageUri,
         address feeDistributor,
         uint256 creatorKeepBps
-    ) external returns (address tokenAddr) {
+    ) external payable returns (address tokenAddr) {
         require(creatorKeepBps <= 10_000, "LaunchpadFactory: invalid creatorKeepBps");
         if (creatorKeepBps < 10_000) {
             require(feeDistributor != address(0), "LaunchpadFactory: need distributor");
