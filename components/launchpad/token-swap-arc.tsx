@@ -14,6 +14,7 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   ARC_USDC_ADDRESS,
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   ARC_ROUTER_ADDRESS,
   ARC_POOL_MANAGER_ADDRESS,
   BONDING_CURVE_HOOK_ABI,
@@ -21,7 +22,10 @@ import {
   ERC20_APPROVE_ABI,
   BC_GRAD_THRESHOLD,
   BC_VIRTUAL_USDC,
+  BC_VIRTUAL_USDC_LEGACY,
   BC_CURVE_SUPPLY,
+  BC_K,
+  BC_K_LEGACY,
   getArcV4PoolKey,
   getArcV4PoolId,
   quoteBuyV4,
@@ -123,6 +127,10 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   const [v4ReserveUsdc,   setV4ReserveUsdc]   = useState<bigint>(BC_VIRTUAL_USDC);
   const [v4ReserveTokens, setV4ReserveTokens] = useState<bigint>(BC_CURVE_SUPPLY);
 
+  // Hook actif : peut être le legacy si le token a été créé avant le dernier redéploiement
+  const [effectiveHookAddress, setEffectiveHookAddress] = useState<`0x${string}`>(ARC_HOOK_ADDRESS);
+  const [effectiveK,           setEffectiveK]           = useState<bigint>(BC_K);
+
   // Quote
   const [estimatedOut, setEstimatedOut] = useState<bigint | null>(null);
 
@@ -177,27 +185,49 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       const client = getPublicClient();
 
       if (isV4) {
-        // ── Uniswap V4 hook (singleton) ───────────────────────────────────────
-        if (!ARC_HOOK_ADDRESS) return; // hook not yet deployed
-        const poolId = getArcV4PoolId(tokenAddress as `0x${string}`);
-        const state = await client.readContract({
-          address: ARC_HOOK_ADDRESS,
-          abi: BONDING_CURVE_HOOK_ABI,
-          functionName: "getCurveState",
-          args: [poolId],
-        }) as {
-          reserveUsdc:        bigint;
-          reserveTokens:      bigint;
-          realUsdcRaised:     bigint;
-          graduated:          boolean;
-          lpAdded:            boolean;
+        // ── Uniswap V4 hook (singleton) ─────────────────────────────────────
+        // Essaie le hook courant, puis le legacy si non-initialisé
+        type CurveStateResult = {
+          reserveUsdc:    bigint;
+          reserveTokens:  bigint;
+          realUsdcRaised: bigint;
+          graduated:      boolean;
+          lpAdded:        boolean;
+          initialized:    boolean;
         };
+
+        async function readHookState(hookAddr: `0x${string}`): Promise<CurveStateResult> {
+          const poolId = getArcV4PoolId(tokenAddress as `0x${string}`, hookAddr);
+          return await client.readContract({
+            address: hookAddr,
+            abi: BONDING_CURVE_HOOK_ABI,
+            functionName: "getCurveState",
+            args: [poolId],
+          }) as CurveStateResult;
+        }
+
+        let state = await readHookState(ARC_HOOK_ADDRESS);
+        let activeHook: `0x${string}` = ARC_HOOK_ADDRESS;
+        let activeK: bigint = BC_K;
+
+        // Fallback vers le legacy hook si le token n'est pas dans le nouveau hook
+        if (!state.initialized) {
+          const legacy = await readHookState(ARC_HOOK_ADDRESS_LEGACY).catch(() => null);
+          if (legacy?.initialized) {
+            state      = legacy;
+            activeHook = ARC_HOOK_ADDRESS_LEGACY;
+            activeK    = BC_K_LEGACY;
+          }
+        }
+
+        setEffectiveHookAddress(activeHook);
+        setEffectiveK(activeK);
         setGraduated(state.graduated);
         setLpAdded(state.lpAdded);
         setRealRaised(state.realUsdcRaised);
         setGradThreshold(BC_GRAD_THRESHOLD);
-        setV4ReserveUsdc(state.reserveUsdc);
-        setV4ReserveTokens(state.reserveTokens);
+        setV4ReserveUsdc(state.reserveUsdc || (activeK === BC_K_LEGACY ? BC_VIRTUAL_USDC_LEGACY : BC_VIRTUAL_USDC));
+        setV4ReserveTokens(state.reserveTokens || BC_CURVE_SUPPLY);
         const bps = state.graduated
           ? 10000n
           : (state.realUsdcRaised * 10000n / BC_GRAD_THRESHOLD);
@@ -262,16 +292,16 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       if (direction === "buy") {
         // USDC natif 18 decimals
         const usdcGross = BigInt(Math.round(parsed * 1e18));
-        const { tokensOut } = quoteBuyV4(v4ReserveUsdc, v4ReserveTokens, usdcGross);
+        const { tokensOut } = quoteBuyV4(v4ReserveUsdc, v4ReserveTokens, usdcGross, effectiveK);
         setEstimatedOut(tokensOut > 0n ? tokensOut : null);
       } else {
         const tokensIn = parseDecimalToBigInt(amount, 18);
-        const { usdcOut } = quoteSellV4(v4ReserveUsdc, v4ReserveTokens, tokensIn);
+        const { usdcOut } = quoteSellV4(v4ReserveUsdc, v4ReserveTokens, tokensIn, effectiveK);
         setEstimatedOut(usdcOut > 0n ? usdcOut : null);
       }
     } catch { setEstimatedOut(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, direction, launchId, v4ReserveUsdc, v4ReserveTokens]);
+  }, [amount, direction, launchId, v4ReserveUsdc, v4ReserveTokens, effectiveK]);
 
   // ── Ensure Arc Mainnet ───────────────────────────────────────────────────
 
@@ -332,7 +362,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         if (!ARC_ROUTER_ADDRESS) throw new Error("Contrats V4 pas encore déployés");
 
         const slipMul   = BigInt(Math.round((100 - slippagePct) * 10));
-        const poolKey   = getArcV4PoolKey(tokenAddress as `0x${string}`);
+        const poolKey   = getArcV4PoolKey(tokenAddress as `0x${string}`, effectiveHookAddress);
         const usdcAddr  = ARC_USDC_ADDRESS as `0x${string}`;
         const memeAddr  = tokenAddress as `0x${string}`;
         // zeroForOne : true si currency0→currency1
@@ -431,7 +461,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     try {
       const eth = getEth();
       await ensureArcChain(eth);
-      const poolKey = getArcV4PoolKey(tokenAddress as `0x${string}`);
+      const poolKey = getArcV4PoolKey(tokenAddress as `0x${string}`, effectiveHookAddress);
       const data = encodeFunctionData({
         abi: BONDING_CURVE_HOOK_ABI,
         functionName: "addGraduationLiquidity",
