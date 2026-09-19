@@ -28,7 +28,7 @@ interface IFeeDistributor {
  * Toutes les réserves USDC sont en 18 décimales (EVM natif).
  *
  * ─── Constantes (18 dec USDC natif) ───────────────────────────────────────
- *   VIRTUAL_USDC  = 3 200 USDC  → 3_200 * 1e18
+ *   VIRTUAL_USDC  = 1 920 USDC  → 1_920 * 1e18  (mcap initial = 2 400 USDC)
  *   GRAD_THRESHOLD= 4 800 USDC  → 4_800 * 1e18
  *   K             = VIRTUAL_USDC * CURVE_SUPPLY  (valide dans uint256)
  */
@@ -39,11 +39,13 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
 
     // ─── Constantes ────────────────────────────────────────────────────────
 
-    uint256 public constant VIRTUAL_USDC    = 3_200 * 1e18;            // 18 dec natif
+    uint256 public constant VIRTUAL_USDC    = 1_920 * 1e18;            // 18 dec natif — mcap initial = 2 400 USDC
     uint256 public constant CURVE_SUPPLY    = 800_000_000 * 1e18;      // 18 dec
     uint256 public constant LP_RESERVE      = 200_000_000 * 1e18;      // 18 dec
     uint256 public constant GRAD_THRESHOLD  = 4_800 * 1e18;            // 18 dec natif
     uint256 public constant K               = VIRTUAL_USDC * CURVE_SUPPLY;
+    /// @dev Tokens approuvés à la factory pour le seed V2 façade (doit correspondre à LaunchpadFactoryV4.V2_SEED_TOKENS)
+    uint256 public constant V2_SEED_TOKENS  = 4_167 * 1e18;            // ≈ 4167 tokens au prix de lancement
     uint256 public constant FEE_BPS         = 200;
     uint256 public constant BPS             = 10_000;
     uint256 public constant MAX_FIRST_BUY   = GRAD_THRESHOLD / 10;     // 480 USDC natif
@@ -176,6 +178,10 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
         s.reserveUsdc       = VIRTUAL_USDC; // 18 dec
         s.reserveTokens     = CURVE_SUPPLY; // 18 dec
         s.initialized       = true;
+
+        // Approuver la factory (msg.sender) pour le seed V2 façade
+        // Le hook détient tous les tokens — la factory va en pull V2_SEED_TOKENS via transferFrom
+        IERC20(memeToken).approve(msg.sender, V2_SEED_TOKENS);
 
         emit CurveInitialized(id, memeToken, creator);
     }

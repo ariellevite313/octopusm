@@ -34,6 +34,10 @@ contract DeployV4 is Script {
     address constant ARC_V4_POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
     address constant ARC_PERMIT2             = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
+    // Uniswap V2 sur Arc Mainnet (façade pour indexation GMGN/DexScreener)
+    address constant ARC_V2_FACTORY          = 0xB56B00C38EF85633A789644415A16b4C8ea12EF8;
+    address constant ARC_V2_ROUTER           = 0x54599C3e0bcb99ca37b286242b5eC5D331AB9D18;
+
     address V4_POOL_MANAGER; // lu depuis l'env (fallback) ou ARC_V4_POOL_MANAGER ci-dessus
 
     function run() external {
@@ -70,12 +74,14 @@ contract DeployV4 is Script {
         require(address(hook) == hookAddr, "Hook address mismatch");
         console.log("BondingCurveHook deployed at:", address(hook));
 
-        // 3. Déployer la factory
+        // 3. Déployer la factory (avec V2 façade)
         LaunchpadFactoryV4 factory = new LaunchpadFactoryV4(
             USDC_ARC_MAINNET,
             V4_POOL_MANAGER,
             address(hook),
-            treasury
+            treasury,
+            ARC_V2_FACTORY,
+            ARC_V2_ROUTER
         );
         console.log("LaunchpadFactoryV4 deployed at:", address(factory));
 
