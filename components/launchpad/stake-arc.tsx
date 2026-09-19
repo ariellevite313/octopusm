@@ -25,6 +25,7 @@ import { Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import {
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   BONDING_CURVE_HOOK_ABI,
   FEE_DISTRIBUTOR_ABI,
   ERC20_APPROVE_ABI,
@@ -112,29 +113,26 @@ export function StakeArc({ tokenAddress, ticker, logoUrl }: Props) {
   const [txHash,   setTxHash]   = useState<string | null>(null);
   const [error,    setError]    = useState<string | null>(null);
 
-  // ── 1. Load FeeDistributor address from hook ─────────────────────────────
+  // ── 1. Load FeeDistributor address from hook (avec fallback legacy) ────────
 
   useEffect(() => {
-    if (!ARC_HOOK_ADDRESS) { setLoading(false); return; }
-
     const client = getPublicClient();
-    const poolId = getArcV4PoolId(tokenAddress as `0x${string}`);
-
-    client
-      .readContract({
-        address:      ARC_HOOK_ADDRESS,
-        abi:          BONDING_CURVE_HOOK_ABI,
-        functionName: "getCurveState",
-        args:         [poolId],
-      })
-      .then((state) => {
-        const s = state as { feeDistributor: `0x${string}` };
-        if (s.feeDistributor && s.feeDistributor !== ZERO_ADDR) {
-          setDistributor(s.feeDistributor);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    (async () => {
+      for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
+        try {
+          const poolId = getArcV4PoolId(tokenAddress as `0x${string}`, hookAddr);
+          const state  = await client.readContract({
+            address: hookAddr, abi: BONDING_CURVE_HOOK_ABI,
+            functionName: "getCurveState", args: [poolId],
+          }) as { feeDistributor: `0x${string}`; initialized: boolean };
+          if (!state.initialized) continue;
+          if (state.feeDistributor && state.feeDistributor !== ZERO_ADDR) {
+            setDistributor(state.feeDistributor);
+          }
+          break;
+        } catch { continue; }
+      }
+    })().catch(() => {}).finally(() => setLoading(false));
   }, [tokenAddress]);
 
   // ── 2. Load balances ──────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ import {
   BONDING_CURVE_ABI,
   BONDING_CURVE_HOOK_ABI,
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   getArcV4PoolKey,
   getArcV4PoolId,
 } from "@/lib/arc-launchpad";
@@ -102,17 +103,17 @@ export function ArcCreatorFees() {
         let raw: bigint;
 
         if (token.isV4 && token.mint_address) {
-          // ── V4 : lire depuis le hook singleton ───────────────────────────────
-          if (!ARC_HOOK_ADDRESS) { raw = 0n; }
-          else {
-            const poolId = getArcV4PoolId(token.mint_address as `0x${string}`);
+          // ── V4 : lire depuis le hook actif (nouveau ou legacy) ───────────────
+          raw = 0n;
+          for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
+            const poolId = getArcV4PoolId(token.mint_address as `0x${string}`, hookAddr);
             const state = await client.readContract({
-              address:      ARC_HOOK_ADDRESS,
+              address:      hookAddr,
               abi:          BONDING_CURVE_HOOK_ABI,
               functionName: "getCurveState",
               args:         [poolId],
-            }) as { creatorFeesAccrued: bigint };
-            raw = state.creatorFeesAccrued;
+            }) as { creatorFeesAccrued: bigint; initialized: boolean };
+            if (state.initialized) { raw = state.creatorFeesAccrued; break; }
           }
         } else {
           // ── V1 : lire depuis le clone BondingCurve ────────────────────────────
@@ -153,11 +154,18 @@ export function ArcCreatorFees() {
       let hash: `0x${string}`;
 
       if (token.isV4 && token.mint_address) {
-        // ── V4 : hook.claimFees(poolKey, account) ────────────────────────────────
-        if (!ARC_HOOK_ADDRESS) throw new Error("V4 hook not yet deployed");
-        const poolKey = getArcV4PoolKey(token.mint_address as `0x${string}`);
+        // ── V4 : hook.claimFees(poolKey, account) sur le hook actif ──────────
+        // Résoudre le hook (nouveau ou legacy) avant de claim
+        let activeHook: `0x${string}` = ARC_HOOK_ADDRESS;
+        const publicReadClient = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
+        for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
+          const poolId = getArcV4PoolId(token.mint_address as `0x${string}`, hookAddr);
+          const s = await publicReadClient.readContract({ address: hookAddr, abi: BONDING_CURVE_HOOK_ABI, functionName: "getCurveState", args: [poolId] }).catch(() => null) as { initialized?: boolean } | null;
+          if (s?.initialized) { activeHook = hookAddr; break; }
+        }
+        const poolKey = getArcV4PoolKey(token.mint_address as `0x${string}`, activeHook);
         hash = await walletClient.writeContract({
-          address:      ARC_HOOK_ADDRESS,
+          address:      activeHook,
           abi:          BONDING_CURVE_HOOK_ABI,
           functionName: "claimFees",
           args:         [poolKey, account],

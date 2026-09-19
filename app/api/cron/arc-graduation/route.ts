@@ -19,6 +19,7 @@ import { createPublicClient, createWalletClient, http, privateKeyToAccount } fro
 import { arc }                from "@/lib/arc-chain";
 import {
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   BONDING_CURVE_HOOK_ABI,
   getArcV4PoolKey,
   getArcV4PoolId,
@@ -85,20 +86,28 @@ export async function GET(req: Request) {
 
     const needsGrad: TokenRow[] = [];
 
-    await Promise.all(v4Tokens.map(async (t) => {
-      try {
-        const poolId = getArcV4PoolId(t.mint_address as `0x${string}`);
-        const state  = await withTimeout(publicClient.readContract({
-          address:      ARC_HOOK_ADDRESS,
-          abi:          BONDING_CURVE_HOOK_ABI,
-          functionName: "getCurveState",
-          args:         [poolId],
-        })) as { graduated: boolean; lpAdded: boolean } | null;
+    // Pour chaque token, tracker le hook actif (nouveau ou legacy)
+    const tokenHookMap = new Map<string, `0x${string}`>();
 
-        if (state?.graduated && !state.lpAdded) {
-          needsGrad.push(t);
-        }
-      } catch { /* ignore — token may not have pool yet */ }
+    await Promise.all(v4Tokens.map(async (t) => {
+      for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
+        try {
+          const poolId = getArcV4PoolId(t.mint_address as `0x${string}`, hookAddr);
+          const state  = await withTimeout(publicClient.readContract({
+            address:      hookAddr,
+            abi:          BONDING_CURVE_HOOK_ABI,
+            functionName: "getCurveState",
+            args:         [poolId],
+          })) as { graduated: boolean; lpAdded: boolean; initialized: boolean } | null;
+
+          if (!state?.initialized) continue;
+          if (state.graduated && !state.lpAdded) {
+            needsGrad.push(t);
+            tokenHookMap.set(t.mint_address.toLowerCase(), hookAddr);
+          }
+          break; // trouvé le bon hook
+        } catch { continue; }
+      }
     }));
 
     if (!needsGrad.length) {
@@ -113,9 +122,10 @@ export async function GET(req: Request) {
 
     for (const t of needsGrad) {
       try {
-        const poolKey = getArcV4PoolKey(t.mint_address as `0x${string}`);
+        const activeHook = tokenHookMap.get(t.mint_address.toLowerCase()) ?? ARC_HOOK_ADDRESS;
+        const poolKey = getArcV4PoolKey(t.mint_address as `0x${string}`, activeHook);
         const hash    = await withTimeout(walletClient.writeContract({
-          address:      ARC_HOOK_ADDRESS,
+          address:      activeHook,
           abi:          BONDING_CURVE_HOOK_ABI,
           functionName: "addGraduationLiquidity",
           args:         [poolKey],

@@ -20,6 +20,7 @@ import {
   BONDING_CURVE_ABI,
   BONDING_CURVE_HOOK_ABI,
   ARC_HOOK_ADDRESS,
+  ARC_HOOK_ADDRESS_LEGACY,
   TRADE_EVENT_TOPIC_V4,
   getArcV4PoolId,
 } from "@/lib/arc-launchpad";
@@ -81,23 +82,28 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     // ── V4 ────────────────────────────────────────────────────────────────────
     if (isV4) {
-      if (!ARC_HOOK_ADDRESS) {
-        return NextResponse.json({
-          priceUsd: null, marketCap: null, fdv: null,
-          volume24h: null, priceChange: null, holders: null,
-        });
+      // Résoudre le bon hook (nouveau ou legacy)
+      let activeHook = ARC_HOOK_ADDRESS;
+      let poolId = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS);
+      {
+        const s = await client.readContract({
+          address: ARC_HOOK_ADDRESS, abi: BONDING_CURVE_HOOK_ABI,
+          functionName: "getCurveState", args: [poolId],
+        }).catch(() => null) as { initialized?: boolean } | null;
+        if (!s?.initialized) {
+          activeHook = ARC_HOOK_ADDRESS_LEGACY;
+          poolId = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS_LEGACY);
+        }
       }
-
-      const poolId = getArcV4PoolId(curveAddress as `0x${string}`);
 
       const [state, holders] = await Promise.all([
         client.readContract({
-          address:      ARC_HOOK_ADDRESS,
+          address:      activeHook,
           abi:          BONDING_CURVE_HOOK_ABI,
           functionName: "getCurveState",
           args:         [poolId],
         }) as Promise<{ reserveUsdc: bigint; reserveTokens: bigint; lpAdded: boolean }>,
-        fetchUniqueTraders(ARC_HOOK_ADDRESS, TRADE_EVENT_TOPIC_V4, poolId),
+        fetchUniqueTraders(activeHook, TRADE_EVENT_TOPIC_V4, poolId),
       ]);
 
       // USDC natif Arc = 18 decimals EVM
