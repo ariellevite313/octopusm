@@ -102,7 +102,7 @@ contract LaunchpadFactory {
         // Clone tous les contrats d'abord (order matters: vault → distributor → curve → token)
         vault_       = vaultImplementation.clone();
         curve        = curveImplementation.clone();
-        token        = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
+        token        = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender, address(0)));
 
         // Distributor uniquement si holderRewards_ = true
         if (holderRewards_) {
@@ -156,7 +156,7 @@ contract LaunchpadFactory {
         require(WhitelistRegistry(whitelistRegistry).isWhitelisted(quoteAsset_), "Factory: quote asset not whitelisted");
 
         curve = genericCurveImplementation.clone();
-        token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender));
+        token = address(new OMToken(name, symbol, imageUri, description, curve, msg.sender, address(0)));
 
         GenericBondingCurve(curve).initialize(
             token, msg.sender, quoteAsset_, treasury,

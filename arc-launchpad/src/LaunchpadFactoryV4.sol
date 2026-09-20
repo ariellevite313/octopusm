@@ -126,8 +126,7 @@ contract LaunchpadFactoryV4 {
      * @param name            Nom du token
      * @param symbol          Symbole
      * @param imageUri        URI de l'image
-     * @param feeDistributor  Adresse du FeeDistributor (address(0) = fees 100% creator)
-     * @param creatorKeepBps  % de la part creator à garder (10000 = 100%, 0 = 100% holders)
+     * @param feeTier         Tier de fees choisi par le créateur (figé à vie)
      */
     function createToken(
         string  calldata name,
