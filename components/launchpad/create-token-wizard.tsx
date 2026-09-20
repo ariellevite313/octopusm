@@ -15,6 +15,8 @@ import {
   ARC_FACTORY_V4_ADDRESS, FACTORY_V4_ABI,
   ARC_TREASURY_ADDRESS,
   ARC_XSTOCK_ADDRESSES,
+  FEE_TIER_NAMES, FEE_TIER_BPS,
+  type FeeTier,
 } from "@/lib/arc-launchpad";
 import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
 import { XStockIcon } from "@/components/shared/xstock-icon";
@@ -62,6 +64,8 @@ type WizardData = {
   arc_supply: number;
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
+  // Tier de fees Arc
+  arc_fee_tier: FeeTier;
   // Stock-paired (Arc)
   arc_token_type: "usdc" | "stock";
   arc_stock_symbol: string;      // ex: "xNVDA"
@@ -83,6 +87,7 @@ const INITIAL: WizardData = {
   arc_supply: 1_000_000_000,
   arc_first_buy_enabled: false,
   arc_first_buy_usdc: 10,
+  arc_fee_tier: 0 as FeeTier,
   arc_token_type: "usdc",
   arc_stock_symbol: "xNVDA",
   arc_quote_asset: "" as `0x${string}`,
@@ -634,6 +639,53 @@ function StepArcOptions({
         </div>
       )}
 
+      {/* Fee Tier */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div>
+          <p className="text-sm font-medium text-foreground">Fee Tier</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Choix figé au launch. Les fees baissent automatiquement après graduation.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {([0, 1, 2, 3] as FeeTier[]).map((tier) => {
+            const bps = FEE_TIER_BPS[tier].pre;
+            const selected = data.arc_fee_tier === tier;
+            return (
+              <button
+                key={tier}
+                type="button"
+                onClick={() => set("arc_fee_tier", tier)}
+                className={`rounded-xl border p-3 text-left transition-colors ${
+                  selected
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/40"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-foreground">
+                    {FEE_TIER_NAMES[tier]}
+                  </span>
+                  <span className={`text-xs font-bold ${selected ? "text-primary" : "text-muted-foreground"}`}>
+                    {bps[0] / 100}%
+                  </span>
+                </div>
+                <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                  <div className="flex justify-between"><span>Créateur</span><span>{bps[1] / 100}%</span></div>
+                  <div className="flex justify-between"><span>Platform</span><span>{bps[2] / 100}%</span></div>
+                  <div className="flex justify-between"><span>LP lockée</span><span>{bps[3] / 100}%</span></div>
+                  {bps[4] > 0 && (
+                    <div className="flex justify-between text-amber-500 font-medium">
+                      <span>Dividendes</span><span>{bps[4] / 100}%</span>
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* First buy */}
       <div className="rounded-xl border border-border p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -1012,8 +1064,7 @@ export function CreateTokenWizard({
           data.name,
           data.ticker,
           "", // imageUri — non utilisé on-chain
-          "0x0000000000000000000000000000000000000000", // feeDistributor — address(0) = 100% creator
-          10000n, // creatorKeepBps — 100% au créateur
+          data.arc_fee_tier, // 0=Standard / 1=Community / 2=Créateur / 3=Max
         ],
         // Pas de value — création gratuite
       });

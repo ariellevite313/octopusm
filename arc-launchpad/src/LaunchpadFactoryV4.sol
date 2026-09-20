@@ -133,16 +133,12 @@ contract LaunchpadFactoryV4 {
         string  calldata name,
         string  calldata symbol,
         string  calldata imageUri,
-        address feeDistributor,
-        uint256 creatorKeepBps
+        BondingCurveHook.FeeTier feeTier
     ) external payable returns (address tokenAddr) {
-        require(creatorKeepBps <= 10_000, "LaunchpadFactory: invalid creatorKeepBps");
-        if (creatorKeepBps < 10_000) {
-            require(feeDistributor != address(0), "LaunchpadFactory: need distributor");
-        }
+        require(uint8(feeTier) <= 3, "LaunchpadFactory: invalid feeTier");
 
         // 1. Déployer le token meme — TOTAL_SUPPLY minté directement au hook
-        OMToken memeToken = new OMToken(name, symbol, imageUri, "", address(hook), msg.sender);
+        OMToken memeToken = new OMToken(name, symbol, imageUri, "", address(hook), msg.sender, hook.platformWallet());
         tokenAddr = address(memeToken);
 
         // 3. Construire le PoolKey
@@ -161,7 +157,7 @@ contract LaunchpadFactoryV4 {
         poolManager.initialize(key, initialSqrtPrice);
 
         // 5. Enregistrer l'état de la bonding curve dans le hook
-        hook.setupCurve(key, tokenAddr, msg.sender, treasury, feeDistributor, creatorKeepBps);
+        hook.setupCurve(key, tokenAddr, msg.sender, treasury, feeTier);
 
         tokenPool[tokenAddr] = key;
 
