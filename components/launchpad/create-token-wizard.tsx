@@ -561,6 +561,39 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
   );
 }
 
+// ─── Fee tier accent styles (tabs + card) ────────────────────────────────────
+
+const TIER_ACCENT: Record<FeeTier, { tabSel: string; badge: string; card: string; pct: string; desc: string }> = {
+  0: {
+    tabSel: "border-border bg-muted/50 text-foreground",
+    badge:  "bg-foreground/80 text-background",
+    card:   "border-border",
+    pct:    "text-foreground",
+    desc:   "Simple, no holder dividends.",
+  },
+  1: {
+    tabSel: "border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-400",
+    badge:  "bg-blue-500 text-white",
+    card:   "border-blue-200 dark:border-blue-800",
+    pct:    "text-blue-600 dark:text-blue-400",
+    desc:   "Holders earn dividends on every swap.",
+  },
+  2: {
+    tabSel: "border-purple-300 bg-purple-50 text-purple-600 dark:border-purple-700 dark:bg-purple-950 dark:text-purple-400",
+    badge:  "bg-purple-500 text-white",
+    card:   "border-purple-200 dark:border-purple-800",
+    pct:    "text-purple-600 dark:text-purple-400",
+    desc:   "Maximize creator revenue.",
+  },
+  3: {
+    tabSel: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-400",
+    badge:  "bg-amber-500 text-white",
+    card:   "border-amber-200 dark:border-amber-800",
+    pct:    "text-amber-700 dark:text-amber-400",
+    desc:   "Max fees. Holders earn dividends.",
+  },
+};
+
 // ─── Étape 3 Arc — Options ──────────────────────────────────────────────────
 
 function StepArcOptions({
@@ -640,50 +673,121 @@ function StepArcOptions({
       )}
 
       {/* Fee Tier */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
+      <div className="space-y-2.5">
         <div>
           <p className="text-sm font-medium text-foreground">Fee Tier</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Choix figé au launch. Les fees baissent automatiquement après graduation.
+            Fixed at launch. Fees automatically decrease after graduation.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+
+        {/* Tab buttons */}
+        <div className="flex flex-wrap gap-1.5">
           {([0, 1, 2, 3] as FeeTier[]).map((tier) => {
-            const bps = FEE_TIER_BPS[tier].pre;
-            const selected = data.arc_fee_tier === tier;
+            const sel = data.arc_fee_tier === tier;
+            const ac  = TIER_ACCENT[tier];
             return (
               <button
                 key={tier}
                 type="button"
                 onClick={() => set("arc_fee_tier", tier)}
-                className={`rounded-xl border p-3 text-left transition-colors ${
-                  selected
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/40"
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  sel ? ac.tabSel : "border-border text-muted-foreground hover:border-muted-foreground/40"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-foreground">
-                    {FEE_TIER_NAMES[tier]}
-                  </span>
-                  <span className={`text-xs font-bold ${selected ? "text-primary" : "text-muted-foreground"}`}>
-                    {bps[0] / 100}%
-                  </span>
-                </div>
-                <div className="space-y-0.5 text-[10px] text-muted-foreground">
-                  <div className="flex justify-between"><span>Créateur</span><span>{bps[1] / 100}%</span></div>
-                  <div className="flex justify-between"><span>Platform</span><span>{bps[2] / 100}%</span></div>
-                  <div className="flex justify-between"><span>LP lockée</span><span>{bps[3] / 100}%</span></div>
-                  {bps[4] > 0 && (
-                    <div className="flex justify-between text-amber-500 font-medium">
-                      <span>Dividendes</span><span>{bps[4] / 100}%</span>
-                    </div>
-                  )}
-                </div>
+                {FEE_TIER_NAMES[tier]}
+                <span className={`rounded-full px-1.5 py-px text-[10px] font-semibold transition-colors ${
+                  sel ? ac.badge : "bg-muted text-muted-foreground"
+                }`}>
+                  {FEE_TIER_BPS[tier].pre[0] / 100}%
+                </span>
               </button>
             );
           })}
         </div>
+
+        {/* Detail card — updates live when tier changes */}
+        {(() => {
+          const tier = data.arc_fee_tier;
+          const ac   = TIER_ACCENT[tier];
+          const bps  = FEE_TIER_BPS[tier];
+          const actors = [
+            { l: "Creator",   hint: "→ token creator",  pre: bps.pre[1],  post: bps.post[1] },
+            { l: "Platform",  hint: "→ OMdotfun",        pre: bps.pre[2],  post: bps.post[2] },
+            { l: "Locked LP", hint: "→ liquidity pool",  pre: bps.pre[3],  post: bps.post[3] },
+            { l: "Holders",   hint: "→ token holders",   pre: bps.pre[4],  post: bps.post[4], amber: true },
+          ] as const;
+          return (
+            <div className={`rounded-xl border p-4 space-y-3 transition-colors ${ac.card}`}>
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{FEE_TIER_NAMES[tier]}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{ac.desc}</p>
+                </div>
+                <div className="text-right ml-4 shrink-0">
+                  <p className={`text-2xl font-semibold leading-none transition-colors ${ac.pct}`}>
+                    {bps.pre[0] / 100}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">per swap</p>
+                </div>
+              </div>
+
+              {/* Pre-graduation actor blocks */}
+              <div className="flex rounded-lg overflow-hidden border border-border">
+                {actors.map((actor, i) => {
+                  const nextHasVal = actors.slice(i + 1).some(a => a.pre > 0);
+                  return (
+                    <div
+                      key={actor.l}
+                      className={`min-w-0 overflow-hidden ${actor.amber ? "bg-amber-50 dark:bg-amber-950/30" : ""} ${actor.pre > 0 && nextHasVal ? "border-r border-border" : ""}`}
+                      style={{
+                        flex: `${actor.pre} 0 0`,
+                        padding: actor.pre > 0 ? "8px 10px" : "0",
+                        transition: "flex 0.35s cubic-bezier(.4,0,.2,1), padding 0.35s cubic-bezier(.4,0,.2,1)",
+                      }}
+                    >
+                      <p className={`text-[10px] overflow-hidden text-ellipsis whitespace-nowrap ${actor.amber ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}>{actor.l}</p>
+                      <p className={`text-[10px] overflow-hidden text-ellipsis whitespace-nowrap ${actor.amber ? "text-amber-600/70 dark:text-amber-500/70" : "text-muted-foreground/60"}`}>{actor.hint}</p>
+                      <p className={`text-sm font-semibold whitespace-nowrap mt-1 ${actor.amber ? "text-amber-700 dark:text-amber-400" : "text-foreground"}`}>
+                        {actor.pre > 0 ? `${actor.pre / 100}%` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* After graduation */}
+              <div className="rounded-lg bg-muted/30 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">After graduation</p>
+                  <p className={`text-sm font-medium transition-colors ${ac.pct}`}>{bps.post[0] / 100}%</p>
+                </div>
+                <div className="flex rounded-md overflow-hidden border border-border">
+                  {actors.map((actor, i) => {
+                    const nextHasVal = actors.slice(i + 1).some(a => a.post > 0);
+                    return (
+                      <div
+                        key={actor.l}
+                        className={`min-w-0 overflow-hidden ${actor.amber ? "bg-amber-50/60 dark:bg-amber-950/20" : ""} ${actor.post > 0 && nextHasVal ? "border-r border-border" : ""}`}
+                        style={{
+                          flex: `${actor.post} 0 0`,
+                          padding: actor.post > 0 ? "5px 8px" : "0",
+                          transition: "flex 0.35s cubic-bezier(.4,0,.2,1), padding 0.35s cubic-bezier(.4,0,.2,1)",
+                        }}
+                      >
+                        <p className={`text-[10px] overflow-hidden text-ellipsis whitespace-nowrap ${actor.amber ? "text-amber-700/80 dark:text-amber-400/80" : "text-muted-foreground"}`}>{actor.l}</p>
+                        <p className={`text-xs font-medium whitespace-nowrap mt-0.5 ${actor.amber ? "text-amber-700 dark:text-amber-400" : "text-foreground"}`}>
+                          {actor.post > 0 ? `${actor.post / 100}%` : ""}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* First buy */}
@@ -727,7 +831,7 @@ function StepArcOptions({
       <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/10 p-4">
         <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve</p>
         <p className="text-xs text-blue-700 dark:text-blue-400">
-          Constant-product AMM · Graduates at ~$25,000 market cap · 2% trading fee · Fully on-chain on Arc.
+          Constant-product AMM · Graduates at ~$25,000 market cap · {FEE_TIER_BPS[data.arc_fee_tier].pre[0] / 100}% trading fee · Fully on-chain on Arc.
         </p>
       </div>
 
@@ -792,7 +896,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Type" value={data.arc_token_type === "stock" ? `Stock-Paired (${data.arc_stock_symbol})` : "USDC Meme"} />
             <Row label="Bonding curve" value="Constant-product AMM" />
             <Row label="Graduation" value="~$25,000 market cap" />
-            <Row label="Trading fee" value="2%" />
+            <Row label="Trading fee" value={`${FEE_TIER_BPS[data.arc_fee_tier].pre[0] / 100}%`} />
             <Row label="Platform fee" value="Free" highlight />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />

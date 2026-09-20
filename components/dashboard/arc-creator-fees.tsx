@@ -55,10 +55,10 @@ function abandonLabel(creatorLastClaim: bigint | null, nowS: number): string {
   const lastS = Number(creatorLastClaim);
   const elapsedS = nowS - lastS;
   const remainS = ABANDON_DELAY_S - elapsedS;
-  if (remainS <= 0) return "⚠ OMdotfun peut sweep";
+  if (remainS <= 0) return "⚠ OMdotfun can sweep";
   const days = Math.ceil(remainS / 86400);
-  if (days > 365) return `${Math.floor(days / 365)}a ${days % 365}j avant sweep`;
-  return `${days}j avant sweep`;
+  if (days > 365) return `${Math.floor(days / 365)}y ${days % 365}d until sweep`;
+  return `${days}d until sweep`;
 }
 
 type ArcToken = {

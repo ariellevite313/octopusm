@@ -46,11 +46,11 @@ function abandonLabel(lastInteraction: bigint, nowS: number): string {
   if (lastInteraction === 0n) return ""; // jamais interagi
   const elapsedS = nowS - Number(lastInteraction);
   const remainS  = ABANDON_DELAY_S - elapsedS;
-  if (remainS <= 0) return "⚠ OMdotfun peut sweep";
+  if (remainS <= 0) return "⚠ OMdotfun can sweep";
   const days = Math.ceil(remainS / 86400);
   return days > 365
-    ? `${Math.floor(days / 365)}a ${days % 365}j avant sweep`
-    : `${days}j avant sweep`;
+    ? `${Math.floor(days / 365)}y ${days % 365}d until sweep`
+    : `${days}d until sweep`;
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ export function ArcHolderDividends() {
 
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" /> Scanning dividendes…
+      <Loader2 className="size-4 animate-spin" /> Scanning dividends…
     </div>
   );
 
@@ -256,10 +256,10 @@ export function ArcHolderDividends() {
     <div className="rounded-2xl border border-border bg-card px-4 py-5 text-center">
       <Coins className="size-7 text-muted-foreground/40 mx-auto mb-2" />
       <p className="text-sm text-muted-foreground">
-        Aucun dividende en attente.
+        No pending dividends.
       </p>
       <p className="text-xs text-muted-foreground/60 mt-1">
-        Les tokens Community &amp; Max partagent des dividendes à chaque swap.
+        Community &amp; Max tokens share dividends on every swap.
       </p>
     </div>
   );
@@ -267,7 +267,7 @@ export function ArcHolderDividends() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Dividendes holders</h3>
+        <h3 className="text-sm font-semibold text-foreground">Holder Dividends</h3>
         <button
           onClick={() => void load()}
           className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
@@ -342,7 +342,7 @@ export function ArcHolderDividends() {
             {/* Claim button */}
             {selectedChain !== "arc" ? (
               <span className="text-[10px] text-muted-foreground text-right shrink-0">
-                Connect<br />Arc
+                Switch<br />to Arc
               </span>
             ) : (
               <button
