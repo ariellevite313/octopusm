@@ -124,7 +124,7 @@ contract LaunchpadTest is Test {
         );
         vm.stopPrank();
         curve = BondingCurve(c);
-        token = OMToken(t);
+        token = OMToken(payable(t));
     }
 
     // ─── 1. Création sans first buy ───────────────────────────────────────
