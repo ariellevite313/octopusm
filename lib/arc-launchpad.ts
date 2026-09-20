@@ -40,7 +40,7 @@ export type FeeTier = 0 | 1 | 2 | 3;
 export const FEE_TIER_NAMES: Record<FeeTier, string> = {
   0: "Standard",
   1: "Community",
-  2: "Créateur",
+  2: "Creator",
   3: "Max",
 };
 

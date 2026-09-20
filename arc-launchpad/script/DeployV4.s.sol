@@ -44,8 +44,9 @@ contract DeployV4 is Script {
         uint256 deployerKey = vm.envUint("DEPLOYER_PK");
         address deployerAddr = vm.addr(deployerKey);  // EOA — passé comme owner explicite
         // Utilise la constante connue ; peut être overridée via env pour tests
-        V4_POOL_MANAGER     = vm.envOr("ARC_V4_POOL_MANAGER", ARC_V4_POOL_MANAGER);
-        address treasury    = vm.envAddress("TREASURY");
+        V4_POOL_MANAGER       = vm.envOr("ARC_V4_POOL_MANAGER", ARC_V4_POOL_MANAGER);
+        address treasury      = vm.envAddress("TREASURY");
+        address platformWallet = vm.envOr("PLATFORM_WALLET", treasury); // fallback treasury si non défini
 
         vm.startBroadcast(deployerKey);
 
@@ -58,7 +59,7 @@ contract DeployV4 is Script {
 
         // Note : on passe deployerAddr comme _owner pour que l'EOA reste propriétaire
         // même quand le déploiement passe via le CREATE2Deployer (où msg.sender != EOA).
-        bytes memory constructorArgs = abi.encode(V4_POOL_MANAGER, deployerAddr);
+        bytes memory constructorArgs = abi.encode(V4_POOL_MANAGER, deployerAddr, platformWallet);
         (address hookAddr, bytes32 salt) = HookMiner.find(
             CREATE2_DEPLOYER,   // deployer déterministe (0x4e59b44...956C sur Arc)
             flags,
@@ -69,7 +70,8 @@ contract DeployV4 is Script {
         // 2. Déployer le hook via CREATE2
         BondingCurveHook hook = new BondingCurveHook{salt: salt}(
             IPoolManager(V4_POOL_MANAGER),
-            deployerAddr
+            deployerAddr,
+            platformWallet
         );
         require(address(hook) == hookAddr, "Hook address mismatch");
         console.log("BondingCurveHook deployed at:", address(hook));
@@ -103,6 +105,7 @@ contract DeployV4 is Script {
         console.log("BondingCurveRouter:", address(router));
         console.log("USDC:              ", USDC_ARC_MAINNET);
         console.log("Treasury:          ", treasury);
+        console.log("PlatformWallet:    ", platformWallet);
         console.log("==========================\n");
         console.log("NOTE: Mettez a jour ADDRESSES_V4.md avec ces adresses");
         console.log("NOTE: Mettez a jour lib/arc-launchpad.ts : ARC_FACTORY_V4_ADDRESS, ARC_HOOK_ADDRESS, ARC_ROUTER_ADDRESS");

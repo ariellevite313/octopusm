@@ -95,7 +95,7 @@ function VerifyTokenToggle({ tokenId, initial }: { tokenId: string; initial: boo
       });
       if (!res.ok) throw new Error("Failed");
       setVerified(v => !v);
-      toast.success(verified ? "Badge retiré" : "Token vérifié ✓");
+      toast.success(verified ? "Badge removed" : "Token verified ✓");
     } catch {
       toast.error("Erreur");
     } finally {
@@ -109,7 +109,7 @@ function VerifyTokenToggle({ tokenId, initial }: { tokenId: string; initial: boo
       variant="ghost"
       disabled={loading}
       onClick={toggle}
-      title={verified ? "Retirer la vérification" : "Marquer comme vérifié"}
+      title={verified ? "Remove verification" : "Mark as verified"}
       className={`rounded-full px-2 ${
         verified
           ? "text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20"
@@ -140,7 +140,7 @@ function HideTokenToggle({ tokenId, initial }: { tokenId: string; initial: boole
       });
       if (!res.ok) throw new Error("Failed");
       setHidden(h => !h);
-      toast.success(hidden ? "Token visible ✓" : "Token masqué");
+      toast.success(hidden ? "Token visible ✓" : "Token hidden");
     } catch {
       toast.error("Erreur");
     } finally {
@@ -490,7 +490,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                             size="sm"
                             variant="ghost"
                             disabled={!!loading}
-                            title="Supprimer définitivement ce token"
+                            title="Permanently delete this token"
                             className="rounded-full px-2 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
                             onClick={() => setConfirmDelete(token.id)}
                           >
