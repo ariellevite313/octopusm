@@ -21,6 +21,7 @@ import {
   getArcV4PoolId,
 } from "@/lib/arc-launchpad";
 
+
 export const maxDuration = 60;
 
 const ARCSCAN_API = "https://explorer.arc.io/api";
@@ -155,19 +156,38 @@ export async function GET(req: Request) {
     // ── V4 : Trade events sur le hook singleton, filtrés par poolId ──────────
     // Cherche d'abord dans le hook courant, puis dans le legacy (tokens anciens)
     if (isV4) {
-      const newPoolId    = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS);
-      const legacyPoolId = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS_LEGACY);
+      const newPoolId = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS);
 
-      // Détermine quel hook a les trades : essaie le nouveau en premier
-      const poolId    = newPoolId;    // on merge les logs des deux hooks ci-dessous
-      const topic1Padded = poolId;
+      // Pour le hook legacy, le poolId calculé en JS ne correspond pas à l'on-chain poolId
+      // (différence de version de la lib v4-core utilisée lors du déploiement).
+      // On récupère le vrai poolId depuis l'event CurveInitialized du hook legacy.
+      const CURVE_INITIALIZED_TOPIC = "0xe5b67d4237615fec820419dbc9dff8c8cd61067f273c421fcd230d7b99719555";
+      let legacyPoolId: string | undefined;
+      try {
+        const initLogs = await fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, null, "latest", CURVE_INITIALIZED_TOPIC);
+        // CurveInitialized(PoolId indexed poolId, address token, address creator)
+        // token et creator sont dans data (non-indexés), 32 bytes chacun
+        const curveAddrLower = curveAddress.toLowerCase();
+        for (const l of initLogs) {
+          if (l.data && l.data.length >= 130) {
+            // data = 0x + 32 bytes token (padded) + 32 bytes creator
+            const tokenFromData = "0x" + l.data.slice(26, 66); // bytes 12..31 of first word
+            if (tokenFromData.toLowerCase() === curveAddrLower) {
+              legacyPoolId = l.topics[1]; // topic1 = poolId indexed
+              break;
+            }
+          }
+        }
+      } catch { /* ignore — legacy hook query optional */ }
 
       let logs: BlockscoutLog[] = [];
       try {
         // Récupère les logs des deux hooks, fusionne et dédoublonne par txHash
         const [logsNew, logsLegacy] = await Promise.all([
           fetchLogsFromArcScan(ARC_HOOK_ADDRESS, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, newPoolId).catch(() => []),
-          fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, legacyPoolId).catch(() => []),
+          legacyPoolId
+            ? fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, legacyPoolId).catch(() => [])
+            : Promise.resolve([]),
         ]);
         const seen = new Set<string>();
         logs = [...logsNew, ...logsLegacy].filter(l => {
@@ -175,7 +195,7 @@ export async function GET(req: Request) {
           seen.add(l.transactionHash); return true;
         });
       } catch (err) {
-        if (debug) return NextResponse.json({ trades: [], _debug: { arcScanError: String(err), ...debugInfo } });
+        if (debug) return NextResponse.json({ trades: [], _debug: { arcScanError: String(err), legacyPoolId, ...debugInfo } });
         throw err;
       }
 
