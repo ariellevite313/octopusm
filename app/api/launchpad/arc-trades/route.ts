@@ -166,7 +166,9 @@ export async function GET(req: Request) {
       let initLogsDebug: unknown[] = [];
       let initLogsRaw: BlockscoutLog[] = [];
       try {
-        initLogsRaw = await fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, null, "latest", CURVE_INITIALIZED_TOPIC);
+        // creationBlock peut être null si le token n'est pas en DB — fallback à 0
+        const initFromBlock = creationBlock ?? 0;
+        initLogsRaw = await fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, initFromBlock, "latest", CURVE_INITIALIZED_TOPIC);
         // CurveInitialized(PoolId indexed poolId, address token, address creator)
         // token et creator sont dans data (non-indexés), 32 bytes chacun
         const curveAddrLower = curveAddress.toLowerCase();
