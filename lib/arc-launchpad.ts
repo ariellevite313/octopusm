@@ -16,7 +16,7 @@ export const ARC_POOL_MANAGER_ADDRESS = "0x8366a39CC670B4001A1121B8F6A443A643e40
  * Le déploiement V4 produit : BondingCurveHook, LaunchpadFactoryV4, BondingCurveRouter
  */
 export const ARC_HOOK_ADDRESS        = "0xa8eba033F2ed31B79CF5c8c82b72Db6E2D818088" as `0x${string}`;
-export const ARC_HOOK_ADDRESS_LEGACY = "0x88B136529931Aa0dDB9AE626AbE63921932fcC088" as `0x${string}`; // déploiement précédent — VIRTUAL_USDC=3200
+export const ARC_HOOK_ADDRESS_LEGACY = "0x88b136529931aa0db9ae626abe63921932fcc088" as `0x${string}`; // déploiement précédent — VIRTUAL_USDC=3200
 export const ARC_ROUTER_ADDRESS      = "0x6cF7Ec4114aB8924B4f988100d5B5b830948443f" as `0x${string}`;
 export const ARC_FACTORY_V4_ADDRESS  = "0x51894e8B17B53c8C98a4098F78f4d228e7b7907F" as `0x${string}`;
 
