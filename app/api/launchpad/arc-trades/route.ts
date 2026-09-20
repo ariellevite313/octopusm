@@ -163,24 +163,29 @@ export async function GET(req: Request) {
       // On récupère le vrai poolId depuis l'event CurveInitialized du hook legacy.
       const CURVE_INITIALIZED_TOPIC = "0xe5b67d4237615fec820419dbc9dff8c8cd61067f273c421fcd230d7b99719555";
       let legacyPoolId: string | undefined;
+      let initLogsDebug: unknown[] = [];
+      let initLogsRaw: BlockscoutLog[] = [];
       try {
-        const initLogs = await fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, null, "latest", CURVE_INITIALIZED_TOPIC);
+        initLogsRaw = await fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, null, "latest", CURVE_INITIALIZED_TOPIC);
         // CurveInitialized(PoolId indexed poolId, address token, address creator)
         // token et creator sont dans data (non-indexés), 32 bytes chacun
         const curveAddrLower = curveAddress.toLowerCase();
-        for (const l of initLogs) {
-          if (l.data && l.data.length >= 130) {
-            // data = 0x + 32 bytes token (padded) + 32 bytes creator
-            const tokenFromData = "0x" + l.data.slice(26, 66); // bytes 12..31 of first word
-            if (tokenFromData.toLowerCase() === curveAddrLower) {
-              legacyPoolId = l.topics[1]; // topic1 = poolId indexed
-              break;
-            }
+        for (const l of initLogsRaw) {
+          const tokenFromData = l.data && l.data.length >= 66
+            ? ("0x" + l.data.slice(26, 66)).toLowerCase()
+            : "";
+          if (debug) initLogsDebug.push({ topics: l.topics, dataLen: l.data?.length, tokenFromData });
+          if (tokenFromData === curveAddrLower) {
+            legacyPoolId = l.topics[1];
+            break;
           }
         }
-      } catch { /* ignore — legacy hook query optional */ }
+      } catch (e) {
+        if (debug) initLogsDebug.push({ error: String(e) });
+      }
 
       let logs: BlockscoutLog[] = [];
+      let logsNewCount = 0, logsLegacyCount = 0;
       try {
         // Récupère les logs des deux hooks, fusionne et dédoublonne par txHash
         const [logsNew, logsLegacy] = await Promise.all([
@@ -189,14 +194,31 @@ export async function GET(req: Request) {
             ? fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, legacyPoolId).catch(() => [])
             : Promise.resolve([]),
         ]);
+        logsNewCount = logsNew.length;
+        logsLegacyCount = logsLegacy.length;
         const seen = new Set<string>();
         logs = [...logsNew, ...logsLegacy].filter(l => {
           if (seen.has(l.transactionHash)) return false;
           seen.add(l.transactionHash); return true;
         });
       } catch (err) {
-        if (debug) return NextResponse.json({ trades: [], _debug: { arcScanError: String(err), legacyPoolId, ...debugInfo } });
+        if (debug) return NextResponse.json({ trades: [], _debug: { arcScanError: String(err), legacyPoolId, initLogsDebug, ...debugInfo } });
         throw err;
+      }
+
+      if (debug) {
+        return NextResponse.json({
+          trades: [],
+          _debug: {
+            newPoolId, legacyPoolId,
+            initLogsCount: initLogsRaw.length, initLogsDebug,
+            logsNewCount, logsLegacyCount,
+            totalLogs: logs.length,
+            creationBlock,
+            ARC_HOOK_ADDRESS_LEGACY,
+            ...debugInfo,
+          },
+        });
       }
 
       const trades: Trade[] = logs
