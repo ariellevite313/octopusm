@@ -265,14 +265,14 @@ contract BondingCurveHook is BaseHook, ReentrancyGuard {
             }
 
             if (gradIsBuy) {
-                Currency currUsdc = gradUsdcIsC0 ? key.currency0 : key.currency1;
-                poolManager.take(currUsdc, address(this), fee);
+                Currency gradCurrUsdc = gradUsdcIsC0 ? key.currency0 : key.currency1;
+                poolManager.take(gradCurrUsdc, address(this), fee);
                 _distributeFees(s, fee, id, cBps, pBps, lBps, hBps, totalBps);
                 emit Trade(id, sender, true, grossAmt, 0, fee);
             } else {
                 // Sell post-grad : fee en meme tokens → treasury
-                Currency currMeme = gradUsdcIsC0 ? key.currency1 : key.currency0;
-                poolManager.take(currMeme, s.treasury, fee);
+                Currency gradCurrMeme = gradUsdcIsC0 ? key.currency1 : key.currency0;
+                poolManager.take(gradCurrMeme, s.treasury, fee);
                 emit Trade(id, sender, false, 0, grossAmt, fee);
             }
 

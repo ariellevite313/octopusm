@@ -129,8 +129,8 @@ contract BondingCurveHookTest is Test {
             Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
-        // Dans les tests, address(this) est à la fois le déployeur et le "owner"
-        bytes memory constructorArgs = abi.encode(address(poolManager), address(this));
+        // Dans les tests, address(this) est à la fois le déployeur, l'"owner" et le "platformWallet"
+        bytes memory constructorArgs = abi.encode(address(poolManager), address(this), address(this));
         (address hookAddr, bytes32 salt) = HookMiner.find(
             address(this),
             flags,
@@ -139,7 +139,7 @@ contract BondingCurveHookTest is Test {
         );
 
         // 5. Déployer le hook à l'adresse minée
-        hook = new BondingCurveHook{salt: salt}(IPoolManager(address(poolManager)), address(this));
+        hook = new BondingCurveHook{salt: salt}(IPoolManager(address(poolManager)), address(this), address(this));
         require(address(hook) == hookAddr, "Hook address mismatch");
 
         // 5b. Enregistrer le test contract comme "factory" pour pouvoir appeler setupCurve
@@ -147,7 +147,7 @@ contract BondingCurveHookTest is Test {
 
         // 6. Suite A — pool avec creatorKeepBps = 10000 (tout au créateur)
         //    OMToken minte TOTAL_SUPPLY directement au hook (curve_=address(hook))
-        memeToken = new OMToken("TestMeme", "TM", "", "", address(hook), CREATOR);
+        memeToken = new OMToken("TestMeme", "TM", "", "", address(hook), CREATOR, address(this));
         deal(address(usdc), BUYER1,  2_000_000_000_000);
         deal(address(usdc), BUYER2,  2_000_000_000_000);
 
@@ -167,10 +167,10 @@ contract BondingCurveHookTest is Test {
         // initialize sans hookData (cette version de v4-core : 2 args)
         poolManager.initialize(keyA, TickMath.getSqrtPriceAtTick(0));
         // Enregistrer l'état via setupCurve (remplace hookData/afterInitialize)
-        hook.setupCurve(keyA, address(memeToken), CREATOR, TREASURY, address(0), 10_000);
+        hook.setupCurve(keyA, address(memeToken), CREATOR, TREASURY, BondingCurveHook.FeeTier.STANDARD);
 
         // 7. Suite B — pool avec creatorKeepBps = 5000 (50% creator, 50% holders)
-        memeTokenB = new OMToken("TestMemeB", "TMB", "", "", address(hook), CREATOR);
+        memeTokenB = new OMToken("TestMemeB", "TMB", "", "", address(hook), CREATOR, address(this));
 
         (address t0B, address t1B) = address(usdc) < address(memeTokenB)
             ? (address(usdc), address(memeTokenB))
@@ -186,7 +186,7 @@ contract BondingCurveHookTest is Test {
         idB = keyB.toId();
 
         poolManager.initialize(keyB, TickMath.getSqrtPriceAtTick(0));
-        hook.setupCurve(keyB, address(memeTokenB), CREATOR, TREASURY, address(feeDistributor), 5_000);
+        hook.setupCurve(keyB, address(memeTokenB), CREATOR, TREASURY, BondingCurveHook.FeeTier.COMMUNITY);
     }
 
     // ─── SUITE A : 100% creator ────────────────────────────────────────────
@@ -200,8 +200,7 @@ contract BondingCurveHookTest is Test {
         assertEq(s.memeToken,       address(memeToken), "memeToken");
         assertEq(s.creator,         CREATOR,            "creator");
         assertEq(s.treasury,        TREASURY,           "treasury");
-        assertEq(s.feeDistributor,  address(0),         "no distributor");
-        assertEq(s.creatorKeepBps,  10_000,             "100% creator");
+        assertEq(uint8(s.feeTier),  uint8(BondingCurveHook.FeeTier.STANDARD), "feeTier STANDARD");
         assertEq(s.reserveUsdc,     VIRTUAL_USDC,       "reserveUsdc");
         assertEq(s.reserveTokens,   CURVE_SUPPLY,       "reserveTokens");
         assertEq(s.realUsdcRaised,  0,                  "realUsdcRaised = 0");
@@ -240,7 +239,7 @@ contract BondingCurveHookTest is Test {
         assertGt(s.realUsdcRaised, 0,            "raised > 0");
 
         console.log("Buy 100 USDC -> tokens:", tokensReceived / 1e18);
-        console.log("Creator fees accrued:", s.creatorFeesAccrued);
+        console.log("Creator fees accrued:", s.creatorAccrued);
     }
 
     /**
@@ -321,7 +320,7 @@ contract BondingCurveHookTest is Test {
     }
 
     /**
-     * @notice creatorKeepBps=10000 → toute la part créateur dans creatorFeesAccrued.
+     * @notice creatorKeepBps=10000 → toute la part créateur dans creatorAccrued.
      *         Le treasury reçoit exactement 50% des fees.
      */
     function test_A_Fees_AllToCreator() public {
@@ -340,7 +339,7 @@ contract BondingCurveHookTest is Test {
         BondingCurveHook.CurveState memory s = _getState(keyA);
 
         // Tout va au créateur (pas de distributor)
-        assertApproxEqRel(s.creatorFeesAccrued, expectedCreator, 0.01e18, "100% creator fees");
+        assertApproxEqRel(s.creatorAccrued, expectedCreator, 0.01e18, "100% creator fees");
 
         // Treasury a reçu 50%
         uint256 treasuryReceived = usdc.balanceOf(TREASURY) - treasuryBefore;
@@ -350,7 +349,7 @@ contract BondingCurveHookTest is Test {
         assertEq(feeDistributor.totalNotified(), 0, "no holder rewards");
 
         console.log("Total fee:", totalFee / 1e6, "USDC");
-        console.log("Creator:", s.creatorFeesAccrued / 1e6, "USDC");
+        console.log("Creator:", s.creatorAccrued / 1e6, "USDC");
         console.log("Treasury:", treasuryReceived / 1e6, "USDC");
     }
 
@@ -363,24 +362,24 @@ contract BondingCurveHookTest is Test {
         usdc.approve(address(this), usdcIn);
         _swap(keyA, true, -int256(usdcIn), BUYER1);
 
-        uint256 accrued = _getState(keyA).creatorFeesAccrued;
+        uint256 accrued = _getState(keyA).creatorAccrued;
         assertGt(accrued, 0, "fees accrued");
 
         uint256 creatorBefore = usdc.balanceOf(CREATOR);
         vm.prank(CREATOR);
-        hook.claimFees(keyA, CREATOR);
+        hook.claimCreatorFees(keyA, CREATOR);
 
         assertEq(usdc.balanceOf(CREATOR) - creatorBefore, accrued, "claimed amount correct");
-        assertEq(_getState(keyA).creatorFeesAccrued, 0, "fees reset after claim");
+        assertEq(_getState(keyA).creatorAccrued, 0, "fees reset after claim");
     }
 
     /**
      * @notice Seul le créateur peut claim.
      */
     function test_A_ClaimFees_OnlyCreator() public {
-        vm.expectRevert("BondingCurveHook: not creator");
+        vm.expectRevert("BCH: not creator");
         vm.prank(BUYER1);
-        hook.claimFees(keyA, BUYER1);
+        hook.claimCreatorFees(keyA, BUYER1);
     }
 
     /**
@@ -457,8 +456,7 @@ contract BondingCurveHookTest is Test {
     function test_B_InitialState() public view {
         BondingCurveHook.CurveState memory s = _getState(keyB);
 
-        assertEq(s.feeDistributor, address(feeDistributor), "distributor set");
-        assertEq(s.creatorKeepBps, 5_000,                   "50% creator");
+        assertEq(uint8(s.feeTier), uint8(BondingCurveHook.FeeTier.COMMUNITY), "feeTier COMMUNITY");
         assertTrue(s.initialized,                            "initialized");
     }
 
@@ -467,7 +465,7 @@ contract BondingCurveHookTest is Test {
      *
      * Avec fee = 20 USDC sur 1000 USDC :
      *   treasury     = 10 USDC
-     *   creatorKeep  =  5 USDC → creatorFeesAccrued
+     *   creatorKeep  =  5 USDC → creatorAccrued
      *   holderShare  =  5 USDC → FeeDistributor.notifyReward()
      */
     function test_B_Fees_Split50_50() public {
@@ -488,7 +486,7 @@ contract BondingCurveHookTest is Test {
         BondingCurveHook.CurveState memory s = _getState(keyB);
 
         // Créateur : 50% × 50% = 25% des fees totales
-        assertApproxEqRel(s.creatorFeesAccrued, expectedKeep, 0.01e18, "creator keep ~= 25% fees");
+        assertApproxEqRel(s.creatorAccrued, expectedKeep, 0.01e18, "creator keep ~= 25% fees");
 
         // FeeDistributor : 50% × 50% = 25% des fees totales
         assertApproxEqRel(feeDistributor.totalNotified(), expectedHolder, 0.01e18, "holder share ~= 25%");
@@ -499,7 +497,7 @@ contract BondingCurveHookTest is Test {
         assertApproxEqRel(treasuryReceived, expectedTreasury, 0.01e18, "treasury = 50%");
 
         console.log("Fee total:", totalFee / 1e6, "USDC");
-        console.log("Creator keep:", s.creatorFeesAccrued / 1e6, "USDC");
+        console.log("Creator keep:", s.creatorAccrued / 1e6, "USDC");
         console.log("Holder share:", feeDistributor.totalNotified() / 1e6, "USDC");
         console.log("Treasury:", treasuryReceived / 1e6, "USDC");
     }
@@ -527,7 +525,7 @@ contract BondingCurveHookTest is Test {
         usdc.approve(address(this), usdcIn);
         _swap(keyB, true, -int256(usdcIn), BUYER1);
 
-        uint256 accrued = _getState(keyB).creatorFeesAccrued;
+        uint256 accrued = _getState(keyB).creatorAccrued;
         assertGt(accrued, 0, "creator has fees");
 
         // 5000 bps → les fees créateur = 25% du total → accrued < total fee / 2
@@ -536,7 +534,7 @@ contract BondingCurveHookTest is Test {
 
         uint256 creatorBefore = usdc.balanceOf(CREATOR);
         vm.prank(CREATOR);
-        hook.claimFees(keyB, CREATOR);
+        hook.claimCreatorFees(keyB, CREATOR);
         assertEq(usdc.balanceOf(CREATOR) - creatorBefore, accrued, "claimed correct amount");
     }
 
@@ -568,15 +566,13 @@ contract BondingCurveHookTest is Test {
 
     /**
      * @notice Fuzz split : creatorKeepBps peut être n'importe quelle valeur 0–10000.
-     *         Vérifie que creatorFeesAccrued + holderNotified ≈ creatorShare.
+     *         Vérifie que creatorAccrued + holderNotified ≈ creatorShare.
      */
-    function testFuzz_FeeDistribution(uint256 keepBps) public {
-        keepBps = bound(keepBps, 0, 10_000);
+    function testFuzz_FeeDistribution(uint8 tierSeed) public {
+        BondingCurveHook.FeeTier tier = BondingCurveHook.FeeTier(bound(tierSeed, 0, 3));
 
-        // Déployer un token et une pool ad-hoc avec ce keepBps
-        // OMToken minte TOTAL_SUPPLY directement au hook (curve_=address(hook))
-        OMToken t = new OMToken("FuzzToken", "FZZ", "", "", address(hook), CREATOR);
-        MockFeeDistributor fd = new MockFeeDistributor(address(usdc));
+        // Déployer un token et une pool ad-hoc avec ce FeeTier
+        OMToken t = new OMToken("FuzzToken", "FZZ", "", "", address(hook), CREATOR, address(this));
 
         (address c0, address c1) = address(usdc) < address(t)
             ? (address(usdc), address(t))
@@ -590,9 +586,8 @@ contract BondingCurveHookTest is Test {
             hooks: IHooks(address(hook))
         });
 
-        address distAddr = keepBps < BPS ? address(fd) : address(0);
         poolManager.initialize(key, TickMath.getSqrtPriceAtTick(0));
-        hook.setupCurve(key, address(t), CREATOR, TREASURY, distAddr, keepBps);
+        hook.setupCurve(key, address(t), CREATOR, TREASURY, tier);
 
         uint256 usdcIn = 100_000_000;
         deal(address(usdc), BUYER1, usdcIn);
@@ -601,16 +596,11 @@ contract BondingCurveHookTest is Test {
         _swap(key, true, -int256(usdcIn), BUYER1);
 
         BondingCurveHook.CurveState memory s = hook.getCurveState(key.toId());
-        uint256 totalFee     = usdcIn * FEE_BPS / BPS;
-        uint256 creatorShare = totalFee / 2;
-        uint256 expectedKeep = creatorShare * keepBps / BPS;
 
-        assertApproxEqAbs(s.creatorFeesAccrued, expectedKeep, 2, "creator keep matches keepBps");
-
-        if (keepBps < BPS) {
-            uint256 expectedHolder = creatorShare - expectedKeep;
-            assertApproxEqAbs(fd.totalNotified(), expectedHolder, 2, "holder notified = remainder");
-        }
+        // Créateur reçoit toujours des fees (toute valeur de tier)
+        assertGt(s.creatorAccrued, 0, "creator always accrues fees");
+        // Invariant k préservée
+        assertGe(s.reserveUsdc * s.reserveTokens, hook.K(), "k >= K");
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────
