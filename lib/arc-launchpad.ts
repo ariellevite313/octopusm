@@ -15,10 +15,11 @@ export const ARC_POOL_MANAGER_ADDRESS = "0x8366a39CC670B4001A1121B8F6A443A643e40
  * Adresses V4 — à remplir après `forge script DeployV4.s.sol --broadcast`
  * Le déploiement V4 produit : BondingCurveHook, LaunchpadFactoryV4, BondingCurveRouter
  */
-export const ARC_HOOK_ADDRESS        = "0xa8eba033F2ed31B79CF5c8c82b72Db6E2D818088" as `0x${string}`;
-export const ARC_HOOK_ADDRESS_LEGACY = "0x88b136529931aa0db9ae626abe63921932fcc088" as `0x${string}`; // déploiement précédent — VIRTUAL_USDC=3200
-export const ARC_ROUTER_ADDRESS      = "0x6cF7Ec4114aB8924B4f988100d5B5b830948443f" as `0x${string}`;
-export const ARC_FACTORY_V4_ADDRESS  = "0x51894e8B17B53c8C98a4098F78f4d228e7b7907F" as `0x${string}`;
+export const ARC_HOOK_ADDRESS        = "0xB6A2f5df3DBd503371Df38a425867F96Da9Cc088" as `0x${string}`; // déploiement 2026-09-20 — FeeTier + dividendes
+export const ARC_HOOK_ADDRESS_LEGACY = "0xa8eba033F2ed31B79CF5c8c82b72Db6E2D818088" as `0x${string}`; // déploiement précédent (avant FeeTier)
+// Ancien hook (VIRTUAL_USDC=3200, très peu de tokens) : 0x88b136529931aa0db9ae626abe63921932fcc088
+export const ARC_ROUTER_ADDRESS      = "0xa85Ec75fF82f30de883741D5934CeAe269381d19" as `0x${string}`;
+export const ARC_FACTORY_V4_ADDRESS  = "0x823079E3bb9B6F6Ae714558A16e383C0E5E935F2" as `0x${string}`;
 
 // ─── V4 PoolKey / PoolId helpers ─────────────────────────────────────────────
 
