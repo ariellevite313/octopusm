@@ -789,7 +789,7 @@ function StepArcOptions({
                 onChange={(e) => set("arc_first_buy_usdc", Number(e.target.value))}
                 className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
-              <span className="text-sm text-muted-foreground">{quoteSymbol}</span>
+              <span className="text-sm text-muted-foreground">USDC</span>
             </div>
             {errors.arc_first_buy_usdc && (
               <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
@@ -898,7 +898,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
         <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Coût — Arc</p>
           <div className="space-y-1">
-            <Row label="Creation fee" value="10 USDC" />
+            <Row label="Creation fee" value="Gratuit" />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
             )}
@@ -906,7 +906,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
               <span className="text-sm font-semibold text-foreground">Total</span>
               <span className="text-sm font-bold text-blue-500">
-                ~{(10 + (data.arc_first_buy_enabled ? data.arc_first_buy_usdc : 0) + 0.04).toFixed(2)} USDC
+                ~{((data.arc_first_buy_enabled ? data.arc_first_buy_usdc : 0) + 0.04).toFixed(2)} USDC
               </span>
             </div>
           </div>
