@@ -15,6 +15,11 @@ import {
   ARC_FACTORY_V2_ADDRESS,
   LAUNCHPAD_FACTORY_V2_ABI,
   ARC_TREASURY_ADDRESS,
+  quoteArcBuy,
+  BC_VIRTUAL_USDC,
+  BC_CURVE_SUPPLY,
+  BC_K,
+  ARC_FEE_TIERS,
 } from "@/lib/arc-launchpad";
 import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
 import { XStockIcon } from "@/components/shared/xstock-icon";
@@ -780,22 +785,43 @@ function StepArcOptions({
             }`} />
           </button>
         </div>
-        {data.arc_first_buy_enabled && (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="number" min={1} max={480} step={1}
-                value={data.arc_first_buy_usdc}
-                onChange={(e) => set("arc_first_buy_usdc", Number(e.target.value))}
-                className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <span className="text-sm text-muted-foreground">USDC</span>
+        {data.arc_first_buy_enabled && (() => {
+          // Estimation client-side sur les réserves initiales de la courbe
+          const usdc = data.arc_first_buy_usdc;
+          const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
+          let tokensEst = "";
+          if (usdc > 0) {
+            try {
+              const usdcWei = BigInt(Math.round(usdc * 1e15)) * 1000n; // évite overflow float
+              const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
+              const tok = Number(tokensOut / 10n ** 12n) / 1e6; // 18 dec → float
+              tokensEst = tok >= 1_000_000
+                ? `≈ ${(tok / 1_000_000).toFixed(2)}M tokens`
+                : tok >= 1_000
+                ? `≈ ${(tok / 1_000).toFixed(1)}K tokens`
+                : `≈ ${tok.toFixed(0)} tokens`;
+            } catch { tokensEst = ""; }
+          }
+          return (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0.01} max={480} step="any"
+                  value={data.arc_first_buy_usdc}
+                  onChange={(e) => set("arc_first_buy_usdc", Number(e.target.value))}
+                  className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-sm text-muted-foreground">USDC</span>
+                {tokensEst && (
+                  <span className="text-xs text-muted-foreground">{tokensEst}</span>
+                )}
+              </div>
+              {errors.arc_first_buy_usdc && (
+                <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
+              )}
             </div>
-            {errors.arc_first_buy_usdc && (
-              <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
-            )}
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Fee tier selector */}
