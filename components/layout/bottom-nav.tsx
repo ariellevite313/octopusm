@@ -16,7 +16,7 @@ const LAUNCHPAD_NAV = [
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
   { label: "Launch",      href: "/launchpad/create",        icon: Rocket,     exact: true  },
   { label: "Leaderboard", href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
-  { label: "My tokens",   href: "/dashboard/launchpad",     icon: User,       exact: false },
+  { label: "Portfolio",    href: "/dashboard/launchpad",     icon: User,       exact: false },
 ];
 
 const CLT_DEXSCREENER = "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc";
