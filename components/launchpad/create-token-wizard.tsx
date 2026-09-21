@@ -12,11 +12,9 @@ import { useAuth } from "@/providers/auth-provider";
 import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
 import { arc } from "@/lib/arc-chain";
 import {
-  ARC_FACTORY_V4_ADDRESS, FACTORY_V4_ABI,
+  ARC_FACTORY_V2_ADDRESS,
+  LAUNCHPAD_FACTORY_V2_ABI,
   ARC_TREASURY_ADDRESS,
-  ARC_XSTOCK_ADDRESSES,
-  FEE_TIER_NAMES, FEE_TIER_BPS,
-  type FeeTier,
 } from "@/lib/arc-launchpad";
 import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
 import { XStockIcon } from "@/components/shared/xstock-icon";
@@ -64,12 +62,6 @@ type WizardData = {
   arc_supply: number;
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
-  // Tier de fees Arc
-  arc_fee_tier: FeeTier;
-  // Stock-paired (Arc)
-  arc_token_type: "usdc" | "stock";
-  arc_stock_symbol: string;      // ex: "xNVDA"
-  arc_quote_asset: `0x${string}`; // adresse ERC-20 du stock
   // Stock-paired (Solana)
   sol_token_type: "sol" | "stock";
   sol_stock_symbol: string;      // ex: "xNVDA"
@@ -87,10 +79,6 @@ const INITIAL: WizardData = {
   arc_supply: 1_000_000_000,
   arc_first_buy_enabled: false,
   arc_first_buy_usdc: 10,
-  arc_fee_tier: 0 as FeeTier,
-  arc_token_type: "usdc",
-  arc_stock_symbol: "xNVDA",
-  arc_quote_asset: "" as `0x${string}`,
   sol_token_type: "sol",
   sol_stock_symbol: "xNVDA",
 };
@@ -561,9 +549,9 @@ function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof 
   );
 }
 
-// ─── Fee tier accent styles (tabs + card) ────────────────────────────────────
+// ─── Fee tier accent styles (legacy — conservé pour la branche Solana) ───────
 
-const TIER_ACCENT: Record<FeeTier, { tabSel: string; badge: string; card: string; pct: string; desc: string }> = {
+const TIER_ACCENT: Record<number, { tabSel: string; badge: string; card: string; pct: string; desc: string }> = {
   0: {
     tabSel: "border-border bg-muted/50 text-foreground",
     badge:  "bg-foreground/80 text-background",
@@ -594,7 +582,7 @@ const TIER_ACCENT: Record<FeeTier, { tabSel: string; badge: string; card: string
   },
 };
 
-// ─── Étape 3 Arc — Options ──────────────────────────────────────────────────
+// ─── Étape 3 Arc — Options (V2) ─────────────────────────────────────────────
 
 function StepArcOptions({
   data, set, errors,
@@ -603,192 +591,8 @@ function StepArcOptions({
   set: (k: keyof WizardData, v: unknown) => void;
   errors: Record<string, string>;
 }) {
-  const quoteSymbol = data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC";
-
-  function selectStock(sym: string) {
-    const addr = ARC_XSTOCK_ADDRESSES[sym] ?? ("" as `0x${string}`);
-    set("arc_stock_symbol", sym);
-    set("arc_quote_asset", addr);
-  }
-
   return (
     <div className="space-y-5 pt-2">
-
-      {/* Token type selector */}
-      <div>
-        <p className="mb-2 text-sm font-medium text-foreground">Token type</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => set("arc_token_type", "usdc")}
-            className={`rounded-xl border p-3 text-left transition-colors ${
-              data.arc_token_type === "usdc"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-muted-foreground/40"
-            }`}
-          >
-            <p className="text-sm font-semibold text-foreground">💵 USDC Meme</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Classic. Buy/sell with USDC.</p>
-          </button>
-          <div className="relative rounded-xl border border-border p-3 text-left opacity-50 cursor-not-allowed select-none">
-            <span className="absolute top-2 right-2 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-400 border border-orange-500/30">
-              Soon
-            </span>
-            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><TrendingUp className="size-4 text-orange-400" /> Stock-Paired</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Paired with a tokenized stock.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Stock selector */}
-      {data.arc_token_type === "stock" && (
-        <div>
-          <p className="mb-2 text-sm font-medium text-foreground">Choose the paired stock</p>
-          <div className="flex flex-wrap gap-2">
-            {XSTOCK_CATALOG.map((s) => (
-              <button
-                key={s.symbol}
-                type="button"
-                onClick={() => selectStock(s.symbol)}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  data.arc_stock_symbol === s.symbol
-                    ? "bg-orange-500 text-white"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <XStockIcon symbol={s.symbol} size={14} />
-                <span>${s.ticker}</span>
-              </button>
-            ))}
-          </div>
-          {data.arc_stock_symbol && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Traders will need <span className="font-semibold text-foreground">{data.arc_stock_symbol}</span> to buy your token.
-            </p>
-          )}
-          {errors.arc_quote_asset && (
-            <p className="mt-1 text-xs text-red-500">{errors.arc_quote_asset}</p>
-          )}
-        </div>
-      )}
-
-      {/* Fee Tier */}
-      <div className="space-y-2.5">
-        <div>
-          <p className="text-sm font-medium text-foreground">Fee Tier</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Fixed at launch. Fees automatically decrease after graduation.
-          </p>
-        </div>
-
-        {/* Tab buttons */}
-        <div className="flex flex-wrap gap-1.5">
-          {([0, 1, 2, 3] as FeeTier[]).map((tier) => {
-            const sel = data.arc_fee_tier === tier;
-            const ac  = TIER_ACCENT[tier];
-            return (
-              <button
-                key={tier}
-                type="button"
-                onClick={() => set("arc_fee_tier", tier)}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                  sel ? ac.tabSel : "border-border text-muted-foreground hover:border-muted-foreground/40"
-                }`}
-              >
-                {FEE_TIER_NAMES[tier]}
-                <span className={`rounded-full px-1.5 py-px text-[10px] font-semibold transition-colors ${
-                  sel ? ac.badge : "bg-muted text-muted-foreground"
-                }`}>
-                  {FEE_TIER_BPS[tier].pre[0] / 100}%
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Detail card — updates live when tier changes */}
-        {(() => {
-          const tier = data.arc_fee_tier;
-          const ac   = TIER_ACCENT[tier];
-          const bps  = FEE_TIER_BPS[tier];
-          const actors = [
-            { l: "Creator",   hint: "→ token creator",  pre: bps.pre[1],  post: bps.post[1] },
-            { l: "Platform",  hint: "→ OMdotfun",        pre: bps.pre[2],  post: bps.post[2] },
-            { l: "Locked LP", hint: "→ liquidity pool",  pre: bps.pre[3],  post: bps.post[3] },
-            { l: "Holders",   hint: "→ token holders",   pre: bps.pre[4],  post: bps.post[4], amber: true },
-          ] as const;
-          return (
-            <div className={`rounded-xl border p-4 space-y-3 transition-colors ${ac.card}`}>
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{FEE_TIER_NAMES[tier]}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{ac.desc}</p>
-                </div>
-                <div className="text-right ml-4 shrink-0">
-                  <p className={`text-2xl font-semibold leading-none transition-colors ${ac.pct}`}>
-                    {bps.pre[0] / 100}%
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-1">per swap</p>
-                </div>
-              </div>
-
-              {/* Pre-graduation actor blocks */}
-              <div className="flex rounded-lg overflow-hidden border border-border">
-                {actors.map((actor, i) => {
-                  const nextHasVal = actors.slice(i + 1).some(a => a.pre > 0);
-                  return (
-                    <div
-                      key={actor.l}
-                      className={`min-w-0 overflow-hidden ${actor.amber ? "bg-amber-50 dark:bg-amber-950/30" : ""} ${actor.pre > 0 && nextHasVal ? "border-r border-border" : ""}`}
-                      style={{
-                        flex: `${actor.pre} 0 0`,
-                        padding: actor.pre > 0 ? "8px 10px" : "0",
-                        transition: "flex 0.35s cubic-bezier(.4,0,.2,1), padding 0.35s cubic-bezier(.4,0,.2,1)",
-                      }}
-                    >
-                      <p className={`text-[10px] overflow-hidden text-ellipsis whitespace-nowrap ${actor.amber ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}>{actor.l}</p>
-                      <p className={`text-[10px] overflow-hidden text-ellipsis whitespace-nowrap ${actor.amber ? "text-amber-600/70 dark:text-amber-500/70" : "text-muted-foreground/60"}`}>{actor.hint}</p>
-                      <p className={`text-sm font-semibold whitespace-nowrap mt-1 ${actor.amber ? "text-amber-700 dark:text-amber-400" : "text-foreground"}`}>
-                        {actor.pre > 0 ? `${actor.pre / 100}%` : ""}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* After graduation */}
-              <div className="rounded-lg bg-muted/30 p-2.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">After graduation</p>
-                  <p className={`text-sm font-medium transition-colors ${ac.pct}`}>{bps.post[0] / 100}%</p>
-                </div>
-                <div className="flex rounded-md overflow-hidden border border-border">
-                  {actors.map((actor, i) => {
-                    const nextHasVal = actors.slice(i + 1).some(a => a.post > 0);
-                    return (
-                      <div
-                        key={actor.l}
-                        className={`min-w-0 overflow-hidden ${actor.amber ? "bg-amber-50/60 dark:bg-amber-950/20" : ""} ${actor.post > 0 && nextHasVal ? "border-r border-border" : ""}`}
-                        style={{
-                          flex: `${actor.post} 0 0`,
-                          padding: actor.post > 0 ? "5px 8px" : "0",
-                          transition: "flex 0.35s cubic-bezier(.4,0,.2,1), padding 0.35s cubic-bezier(.4,0,.2,1)",
-                        }}
-                      >
-                        <p className={`text-[10px] overflow-hidden text-ellipsis whitespace-nowrap ${actor.amber ? "text-amber-700/80 dark:text-amber-400/80" : "text-muted-foreground"}`}>{actor.l}</p>
-                        <p className={`text-xs font-medium whitespace-nowrap mt-0.5 ${actor.amber ? "text-amber-700 dark:text-amber-400" : "text-foreground"}`}>
-                          {actor.post > 0 ? `${actor.post / 100}%` : ""}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
 
       {/* First buy */}
       <div className="rounded-xl border border-border p-4 space-y-3">
@@ -827,11 +631,11 @@ function StepArcOptions({
         )}
       </div>
 
-      {/* Info bonding curve */}
+      {/* Info bonding curve V2 */}
       <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/10 p-4">
-        <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve</p>
+        <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve V2</p>
         <p className="text-xs text-blue-700 dark:text-blue-400">
-          Constant-product AMM · Graduates at ~$25,000 market cap · {FEE_TIER_BPS[data.arc_fee_tier].pre[0] / 100}% trading fee · Fully on-chain on Arc.
+          Constant-product AMM · 2% fee fixe (1% créateur · 1% plateforme) · Graduation à 2 000 USDC levés → pool Uniswap V4 standard (fee=2500, hook=0x0) · Indexé sur DexScreener.
         </p>
       </div>
 
@@ -893,15 +697,16 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
         {chain === "arc" ? (
           <>
             <Row label="Supply" value="1,000,000,000 tokens" />
-            <Row label="Type" value={data.arc_token_type === "stock" ? `Stock-Paired (${data.arc_stock_symbol})` : "USDC Meme"} />
-            <Row label="Bonding curve" value="Constant-product AMM" />
-            <Row label="Graduation" value="~$25,000 market cap" />
-            <Row label="Trading fee" value={`${FEE_TIER_BPS[data.arc_fee_tier].pre[0] / 100}%`} />
-            <Row label="Platform fee" value="Free" highlight />
+            <Row label="Type" value="USDC Meme (native Arc)" />
+            <Row label="Bonding curve" value="BondingCurveArcV2 standalone" />
+            <Row label="Graduation" value="2 000 USDC levés" />
+            <Row label="Post-graduation" value="Pool V4 (fee=2500, hook=0x0)" />
+            <Row label="Trading fee" value="2% (1% créateur · 1% plateforme)" />
+            <Row label="Creation fee" value="10 USDC" />
             {data.arc_first_buy_enabled && (
-              <Row label="First buy" value={`${data.arc_first_buy_usdc} ${data.arc_token_type === "stock" ? data.arc_stock_symbol : "USDC"}`} />
+              <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
             )}
-            <Row label="Token address" value="Auto-generated" highlight />
+            <Row label="Adresses" value="Auto-générées" highlight />
           </>
         ) : (
           <>
@@ -926,20 +731,25 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
       {/* Coût */}
       {chain === "arc" ? (
         <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost — Arc</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Coût — Arc</p>
           <div className="space-y-1">
-            <Row label="Gas (deploy ~1M gas)" value="~0.02 USDC" />
-            <Row label="Platform fee" value="Free" highlight />
+            <Row label="Creation fee" value="10 USDC" />
+            {data.arc_first_buy_enabled && (
+              <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
+            )}
+            <Row label="Gas (deploy ~2M gas)" value="~0.04 USDC" />
             <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
               <span className="text-sm font-semibold text-foreground">Total</span>
-              <span className="text-sm font-bold text-blue-500">~0.02 USDC</span>
+              <span className="text-sm font-bold text-blue-500">
+                ~{(10 + (data.arc_first_buy_enabled ? data.arc_first_buy_usdc : 0) + 0.04).toFixed(2)} USDC
+              </span>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            MetaMask will open to sign the transaction on Arc.
+            MetaMask va s&apos;ouvrir pour signer la transaction sur Arc.
           </p>
           <p className="mt-1 text-xs text-amber-500">
-            ⚠️ Phantom must not be set as default EVM wallet. Go to Phantom → Settings → Default wallet → Always ask.
+            ⚠️ Phantom ne doit pas être le wallet EVM par défaut. Va dans Phantom → Settings → Default wallet → Always ask.
           </p>
         </div>
       ) : (
@@ -1157,24 +967,30 @@ export function CreateTokenWizard({
       transport: http("/api/arc-rpc"),
     });
 
-    // ── Uniswap V4 + BondingCurveHook (V4 exclusif) ─────────────────────────
-      // Création gratuite — pas de creation fee, pas de msg.value.
-      toast.info("Deploying token on Arc V4…");
+    // ── LaunchpadFactoryArcV2 ─────────────────────────────────────────────────
+      if (!ARC_FACTORY_V2_ADDRESS) throw new Error("Contrats V2 pas encore déployés. Lance d'abord forge script DeployArcV2.s.sol.");
+
+      const firstBuyUsdc = data.arc_first_buy_enabled ? BigInt(Math.round(data.arc_first_buy_usdc * 1e18)) : 0n;
+      const creationFee  = 10n * 10n ** 18n; // 10 USDC natif
+      const totalValue   = creationFee + firstBuyUsdc;
+
+      toast.info("Déploiement du token sur Arc V2…");
       const txHash = await walletClient.writeContract({
-        address:      ARC_FACTORY_V4_ADDRESS,
-        abi:          FACTORY_V4_ABI,
+        address:      ARC_FACTORY_V2_ADDRESS,
+        abi:          LAUNCHPAD_FACTORY_V2_ABI,
         functionName: "createToken",
         args: [
           data.name,
           data.ticker,
-          "", // imageUri — non utilisé on-chain
-          data.arc_fee_tier, // 0=Standard / 1=Community / 2=Créateur / 3=Max
+          "",               // imageUri (stocké off-chain)
+          data.description,
+          firstBuyUsdc,
         ],
-        // Pas de value — création gratuite
+        value: totalValue,
       });
 
       toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
-      toast.info("Waiting for confirmation…");
+      toast.info("En attente de confirmation…");
 
       let receipt = null;
       for (let attempt = 0; attempt < 100; attempt++) {
@@ -1182,24 +998,26 @@ export function CreateTokenWizard({
         receipt = await publicClient.getTransactionReceipt({ hash: txHash }).catch(() => null);
         if (receipt) break;
       }
-      if (!receipt) throw new Error("Transaction not confirmed after 5 minutes. Check ArcScan: https://explorer.arc.io/tx/" + txHash);
+      if (!receipt) throw new Error("Transaction non confirmée après 5 min. Vérifie ArcScan : https://explorer.arc.io/tx/" + txHash);
       if (receipt.status === "reverted") {
-        throw new Error("Transaction reverted — check ArcScan: https://explorer.arc.io/tx/" + txHash);
+        throw new Error("Transaction revertée — vérifie ArcScan : https://explorer.arc.io/tx/" + txHash);
       }
 
-      // Extraire l'adresse du token depuis l'event TokenCreated V4
+      // Extraire curve, token, vault depuis l'event TokenLaunched
       const logs = parseEventLogs({
-        abi:       FACTORY_V4_ABI,
-        eventName: "TokenCreated",
+        abi:       LAUNCHPAD_FACTORY_V2_ABI,
+        eventName: "TokenLaunched",
         logs:      receipt.logs,
       });
-      if (!logs[0]?.args?.token) {
-        throw new Error("V4 Factory did not emit TokenCreated. Check ARC_FACTORY_V4_ADDRESS.");
+      if (!logs[0]?.args?.token || !logs[0]?.args?.curve) {
+        throw new Error("Factory V2 n'a pas émis TokenLaunched. Vérifie ARC_FACTORY_V2_ADDRESS.");
       }
       const arcTokenAddress  = logs[0].args.token as string;
+      const arcCurveAddress  = logs[0].args.curve as string;
+      const arcVaultAddress  = (logs[0].args as Record<string, unknown>).vault as string | null ?? null;
       const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
 
-      // Sauvegarder — pour V4 : arc_launch_id = arc_token_address (token est son propre launch ID)
+      // Sauvegarder — V2 : arc_launch_id = curve address (≠ token)
       const form = new FormData();
       if (data.logo_file) form.append("logo", data.logo_file);
       form.append("payload", JSON.stringify({
@@ -1210,7 +1028,7 @@ export function CreateTokenWizard({
         supply: 1_000_000_000,
         chain: "arc",
         arc_token_address: arcTokenAddress,
-        arc_launch_id:     arcTokenAddress, // ← V4 : launch_id = token address
+        arc_launch_id:     arcCurveAddress, // ← V2 : launch_id = curve address
         arc_tx_hash:       txHash,
         arc_creation_block: arcCreationBlock,
         quote_asset:   null,
@@ -1219,20 +1037,21 @@ export function CreateTokenWizard({
         creator_fee_pct: 1,
         fee_recipients: [],
         share_top100: false, share_top100_pct: 0,
-        first_buy_enabled: false, first_buy_amount: 0,
+        first_buy_enabled: data.arc_first_buy_enabled,
+        first_buy_amount: data.arc_first_buy_usdc,
         is_scheduled: false, scheduled_at: null,
-        vault_address: null,
-        fee_distributor_address: null, // V4 : address(0) passé au hook → 100% creator
+        vault_address: arcVaultAddress,
+        fee_distributor_address: null,
         holder_rewards: false,
       }));
       const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
       const json = await res.json() as { id?: string; error?: string };
       if (!res.ok || json.error) {
         const errMsg = json.error ?? `HTTP ${res.status}`;
-        console.error("[Arc wizard] DB save failed:", errMsg, "token:", arcTokenAddress, "tx:", txHash);
-        throw new Error(`Token deployed on-chain (${arcTokenAddress}) but DB save failed: ${errMsg}. Note the token address!`);
+        console.error("[Arc wizard] DB save failed:", errMsg, "token:", arcTokenAddress, "curve:", arcCurveAddress, "tx:", txHash);
+        throw new Error(`Token déployé on-chain (curve: ${arcCurveAddress}) mais la sauvegarde DB a échoué: ${errMsg}. Note l'adresse du token !`);
       }
-      toast.success("Token deployed on Arc V4! Redirecting…");
+      toast.success("Token déployé sur Arc V2 ! Redirection…");
       router.push(`/launchpad/${json.id}`);
   }
 

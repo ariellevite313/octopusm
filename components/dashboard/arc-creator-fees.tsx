@@ -1,64 +1,29 @@
 "use client";
 
 /**
- * ArcCreatorFees
+ * ArcCreatorFees — V2
  *
- * Lists all Arc tokens created by the user and shows claimable USDC creator fees.
+ * Liste les tokens Arc V2 créés par l'utilisateur et affiche les USDC creator fees claimables.
  *
- * V4 tokens  (arc_launch_id === mint_address) :
- *   - Lit  BondingCurveHook.getCurveState(poolId).creatorAccrued
- *                                                   .platformAccrued
- *                                                   .creatorLastClaim
- *   - Claim BondingCurveHook.claimCreatorFees(poolKey, account)
+ * arc_launch_id = adresse du BondingCurveArcV2 (clone standalone) ≠ mint_address
+ * Tokens V4 legacy (arc_launch_id === mint_address) ignorés — coupure propre V2.
  *
- * V1 tokens  (arc_launch_id = standalone BondingCurve clone) :
- *   - Lit  BondingCurve.creatorFeesAccrued()
- *   - Claim BondingCurve.claimFees(account)
+ * Lit  : BondingCurveArcV2.creatorAccrued()       — USDC natif Arc 18 dec
+ * Claim: BondingCurveArcV2.claimCreatorFees(to)   — envoie l'ETH natif au créateur
  */
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
-import {
-  BONDING_CURVE_ABI,
-  BONDING_CURVE_HOOK_ABI,
-  ARC_HOOK_ADDRESS,
-  ARC_HOOK_ADDRESS_LEGACY,
-  getArcV4PoolKey,
-  getArcV4PoolId,
-} from "@/lib/arc-launchpad";
+import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
-// V1 = USDC ERC-20 à 6 décimales, V4 = USDC natif Arc à 18 décimales EVM
-function fmtUsdc(raw: bigint, isV4: boolean): string {
-  let n: number;
-  if (isV4) {
-    const whole = raw / BigInt(1e12); // → 6 décimales restantes
-    n = Number(whole) / 1e6;
-  } else {
-    n = Number(raw) / 1e6; // 6 décimales ERC-20
-  }
+function fmtUsdc(raw: bigint): string {
+  const n = Number(raw) / 1e18; // USDC natif Arc = 18 dec
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-}
-
-const ABANDON_DELAY_S = 730 * 24 * 3600; // 2 ans en secondes
-
-/**
- * Retourne un label lisible pour le timer d'abandon du créateur.
- * creatorLastClaim = timestamp unix (bigint). 0 = jamais claimé (compte du deploy).
- */
-function abandonLabel(creatorLastClaim: bigint | null, nowS: number): string {
-  if (creatorLastClaim === null) return "";
-  const lastS = Number(creatorLastClaim);
-  const elapsedS = nowS - lastS;
-  const remainS = ABANDON_DELAY_S - elapsedS;
-  if (remainS <= 0) return "⚠ OMdotfun can sweep";
-  const days = Math.ceil(remainS / 86400);
-  if (days > 365) return `${Math.floor(days / 365)}y ${days % 365}d until sweep`;
-  return `${days}d until sweep`;
 }
 
 type ArcToken = {
@@ -71,26 +36,17 @@ type ArcToken = {
 };
 
 type TokenWithFees = ArcToken & {
-  isV4:              boolean;
-  accrued:           bigint | null; // creator fees — null = loading
-  platformAccrued:   bigint | null; // platform fees (V4 only)
-  creatorLastClaim:  bigint | null; // timestamp (V4 only)
-  claiming:          boolean;
-  txHash:            string | null;
-  error:             string | null;
+  curveAddress: string;
+  accrued:      bigint | null; // null = loading
+  claiming:     boolean;
+  txHash:       string | null;
+  error:        string | null;
 };
 
 export function ArcCreatorFees() {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
   const [tokens, setTokens] = useState<TokenWithFees[]>([]);
   const [loading, setLoading] = useState(true);
-  const [nowS, setNowS] = useState(() => Math.floor(Date.now() / 1000));
-
-  // Mise à jour de l'horloge toutes les 60 s pour les timers d'abandon
-  useEffect(() => {
-    const id = setInterval(() => setNowS(Math.floor(Date.now() / 1000)), 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   // 1. Fetch Arc tokens from DB
   useEffect(() => {
@@ -101,25 +57,26 @@ export function ArcCreatorFees() {
         const res = await fetch("/api/launchpad/mine");
         if (!res.ok) return;
         const all = await res.json() as ArcToken[];
-        const arcTokens = all.filter(
-          t => t.arc_launch_id?.startsWith("0x") && t.arc_launch_id.length === 42
-        );
-        setTokens(arcTokens.map(t => {
-          const isV4 = !!(
+
+        // V2 uniquement : arc_launch_id valide et ≠ mint_address (curve ≠ token)
+        const v2Tokens = all.filter(t => {
+          if (!t.arc_launch_id?.startsWith("0x") || t.arc_launch_id.length !== 42) return false;
+          // Ignorer les V4 legacy où arc_launch_id === mint_address
+          if (
             t.mint_address &&
-            t.arc_launch_id?.toLowerCase() === t.mint_address.toLowerCase()
-          );
-          return {
-            ...t,
-            isV4,
-            accrued: null,
-            platformAccrued: null,
-            creatorLastClaim: null,
-            claiming: false,
-            txHash: null,
-            error: null,
-          };
-        }));
+            t.arc_launch_id.toLowerCase() === t.mint_address.toLowerCase()
+          ) return false;
+          return true;
+        });
+
+        setTokens(v2Tokens.map(t => ({
+          ...t,
+          curveAddress: t.arc_launch_id!,
+          accrued: null,
+          claiming: false,
+          txHash: null,
+          error: null,
+        })));
       } finally {
         setLoading(false);
       }
@@ -127,65 +84,27 @@ export function ArcCreatorFees() {
     void load();
   }, [isAuthenticated]);
 
-  // 2. Read fees for each token (V4 or V1)
+  // 2. Read creatorAccrued for each V2 token
   useEffect(() => {
     if (tokens.length === 0) return;
     const client = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
 
     tokens.forEach(async (token, idx) => {
-      if (!token.arc_launch_id) return;
       try {
-        if (token.isV4 && token.mint_address) {
-          // ── V4 : lire depuis le hook actif ──────────────────────────────────
-          let found = false;
-          for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
-            const poolId = getArcV4PoolId(token.mint_address as `0x${string}`, hookAddr);
-            const state = await client.readContract({
-              address:      hookAddr,
-              abi:          BONDING_CURVE_HOOK_ABI,
-              functionName: "getCurveState",
-              args:         [poolId],
-            }) as {
-              initialized:      boolean;
-              creatorAccrued:   bigint;
-              platformAccrued:  bigint;
-              creatorLastClaim: bigint;
-            };
-            if (state.initialized) {
-              setTokens(prev => prev.map((t, i) => i === idx ? {
-                ...t,
-                accrued:          state.creatorAccrued,
-                platformAccrued:  state.platformAccrued,
-                creatorLastClaim: state.creatorLastClaim,
-              } : t));
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            setTokens(prev => prev.map((t, i) => i === idx ? {
-              ...t, accrued: 0n, platformAccrued: 0n, creatorLastClaim: 0n,
-            } : t));
-          }
-        } else {
-          // ── V1 : lire depuis le clone BondingCurve ─────────────────────────
-          const raw = await client.readContract({
-            address:      token.arc_launch_id as `0x${string}`,
-            abi:          BONDING_CURVE_ABI,
-            functionName: "creatorFeesAccrued",
-          }) as bigint;
-          setTokens(prev => prev.map((t, i) => i === idx ? { ...t, accrued: raw } : t));
-        }
+        const raw = await client.readContract({
+          address:      token.curveAddress as `0x${string}`,
+          abi:          BONDING_CURVE_V2_ABI,
+          functionName: "creatorAccrued",
+        }) as bigint;
+        setTokens(prev => prev.map((t, i) => i === idx ? { ...t, accrued: raw } : t));
       } catch {
-        setTokens(prev => prev.map((t, i) =>
-          i === idx ? { ...t, accrued: 0n, platformAccrued: 0n, creatorLastClaim: 0n } : t
-        ));
+        setTokens(prev => prev.map((t, i) => i === idx ? { ...t, accrued: 0n } : t));
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens.length]);
 
-  // 3. Claim creator fees for one token
+  // 3. Claim creator fees
   async function handleClaim(idx: number) {
     if (!walletAddress || !walletType) return;
     const provider = getProviderByType(walletType);
@@ -204,156 +123,120 @@ export function ArcCreatorFees() {
 
       const [account] = await walletClient.getAddresses();
       const token = tokens[idx];
-      let hash: `0x${string}`;
 
-      if (token.isV4 && token.mint_address) {
-        // ── V4 : hook.claimCreatorFees(poolKey, to) ─────────────────────────
-        const publicReadClient = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
-        let activeHook: `0x${string}` = ARC_HOOK_ADDRESS;
-        for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
-          const poolId = getArcV4PoolId(token.mint_address as `0x${string}`, hookAddr);
-          const s = await publicReadClient.readContract({
-            address: hookAddr,
-            abi: BONDING_CURVE_HOOK_ABI,
-            functionName: "getCurveState",
-            args: [poolId],
-          }).catch(() => null) as { initialized?: boolean } | null;
-          if (s?.initialized) { activeHook = hookAddr; break; }
-        }
-        const poolKey = getArcV4PoolKey(token.mint_address as `0x${string}`, activeHook);
-        hash = await walletClient.writeContract({
-          address:      activeHook,
-          abi:          BONDING_CURVE_HOOK_ABI,
-          functionName: "claimCreatorFees",
-          args:         [poolKey, account],
-          account,
-          chain:        arc,
-        });
-      } else {
-        // ── V1 : BondingCurve.claimFees(account) ────────────────────────────
-        hash = await walletClient.writeContract({
-          address:      token.arc_launch_id as `0x${string}`,
-          abi:          BONDING_CURVE_ABI,
-          functionName: "claimFees",
-          args:         [account],
-          account,
-          chain:        arc,
-        });
-      }
+      const hash = await walletClient.writeContract({
+        address:      token.curveAddress as `0x${string}`,
+        abi:          BONDING_CURVE_V2_ABI,
+        functionName: "claimCreatorFees",
+        args:         [account],
+        account,
+        chain:        arc,
+      });
 
       setTokens(prev => prev.map((t, i) =>
-        i === idx ? {
-          ...t,
-          claiming: false,
-          txHash: hash,
-          accrued: 0n,
-          creatorLastClaim: BigInt(Math.floor(Date.now() / 1000)),
-        } : t
+        i === idx ? { ...t, claiming: false, txHash: hash, accrued: 0n } : t
       ));
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Transaction failed";
       setTokens(prev => prev.map((t, i) =>
-        i === idx ? { ...t, claiming: false, error: msg.length > 80 ? msg.slice(0, 80) + "…" : msg } : t
+        i === idx
+          ? { ...t, claiming: false, error: msg.length > 80 ? msg.slice(0, 80) + "…" : msg }
+          : t
       ));
     }
   }
 
   if (!isAuthenticated) return null;
+
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin" /> Loading Arc tokens…
     </div>
   );
+
   if (tokens.length === 0) return (
-    <p className="text-sm text-muted-foreground py-2">No Arc tokens launched yet.</p>
+    <p className="text-sm text-muted-foreground py-2">No Arc V2 tokens launched yet.</p>
   );
 
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-foreground">Arc tokens — creator fees</h3>
-      {tokens.map((token, idx) => {
-        const timerLabel = token.isV4 ? abandonLabel(token.creatorLastClaim, nowS) : "";
-        const timerIsDanger = timerLabel.startsWith("⚠");
-
-        return (
-          <div key={token.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-            {/* Logo */}
-            <div className="size-10 shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
-              {token.logo_url
-                ? <Image src={token.logo_url} alt={token.name} width={40} height={40} className="object-cover" unoptimized />
-                : <span className="text-xs font-bold text-muted-foreground">{token.ticker.slice(0, 2)}</span>
-              }
-            </div>
-
-            {/* Name + fees + timer */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">
-                {token.name}
-                {token.isV4 && (
-                  <span className="ml-1.5 text-[10px] font-medium text-orange-400/80 align-middle">V4</span>
-                )}
-              </p>
-
-              {/* Creator fees */}
-              <p className="text-xs text-muted-foreground">
-                {token.accrued === null
-                  ? "Reading…"
-                  : token.accrued === 0n
-                  ? "No creator fees yet"
-                  : `${fmtUsdc(token.accrued, token.isV4)} USDC claimable`}
-              </p>
-
-              {/* Platform fees (V4 only, info) */}
-              {token.isV4 && token.platformAccrued !== null && token.platformAccrued > 0n && (
-                <p className="text-[11px] text-muted-foreground/70">
-                  + {fmtUsdc(token.platformAccrued, true)} USDC platform (OMdotfun)
-                </p>
+      {tokens.map((token, idx) => (
+        <div
+          key={token.id}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+        >
+          {/* Logo */}
+          <div className="size-10 shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+            {token.logo_url
+              ? (
+                <Image
+                  src={token.logo_url}
+                  alt={token.name}
+                  width={40}
+                  height={40}
+                  className="object-cover"
+                  unoptimized
+                />
+              )
+              : (
+                <span className="text-xs font-bold text-muted-foreground">
+                  {token.ticker.slice(0, 2)}
+                </span>
               )}
+          </div>
 
-              {/* Abandon timer */}
-              {token.isV4 && timerLabel && (
-                <p className={`flex items-center gap-1 text-[11px] mt-0.5 ${timerIsDanger ? "text-red-400" : "text-muted-foreground/60"}`}>
-                  <Clock className="size-3 shrink-0" />
-                  {timerLabel}
-                </p>
-              )}
+          {/* Name + fees */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {token.name}
+            </p>
 
-              {/* Success tx */}
-              {token.txHash && (
-                <a
-                  href={`https://explorer.arc.io/tx/${token.txHash}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
-                >
-                  <CheckCircle2 className="size-3" /> Claimed
-                </a>
-              )}
-              {token.error && <p className="text-[11px] text-red-400 mt-0.5">{token.error}</p>}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {token.accrued === null
+                ? "Reading…"
+                : token.accrued === 0n
+                ? "No creator fees yet"
+                : `${fmtUsdc(token.accrued)} USDC claimable`}
+            </p>
 
-            {/* Claim button */}
-            {selectedChain !== "arc" ? (
-              <span className="text-[10px] text-muted-foreground text-right shrink-0">
-                Connect<br />MetaMask
-              </span>
-            ) : (
-              <button
-                onClick={() => void handleClaim(idx)}
-                disabled={token.claiming || !token.accrued || token.accrued === 0n}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 ${
-                  token.claiming || !token.accrued || token.accrued === 0n
-                    ? "bg-muted text-muted-foreground cursor-not-allowed"
-                    : "bg-orange-500 hover:bg-orange-400 text-white"
-                }`}
+            {token.txHash && (
+              <a
+                href={`https://explorer.arc.io/tx/${token.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
               >
-                {token.claiming
-                  ? <Loader2 className="size-3.5 animate-spin" />
-                  : "Claim"}
-              </button>
+                <CheckCircle2 className="size-3" /> Claimed
+              </a>
+            )}
+            {token.error && (
+              <p className="text-[11px] text-red-400 mt-0.5">{token.error}</p>
             )}
           </div>
-        );
-      })}
+
+          {/* Claim button */}
+          {selectedChain !== "arc" ? (
+            <span className="text-[10px] text-muted-foreground text-right shrink-0">
+              Connect<br />MetaMask
+            </span>
+          ) : (
+            <button
+              onClick={() => void handleClaim(idx)}
+              disabled={token.claiming || !token.accrued || token.accrued === 0n}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 ${
+                token.claiming || !token.accrued || token.accrued === 0n
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-400 text-white"
+              }`}
+            >
+              {token.claiming
+                ? <Loader2 className="size-3.5 animate-spin" />
+                : "Claim"}
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,42 +1,36 @@
 /**
  * GET /api/cron/arc-graduation
  *
- * Keeper cron — finalise automatiquement la graduation V4.
+ * Synchronise le statut de graduation en DB pour les tokens Arc V2.
  *
- * Pour chaque token V4 dont `graduated = true` et `lpAdded = false` sur le hook,
- * appelle `addGraduationLiquidity(poolKey)` avec un wallet keeper côté serveur.
+ * En V2, la graduation est AUTOMATIQUE — déclenchée on-chain dans buy()
+ * quand realUsdcRaised >= GRAD_THRESHOLD. Il n'y a pas de tx keeper nécessaire.
  *
- * Variables d'env requises :
- *   GRADUATION_KEEPER_PK  — clé privée (0x...) du wallet qui paie le gas
- *   CRON_SECRET           — bearer token (optionnel, auth Vercel cron)
+ * Ce cron lit simplement BondingCurveArcV2.graduated() pour chaque token actif
+ * et met à jour la colonne `status` en DB ('active' → 'graduated').
  *
- * Vercel cron : toutes les 2 minutes
- * Arc : gas payé en USDC natif — le keeper wallet doit avoir du USDC.
+ * Variables d'env :
+ *   CRON_SECRET — bearer token optionnel
+ *
+ * Vercel cron : toutes les 2 minutes.
  */
 
-import { NextResponse }       from "next/server";
-import { createPublicClient, createWalletClient, http, privateKeyToAccount } from "viem";
-import { arc }                from "@/lib/arc-chain";
-import {
-  ARC_HOOK_ADDRESS,
-  ARC_HOOK_ADDRESS_LEGACY,
-  BONDING_CURVE_HOOK_ABI,
-  getArcV4PoolKey,
-  getArcV4PoolId,
-}                             from "@/lib/arc-launchpad";
-import { createAdminClient }  from "@/lib/supabase/server";
+import { NextResponse }      from "next/server";
+import { createPublicClient, http } from "viem";
+import { arc }               from "@/lib/arc-chain";
+import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
 
 const RPC = "https://rpc.mainnet.arc.io";
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 10_000;
 
 function withTimeout<T>(p: Promise<T>, ms = TIMEOUT_MS): Promise<T | null> {
   return Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), ms))]);
 }
 
 export async function GET(req: Request) {
-  // ── Auth ──────────────────────────────────────────────────────────────────
   const secret = process.env.CRON_SECRET;
   if (secret) {
     const auth = req.headers.get("authorization") ?? "";
@@ -45,119 +39,55 @@ export async function GET(req: Request) {
     }
   }
 
-  // ── Pré-conditions ────────────────────────────────────────────────────────
-  if (!ARC_HOOK_ADDRESS) {
-    return NextResponse.json({ skipped: true, reason: "Hook not deployed" });
-  }
-
-  const keeperPk = process.env.GRADUATION_KEEPER_PK as `0x${string}` | undefined;
-  if (!keeperPk) {
-    return NextResponse.json({ skipped: true, reason: "GRADUATION_KEEPER_PK not set" });
-  }
-
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
 
-    // ── 1. Récupérer tous les tokens V4 actifs ────────────────────────────
-    // V4 : arc_launch_id === mint_address
+    // Récupérer les tokens actifs (pas encore marqués graduated en DB)
     const { data: tokens, error } = await admin
       .from("launchpad_tokens")
-      .select("id, arc_launch_id, mint_address")
+      .select("id, arc_launch_id")
       .eq("chain", "arc")
       .in("status", ["active", "graduating"])
-      .not("arc_launch_id", "is", null)
-      .not("mint_address", "is", null);
+      .not("arc_launch_id", "is", null);
 
     if (error) throw error;
     if (!tokens?.length) return NextResponse.json({ processed: 0 });
 
-    type TokenRow = { id: string; arc_launch_id: string; mint_address: string };
-
-    // Filtrer uniquement les V4 (arc_launch_id === mint_address)
-    const v4Tokens = (tokens as TokenRow[]).filter(t =>
-      t.arc_launch_id.toLowerCase() === t.mint_address.toLowerCase()
-    );
-
-    if (!v4Tokens.length) return NextResponse.json({ processed: 0, reason: "No V4 tokens" });
-
-    // ── 2. Checker l'état on-chain de chaque token ────────────────────────
     const publicClient = createPublicClient({ chain: arc, transport: http(RPC) });
 
-    const needsGrad: TokenRow[] = [];
+    type TokenRow = { id: string; arc_launch_id: string };
+    const results: { id: string; graduated: boolean; error?: string }[] = [];
 
-    // Pour chaque token, tracker le hook actif (nouveau ou legacy)
-    const tokenHookMap = new Map<string, `0x${string}`>();
-
-    await Promise.all(v4Tokens.map(async (t) => {
-      for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY] as `0x${string}`[]) {
-        try {
-          const poolId = getArcV4PoolId(t.mint_address as `0x${string}`, hookAddr);
-          const state  = await withTimeout(publicClient.readContract({
-            address:      hookAddr,
-            abi:          BONDING_CURVE_HOOK_ABI,
-            functionName: "getCurveState",
-            args:         [poolId],
-          })) as { graduated: boolean; lpAdded: boolean; initialized: boolean } | null;
-
-          if (!state?.initialized) continue;
-          if (state.graduated && !state.lpAdded) {
-            needsGrad.push(t);
-            tokenHookMap.set(t.mint_address.toLowerCase(), hookAddr);
-          }
-          break; // trouvé le bon hook
-        } catch { continue; }
-      }
-    }));
-
-    if (!needsGrad.length) {
-      return NextResponse.json({ processed: 0, reason: "No tokens need graduation" });
-    }
-
-    // ── 3. Envoyer addGraduationLiquidity pour chaque token ──────────────
-    const account      = privateKeyToAccount(keeperPk);
-    const walletClient = createWalletClient({ account, chain: arc, transport: http(RPC) });
-
-    const results: { token: string; status: "sent" | "error"; hash?: string; error?: string }[] = [];
-
-    for (const t of needsGrad) {
+    await Promise.all((tokens as TokenRow[]).map(async (t) => {
       try {
-        const activeHook = tokenHookMap.get(t.mint_address.toLowerCase()) ?? ARC_HOOK_ADDRESS;
-        const poolKey = getArcV4PoolKey(t.mint_address as `0x${string}`, activeHook);
-        const hash    = await withTimeout(walletClient.writeContract({
-          address:      activeHook,
-          abi:          BONDING_CURVE_HOOK_ABI,
-          functionName: "addGraduationLiquidity",
-          args:         [poolKey],
-          account,
-          chain:        arc,
-        }));
+        const curveAddr = t.arc_launch_id as `0x${string}`;
+        const graduated = await withTimeout(
+          publicClient.readContract({
+            address: curveAddr,
+            abi:     BONDING_CURVE_V2_ABI,
+            functionName: "graduated",
+          }) as Promise<boolean>
+        );
 
-        if (hash) {
-          results.push({ token: t.mint_address, status: "sent", hash });
-
-          // Mettre à jour le statut en DB
+        if (graduated === true) {
           await admin
             .from("launchpad_tokens")
             .update({ status: "graduated" })
             .eq("id", t.id);
-
-          console.log(`[arc-graduation] Graduated ${t.mint_address} → tx ${hash}`);
+          results.push({ id: t.id, graduated: true });
+          console.log(`[arc-graduation] Synced graduated: ${curveAddr}`);
         } else {
-          results.push({ token: t.mint_address, status: "error", error: "timeout" });
+          results.push({ id: t.id, graduated: false });
         }
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        results.push({ token: t.mint_address, status: "error", error: msg });
-        console.error(`[arc-graduation] Failed ${t.mint_address}:`, msg);
+        results.push({ id: t.id, graduated: false, error: String(e) });
       }
-    }
+    }));
 
-    const sent   = results.filter(r => r.status === "sent").length;
-    const failed = results.filter(r => r.status === "error").length;
-
-    console.log(`[arc-graduation] sent=${sent} failed=${failed}/${needsGrad.length}`);
-    return NextResponse.json({ sent, failed, results });
+    const newlyGraduated = results.filter(r => r.graduated).length;
+    console.log(`[arc-graduation] newly_graduated=${newlyGraduated}/${tokens.length}`);
+    return NextResponse.json({ newlyGraduated, total: tokens.length, results });
 
   } catch (err) {
     console.error("[arc-graduation]", err);
