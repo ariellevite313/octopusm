@@ -49,19 +49,21 @@ async function fetchLogsFromArcScan(
   toBlock = "latest",
   topic0?: string,
 ): Promise<BlockscoutLog[]> {
+  // Récupère sans topic0 (beaucoup d'instances Blockscout ignorent ce filtre)
+  // et filtre topic0 côté serveur.
   const params = new URLSearchParams({
     module:  "logs",
     action:  "getLogs",
     address,
     toBlock: String(toBlock),
   });
-  if (topic0) params.set("topic0", topic0);
   if (fromBlock !== null) params.set("fromBlock", String(fromBlock));
 
   const url = `${ARCSCAN_API}?${params.toString()}`;
   const res = await fetch(url, {
     headers: { "Accept": "application/json" },
-    next: { revalidate: 60 },
+    // Pas de revalidate — on veut les trades en temps quasi-réel
+    cache: "no-store",
   });
 
   if (res.status === 429) return [];
@@ -76,7 +78,13 @@ async function fetchLogsFromArcScan(
     return [];
   }
 
-  return Array.isArray(json.result) ? json.result : [];
+  const all = Array.isArray(json.result) ? json.result : [];
+
+  // Filtre topic0 côté serveur (robuste même si Blockscout l'ignore en query param)
+  if (topic0) {
+    return all.filter(l => l.topics?.[0]?.toLowerCase() === topic0.toLowerCase());
+  }
+  return all;
 }
 
 function hexOrDecToNumber(val: string): number {
