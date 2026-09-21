@@ -62,6 +62,7 @@ type WizardData = {
   arc_supply: number;
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
+  arc_fee_tier: 0 | 1 | 2 | 3;
   // Stock-paired (Solana)
   sol_token_type: "sol" | "stock";
   sol_stock_symbol: string;      // ex: "xNVDA"
@@ -79,6 +80,7 @@ const INITIAL: WizardData = {
   arc_supply: 1_000_000_000,
   arc_first_buy_enabled: false,
   arc_first_buy_usdc: 10,
+  arc_fee_tier: 0,
   sol_token_type: "sol",
   sol_stock_symbol: "xNVDA",
 };
@@ -582,6 +584,144 @@ const TIER_ACCENT: Record<number, { tabSel: string; badge: string; card: string;
   },
 };
 
+// ─── Fee Tier Card — Arc V2 ──────────────────────────────────────────────────
+
+const ARC_TIER_DEFS = [
+  {
+    index: 0 as const,
+    name: "Standard",
+    totalPct: 1.0,
+    rows: [
+      { label: "Creator",  pct: 0.60, color: "#378ADD" },
+      { label: "Platform", pct: 0.40, color: "#1D9E75" },
+    ],
+    hasHolders: false,
+    hasLp: false,
+    desc: "Simple. No holder dividends, no LP bonus.",
+  },
+  {
+    index: 1 as const,
+    name: "Community",
+    totalPct: 1.25,
+    rows: [
+      { label: "Creator",  pct: 0.70, color: "#378ADD" },
+      { label: "Platform", pct: 0.30, color: "#1D9E75" },
+      { label: "Holders",  pct: 0.25, color: "#8B5CF6" },
+    ],
+    hasHolders: true,
+    hasLp: false,
+    desc: "Holders earn dividends on every swap.",
+  },
+  {
+    index: 2 as const,
+    name: "Creator",
+    totalPct: 1.50,
+    rows: [
+      { label: "Creator",  pct: 0.90, color: "#378ADD" },
+      { label: "Platform", pct: 0.35, color: "#1D9E75" },
+      { label: "LP Bonus", pct: 0.15, color: "#F59E0B" },
+      { label: "Holders",  pct: 0.10, color: "#8B5CF6" },
+    ],
+    hasHolders: true,
+    hasLp: true,
+    desc: "Higher creator share. LP bonus boosts graduation liquidity.",
+  },
+  {
+    index: 3 as const,
+    name: "Max",
+    totalPct: 2.0,
+    rows: [
+      { label: "Creator",  pct: 1.00, color: "#378ADD" },
+      { label: "Platform", pct: 0.50, color: "#1D9E75" },
+      { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
+      { label: "Holders",  pct: 0.20, color: "#8B5CF6" },
+    ],
+    hasHolders: true,
+    hasLp: true,
+    desc: "Max fees. Holders earn dividends + extra LP at graduation.",
+  },
+];
+
+const TIER_TAB_COLORS = [
+  "border-border bg-muted/50 text-foreground",
+  "border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-400",
+  "border-purple-300 bg-purple-50 text-purple-600 dark:border-purple-700 dark:bg-purple-950 dark:text-purple-400",
+  "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-400",
+];
+
+function FeeTierCard({
+  tier,
+  setTier,
+}: {
+  tier: 0 | 1 | 2 | 3;
+  setTier: (t: 0 | 1 | 2 | 3) => void;
+}) {
+  const def = ARC_TIER_DEFS[tier];
+  const maxPct = Math.max(...def.rows.map((r) => r.pct));
+
+  return (
+    <div className="rounded-xl border border-border bg-background p-4 space-y-4">
+      {/* Tabs */}
+      <div className="grid grid-cols-4 gap-1.5">
+        {ARC_TIER_DEFS.map((t) => (
+          <button
+            key={t.index}
+            type="button"
+            onClick={() => setTier(t.index)}
+            className={`rounded-lg border py-1.5 text-[11px] font-medium transition-colors ${
+              tier === t.index ? TIER_TAB_COLORS[t.index] : "border-border text-muted-foreground hover:bg-muted/50"
+            }`}
+          >
+            <span className="block">{t.name}</span>
+            <span className="block font-semibold">{t.totalPct}%</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-muted-foreground">{def.desc}</p>
+
+      {/* Barres */}
+      <div className="space-y-2.5">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">During bonding curve</p>
+        {def.rows.map((r) => (
+          <div key={r.label} className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground w-16 shrink-0">{r.label}</span>
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${(r.pct / maxPct) * 100}%`, background: r.color }}
+              />
+            </div>
+            <span className="text-xs font-medium text-foreground w-10 text-right">{r.pct.toFixed(2)}%</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Post-graduation */}
+      <div className="pt-3 border-t border-border space-y-2">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">After graduation — LP fees</p>
+        <div className="flex gap-2 flex-wrap">
+          <span className="text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+            Creator · 30%
+          </span>
+          <span className="text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground">
+            Treasury · 70%
+          </span>
+          {def.hasLp && (
+            <span className="text-[11px] px-2.5 py-1 rounded-full border border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+              LP bonus at graduation
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Graduation at ~2 000 USDC raised → Uniswap V4 pool · indexed on DexScreener
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Étape 3 Arc — Options (V2) ─────────────────────────────────────────────
 
 function StepArcOptions({
@@ -631,13 +771,11 @@ function StepArcOptions({
         )}
       </div>
 
-      {/* Info bonding curve V2 */}
-      <div className="rounded-xl border border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/10 p-4">
-        <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-1">Bonding curve V2</p>
-        <p className="text-xs text-blue-700 dark:text-blue-400">
-          Constant-product AMM · 2% fee fixe (1% créateur · 1% plateforme) · Graduation à 2 000 USDC levés → pool Uniswap V4 standard (fee=2500, hook=0x0) · Indexé sur DexScreener.
-        </p>
-      </div>
+      {/* Fee tier selector */}
+      <FeeTierCard
+        tier={data.arc_fee_tier}
+        setTier={(t) => set("arc_fee_tier", t)}
+      />
 
     </div>
   );
@@ -985,6 +1123,7 @@ export function CreateTokenWizard({
           "",               // imageUri (stocké off-chain)
           data.description,
           firstBuyUsdc,
+          data.arc_fee_tier,
         ],
         value: totalValue,
       });
@@ -1039,6 +1178,7 @@ export function CreateTokenWizard({
         share_top100: false, share_top100_pct: 0,
         first_buy_enabled: data.arc_first_buy_enabled,
         first_buy_amount: data.arc_first_buy_usdc,
+        arc_fee_tier: data.arc_fee_tier,
         is_scheduled: false, scheduled_at: null,
         vault_address: arcVaultAddress,
         fee_distributor_address: null,
