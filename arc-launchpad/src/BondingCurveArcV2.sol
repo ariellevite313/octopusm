@@ -260,7 +260,7 @@ contract BondingCurveArcV2 is ReentrancyGuard {
         _safeTransferETH(graduationVault, usdcToVault);
 
         // 5. Déclencher la création du pool V4 dans le vault
-        IGraduationVaultV4(graduationVault).createV4Pool{value: 0}(
+        IGraduationVaultV4(graduationVault).createV4Pool(
             token,
             TICK_LOWER,
             TICK_UPPER
