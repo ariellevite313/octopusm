@@ -203,12 +203,20 @@ export async function getLaunchpadToken(id: string): Promise<LaunchpadToken | nu
 
 export async function getLaunchpadTokenByMint(mint: string): Promise<LaunchpadToken | null> {
   const admin = createAdminClient() as ReturnType<typeof createAdminClient>;
+  // Try mint_address first (Solana + Arc OMToken address)
   const { data } = await admin
     .from("launchpad_tokens")
     .select(PUBLIC_COLUMNS)
     .eq("mint_address", mint)
     .maybeSingle();
-  return data as LaunchpadToken | null;
+  if (data) return data as LaunchpadToken;
+  // Fallback: Arc tokens accessed via their curve address (arc_launch_id)
+  const { data: byLaunchId } = await admin
+    .from("launchpad_tokens")
+    .select(PUBLIC_COLUMNS)
+    .eq("arc_launch_id", mint)
+    .maybeSingle();
+  return byLaunchId as LaunchpadToken | null;
 }
 
 // ─── Réservations ──────────────────────────────────────────────────────────

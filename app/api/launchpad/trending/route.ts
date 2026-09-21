@@ -16,7 +16,7 @@ export async function GET() {
 
     const { data, error } = await admin
       .from("launchpad_tokens")
-      .select("id,name,ticker,logo_url,mint_address,status,is_verified,market_cap_usd,volume_24h_usd,price_usd,created_at")
+      .select("id,name,ticker,logo_url,mint_address,arc_launch_id,chain,status,is_verified,market_cap_usd,volume_24h_usd,price_usd,created_at")
       .not("status", "in", "(pending,cancelled)")
       .not("mint_address", "is", null)
       .not("volume_24h_usd", "is", null)
