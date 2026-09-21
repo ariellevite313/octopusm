@@ -47,16 +47,12 @@ contract BondingCurveArcV2 is ReentrancyGuard {
     int24   public constant TICK_LOWER      = -887_200;
     int24   public constant TICK_UPPER      =  129_400;
 
-    // ─── Fee tier (bps sur 10 000) ────────────────────────────────────────────
+    // ─── Fee tier — bps par destinataire ─────────────────────────────────────
     //
-    // [totalBps, creatorBps, platformBps, lpBps, holdersBps]
-    //
-    uint16[5][4] private constant TIER_TABLE = [
-        [100,  60,  40,   0,   0],   // Tier 0 — Standard  1.00%
-        [125,  70,  30,   0,  25],   // Tier 1 — Community 1.25%
-        [150,  90,  35,  15,  10],   // Tier 2 — Creator   1.50%
-        [200, 100,  50,  30,  20]    // Tier 3 — Max       2.00%
-    ];
+    // Tier 0 Standard  1.00% : Créateur 0.60%, Plateforme 0.40%
+    // Tier 1 Community 1.25% : Créateur 0.70%, Plateforme 0.30%, Holders 0.25%
+    // Tier 2 Creator   1.50% : Créateur 0.90%, Plateforme 0.35%, LP 0.15%, Holders 0.10%
+    // Tier 3 Max       2.00% : Créateur 1.00%, Plateforme 0.50%, LP 0.30%, Holders 0.20%
 
     // ─── État ─────────────────────────────────────────────────────────────────
 
@@ -140,8 +136,10 @@ contract BondingCurveArcV2 is ReentrancyGuard {
         uint256 lpBps,
         uint256 holdersBps
     ) {
-        uint16[5] memory t = TIER_TABLE[feeTier];
-        return (t[0], t[1], t[2], t[3], t[4]);
+        if (feeTier == 0) return (100,  60, 40,  0,  0);
+        if (feeTier == 1) return (125,  70, 30,  0, 25);
+        if (feeTier == 2) return (150,  90, 35, 15, 10);
+        /* tier 3 */      return (200, 100, 50, 30, 20);
     }
 
     // ─── Quotes (view) ────────────────────────────────────────────────────────
