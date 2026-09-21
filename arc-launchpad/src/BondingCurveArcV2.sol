@@ -170,6 +170,19 @@ contract BondingCurveArcV2 is ReentrancyGuard {
     // ─── Buy ──────────────────────────────────────────────────────────────────
 
     function buy(uint256 minTokensOut) external payable nonReentrant {
+        _buy(msg.sender, minTokensOut);
+    }
+
+    /**
+     * @notice Achète des tokens pour un destinataire arbitraire (utilisé par la factory
+     *         pour le first buy : msg.sender = factory, recipient = créateur).
+     */
+    function buyFor(address recipient, uint256 minTokensOut) external payable nonReentrant {
+        require(recipient != address(0), "BCv2: zero recipient");
+        _buy(recipient, minTokensOut);
+    }
+
+    function _buy(address recipient, uint256 minTokensOut) internal {
         require(!graduated,    "BCv2: graduated");
         require(msg.value > 0, "BCv2: zero value");
 
@@ -199,8 +212,8 @@ contract BondingCurveArcV2 is ReentrancyGuard {
         reserveTokens  = newReserveTokens;
         realUsdcRaised += usdcNet;
 
-        IERC20(token).transfer(msg.sender, tokensOut);
-        emit Trade(msg.sender, true, msg.value, tokensOut, fee, realUsdcRaised, reserveUsdc, reserveTokens);
+        IERC20(token).transfer(recipient, tokensOut);
+        emit Trade(recipient, true, msg.value, tokensOut, fee, realUsdcRaised, reserveUsdc, reserveTokens);
         emit FeesPaid(creatorFee, platformFee, lpFee, holdersFee);
 
         if (realUsdcRaised >= GRAD_THRESHOLD) _graduate();
