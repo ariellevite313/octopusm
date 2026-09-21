@@ -183,15 +183,13 @@ export function BottomNav() {
           );
         })}
 
-        {!isLaunchpad && (
-          <button
-            onClick={() => setSheetOpen(true)}
-            className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <MoreHorizontal className="size-5" strokeWidth={1.75} />
-            <span>More</span>
-          </button>
-        )}
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <MoreHorizontal className="size-5" strokeWidth={1.75} />
+          <span>More</span>
+        </button>
       </nav>
     </>
   );

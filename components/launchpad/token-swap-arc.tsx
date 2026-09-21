@@ -400,7 +400,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
   const QuoteBadge = () => (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
-      <div className="size-5 rounded-full bg-blue-400 flex items-center justify-center text-[8px] font-bold text-white">$</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/usdc-coin.png" alt="USDC" className="size-5 rounded-full object-cover" />
       <span className="text-[13px] font-semibold text-foreground">{quoteSymbol}</span>
     </div>
   );
