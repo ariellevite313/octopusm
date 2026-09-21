@@ -592,39 +592,51 @@ const ARC_TIER_DEFS = [
     name: "Standard",
     totalPct: 1.0,
     rows: [
-      { label: "Creator",  pct: 0.60, color: "#378ADD" },
-      { label: "Platform", pct: 0.40, color: "#1D9E75" },
+      { label: "Creator",  pct: 0.50, color: "#378ADD" },
+      { label: "Platform", pct: 0.25, color: "#1D9E75" },
+      { label: "LP Bonus", pct: 0.25, color: "#F59E0B" },
     ],
-    hasHolders: false,
-    hasLp: false,
-    desc: "Simple. No holder dividends, no LP bonus.",
+    // Post-graduation splits of the 0.30% V4 pool fee
+    postGrad: [
+      { label: "Creator",    pct: 33.33, color: "#378ADD" },
+      { label: "Platform",   pct: 16.67, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 50.00, color: "#F59E0B" },
+    ],
+    desc: "Simple. LP bonus boosts graduation liquidity.",
   },
   {
     index: 1 as const,
     name: "Community",
     totalPct: 1.25,
     rows: [
-      { label: "Creator",  pct: 0.70, color: "#378ADD" },
+      { label: "Creator",  pct: 0.40, color: "#378ADD" },
       { label: "Platform", pct: 0.30, color: "#1D9E75" },
+      { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
       { label: "Holders",  pct: 0.25, color: "#8B5CF6" },
     ],
-    hasHolders: true,
-    hasLp: false,
-    desc: "Holders earn dividends on every swap.",
+    postGrad: [
+      { label: "Creator",    pct: 12.50, color: "#378ADD" },
+      { label: "Platform",   pct: 12.50, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 37.50, color: "#F59E0B" },
+      { label: "Holders",    pct: 37.50, color: "#8B5CF6" },
+    ],
+    desc: "Holders earn dividends + LP bonus on every swap.",
   },
   {
     index: 2 as const,
     name: "Creator",
     totalPct: 1.50,
     rows: [
-      { label: "Creator",  pct: 0.90, color: "#378ADD" },
-      { label: "Platform", pct: 0.35, color: "#1D9E75" },
-      { label: "LP Bonus", pct: 0.15, color: "#F59E0B" },
-      { label: "Holders",  pct: 0.10, color: "#8B5CF6" },
+      { label: "Creator",  pct: 0.80, color: "#378ADD" },
+      { label: "Platform", pct: 0.40, color: "#1D9E75" },
+      { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
     ],
-    hasHolders: true,
-    hasLp: true,
-    desc: "Higher creator share. LP bonus boosts graduation liquidity.",
+    postGrad: [
+      { label: "Creator",    pct: 50.00, color: "#378ADD" },
+      { label: "Platform",   pct: 12.50, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 37.50, color: "#F59E0B" },
+    ],
+    desc: "Max creator yield. LP bonus boosts graduation liquidity.",
   },
   {
     index: 3 as const,
@@ -636,8 +648,12 @@ const ARC_TIER_DEFS = [
       { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
       { label: "Holders",  pct: 0.20, color: "#8B5CF6" },
     ],
-    hasHolders: true,
-    hasLp: true,
+    postGrad: [
+      { label: "Creator",    pct: 40.00, color: "#378ADD" },
+      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 30.00, color: "#F59E0B" },
+      { label: "Holders",    pct: 10.00, color: "#8B5CF6" },
+    ],
     desc: "Max fees. Holders earn dividends + extra LP at graduation.",
   },
 ];
@@ -699,21 +715,32 @@ function FeeTierCard({
       </div>
 
       {/* Post-graduation */}
-      <div className="pt-3 border-t border-border space-y-2">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">After graduation — LP fees</p>
-        <div className="flex gap-2 flex-wrap">
-          <span className="text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground">
-            Creator · 30%
-          </span>
-          <span className="text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground">
-            Treasury · 70%
-          </span>
-          {def.hasLp && (
-            <span className="text-[11px] px-2.5 py-1 rounded-full border border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
-              LP bonus at graduation
-            </span>
-          )}
-        </div>
+      <div className="pt-3 border-t border-border space-y-2.5">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          After graduation — 0.30% V4 pool fee split
+        </p>
+        {/* Barres post-grad */}
+        {(() => {
+          const maxPostPct = Math.max(...def.postGrad.map((r) => r.pct));
+          return (
+            <div className="space-y-2">
+              {def.postGrad.map((r) => (
+                <div key={r.label} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-20 shrink-0">{r.label}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{ width: `${(r.pct / maxPostPct) * 100}%`, background: r.color }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-foreground w-12 text-right">
+                    {r.pct % 1 === 0 ? r.pct.toFixed(0) : r.pct.toFixed(2)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         <p className="text-[11px] text-muted-foreground">
           Graduation at ~2 000 USDC raised → Uniswap V4 pool · indexed on DexScreener
         </p>
@@ -1109,8 +1136,7 @@ export function CreateTokenWizard({
       if (!ARC_FACTORY_V2_ADDRESS) throw new Error("Contrats V2 pas encore déployés. Lance d'abord forge script DeployArcV2.s.sol.");
 
       const firstBuyUsdc = data.arc_first_buy_enabled ? BigInt(Math.round(data.arc_first_buy_usdc * 1e18)) : 0n;
-      const creationFee  = 10n * 10n ** 18n; // 10 USDC natif
-      const totalValue   = creationFee + firstBuyUsdc;
+      const totalValue   = firstBuyUsdc;
 
       toast.info("Déploiement du token sur Arc V2…");
       const txHash = await walletClient.writeContract({

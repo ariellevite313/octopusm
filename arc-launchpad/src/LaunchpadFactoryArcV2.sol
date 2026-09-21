@@ -28,7 +28,7 @@ contract LaunchpadFactoryArcV2 {
     address public immutable vaultImplementation;
     address public immutable treasury;
 
-    uint256 public constant CREATION_FEE = 10 ether; // 10 USDC natif Arc
+    uint256 public constant CREATION_FEE = 0; // Gratuit — pas de frais de service
 
     // ─── État ─────────────────────────────────────────────────────────────────
 
@@ -97,10 +97,7 @@ contract LaunchpadFactoryArcV2 {
     ) external payable returns (address curve, address token_, address vault) {
         require(feeTier_ <= 3, "Factory: invalid tier");
         require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
-        require(msg.value >= CREATION_FEE + firstBuyUsdc, "Factory: insufficient value");
-
-        // Fee de création → treasury
-        _safeTransferETH(treasury, CREATION_FEE);
+        require(msg.value >= firstBuyUsdc, "Factory: insufficient value");
 
         // ── 1. Deploy GraduationVaultV4 (clone) ───────────────────────────────
         vault = vaultImplementation.clone();
@@ -114,9 +111,10 @@ contract LaunchpadFactoryArcV2 {
             symbol,
             imageUri,
             description,
-            curve,        // bondingCurve — reçoit le supply initial
+            curve,        // hook = curve (addDividend pré-graduation)
+            vault,        // vault (addDividend post-graduation)
             msg.sender,   // creator
-            treasury      // platform = treasury (require(platform != 0) dans OMToken)
+            treasury      // platform
         ));
 
         // ── 4. Initialize vault ───────────────────────────────────────────────
@@ -124,7 +122,8 @@ contract LaunchpadFactoryArcV2 {
             curve,
             token_,
             msg.sender,
-            treasury
+            treasury,
+            feeTier_
         );
 
         // ── 5. Initialize bonding curve ───────────────────────────────────────
@@ -155,9 +154,8 @@ contract LaunchpadFactoryArcV2 {
         }
 
         // ── 8. Rembourser l'excédent ──────────────────────────────────────────
-        uint256 spent = CREATION_FEE + firstBuyUsdc;
-        if (msg.value > spent) {
-            _safeTransferETH(msg.sender, msg.value - spent);
+        if (msg.value > firstBuyUsdc) {
+            _safeTransferETH(msg.sender, msg.value - firstBuyUsdc);
         }
     }
 
