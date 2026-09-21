@@ -188,7 +188,7 @@ contract GraduationVaultV4 {
             _safeTransferETH(creator,  creatorFee);
             _safeTransferETH(treasury, platformFee);
             if (holdersFee > 0) {
-                IOMToken(token).addDividend{value: holdersFee}();
+                IOMTokenVault(token).addDividend{value: holdersFee}();
             }
             // lpReserved reste dans le vault (compound futur via compoundLP())
 
@@ -430,6 +430,6 @@ contract GraduationVaultV4 {
     receive() external payable {}
 }
 
-interface IOMToken {
+interface IOMTokenVault {
     function addDividend() external payable;
 }
