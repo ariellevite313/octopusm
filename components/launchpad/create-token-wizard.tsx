@@ -603,9 +603,9 @@ const ARC_TIER_DEFS = [
     ],
     // Post-graduation splits of the 0.30% V4 pool fee
     postGrad: [
-      { label: "Creator",    pct: 33.33, color: "#378ADD" },
-      { label: "Platform",   pct: 16.67, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 50.00, color: "#F59E0B" },
+      { label: "Creator",    pct: 44.45, color: "#378ADD" },
+      { label: "Platform",   pct: 33.33, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 22.22, color: "#F59E0B" },
     ],
     desc: "Simple. LP bonus boosts graduation liquidity.",
   },
@@ -620,10 +620,10 @@ const ARC_TIER_DEFS = [
       { label: "Holders",  pct: 0.25, color: "#8B5CF6" },
     ],
     postGrad: [
-      { label: "Creator",    pct: 12.50, color: "#378ADD" },
-      { label: "Platform",   pct: 12.50, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 37.50, color: "#F59E0B" },
-      { label: "Holders",    pct: 37.50, color: "#8B5CF6" },
+      { label: "Creator",    pct: 28.08, color: "#378ADD" },
+      { label: "Platform",   pct: 33.33, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 21.06, color: "#F59E0B" },
+      { label: "Holders",    pct: 17.53, color: "#8B5CF6" },
     ],
     desc: "Holders earn dividends + LP bonus on every swap.",
   },
@@ -637,9 +637,9 @@ const ARC_TIER_DEFS = [
       { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
     ],
     postGrad: [
-      { label: "Creator",    pct: 50.00, color: "#378ADD" },
-      { label: "Platform",   pct: 12.50, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 37.50, color: "#F59E0B" },
+      { label: "Creator",    pct: 48.48, color: "#378ADD" },
+      { label: "Platform",   pct: 33.33, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 18.19, color: "#F59E0B" },
     ],
     desc: "Max creator yield. LP bonus boosts graduation liquidity.",
   },
@@ -654,10 +654,10 @@ const ARC_TIER_DEFS = [
       { label: "Holders",  pct: 0.20, color: "#8B5CF6" },
     ],
     postGrad: [
-      { label: "Creator",    pct: 40.00, color: "#378ADD" },
-      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 30.00, color: "#F59E0B" },
-      { label: "Holders",    pct: 10.00, color: "#8B5CF6" },
+      { label: "Creator",    pct: 33.33, color: "#378ADD" },
+      { label: "Platform",   pct: 50.00, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 10.00, color: "#F59E0B" },
+      { label: "Holders",    pct:  6.67, color: "#8B5CF6" },
     ],
     desc: "Max fees. Holders earn dividends + extra LP at graduation.",
   },
@@ -763,6 +763,26 @@ function StepArcOptions({
   set: (k: keyof WizardData, v: unknown) => void;
   errors: Record<string, string>;
 }) {
+  // State local pour le raw string du champ USDC — évite le snap à 0 sur "0."
+  const [rawUsdc, setRawUsdc] = useState(String(data.arc_first_buy_usdc));
+
+  // Estimation tokens sur les réserves initiales de la courbe
+  const usdc = data.arc_first_buy_usdc;
+  const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
+  let tokensEst = "";
+  if (usdc > 0) {
+    try {
+      const usdcWei = BigInt(Math.round(usdc * 1e15)) * 1000n;
+      const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
+      const tok = Number(tokensOut / 10n ** 12n) / 1e6;
+      tokensEst = tok >= 1_000_000
+        ? `≈ ${(tok / 1_000_000).toFixed(2)}M tokens`
+        : tok >= 1_000
+        ? `≈ ${(tok / 1_000).toFixed(1)}K tokens`
+        : `≈ ${tok.toFixed(0)} tokens`;
+    } catch { tokensEst = ""; }
+  }
+
   return (
     <div className="space-y-5 pt-2">
 
@@ -785,43 +805,39 @@ function StepArcOptions({
             }`} />
           </button>
         </div>
-        {data.arc_first_buy_enabled && (() => {
-          // Estimation client-side sur les réserves initiales de la courbe
-          const usdc = data.arc_first_buy_usdc;
-          const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
-          let tokensEst = "";
-          if (usdc > 0) {
-            try {
-              const usdcWei = BigInt(Math.round(usdc * 1e15)) * 1000n; // évite overflow float
-              const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
-              const tok = Number(tokensOut / 10n ** 12n) / 1e6; // 18 dec → float
-              tokensEst = tok >= 1_000_000
-                ? `≈ ${(tok / 1_000_000).toFixed(2)}M tokens`
-                : tok >= 1_000
-                ? `≈ ${(tok / 1_000).toFixed(1)}K tokens`
-                : `≈ ${tok.toFixed(0)} tokens`;
-            } catch { tokensEst = ""; }
-          }
-          return (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number" min={0.01} max={480} step="any"
-                  value={data.arc_first_buy_usdc}
-                  onChange={(e) => set("arc_first_buy_usdc", Number(e.target.value))}
-                  className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <span className="text-sm text-muted-foreground">USDC</span>
-                {tokensEst && (
-                  <span className="text-xs text-muted-foreground">{tokensEst}</span>
-                )}
-              </div>
-              {errors.arc_first_buy_usdc && (
-                <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
+        {data.arc_first_buy_enabled && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rawUsdc}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setRawUsdc(raw);
+                  // Accepte virgule (FR) ou point (EN) comme séparateur décimal
+                  const n = parseFloat(raw.replace(",", "."));
+                  if (!isNaN(n) && n >= 0) set("arc_first_buy_usdc", n);
+                }}
+                onBlur={() => {
+                  const n = parseFloat(rawUsdc.replace(",", "."));
+                  const valid = !isNaN(n) && n >= 0.01 ? n : 0.1;
+                  setRawUsdc(String(valid));
+                  set("arc_first_buy_usdc", valid);
+                }}
+                placeholder="10"
+                className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-sm text-muted-foreground">USDC</span>
+              {tokensEst && (
+                <span className="text-xs text-muted-foreground">{tokensEst}</span>
               )}
             </div>
-          );
-        })()}
+            {errors.arc_first_buy_usdc && (
+              <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Fee tier selector */}
