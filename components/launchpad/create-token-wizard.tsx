@@ -907,9 +907,8 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Type" value="USDC Meme (native Arc)" />
             <Row label="Bonding curve" value="BondingCurveArcV2 standalone" />
             <Row label="Graduation" value="2 000 USDC levés" />
-            <Row label="Post-graduation" value="Pool V4 (fee=2500, hook=0x0)" />
-            <Row label="Trading fee" value="2% (1% créateur · 1% plateforme)" />
-            <Row label="Creation fee" value="10 USDC" />
+            <Row label="Post-graduation" value="Pool V4 (fee=0.30%, hook=0x0)" />
+            <Row label="Creation fee" value="Gratuit" />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
             )}
