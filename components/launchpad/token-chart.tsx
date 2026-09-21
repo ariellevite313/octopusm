@@ -295,8 +295,9 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         const { createChart, ColorType } = lw;
 
         const chart = createChart(wrapperRef.current, {
-          autoSize: true,
-          height: 380,
+          autoSize: false,
+          width: wrapperRef.current.clientWidth || 350,
+          height: 260,
           layout: {
             background: { type: ColorType.Solid, color: getChartTheme(isDark).background },
             textColor:  getChartTheme(isDark).text,
@@ -349,8 +350,9 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
         const { createChart, ColorType } = lw;
         const chart = createChart(wrapperRef.current, {
-          autoSize: true,
-          height: 380,
+          autoSize: false,
+          width: wrapperRef.current.clientWidth || 350,
+          height: 260,
           layout: {
             background: { type: ColorType.Solid, color: getChartTheme(isDark).background },
             textColor:  getChartTheme(isDark).text,
@@ -400,15 +402,25 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
     };
   }
 
-  // ── fitContent once chart div becomes visible ─────────────────────────────
+  // ── fitContent + resize once chart div becomes visible ───────────────────
   useEffect(() => {
-    if (status !== "ready" || !chartRef.current) return;
-    // The div transitions from display:none to display:block when status → "ready".
-    // Schedule fitContent one frame later so the browser has laid out the element.
+    if (status !== "ready" || !chartRef.current || !wrapperRef.current) return;
     const raf = requestAnimationFrame(() => {
-      chartRef.current?.timeScale().fitContent();
+      if (!chartRef.current || !wrapperRef.current) return;
+      chartRef.current.applyOptions({ width: wrapperRef.current.clientWidth });
+      chartRef.current.timeScale().fitContent();
     });
-    return () => cancelAnimationFrame(raf);
+    // ResizeObserver — keep chart width in sync with container
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w && chartRef.current) chartRef.current.applyOptions({ width: w });
+    });
+    ro.observe(wrapperRef.current);
+    roRef.current = ro;
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, [status]);
 
   // ── GeckoTerminal theme ────────────────────────────────────────────────────
@@ -599,7 +611,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       <div className="rounded-2xl overflow-hidden border border-border bg-card">
         <Header />
         {!embedReady && (
-          <div className="flex items-center justify-center" style={{ height: 380 }}>
+          <div className="flex items-center justify-center" style={{ height: 260 }}>
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
         )}
@@ -608,7 +620,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
           src={embedUrl}
           title={`${name} chart`}
           width="100%"
-          height="380"
+          height="260"
           style={{ border: "none", display: embedReady ? "block" : "none" }}
           onLoad={() => setEmbedReady(true)}
           allow="clipboard-write"
@@ -629,24 +641,24 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       <Header />
 
       {status === "loading" && (
-        <div className="flex items-center justify-center" style={{ height: 380 }}>
+        <div className="flex items-center justify-center" style={{ height: 260 }}>
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       )}
       {status === "error" && (
-        <div className="flex items-center justify-center" style={{ height: 380 }}>
+        <div className="flex items-center justify-center" style={{ height: 260 }}>
           <p className="text-sm text-muted-foreground">{errorMsg || "No chart data available"}</p>
         </div>
       )}
       {status === "nodata" && (
-        <div className="flex items-center justify-center flex-col gap-2" style={{ height: 380 }}>
+        <div className="flex items-center justify-center flex-col gap-2" style={{ height: 260 }}>
           <p className="text-sm text-muted-foreground">
             {isArc ? "No trades yet — chart will appear after the first trade." : "No price data yet."}
           </p>
         </div>
       )}
 
-      <div ref={wrapperRef} style={{ display: status === "ready" ? "block" : "none", width: "100%" }} />
+      <div ref={wrapperRef} style={{ display: status === "ready" ? "block" : "none", width: "100%", height: 260 }} />
 
       {status === "ready" && (
         <TfBar

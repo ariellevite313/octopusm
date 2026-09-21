@@ -2,22 +2,19 @@
  * GET /api/cron/update-arc-stats
  *
  * Met à jour price_usd, market_cap_usd et volume_24h_usd dans launchpad_tokens
- * pour tous les tokens Arc actifs (chain = 'arc').
+ * pour tous les tokens Arc V2 actifs (chain = 'arc').
  *
- * Vercel cron : toutes les 5 minutes
- * Sécurisé par CRON_SECRET (Authorization: Bearer <secret>)
+ * Lit directement BondingCurveArcV2.reserveUsdc / reserveTokens.
+ * USDC Arc = natif 18 decimals.
+ *
+ * Vercel cron : toutes les 5 minutes.
+ * Sécurisé par CRON_SECRET.
  */
 
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { arc } from "@/lib/arc-chain";
-import {
-  BONDING_CURVE_ABI,
-  BONDING_CURVE_HOOK_ABI,
-  ARC_HOOK_ADDRESS,
-  ARC_HOOK_ADDRESS_LEGACY,
-  getArcV4PoolId,
-} from "@/lib/arc-launchpad";
+import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const TOTAL_SUPPLY = 1_000_000_000;
@@ -27,21 +24,20 @@ function withTimeout<T>(p: Promise<T>, ms = TIMEOUT_MS): Promise<T | null> {
   return Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), ms))]);
 }
 
-async function getReserves(
+async function getReservesV2(
   client: ReturnType<typeof createPublicClient>,
   curve: `0x${string}`,
 ): Promise<{ priceUsd: number; marketCap: number } | null> {
   try {
     const [usdcRaw, tokRaw] = await Promise.all([
-      client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "reserveUsdc" }),
-      client.readContract({ address: curve, abi: BONDING_CURVE_ABI, functionName: "reserveTokens" }),
+      client.readContract({ address: curve, abi: BONDING_CURVE_V2_ABI, functionName: "reserveUsdc" }),
+      client.readContract({ address: curve, abi: BONDING_CURVE_V2_ABI, functionName: "reserveTokens" }),
     ]);
     const tok = tokRaw as bigint;
     const usd = usdcRaw as bigint;
     if (tok === 0n) return null;
-    // Float division — bigint integer division truncates to 0 for tiny prices
-    const reserveUsdc   = Number(usd) / 1e6;   // USDC (6 dec)
-    const reserveTokens = Number(tok) / 1e18;  // tokens (18 dec)
+    const reserveUsdc   = Number(usd) / 1e18; // USDC natif Arc 18 dec
+    const reserveTokens = Number(tok) / 1e18;
     const priceUsd  = reserveUsdc / reserveTokens;
     const marketCap = priceUsd * TOTAL_SUPPLY;
     return { priceUsd, marketCap };
@@ -50,44 +46,10 @@ async function getReserves(
   }
 }
 
-async function getReservesV4(
-  client: ReturnType<typeof createPublicClient>,
-  tokenAddress: `0x${string}`,
-): Promise<{ priceUsd: number; marketCap: number } | null> {
-  // Essaie le hook courant, puis le legacy (tokens créés avant le dernier redéploiement)
-  for (const hookAddr of [ARC_HOOK_ADDRESS, ARC_HOOK_ADDRESS_LEGACY]) {
-    try {
-      const poolId = getArcV4PoolId(tokenAddress, hookAddr);
-      const state  = await client.readContract({
-        address:      hookAddr,
-        abi:          BONDING_CURVE_HOOK_ABI,
-        functionName: "getCurveState",
-        args:         [poolId],
-      }) as { reserveUsdc: bigint; reserveTokens: bigint; initialized: boolean };
-
-      if (!state.initialized) continue;
-      const tok = state.reserveTokens;
-      const usd = state.reserveUsdc;
-      if (tok === 0n) continue;
-      const reserveUsdc   = Number(usd) / 1e18;
-      const reserveTokens = Number(tok) / 1e18;
-      const priceUsd  = reserveUsdc / reserveTokens;
-      const marketCap = priceUsd * TOTAL_SUPPLY;
-      return { priceUsd, marketCap };
-    } catch { continue; }
-  }
-  return null;
-}
-
-async function getVolume24h(
-  curveAddress: string,
-  origin: string,
-  isV4 = false,
-): Promise<number | null> {
+async function getVolume24h(curveAddress: string, origin: string): Promise<number | null> {
   try {
-    const v4Param = isV4 ? "&isV4=1" : "";
     const res = await fetch(
-      `${origin}/api/launchpad/arc-trades?curveAddress=${curveAddress}&limit=1000${v4Param}`,
+      `${origin}/api/launchpad/arc-trades?curveAddress=${curveAddress}&limit=1000`,
       { signal: AbortSignal.timeout(TIMEOUT_MS) },
     );
     if (!res.ok) return null;
@@ -101,7 +63,6 @@ async function getVolume24h(
 }
 
 export async function GET(req: Request) {
-  // Auth
   const secret = process.env.CRON_SECRET;
   if (secret) {
     const auth = req.headers.get("authorization") ?? "";
@@ -115,35 +76,27 @@ export async function GET(req: Request) {
     const admin  = createAdminClient() as any;
     const origin = new URL(req.url).origin;
 
-    // Récupérer tous les tokens Arc actifs avec un arc_launch_id (adresse curve)
     const { data: tokens, error } = await admin
       .from("launchpad_tokens")
-      .select("id, arc_launch_id, mint_address")
+      .select("id, arc_launch_id")
       .eq("chain", "arc")
       .in("status", ["active", "graduating", "graduated"])
       .not("arc_launch_id", "is", null);
 
     if (error) throw error;
-    if (!tokens?.length) {
-      return NextResponse.json({ updated: 0 });
-    }
+    if (!tokens?.length) return NextResponse.json({ updated: 0 });
 
     const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
 
-    type TokenRow = { id: string; arc_launch_id: string; mint_address: string | null };
+    type TokenRow = { id: string; arc_launch_id: string };
 
     const results = await Promise.allSettled(
       (tokens as TokenRow[]).map(async (t) => {
-        const launchId = t.arc_launch_id;
-        const mintAddr = t.mint_address ?? "";
-        // V4 : arc_launch_id === mint_address (token est son propre launch ID)
-        const isV4 = !!(mintAddr && launchId.toLowerCase() === mintAddr.toLowerCase());
+        const curveAddr = t.arc_launch_id as `0x${string}`;
 
         const [reserves, volume24h] = await Promise.all([
-          isV4
-            ? withTimeout(getReservesV4(client, launchId as `0x${string}`))
-            : withTimeout(getReserves(client, launchId as `0x${string}`)),
-          withTimeout(getVolume24h(launchId, origin, isV4)),
+          withTimeout(getReservesV2(client, curveAddr)),
+          withTimeout(getVolume24h(t.arc_launch_id, origin)),
         ]);
 
         if (!reserves) return { id: t.id, skipped: true };
@@ -158,7 +111,7 @@ export async function GET(req: Request) {
           .eq("id", t.id);
 
         if (upErr) throw upErr;
-        return { id: t.id, priceUsd: reserves.priceUsd, marketCap: reserves.marketCap, volume24h, isV4 };
+        return { id: t.id, priceUsd: reserves.priceUsd, marketCap: reserves.marketCap, volume24h };
       }),
     );
 

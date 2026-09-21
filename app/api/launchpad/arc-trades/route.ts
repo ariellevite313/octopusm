@@ -1,53 +1,38 @@
 /**
- * GET /api/launchpad/arc-trades?curveAddress=0x...&limit=500[&isV4=1]
+ * GET /api/launchpad/arc-trades?curveAddress=0x...&limit=500
  *
- * Fetches Trade events for an Arc token.
- * Uses ArcScan (Blockscout) API instead of eth_getLogs.
+ * Récupère les événements Trade de BondingCurveArcV2.
+ * Utilise l'API ArcScan (Blockscout) au lieu de eth_getLogs.
  *
- * Deux modes :
- *  - isV4=0 (défaut) : lit les events Trade(trader, isBuy, ...) sur le BondingCurve clone
- *  - isV4=1          : lit les events Trade(poolId indexed, trader indexed, isBuy, ...) sur le hook singleton
+ * Event V2 :
+ *   Trade(address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount,
+ *         uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens)
  *
- * Price formula: price (USDC per token) = usdcAmt(6 dec) / tokenAmt(18 dec)
+ * USDC Arc = natif 18 decimals.
  */
 
 import { NextResponse } from "next/server";
 import { decodeAbiParameters, parseAbiParameters } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
-import {
-  ARC_HOOK_ADDRESS,
-  ARC_HOOK_ADDRESS_LEGACY,
-  TRADE_EVENT_TOPIC_V4,
-  getArcV4PoolId,
-} from "@/lib/arc-launchpad";
-
+import { TRADE_EVENT_TOPIC } from "@/lib/arc-launchpad";
 
 export const maxDuration = 60;
 
 const ARCSCAN_API = "https://explorer.arc.io/api";
 
-// ── V1 event (BondingCurve clone) ─────────────────────────────────────────────
-// Topic réel du contrat déployé (vérifié sur ArcScan CSV export)
-const TRADE_TOPIC_V1 = "0x0c668488dc690d00c35c03638df49a1c8a7b63511eba0f88eeed1bd471719b16";
-
-// ABI des paramètres non-indexés V1
-const TRADE_DATA_PARAMS_V1 = parseAbiParameters(
+// ABI des paramètres non-indexés V2
+// trader est indexed → pas dans data
+// isBuy, usdcAmount, tokenAmount, fee, realUsdcRaised, reserveUsdc, reserveTokens dans data
+const TRADE_DATA_PARAMS_V2 = parseAbiParameters(
   "bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens"
-);
-
-// ── V4 event (BondingCurveHook singleton) ─────────────────────────────────────
-// keccak256("Trade(bytes32,address,bool,uint256,uint256,uint256)") = TRADE_EVENT_TOPIC_V4
-// ABI des paramètres non-indexés V4 : isBuy, usdcAmount, tokenAmount, fee
-const TRADE_DATA_PARAMS_V4 = parseAbiParameters(
-  "bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee"
 );
 
 type BlockscoutLog = {
   address: string;
   topics: string[];
   data: string;
-  blockNumber: string;   // hex or decimal
-  timeStamp: string;     // hex unix timestamp
+  blockNumber: string;
+  timeStamp: string;
   transactionHash: string;
   logIndex: string;
 };
@@ -63,7 +48,6 @@ async function fetchLogsFromArcScan(
   fromBlock: number | null,
   toBlock = "latest",
   topic0?: string,
-  topic1?: string, // optional — used for V4 poolId filtering
 ): Promise<BlockscoutLog[]> {
   const params = new URLSearchParams({
     module:  "logs",
@@ -72,13 +56,7 @@ async function fetchLogsFromArcScan(
     toBlock: String(toBlock),
   });
   if (topic0) params.set("topic0", topic0);
-  if (topic1) {
-    params.set("topic1", topic1);
-    params.set("topic0_1_opr", "and");
-  }
-  if (fromBlock !== null) {
-    params.set("fromBlock", String(fromBlock));
-  }
+  if (fromBlock !== null) params.set("fromBlock", String(fromBlock));
 
   const url = `${ARCSCAN_API}?${params.toString()}`;
   const res = await fetch(url, {
@@ -87,16 +65,11 @@ async function fetchLogsFromArcScan(
   });
 
   if (res.status === 429) return [];
-  if (!res.ok) {
-    throw new Error(`ArcScan API error: ${res.status} ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`ArcScan API error: ${res.status} ${res.statusText}`);
 
   const json: BlockscoutResponse = await res.json();
 
   if (json.status !== "1") {
-    // Blockscout status "0" can mean "no records found" with various message texts
-    // (e.g. "No records found", "No transactions found", "No logs found", etc.)
-    // Treat all as empty — real HTTP errors are already handled above with !res.ok
     if (process.env.NODE_ENV !== "production") {
       console.warn("[arc-trades] ArcScan status 0:", json.message, json.result);
     }
@@ -117,7 +90,6 @@ export async function GET(req: Request) {
   const curveAddress = searchParams.get("curveAddress");
   const limit        = Math.min(parseInt(searchParams.get("limit") ?? "500") || 500, 1000);
   const debug        = searchParams.get("debug") === "1";
-  const isV4         = searchParams.get("isV4") === "1";
 
   if (!curveAddress || !/^0x[0-9a-fA-F]{40}$/.test(curveAddress)) {
     return NextResponse.json({ error: "curveAddress required (0x…)" }, { status: 400 });
@@ -133,7 +105,7 @@ export async function GET(req: Request) {
   };
 
   try {
-    // ── Get creation block from DB ─────────────────────────────────────────
+    // ── Lire le bloc de création depuis la DB ──────────────────────────────
     let creationBlock: number | null = null;
     let debugInfo: Record<string, unknown> = {};
 
@@ -153,130 +125,38 @@ export async function GET(req: Request) {
       debugInfo = { dbError: String(e) };
     }
 
-    // ── V4 : Trade events sur le hook singleton, filtrés par poolId ──────────
-    // Cherche d'abord dans le hook courant, puis dans le legacy (tokens anciens)
-    if (isV4) {
-      const newPoolId = getArcV4PoolId(curveAddress as `0x${string}`, ARC_HOOK_ADDRESS);
-
-      // Pour le hook legacy, le poolId calculé en JS ne correspond pas à l'on-chain poolId
-      // (différence de version de la lib v4-core utilisée lors du déploiement).
-      // On récupère le vrai poolId depuis l'event CurveInitialized du hook legacy.
-      const CURVE_INITIALIZED_TOPIC = "0xe5b67d4237615fec820419dbc9dff8c8cd61067f273c421fcd230d7b99719555";
-      let legacyPoolId: string | undefined;
-      let initLogsDebug: unknown[] = [];
-      let initLogsRaw: BlockscoutLog[] = [];
-      try {
-        // creationBlock peut être null si le token n'est pas en DB — fallback à 0
-        const initFromBlock = creationBlock ?? 0;
-        initLogsRaw = await fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, initFromBlock, "latest", CURVE_INITIALIZED_TOPIC);
-        // CurveInitialized(PoolId indexed poolId, address token, address creator)
-        // token et creator sont dans data (non-indexés), 32 bytes chacun
-        const curveAddrLower = curveAddress.toLowerCase();
-        for (const l of initLogsRaw) {
-          const tokenFromData = l.data && l.data.length >= 66
-            ? ("0x" + l.data.slice(26, 66)).toLowerCase()
-            : "";
-          if (debug) initLogsDebug.push({ topics: l.topics, dataLen: l.data?.length, tokenFromData });
-          if (tokenFromData === curveAddrLower) {
-            legacyPoolId = l.topics[1];
-            break;
-          }
-        }
-      } catch (e) {
-        if (debug) initLogsDebug.push({ error: String(e) });
-      }
-
-      let logs: BlockscoutLog[] = [];
-      let logsNewCount = 0, logsLegacyCount = 0;
-      try {
-        // Récupère les logs des deux hooks, fusionne et dédoublonne par txHash
-        const [logsNew, logsLegacy] = await Promise.all([
-          fetchLogsFromArcScan(ARC_HOOK_ADDRESS, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, newPoolId).catch(() => []),
-          legacyPoolId
-            ? fetchLogsFromArcScan(ARC_HOOK_ADDRESS_LEGACY, creationBlock, "latest", TRADE_EVENT_TOPIC_V4, legacyPoolId).catch(() => [])
-            : Promise.resolve([]),
-        ]);
-        logsNewCount = logsNew.length;
-        logsLegacyCount = logsLegacy.length;
-        const seen = new Set<string>();
-        logs = [...logsNew, ...logsLegacy].filter(l => {
-          if (seen.has(l.transactionHash)) return false;
-          seen.add(l.transactionHash); return true;
-        });
-      } catch (err) {
-        if (debug) return NextResponse.json({ trades: [], _debug: { arcScanError: String(err), legacyPoolId, initLogsDebug, ...debugInfo } });
-        throw err;
-      }
-
-      if (debug) {
-        return NextResponse.json({
-          trades: [],
-          _debug: {
-            newPoolId, legacyPoolId,
-            initLogsCount: initLogsRaw.length, initLogsDebug,
-            logsNewCount, logsLegacyCount,
-            totalLogs: logs.length,
-            creationBlock,
-            ARC_HOOK_ADDRESS_LEGACY,
-            ...debugInfo,
-          },
-        });
-      }
-
-      const trades: Trade[] = logs
-        .filter(l => l.data && l.data !== "0x")
-        .map(l => {
-          try {
-            const decoded  = decodeAbiParameters(TRADE_DATA_PARAMS_V4, l.data as `0x${string}`);
-            const isBuy    = Boolean(decoded[0]);
-            const usdcRaw  = decoded[1] as bigint;
-            const tokRaw   = decoded[2] as bigint;
-            // USDC natif Arc = 18 decimals EVM
-            const usdcAmt  = Number(usdcRaw)  / 1e18;
-            const tokenAmt = Number(tokRaw)   / 1e18;
-            const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
-            return { timestamp: hexOrDecToNumber(l.timeStamp), isBuy, usdcAmt, tokenAmt, price, txHash: l.transactionHash ?? "" };
-          } catch { return null; }
-        })
-        .filter((t): t is Trade => t !== null && t.price > 0)
-        .sort((a, b) => a.timestamp - b.timestamp)
-        .slice(-limit);
-
-      return NextResponse.json({ trades }, {
-        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
-      });
-    }
-
-    // ── V1 : Trade events sur le BondingCurve clone ────────────────────────
+    // ── Récupère les Trade events V2 depuis la curve standalone ───────────
     let logs: BlockscoutLog[];
     try {
-      logs = await fetchLogsFromArcScan(curveAddress, creationBlock, "latest", TRADE_TOPIC_V1);
+      logs = await fetchLogsFromArcScan(curveAddress, creationBlock, "latest", TRADE_EVENT_TOPIC);
     } catch (err) {
       if (debug) {
         return NextResponse.json({
           trades: [],
-          _debug: { arcScanError: String(err), creationBlock, ...debugInfo },
+          _debug: { arcScanError: String(err), creationBlock, TRADE_EVENT_TOPIC, ...debugInfo },
         });
       }
       throw err;
     }
 
-    if (debug && logs.length === 0) {
+    if (debug) {
       let rawLogs: BlockscoutLog[] = [];
-      try {
-        const params = new URLSearchParams({ module: "logs", action: "getLogs", address: curveAddress, toBlock: "latest" });
-        if (creationBlock !== null) params.set("fromBlock", String(creationBlock));
-        const res = await fetch(`${ARCSCAN_API}?${params}`, { headers: { Accept: "application/json" } });
-        const json: BlockscoutResponse = await res.json();
-        rawLogs = Array.isArray(json.result) ? json.result : [];
-      } catch { /* ignore */ }
-
+      if (logs.length === 0) {
+        try {
+          const p = new URLSearchParams({ module: "logs", action: "getLogs", address: curveAddress, toBlock: "latest" });
+          if (creationBlock !== null) p.set("fromBlock", String(creationBlock));
+          const r = await fetch(`${ARCSCAN_API}?${p}`, { headers: { Accept: "application/json" } });
+          const j: BlockscoutResponse = await r.json();
+          rawLogs = Array.isArray(j.result) ? j.result : [];
+        } catch { /* ignore */ }
+      }
       return NextResponse.json({
         trades: [],
         _debug: {
-          creationBlock, logsWithTopicFilter: 0,
+          creationBlock, logsWithTopicFilter: logs.length,
           rawLogsCount: rawLogs.length,
           rawLogTopics: rawLogs.slice(0, 5).map(l => ({ topic0: l.topics[0], blockNumber: l.blockNumber, txHash: l.transactionHash })),
+          TRADE_EVENT_TOPIC,
           ...debugInfo,
         },
       });
@@ -286,11 +166,12 @@ export async function GET(req: Request) {
       .filter(l => l.data && l.data !== "0x")
       .map(l => {
         try {
-          const decoded  = decodeAbiParameters(TRADE_DATA_PARAMS_V1, l.data as `0x${string}`);
+          const decoded  = decodeAbiParameters(TRADE_DATA_PARAMS_V2, l.data as `0x${string}`);
           const isBuy    = Boolean(decoded[0]);
           const usdcRaw  = decoded[1] as bigint;
           const tokRaw   = decoded[2] as bigint;
-          const usdcAmt  = Number(usdcRaw) / 1e6;
+          // USDC Arc natif = 18 decimals
+          const usdcAmt  = Number(usdcRaw) / 1e18;
           const tokenAmt = Number(tokRaw)  / 1e18;
           const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
           return { timestamp: hexOrDecToNumber(l.timeStamp), isBuy, usdcAmt, tokenAmt, price, txHash: l.transactionHash ?? "" };
