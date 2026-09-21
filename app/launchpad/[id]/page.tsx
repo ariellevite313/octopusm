@@ -563,7 +563,7 @@ export default async function TokenDetailPage({ params }: Props) {
             <InfoRow label="Network" value={isArc ? "Arc" : "Solana"} />
             <InfoRow label="Supply"  value={formatSupply(token.supply)} />
             {token.first_buy_amount && (
-              <InfoRow label="First buy" value={`${token.first_buy_amount} SOL`} />
+              <InfoRow label="First buy" value={`${token.first_buy_amount} ${isArc ? "USDC" : "SOL"}`} />
             )}
             {token.is_scheduled && token.scheduled_at && (
               <InfoRow label="Launch date" value={new Date(token.scheduled_at).toLocaleString("en-US")} />

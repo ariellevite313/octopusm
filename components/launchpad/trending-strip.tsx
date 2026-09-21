@@ -6,12 +6,14 @@ import Image from "next/image";
 import { TrendingUp, BadgeCheck } from "lucide-react";
 
 type TrendingToken = {
-  id:            string;
-  name:          string;
-  ticker:        string;
-  logo_url:      string | null;
-  mint_address:  string | null;
-  is_verified:   boolean;
+  id:             string;
+  name:           string;
+  ticker:         string;
+  logo_url:       string | null;
+  mint_address:   string | null;
+  arc_launch_id:  string | null;
+  chain:          string | null;
+  is_verified:    boolean;
   market_cap_usd: number | null;
   volume_24h_usd: number | null;
 };
@@ -56,42 +58,56 @@ export function TrendingStrip() {
                 className="shrink-0 w-32 h-16 rounded-xl bg-muted/30 animate-pulse border border-border"
               />
             ))
-          : tokens.map((t, i) => (
-              <Link
-                key={t.id}
-                href={`/launchpad/${t.mint_address ?? t.id}`}
-                className="shrink-0 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors min-w-[148px]"
-              >
-                {/* Rank */}
-                <span className="text-[11px] font-bold text-muted-foreground/50 w-4 shrink-0">
-                  #{i + 1}
-                </span>
+          : tokens.map((t, i) => {
+              const isArc = t.chain === "arc";
+              // Arc: prioritise mint_address (OMToken ERC-20), fallback to arc_launch_id (curve)
+              const slug  = isArc
+                ? (t.mint_address ?? t.arc_launch_id ?? t.id)
+                : (t.mint_address ?? t.id);
+              return (
+                <Link
+                  key={t.id}
+                  href={`/launchpad/${slug}`}
+                  className="shrink-0 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors min-w-[148px]"
+                >
+                  {/* Rank */}
+                  <span className="text-[11px] font-bold text-muted-foreground/50 w-4 shrink-0">
+                    #{i + 1}
+                  </span>
 
-                {/* Logo */}
-                <div className="relative size-8 shrink-0 overflow-hidden rounded-lg bg-black">
-                  {t.logo_url ? (
-                    <Image src={t.logo_url} alt={t.name} fill className="object-cover" unoptimized />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[9px] font-bold text-white/60">
-                      {t.ticker.slice(0, 3)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate text-xs font-semibold text-foreground">{t.ticker}</span>
-                    {t.is_verified && (
-                      <BadgeCheck className="size-3 shrink-0 text-orange-400" />
+                  {/* Logo */}
+                  <div className="relative size-8 shrink-0 overflow-hidden rounded-lg bg-black">
+                    {t.logo_url ? (
+                      <Image src={t.logo_url} alt={t.name} fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[9px] font-bold text-white/60">
+                        {t.ticker.slice(0, 3)}
+                      </div>
                     )}
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-medium">
-                    {fmtCompact(t.volume_24h_usd)}
-                  </span>
-                </div>
-              </Link>
-            ))
+
+                  {/* Info */}
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-0.5">
+                      <span className="truncate text-xs font-semibold text-foreground">{t.ticker}</span>
+                      {t.is_verified && (
+                        <BadgeCheck className="size-3 shrink-0 text-orange-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-emerald-400 font-medium">
+                        {fmtCompact(t.volume_24h_usd)}
+                      </span>
+                      {isArc && (
+                        <span className="text-[9px] font-bold text-blue-400/80 bg-blue-400/10 rounded px-0.5">
+                          ARC
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
         }
       </div>
     </div>
