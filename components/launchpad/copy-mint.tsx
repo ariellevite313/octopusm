@@ -9,6 +9,7 @@ export function CopyMint({ address }: { address: string }) {
 
   const copy = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     navigator.clipboard.writeText(address).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);

@@ -42,7 +42,7 @@ contract BondingCurveArcV2 is ReentrancyGuard {
     address public constant POOL_MANAGER     = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address public constant POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
-    uint24  public constant V4_FEE          = 3_000;   // 0.30% — match V1
+    uint24  public constant V4_FEE          = 5_000;   // 0.50%
     int24   public constant V4_TICK_SPACING = 60;      // full-range, divisible par 60
     int24   public constant TICK_LOWER      = -887_220; // -14787 × 60
     int24   public constant TICK_UPPER      =  887_220; //  14787 × 60

@@ -83,21 +83,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ trades: [] });
     }
 
-    // ── 3. Timestamps via getBlock pour chaque bloc unique ────────────────────
-    const uniqueBlocks = [...new Set(logs.map(l => l.blockNumber).filter((n): n is bigint => n !== null))];
-
-    // Batch limité à 50 appels parallèles pour éviter de saturer le RPC
-    const BATCH = 50;
-    const blockTimestamps = new Map<bigint, number>();
-    for (let i = 0; i < uniqueBlocks.length; i += BATCH) {
-      const chunk = uniqueBlocks.slice(i, i + BATCH);
-      const blocks = await Promise.all(
-        chunk.map(bn => client.getBlock({ blockNumber: bn }).catch(() => null))
-      );
-      for (const b of blocks) {
-        if (b) blockTimestamps.set(b.number, Number(b.timestamp));
-      }
-    }
+    // ── 3. Timestamp de référence (1 seul appel RPC) ──────────────────────────
+    // Au lieu de fetcher chaque bloc (N appels), on récupère le bloc latest et
+    // on interpole : timestamp ≈ latestTs - (latestBlock - blockN) * AVG_BLOCK_TIME
+    // Arc block time ≈ 2s — assez précis pour un graphique de prix.
+    const latestBlock = await client.getBlock({ blockTag: "latest" });
+    const latestBlockNum  = latestBlock.number;
+    const latestTimestamp = Number(latestBlock.timestamp);
+    const ARC_BLOCK_TIME  = 2; // secondes
 
     // ── 4. Assembler les trades ───────────────────────────────────────────────
     const trades: Trade[] = logs
@@ -112,11 +105,11 @@ export async function GET(req: Request) {
           const tokenAmt = Number(tokenAmount) / 1e18;
           const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
           if (price <= 0) return null;
-          const timestamp = l.blockNumber !== null
-            ? (blockTimestamps.get(l.blockNumber) ?? 0)
-            : 0;
+          const blockNum  = l.blockNumber ?? latestBlockNum;
+          const blockDiff = Number(latestBlockNum - blockNum);
+          const timestamp = latestTimestamp - blockDiff * ARC_BLOCK_TIME;
           return {
-            timestamp,
+            timestamp: Math.max(0, Math.floor(timestamp)),
             isBuy:    Boolean(isBuy),
             usdcAmt,
             tokenAmt,
@@ -125,7 +118,7 @@ export async function GET(req: Request) {
           };
         } catch { return null; }
       })
-      .filter((t): t is Trade => t !== null && t.timestamp > 0)
+      .filter((t): t is Trade => t !== null && t.price > 0)
       .sort((a, b) => a.timestamp - b.timestamp)
       .slice(-limit);
 

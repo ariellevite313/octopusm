@@ -601,11 +601,11 @@ const ARC_TIER_DEFS = [
       { label: "Platform", pct: 0.25, color: "#1D9E75" },
       { label: "LP Bonus", pct: 0.25, color: "#F59E0B" },
     ],
-    // Post-graduation splits of the 0.30% V4 pool fee
+    // Post-graduation splits of the 0.50% V4 pool fee
     postGrad: [
-      { label: "Creator",    pct: 44.45, color: "#378ADD" },
-      { label: "Platform",   pct: 33.33, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 22.22, color: "#F59E0B" },
+      { label: "Creator",    pct: 53.33, color: "#378ADD" },
+      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 26.67, color: "#F59E0B" },
     ],
     desc: "Simple. LP bonus boosts graduation liquidity.",
   },
@@ -620,10 +620,10 @@ const ARC_TIER_DEFS = [
       { label: "Holders",  pct: 0.25, color: "#8B5CF6" },
     ],
     postGrad: [
-      { label: "Creator",    pct: 28.08, color: "#378ADD" },
-      { label: "Platform",   pct: 33.33, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 21.06, color: "#F59E0B" },
-      { label: "Holders",    pct: 17.53, color: "#8B5CF6" },
+      { label: "Creator",    pct: 33.69, color: "#378ADD" },
+      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 25.27, color: "#F59E0B" },
+      { label: "Holders",    pct: 21.04, color: "#8B5CF6" },
     ],
     desc: "Holders earn dividends + LP bonus on every swap.",
   },
@@ -637,9 +637,9 @@ const ARC_TIER_DEFS = [
       { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
     ],
     postGrad: [
-      { label: "Creator",    pct: 48.48, color: "#378ADD" },
-      { label: "Platform",   pct: 33.33, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 18.19, color: "#F59E0B" },
+      { label: "Creator",    pct: 58.17, color: "#378ADD" },
+      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 21.83, color: "#F59E0B" },
     ],
     desc: "Max creator yield. LP bonus boosts graduation liquidity.",
   },
@@ -654,10 +654,10 @@ const ARC_TIER_DEFS = [
       { label: "Holders",  pct: 0.20, color: "#8B5CF6" },
     ],
     postGrad: [
-      { label: "Creator",    pct: 33.33, color: "#378ADD" },
-      { label: "Platform",   pct: 50.00, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 10.00, color: "#F59E0B" },
-      { label: "Holders",    pct:  6.67, color: "#8B5CF6" },
+      { label: "Creator",    pct: 46.66, color: "#378ADD" },
+      { label: "Platform",   pct: 30.00, color: "#1D9E75" },
+      { label: "LP Reserve", pct: 14.00, color: "#F59E0B" },
+      { label: "Holders",    pct:  9.34, color: "#8B5CF6" },
     ],
     desc: "Max fees. Holders earn dividends + extra LP at graduation.",
   },
@@ -722,7 +722,7 @@ function FeeTierCard({
       {/* Post-graduation */}
       <div className="pt-3 border-t border-border space-y-2.5">
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-          After graduation — 0.30% V4 pool fee split
+          After graduation — 0.50% V4 pool fee split
         </p>
         {/* Barres post-grad */}
         {(() => {
@@ -907,7 +907,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             <Row label="Type" value="USDC Meme (native Arc)" />
             <Row label="Bonding curve" value="BondingCurveArcV2 standalone" />
             <Row label="Graduation" value="2 000 USDC levés" />
-            <Row label="Post-graduation" value="Pool V4 (fee=0.30%, hook=0x0)" />
+            <Row label="Post-graduation" value="Pool V4 (fee=0.50%, hook=0x0)" />
             <Row label="Creation fee" value="Gratuit" />
             {data.arc_first_buy_enabled && (
               <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
@@ -1225,7 +1225,8 @@ export function CreateTokenWizard({
 
       // Sauvegarder — V2 : arc_launch_id = curve address (≠ token)
       const form = new FormData();
-      if (data.logo_file) form.append("logo", data.logo_file);
+      if (data.logo_file)       form.append("logo",       data.logo_file);
+      if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
       form.append("payload", JSON.stringify({
         name: data.name, ticker: data.ticker, category: data.category,
         description: data.description, website: data.website,
