@@ -143,6 +143,11 @@ export const BONDING_CURVE_V2_ABI = [
     outputs: [],
   },
   {
+    type: "function", name: "buyFor", stateMutability: "payable",
+    inputs:  [{ name: "recipient", type: "address" }, { name: "minTokensOut", type: "uint256" }],
+    outputs: [],
+  },
+  {
     type: "function", name: "sell", stateMutability: "nonpayable",
     inputs:  [{ name: "tokensIn", type: "uint256" }, { name: "minUsdcOut", type: "uint256" }],
     outputs: [],

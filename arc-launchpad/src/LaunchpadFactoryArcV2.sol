@@ -148,9 +148,9 @@ contract LaunchpadFactoryArcV2 {
 
         emit TokenLaunched(curve, token_, msg.sender, vault, name, symbol, imageUri, description, firstBuyUsdc);
 
-        // ── 7. Premier achat optionnel ────────────────────────────────────────
+        // ── 7. Premier achat optionnel (tokens → créateur, pas factory) ──────
         if (firstBuyUsdc > 0) {
-            BondingCurveArcV2(payable(curve)).buy{value: firstBuyUsdc}(0);
+            BondingCurveArcV2(payable(curve)).buyFor{value: firstBuyUsdc}(msg.sender, 0);
         }
 
         // ── 8. Rembourser l'excédent ──────────────────────────────────────────
