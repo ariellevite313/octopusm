@@ -26,11 +26,14 @@ import {
   BC_CURVE_SUPPLY,
   BC_K,
   BC_K_LEGACY,
+  BC_FEE_BPS,
   getArcV4PoolKey,
   getArcV4PoolId,
   quoteBuyV4,
   quoteSellV4,
+  getFeeTotalBps,
 } from "@/lib/arc-launchpad";
+import type { FeeTier } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -130,6 +133,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   // Hook actif : peut être le legacy si le token a été créé avant le dernier redéploiement
   const [effectiveHookAddress, setEffectiveHookAddress] = useState<`0x${string}`>(ARC_HOOK_ADDRESS);
   const [effectiveK,           setEffectiveK]           = useState<bigint>(BC_K);
+  const [effectiveFeeBps,      setEffectiveFeeBps]      = useState<bigint>(BC_FEE_BPS);
 
   // Quote
   const [estimatedOut, setEstimatedOut] = useState<bigint | null>(null);
@@ -191,6 +195,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           reserveUsdc:    bigint;
           reserveTokens:  bigint;
           realUsdcRaised: bigint;
+          feeTier:        number;
           graduated:      boolean;
           lpAdded:        boolean;
           initialized:    boolean;
@@ -222,6 +227,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
         setEffectiveHookAddress(activeHook);
         setEffectiveK(activeK);
+        setEffectiveFeeBps(getFeeTotalBps((state.feeTier ?? 0) as FeeTier, state.graduated));
         setGraduated(state.graduated);
         setLpAdded(state.lpAdded);
         setRealRaised(state.realUsdcRaised);
@@ -292,16 +298,16 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       if (direction === "buy") {
         // USDC natif 18 decimals
         const usdcGross = BigInt(Math.round(parsed * 1e18));
-        const { tokensOut } = quoteBuyV4(v4ReserveUsdc, v4ReserveTokens, usdcGross, effectiveK);
+        const { tokensOut } = quoteBuyV4(v4ReserveUsdc, v4ReserveTokens, usdcGross, effectiveFeeBps, effectiveK);
         setEstimatedOut(tokensOut > 0n ? tokensOut : null);
       } else {
         const tokensIn = parseDecimalToBigInt(amount, 18);
-        const { usdcOut } = quoteSellV4(v4ReserveUsdc, v4ReserveTokens, tokensIn, effectiveK);
+        const { usdcOut } = quoteSellV4(v4ReserveUsdc, v4ReserveTokens, tokensIn, effectiveFeeBps, effectiveK);
         setEstimatedOut(usdcOut > 0n ? usdcOut : null);
       }
     } catch { setEstimatedOut(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, direction, launchId, v4ReserveUsdc, v4ReserveTokens, effectiveK]);
+  }, [amount, direction, launchId, v4ReserveUsdc, v4ReserveTokens, effectiveK, effectiveFeeBps]);
 
   // ── Ensure Arc Mainnet ───────────────────────────────────────────────────
 
