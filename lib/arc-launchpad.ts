@@ -27,8 +27,26 @@ export const ARC_TREASURY_ADDRESS    = (process.env.NEXT_PUBLIC_ARC_TREASURY_ADD
 export const BC_VIRTUAL_USDC   = 1_920n * 10n ** 18n;         // 1 920 USDC → FDV ouverture ≈ 2 400 USDC
 export const BC_CURVE_SUPPLY   = 800_000_000n * 10n ** 18n;   // 800 M tokens alloués à la courbe
 export const BC_GRAD_THRESHOLD = 2_000n * 10n ** 18n;         // 2 000 USDC levés → graduation
-export const BC_FEE_BPS        = 200n;                        // 2 % (créateur 1 % + plateforme 1 %)
 export const BC_K              = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
+
+// ─── Fee tiers (doivent correspondre à BondingCurveArcV2.TIER_TABLE) ──────────
+// [totalBps, creatorBps, platformBps, lpBps, holdersBps]
+export const ARC_FEE_TIERS = [
+  { name: "Standard",  totalBps: 100, creatorBps: 60, platformBps: 40, lpBps:  0, holdersBps:  0 },
+  { name: "Community", totalBps: 125, creatorBps: 70, platformBps: 30, lpBps:  0, holdersBps: 25 },
+  { name: "Creator",   totalBps: 150, creatorBps: 90, platformBps: 35, lpBps: 15, holdersBps: 10 },
+  { name: "Max",       totalBps: 200, creatorBps:100, platformBps: 50, lpBps: 30, holdersBps: 20 },
+] as const;
+
+export type ArcFeeTierIndex = 0 | 1 | 2 | 3;
+
+/** Fee bps du tier sélectionné (pour les quotes client-side) */
+export function arcTierFeeBps(tier: ArcFeeTierIndex): bigint {
+  return BigInt(ARC_FEE_TIERS[tier].totalBps);
+}
+
+// Rétro-compatibilité — fee par défaut = tier 0 (Standard 1%)
+export const BC_FEE_BPS = BigInt(ARC_FEE_TIERS[0].totalBps);
 
 export const ARC_DEFAULT_SUPPLY = BigInt("1000000000000000000000000000"); // 1e27
 
@@ -88,10 +106,23 @@ export const BONDING_CURVE_V2_ABI = [
   { type: "function", name: "reserveUsdc",   inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
   { type: "function", name: "reserveTokens", inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
   { type: "function", name: "realUsdcRaised",inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "creatorAccrued",inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "creator",       inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
-  { type: "function", name: "token",         inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
-  { type: "function", name: "graduationVault",inputs:[],outputs: [{ name: "", type: "address" }], stateMutability: "view" },
+  { type: "function", name: "creatorAccrued",  inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "lockedLpAccrued", inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "feeTier",          inputs: [], outputs: [{ name: "", type: "uint8"   }], stateMutability: "view" },
+  { type: "function", name: "creator",          inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
+  { type: "function", name: "token",            inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
+  { type: "function", name: "graduationVault",  inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
+  {
+    type: "function", name: "tierBps", stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "totalBps",    type: "uint256" },
+      { name: "creatorBps",  type: "uint256" },
+      { name: "platformBps", type: "uint256" },
+      { name: "lpBps",       type: "uint256" },
+      { name: "holdersBps",  type: "uint256" },
+    ],
+  },
   // ── Quotes ────────────────────────────────────────────────────────────────
   {
     type: "function", name: "quoteBuy", stateMutability: "view",
@@ -191,6 +222,7 @@ export const LAUNCHPAD_FACTORY_V2_ABI = [
       { name: "imageUri",     type: "string"  },
       { name: "description",  type: "string"  },
       { name: "firstBuyUsdc", type: "uint256" },
+      { name: "feeTier_",     type: "uint8"   },
     ],
     outputs: [
       { name: "curve",  type: "address" },
