@@ -17,9 +17,9 @@ export const ARC_POOL_MANAGER_ADDRESS    = "0x8366a39CC670B4001A1121B8F6A443A643
 export const ARC_POSITION_MANAGER_ADDRESS = "0x6049c9a0e26405C0985f9E3685C87d0aE917f82B" as const;
 
 // ─── Adresses V2 (Arc mainnet — déployé le 2026-09-21, V1 fees + création gratuite + postGrad 0.10-0.15% + fix first buy) ──
-export const ARC_FACTORY_V2_ADDRESS  = "0xf45DB8c148E0655db200E23592E93B59a5915ED6" as `0x${string}`;
-export const ARC_CURVE_V2_IMPL       = "0xF3b86F51A3199D5Dadbe48367481b97F6F4D1DCe" as `0x${string}`;
-export const ARC_VAULT_V4_IMPL       = "0x06a840CD1e83D0eAdec8f2290FC9B25bcc7F0d46" as `0x${string}`;
+export const ARC_FACTORY_V2_ADDRESS  = "0xcEEC35bBbd6AD07c0da06a270DD1aBfE393b3FE9" as `0x${string}`;
+export const ARC_CURVE_V2_IMPL       = "0xff3Eb715822FE9d43C9aD93Aa4C948ff9480f260" as `0x${string}`;
+export const ARC_VAULT_V4_IMPL       = "0x00084F48F6B3F8111f8CC842BE4D55FA6424A5A1" as `0x${string}`;
 export const ARC_TREASURY_ADDRESS    = (process.env.NEXT_PUBLIC_ARC_TREASURY_ADDRESS ?? "0xf1173b875829293F7f02C20f177242a556f302fA") as `0x${string}`;
 
 // ─── Constantes bonding curve V2 (doivent correspondre à BondingCurveArcV2.sol) ─
