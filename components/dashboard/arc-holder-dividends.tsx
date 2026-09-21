@@ -164,89 +164,122 @@ export function ArcHolderDividends() {
   // Si tous les tokens ont été lus et aucun dividende : ne rien afficher
   if (!loading && visible.length === 0) return null;
 
+  // Total claimable (somme des pending > 0)
+  const totalPending = tokens.reduce((acc, t) => acc + (t.pending ?? 0n), 0n);
+
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">
-        Arc tokens — dividendes holders
-      </h3>
+    <div className="space-y-2.5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Arc · Dividendes
+        </h3>
+        {totalPending > 0n && (
+          <span className="rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-orange-500">
+            {fmtUsdc(totalPending)} USDC
+          </span>
+        )}
+      </div>
 
-      {visible.map(token => (
-        <div
-          key={token.id}
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
-        >
-          {/* Logo */}
-          <div className="size-10 shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
-            {token.logo_url ? (
-              <Image
-                src={token.logo_url}
-                alt={token.name}
-                width={40}
-                height={40}
-                className="object-cover"
-                unoptimized
-              />
+      {visible.map(token => {
+        const hasBalance = token.pending !== null && token.pending > 0n;
+        const isLoading  = token.pending === null;
+        const isClaimed  = !!token.txHash;
+
+        return (
+          <div
+            key={token.id}
+            className={`flex items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 transition-opacity ${
+              isClaimed ? "opacity-50" : "opacity-100"
+            } ${hasBalance ? "border-orange-500/30" : "border-border"}`}
+          >
+            {/* Logo */}
+            <div className="size-[42px] shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+              {token.logo_url ? (
+                <Image
+                  src={token.logo_url}
+                  alt={token.name}
+                  width={42}
+                  height={42}
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <span className="text-xs font-bold text-muted-foreground">
+                  {token.ticker.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
+
+            {/* Infos */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-[13px] font-medium text-foreground truncate">
+                  {token.name}
+                </p>
+                <span className="text-[11px] text-muted-foreground">${token.ticker}</span>
+                <span className="rounded bg-blue-700 px-1 py-px text-[9px] font-bold tracking-wide text-blue-200">
+                  ARC
+                </span>
+              </div>
+
+              {isLoading ? (
+                <div className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin text-orange-500" />
+                  Lecture…
+                </div>
+              ) : (
+                <p className={`mt-0.5 text-[12px] ${hasBalance ? "font-semibold text-orange-500" : "text-muted-foreground"}`}>
+                  {hasBalance
+                    ? `${fmtUsdc(token.pending!)} USDC claimable`
+                    : isClaimed
+                    ? "0.00 USDC"
+                    : "Aucun dividende"}
+                </p>
+              )}
+
+              {isClaimed && (
+                <a
+                  href={`https://explorer.arc.io/tx/${token.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
+                >
+                  <CheckCircle2 className="size-3" /> Réclamé · voir sur explorer
+                </a>
+              )}
+              {token.error && (
+                <p className="mt-0.5 text-[11px] text-red-400">{token.error}</p>
+              )}
+            </div>
+
+            {/* Bouton claim */}
+            {selectedChain !== "arc" ? (
+              <span className="shrink-0 text-right text-[10px] text-muted-foreground">
+                Connecte<br />MetaMask
+              </span>
+            ) : isLoading ? (
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                <Loader2 className="size-3.5 animate-spin text-orange-500" />
+              </div>
             ) : (
-              <span className="text-xs font-bold text-muted-foreground">
-                {token.ticker.slice(0, 2)}
-              </span>
-            )}
-          </div>
-
-          {/* Infos */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">
-              {token.name}
-              <span className="ml-1 text-[10px] text-muted-foreground font-normal">
-                ${token.ticker}
-              </span>
-            </p>
-
-            <p className="text-xs text-muted-foreground">
-              {token.pending === null
-                ? "Lecture…"
-                : token.pending === 0n
-                ? "Aucun dividende à réclamer"
-                : `${fmtUsdc(token.pending)} USDC claimable`}
-            </p>
-
-            {token.txHash && (
-              <a
-                href={`https://explorer.arc.io/tx/${token.txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
+              <button
+                onClick={() => void handleClaim(token.id)}
+                disabled={token.claiming || !hasBalance}
+                className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                  hasBalance && !token.claiming
+                    ? "bg-orange-500 text-white active:bg-orange-600"
+                    : "cursor-not-allowed bg-muted text-muted-foreground"
+                }`}
               >
-                <CheckCircle2 className="size-3" /> Réclamé
-              </a>
-            )}
-            {token.error && (
-              <p className="text-[11px] text-red-400 mt-0.5">{token.error}</p>
+                {token.claiming
+                  ? <Loader2 className="size-3.5 animate-spin" />
+                  : "Claim"}
+              </button>
             )}
           </div>
-
-          {/* Bouton claim */}
-          {selectedChain !== "arc" ? (
-            <span className="text-[10px] text-muted-foreground text-right shrink-0">
-              Connecte<br />MetaMask
-            </span>
-          ) : (
-            <button
-              onClick={() => void handleClaim(token.id)}
-              disabled={token.claiming || !token.pending || token.pending === 0n}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 ${
-                token.claiming || !token.pending || token.pending === 0n
-                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                  : "bg-purple-500 hover:bg-purple-400 text-white"
-              }`}
-            >
-              {token.claiming
-                ? <Loader2 className="size-3.5 animate-spin" />
-                : "Claim"}
-            </button>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

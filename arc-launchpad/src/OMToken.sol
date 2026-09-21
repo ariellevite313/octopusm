@@ -121,9 +121,12 @@ contract OMToken is ERC20 {
     function addDividend() external payable {
         require(msg.sender == hook || msg.sender == vault, "OMToken: not authorized");
         if (msg.value == 0) return;
-        uint256 supply = totalSupply();
-        if (supply == 0) return;
-        accPerShare      += msg.value * PREC / supply;
+        // Supply circulante uniquement : exclure les tokens encore détenus par le hook (bonding curve).
+        // Le hook mint→détient la totalité au lancement et vend progressivement.
+        // Utiliser totalSupply() distribuerait ~100% aux tokens non-circulants → dividendes quasi-nuls pour les vrais holders.
+        uint256 circulating = totalSupply() - balanceOf(hook);
+        if (circulating == 0) return;
+        accPerShare      += msg.value * PREC / circulating;
         dividendReserve  += msg.value;
         emit DividendAdded(msg.value, accPerShare);
     }
@@ -214,13 +217,14 @@ contract OMToken is ERC20 {
      *        4. Recalcul des rewardDebt avec les nouvelles balances
      */
     function _update(address from, address to, uint256 amount) internal override {
-        // 1. Settle AVANT modification de balance
-        _settleDividend(from);
-        _settleDividend(to);
+        // 1. Settle AVANT modification de balance.
+        //    Le hook (bonding curve) est EXCLU : il n'est pas un holder réel,
+        //    ses tokens ne participent pas à la distribution (voir addDividend).
+        if (from != hook) _settleDividend(from);
+        if (to   != hook) _settleDividend(to);
 
-        // 2. Timer : seul "from" est considéré actif
-        //    mint (from == address(0)) : pas de reset pour address(0)
-        if (from != address(0)) {
+        // 2. Timer : seul "from" est considéré actif (hors hook et address(0))
+        if (from != address(0) && from != hook) {
             lastInteraction[from] = block.timestamp;
         }
         // "to" reçoit passivement → timer inchangé → sweep possible si > 2 ans d'inactivité
@@ -228,11 +232,11 @@ contract OMToken is ERC20 {
         // 3. Transfer ERC20
         super._update(from, to, amount);
 
-        // 4. Recalcul des dettes avec les nouvelles balances
-        if (from != address(0)) {
+        // 4. Recalcul des dettes avec les nouvelles balances (hook exclu)
+        if (from != address(0) && from != hook) {
             rewardDebt[from] = balanceOf(from) * accPerShare / PREC;
         }
-        if (to != address(0)) {
+        if (to != address(0) && to != hook) {
             rewardDebt[to] = balanceOf(to) * accPerShare / PREC;
         }
     }

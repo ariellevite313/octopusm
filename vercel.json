@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/arc-graduation",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/update-arc-holdings",
+      "schedule": "* * * * *"
     }
   ]
 }
