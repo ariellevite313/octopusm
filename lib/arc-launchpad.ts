@@ -285,6 +285,31 @@ export const LAUNCHPAD_FACTORY_V2_ABI = [
   },
 ] as const;
 
+// ─── ABI : OMToken (dividendes holders) ──────────────────────────────────────
+
+export const OM_TOKEN_ABI = [
+  {
+    type: "function", name: "pendingDividend", stateMutability: "view",
+    inputs:  [{ name: "holder", type: "address" }],
+    outputs: [{ name: "",       type: "uint256" }],
+  },
+  {
+    type: "function", name: "claimDividend", stateMutability: "nonpayable",
+    inputs:  [],
+    outputs: [],
+  },
+  {
+    type: "function", name: "dividendReserve", stateMutability: "view",
+    inputs:  [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function", name: "balanceOf", stateMutability: "view",
+    inputs:  [{ name: "account", type: "address" }],
+    outputs: [{ name: "",        type: "uint256" }],
+  },
+] as const;
+
 // ─── Topic Trade event (pour arc-trades API) ──────────────────────────────────
 
 // keccak256("Trade(address,bool,uint256,uint256,uint256,uint256,uint256,uint256)")
