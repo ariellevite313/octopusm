@@ -210,10 +210,12 @@ contract GraduationVaultV4 {
     function _postGradBps() internal view returns (
         uint256 creatorBps, uint256 platformBps, uint256 lpBps, uint256 holdersBps
     ) {
-        if (feeTier == 0) return (3333, 1667, 5000,    0); // Standard  : c33% p17% LP50%
-        if (feeTier == 1) return (1250, 1250, 3750, 3750); // Community : c12% p12% LP37% h37%
-        if (feeTier == 2) return (5000, 1250, 3750,    0); // Creator   : c50% p12% LP37%
-        /* tier 3 */      return (4000, 2000, 3000, 1000); // Max       : c40% p20% LP30% h10%
+        // Platform cible : 0.10–0.15% effectif sur le 0.30% pool fee.
+        // Reste distribué proportionnellement aux ratios pré-graduation (hors platform).
+        if (feeTier == 0) return (4445, 3333, 2222,    0); // Standard  : c0.133% p0.100% LP0.067%
+        if (feeTier == 1) return (2808, 3333, 2106, 1753); // Community : c0.084% p0.100% LP0.063% h0.053%
+        if (feeTier == 2) return (4848, 3333, 1819,    0); // Creator   : c0.145% p0.100% LP0.055%
+        /* tier 3 */      return (3333, 5000, 1000,  667); // Max       : c0.100% p0.150% LP0.030% h0.020%
     }
 
     // ─── Internes : appels bas-niveau V4 ─────────────────────────────────────
