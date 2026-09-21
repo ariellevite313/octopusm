@@ -40,8 +40,8 @@ contract GraduationVaultV4 {
     address public constant POOL_MANAGER     = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address public constant POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
-    uint24  public constant V4_FEE          = 3_000;   // 0.30% — match V1 post-graduation
-    int24   public constant V4_TICK_SPACING = 60;      // full-range, divisible par 60
+    uint24  public constant V4_FEE          = 5_000;   // 0.50%
+    int24   public constant V4_TICK_SPACING = 60;      // full-range — 887220 divisible par 60
 
     // ─── État ─────────────────────────────────────────────────────────────────
 
@@ -210,12 +210,12 @@ contract GraduationVaultV4 {
     function _postGradBps() internal view returns (
         uint256 creatorBps, uint256 platformBps, uint256 lpBps, uint256 holdersBps
     ) {
-        // Platform cible : 0.10–0.15% effectif sur le 0.30% pool fee.
+        // Platform cible : 0.10–0.15% effectif sur le 0.50% pool fee.
         // Reste distribué proportionnellement aux ratios pré-graduation (hors platform).
-        if (feeTier == 0) return (4445, 3333, 2222,    0); // Standard  : c0.133% p0.100% LP0.067%
-        if (feeTier == 1) return (2808, 3333, 2106, 1753); // Community : c0.084% p0.100% LP0.063% h0.053%
-        if (feeTier == 2) return (4848, 3333, 1819,    0); // Creator   : c0.145% p0.100% LP0.055%
-        /* tier 3 */      return (3333, 5000, 1000,  667); // Max       : c0.100% p0.150% LP0.030% h0.020%
+        if (feeTier == 0) return (5333, 2000, 2667,    0); // Standard  : c0.267% p0.100% LP0.133%
+        if (feeTier == 1) return (3369, 2000, 2527, 2104); // Community : c0.168% p0.100% LP0.126% h0.105%
+        if (feeTier == 2) return (5817, 2000, 2183,    0); // Creator   : c0.291% p0.100% LP0.109%
+        /* tier 3 */      return (4666, 3000, 1400,  934); // Max       : c0.233% p0.150% LP0.070% h0.047%
     }
 
     // ─── Internes : appels bas-niveau V4 ─────────────────────────────────────
