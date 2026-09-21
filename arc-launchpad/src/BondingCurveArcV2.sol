@@ -42,10 +42,10 @@ contract BondingCurveArcV2 is ReentrancyGuard {
     address public constant POOL_MANAGER     = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address public constant POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
-    uint24  public constant V4_FEE          = 2_500;
-    int24   public constant V4_TICK_SPACING = 25;
-    int24   public constant TICK_LOWER      = -887_200;
-    int24   public constant TICK_UPPER      =  129_400;
+    uint24  public constant V4_FEE          = 3_000;   // 0.30% — match V1
+    int24   public constant V4_TICK_SPACING = 60;      // full-range, divisible par 60
+    int24   public constant TICK_LOWER      = -887_220; // -14787 × 60
+    int24   public constant TICK_UPPER      =  887_220; //  14787 × 60
 
     // ─── Fee tier — bps par destinataire ─────────────────────────────────────
     //
@@ -136,10 +136,11 @@ contract BondingCurveArcV2 is ReentrancyGuard {
         uint256 lpBps,
         uint256 holdersBps
     ) {
-        if (feeTier == 0) return (100,  60, 40,  0,  0);
-        if (feeTier == 1) return (125,  70, 30,  0, 25);
-        if (feeTier == 2) return (150,  90, 35, 15, 10);
-        /* tier 3 */      return (200, 100, 50, 30, 20);
+        // Valeurs identiques à BondingCurveHook V1 (pré-graduation)
+        if (feeTier == 0) return (100,  50, 25, 25,  0);  // Standard  1.00%
+        if (feeTier == 1) return (125,  40, 30, 30, 25);  // Community 1.25%
+        if (feeTier == 2) return (150,  80, 40, 30,  0);  // Creator   1.50%
+        /* tier 3 */      return (200, 100, 50, 30, 20);  // Max       2.00%
     }
 
     // ─── Quotes (view) ────────────────────────────────────────────────────────

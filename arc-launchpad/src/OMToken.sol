@@ -26,8 +26,10 @@ contract OMToken is ERC20 {
 
     // ─── Immutables ─────────────────────────────────────────────────────────
 
-    /// @notice BondingCurveHook — seul contrat autorisé à appeler addDividend()
+    /// @notice BondingCurveArcV2 — autorisé à appeler addDividend() (bonding curve)
     address public immutable hook;
+    /// @notice GraduationVaultV4 — autorisé à appeler addDividend() (post-graduation)
+    address public immutable vault;
 
     /// @notice Wallet OMdotfun — seul autorisé à sweepAbandoned()
     address public immutable platform;
@@ -74,7 +76,8 @@ contract OMToken is ERC20 {
      * @param symbol_     Symbole
      * @param imageUri_   URI de l'image
      * @param description_ Description
-     * @param hook_       BondingCurveHook — reçoit le supply total au mint
+     * @param hook_       BondingCurveArcV2 — reçoit le supply total au mint
+     * @param vault_      GraduationVaultV4 — autorisé à appeler addDividend post-graduation
      * @param creator_    Wallet créateur
      * @param platform_   Wallet OMdotfun — pour sweepAbandoned
      */
@@ -84,14 +87,17 @@ contract OMToken is ERC20 {
         string memory imageUri_,
         string memory description_,
         address hook_,
+        address vault_,
         address creator_,
         address platform_
     ) ERC20(name_, symbol_) {
         require(hook_     != address(0), "OMToken: zero hook");
+        require(vault_    != address(0), "OMToken: zero vault");
         require(creator_  != address(0), "OMToken: zero creator");
         require(platform_ != address(0), "OMToken: zero platform");
 
         hook        = hook_;
+        vault       = vault_;
         creator     = creator_;
         platform    = platform_;
         imageUri    = imageUri_;
@@ -113,7 +119,7 @@ contract OMToken is ERC20 {
      *         Si le supply est nul ou msg.value == 0, no-op silencieux.
      */
     function addDividend() external payable {
-        require(msg.sender == hook, "OMToken: hook only");
+        require(msg.sender == hook || msg.sender == vault, "OMToken: not authorized");
         if (msg.value == 0) return;
         uint256 supply = totalSupply();
         if (supply == 0) return;

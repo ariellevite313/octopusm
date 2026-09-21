@@ -29,13 +29,13 @@ export const BC_CURVE_SUPPLY   = 800_000_000n * 10n ** 18n;   // 800 M tokens al
 export const BC_GRAD_THRESHOLD = 2_000n * 10n ** 18n;         // 2 000 USDC levés → graduation
 export const BC_K              = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
 
-// ─── Fee tiers (doivent correspondre à BondingCurveArcV2.TIER_TABLE) ──────────
+// ─── Fee tiers (doivent correspondre à BondingCurveArcV2.tierBps() — valeurs V1) ─
 // [totalBps, creatorBps, platformBps, lpBps, holdersBps]
 export const ARC_FEE_TIERS = [
-  { name: "Standard",  totalBps: 100, creatorBps: 60, platformBps: 40, lpBps:  0, holdersBps:  0 },
-  { name: "Community", totalBps: 125, creatorBps: 70, platformBps: 30, lpBps:  0, holdersBps: 25 },
-  { name: "Creator",   totalBps: 150, creatorBps: 90, platformBps: 35, lpBps: 15, holdersBps: 10 },
-  { name: "Max",       totalBps: 200, creatorBps:100, platformBps: 50, lpBps: 30, holdersBps: 20 },
+  { name: "Standard",  totalBps: 100, creatorBps:  50, platformBps: 25, lpBps: 25, holdersBps:  0 },
+  { name: "Community", totalBps: 125, creatorBps:  40, platformBps: 30, lpBps: 30, holdersBps: 25 },
+  { name: "Creator",   totalBps: 150, creatorBps:  80, platformBps: 40, lpBps: 30, holdersBps:  0 },
+  { name: "Max",       totalBps: 200, creatorBps: 100, platformBps: 50, lpBps: 30, holdersBps: 20 },
 ] as const;
 
 export type ArcFeeTierIndex = 0 | 1 | 2 | 3;
@@ -189,6 +189,7 @@ export const GRADUATION_VAULT_V4_ABI = [
   { type: "function", name: "positionId",   inputs: [], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" },
   { type: "function", name: "token",        inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
   { type: "function", name: "creator",      inputs: [], outputs: [{ name: "", type: "address" }], stateMutability: "view" },
+  { type: "function", name: "feeTier",      inputs: [], outputs: [{ name: "", type: "uint8"   }], stateMutability: "view" },
   {
     type: "function", name: "collectFees", stateMutability: "nonpayable",
     inputs: [], outputs: [],
@@ -207,6 +208,15 @@ export const GRADUATION_VAULT_V4_ABI = [
     inputs: [
       { name: "usdcCollected", type: "uint256", indexed: false },
       { name: "tokensBurned",  type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event", name: "PostGradFees",
+    inputs: [
+      { name: "creatorFee",  type: "uint256", indexed: false },
+      { name: "platformFee", type: "uint256", indexed: false },
+      { name: "lpReserved",  type: "uint256", indexed: false },
+      { name: "holdersFee",  type: "uint256", indexed: false },
     ],
   },
 ] as const;

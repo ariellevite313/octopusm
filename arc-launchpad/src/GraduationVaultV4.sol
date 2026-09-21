@@ -40,8 +40,8 @@ contract GraduationVaultV4 {
     address public constant POOL_MANAGER     = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address public constant POSITION_MANAGER = 0x6049c9a0e26405C0985f9E3685C87d0aE917f82B;
 
-    uint24  public constant V4_FEE          = 2_500;
-    int24   public constant V4_TICK_SPACING = 25;
+    uint24  public constant V4_FEE          = 3_000;   // 0.30% — match V1 post-graduation
+    int24   public constant V4_TICK_SPACING = 60;      // full-range, divisible par 60
 
     // ─── État ─────────────────────────────────────────────────────────────────
 
@@ -53,11 +53,13 @@ contract GraduationVaultV4 {
 
     uint256 public positionId;
     bool    public poolCreated;
+    uint8   public feeTier;    // 0=Standard · 1=Community · 2=Creator · 3=Max
 
     // ─── Events ───────────────────────────────────────────────────────────────
 
     event PoolCreated(bytes32 indexed poolId, uint256 tokenId, uint256 usdcUsed, uint256 tokensUsed);
     event FeesCollected(uint256 usdcCollected, uint256 tokensBurned);
+    event PostGradFees(uint256 creatorFee, uint256 platformFee, uint256 lpReserved, uint256 holdersFee);
 
     // ─── Init ─────────────────────────────────────────────────────────────────
 
@@ -65,14 +67,17 @@ contract GraduationVaultV4 {
         address curve_,
         address token_,
         address creator_,
-        address treasury_
+        address treasury_,
+        uint8   feeTier_
     ) external {
         require(factory == address(0), "already initialized");
+        require(feeTier_ <= 3, "GV4: invalid tier");
         factory  = msg.sender;
         curve    = curve_;
         token    = token_;
         creator  = creator_;
         treasury = treasury_;
+        feeTier  = feeTier_;
     }
 
     // ─── createV4Pool (appelé par BondingCurveArcV2._graduate) ───────────────
@@ -143,21 +148,26 @@ contract GraduationVaultV4 {
     // ─── Collect V4 fees (creator + treasury + burn tokens) ──────────────────
 
     /**
-     * @notice Collecte les fees LP accumulées dans la position V4.
-     *         USDC (ETH natif) : 30 % créateur · 70 % treasury
-     *         Tokens           : brûlés vers 0xdead (LP lockée à vie)
+     * @notice Collecte les fees LP accumulées dans la position V4 et les redistribue
+     *         selon le tier V1 (post-graduation) :
      *
-     *         Callable par n'importe qui (keeper-friendly).
-     *         Les fonds vont toujours vers creator/treasury — pas de risque de détournement.
+     *   Standard  0.30% pool fee → créateur 33.3% · plateforme 16.7% · LP 50%
+     *   Community 0.40% pool fee → créateur 12.5% · plateforme 12.5% · LP 37.5% · holders 37.5%
+     *   Creator   0.40% pool fee → créateur 50%   · plateforme 12.5% · LP 37.5%
+     *   Max       0.50% pool fee → créateur 40%   · plateforme 20%   · LP 30%   · holders 10%
+     *
+     *   Part LP = reste dans le vault (accumule pour compound futur).
+     *   Holders = envoyés à OMToken.addDividend() (vault autorisé par OMToken).
+     *   Tokens meme collectés = brûlés (LP lockée à vie).
+     *
+     *   Callable par n'importe qui (keeper-friendly).
      */
     function collectFees() external {
         require(poolCreated, "GV4: not graduated");
 
-        // FIX #4 : mesurer le delta avant/après pour les DEUX currencies
-        uint256 ethBefore   = address(this).balance;
-        uint256 tokBefore   = IERC20(token).balanceOf(address(this));
+        uint256 ethBefore = address(this).balance;
+        uint256 tokBefore = IERC20(token).balanceOf(address(this));
 
-        // FIX #3 : collecte via API V4 (modifyLiquidities) au lieu de V3 (collect)
         _collectPositionFees(positionId);
 
         uint256 ethCollected = address(this).balance > ethBefore
@@ -167,21 +177,43 @@ contract GraduationVaultV4 {
 
         if (ethCollected == 0 && tokCollected == 0) return;
 
-        // USDC (ETH natif) : 30 % → créateur, 70 % → treasury
         if (ethCollected > 0) {
-            uint256 creatorShare  = ethCollected * 30 / 100;
-            uint256 treasuryShare = ethCollected - creatorShare;
-            _safeTransferETH(creator,  creatorShare);
-            _safeTransferETH(treasury, treasuryShare);
+            (uint256 cBps, uint256 pBps,, uint256 hBps) = _postGradBps();
+
+            uint256 creatorFee  = ethCollected * cBps / 10_000;
+            uint256 platformFee = ethCollected * pBps / 10_000;
+            uint256 holdersFee  = ethCollected * hBps / 10_000;
+            uint256 lpReserved  = ethCollected - creatorFee - platformFee - holdersFee;
+
+            _safeTransferETH(creator,  creatorFee);
+            _safeTransferETH(treasury, platformFee);
+            if (holdersFee > 0) {
+                IOMToken(token).addDividend{value: holdersFee}();
+            }
+            // lpReserved reste dans le vault (compound futur via compoundLP())
+
+            emit PostGradFees(creatorFee, platformFee, lpReserved, holdersFee);
         }
 
-        // Tokens de fees : brûlés — la position est lockée à vie,
-        // racheter les tokens de fees recréerait un risque de rug
+        // Tokens meme : brûlés — la position est lockée à vie
         if (tokCollected > 0) {
             IERC20(token).transfer(address(0xdead), tokCollected);
         }
 
         emit FeesCollected(ethCollected, tokCollected);
+    }
+
+    /**
+     * @notice Retourne les BPS post-graduation par destinataire (total = 10 000).
+     *         Identique aux splits post-grad de BondingCurveHook V1.
+     */
+    function _postGradBps() internal view returns (
+        uint256 creatorBps, uint256 platformBps, uint256 lpBps, uint256 holdersBps
+    ) {
+        if (feeTier == 0) return (3333, 1667, 5000,    0); // Standard  : c33% p17% LP50%
+        if (feeTier == 1) return (1250, 1250, 3750, 3750); // Community : c12% p12% LP37% h37%
+        if (feeTier == 2) return (5000, 1250, 3750,    0); // Creator   : c50% p12% LP37%
+        /* tier 3 */      return (4000, 2000, 3000, 1000); // Max       : c40% p20% LP30% h10%
     }
 
     // ─── Internes : appels bas-niveau V4 ─────────────────────────────────────
@@ -396,4 +428,8 @@ contract GraduationVaultV4 {
     }
 
     receive() external payable {}
+}
+
+interface IOMToken {
+    function addDividend() external payable;
 }
