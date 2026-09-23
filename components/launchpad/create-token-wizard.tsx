@@ -1138,11 +1138,11 @@ export function CreateTokenWizard({
     const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
     const account = accounts[0] as `0x${string}`;
 
-    // 2. Switch to Arc Mainnet if needed
+    // 2. Switch to Arc Mainnet if needed (chainId lowercase = MetaMask requirement)
     try {
       await eth.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x13B2" }], // 5042
+        params: [{ chainId: "0x13b2" }], // 5042 — lowercase required by MetaMask
       });
     } catch (switchErr: unknown) {
       // 4902 = chaîne inconnue → on l'ajoute
@@ -1150,16 +1150,21 @@ export function CreateTokenWizard({
       if ((switchErr as { code?: number })?.code === 4001) {
         throw new Error("Network switch rejected by user");
       }
-      await eth.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId: "0x13B2",
-          chainName: "Arc",
-          nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-          rpcUrls: ["https://rpc.mainnet.arc.io"],
-          blockExplorerUrls: ["https://explorer.arc.io"],
-        }],
-      });
+      try {
+        await eth.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x13b2",  // lowercase hex — MetaMask is case-sensitive
+            chainName: "Arc",
+            nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+            rpcUrls: ["https://rpc.mainnet.arc.io"],
+            blockExplorerUrls: ["https://explorer.arc.io"],
+          }],
+        });
+      } catch (addErr: unknown) {
+        const msg = (addErr as { message?: string })?.message ?? String(addErr);
+        throw new Error(`Impossible d'ajouter Arc à MetaMask: ${msg}. Ajoute manuellement: chainId 5042, RPC https://rpc.mainnet.arc.io`);
+      }
     }
 
     // 3. Create viem clients
