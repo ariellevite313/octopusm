@@ -110,6 +110,10 @@ export function ArcCreatorFees() {
     const provider = getProviderByType(walletType);
     if (!provider?.request) return;
 
+    const token = tokens[idx];
+    if (!token.accrued || token.accrued === 0n) return;
+    const accruedAmount = token.accrued; // capture before reset
+
     setTokens(prev => prev.map((t, i) => i === idx ? { ...t, claiming: true, error: null } : t));
 
     try {
@@ -122,7 +126,6 @@ export function ArcCreatorFees() {
       } catch { /* ignore */ }
 
       const [account] = await walletClient.getAddresses();
-      const token = tokens[idx];
 
       const hash = await walletClient.writeContract({
         address:      token.curveAddress as `0x${string}`,
@@ -136,6 +139,20 @@ export function ArcCreatorFees() {
       setTokens(prev => prev.map((t, i) =>
         i === idx ? { ...t, claiming: false, txHash: hash, accrued: 0n } : t
       ));
+
+      // Log to DB so "Total Claimed" banner updates
+      fetch("/api/dashboard/log-claim", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenId:      token.id,
+          walletAddress: account,
+          amountSol:    0,
+          amountUsdc:   Number(accruedAmount) / 1e18,
+          txSignature:  hash,
+          chain:        "arc",
+        }),
+      }).catch(() => {});
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Transaction failed";
       setTokens(prev => prev.map((t, i) =>
@@ -215,20 +232,23 @@ export function ArcCreatorFees() {
             )}
           </div>
 
-          {/* Claim button */}
+          {/* Claim button — only shown when connected on Arc AND fees are available */}
           {selectedChain !== "arc" ? (
             <span className="text-[10px] text-muted-foreground text-right shrink-0">
               Connect<br />MetaMask
             </span>
+          ) : token.accrued === null ? (
+            /* Still loading */
+            <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
+          ) : token.accrued === 0n ? (
+            /* No fees — show nothing (dash) to avoid a confusing disabled button */
+            <span className="text-xs text-muted-foreground shrink-0">—</span>
           ) : (
+            /* Fees available → active Claim button */
             <button
               onClick={() => void handleClaim(idx)}
-              disabled={token.claiming || !token.accrued || token.accrued === 0n}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 ${
-                token.claiming || !token.accrued || token.accrued === 0n
-                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                  : "bg-orange-500 hover:bg-orange-400 text-white"
-              }`}
+              disabled={token.claiming}
+              className="rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 bg-orange-500 hover:bg-orange-400 text-white disabled:opacity-60"
             >
               {token.claiming
                 ? <Loader2 className="size-3.5 animate-spin" />

@@ -4,22 +4,26 @@
  * Called by the client after a successful fee claim tx is signed & broadcast.
  * Inserts a row into creator_fee_claims for historical tracking.
  *
- * Body: { tokenId, walletAddress, amountSol, txSignature }
+ * Body (Solana): { tokenId, walletAddress, amountSol, txSignature }
+ * Body (Arc):    { tokenId, walletAddress, amountSol: 0, amountUsdc, txSignature, chain: "arc" }
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
 type Body = {
-  tokenId:     string;
+  tokenId:      string;
   walletAddress: string;
-  amountSol:   number;
-  txSignature: string;
+  amountSol:    number;
+  txSignature:  string;
+  // Arc-specific (optional)
+  chain?:       "solana" | "arc";
+  amountUsdc?:  number; // raw USDC amount (18-dec, as a JS number — may lose precision for display only)
 };
 
 export async function POST(req: Request) {
   try {
     const body = await req.json() as Partial<Body>;
-    const { tokenId, walletAddress, amountSol, txSignature } = body;
+    const { tokenId, walletAddress, amountSol, txSignature, chain, amountUsdc } = body;
 
     if (!tokenId || !walletAddress || amountSol == null || !txSignature) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -28,14 +32,27 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
 
-    // Verify the token belongs to this wallet (security check)
+    // Verify the token belongs to this wallet (security check).
+    // Arc wallets are EVM (0x…); Solana wallets are base58.
+    // The DB stores creator_wallet — must match.
     const { data: token } = await admin
       .from("launchpad_tokens")
       .select("creator_wallet")
       .eq("id", tokenId)
       .maybeSingle();
 
-    if (!token || token.creator_wallet !== walletAddress) {
+    if (!token) {
+      return NextResponse.json({ error: "Token not found" }, { status: 404 });
+    }
+
+    // EVM addresses are case-insensitive — normalise before comparing
+    const storedWallet  = (token.creator_wallet as string) ?? "";
+    const isEvm         = walletAddress.startsWith("0x");
+    const walletMatches = isEvm
+      ? storedWallet.toLowerCase() === walletAddress.toLowerCase()
+      : storedWallet === walletAddress;
+
+    if (!walletMatches) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -46,6 +63,8 @@ export async function POST(req: Request) {
         token_id:     tokenId,
         amount_sol:   amountSol,
         tx_signature: txSignature,
+        chain:        chain ?? "solana",
+        amount_usdc:  amountUsdc ?? null,
       });
 
     if (error) {
