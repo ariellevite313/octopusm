@@ -18,9 +18,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import type { CreatorStatsResponse } from "@/app/api/dashboard/creator-stats/route";
 import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/pending-fees/route";
-import { ArcCreatorFees }    from "@/components/dashboard/arc-creator-fees";
-import { ArcHolderDividends } from "@/components/dashboard/arc-holder-dividends";
-import { ArcHolderHoldings }  from "@/components/dashboard/arc-holder-holdings";
+import { ArcFeesTabs }       from "@/components/dashboard/arc-fees-tabs";
+import { ArcHolderHoldings } from "@/components/dashboard/arc-holder-holdings";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -388,11 +387,8 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
       {/* ── Mes positions Arc (tokens détenus) ──────────────────────────── */}
       <ArcHolderHoldings />
 
-      {/* ── Arc creator fees ────────────────────────────────────────────── */}
-      <ArcCreatorFees />
-
-      {/* ── Arc holder dividends (Community & Max tiers) ─────────────────── */}
-      <ArcHolderDividends />
+      {/* ── Creator fees + Dividendes (onglets) ─────────────────────────── */}
+      <ArcFeesTabs />
 
     </div>
   );

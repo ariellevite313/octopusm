@@ -1,5 +1,20 @@
 # Arc Launchpad — Adresses déployées
 
+## Arc Mainnet — V2 Launchpad (OMToken fix — à redéployer)
+
+| Contrat | Adresse |
+|---|---|
+| BondingCurveArcV2 (impl) | `0x269C958be7DC92BAaDa2705aE40BccAE70D779Ee` (inchangé) |
+| GraduationVaultV4 (impl) | `0x57dC80fbd32161b05Ee5C08B145AFaA90E786D6B` (inchangé) |
+| **LaunchpadFactoryArcV2** (ancienne) | `0x2f71D5064e604A8579b4055d2f3FBA213873D3bF` — bug OMToken |
+| **LaunchpadFactoryArcV2** (nouvelle) | `⚠️ TODO : mettre à jour après forge script --broadcast RedeployFactoryArcV2` |
+
+**Fix déployé** : `OMToken._update` — suppression de l'auto-settle du destinataire passif (`to`).
+Commande : `CURVE_IMPL=0x269C... VAULT_IMPL=0x57dC... TREASURY_ADDR=... DEPLOYER_PK=... forge script script/RedeployFactoryArcV2.s.sol --rpc-url https://rpc.mainnet.arc.io --broadcast --legacy`
+Après déploiement : mettre à jour `ARC_FACTORY_V2_ADDRESS` dans `lib/arc-launchpad.ts`.
+
+---
+
 ## Arc Mainnet (Chain ID 5042) — déployé le 2026-09-17
 
 | Contrat | Adresse |

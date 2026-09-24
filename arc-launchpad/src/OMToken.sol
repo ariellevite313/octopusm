@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  *  - Alimentés uniquement par le BondingCurveHook via addDividend()
  *  - Distribution O(1) via accPerShare (pattern MasterChef)
  *  - Pull-based : chaque holder claim manuellement via claimDividend()
- *  - Auto-settle à chaque transfer (depuis le holder actif, "from" uniquement)
+ *  - Auto-settle sur transfer uniquement pour "from" (actif) — "to" conserve son pending intact
  *  - Fees non-claimées depuis > 2 ans : sweepables par le wallet platform
  *
  * Règles immuables :
@@ -193,13 +193,16 @@ contract OMToken is ERC20 {
     /**
      * @dev Settle et envoie les dividendes d'un holder.
      *      Checks-effects-interactions : rewardDebt mis à jour AVANT l'envoi ETH.
+     *
+     *      Si pending < DUST : on ne met PAS à jour rewardDebt pour préserver
+     *      l'accumulation — la poudre s'accumule jusqu'à dépasser le seuil.
      */
     function _settleDividend(address holder) internal {
         if (holder == address(0)) return;
         uint256 pending = pendingDividend(holder);
+        if (pending < DUST) return; // Ne pas écraser rewardDebt — laisser la poudre s'accumuler
         // Mise à jour de la dette AVANT tout envoi (anti-reentrancy)
         rewardDebt[holder] = balanceOf(holder) * accPerShare / PREC;
-        if (pending < DUST) return;
         dividendReserve -= pending;
         (bool ok,) = holder.call{value: pending}("");
         require(ok, "OMToken: dividend failed");
@@ -209,35 +212,43 @@ contract OMToken is ERC20 {
     /**
      * @dev Override ERC20 _update — appelé sur tout transfer, mint et burn.
      *
-     *      Ordre impératif :
-     *        1. Settle les dividendes des deux parties AVANT modification de balance
-     *        2. Mise à jour du timer uniquement pour "from" (action active)
-     *           → "to" ne reset PAS son timer (protection anti-manipulation)
-     *        3. Transfer ERC20 (super._update)
-     *        4. Recalcul des rewardDebt avec les nouvelles balances
+     *      Règle : seul "from" (partie active) voit ses dividendes auto-settled.
+     *      "to" (destinataire passif) conserve son pending intact :
+     *        - rewardDebt[to] += amount * accPerShare / PREC AVANT le transfer
+     *        - Ce delta annule exactement l'augmentation de balance → pending préservé
+     *        - pending_après = (bal+amt)*acc/PREC - (debt + amt*acc/PREC)
+     *                        = bal*acc/PREC - debt = pending_avant ✓
+     *
+     *      Timer : seul "from" est mis à jour (action active).
+     *              Recevoir passivement des tokens ne reset PAS le timer.
      */
     function _update(address from, address to, uint256 amount) internal override {
-        // 1. Settle AVANT modification de balance.
-        //    Le hook (bonding curve) est EXCLU : il n'est pas un holder réel,
-        //    ses tokens ne participent pas à la distribution (voir addDividend).
-        if (from != hook) _settleDividend(from);
-        if (to   != hook) _settleDividend(to);
+        // 1. Settle "from" (actif) AVANT modification de balance.
+        //    hook = bonding curve, exclu (pas un holder réel).
+        //    address(0) = mint, exclu.
+        if (from != address(0) && from != hook) _settleDividend(from);
 
-        // 2. Timer : seul "from" est considéré actif (hors hook et address(0))
+        // 2. Ajuster rewardDebt[to] AVANT le transfer pour conserver son pending.
+        //    "to" ne reçoit PAS un auto-settle — il garde ses dividendes accumulés.
+        if (to != address(0) && to != hook) {
+            rewardDebt[to] += amount * accPerShare / PREC;
+        }
+
+        // 3. Timer : seul "from" est considéré actif (hors hook et address(0))
+        //    → recevoir passivement des tokens NE reset PAS le timer
         if (from != address(0) && from != hook) {
             lastInteraction[from] = block.timestamp;
         }
-        // "to" reçoit passivement → timer inchangé → sweep possible si > 2 ans d'inactivité
 
-        // 3. Transfer ERC20
+        // 4. Transfer ERC20 — modifie les balances
         super._update(from, to, amount);
 
-        // 4. Recalcul des dettes avec les nouvelles balances (hook exclu)
+        // 5. Recalcul rewardDebt[from] avec la nouvelle balance (réduite après vente/transfer).
+        //    _settleDividend avait basé le settle sur l'ancienne balance ;
+        //    on normalise pour la balance post-transfer.
         if (from != address(0) && from != hook) {
             rewardDebt[from] = balanceOf(from) * accPerShare / PREC;
         }
-        if (to != address(0) && to != hook) {
-            rewardDebt[to] = balanceOf(to) * accPerShare / PREC;
-        }
+        // rewardDebt[to] déjà ajusté à l'étape 2 — aucune action supplémentaire.
     }
 }
