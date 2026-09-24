@@ -168,15 +168,17 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
   const refresh = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
     else      setLoading(true);
+    // Pass ?chain=arc for Arc wallets so creator-stats returns USDC totals, not SOL
+    const chainParam = isArc ? "&chain=arc" : "";
     const [s, p] = await Promise.all([
-      fetch(`/api/dashboard/creator-stats?wallet=${walletAddress}`).then(r => r.json() as Promise<CreatorStatsResponse>),
+      fetch(`/api/dashboard/creator-stats?wallet=${walletAddress}${chainParam}`).then(r => r.json() as Promise<CreatorStatsResponse>),
       fetch(`/api/dashboard/pending-fees?wallet=${walletAddress}`).then(r => r.json()  as Promise<PendingFeesResponse>),
     ]);
     setStats(s);
     setPending(p);
     setLoading(false);
     setRefreshing(false);
-  }, [walletAddress]);
+  }, [walletAddress, isArc]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
