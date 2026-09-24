@@ -53,8 +53,10 @@ export async function GET(_req: Request, { params }: RouteParams) {
     if (match) {
       const [, bucket, path] = match;
       const { data, error } = await admin.storage.from(bucket).download(path);
-      if (!error && data instanceof Blob) {
-        const arrayBuffer = await data.arrayBuffer();
+      // `data` is a Blob in supabase-js v2; avoid `instanceof Blob` because the
+      // global may differ between the Node.js runtime and the library's polyfill.
+      if (!error && data && typeof (data as { arrayBuffer?: unknown }).arrayBuffer === "function") {
+        const arrayBuffer = await (data as Blob).arrayBuffer();
         // Guess content-type from extension
         const ext = path.split(".").pop()?.toLowerCase() ?? "";
         const contentType =
