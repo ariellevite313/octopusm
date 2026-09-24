@@ -41,7 +41,14 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     // Use our own image proxy so Phantom can always access the logo —
     // even when the Supabase storage bucket is not set to "public".
-    const origin = new URL(req.url).origin;
+    //
+    // Use x-forwarded-host / x-forwarded-proto so the URL is correct
+    // behind Vercel's reverse proxy (req.url can have an internal origin).
+    const fwdProto = req.headers.get("x-forwarded-proto") ?? "https";
+    const fwdHost  = req.headers.get("x-forwarded-host") ??
+                     req.headers.get("host") ??
+                     new URL(req.url).host;
+    const origin   = `${fwdProto}://${fwdHost}`;
     const imageUrl = `${origin}/api/launchpad/${id}/image`;
 
     // Detect MIME type from the stored URL extension (for properties.files)
