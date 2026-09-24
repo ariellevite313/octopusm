@@ -312,7 +312,7 @@ export function ArcFeesTabs() {
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          Dividendes
+          Dividends
           {totalDividend > 0n && (
             <span className="ml-2 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-500">
               {fmtUsdc(totalDividend)}
@@ -326,10 +326,10 @@ export function ArcFeesTabs() {
         <div className="space-y-2 pt-3">
           {creatorLoading ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Chargement…
+              <Loader2 className="size-4 animate-spin" /> Loading…
             </div>
           ) : creatorTokens.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">Aucun token Arc V2 créé.</p>
+            <p className="py-4 text-sm text-muted-foreground">No Arc V2 tokens launched yet.</p>
           ) : (
             creatorTokens.map((token, idx) => (
               <div
@@ -342,7 +342,7 @@ export function ArcFeesTabs() {
                   <p className="text-sm font-semibold text-foreground truncate">{token.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {token.accrued === null
-                      ? "Lecture…"
+                      ? "Reading…"
                       : token.accrued === 0n
                       ? "No creator fees yet"
                       : `${fmtUsdc(token.accrued)} USDC claimable`}
@@ -353,14 +353,14 @@ export function ArcFeesTabs() {
                       target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
                     >
-                      <CheckCircle2 className="size-3" /> Claimed
+                      <CheckCircle2 className="size-3" /> Claimed · view on explorer
                     </a>
                   )}
                   {token.error && <p className="text-[11px] text-red-400 mt-0.5">{token.error}</p>}
                 </div>
 
                 {selectedChain !== "arc" ? (
-                  <span className="text-[10px] text-muted-foreground text-right shrink-0">Connect<br />MetaMask</span>
+                  <span className="text-[10px] text-muted-foreground text-right shrink-0">Connect<br />wallet</span>
                 ) : token.accrued === null ? (
                   <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
                 ) : token.accrued === 0n ? (
@@ -385,10 +385,10 @@ export function ArcFeesTabs() {
         <div className="space-y-2 pt-3">
           {divLoading ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Lecture des dividendes…
+              <Loader2 className="size-4 animate-spin" /> Loading dividends…
             </div>
           ) : visibleDiv.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">Aucun dividende disponible.</p>
+            <p className="py-4 text-sm text-muted-foreground">No dividends available.</p>
           ) : (
             visibleDiv.map(token => {
               const hasBalance = token.pending !== null && token.pending > 0n;
@@ -412,14 +412,14 @@ export function ArcFeesTabs() {
 
                     {isLoading ? (
                       <div className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                        <Loader2 className="size-3 animate-spin text-blue-500" /> Lecture…
+                        <Loader2 className="size-3 animate-spin text-blue-500" /> Reading…
                       </div>
                     ) : (
                       <p className={`mt-0.5 text-[12px] ${hasBalance ? "font-semibold text-blue-500" : "text-muted-foreground"}`}>
                         {hasBalance
                           ? `${fmtUsdc(token.pending!)} USDC claimable`
                           : isClaimed ? "0.00 USDC"
-                          : "Aucun dividende"}
+                          : "No dividends"}
                       </p>
                     )}
 
@@ -429,14 +429,14 @@ export function ArcFeesTabs() {
                         target="_blank" rel="noopener noreferrer"
                         className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
                       >
-                        <CheckCircle2 className="size-3" /> Réclamé · voir sur explorer
+                        <CheckCircle2 className="size-3" /> Claimed · view on explorer
                       </a>
                     )}
                     {token.error && <p className="mt-0.5 text-[11px] text-red-400">{token.error}</p>}
                   </div>
 
                   {selectedChain !== "arc" ? (
-                    <span className="shrink-0 text-right text-[10px] text-muted-foreground">Connecte<br />MetaMask</span>
+                    <span className="shrink-0 text-right text-[10px] text-muted-foreground">Connect<br />wallet</span>
                   ) : isLoading ? (
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
                       <Loader2 className="size-3.5 animate-spin text-blue-500" />
