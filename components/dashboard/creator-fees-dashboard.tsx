@@ -341,8 +341,14 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
         </div>
       </div>
 
-      {/* ── Pending fees bar ─────────────────────────────────────────────── */}
-      {hasPending && (
+      {/* ── Arc : onglets Creator fees / Dividendes en premier ──────────── */}
+      {isArc && <ArcFeesTabs />}
+
+      {/* ── Arc : positions détenues ─────────────────────────────────────── */}
+      {isArc && <ArcHolderHoldings />}
+
+      {/* ── Solana : barre pending fees ──────────────────────────────────── */}
+      {!isArc && hasPending && (
         <div className="flex items-center justify-between gap-4 rounded-2xl bg-primary/10 border border-primary/20 px-4 py-3.5">
           <div className="flex items-center gap-2.5">
             <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -352,22 +358,19 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
             </div>
             <span className="text-base font-bold text-primary">{fmt(pending.total)}</span>
           </div>
-
-          {!isArc && (
-            <button
-              onClick={handleClaimAll}
-              disabled={claimingAll || hasPendingTokens.length === 0}
-              className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
-            >
-              {claimingAll && <Loader2 className="size-4 animate-spin" />}
-              Claim All
-            </button>
-          )}
+          <button
+            onClick={handleClaimAll}
+            disabled={claimingAll || hasPendingTokens.length === 0}
+            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
+          >
+            {claimingAll && <Loader2 className="size-4 animate-spin" />}
+            Claim All
+          </button>
         </div>
       )}
 
-      {/* ── Per-token list ───────────────────────────────────────────────── */}
-      {mergedTokens.length > 0 && (
+      {/* ── Solana : liste par token ──────────────────────────────────────── */}
+      {!isArc && mergedTokens.length > 0 && (
         <div>
           {mergedTokens.map(({ token, earned }) => (
             <TokenFeeRow
@@ -378,17 +381,11 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
               claiming={claimingId === token.tokenId}
               disabled={claimingAll || (claimingId !== null && claimingId !== token.tokenId)}
               currency={currency}
-              showClaim={!isArc}
+              showClaim={true}
             />
           ))}
         </div>
       )}
-
-      {/* ── Mes positions Arc (tokens détenus) ──────────────────────────── */}
-      <ArcHolderHoldings />
-
-      {/* ── Creator fees + Dividendes (onglets) ─────────────────────────── */}
-      <ArcFeesTabs />
 
     </div>
   );
