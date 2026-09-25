@@ -20,6 +20,7 @@ import type { CreatorStatsResponse } from "@/app/api/dashboard/creator-stats/rou
 import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/pending-fees/route";
 import { ArcFeesTabs }       from "@/components/dashboard/arc-fees-tabs";
 import { ArcHolderHoldings } from "@/components/dashboard/arc-holder-holdings";
+import { useT }              from "@/lib/i18n";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -153,6 +154,7 @@ function TokenFeeRow({
 
 export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string }) {
   const { walletType, selectedChain } = useAuth();
+  const { t } = useT();
   const isArc      = selectedChain === "arc";
   const currency   = isArc ? "USDC" : "SOL";
   const fmt        = (n: number) => fmtAmount(n, currency);
@@ -185,10 +187,10 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
 
   async function claimToken(token: PendingFeeToken): Promise<boolean> {
     const phantom = (walletType && selectedChain === "solana") ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
-    if (!phantom) { toast.error("Solana wallet not found — connect Phantom, Solflare or Backpack"); return false; }
-    try { await phantom.connect(); } catch { toast.error("Connect your wallet first"); return false; }
+    if (!phantom) { toast.error(t.solanaWalletNotFound); return false; }
+    try { await phantom.connect(); } catch { toast.error(t.connectWalletFirst); return false; }
     if (phantom.publicKey?.toBase58() !== walletAddress) {
-      toast.error(`Wrong wallet — use …${shortAddr(walletAddress, 4, 4)}`);
+      toast.error(t.wrongWalletCreator(shortAddr(walletAddress, 4, 4)));
       return false;
     }
 
@@ -206,7 +208,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
       txBase64     = body.transactionBase64;
       claimableSol = body.claimableSol ?? null;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to build transaction");
+      toast.error(e instanceof Error ? e.message : t.failedToBuildTx);
       return false;
     }
 
@@ -225,7 +227,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
       }
 
       const amount = claimableSol ?? token.pending;
-      toast.success(`${fmtSol(amount)} claimed from ${token.name}`);
+      toast.success(t.claimedFromToken(fmtSol(amount), token.name));
 
       // Log to DB
       if (amount > 0) {
@@ -263,13 +265,13 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
     let claimed = 0;
     for (let i = 0; i < tokensWithPending.length; i++) {
       const t = tokensWithPending[i];
-      toast.info(`Claiming ${i + 1}/${tokensWithPending.length} — ${t.name}…`);
+      toast.info(t.claimingProgress(i + 1, tokensWithPending.length, t.name));
       const ok = await claimToken(t);
       if (ok) claimed++;
     }
     setClaimingAll(false);
     if (claimed > 0) {
-      toast.success(`All fees claimed (${claimed}/${tokensWithPending.length} tokens)`);
+      toast.success(t.allFeesClaimed(claimed, tokensWithPending.length));
       await refresh(true);
     }
   }

@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import { Bell, BellOff } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 type Props = { tokenId: string };
 
 export function WatchlistButton({ tokenId }: Props) {
   const { walletAddress } = useAuth();
+  const { t } = useT();
   const [watching, setWatching] = useState(false);
   const [loading, setLoading]   = useState(false);
 
@@ -22,7 +24,7 @@ export function WatchlistButton({ tokenId }: Props) {
   }, [tokenId, walletAddress]);
 
   async function toggle() {
-    if (!walletAddress) { toast.error("Connect your wallet first"); return; }
+    if (!walletAddress) { toast.error(t.connectWalletFirst); return; }
     setLoading(true);
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/watchlist`, {
@@ -32,9 +34,9 @@ export function WatchlistButton({ tokenId }: Props) {
       });
       const d = await res.json() as { watching?: boolean };
       setWatching(d.watching ?? !watching);
-      toast.success(d.watching ? "Added to watchlist" : "Removed from watchlist");
+      toast.success(d.watching ? t.addedToWatchlist : t.removedFromWatchlist);
     } catch {
-      toast.error("Failed to update watchlist");
+      toast.error(t.watchlistUpdateFailed);
     } finally {
       setLoading(false);
     }

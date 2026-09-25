@@ -53,7 +53,7 @@ export async function GET(req: Request, { params }: RouteParams) {
   const { curveAddress } = await params;
 
   if (!curveAddress || !/^0x[0-9a-fA-F]{40}$/.test(curveAddress)) {
-    return NextResponse.json({ error: "curveAddress invalide" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid curveAddress" }, { status: 400 });
   }
 
   try {

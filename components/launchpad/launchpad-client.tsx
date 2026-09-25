@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
+import { useT } from "@/lib/i18n";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,18 +38,19 @@ function fmtMcap(usd: number): string {
 
 function CopyButton({ text, children }: { text: string; children?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useT();
   const copy = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-      toast.success("CA copié !", {
+      toast.success(t.caCopied, {
         description: `${text.slice(0, 8)}…${text.slice(-6)}`,
         duration: 2000,
       });
     });
-  }, [text]);
+  }, [text, t]);
   return (
     <button
       onClick={copy}

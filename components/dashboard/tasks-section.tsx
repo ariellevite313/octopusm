@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Circle } from "lucide-react";
+import { useT } from "@/lib/i18n";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { TaskWithCompletion } from "@/lib/supabase/types";
@@ -52,6 +53,7 @@ async function claimTaskClient(taskId: string): Promise<{ error?: string }> {
 }
 
 export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
+  const { t } = useT();
   const [claiming, setClaiming]   = useState<Set<string>>(new Set());
   const [localDone, setLocalDone] = useState<Set<string>>(new Set());
   const [visited, setVisited]     = useState<Set<string>>(new Set());
@@ -72,7 +74,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
     setClaiming((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
     if (error) { toast.error(error); return; }
     setLocalDone((prev) => new Set(prev).add(task.id));
-    toast.success(`+${task.reward_octo} OMERO earned!`);
+    toast.success(t.omeroEarned(task.reward_octo));
   }
 
   const active    = tasks.filter((t) => !isDone(t));

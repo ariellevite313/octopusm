@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, Rocket, Clock, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
+import { useT } from "@/lib/i18n";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -73,27 +74,28 @@ function fmtDate(iso: string): string {
 // ── Token Card ─────────────────────────────────────────────────────────────────
 
 function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string) => void }) {
+  const { t } = useT();
   const isPending    = token.status === "pending";
   const isCancelled  = token.status === "cancelled";
   const isScheduled  = token.status === "active" && !token.is_tradeable;
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = useCallback(async () => {
-    if (!confirm(`Supprimer "${token.name}" ? Cette action est irréversible.`)) return;
+    if (!confirm(t.deleteConfirm(token.name))) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/launchpad/${token.id}`, { method: "DELETE" });
       if (!res.ok) {
         const json = await res.json() as { error?: string };
-        throw new Error(json.error ?? "Erreur serveur");
+        throw new Error(json.error ?? t.serverError);
       }
-      toast.success(`${token.name} supprimé`);
+      toast.success(t.deleted(token.name));
       onDelete(token.id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+      toast.error(err instanceof Error ? err.message : t.deletionFailed);
       setDeleting(false);
     }
-  }, [token.id, token.name, onDelete]);
+  }, [token.id, token.name, onDelete, t]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -168,7 +170,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
                   className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
                 >
                   <RotateCcw className="size-3.5" />
-                  Re-lancer
+                  {t.relaunch}
                 </Link>
                 <button
                   onClick={handleDelete}
@@ -176,7 +178,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
                   className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:underline underline-offset-2 disabled:opacity-50"
                 >
                   <Trash2 className="size-3.5" />
-                  {deleting ? "Suppression…" : "Supprimer"}
+                  {deleting ? t.deleting : t.delete}
                 </button>
               </>
             )}
@@ -188,7 +190,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
                 className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
               >
                 <Rocket className="size-3.5" />
-                Complete launch
+                {t.completeLaunch}
               </Link>
             )}
 
@@ -198,7 +200,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
                 href={`/launchpad/${token.id}`}
                 className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
               >
-                View token
+                {t.viewToken}
                 <ExternalLink className="size-3.5" />
               </Link>
             )}
@@ -243,6 +245,7 @@ interface Props {
 }
 
 export function MyTokensSection({ walletAddress }: Props) {
+  const { t } = useT();
   const [tokens, setTokens]   = useState<MyToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
@@ -287,17 +290,17 @@ export function MyTokensSection({ walletAddress }: Props) {
       ) : error ? (
         <div className="flex items-center gap-2.5 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="size-4 shrink-0" />
-          Failed to load your tokens. Please refresh the page.
+          {t.failedToLoadTokens}
         </div>
       ) : tokens.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-10 text-center">
           <span className="text-3xl">🐙</span>
-          <p className="text-sm text-muted-foreground">You haven&apos;t launched any tokens yet.</p>
+          <p className="text-sm text-muted-foreground">{t.noTokensYet}</p>
           <Link
             href="/launchpad/create"
             className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
           >
-            Launch your first token
+            {t.launchFirstToken}
           </Link>
         </div>
       ) : (

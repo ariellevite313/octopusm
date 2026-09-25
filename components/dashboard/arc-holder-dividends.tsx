@@ -17,6 +17,7 @@ import Image from "next/image";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { OM_TOKEN_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
@@ -45,6 +46,7 @@ type TokenWithDividend = ArcToken & {
 
 export function ArcHolderDividends() {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
+  const { t } = useT();
   const [tokens,  setTokens]  = useState<TokenWithDividend[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -157,7 +159,7 @@ export function ArcHolderDividends() {
 
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" /> Lecture des dividendes…
+      <Loader2 className="size-4 animate-spin" /> {t.loadingDividends}
     </div>
   );
 
@@ -172,7 +174,7 @@ export function ArcHolderDividends() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Arc · Dividendes
+          Arc · {t.dividends}
         </h3>
         {totalPending > 0n && (
           <span className="rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-orange-500">
@@ -226,15 +228,15 @@ export function ArcHolderDividends() {
               {isLoading ? (
                 <div className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                   <Loader2 className="size-3 animate-spin text-orange-500" />
-                  Lecture…
+                  {t.reading}
                 </div>
               ) : (
                 <p className={`mt-0.5 text-[12px] ${hasBalance ? "font-semibold text-orange-500" : "text-muted-foreground"}`}>
                   {hasBalance
-                    ? `${fmtUsdc(token.pending!)} USDC claimable`
+                    ? `${fmtUsdc(token.pending!)} ${t.usdcClaimable}`
                     : isClaimed
                     ? "0.00 USDC"
-                    : "Aucun dividende"}
+                    : t.noDividends}
                 </p>
               )}
 
@@ -245,7 +247,7 @@ export function ArcHolderDividends() {
                   rel="noopener noreferrer"
                   className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
                 >
-                  <CheckCircle2 className="size-3" /> Réclamé · voir sur explorer
+                  <CheckCircle2 className="size-3" /> {t.claimedViewExplorer}
                 </a>
               )}
               {token.error && (
@@ -256,7 +258,7 @@ export function ArcHolderDividends() {
             {/* Bouton claim */}
             {selectedChain !== "arc" ? (
               <span className="shrink-0 text-right text-[10px] text-muted-foreground">
-                Connecte<br />MetaMask
+                {t.connectMetamask.split("\n")[0]}<br />{t.connectMetamask.split("\n")[1]}
               </span>
             ) : isLoading ? (
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -274,7 +276,7 @@ export function ArcHolderDividends() {
               >
                 {token.claiming
                   ? <Loader2 className="size-3.5 animate-spin" />
-                  : "Claim"}
+                  : t.claim}
               </button>
             )}
           </div>

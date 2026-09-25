@@ -10,6 +10,7 @@ import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
+import { useT } from "@/lib/i18n";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ function fmtOut(amount: string, decimals = 6): string {
 
 export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker: string }) {
   const { walletAddress, walletType, isAuthenticated } = useAuth();
+  const { t } = useT();
 
   const [tab,         setTab]         = useState<"market" | "limit" | "orders">("market");
   const [solAmount,   setSolAmount]   = useState("");
@@ -120,11 +122,11 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
   const handleSwap = async () => {
     if (!quote || !walletAddress || !walletType) return;
     const provider = getProviderByType(walletType);
-    if (!provider) { setError("Wallet non disponible"); return; }
+    if (!provider) { setError(t.walletNotAvailable); return; }
     // Balance check — leave ~0.002 SOL for fees
     const needed = parseFloat(solAmount) + 0.002;
     if (solBalance !== null && needed > solBalance) {
-      setError(`Solde insuffisant (${solBalance.toFixed(4)} SOL disponible)`);
+      setError(t.insufficientBalance(solBalance.toFixed(4)));
       return;
     }
 
@@ -141,7 +143,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
           prioritizationFeeLamports: "auto",
         }),
       });
-      if (!swapRes.ok) throw new Error("Échec de la transaction");
+      if (!swapRes.ok) throw new Error("Transaction failed");
       const { swapTransaction } = await swapRes.json() as { swapTransaction: string };
 
       const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
@@ -156,7 +158,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         signature = await conn.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
       } else {
-        throw new Error("Ce wallet ne supporte pas la signature de transactions");
+        throw new Error(t.walletNotAvailable);
       }
 
       setTxSig(signature);
@@ -164,8 +166,8 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
       setActivePct(null);
       setQuote(null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Swap échoué";
-      setError(msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel") ? "Transaction annulée" : msg);
+      const msg = e instanceof Error ? e.message : t.transactionFailed;
+      setError(msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel") ? t.transactionCancelled : msg);
     } finally {
       setSwapping(false);
     }
@@ -239,7 +241,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
             {quoteLoading ? (
               <Loader2 className="size-5 animate-spin text-white/40" />
             ) : quoteError ? (
-              <span className="text-[18px] text-white/30">Pas de liquidité</span>
+              <span className="text-[18px] text-white/30">{t.noLiquidity}</span>
             ) : outFormatted ? (
               <span className="text-[28px] font-semibold text-white">{outFormatted}</span>
             ) : (
@@ -323,14 +325,14 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
         {/* ── Quote expiry warning ── */}
         {quote && quoteAge >= 25 && (
           <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-3 py-2 text-[11px] text-yellow-400">
-            ⏱ Quote expirée — actualisation…
+            ⏱ {t.quoteExpired}
           </div>
         )}
 
         {/* ── High impact warning ── */}
         {highImpact && (
           <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-[11px] text-red-400">
-            ⚠ Impact élevé ({priceImpact?.toFixed(2)}%) — essaie un montant plus petit.
+            {t.highImpact(priceImpact?.toFixed(2) ?? "")}
           </div>
         )}
 
@@ -346,14 +348,14 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
             className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
           >
             <CheckCircle2 className="size-3.5" />
-            Swap confirmé — Voir sur Solscan
+            {t.swapConfirmed}
           </a>
         )}
 
         {/* ── CTA ── */}
         {!isAuthenticated ? (
           <button className="w-full rounded-md py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1">
-            Connect wallet
+            {t.connect}
           </button>
         ) : (
           <button
@@ -370,14 +372,14 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
-                Swap en cours…
+                {t.swapping}
               </span>
-            ) : !solAmount ? "Entrer un montant" : highImpact ? "Acheter quand même" : `Acheter $${ticker}`}
+            ) : !solAmount ? t.enterAmount : highImpact ? t.buyAnyway : t.buyToken(ticker)}
           </button>
         )}
 
         <p className="text-center text-[10px] text-white/20 pb-1">
-          Propulsé par Jupiter
+          {t.poweredByJupiter}
         </p>
 
       </div>
