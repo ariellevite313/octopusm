@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { Loader2, Rocket, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ type Props = { tokenId: string; walletAddress: string; isScheduled: boolean };
 
 export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   const router = useRouter();
+  const { t } = useT();
   const [phase, setPhase]     = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]     = useState<string | null>(null);
@@ -223,7 +225,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const b = await r.json() as { found?: boolean };
       if (b.found) {
         setPhase("done");
-        toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+        toast.success(isScheduled ? t.tokenScheduled : t.tokenLaunched);
         setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
         return true;
       }
@@ -235,7 +237,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         const s = await fetch(`/api/launchpad/${tokenId}/status`).then(r => r.json()) as { status: string };
         if (s.status === "active" || s.status === "graduated") {
           setPhase("done");
-          toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+          toast.success(isScheduled ? t.tokenScheduled : t.tokenLaunched);
           setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
           return true;
         }
@@ -251,7 +253,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
           const b2 = await r2.json() as { found?: boolean };
           if (b2.found) {
             setPhase("done");
-            toast.success(isScheduled ? "Scheduled!" : "Token launched successfully!");
+            toast.success(isScheduled ? t.tokenScheduled : t.tokenLaunched);
             setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
             return true;
           }
@@ -292,13 +294,13 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
       if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(poolSig.slice(0, 8)), { duration: 8000 });
     } catch {
-      toast.warning(`Tx sent! ${poolSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      toast.warning(t.txSentWaiting(poolSig.slice(0, 8)), { duration: 8000 });
     }
 
     setPhase("done");
-    toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
+    toast.success(isScheduled ? t.tokenScheduledDate : t.tokenLaunched);
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
   }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish]);
 
@@ -355,7 +357,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         return;
       }
     } else {
-      toast.info("Fee already paid — approving pool creation only.");
+      toast.info(t.feeAlreadyPaid);
     }
 
     // Store TX B (and TX C if present) for use after warn-phantom modal
@@ -412,13 +414,13 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
       if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      if (!res.ok || !body.ok) t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     } catch {
-      toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     }
 
     setPhase("done");
-    toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
+    toast.success(isScheduled ? t.tokenScheduledDate : t.tokenLaunched);
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
   }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC]);
 
@@ -474,23 +476,23 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
       if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      if (!res.ok || !body.ok) t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     } catch {
-      toast.warning(`Tx sent! ${txBSig.slice(0, 8)}… — page will update shortly.`, { duration: 8000 });
+      t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     }
 
     setPhase("done");
-    toast.success(isScheduled ? "Scheduled! Token will be tradeable at launch date." : "Token launched successfully!");
+    toast.success(isScheduled ? t.tokenScheduledDate : t.tokenLaunched);
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
   }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC]);
 
   // ── Called when user picks a wallet from the picker ──────────────────────────
   const handleWalletSelected = useCallback(async (cfg: WalletConfig) => {
     const wallet = cfg.get();
-    if (!wallet) { toast.error(`${cfg.name} not found — please install it first`); return; }
-    try { await wallet.connect(); } catch { toast.error("Please unlock your wallet and try again"); return; }
+    if (!wallet) { toast.error(t.walletNotFoundInstall(cfg.name)); return; }
+    try { await wallet.connect(); } catch { toast.error(t.unlockWallet); return; }
     if (wallet.publicKey?.toBase58() !== walletAddress) {
-      toast.error(`Wrong wallet. Connect the creator wallet ending in …${walletAddress.slice(-6)}`);
+      toast.error(t.wrongWalletEnding(walletAddress.slice(-6)));
       return;
     }
     selectedWalletRef.current   = wallet;
@@ -502,7 +504,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     setError(null);
     const installed = getInstalledWallets();
     if (installed.length === 0) {
-      toast.error("No Solana wallet found. Install Phantom, Solflare, or Backpack.");
+      toast.error(t.noSolanaWallet);
       return;
     }
     if (installed.length === 1) {
@@ -528,7 +530,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
             <p className="text-xs text-muted-foreground mb-1">Contract address (CA)</p>
             <button
               type="button"
-              onClick={() => { navigator.clipboard.writeText(mintAddress); toast.success("CA copied!"); }}
+              onClick={() => { navigator.clipboard.writeText(mintAddress); toast.success(t.caCopied); }}
               className="font-mono text-xs text-violet-600 dark:text-violet-400 break-all hover:underline text-left w-full"
             >
               {mintAddress}

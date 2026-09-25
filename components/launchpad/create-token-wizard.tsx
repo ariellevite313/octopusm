@@ -9,6 +9,7 @@ import {
   Globe, Twitter, MessageCircle, Hash, ExternalLink, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
 import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
 import { arc } from "@/lib/arc-chain";
 import {
@@ -147,6 +148,7 @@ function StepIdentity({ data, set, errors }: {
 }) {
   const logoRef = useRef<HTMLInputElement>(null);
   const pdfRef  = useRef<HTMLInputElement>(null);
+  const { t } = useT();
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<{ name?: boolean; ticker?: boolean }>({});
 
@@ -172,10 +174,10 @@ function StepIdentity({ data, set, errors }: {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!VALID_LOGO_TYPES.includes(file.type)) {
-      toast.error("Unsupported format. Use PNG, JPG, WebP, or GIF");
+      toast.error(t.unsupportedFormat);
       return;
     }
-    if (file.size > 5 * 1024 * 1024) { toast.error("Logo max 5 MB"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error(t.logoMaxSize); return; }
     if (data.logo_preview) URL.revokeObjectURL(data.logo_preview);
     set("logo_file", file);
     set("logo_preview", URL.createObjectURL(file));
@@ -184,7 +186,7 @@ function StepIdentity({ data, set, errors }: {
   function handlePdf(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) { toast.error("PDF max 20 MB"); return; }
+    if (file.size > 20 * 1024 * 1024) { toast.error(t.pdfMaxSize); return; }
     set("whitepaper_file", file);
   }
 
@@ -952,10 +954,10 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            MetaMask va s&apos;ouvrir pour signer la transaction sur Arc.
+            MetaMask will open to sign the transaction on Arc.
           </p>
           <p className="mt-1 text-xs text-amber-500">
-            ⚠️ Phantom ne doit pas être le wallet EVM par défaut. Va dans Phantom → Settings → Default wallet → Always ask.
+            ⚠️ Phantom must not be set as the default EVM wallet. Go to Phantom → Settings → Default wallet → Always ask.
           </p>
         </div>
       ) : (
@@ -1042,6 +1044,7 @@ export function CreateTokenWizard({
 }) {
   const router = useRouter();
   const { walletAddress, walletType, selectedChain } = useAuth();
+  const { t } = useT();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -1065,15 +1068,15 @@ export function CreateTokenWizard({
   function back() { setStep((s) => s - 1); }
 
   async function submitSolana() {
-    if (!walletAddress) { toast.error("Connect your wallet first"); return; }
+    if (!walletAddress) { toast.error(t.connectWalletFirst); return; }
     // Guard : MetaMask est un wallet EVM — ne peut pas signer de TX Solana
     if (walletType === "metamask") {
-      toast.error("MetaMask ne supporte pas Solana. Connecte Phantom, Solflare ou Backpack pour créer un token Solana.");
+      toast.error(t.metamaskNoSolana);
       return;
     }
     // Guard : l'adresse doit ressembler à une clé publique Solana (base58, pas 0x)
     if (walletAddress.startsWith("0x") || walletAddress.length < 32 || walletAddress.length > 44) {
-      toast.error("L'adresse connectée n'est pas une adresse Solana valide. Reconnecte un wallet Solana.");
+      toast.error(t.invalidSolanaAddress);
       return;
     }
     const form = new FormData();
@@ -1106,7 +1109,7 @@ export function CreateTokenWizard({
     const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
     const json = await res.json() as { id?: string; error?: string };
     if (!res.ok || json.error) throw new Error(json.error ?? "Failed to create token");
-    toast.success("Token created! Redirecting to your launch page…");
+    toast.success(t.tokenCreated);
     router.push(`/launchpad/${json.id}`);
   }
 
@@ -1125,12 +1128,12 @@ export function CreateTokenWizard({
 
     // Phantom comme provider EVM → rejeter explicitement
     if (!eth || eth.isPhantom) {
-      toast.error("Arc requires MetaMask. In Phantom, go to Settings → Default wallet → Always ask, then reload and use MetaMask.", { duration: 8000 });
+      toast.error(t.arcRequiresMetamask, { duration: 8000 });
       return;
     }
 
     if (!eth.isMetaMask) {
-      toast.error("Arc requires MetaMask — please install it and set it as default EVM wallet.");
+      toast.error(t.arcRequiresMetamaskInstall);
       return;
     }
 
@@ -1163,7 +1166,7 @@ export function CreateTokenWizard({
         });
       } catch (addErr: unknown) {
         const msg = (addErr as { message?: string })?.message ?? String(addErr);
-        throw new Error(`Impossible d'ajouter Arc à MetaMask: ${msg}. Ajoute manuellement: chainId 5042, RPC https://rpc.mainnet.arc.io`);
+        throw new Error(`Failed to add Arc to MetaMask: ${msg}. Add manually: chainId 5042, RPC https://rpc.mainnet.arc.io`);
       }
     }
 
@@ -1184,7 +1187,7 @@ export function CreateTokenWizard({
       const firstBuyUsdc = data.arc_first_buy_enabled ? BigInt(Math.round(data.arc_first_buy_usdc * 1e18)) : 0n;
       const totalValue   = firstBuyUsdc;
 
-      toast.info("Déploiement du token sur Arc V2…");
+      toast.info(t.deployingArcV2);
       const txHash = await walletClient.writeContract({
         address:      ARC_FACTORY_V2_ADDRESS,
         abi:          LAUNCHPAD_FACTORY_V2_ABI,
@@ -1200,8 +1203,8 @@ export function CreateTokenWizard({
         value: totalValue,
       });
 
-      toast.success(`Tx envoyée : ${txHash.slice(0, 10)}…`, { duration: 10000 });
-      toast.info("En attente de confirmation…");
+      toast.success(t.txSent(txHash.slice(0, 10)), { duration: 10000 });
+      toast.info(t.waitingConfirmation);
 
       let receipt = null;
       for (let attempt = 0; attempt < 100; attempt++) {
@@ -1262,9 +1265,9 @@ export function CreateTokenWizard({
       if (!res.ok || json.error) {
         const errMsg = json.error ?? `HTTP ${res.status}`;
         console.error("[Arc wizard] DB save failed:", errMsg, "token:", arcTokenAddress, "curve:", arcCurveAddress, "tx:", txHash);
-        throw new Error(`Token déployé on-chain (curve: ${arcCurveAddress}) mais la sauvegarde DB a échoué: ${errMsg}. Note l'adresse du token !`);
+        throw new Error(`Token deployed on-chain (curve: ${arcCurveAddress}) but DB save failed: ${errMsg}. Save the token address!`);
       }
-      toast.success("Token déployé sur Arc V2 ! Redirection…");
+      toast.success(t.tokenDeployedArc);
       router.push(`/launchpad/${json.id}`);
   }
 

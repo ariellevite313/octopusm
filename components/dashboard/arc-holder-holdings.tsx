@@ -14,6 +14,7 @@ import Image                   from "next/image";
 import Link                    from "next/link";
 import { Loader2, ExternalLink } from "lucide-react";
 import { useAuth }             from "@/providers/auth-provider";
+import { useT }               from "@/lib/i18n";
 
 function fmtBalance(raw: string): string {
   const n = Number(BigInt(raw)) / 1e18;
@@ -43,6 +44,7 @@ type Holding = {
 
 export function ArcHolderHoldings() {
   const { isAuthenticated } = useAuth();
+  const { t } = useT();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading,  setLoading]  = useState(true);
 
@@ -66,7 +68,7 @@ export function ArcHolderHoldings() {
 
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" /> Chargement des positions…
+      <Loader2 className="size-4 animate-spin" /> {t.loadingPositions}
     </div>
   );
 
@@ -83,7 +85,7 @@ export function ArcHolderHoldings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Mes positions Arc
+          {t.myArcPositions}
         </h3>
         {totalUsd > 0 && (
           <span className="rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-orange-500">

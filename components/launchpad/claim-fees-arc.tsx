@@ -15,6 +15,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { CoinsIcon, Loader2, CheckCircle2, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import {
   BONDING_CURVE_V2_ABI,
@@ -36,6 +37,7 @@ function fmtUsdc(raw: bigint): string {
 
 export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Props) {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
+  const { t } = useT();
 
   const [graduated,  setGraduated]  = useState<boolean | null>(null);
   const [accrued,    setAccrued]    = useState<bigint | null>(null);
@@ -95,7 +97,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
     if (!walletType) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const eth = (window as any).ethereum;
-    if (!eth) { setError("MetaMask introuvable"); return; }
+    if (!eth) { setError(t.metamaskNotFound); return; }
     const provider = Array.isArray(eth.providers)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (eth.providers as any[]).find((p: any) => p.isMetaMask && !p.isPhantom) ?? eth
@@ -141,7 +143,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
       const msg = e instanceof Error ? e.message : "Transaction failed";
       setError(
         msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel")
-          ? "Transaction annulée"
+          ? "Transaction cancelled"
           : msg.length > 120 ? msg.slice(0, 120) + "…" : msg,
       );
     } finally {
@@ -155,24 +157,22 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center space-y-3">
         <CoinsIcon className="size-5 text-orange-400 mx-auto" />
-        <p className="text-sm font-semibold text-foreground">MetaMask requis pour réclamer les fees</p>
+        <p className="text-sm font-semibold text-foreground">{t.metamaskRequired}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Connecte MetaMask pour recevoir tes USDC créateur sur Arc.
+          {t.connectMetamaskArc}
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
           className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
         >
-          Switch wallet
+          {t.switchWallet}
         </button>
       </div>
     );
   }
 
-  const buttonLabel = graduated ? "Collect LP fees" : "Claim USDC fees";
-  const subLabel    = graduated
-    ? "LP fees V4 : 30% créateur · 70% treasury"
-    : "1% de chaque trade t'est reversé en USDC natif";
+  const buttonLabel = graduated ? t.collectLpFees : t.claimUsdcFees;
+  const subLabel    = graduated ? t.lpFeesInfo : t.tradeReversed;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
@@ -182,24 +182,24 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
         {graduated && (
           <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
             <TrendingUpIcon className="size-3" />
-            Graduée · V4
+            {t.graduated}
           </span>
         )}
       </div>
 
       <div className="flex items-baseline gap-1.5">
         {loading ? (
-          <span className="text-xs text-muted-foreground">Chargement…</span>
+          <span className="text-xs text-muted-foreground">Loading…</span>
         ) : accrued !== null && accrued > 0n ? (
           <>
             <span className="text-2xl font-bold text-foreground tabular-nums">
               {fmtUsdc(accrued)}
             </span>
-            <span className="text-sm text-muted-foreground">USDC disponibles</span>
+            <span className="text-sm text-muted-foreground">{t.usdcAvailable}</span>
           </>
         ) : (
           <span className="text-sm text-muted-foreground">
-            {accrued === 0n ? "Aucun fee accumulé" : "Impossible de lire le solde"}
+            {accrued === 0n ? t.noFeesAccrued : t.unableToReadBalance}
           </span>
         )}
       </div>
@@ -212,7 +212,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
           className="flex items-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
         >
           <CheckCircle2 className="size-3.5" />
-          {graduated ? "Collectés" : "Réclamés"} — Voir sur ArcScan
+          {graduated ? "Collected" : "Claimed"} — View on ArcScan
         </a>
       )}
 
@@ -230,7 +230,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
         {claiming ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 className="size-4 animate-spin" />
-            {graduated ? "Collecting…" : "Claiming…"}
+            {graduated ? t.collecting : t.claiming}
           </span>
         ) : buttonLabel}
       </button>

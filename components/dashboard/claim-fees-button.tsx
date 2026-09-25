@@ -6,6 +6,7 @@ import { createWalletClient, custom, type WalletClient } from "viem";
 import { toast } from "sonner";
 import { Loader2, CoinsIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { arc } from "@/lib/arc-chain";
 
@@ -46,6 +47,7 @@ export function ClaimFeesButton({
   graduated = false,
 }: Props) {
   const { walletType, selectedChain } = useAuth();
+  const { t } = useT();
   const [phase, setPhase]           = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg]     = useState("");
   const [claimable, setClaimable]   = useState<number | null>(null);
@@ -76,7 +78,7 @@ export function ClaimFeesButton({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const eth = (window as any).ethereum;
     if (!eth) {
-      toast.error("MetaMask not found — install it to claim fees");
+      toast.error(t.metamaskNotFound);
       setPhase("idle");
       return;
     }
@@ -84,7 +86,7 @@ export function ClaimFeesButton({
     try {
       await eth.request({ method: "eth_requestAccounts" });
     } catch {
-      toast.error("Connect MetaMask first");
+      toast.error(t.connectMetamaskFirst);
       setPhase("idle");
       return;
     }
@@ -92,7 +94,7 @@ export function ClaimFeesButton({
     // Vérifier que le bon wallet est connecté
     const accounts: string[] = await eth.request({ method: "eth_accounts" });
     if (!accounts[0] || accounts[0].toLowerCase() !== walletAddress.toLowerCase()) {
-      toast.error(`Wrong wallet — use the creator wallet …${walletAddress.slice(-6)}`);
+      toast.error(t.wrongWalletCreator(walletAddress.slice(-6)));
       setPhase("idle");
       return;
     }
@@ -143,19 +145,19 @@ export function ClaimFeesButton({
       : null;
 
     if (!wallet) {
-      toast.error("Solana wallet not found — connect Phantom, Solflare or Backpack");
+      toast.error(t.solanaWalletNotFound);
       setPhase("idle");
       return;
     }
 
     try { await wallet.connect(); } catch {
-      toast.error("Connect your wallet first");
+      toast.error(t.connectWalletFirst);
       setPhase("idle");
       return;
     }
 
     if (wallet.publicKey?.toBase58() !== walletAddress) {
-      toast.error(`Wrong wallet — use the creator wallet …${walletAddress.slice(-6)}`);
+      toast.error(t.wrongWalletCreator(walletAddress.slice(-6)));
       setPhase("idle");
       return;
     }
@@ -173,7 +175,7 @@ export function ClaimFeesButton({
       txBase64 = body.transactionBase64;
       claimableSol = body.claimableSol ?? null;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erreur inconnue";
+      const msg = e instanceof Error ? e.message : "Unknown error";
       setErrorMsg(msg);
       setPhase("error");
       toast.error(msg);
@@ -238,7 +240,7 @@ export function ClaimFeesButton({
   if (phase === "done") {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-        ✓ Fees claimed
+        ✓ {t.feeClaimed}
       </span>
     );
   }
@@ -248,14 +250,14 @@ export function ClaimFeesButton({
       <div className="flex items-center gap-2">
         <span className="text-xs text-red-500">{errorMsg}</span>
         <button type="button" onClick={() => setPhase("idle")} className="text-xs text-muted-foreground underline">
-          Retry
+          {t.retry}
         </button>
       </div>
     );
   }
 
   const busy  = phase === "building" || phase === "signing";
-  const label = phase === "building" ? "Preparing…" : phase === "signing" ? "Signing…" : "Claim fees";
+  const label = phase === "building" ? t.preparing : phase === "signing" ? t.signing : t.claimFees;
   const unit  = isArc ? "USDC" : "SOL";
 
   return (
@@ -264,11 +266,11 @@ export function ClaimFeesButton({
       <div className="flex items-center gap-1.5">
         <CoinsIcon className="size-3.5 text-muted-foreground shrink-0" />
         {loadingAmt ? (
-          <span className="text-xs text-muted-foreground">Loading…</span>
+          <span className="text-xs text-muted-foreground">{t.loading}</span>
         ) : claimable !== null ? (
           <span className="text-sm font-semibold text-foreground">
             {claimable.toFixed(6)} {unit}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">available</span>
+            <span className="ml-1 text-xs font-normal text-muted-foreground">{t.available}</span>
           </span>
         ) : feesUsd24h !== null ? (
           <span className="text-sm font-semibold text-foreground">

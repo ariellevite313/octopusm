@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   tokenId: string;
@@ -13,6 +14,7 @@ export function BannerUploadButton({ tokenId }: Props) {
   const inputRef  = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const router    = useRouter();
+  const { t } = useT();
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -24,11 +26,11 @@ export function BannerUploadButton({ tokenId }: Props) {
         body:   form,
       });
       const data = await res.json() as { banner_url?: string; error?: string };
-      if (!res.ok || data.error) throw new Error(data.error ?? "Upload failed");
-      toast.success("Banner updated");
+      if (!res.ok || data.error) throw new Error(data.error ?? t.uploadFailed);
+      toast.success(t.bannerUpdated);
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      toast.error(e instanceof Error ? e.message : t.uploadFailed);
     } finally {
       setLoading(false);
     }

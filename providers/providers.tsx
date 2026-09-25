@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { QueryProvider } from "./query-provider";
 import { AuthProvider, useAuth } from "./auth-provider";
+import { LangProvider } from "@/lib/i18n";
 import { OnboardingModal, useOnboardingModal } from "@/components/onboarding/onboarding-modal";
 import { UsernameSetupModal } from "@/components/dashboard/username-setup-modal";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
@@ -58,6 +59,7 @@ function GlobalModals() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
+    <LangProvider>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryProvider>
         <AuthProvider>
@@ -68,5 +70,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </AuthProvider>
       </QueryProvider>
     </ThemeProvider>
+    </LangProvider>
   );
 }

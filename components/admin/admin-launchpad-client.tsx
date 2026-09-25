@@ -97,7 +97,7 @@ function VerifyTokenToggle({ tokenId, initial }: { tokenId: string; initial: boo
       setVerified(v => !v);
       toast.success(verified ? "Badge removed" : "Token verified ✓");
     } catch {
-      toast.error("Erreur");
+      toast.error("Error");
     } finally {
       setLoading(false);
     }
@@ -142,7 +142,7 @@ function HideTokenToggle({ tokenId, initial }: { tokenId: string; initial: boole
       setHidden(h => !h);
       toast.success(hidden ? "Token visible ✓" : "Token hidden");
     } catch {
-      toast.error("Erreur");
+      toast.error("Error");
     } finally {
       setLoading(false);
     }
@@ -154,7 +154,7 @@ function HideTokenToggle({ tokenId, initial }: { tokenId: string; initial: boole
       variant="ghost"
       disabled={loading}
       onClick={toggle}
-      title={hidden ? "Rendre visible" : "Masquer du launchpad"}
+      title={hidden ? "Make visible" : "Hide from launchpad"}
       className={`rounded-full px-2 ${
         hidden
           ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
@@ -473,7 +473,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                             >
                               {isBusy("delete")
                                 ? <LoaderCircle className="size-3 animate-spin" />
-                                : "Supprimer ?"
+                                : "Delete?"
                               }
                             </Button>
                             <Button

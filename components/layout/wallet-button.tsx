@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import { Camera, Check, Copy, Globe, LayoutDashboard, LogOut, Moon, Pencil, Plus, Settings2, Sun, User } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
@@ -39,87 +40,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-// i18n
-
-type Lang = "en" | "fr";
-
-const T = {
-  en: {
-    myWallet: "My wallet",
-    editProfile: "Edit profile",
-    username: "Username",
-    displayName: "Display name",
-    twitterHandle: "Twitter / X handle",
-    cancel: "Cancel",
-    save: "Save",
-    saving: "Saving…",
-    overview: "Balances",
-    octoBalance: "OMERO",
-    twitter: "Twitter / X",
-    createMarket: "Create a market",
-    adminPanel: "Admin Panel",
-    disconnect: "Disconnect",
-    profileUpdated: "Profile updated",
-    avatarUpdated: "Avatar updated",
-    betsPlaced: "Predicts",
-    winRate: "Win rate",
-    referral: "Referral",
-    copyLink: "Copy link",
-    copiedLink: "Copied!",
-    filleuls: "referrals",
-    octoEarned: "OMERO earned",
-    nextTier: "next tier",
-    noTier: "No tier yet",
-    maxTier: "Max tier reached",
-  },
-  fr: {
-    myWallet: "Mon portefeuille",
-    editProfile: "Modifier le profil",
-    username: "Nom d'utilisateur",
-    displayName: "Nom affiché",
-    twitterHandle: "Pseudo Twitter / X",
-    cancel: "Annuler",
-    save: "Sauvegarder",
-    saving: "Sauvegarde…",
-    overview: "Soldes",
-    octoBalance: "OMERO",
-    twitter: "Twitter / X",
-    createMarket: "Créer un marché",
-    adminPanel: "Panel Admin",
-    disconnect: "Déconnecter",
-    profileUpdated: "Profil mis à jour",
-    avatarUpdated: "Avatar mis à jour",
-    betsPlaced: "Predicts",
-    winRate: "Win rate",
-    referral: "Parrainage",
-    copyLink: "Copier le lien",
-    copiedLink: "Copié !",
-    filleuls: "filleuls",
-    octoEarned: "OMERO gagnés",
-    nextTier: "tier suivant",
-    noTier: "Pas encore de tier",
-    maxTier: "Tier maximum atteint",
-  },
-} as const;
-
-function useLang(): [Lang, () => void] {
-  const [lang, setLang] = useState<Lang>(() => {
-    if (typeof window === "undefined") return "en";
-    return (localStorage.getItem("octo-lang") as Lang) ?? "en";
-  });
-  useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
-  function toggle() {
-    setLang((l) => {
-      const next: Lang = l === "en" ? "fr" : "en";
-      localStorage.setItem("octo-lang", next);
-      document.documentElement.lang = next;
-      return next;
-    });
-  }
-  return [lang, toggle];
-}
+// i18n — see lib/i18n.tsx for full translations
 
 function shortAddr(addr: string) {
   return addr.slice(0, 4) + "..." + addr.slice(-4);
@@ -139,8 +60,7 @@ function ProfileDrawer({
   onDisconnect: () => void;
 }) {
   const { isAdmin } = useAuth();
-  const [lang, toggleLang] = useLang();
-  const t = T[lang];
+  const { lang, t, toggleLang } = useT();
   const { theme, setTheme } = useTheme();
   const [isPhantom, setIsPhantom] = useState(false);
   useEffect(() => {

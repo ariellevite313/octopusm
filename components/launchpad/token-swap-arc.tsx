@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPublicClient, http, encodeFunctionData, parseAbi } from "viem";
 import { Loader2, CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
 import {
   BONDING_CURVE_V2_ABI,
   BC_GRAD_THRESHOLD,
@@ -88,6 +89,7 @@ const ERC20_ABI = parseAbi([
 
 export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props) {
   const { walletAddress, selectedChain, isAuthenticated } = useAuth();
+  const { t } = useT();
 
   const quoteSymbol = "USDC";
 
@@ -268,8 +270,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     if (!amount || !estimatedOut || !parsed || parsed <= 0) return;
 
     const activeAddr = await resolveActiveAddr();
-    if (!activeAddr) { setError("Connecte ton wallet pour swapper"); return; }
-    if (!launchId)   { setError("Adresse de la courbe inconnue"); return; }
+    if (!activeAddr) { setError(t.connectToSwap); return; }
+    if (!launchId)   { setError(t.curveUnknown); return; }
 
     setSwapping(true);
     setError(null);
@@ -343,10 +345,10 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       [2000, 4000, 8000].forEach(ms => setTimeout(() => void loadState(),    ms));
 
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Échec de la transaction";
+      const msg = e instanceof Error ? e.message : t.transactionFailed;
       setError(
         msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel")
-          ? "Transaction annulée"
+          ? t.transactionCancelled
           : msg,
       );
     } finally {
@@ -579,7 +581,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
           >
             <CheckCircle2 className="size-3.5" />
-            Confirmé — ArcScan
+            {t.swapConfirmedArc}
             <ExternalLink className="size-3" />
           </a>
         )}
