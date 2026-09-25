@@ -252,6 +252,7 @@ export function ArcFeesTabs() {
 
       const [account] = await walletClient.getAddresses();
       const token = divTokens.find(t => t.id === tokenId)!;
+      const pendingAmount = token.pending ?? 0n;
 
       const hash = await walletClient.writeContract({
         address:      token.tokenAddress as `0x${string}`,
@@ -265,6 +266,21 @@ export function ArcFeesTabs() {
       setDivTokens(prev => prev.map(t =>
         t.id === tokenId ? { ...t, claiming: false, txHash: hash, pending: 0n } : t
       ));
+
+      // Log to DB so Total Claimed updates
+      fetch("/api/dashboard/log-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenId:      token.id,
+          walletAddress: account,
+          amountSol:    0,
+          amountUsdc:   Number(pendingAmount) / 1e18,
+          txSignature:  hash,
+          chain:        "arc",
+          claimType:    "dividend",
+        }),
+      }).catch(() => {});
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Transaction failed";
       setDivTokens(prev => prev.map(t =>
@@ -340,13 +356,16 @@ export function ArcFeesTabs() {
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{token.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {token.accrued !== null && token.accrued > 0n && (
+                      <Image src="/usdc-coin.png" alt="USDC" width={12} height={12} className="rounded-full shrink-0" unoptimized />
+                    )}
                     {token.accrued === null
                       ? "Reading…"
                       : token.accrued === 0n
                       ? "No creator fees yet"
                       : `${fmtUsdc(token.accrued)} USDC claimable`}
-                  </p>
+                  </div>
                   {token.txHash && (
                     <a
                       href={`https://explorer.arc.io/tx/${token.txHash}`}
@@ -415,12 +434,13 @@ export function ArcFeesTabs() {
                         <Loader2 className="size-3 animate-spin text-blue-500" /> Reading…
                       </div>
                     ) : (
-                      <p className={`mt-0.5 text-[12px] ${hasBalance ? "font-semibold text-blue-500" : "text-muted-foreground"}`}>
+                      <div className={`mt-0.5 flex items-center gap-1 text-[12px] ${hasBalance ? "font-semibold text-blue-500" : "text-muted-foreground"}`}>
+                        <Image src="/usdc-coin.png" alt="USDC" width={13} height={13} className="rounded-full shrink-0" unoptimized />
                         {hasBalance
                           ? `${fmtUsdc(token.pending!)} USDC claimable`
                           : isClaimed ? "0.00 USDC"
                           : "No dividends"}
-                      </p>
+                      </div>
                     )}
 
                     {isClaimed && (

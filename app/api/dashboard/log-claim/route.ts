@@ -18,12 +18,13 @@ type Body = {
   // Arc-specific (optional)
   chain?:       "solana" | "arc";
   amountUsdc?:  number; // raw USDC amount (18-dec, as a JS number — may lose precision for display only)
+  claimType?:   "creator" | "dividend"; // defaults to "creator"
 };
 
 export async function POST(req: Request) {
   try {
     const body = await req.json() as Partial<Body>;
-    const { tokenId, walletAddress, amountSol, txSignature, chain, amountUsdc } = body;
+    const { tokenId, walletAddress, amountSol, txSignature, chain, amountUsdc, claimType } = body;
 
     if (!tokenId || !walletAddress || amountSol == null || !txSignature) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
         tx_signature: txSignature,
         chain:        chain ?? "solana",
         amount_usdc:  amountUsdc ?? null,
+        claim_type:   claimType ?? "creator",
       });
 
     if (error) {
