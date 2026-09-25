@@ -23,7 +23,7 @@ import { arc } from "@/lib/arc-chain";
 
 function fmtUsdc(raw: bigint): string {
   const n = Number(raw) / 1e18;
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
 }
 
 type ArcToken = {
