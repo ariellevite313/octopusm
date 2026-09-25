@@ -23,7 +23,7 @@ import { arc } from "@/lib/arc-chain";
 
 function fmtUsdc(raw: bigint): string {
   const n = Number(raw) / 1e18;
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
 }
 
 // ── types ──────────────────────────────────────────────────────────────────────
@@ -467,7 +467,7 @@ export function ArcFeesTabs() {
                       disabled={token.claiming || !hasBalance}
                       className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
                         hasBalance && !token.claiming
-                          ? "bg-blue-600 hover:bg-blue-500 text-white"
+                          ? "bg-orange-500 hover:bg-orange-400 text-white"
                           : "cursor-not-allowed bg-muted text-muted-foreground"
                       }`}
                     >
