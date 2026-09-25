@@ -414,9 +414,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
       if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
+      if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     } catch {
-      t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
+      toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     }
 
     setPhase("done");
@@ -476,9 +476,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
       if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
+      if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     } catch {
-      t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
+      toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     }
 
     setPhase("done");
