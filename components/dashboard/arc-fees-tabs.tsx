@@ -24,7 +24,7 @@ import { arc } from "@/lib/arc-chain";
 
 function fmtUsdc(raw: bigint): string {
   const n = Number(raw) / 1e18;
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 18 });
 }
 
 // ── types ──────────────────────────────────────────────────────────────────────
@@ -310,7 +310,7 @@ export function ArcFeesTabs() {
           onClick={() => setActiveTab("creator")}
           className={`flex-1 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
             activeTab === "creator"
-              ? "border-orange-500 text-orange-500"
+              ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -326,13 +326,13 @@ export function ArcFeesTabs() {
           onClick={() => setActiveTab("dividend")}
           className={`flex-1 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
             activeTab === "dividend"
-              ? "border-blue-500 text-blue-500"
+              ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           {t.dividends}
           {totalDividend > 0n && (
-            <span className="ml-2 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-500">
+            <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
               {fmtUsdc(totalDividend)}
             </span>
           )}
@@ -421,7 +421,7 @@ export function ArcFeesTabs() {
                   key={token.id}
                   className={`flex items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 transition-opacity ${
                     isClaimed ? "opacity-50" : "opacity-100"
-                  } ${hasBalance ? "border-blue-500/30" : "border-border"}`}
+                  } ${hasBalance ? "border-primary/30" : "border-border"}`}
                 >
                   <TokenLogo token={token} />
 
@@ -433,10 +433,10 @@ export function ArcFeesTabs() {
 
                     {isLoading ? (
                       <div className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                        <Loader2 className="size-3 animate-spin text-blue-500" /> {t.reading}
+                        <Loader2 className="size-3 animate-spin text-primary" /> {t.reading}
                       </div>
                     ) : (
-                      <div className={`mt-0.5 flex items-center gap-1 text-[12px] ${hasBalance ? "font-semibold text-blue-500" : "text-muted-foreground"}`}>
+                      <div className={`mt-0.5 flex items-center gap-1 text-[12px] ${hasBalance ? "font-semibold text-primary" : "text-muted-foreground"}`}>
                         <Image src="/usdc-coin.png" alt="USDC" width={13} height={13} className="rounded-full shrink-0" unoptimized />
                         {hasBalance
                           ? `${fmtUsdc(token.pending!)} ${t.usdcClaimable}`
@@ -461,7 +461,7 @@ export function ArcFeesTabs() {
                     <span className="shrink-0 text-right text-[10px] text-muted-foreground whitespace-pre-line">{t.connectWallet}</span>
                   ) : isLoading ? (
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                      <Loader2 className="size-3.5 animate-spin text-blue-500" />
+                      <Loader2 className="size-3.5 animate-spin text-primary" />
                     </div>
                   ) : (
                     <button
