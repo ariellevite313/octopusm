@@ -46,15 +46,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Token not found" }, { status: 404 });
     }
 
-    // EVM addresses are case-insensitive — normalise before comparing
-    const storedWallet  = (token.creator_wallet as string) ?? "";
-    const isEvm         = walletAddress.startsWith("0x");
-    const walletMatches = isEvm
-      ? storedWallet.toLowerCase() === walletAddress.toLowerCase()
-      : storedWallet === walletAddress;
+    // Dividend claims: the claimant is a holder, not necessarily the creator —
+    // skip the creator_wallet check (the on-chain tx is already broadcast).
+    if (claimType !== "dividend") {
+      // EVM addresses are case-insensitive — normalise before comparing
+      const storedWallet  = (token.creator_wallet as string) ?? "";
+      const isEvm         = walletAddress.startsWith("0x");
+      const walletMatches = isEvm
+        ? storedWallet.toLowerCase() === walletAddress.toLowerCase()
+        : storedWallet === walletAddress;
 
-    if (!walletMatches) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      if (!walletMatches) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
     }
 
     const { error } = await admin
