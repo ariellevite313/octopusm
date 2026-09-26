@@ -23,8 +23,29 @@ import { arc } from "@/lib/arc-chain";
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 function fmtUsdc(raw: bigint): string {
-  const n = Number(raw) / 1e18;
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 18 });
+  if (raw === 0n) return "0.00";
+
+  const DECIMALS = BigInt("1000000000000000000"); // 1e18
+  const whole = raw / DECIMALS;
+  const frac  = raw % DECIMALS;
+
+  // Whole part ≥ 1, or fractional part ≥ 0.00001 → show normally (up to 5 decimal places)
+  if (whole > 0n || frac >= 10000000000000n /* 1e13 = 0.00001 USDC */) {
+    const n = Number(raw) / 1e18;
+    return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+  }
+
+  // Very small number: compact notation 0.00(N)XX
+  // fracStr is the 18-digit fractional part padded with leading zeros
+  const fracStr = frac.toString().padStart(18, "0");
+  let firstNonZero = 0;
+  while (firstNonZero < fracStr.length && fracStr[firstNonZero] === "0") firstNonZero++;
+
+  // "0.00" already shows the first 2 zeros; hidden = remaining zeros before sig digits
+  const hidden    = firstNonZero - 2;
+  const sigDigits = fracStr.slice(firstNonZero, firstNonZero + 4).replace(/0+$/, "") || "0";
+
+  return `0.00(${hidden})${sigDigits}`;
 }
 
 // ── types ──────────────────────────────────────────────────────────────────────
