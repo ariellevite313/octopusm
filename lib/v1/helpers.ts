@@ -35,6 +35,28 @@ export function isValidEvm(addr: string): boolean {
   return /^0x[0-9a-fA-F]{40}$/.test(addr);
 }
 
+/** Base58 Solana address: 32-44 chars from the base58 alphabet, NOT starting with 0x */
+export function isValidSolana(addr: string): boolean {
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+}
+
+export type AddrType = "evm" | "solana" | "invalid";
+
+export function detectAddrType(addr: string): AddrType {
+  if (isValidEvm(addr))    return "evm";
+  if (isValidSolana(addr)) return "solana";
+  return "invalid";
+}
+
+// ── lamports → SOL decimal string ────────────────────────────────────────────
+
+export function lamportsToSol(lamports: number): string {
+  if (!lamports || lamports === 0) return "0";
+  const sol = lamports / 1e9;
+  // trim trailing zeros but keep at least one decimal place
+  return sol.toFixed(9).replace(/\.?0+$/, "") || "0";
+}
+
 // ── Arc RPC eth_call ──────────────────────────────────────────────────────────
 
 let _rpcId = 1;
