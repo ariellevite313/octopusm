@@ -13,6 +13,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
 
 export const viewport: Viewport = {
   viewportFit: "cover",
+  themeColor: "#f97316",
 };
 
 export const metadata: Metadata = {
@@ -41,6 +42,7 @@ export const metadata: Metadata = {
     images: ["/branding-logo.jpeg"],
   },
   icons: { icon: "/og-logo.png", apple: "/og-logo.png" },
+  manifest: "/manifest.json",
   robots: { index: true, follow: true },
   alternates: { canonical: SITE_URL },
 };
