@@ -73,6 +73,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // ── Relais de session TWA ────────────────────────────────────────────────
+    // Après connexion dans le navigateur de Phantom, on est redirigé vers
+    // https://omdot.fun/#twa_session=<tokens_b64>. Android l'ouvre dans la TWA.
+    // On restaure ici la session Supabase depuis le hash, puis on nettoie l'URL.
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (hash.includes("twa_session=")) {
+      const match = hash.match(/twa_session=([^&]*)/);
+      if (match) {
+        try {
+          const decoded = JSON.parse(atob(decodeURIComponent(match[1])));
+          if (decoded.access_token && decoded.refresh_token) {
+            supabase.auth
+              .setSession({
+                access_token: decoded.access_token,
+                refresh_token: decoded.refresh_token,
+              })
+              .then(() => {
+                if (decoded.wallet_type) {
+                  localStorage.setItem(LS_WALLET_TYPE_KEY, decoded.wallet_type);
+                  setWalletTypeState(decoded.wallet_type as WalletType);
+                }
+              })
+              .catch(() => { /* ignore — getSession ci-dessous prendra le relais */ });
+            // Nettoyer l'URL pour ne pas exposer les tokens dans l'historique
+            if (typeof window !== "undefined") {
+              history.replaceState(
+                null,
+                "",
+                window.location.pathname + window.location.search
+              );
+            }
+          }
+        } catch { /* JSON ou base64 invalide — on ignore */ }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     supabase.auth.getSession().then(({ data }) => {
       const address = data.session?.user?.user_metadata?.wallet_address;
       if (address) {
