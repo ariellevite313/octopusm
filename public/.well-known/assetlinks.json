@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "fun.omdot.app",
+      "sha256_cert_fingerprints": [
+        "8A:48:13:2D:66:75:B8:6C:49:9F:65:34:37:51:E8:96:E8:18:45:CF:91:2D:EB:A6:1C:4F:1D:82:51:A0:2C:C3"
+      ]
+    }
+  }
+]
