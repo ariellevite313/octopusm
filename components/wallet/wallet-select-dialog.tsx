@@ -13,6 +13,16 @@ function isMobile(): boolean {
   return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
 }
 
+/**
+ * Détecte si l'app tourne en mode standalone (TWA / PWA installée).
+ * Dans ce contexte, le wallet n'est pas injecté : on doit passer par
+ * la page /mobile-connect pour relayer la session après auth dans Phantom.
+ */
+function isTWA(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches;
+}
+
 export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
   const installed = wallets.filter((w) => w.detected);
   const notInstalled = wallets.filter((w) => !w.detected);
@@ -23,13 +33,25 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
       onSelect(wallet.type);
       return;
     }
-    // On mobile: redirect into the wallet app via deep link
     if (mobile) {
-      const currentUrl = window.location.href;
-      window.location.href = wallet.mobileDeepLink(currentUrl);
+      const origin = window.location.origin;
+      if (isTWA()) {
+        // Mode TWA : passer par /mobile-connect pour relayer la session.
+        // Le wallet ouvre cette page dans son navigateur intégré (injected),
+        // connecte + signe, puis redirige vers omdot.fun/#twa_session=...
+        // qu'Android reroute vers la TWA via Digital Asset Links.
+        const ref = new URLSearchParams(window.location.search).get("ref");
+        const connectUrl =
+          `${origin}/mobile-connect?wallet=${wallet.type}` +
+          (ref ? `&ref=${encodeURIComponent(ref)}` : "");
+        window.location.href = wallet.mobileDeepLink(connectUrl);
+      } else {
+        // Navigateur mobile classique : ouvrir l'URL courante dans le wallet
+        window.location.href = wallet.mobileDeepLink(window.location.href);
+      }
       return;
     }
-    // On desktop: open download page in new tab
+    // Bureau : ouvrir la page de téléchargement dans un nouvel onglet
     window.open(wallet.downloadUrl, "_blank", "noopener,noreferrer");
   }
 
