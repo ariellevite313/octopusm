@@ -49,6 +49,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Digital Asset Links — requis pour TWA standalone (sans barre URL)
+        source: "/.well-known/assetlinks.json",
+        headers: [
+          { key: "Content-Type", value: "application/json" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+        ],
+      },
+      {
         source: "/(.*)",
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
