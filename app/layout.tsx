@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import { Providers } from "@/providers/providers";
 import { HeaderSwitch } from "@/components/layout/header-switch";
 import { Footer } from "@/components/layout/footer";
