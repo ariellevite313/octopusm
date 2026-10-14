@@ -294,7 +294,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
   }
 
   return (
-    <div className="rounded-[22px] border border-border bg-card overflow-hidden">
+    <div className="overflow-hidden">
 
       {/* ── Header ── */}
       <div className="px-4 pt-4 pb-2 flex items-center gap-3">
