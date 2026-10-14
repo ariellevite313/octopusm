@@ -359,7 +359,7 @@ function Pagination({
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       {Array.from({ length: LIMIT }).map((_, i) => (
         <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card p-2 animate-pulse">
           <div className="aspect-square w-full rounded-[16px] bg-muted/60" />
@@ -651,7 +651,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           )}
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
         </div>
       ) : (

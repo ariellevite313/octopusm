@@ -41,7 +41,7 @@ function LaunchpadSkeleton() {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card p-2 animate-pulse">
             <div className="aspect-square w-full rounded-[16px] bg-muted/60" />
@@ -64,7 +64,7 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-x-4 gap-y-5">
-        <div className="space-y-4">
+        <div className="w-full space-y-4">
           <div>
             <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
             <p className="text-sm text-muted-foreground">Tokens launched on Solana</p>
