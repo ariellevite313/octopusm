@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
@@ -521,7 +522,7 @@ function WalletButtonInner() {
     router.push("/");
   }
 
-  if (isLoading) return <div className="hidden h-9 w-36 animate-pulse rounded-xl bg-muted md:block" />;
+  if (isLoading) return null;
 
   if (isAuthenticated && walletAddress) {
     const walletIcon = walletType ? WALLET_ICONS[walletType] : null;
@@ -530,7 +531,7 @@ function WalletButtonInner() {
         <button
           type="button"
           onClick={() => setShowProfile(true)}
-          className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted md:flex"
+          className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           {walletIcon ? (
             <Image src={walletIcon} alt={walletType ?? "wallet"} width={16} height={16}
@@ -560,16 +561,17 @@ function WalletButtonInner() {
         type="button"
         onClick={() => setShowDialog(true)}
         disabled={isConnecting}
-        className="hidden rounded-[14px] bg-orange-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-400 disabled:opacity-60 btn-primary md:inline-block"
+        className="hidden rounded-[14px] bg-orange-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-400 disabled:opacity-60 btn-primary"
       >
         {isConnecting ? "Connecting..." : "Connect Wallet"}
       </button>
-      {showDialog && (
+      {showDialog && typeof document !== "undefined" && createPortal(
         <WalletSelectDialog
           wallets={availableWallets}
           onSelect={handleSelectWallet}
           onClose={() => setShowDialog(false)}
-        />
+        />,
+        document.body,
       )}
     </>
   );
@@ -577,7 +579,7 @@ function WalletButtonInner() {
 
 export function WalletButton() {
   return (
-    <Suspense fallback={<div className="hidden h-9 w-36 animate-pulse rounded-xl bg-muted md:block" />}>
+    <Suspense fallback={null}>
       <WalletButtonInner />
     </Suspense>
   );

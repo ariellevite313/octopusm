@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus } from "lucide-react";
+import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 // Barre d'icônes verticale (ordinateur uniquement).
@@ -61,6 +61,15 @@ export function DesktopSidebar() {
       )}
 
       <div className="mt-auto flex flex-col items-center gap-2">
+        <button
+          type="button"
+          title="Menu & wallet"
+          aria-label="Open menu and wallet"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-main-menu"))}
+          className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/70"
+        >
+          <MoreHorizontal className="size-[22px]" />
+        </button>
         <a href="https://t.me/Omdotfun" target="_blank" rel="noopener noreferrer" title="Support" aria-label="Support" className="flex size-11 items-center justify-center rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground">
           <Headset className="size-[22px]" strokeWidth={1.75} />
         </a>
