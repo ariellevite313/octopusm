@@ -20,7 +20,7 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 // Used for progress bars and selected-option highlights (cycles through options)
 const OPTION_COLORS = [
   { bar: "bg-blue-500",   selected: "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400",   hover: "hover:border-blue-300",   winner: "text-blue-600 dark:text-blue-400" },
-  { bar: "bg-red-500",    selected: "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400",       hover: "hover:border-red-300",    winner: "text-red-600 dark:text-red-400" },
+  { bar: "bg-red-500",    selected: "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400",       hover: "hover:border-red-300",    winner: "text-down" },
   { bar: "bg-green-500",  selected: "border-green-500 bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400", hover: "hover:border-green-300",  winner: "text-green-600 dark:text-green-400" },
   { bar: "bg-orange-500", selected: "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-400", hover: "hover:border-orange-300", winner: "text-orange-600 dark:text-orange-400" },
   { bar: "bg-purple-500", selected: "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/20 dark:text-purple-400", hover: "hover:border-purple-300", winner: "text-purple-600 dark:text-purple-400" },
@@ -108,7 +108,7 @@ function parseResolutionRates(adminNotes: string | null, betToken: string): { ho
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  active:    "text-emerald-600 dark:text-emerald-400",
+  active:    "text-up",
   closed:    "text-amber-600 dark:text-amber-400",
   resolved:  "text-violet-600 dark:text-violet-400",
   cancelled: "text-red-500 dark:text-red-400",
@@ -191,14 +191,14 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
   if (step === "pending") {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-800 dark:bg-emerald-950/20">
+      <div className="rounded-2xl bg-up/12 p-5 dark:border-emerald-800 dark:bg-emerald-950/20">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xl">✅</span>
-          <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+          <p className="font-semibold text-up">
             Prediction submitted!
           </p>
         </div>
-        <p className="mb-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="mb-2 text-sm text-up">
           Your transfer has been sent on-chain. An admin will validate your prediction shortly — it will then appear in the live odds.
         </p>
         {reference && (
@@ -217,7 +217,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-5">
+    <form onSubmit={submit} className="rounded-[22px] border border-border bg-card p-5">
       <h3 className="mb-1 text-sm font-semibold text-foreground">Make a Prediction</h3>
       <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
         Market uses
@@ -243,7 +243,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
             >
               <span className="flex items-center gap-2">
                 {opt.image_url && (
-                  <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-md object-cover" />
+                  <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-xl object-cover" />
                 )}
                 {opt.label}
               </span>
@@ -280,7 +280,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       <button
         type="submit"
         disabled={isBusy}
-        className="w-full rounded-md bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="w-full rounded-[14px] bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 btn-primary"
       >
         {isBusy && <Loader2 className="size-4 animate-spin" />}
         {isBusy ? "Approving..." : "Predict"}
@@ -465,7 +465,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       )}
 
       {/* Odds bars */}
-      <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+      <div className="mb-6 flex flex-col gap-3 rounded-[22px] border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">Live Odds</h2>
         {options.map((opt, idx) => {
           const isWinner = market.status === "resolved" && market.winning_option_id === opt.id;
@@ -475,7 +475,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
               <div className="flex justify-between text-sm">
                 <span className={`flex items-center gap-2 font-medium ${isWinner ? `font-bold ${col.winner}` : "text-foreground"}`}>
                   {opt.image_url && (
-                    <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-md object-cover" />
+                    <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-xl object-cover" />
                   )}
                   {opt.label} {isWinner && "🏆"}
                 </span>
@@ -512,7 +512,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       </div>
 
       {/* Recent predictions */}
-      <div className="mb-10 rounded-2xl border border-border bg-card p-5">
+      <div className="mb-10 rounded-[22px] border border-border bg-card p-5">
         <h2 className="mb-4 text-sm font-semibold text-foreground">Recent Predictions</h2>
         {bets.length === 0 ? (
           <p className="text-sm text-muted-foreground">No predictions yet. Be the first!</p>
@@ -556,7 +556,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
                       {Number(bet.amount).toFixed(decimals)}
                     </span>
                     {bet.payout_amount != null && (
-                      <span className={`flex items-center gap-0.5 tabular-nums text-[11px] font-semibold ${bet.paid_at ? "text-emerald-600" : "text-orange-500"}`}>
+                      <span className={`flex items-center gap-0.5 tabular-nums text-[11px] font-semibold ${bet.paid_at ? "text-up" : "text-orange-500"}`}>
                         {bet.paid_at ? "✓ Paid " : "→ "}
                         <TokenLogo token={market.bet_token} className="size-4" />
                         {Number(bet.payout_amount).toFixed(decimals)}
@@ -573,7 +573,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       {/* Comments */}
       {/* Bug #5 fix: isAuthenticated based on walletAddress from auth context (already correct — 
           walletAddress is null when disconnected, set on connect) */}
-      <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="rounded-[22px] border border-border bg-card p-5">
         <CommentsSection
           marketId={market.id}
           initialComments={initialComments}

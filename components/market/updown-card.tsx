@@ -75,7 +75,7 @@ function DurationCard({ market, symColor, symLabel }: {
 
   if (!market) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-dashed border-orange-200 bg-card dark:border-orange-900/20">
+      <div className="overflow-hidden rounded-[22px] border border-dashed border-border bg-card">
         <div className="flex h-full min-h-[200px] items-center justify-center p-5">
           <p className="text-xs text-muted-foreground">Round pending...</p>
         </div>
@@ -93,24 +93,24 @@ function DurationCard({ market, symColor, symLabel }: {
   return (
     <Link
       href={`/crypto/${market.id}`}
-      className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30"
+      className="group flex h-full flex-col overflow-hidden rounded-[22px] border border-border bg-card transition-colors hover:border-primary/40"
     >
-      <div className="space-y-4 p-5">
+      <div className="flex flex-1 flex-col gap-4 p-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">
+            <p className="line-clamp-2 text-[16px] font-bold leading-snug tracking-tight text-foreground">
               {symLabel} · Up/Down
             </p>
             <div className="mt-1.5 flex items-center gap-2">
-              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+              <span className="num text-[13px] font-semibold text-muted-foreground">
                 Strike {formatPrice(market.strike_price)}
               </span>
               {isResolved && market.outcome && (
                 <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   market.outcome === "up"
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                    : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                    ? "bg-up/12 text-up"
+                    : "bg-down/12 text-down"
                 }`}>
                   {market.outcome === "up" ? "↑ UP" : "↓ DOWN"}
                 </span>
@@ -118,9 +118,9 @@ function DurationCard({ market, symColor, symLabel }: {
             </div>
           </div>
           {/* Countdown */}
-          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-orange-200 bg-muted/40 px-2.5 py-1 dark:border-orange-900/40">
-            <Clock className="size-3 text-orange-500" />
-            <span className="font-mono text-xs font-bold tabular-nums text-orange-600 dark:text-orange-400">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1">
+            <Clock className="size-3 text-muted-foreground" />
+            <span className="num text-xs font-bold text-foreground">
               {isOpen ? countdown : formatDuration(market.duration_min)}
             </span>
           </div>
@@ -128,36 +128,36 @@ function DurationCard({ market, symColor, symLabel }: {
 
         {/* Pool bar */}
         <div>
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden flex mb-1">
-            <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${upPct}%` }} />
-            <div className="bg-red-500 flex-1" />
+          <div className="h-2 gap-0.5 rounded-full bg-muted overflow-hidden flex mb-1.5">
+            <div className="rounded-full bg-up transition-all duration-500" style={{ width: `${upPct}%` }} />
+            <div className="rounded-full bg-down flex-1" />
           </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span className="text-emerald-600 font-semibold">↑ {upPct}%</span>
+          <div className="num flex justify-between text-xs text-muted-foreground">
+            <span className="text-up font-bold">↑ {upPct}%</span>
             <span>{formatVolume(total, "usdc")}</span>
-            <span className="text-red-500 font-semibold">{100 - upPct}% ↓</span>
+            <span className="text-down font-bold">{100 - upPct}% ↓</span>
           </div>
         </div>
 
         {/* UP / DOWN buttons — même style que options MarketCard */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="relative flex items-center justify-center gap-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          <div className="relative flex items-center justify-center gap-1 rounded-2xl bg-up/12 px-3 py-3.5 transition-colors group-hover:bg-up/18">
             <FakeBetOverlay optionIndex={0} bets={fakeBets} />
-            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">↑ UP</span>
-            {isResolved && market.outcome === "up" && <span className="text-xs font-bold text-emerald-600">✓</span>}
+            <span className="text-sm font-bold text-up">↑ Up</span>
+            {isResolved && market.outcome === "up" && <span className="text-xs font-bold text-up">✓</span>}
           </div>
-          <div className="relative flex items-center justify-center gap-1 rounded-2xl border border-red-200 bg-red-50 px-3 py-3 dark:border-red-900/40 dark:bg-red-950/20">
+          <div className="relative flex items-center justify-center gap-1 rounded-2xl bg-down/12 px-3 py-3.5 transition-colors group-hover:bg-down/18">
             <FakeBetOverlay optionIndex={1} bets={fakeBets} />
-            <span className="text-xs font-semibold text-red-800 dark:text-red-200">↓ DOWN</span>
+            <span className="text-sm font-bold text-down">↓ Down</span>
             {isResolved && market.outcome === "down" && <span className="text-xs font-bold text-red-500">✓</span>}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-orange-100 pt-3 text-xs text-muted-foreground dark:border-orange-900/30">
+        <div className="num mt-auto flex items-center justify-between border-t border-border pt-3 text-[13px] font-medium text-muted-foreground">
           <span>{formatDuration(market.duration_min)} · {market.fee_rate}% fee</span>
           {isResolved && market.open_price && (
-            <span className={`font-semibold ${Number(market.open_price) > market.strike_price ? "text-emerald-600" : "text-red-500"}`}>
+            <span className={`font-semibold ${Number(market.open_price) > market.strike_price ? "text-up" : "text-down"}`}>
               Close {formatPrice(Number(market.open_price))}
             </span>
           )}
@@ -202,13 +202,13 @@ export function UpDownCards() {
     <>
       {/* Symbol selector — ligne horizontale compacte AU-DESSUS des cards, pas dans la grille */}
       <div className="col-span-full flex flex-wrap items-center gap-2 mb-1">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Up/Down</span>
+        <span className="text-lg font-bold tracking-tight text-foreground mr-2">Up/Down</span>
         {SYMBOLS.map(s => (
           <button
             key={s.value}
             type="button"
             onClick={() => setActiveSymbol(s.value)}
-            className="rounded-full px-3 py-1 text-xs font-bold transition-colors"
+            className="rounded-xl px-3.5 py-1.5 text-sm font-bold transition-colors"
             style={
               activeSymbol === s.value
                 ? { background: s.color, color: "#fff" }
@@ -223,7 +223,7 @@ export function UpDownCards() {
       {/* 6 cards — une par durée */}
       {loading ? (
         Array.from({ length: DURATIONS.length }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-2xl border border-orange-200/50 bg-orange-50/30 dark:border-orange-900/20 dark:bg-orange-950/5">
+          <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card animate-pulse">
             <div className="flex h-[200px] items-center justify-center">
               <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
             </div>

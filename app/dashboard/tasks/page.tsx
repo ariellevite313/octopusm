@@ -18,7 +18,7 @@ async function TasksLoader({ wallet }: { wallet: string }) {
 
 function TasksSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+    <div className="rounded-[22px] border border-border bg-card overflow-hidden divide-y divide-border">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3.5">
           <div className="size-5 rounded-full bg-muted/40 animate-pulse shrink-0" />

@@ -373,7 +373,7 @@ export function ArcFeesTabs() {
             creatorTokens.map((token, idx) => (
               <div
                 key={token.id}
-                className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+                className="flex items-center gap-3 rounded-[22px] border border-border bg-card px-4 py-3"
               >
                 <TokenLogo token={token} />
 
@@ -393,7 +393,7 @@ export function ArcFeesTabs() {
                     <a
                       href={`https://explorer.arc.io/tx/${token.txHash}`}
                       target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
+                      className="flex items-center gap-1 text-[11px] text-up hover:underline mt-0.5"
                     >
                       <CheckCircle2 className="size-3" /> {t.claimedViewExplorer}
                     </a>
@@ -411,7 +411,7 @@ export function ArcFeesTabs() {
                   <button
                     onClick={() => void handleClaimCreator(idx)}
                     disabled={token.claiming}
-                    className="rounded-full px-4 py-2 text-xs font-semibold shrink-0 bg-orange-500 hover:bg-orange-400 text-white disabled:opacity-60 transition-colors"
+                    className="rounded-full px-4 py-2 text-xs font-bold shrink-0 bg-orange-500 hover:bg-orange-400 text-white disabled:opacity-60 transition-colors btn-primary"
                   >
                     {token.claiming ? <Loader2 className="size-3.5 animate-spin" /> : t.claim}
                   </button>
@@ -470,7 +470,7 @@ export function ArcFeesTabs() {
                       <a
                         href={`https://explorer.arc.io/tx/${token.txHash}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
+                        className="mt-0.5 flex items-center gap-1 text-[11px] text-up hover:underline"
                       >
                         <CheckCircle2 className="size-3" /> {t.claimedViewExplorer}
                       </a>

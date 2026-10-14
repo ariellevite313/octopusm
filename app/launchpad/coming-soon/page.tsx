@@ -17,7 +17,7 @@ function Countdown({ scheduledAt }: { scheduledAt: string }) {
   const now = new Date();
   const diff = target.getTime() - now.getTime();
 
-  if (diff <= 0) return <span className="text-emerald-500 font-semibold">Launching now</span>;
+  if (diff <= 0) return <span className="text-up font-semibold">Launching now</span>;
 
   const days  = Math.floor(diff / 86_400_000);
   const hours = Math.floor((diff % 86_400_000) / 3_600_000);
@@ -34,7 +34,7 @@ function ComingSoonCard({ token }: { token: LaunchpadToken }) {
   return (
     <Link
       href={`/launchpad/${token.id}`}
-      className="flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3.5 transition-all hover:border-violet-400/40 hover:shadow-sm"
+      className="flex items-center gap-4 rounded-[22px] border border-border bg-card px-4 py-3.5 transition-all hover:border-violet-400/40 hover:shadow-sm"
     >
       {/* Logo */}
       {token.logo_url ? (
@@ -62,7 +62,7 @@ function ComingSoonCard({ token }: { token: LaunchpadToken }) {
       </div>
 
       {/* Category */}
-      <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+      <span className="rounded-xl bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
         {token.category}
       </span>
 
@@ -129,7 +129,7 @@ export default function ComingSoonPage() {
       <Suspense fallback={
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 rounded-2xl border border-border bg-card animate-pulse" />
+            <div key={i} className="h-16 rounded-[22px] border border-border bg-card animate-pulse" />
           ))}
         </div>
       }>

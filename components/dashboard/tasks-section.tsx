@@ -82,7 +82,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
 
   return (
     <section>
-      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+      <div className="rounded-[22px] border border-border bg-card overflow-hidden divide-y divide-border">
 
         {active.map((task) => {
           const logo       = getTaskLogo(task);
@@ -92,7 +92,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
           return (
             <div key={task.id} className="flex items-center gap-3 px-4 py-3.5">
               {logo ? (
-                <Image src={logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded-md object-contain" unoptimized />
+                <Image src={logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded-xl object-contain" unoptimized />
               ) : (
                 <Circle className="size-5 shrink-0 text-muted-foreground/40" />
               )}
@@ -105,7 +105,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 rounded-full bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 border border-orange-200 dark:border-orange-800/40">
+                <div className="flex items-center gap-1 rounded-full bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 border border-border">
                   <Image src="/octo-coin.png" alt="OMERO" width={12} height={12} className="rounded-full" />
                   <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">
                     +{task.reward_octo}
@@ -125,7 +125,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
                     type="button"
                     disabled={claiming_}
                     onClick={() => void handleClaim(task)}
-                    className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors"
+                    className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
                   >
                     {claiming_ ? "Claiming..." : "Claim"}
                   </button>
@@ -140,9 +140,9 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
           return (
             <div key={task.id} className="flex items-center gap-3 px-4 py-3 opacity-60">
               {logo ? (
-                <Image src={logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded-md object-contain grayscale" unoptimized />
+                <Image src={logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded-xl object-contain grayscale" unoptimized />
               ) : (
-                <CheckCircle2 className="size-5 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="size-5 shrink-0 text-up" />
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-muted-foreground line-through truncate">{task.title}</p>

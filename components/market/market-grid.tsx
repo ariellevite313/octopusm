@@ -29,7 +29,7 @@ export function MarketGrid({ markets, volumes }: Props) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
       {sorted.map((m) =>
         m.source === "pool"
           ? <PoolGridCard key={m.id} market={m as MutuelMarketRow} />

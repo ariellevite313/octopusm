@@ -239,7 +239,7 @@ export function ClaimFeesButton({
 
   if (phase === "done") {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-up">
         ✓ {t.feeClaimed}
       </span>
     );
@@ -286,7 +286,7 @@ export function ClaimFeesButton({
         type="button"
         disabled={busy || (claimable !== null && claimable <= 0)}
         onClick={handleClaim}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
       >
         {busy && <Loader2 className="size-3.5 animate-spin" />}
         {label}

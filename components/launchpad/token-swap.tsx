@@ -277,7 +277,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
                 const effective = pct === 100 ? Math.max(0, base - 0.002) : base;
                 setSolAmount(((effective * pct) / 100).toFixed(4));
               }}
-              className={`flex-1 py-2 rounded-full text-[12px] font-semibold transition-colors border ${
+              className={`flex-1 py-2 rounded-full text-[12px] font-bold transition-colors border ${
                 activePct === pct
                   ? "bg-orange-500 border-orange-500 text-white"
                   : "bg-white/5 border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"
@@ -310,7 +310,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
               <button
                 key={opt.bps}
                 onClick={() => { setSlippageBps(opt.bps); setShowSlip(false); }}
-                className={`flex-1 py-1.5 rounded-full text-[12px] font-semibold transition-colors border ${
+                className={`flex-1 py-1.5 rounded-full text-[12px] font-bold transition-colors border ${
                   slippageBps === opt.bps
                     ? "bg-orange-500 border-orange-500 text-white"
                     : "bg-white/5 border-white/10 text-white/50"
@@ -345,7 +345,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
             href={`https://solscan.io/tx/${txSig}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
+            className="flex items-center justify-center gap-1.5 text-[11px] text-up hover:underline"
           >
             <CheckCircle2 className="size-3.5" />
             {t.swapConfirmed}
@@ -354,14 +354,14 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
 
         {/* ── CTA ── */}
         {!isAuthenticated ? (
-          <button className="w-full rounded-md py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1">
+          <button className="w-full rounded-[14px] py-4 text-[15px] font-bold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1 btn-primary">
             {t.connect}
           </button>
         ) : (
           <button
             onClick={() => void handleSwap()}
             disabled={!quote || swapping || quoteLoading}
-            className={`w-full rounded-full py-4 text-[15px] font-semibold transition-colors mt-1 ${
+            className={`w-full rounded-full py-4 text-[15px] font-bold transition-colors mt-1 ${
               !quote || swapping || quoteLoading
                 ? "bg-white/10 text-white/30 cursor-not-allowed"
                 : highImpact

@@ -131,7 +131,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="w-full max-w-sm rounded-t-3xl border border-orange-200 bg-white p-5 shadow-2xl dark:border-white/10 dark:bg-zinc-900 sm:rounded-3xl">
+      <div className="w-full max-w-sm rounded-t-3xl border border-border bg-card p-5 shadow-2xl dark:border-white/10 sm:rounded-3xl">
 
         {/* Header */}
         <div className="mb-1 flex items-center justify-between">
@@ -140,20 +140,20 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
               <Zap className="size-5 text-orange-500" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">OMdotfun</p>
+              <p className="text-[13px] font-semibold text-orange-500">OMdotfun</p>
               <h2 className="text-lg font-semibold leading-tight text-zinc-900 dark:text-white">Getting started</h2>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10"
+            className="rounded-xl p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mb-4 text-sm text-muted-foreground">
           Complete these tasks and earn up to{" "}
           <span className="inline-flex items-center gap-1 font-semibold text-orange-500">
             +{totalOcto} <img src="/octo-coin.png" alt="OMERO" className="size-4 object-contain" />
@@ -174,7 +174,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                 className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
                   done
                     ? "border-emerald-100 bg-emerald-50/60 opacity-60 dark:border-emerald-500/20 dark:bg-emerald-500/5"
-                    : "border-orange-100 bg-orange-50/60 dark:border-white/10 dark:bg-white/5"
+                    : "border-border bg-orange-50/60 dark:border-white/10 dark:bg-white/5"
                 }`}
               >
                 {/* Logo */}
@@ -185,7 +185,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                     className={`size-9 shrink-0 rounded-xl object-contain ${done ? "grayscale" : ""}`}
                   />
                 ) : done ? (
-                  <CheckCircle2 className="size-9 shrink-0 text-emerald-500" />
+                  <CheckCircle2 className="size-9 shrink-0 text-up" />
                 ) : (
                   <Circle className="size-9 shrink-0 text-zinc-300 dark:text-zinc-600" />
                 )}
@@ -199,7 +199,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
 
                 {/* Reward + button */}
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold ${done ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500"}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs font-bold ${done ? "text-up" : "text-orange-500"}`}>
                     +{task.reward_octo} <img src="/octo-coin.png" alt="OMERO" className="size-3.5 object-contain" />
                   </span>
 
@@ -217,7 +217,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                         type="button"
                         disabled={claiming_}
                         onClick={() => void handleClaim(task)}
-                        className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors"
+                        className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
                       >
                         {claiming_ ? "…" : "Claim"}
                       </button>
@@ -232,11 +232,11 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
         <button
           type="button"
           onClick={handleClose}
-          className="mt-4 w-full rounded-md bg-orange-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+          className="mt-4 w-full rounded-[14px] bg-orange-500 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600 btn-primary"
         >
           {"Let's Go"}
         </button>
-        <p className="mt-3 text-center text-xs text-zinc-400 dark:text-zinc-500">
+        <p className="mt-3 text-center text-xs text-muted-foreground">
           You can find these tasks anytime in your dashboard.
         </p>
       </div>

@@ -21,7 +21,7 @@ export function TrendingSection() {
 
   return (
     <section className="mt-6 mb-8">
-      <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
         🔥 Trending
       </h2>
       <div

@@ -29,7 +29,7 @@ export default async function DashboardLayout({
 
   return (
     <>
-      <div className="mx-auto max-w-2xl px-4 py-10 pb-20 md:pb-10 space-y-6">
+      <div className="mx-auto max-w-2xl px-4 py-10 pb-28 md:pb-10 space-y-6">
         {/* Identity */}
         <div className="flex items-center gap-4">
           {avatarSrc ? (
@@ -39,21 +39,21 @@ export default async function DashboardLayout({
               width={48}
               height={48}
               unoptimized
-              className="rounded-full object-cover shrink-0"
+              className="size-16 rounded-full object-cover shrink-0"
             />
           ) : (
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-              <span className="text-lg font-bold text-orange-500">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/15">
+              <span className="text-2xl font-bold text-primary">
                 {displayLabel.slice(0, 1).toUpperCase()}
               </span>
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-bold text-foreground truncate">{displayLabel}</h1>
+              <h1 className="text-[26px] font-bold tracking-tight text-foreground truncate">{displayLabel}</h1>
               <OctoBadgeSection totalOcto={data.octoBalance} size={14} />
             </div>
-            <p className="text-xs font-mono text-muted-foreground mt-0.5">{fmtAddr(wallet)}</p>
+            <p className="text-sm font-mono text-muted-foreground mt-0.5">{fmtAddr(wallet)}</p>
           </div>
         </div>
 

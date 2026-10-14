@@ -125,7 +125,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
   return (
     // Backdrop — non-dismissible
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl overflow-y-auto max-h-[90vh]">
+      <div className="w-full max-w-sm rounded-[22px] border border-border bg-card shadow-xl overflow-y-auto max-h-[90vh]">
         <div className="p-6">
           {/* Header */}
           <div className="mb-5 text-center">
@@ -234,7 +234,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
             <button
               type="submit"
               disabled={isLoading || !canSubmit}
-              className="w-full rounded-md bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60 transition-colors"
+              className="w-full rounded-[14px] bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-60 transition-colors btn-primary"
             >
               {uploading ? "Uploading photo..." : saving ? "Saving..." : "Complete setup"}
             </button>

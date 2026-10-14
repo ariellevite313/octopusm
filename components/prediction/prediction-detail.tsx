@@ -33,12 +33,12 @@ const CryptoPriceChart = dynamic(
 // ─── Option Colors ────────────────────────────────────────────────────────────────────
 
 const OPTION_COLORS = [
-  { bar: "bg-blue-500",   border: "border-blue-500",   bg: "bg-blue-500",   text: "text-white", probText: "text-blue-100",   volText: "text-blue-200",   barBg: "bg-blue-400/40",   barFill: "bg-white/70", idle: "border-blue-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/40 dark:bg-zinc-900 dark:hover:border-blue-700/60 dark:hover:bg-zinc-800" },
-  { bar: "bg-red-500",    border: "border-red-500",    bg: "bg-red-500",    text: "text-white", probText: "text-red-100",    volText: "text-red-200",    barBg: "bg-red-400/40",    barFill: "bg-white/70", idle: "border-red-200 bg-white hover:border-red-300 hover:bg-red-50 dark:border-red-900/40 dark:bg-zinc-900 dark:hover:border-red-700/60 dark:hover:bg-zinc-800" },
-  { bar: "bg-green-500",  border: "border-green-500",  bg: "bg-green-500",  text: "text-white", probText: "text-green-100",  volText: "text-green-200",  barBg: "bg-green-400/40",  barFill: "bg-white/70", idle: "border-green-200 bg-white hover:border-green-300 hover:bg-green-50 dark:border-green-900/40 dark:bg-zinc-900 dark:hover:border-green-700/60 dark:hover:bg-zinc-800" },
-  { bar: "bg-orange-500", border: "border-orange-500", bg: "bg-orange-500", text: "text-white", probText: "text-orange-100", volText: "text-orange-200", barBg: "bg-orange-400/40", barFill: "bg-white/70", idle: "border-orange-200 bg-white hover:border-orange-300 hover:bg-orange-50 dark:border-orange-900/40 dark:bg-zinc-900 dark:hover:border-orange-700/60 dark:hover:bg-zinc-800" },
-  { bar: "bg-purple-500", border: "border-purple-500", bg: "bg-purple-500", text: "text-white", probText: "text-purple-100", volText: "text-purple-200", barBg: "bg-purple-400/40", barFill: "bg-white/70", idle: "border-purple-200 bg-white hover:border-purple-300 hover:bg-purple-50 dark:border-purple-900/40 dark:bg-zinc-900 dark:hover:border-purple-700/60 dark:hover:bg-zinc-800" },
-  { bar: "bg-yellow-500", border: "border-yellow-500", bg: "bg-yellow-500", text: "text-white", probText: "text-yellow-100", volText: "text-yellow-200", barBg: "bg-yellow-400/40", barFill: "bg-white/70", idle: "border-yellow-200 bg-white hover:border-yellow-300 hover:bg-yellow-50 dark:border-yellow-900/40 dark:bg-zinc-900 dark:hover:border-yellow-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-blue-500",   border: "border-blue-500",   bg: "bg-blue-500",   text: "text-white", probText: "text-blue-100",   volText: "text-blue-200",   barBg: "bg-blue-400/40",   barFill: "bg-white/70", idle: "border-blue-200 bg-card hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:border-blue-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-red-500",    border: "border-red-500",    bg: "bg-red-500",    text: "text-white", probText: "text-red-100",    volText: "text-red-200",    barBg: "bg-red-400/40",    barFill: "bg-white/70", idle: "border-red-200 bg-card hover:border-red-300 hover:bg-red-50 dark:border-red-900/40 dark:hover:border-red-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-green-500",  border: "border-green-500",  bg: "bg-green-500",  text: "text-white", probText: "text-green-100",  volText: "text-green-200",  barBg: "bg-green-400/40",  barFill: "bg-white/70", idle: "border-green-200 bg-card hover:border-green-300 hover:bg-green-50 dark:border-green-900/40 dark:hover:border-green-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-orange-500", border: "border-orange-500", bg: "bg-orange-500", text: "text-white", probText: "text-orange-100", volText: "text-orange-200", barBg: "bg-orange-400/40", barFill: "bg-white/70", idle: "border-border bg-card hover:border-orange-300 hover:bg-orange-50 dark:hover:border-orange-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-purple-500", border: "border-purple-500", bg: "bg-purple-500", text: "text-white", probText: "text-purple-100", volText: "text-purple-200", barBg: "bg-purple-400/40", barFill: "bg-white/70", idle: "border-purple-200 bg-card hover:border-purple-300 hover:bg-purple-50 dark:border-purple-900/40 dark:hover:border-purple-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-yellow-500", border: "border-yellow-500", bg: "bg-yellow-500", text: "text-white", probText: "text-yellow-100", volText: "text-yellow-200", barBg: "bg-yellow-400/40", barFill: "bg-white/70", idle: "border-yellow-200 bg-card hover:border-yellow-300 hover:bg-yellow-50 dark:border-yellow-900/40 dark:hover:border-yellow-700/60 dark:hover:bg-zinc-800" },
 ];
 function optionColor(index: number, label?: string) {
   const l = label?.trim().toLowerCase();
@@ -82,9 +82,9 @@ function getMarketStatus(market: PredictionMarketRow): MarketStatus {
 }
 
 const STATUS_STYLES: Record<MarketStatus, { label: string; cls: string; dot?: boolean }> = {
-  open:     { label: "Open",     cls: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/20 dark:text-emerald-400", dot: false },
-  live:     { label: "Live",     cls: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/20 dark:text-emerald-400", dot: true  },
-  resolved: { label: "Resolved", cls: "border-border bg-muted text-muted-foreground", dot: false },
+  open:     { label: "Open",     cls: "border-transparent bg-up/12 text-up", dot: false },
+  live:     { label: "Live",     cls: "border-transparent bg-up/12 text-up", dot: true  },
+  resolved: { label: "Resolved", cls: "border-transparent bg-muted text-muted-foreground", dot: false },
   closed:   { label: "Closed",   cls: "border-border bg-muted text-muted-foreground", dot: false },
 };
 
@@ -128,9 +128,9 @@ function ShareButton() {
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="flex items-center gap-1.5 rounded-xl bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
     >
-      {copied ? <Check className="size-3.5 text-emerald-500" /> : <Share2 className="size-3.5" />}
+      {copied ? <Check className="size-3.5 text-up" /> : <Share2 className="size-3.5" />}
       {copied ? "Copied!" : "Share"}
     </button>
   );
@@ -143,7 +143,7 @@ function MarketVisual({ market }: { market: PredictionMarketRow }) {
     return (
       <div className="flex items-center justify-center gap-4 py-2">
         <Competitor name={market.left_competitor_name}  src={market.left_competitor_image_src}  />
-        <span className="text-lg font-black text-zinc-300 dark:text-zinc-600">VS</span>
+        <span className="rounded-lg bg-muted px-2 py-1 text-sm font-black text-muted-foreground">VS</span>
         <Competitor name={market.right_competitor_name} src={market.right_competitor_image_src} />
       </div>
     );
@@ -155,11 +155,11 @@ function MarketVisual({ market }: { market: PredictionMarketRow }) {
           <img
             src={market.single_image_src}
             alt={market.single_name}
-            className="size-10 rounded-full object-cover border border-orange-200 dark:border-orange-800/60"
+            className="size-10 rounded-full object-cover border border-border"
             loading="lazy"
           />
         )}
-        <span className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{market.single_name}</span>
+        <span className="text-base font-semibold text-foreground">{market.single_name}</span>
       </div>
     );
   }
@@ -170,13 +170,13 @@ function Competitor({ name, src }: { name: string | null; src: string | null }) 
   return (
     <div className="flex flex-col items-center gap-1.5">
       {src ? (
-        <img src={src} alt={name ?? ""} className="size-12 rounded-full object-cover border border-orange-200 dark:border-orange-800/60" loading="lazy" />
+        <img src={src} alt={name ?? ""} className="size-12 rounded-full object-cover border border-border" loading="lazy" />
       ) : (
-        <div className="flex size-12 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-orange-600 dark:bg-orange-950/50 dark:text-orange-400">
+        <div className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-lg font-bold text-primary">
           {name?.[0] ?? "?"}
         </div>
       )}
-      <span className="text-xs font-semibold text-zinc-700 text-center max-w-[80px] truncate dark:text-zinc-300">{name}</span>
+      <span className="text-[13px] font-semibold text-foreground text-center max-w-[96px] truncate">{name}</span>
     </div>
   );
 }
@@ -200,22 +200,22 @@ function RewardSummary({
       : `$${n.toFixed(2)} USDC`;
 
   return (
-    <div className="rounded-2xl border border-orange-200 bg-orange-50/60 px-4 py-3 space-y-2 text-sm dark:border-orange-900/50 dark:bg-orange-950/10">
-      <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+    <div className="num rounded-2xl bg-muted/70 px-4 py-4 space-y-2 text-sm">
+      <div className="flex justify-between text-muted-foreground">
         <span>Stake</span>
-        <span className="font-medium text-zinc-900 dark:text-zinc-100">{fmt(reward.stake)}</span>
+        <span className="font-medium text-foreground">{fmt(reward.stake)}</span>
       </div>
       <div className="flex justify-between text-zinc-500 text-xs dark:text-zinc-500">
         <span>Reserve fee (1%)</span>
         <span>+{fmt(reward.reserveFee)}</span>
       </div>
-      <div className="flex justify-between border-t border-orange-200 pt-2 text-zinc-700 font-semibold dark:border-orange-900/50 dark:text-zinc-300">
+      <div className="flex justify-between border-t border-border pt-2 text-zinc-700 font-semibold dark:text-zinc-300">
         <span>You pay</span>
         <span>{fmt(reward.totalCharged)}</span>
       </div>
       <div className="flex justify-between text-emerald-700 font-bold dark:text-emerald-400">
         <span>Potential win ×{option.oddsMultiplier}</span>
-        <span>{fmt(reward.netReward)} <span className="text-xs font-normal text-zinc-400 dark:text-zinc-500">net</span></span>
+        <span>{fmt(reward.netReward)} <span className="text-xs font-normal text-muted-foreground">net</span></span>
       </div>
     </div>
   );
@@ -227,14 +227,14 @@ function SuccessBanner({ reference }: { reference: string }) {
   return (
     <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-5 text-center space-y-2 dark:border-emerald-800/60 dark:bg-emerald-950/20">
       <div className="flex justify-center">
-        <span className="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+        <span className="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-up dark:bg-emerald-950/50 dark:text-emerald-400">
           <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </span>
       </div>
       <p className="text-base font-semibold text-emerald-900 dark:text-emerald-300">Prediction submitted!</p>
-      <p className="text-sm text-emerald-700 dark:text-emerald-400">
+      <p className="text-sm text-up">
         Your prediction is pending admin review. You&apos;ll be credited once confirmed.
       </p>
       <p className="text-xs text-zinc-400 font-mono break-all">ref: {reference}</p>
@@ -359,13 +359,13 @@ function CommentItem({
         <CommentAvatar user={comment} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+            <span className="text-xs font-semibold text-foreground">
               {comment.username ?? shortAddr(comment.wallet_address)}
             </span>
             {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
             <span className="text-xs text-muted-foreground">{timeAgo(comment.created_at)}</span>
           </div>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">
+          <p className="text-sm text-foreground leading-relaxed break-words">
             {comment.content}
           </p>
           {/* Actions */}
@@ -401,19 +401,19 @@ function CommentItem({
 
       {/* Replies */}
       {comment.replies.length > 0 && (
-        <div className="ml-11 mt-3 space-y-3 border-l-2 border-orange-100 pl-4 dark:border-orange-900/30">
+        <div className="ml-11 mt-3 space-y-3 border-l-2 border-border pl-4">
           {comment.replies.map((reply) => (
             <div key={reply.id} className="flex gap-3">
               <CommentAvatar user={reply} size="sm" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                  <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                  <span className="text-xs font-semibold text-foreground">
                     {reply.username ?? shortAddr(reply.wallet_address)}
                   </span>
                   {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
                   <span className="text-xs text-muted-foreground">{timeAgo(reply.created_at)}</span>
                 </div>
-                <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">
+                <p className="text-sm text-foreground leading-relaxed break-words">
                   {reply.content}
                 </p>
                 <button
@@ -477,7 +477,7 @@ function CommentItem({
             <button
               onClick={() => void submitReply()}
               disabled={!replyText.trim() || replyPosting}
-              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors btn-primary"
             >
               {replyPosting ? "…" : "Reply"}
             </button>
@@ -617,7 +617,7 @@ function CommentsSection({
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
         Comments {totalCount > 0 && `(${totalCount})`}
       </h2>
 
@@ -664,7 +664,7 @@ function CommentsSection({
         <button
           onClick={() => void postComment()}
           disabled={posting}
-          className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors btn-primary"
         >
           {posting ? "…" : "Post"}
         </button>
@@ -793,7 +793,7 @@ export function PredictionDetail({
       )}
 
       {/* Market header card */}
-      <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5 mb-6 dark:border-orange-900/50 dark:bg-orange-950/10">
+      <div className="rounded-[24px] border border-border bg-card p-5 mb-6 sm:p-6">
         {/* Top row: status + share */}
         <div className="flex items-center justify-between gap-3 mb-3">
           <StatusBadge market={market} />
@@ -801,7 +801,7 @@ export function PredictionDetail({
         </div>
 
         {/* Title */}
-        <p className="text-base font-bold text-zinc-900 dark:text-zinc-100 leading-snug mb-3">
+        <p className="text-[22px] font-bold tracking-tight text-foreground leading-tight mb-3 sm:text-[26px]">
           {market.title}
         </p>
 
@@ -826,10 +826,10 @@ export function PredictionDetail({
         )}
 
         {/* Volume + date row */}
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
+        <div className="num mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-[13px] text-muted-foreground">
           {totalVol !== "—" && (
             <span>
-              <span className="font-semibold text-zinc-600 dark:text-zinc-400">Vol:</span> {totalVol}
+              <span className="font-semibold text-foreground">Vol:</span> {totalVol}
             </span>
           )}
           {market.event_start_at && (
@@ -846,7 +846,7 @@ export function PredictionDetail({
 
           {/* 1 — Option selector with % */}
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
               Your prediction
             </h2>
             <div
@@ -868,10 +868,10 @@ export function PredictionDetail({
                     type="button"
                     onClick={() => setSelectedId(opt.id)}
                     className={[
-                      "flex flex-col gap-1.5 rounded-2xl border px-3 py-3 text-left transition-all",
+                      "flex flex-col gap-2 rounded-[18px] border-2 px-3.5 py-3.5 text-left transition-all",
                       options.length === 3 ? "min-w-[130px] shrink-0 sm:min-w-0 sm:shrink" : "",
                       isSelected
-                        ? `${color.border} ${color.bg} shadow-md`
+                        ? `${color.border} ${color.bg} shadow-lg`
                         : color.idle,
                     ].join(" ")}
                   >
@@ -881,33 +881,33 @@ export function PredictionDetail({
                         <img
                           src={opt.logoSrc}
                           alt={opt.label}
-                          className="size-5 shrink-0 rounded-full object-cover"
+                          className="size-6 shrink-0 rounded-full object-cover"
                           loading="lazy"
                         />
                       ) : (
-                        <span className="size-5 shrink-0" />
+                        <span className="size-6 shrink-0" />
                       )}
-                      <span className={`shrink-0 text-sm font-bold ${isSelected ? color.text : "text-zinc-900 dark:text-zinc-100"}`}>
+                      <span className={`num shrink-0 text-base font-bold ${isSelected ? color.text : "text-foreground"}`}>
                         x{opt.oddsMultiplier}
                       </span>
                     </div>
                     {/* Label */}
-                    <span className={`line-clamp-2 text-xs font-semibold leading-tight ${isSelected ? color.text : "text-zinc-800 dark:text-zinc-200"}`}>
+                    <span className={`line-clamp-2 text-sm font-bold leading-tight ${isSelected ? color.text : "text-foreground"}`}>
                       {opt.label}
                     </span>
                     {/* Probability % */}
                     <div className="flex items-center justify-between gap-1 mt-0.5">
-                      <span className={`text-xs font-bold ${isSelected ? color.probText : "text-zinc-600 dark:text-zinc-400"}`}>
+                      <span className={`num text-[22px] leading-none font-bold ${isSelected ? color.probText : "text-foreground"}`}>
                         {prob}%
                       </span>
                       {optVolLabel && (
-                        <span className={`text-[10px] truncate ${isSelected ? color.volText : "text-zinc-400 dark:text-zinc-500"}`}>
+                        <span className={`text-[10px] truncate ${isSelected ? color.volText : "text-muted-foreground"}`}>
                           {optVolLabel}
                         </span>
                       )}
                     </div>
                     {/* Probability bar */}
-                    <div className={`h-1 w-full rounded-full overflow-hidden ${isSelected ? color.barBg : "bg-zinc-100 dark:bg-zinc-800"}`}>
+                    <div className={`h-1.5 w-full rounded-full overflow-hidden ${isSelected ? color.barBg : "bg-muted"}`}>
                       <div
                         className={`h-full rounded-full transition-all ${isSelected ? color.barFill : color.bar}`}
                         style={{ width: `${prob}%` }}
@@ -921,7 +921,7 @@ export function PredictionDetail({
 
           {/* 2 — Token selector */}
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
               Token
             </h2>
             <div className="flex gap-2">
@@ -931,10 +931,10 @@ export function PredictionDetail({
                   type="button"
                   onClick={() => { setToken(t); setRawAmount(""); }}
                   className={[
-                    "flex-1 rounded-xl border py-2 text-sm font-semibold transition-all",
+                    "flex-1 rounded-2xl border py-3 text-[15px] font-bold transition-all",
                     token === t
                       ? "border-orange-500 bg-orange-500 text-white"
-                      : "border-orange-200 bg-white text-zinc-700 hover:border-orange-300 dark:border-orange-900/40 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-orange-700/60",
+                      : "border-transparent bg-muted text-muted-foreground hover:text-foreground",
                   ].join(" ")}
                 >
                   {t === "usdc" ? "USDC" : "ClawdTrust"}
@@ -945,7 +945,7 @@ export function PredictionDetail({
 
           {/* 3 — Amount */}
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
               Stake amount
             </h2>
             <div className="mb-2 flex gap-2 flex-wrap">
@@ -955,10 +955,10 @@ export function PredictionDetail({
                   type="button"
                   onClick={() => setRawAmount(String(v))}
                   className={[
-                    "rounded-lg border px-3 py-1 text-xs font-semibold transition-all",
+                    "num rounded-xl border px-4 py-2 text-sm font-bold transition-all",
                     rawAmount === String(v)
                       ? "border-orange-500 bg-orange-500 text-white"
-                      : "border-orange-200 bg-white text-zinc-600 hover:border-orange-300 dark:border-orange-900/40 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-orange-700/60",
+                      : "border-transparent bg-muted text-muted-foreground hover:text-foreground",
                   ].join(" ")}
                 >
                   {token === "clawdtrust" ? formatCLT(v) : `$${v}`}
@@ -976,9 +976,9 @@ export function PredictionDetail({
                     ? `Min ${MIN_STAKE_CLT.toLocaleString("en-US")}`
                     : `$${MIN_STAKE_USDC} – $${MAX_STAKE_USDC}`
                 }
-                className="w-full rounded-xl border border-orange-200 bg-white px-4 py-3 pr-24 text-sm font-medium outline-none transition placeholder:text-zinc-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 dark:border-orange-900/50 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-orange-600"
+                className="num h-14 w-full rounded-2xl border border-transparent bg-muted px-4 pr-28 text-lg font-bold outline-none transition placeholder:text-muted-foreground placeholder:font-medium focus:border-primary/60"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
                 {token === "clawdtrust" ? "ClawdTrust" : "USDC"}
               </span>
             </div>
@@ -1002,10 +1002,10 @@ export function PredictionDetail({
             onClick={() => { if (!isAuthenticated) { setShowWallet(true); } else { void handleSubmit(); } }}
             disabled={isAuthenticated && !canSubmit}
             className={[
-              "w-full rounded-2xl px-5 py-3.5 text-sm font-bold transition-all",
+              "h-14 w-full rounded-2xl px-5 text-base font-bold transition-all",
               isAuthenticated && !canSubmit
-                ? "cursor-not-allowed bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600"
-                : "bg-orange-500 text-white shadow-md hover:bg-orange-400 active:scale-[0.98]",
+                ? "cursor-not-allowed bg-muted text-muted-foreground"
+                : "btn-primary",
             ].join(" ")}
           >
             {submitState === "signing" || submitState === "submitting" ? (
@@ -1023,8 +1023,8 @@ export function PredictionDetail({
 
           {/* 7 — Resolution criteria */}
           {market.resolution_criteria && (
-            <section className="rounded-2xl border border-border bg-muted/30 px-4 py-4 space-y-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <section className="rounded-[20px] bg-muted/60 px-5 py-4 space-y-2">
+              <h2 className="text-[13px] font-semibold text-muted-foreground">
                  Resolution criteria
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">

@@ -31,13 +31,13 @@ function StatBox({ label, value, variant = "neutral" }: {
   variant?: "neutral" | "gain" | "loss";
 }) {
   const color =
-    variant === "gain" ? "text-emerald-600 dark:text-emerald-400" :
-    variant === "loss" ? "text-red-600 dark:text-red-400" :
+    variant === "gain" ? "text-up" :
+    variant === "loss" ? "text-down" :
     "text-foreground";
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2.5 text-center">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-sm font-semibold ${color}`}>{value}</p>
+    <div className="rounded-2xl bg-card px-3 py-3 text-center">
+      <p className="text-[13px] font-semibold text-muted-foreground">{label}</p>
+      <p className={`num mt-1 text-base font-bold ${color}`}>{value}</p>
     </div>
   );
 }
@@ -62,7 +62,7 @@ function ActivityRow({ label, sub, amount, date, direction = "in" }: {
         </div>
       </div>
       <div className="shrink-0 text-right ml-3">
-        <p className={`text-xs font-semibold ${isOut ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+        <p className={`text-xs font-semibold ${isOut ? "text-red-500 dark:text-red-400" : "text-up"}`}>
           {amount}
         </p>
         <p className="text-[10px] text-muted-foreground">{date}</p>
@@ -88,7 +88,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
       </div>
       {activity.length > 0 ? (
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
             Recent activity
           </p>
           <div className="max-h-[240px] overflow-y-auto">
@@ -111,7 +111,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
         <button
           type="button"
           onClick={onWithdraw}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-orange-500 py-3 text-sm font-bold text-white hover:bg-orange-400 transition-colors btn-primary"
         >
           <ArrowUpRight className="size-4" />
           Withdraw USDC
@@ -142,7 +142,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
       </div>
       {activity.length > 0 ? (
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
             Recent activity
           </p>
           <div className="max-h-[240px] overflow-y-auto">
@@ -165,7 +165,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
         <button
           type="button"
           onClick={onWithdraw}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-purple-600 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-violet-600 py-3 text-sm font-bold text-white hover:bg-violet-500 transition-colors"
         >
           <ArrowUpRight className="size-4" />
           Withdraw CLT
@@ -194,7 +194,7 @@ function OctoDropdown({ stats, activity }: {
       </div>
       {activity.length > 0 ? (
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
             Recent activity
           </p>
           <div className="max-h-[240px] overflow-y-auto">
@@ -237,16 +237,16 @@ function TokenRow({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
+        className="flex w-full items-center gap-3.5 px-4 py-4 hover:bg-muted/40 transition-colors text-left"
       >
-        <div className="size-9 shrink-0 rounded-full overflow-hidden bg-muted">
-          <Image src={logo} alt={symbol} width={36} height={36} className="size-9 object-cover" unoptimized />
+        <div className="size-12 shrink-0 rounded-full overflow-hidden bg-muted">
+          <Image src={logo} alt={symbol} width={48} height={48} className="size-12 object-cover" unoptimized />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground leading-tight">{name}</p>
-          <p className="text-xs text-muted-foreground">{symbol}</p>
+          <p className="text-base font-bold text-foreground leading-tight">{name}</p>
+          <p className="text-[13px] text-muted-foreground">{symbol}</p>
         </div>
-        <p className="text-sm font-semibold text-foreground shrink-0">{balance}</p>
+        <p className="num text-lg font-bold text-foreground shrink-0">{balance}</p>
         <ChevronDown
           className={`size-4 text-muted-foreground transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
         />
@@ -373,7 +373,7 @@ export function TokenBalances({
 
   return (
     <>
-      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+      <div className="rounded-[22px] border border-border bg-card overflow-hidden divide-y divide-border">
         <TokenRow
           logo="/usdc-coin.png"
           name="USD Coin"

@@ -8,24 +8,24 @@ type Props = {
 
 export function CategoryNav({ categories, active }: Props) {
   return (
-    <nav className="mb-6 border-b border-border bg-card">
-      <div className="mx-auto flex max-w-7xl gap-6 overflow-x-auto px-4 scrollbar-hide [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+    <nav className="mb-6 border-b border-border/60 bg-background">
+      <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 scrollbar-hide [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         <Link
           href="/prediction"
-          className={`shrink-0 py-3 text-sm font-medium transition-colors ${
+          className={`chip shrink-0 ${
             active === "all"
-              ? "text-orange-500"
-              : "text-muted-foreground hover:text-foreground"
+              ? "chip-active"
+              : ""
           }`}
         >
           All
         </Link>
         <Link
           href="/updown"
-          className={`shrink-0 py-3 text-sm font-medium transition-colors ${
+          className={`chip shrink-0 ${
             active === "updown"
-              ? "text-orange-500"
-              : "text-muted-foreground hover:text-foreground"
+              ? "chip-active"
+              : ""
           }`}
         >
           Up/Down
@@ -34,10 +34,10 @@ export function CategoryNav({ categories, active }: Props) {
           <Link
             key={cat}
             href={`/${cat}`}
-            className={`shrink-0 py-3 text-sm font-medium transition-colors ${
+            className={`chip shrink-0 ${
               active === cat
-                ? "text-orange-500"
-                : "text-muted-foreground hover:text-foreground"
+                ? "chip-active"
+                : ""
             }`}
           >
             {getCategoryLabel(cat)}

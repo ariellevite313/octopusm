@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
+import { useAuth } from "@/providers/auth-provider";
 
 const NAV_LINKS = [
   { href: "/prediction",              label: "Markets",     badge: undefined, disabled: false },
@@ -23,17 +24,18 @@ function isActive(href: string, pathname: string) {
 export function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { isAuthenticated, walletAddress } = useAuth();
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-foreground">
-            <Image src="/octomarket-logo.png" alt="OMdotfun" width={40} height={40} className="rounded-xl" />
+      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
+          <Link href="/" className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-foreground">
+            <Image src="/omdot-icon.png" alt="OMdotfun" width={38} height={38} className="logo-bounce drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]" />
             <span>OMdotfun</span>
           </Link>
 
-          <nav className="hidden items-center gap-6 text-sm md:flex">
+          <nav className="hidden items-center gap-1 rounded-2xl bg-muted/70 p-1 text-sm md:flex">
             {NAV_LINKS.map(({ href, label, badge, disabled, external }) =>
               disabled ? (
                 <span
@@ -53,9 +55,9 @@ export function Header() {
                   href={href}
                   target={external ? "_blank" : undefined}
                   rel={external ? "noopener noreferrer" : undefined}
-                  className={`flex items-center gap-1.5 transition-colors hover:text-foreground ${
+                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
                     !external && isActive(href, pathname)
-                      ? "text-foreground font-medium"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground"
                   }`}
                 >
@@ -71,7 +73,7 @@ export function Header() {
             <button
               onClick={() => setOpen(true)}
               aria-label="Open navigation menu"
-              className="flex size-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted md:hidden"
+              className="flex size-10 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors hover:bg-muted/70 md:hidden"
             >
               <Menu className="size-5" />
             </button>
@@ -83,12 +85,12 @@ export function Header() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-72 bg-card shadow-xl md:hidden flex flex-col">
-            <div className="flex h-14 items-center justify-between border-b border-border px-4">
-              <span className="text-sm font-semibold text-foreground">Menu</span>
+          <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl md:hidden flex flex-col">
+            <div className="flex h-16 items-center justify-between px-5">
+              <span className="text-lg font-bold tracking-tight text-foreground">Menu</span>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close menu"
@@ -97,12 +99,38 @@ export function Header() {
                 <X className="size-4" />
               </button>
             </div>
+            {/* Wallet — only reachable from this menu on mobile */}
+            <div className="px-3 pt-3">
+              {isAuthenticated && walletAddress ? (
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-wallet-profile")); }}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3.5 text-left transition-colors hover:bg-muted/70"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="size-2 rounded-full bg-up" />
+                    <span className="text-[15px] font-semibold text-foreground">My wallet</span>
+                  </span>
+                  <span className="font-mono text-[13px] text-muted-foreground">
+                    {walletAddress.slice(0, 4)}…{walletAddress.slice(-4)}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-wallet-connect")); }}
+                  className="btn-primary flex h-12 w-full items-center justify-center rounded-2xl text-[15px]"
+                >
+                  Connect Wallet
+                </button>
+              )}
+            </div>
             <nav className="flex flex-col gap-1 p-3">
               {NAV_LINKS.map(({ href, label, badge, disabled, external }) =>
                 disabled ? (
                   <span
                     key={label}
-                    className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                    className="flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-muted-foreground/50 cursor-not-allowed select-none"
                   >
                     {label}
                     {badge && (
@@ -118,7 +146,7 @@ export function Header() {
                     target={external ? "_blank" : undefined}
                     rel={external ? "noopener noreferrer" : undefined}
                     onClick={() => setOpen(false)}
-                    className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground ${
+                    className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${
                       !external && isActive(href, pathname)
                         ? "text-foreground bg-muted"
                         : "text-muted-foreground"

@@ -15,7 +15,7 @@ export function BalancesSection(props: Props) {
 
   return (
     <section>
-      <h2 className="mb-3 text-base font-bold text-foreground">Balances</h2>
+      <h2 className="mb-3 text-xl font-bold tracking-tight text-foreground">Balances</h2>
       <TokenBalances {...props} />
     </section>
   );

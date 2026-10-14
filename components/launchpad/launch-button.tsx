@@ -519,7 +519,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   if (phase === "done") {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-up">
           <CheckCircle2 className="size-5" />
           <span className="text-sm font-semibold">
             {isScheduled ? "Scheduled! Coming soon." : "Launched successfully!"}
@@ -567,7 +567,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
                   )}
                 </span>
                 {isInstalled ? (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">Detected</span>
+                  <span className="text-xs text-up font-normal">Detected</span>
                 ) : (
                   <a
                     href={cfg.installUrl}
@@ -622,7 +622,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         <button
           type="button"
           onClick={proceedToTxB}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           <Rocket className="size-4" />
           Got it — {isXStock ? "create the config" : "create the pool"}
@@ -641,7 +641,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
   if (phase === "error") {
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400 whitespace-pre-line">
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-down whitespace-pre-line">
           {error}
         </div>
         <button
@@ -688,7 +688,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
         type="button"
         disabled={busy}
         onClick={handleLaunch}
-        className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
         {labels[phase]}

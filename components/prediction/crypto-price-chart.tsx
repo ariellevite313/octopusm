@@ -239,7 +239,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-[22px] border border-border bg-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         <div
@@ -258,7 +258,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
               Closes in <span className="font-semibold text-foreground">{countdown}</span>
             </span>
           )}
-          <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
+          <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-up" : "text-muted-foreground"}`}>
             <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
             {live ? "Live" : "Connecting..."}
           </span>
@@ -275,7 +275,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
           </span>
         )}
         {!loading && pctFromTarget != null && (
-          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+          <span className={`rounded-xl px-2 py-0.5 text-xs font-semibold ${
             isAbove
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
               : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
@@ -290,7 +290,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
         <span className="text-xs text-muted-foreground">Target price</span>
         <span className="text-xs font-semibold text-foreground">${formatPrice(priceTarget)}</span>
         {!loading && (
-          <span className={`text-xs font-semibold ${isAbove ? "text-emerald-500" : "text-red-500"}`}>
+          <span className={`text-xs font-semibold ${isAbove ? "text-up" : "text-down"}`}>
             {isAbove ? "Above" : "Below"}
           </span>
         )}

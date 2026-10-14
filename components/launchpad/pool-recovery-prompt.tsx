@@ -62,7 +62,7 @@ export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
       <button
         onClick={() => void handleCheck()}
         disabled={checking}
-        className="inline-flex items-center gap-2 rounded-full bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white text-[13px] font-semibold px-5 py-2.5 transition-colors"
+        className="inline-flex items-center gap-2 rounded-full bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white text-[13px] font-bold px-5 py-2.5 transition-colors btn-primary"
       >
         {checking && <Loader2 className="size-3.5 animate-spin" />}
         {checking ? "Searching…" : "Find my pool"}

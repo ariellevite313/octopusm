@@ -578,7 +578,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             href={`https://explorer.arc.io/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
+            className="flex items-center justify-center gap-1.5 text-[11px] text-up hover:underline"
           >
             <CheckCircle2 className="size-3.5" />
             {t.swapConfirmedArc}
@@ -589,7 +589,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {!isAuthenticated && !mmAddress ? (
           <button
             onClick={openWalletModal}
-            className="w-full rounded-md py-2.5 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1"
+            className="w-full rounded-[14px] py-2.5 text-[15px] font-bold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1 btn-primary"
           >
             Connect wallet
           </button>
@@ -597,7 +597,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           <button
             onClick={() => void handleSwap()}
             disabled={!canSwap}
-            className={`w-full rounded-md py-4 text-[15px] font-semibold transition-colors mt-1 ${
+            className={`w-full rounded-[14px] py-4 text-[15px] font-bold transition-colors mt-1 ${
               !canSwap
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : direction === "sell"

@@ -67,8 +67,8 @@ async function fetchStats(address: string, chain: "solana" | "arc", isV4 = false
 function StatItem({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 shrink-0">
-      <span className="text-[10px] text-muted-foreground">{label}</span>
-      <span className={`text-sm font-medium ${accent ? "text-emerald-500" : "text-foreground"}`}>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={`num text-lg font-bold ${accent ? "text-up" : "text-foreground"}`}>
         {value}
       </span>
     </div>
@@ -78,10 +78,10 @@ function StatItem({ label, value, accent }: { label: string; value: React.ReactN
 function StatBar({ stats, chain = "solana" }: { stats: Stats; chain?: "solana" | "arc" }) {
   const changeColor =
     stats.priceChange === null ? "" :
-    stats.priceChange > 0 ? "text-emerald-500" : "text-red-500";
+    stats.priceChange > 0 ? "text-up" : "text-down";
 
   return (
-    <div className="flex items-center gap-6 overflow-x-auto py-3 px-4 md:px-6 border-y border-border scrollbar-none">
+    <div className="flex items-center gap-7 overflow-x-auto py-4 px-4 md:px-6 border-y border-border scrollbar-none">
       <StatItem
         label="Price"
         accent
@@ -89,7 +89,7 @@ function StatBar({ stats, chain = "solana" }: { stats: Stats; chain?: "solana" |
           <span className="flex items-center gap-1.5">
             {fmtPrice(stats.priceUsd)}
             {stats.priceChange !== null && (
-              <span className={`text-[10px] ${changeColor}`}>
+              <span className={`num text-xs font-semibold ${changeColor}`}>
                 {stats.priceChange > 0 ? "+" : ""}{stats.priceChange.toFixed(2)}%
               </span>
             )}
@@ -121,7 +121,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xs font-semibold text-foreground">{value}</span>
+      <span className="num text-sm font-bold text-foreground">{value}</span>
     </div>
   );
 }
@@ -129,11 +129,11 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function StatCard({ stats }: { stats: Stats }) {
   const changeColor =
     stats.priceChange === null ? "text-foreground" :
-    stats.priceChange > 0 ? "text-emerald-500" : "text-red-500";
+    stats.priceChange > 0 ? "text-up" : "text-down";
 
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+      <p className="text-[13px] font-semibold text-muted-foreground mb-3">
         Market
       </p>
       <Row

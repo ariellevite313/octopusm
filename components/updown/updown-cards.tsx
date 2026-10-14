@@ -94,14 +94,14 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
   return (
     <Link
       href={`/updown/${market.id}`}
-      className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30"
+      className="block overflow-hidden rounded-[22px] border border-border bg-card transition-colors hover:border-primary/40"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {img && <Image src={img} alt={label} width={28} height={28} className="rounded-md shrink-0 bg-white p-0.5" />}
+            {img && <Image src={img} alt={label} width={28} height={28} className="rounded-xl shrink-0 bg-white p-0.5" />}
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">{label} Up or Down</p>
+              <p className="text-[16px] font-bold leading-snug tracking-tight text-foreground">{label} Up or Down</p>
               <p className="text-xs text-muted-foreground">{formatDuration(market.duration_min)} &middot; Strike ${formatPrice(market.strike_price)}</p>
             </div>
           </div>
@@ -120,13 +120,13 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
                 </span>
               )}
               {liveCountdown !== "Termine" && (
-                <span className="text-xs tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+                <span className="text-xs tabular-nums font-medium text-up">{liveCountdown}</span>
               )}
             </div>
           )}
           {isResolved && (
             <div className="flex flex-col items-end gap-0.5">
-              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${market.outcome === "up" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"}`}>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${market.outcome === "up" ? "bg-up/12 text-up" : "bg-down/12 text-down"}`}>
                 {market.outcome === "up" ? "▲ UP" : "▼ DOWN"}
               </span>
               {market.open_price != null && (
@@ -139,11 +139,11 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-            <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">UP</span>
+          <div className="flex items-center justify-center rounded-xl bg-up/12 px-3 py-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+            <span className="text-sm font-bold text-up">UP</span>
           </div>
-          <div className="flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-900/40 dark:bg-red-950/20">
-            <span className="text-sm font-bold text-red-700 dark:text-red-400">DOWN</span>
+          <div className="flex items-center justify-center rounded-xl bg-down/12 px-3 py-2.5 dark:border-red-900/40 dark:bg-red-950/20">
+            <span className="text-sm font-bold text-down">DOWN</span>
           </div>
         </div>
 
@@ -153,7 +153,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
             <div className="bg-red-500 transition-all" style={{ width: `${downPct}%` }} />
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-emerald-600 font-medium">{upPct}% UP</span>
+            <span className="text-up font-medium">{upPct}% UP</span>
             <span className="text-red-600 font-medium">{downPct}% DOWN</span>
           </div>
         </div>

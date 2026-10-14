@@ -107,10 +107,10 @@ export function LiveScore({ matchId, homeName = "Home", awayName = "Away" }: Liv
   const isFinished = status === "finished";
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="rounded-[22px] border border-border bg-card p-4">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-[13px] font-semibold text-muted-foreground">
           {score ? stageLabel(score.type, score.group) : "Match"}
         </span>
         {isLive && (
@@ -142,11 +142,11 @@ export function LiveScore({ matchId, homeName = "Home", awayName = "Away" }: Liv
 
         {/* Score display */}
         <div className="flex shrink-0 items-center gap-2">
-          <span className={`text-3xl font-bold tabular-nums leading-none ${isLive ? "text-red-600 dark:text-red-400" : ""}`}>
+          <span className={`text-3xl font-bold tabular-nums leading-none ${isLive ? "text-down" : ""}`}>
             {score.home_score}
           </span>
           <span className="text-lg font-light text-muted-foreground">–</span>
-          <span className={`text-3xl font-bold tabular-nums leading-none ${isLive ? "text-red-600 dark:text-red-400" : ""}`}>
+          <span className={`text-3xl font-bold tabular-nums leading-none ${isLive ? "text-down" : ""}`}>
             {score.away_score}
           </span>
         </div>

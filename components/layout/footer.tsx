@@ -6,7 +6,7 @@ const CLT_CA = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 export function Footer() {
   return (
     <footer className="mt-12 px-4 pb-6">
-      <div className="mx-auto max-w-7xl rounded-2xl px-6 py-10 bg-muted/40 dark:bg-zinc-950">
+      <div className="mx-auto max-w-7xl rounded-3xl border border-border/60 px-6 py-10 bg-card">
 
         {/* Main grid */}
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 mb-9">
@@ -15,11 +15,11 @@ export function Footer() {
           <div className="col-span-2 sm:col-span-1">
             <div className="mb-4 flex items-center gap-2.5">
               <Image
-                src="/octomarket-logo.png"
+                src="/omdot-icon.png"
                 alt="OMdotfun"
                 width={36}
                 height={36}
-                className="rounded-xl border border-border"
+                className="logo-bounce"
               />
               <p className="text-base font-semibold text-foreground">OMdotfun</p>
             </div>
@@ -46,7 +46,7 @@ export function Footer() {
 
           {/* Platform */}
           <div>
-            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <p className="mb-3.5 text-[13px] font-semibold text-muted-foreground">
               Platform
             </p>
             <ul className="space-y-1">
@@ -75,7 +75,7 @@ export function Footer() {
 
           {/* ClawdTrust */}
           <div>
-            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <p className="mb-3.5 text-[13px] font-semibold text-muted-foreground">
               ClawdTrust <span className="normal-case tracking-normal font-normal opacity-60">Partner</span>
             </p>
             <ul className="space-y-1">
@@ -107,14 +107,14 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-            <div className="mt-3 inline-block rounded-md px-2 py-1 font-mono text-[10px] bg-muted border border-border text-muted-foreground">
+            <div className="mt-3 inline-block rounded-xl px-2 py-1 font-mono text-[10px] bg-muted border border-border text-muted-foreground">
               {CLT_CA.slice(0, 6)}…{CLT_CA.slice(-4)}
             </div>
           </div>
 
           {/* Team */}
           <div>
-            <p className="mb-3.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <p className="mb-3.5 text-[13px] font-semibold text-muted-foreground">
               Team
             </p>
             <ul className="space-y-1">

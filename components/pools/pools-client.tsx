@@ -40,14 +40,14 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
 
   const href = `/pools/${market.slug}`;
   return (
-    <Link href={href} className="group block overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5">
+    <Link href={href} className="group block overflow-hidden rounded-2xl border border-border bg-orange-50/60 shadow-none transition-shadow hover:shadow-md dark:bg-orange-950/5">
       <div className="space-y-4 p-5">
 
         {/* Header — image miniature + titre côte à côte */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0 flex-1">
             {market.cover_image_src && (
-              <div className="size-11 shrink-0 overflow-hidden rounded-xl border border-orange-200 dark:border-orange-900/40">
+              <div className="size-11 shrink-0 overflow-hidden rounded-xl border border-border">
                 <img
                   src={market.cover_image_src}
                   alt=""
@@ -56,10 +56,10 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-xs font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">
+              <p className="line-clamp-2 text-[16px] font-bold leading-snug tracking-tight text-foreground">
                 {market.category}
               </p>
-              <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100">
+              <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-foreground">
                 {market.title}
               </p>
             </div>
@@ -94,10 +94,10 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
             return (
               <div
                 key={opt.id}
-                className={`rounded-2xl border border-orange-200 bg-white px-3 py-2.5 dark:border-orange-900/40 dark:bg-zinc-900 ${market.status === "resolved" && !isWinner ? "opacity-40" : ""}`}
+                className={`rounded-[22px] border border-border bg-card px-3 py-2.5 ${market.status === "resolved" && !isWinner ? "opacity-40" : ""}`}
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className={`text-xs font-semibold leading-tight ${isWinner ? "text-orange-600 dark:text-orange-400" : "text-zinc-800 dark:text-zinc-200"}`}>
+                  <span className={`text-xs font-semibold leading-tight ${isWinner ? "text-orange-600 dark:text-orange-400" : "text-foreground"}`}>
                     {isWinner && "🏆 "}{opt.label}
                   </span>
                   <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-500">{pct}%</span>
@@ -114,13 +114,13 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-orange-100 pt-3 dark:border-orange-900/30">
-          <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <TokenAmount
               amount={pool.toFixed(decimals)}
               token={market.bet_token}
               logoClass="size-3.5"
-              className="font-semibold text-zinc-700 dark:text-zinc-300"
+              className="font-semibold text-foreground"
             />
             <span className="text-zinc-400">· {market.bet_count} predictions</span>
           </span>
@@ -194,7 +194,7 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`rounded-xl px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+            className={`rounded-xl px-3 py-1.5 text-xs font-bold capitalize transition-colors ${
               filter === f ? "bg-orange-500 text-white" : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
           >

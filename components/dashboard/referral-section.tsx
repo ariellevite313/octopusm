@@ -47,11 +47,11 @@ export function ReferralSection({
     <section>
       <h2 className="mb-3 text-base font-bold text-foreground">Referral program</h2>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+      <div className="rounded-[22px] border border-border bg-card overflow-hidden divide-y divide-border">
 
         {/* Link row */}
         <div className="px-4 py-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-[13px] font-semibold text-muted-foreground">
             Your referral link
           </p>
           <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function ReferralSection({
               type="button"
               disabled={!referralLink}
               onClick={() => void handleCopy()}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
             >
               {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
               {copied ? "Copied!" : "Copy"}
@@ -77,13 +77,13 @@ export function ReferralSection({
         <div className="grid grid-cols-4 divide-x divide-border">
           <div className="px-3 py-3 text-center">
             <p className="text-lg font-bold text-foreground">{referralCount}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[13px] font-semibold text-muted-foreground">
               Friends
             </p>
           </div>
           <div className="px-3 py-3 text-center">
             <p className="text-lg font-bold text-orange-500">{octoEarned.toLocaleString("en-US")}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[13px] font-semibold text-muted-foreground">
               OMERO earned
             </p>
           </div>
@@ -93,7 +93,7 @@ export function ReferralSection({
                 ? `$${fmtUsdc(referrals.reduce((s, r) => s + r.usdc_commission, 0))}`
                 : "—"}
             </p>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[13px] font-semibold text-muted-foreground">
               USDC
             </p>
           </div>
@@ -103,7 +103,7 @@ export function ReferralSection({
                 ? fmtClt(referrals.reduce((s, r) => s + r.clt_commission, 0))
                 : "—"}
             </p>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[13px] font-semibold text-muted-foreground">
               CLT
             </p>
           </div>
@@ -113,9 +113,9 @@ export function ReferralSection({
         {referrals.length > 0 && (
           <div>
             <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-muted/30">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground col-span-2">User</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">USDC</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">CLT</p>
+              <p className="text-[13px] font-semibold text-muted-foreground col-span-2">User</p>
+              <p className="text-[13px] font-semibold text-muted-foreground text-right">USDC</p>
+              <p className="text-[13px] font-semibold text-muted-foreground text-right">CLT</p>
             </div>
             {referrals.map((r) => (
               <div
@@ -128,7 +128,7 @@ export function ReferralSection({
                 </div>
                 <p className="text-xs font-medium text-right text-foreground">
                   {r.usdc_commission > 0 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400">
+                    <span className="text-up">
                       +${fmtUsdc(r.usdc_commission)}
                     </span>
                   ) : (

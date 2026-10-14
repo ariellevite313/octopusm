@@ -175,12 +175,12 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
   const subLabel    = graduated ? t.lpFeesInfo : t.tradeReversed;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+    <div className="rounded-[22px] border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2">
         <CoinsIcon className="size-4 text-orange-400 shrink-0" />
         <span className="text-sm font-semibold text-foreground">Creator fees (USDC)</span>
         {graduated && (
-          <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+          <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-up">
             <TrendingUpIcon className="size-3" />
             {t.graduated}
           </span>
@@ -209,7 +209,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
           href={`https://explorer.arc.io/tx/${txHash}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
+          className="flex items-center gap-1.5 text-[11px] text-up hover:underline"
         >
           <CheckCircle2 className="size-3.5" />
           {graduated ? "Collected" : "Claimed"} — View on ArcScan
@@ -221,7 +221,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
       <button
         onClick={() => void handleClaim()}
         disabled={claiming || loading || !accrued || accrued === 0n}
-        className={`w-full rounded-full py-3 text-[14px] font-semibold transition-colors ${
+        className={`w-full rounded-full py-3 text-[14px] font-bold transition-colors ${
           claiming || loading || !accrued || accrued === 0n
             ? "bg-muted text-muted-foreground cursor-not-allowed"
             : "bg-orange-500 hover:bg-orange-400 text-white"

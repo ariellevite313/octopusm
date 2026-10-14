@@ -65,7 +65,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-up hover:bg-emerald-500/20 transition-colors"
         >
           Switch wallet
         </button>
@@ -480,7 +480,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         <div className="flex justify-center -my-1 relative z-10">
           <button
             onClick={toggleDirection}
-            className="size-9 rounded-md bg-muted border-2 border-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="size-9 rounded-xl bg-muted border-2 border-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             style={{ transform: spinning ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.35s ease" }}
           >
             <ArrowUpDown className="size-4" />
@@ -528,7 +528,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                 const effective = (!isXStock && isBuy && pct === 100) ? Math.max(0, base - 0.002) : base;
                 setAmount(((effective * pct) / 100).toFixed(isBuy ? 4 : 2));
               }}
-              className={`flex-1 py-2 rounded-full text-[12px] font-semibold transition-colors border ${
+              className={`flex-1 py-2 rounded-full text-[12px] font-bold transition-colors border ${
                 activePct === pct
                   ? "bg-orange-500 border-orange-500 text-white"
                   : "bg-muted/40 border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
@@ -560,7 +560,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               <button
                 key={opt.bps}
                 onClick={() => { setSlippageBps(opt.bps); setShowSlip(false); }}
-                className={`flex-1 py-1.5 rounded-full text-[12px] font-semibold transition-colors border ${
+                className={`flex-1 py-1.5 rounded-full text-[12px] font-bold transition-colors border ${
                   slippageBps === opt.bps
                     ? "bg-orange-500 border-orange-500 text-white"
                     : "bg-muted/40 border-border text-muted-foreground"
@@ -582,7 +582,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               href={`https://solscan.io/tx/${txSig}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 hover:underline"
+              className="flex items-center justify-center gap-1.5 text-[11px] text-up hover:underline"
             >
               <CheckCircle2 className="size-3.5" />
               Swap confirmed — View on Solscan
@@ -603,7 +603,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         {!isAuthenticated ? (
           <button
             onClick={openWalletModal}
-            className="w-full rounded-md py-4 text-[15px] font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1"
+            className="w-full rounded-[14px] py-4 text-[15px] font-bold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1 btn-primary"
           >
             Connect wallet
           </button>
@@ -611,7 +611,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           <button
             onClick={() => void handleSwap()}
             disabled={!quoteReady || swapping || quoteLoading}
-            className={`w-full rounded-full py-4 text-[15px] font-semibold transition-colors mt-1 ${
+            className={`w-full rounded-full py-4 text-[15px] font-bold transition-colors mt-1 ${
               !quoteReady || swapping || quoteLoading
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : isBuy

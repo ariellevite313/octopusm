@@ -25,7 +25,7 @@ async function ReferralsContent({ wallet }: { wallet: string }) {
 
 function ReferralsSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-[22px] border border-border bg-card overflow-hidden">
       <div className="p-5 space-y-4">
         <div className="h-4 w-32 rounded bg-muted/40 animate-pulse" />
         <div className="h-10 w-full rounded-xl bg-muted/40 animate-pulse" />

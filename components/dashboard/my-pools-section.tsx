@@ -89,7 +89,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
               : market.total_pool_clt;
 
             return (
-              <div key={market.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+              <div key={market.id} className="overflow-hidden rounded-[22px] border border-border bg-card">
                 <div className="p-4">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5 min-w-0 flex-1">

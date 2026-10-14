@@ -54,7 +54,7 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="rounded-xl p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Close"
           >
             <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -76,7 +76,7 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
         {notInstalled.length > 0 && (
           <>
             {installed.length > 0 && (
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="mb-2 text-[13px] font-medium text-muted-foreground">
                 {mobile ? "Open in app" : "Not installed"}
               </p>
             )}
@@ -117,7 +117,7 @@ function WalletItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-md border border-border bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary"
+      className="flex w-full items-center gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary"
     >
       {/* Logo with initial fallback */}
       <div className={`relative size-9 shrink-0 rounded-xl overflow-hidden flex items-center justify-center ${WALLET_COLORS[wallet.type] ?? "bg-muted"}`}>

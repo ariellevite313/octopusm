@@ -20,7 +20,7 @@ const SECTIONS = [
 function TOC({ active }: { active: string }) {
   return (
     <nav className="sticky top-24 hidden lg:block w-56 shrink-0">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+      <p className="mb-3 text-[13px] font-semibold text-muted-foreground">
         On this page
       </p>
       <ul className="space-y-1">

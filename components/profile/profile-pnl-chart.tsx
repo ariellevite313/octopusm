@@ -31,20 +31,20 @@ const TOKEN_CONFIG = {
     label:       "USDC",
     unit:        "USDC",
     dataKey:     "usdc" as const,
-    color:       "#f97316",
-    activeBg:    "#fff7f0",
-    activeText:  "#c2540a",
-    activeBorder:"#f97316",
+    color:       "#22c55e",
+    activeBg:    "rgba(247, 107, 16, 0.14)",
+    activeText:  "#f76b10",
+    activeBorder:"transparent",
     dotColor:    "#2775ca",
   },
   clt: {
     label:       "ClawdTrust",
     unit:        "CLT",
     dataKey:     "clt" as const,
-    color:       "#7F77DD",
-    activeBg:    "#EEEDFE",
-    activeText:  "#3C3489",
-    activeBorder:"#7F77DD",
+    color:       "#8b84e8",
+    activeBg:    "rgba(127, 119, 221, 0.16)",
+    activeText:  "#8b84e8",
+    activeBorder:"transparent",
     dotColor:    "#7F77DD",
   },
 } as const;
@@ -59,7 +59,7 @@ function CustomTooltip({ active, payload, label, unit, positiveColor }: any) {
   if (!active || !payload?.length) return null;
   const val: number = payload[0]?.value ?? 0;
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
+    <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-medium text-muted-foreground">{label}</p>
       <p className="font-semibold" style={{ color: val >= 0 ? positiveColor : "#ef4444" }}>
         {val >= 0 ? "+" : ""}{formatAmount(val)} {unit}
@@ -105,7 +105,7 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div className="pt-1">
 
       {/* Token selector pills */}
       <div className="flex gap-2 mb-4">
@@ -116,19 +116,19 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
             <button
               key={token}
               onClick={() => handleTokenSwitch(token)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold transition-all"
               style={isActive ? {
                 border:     `1.5px solid ${c.activeBorder}`,
                 background: c.activeBg,
                 color:      c.activeText,
               } : {
-                border:     "0.5px solid var(--border)",
+                border:     "1.5px solid transparent",
                 background: "transparent",
-                color:      "var(--text-secondary)",
+                color:      "var(--muted-foreground)",
               }}
             >
               <span
-                className="inline-block size-3 rounded-full shrink-0"
+                className="inline-block size-2.5 rounded-full shrink-0"
                 style={{ background: c.dotColor }}
               />
               {c.label}
@@ -138,28 +138,28 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
       </div>
 
       {/* Header: total + range selector */}
-      <div className="flex items-start justify-between mb-1">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Profit/Loss · {cfg.label}</p>
-          <p className="text-2xl font-bold" style={{ color: mainColor }}>
+          <p className="text-sm text-muted-foreground mb-0.5">Profit/Loss · {cfg.label}</p>
+          <p className="num text-[40px] leading-[1.05] font-bold tracking-[-0.035em]" style={{ color: mainColor }}>
             {isPositive ? "+" : ""}{formatAmount(total)}{" "}
-            <span className="text-sm font-normal text-muted-foreground">{cfg.unit}</span>
+            <span className="text-lg font-semibold text-muted-foreground">{cfg.unit}</span>
           </p>
           {vol !== undefined && vol > 0 && (
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="num text-[13px] text-muted-foreground mt-1">
               Volume : {formatAmount(vol)} {cfg.unit}
             </p>
           )}
         </div>
 
-        <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 shrink-0">
+        <div className="flex shrink-0 gap-0.5 rounded-full border border-border p-1">
           {RANGES.map(r => (
             <button
               key={r}
               onClick={() => setRange(r)}
-              className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 text-[13px] font-bold transition-colors ${
                 range === r
-                  ? "bg-card text-foreground shadow-sm"
+                  ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -171,19 +171,21 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
 
       {/* Chart */}
       {data.length === 0 ? (
-        <div className="flex h-28 items-center justify-center text-sm text-muted-foreground">
+        <div className="chart-dots flex h-44 items-center justify-center rounded-2xl text-sm text-muted-foreground">
           No data
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={130}>
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+        <div className="chart-dots -mx-1 rounded-2xl">
+        <ResponsiveContainer width="100%" height={190}>
+          <AreaChart data={data} margin={{ top: 12, right: 6, left: 6, bottom: 4 }}>
             <defs>
               <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor={mainColor} stopOpacity={0.3} />
+                <stop offset="5%"  stopColor={mainColor} stopOpacity={0.18} />
                 <stop offset="95%" stopColor={mainColor} stopOpacity={0}   />
               </linearGradient>
             </defs>
             <XAxis
+              hide
               dataKey="date"
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               tickLine={false}
@@ -191,6 +193,8 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
               interval="preserveStartEnd"
             />
             <YAxis
+              hide
+              domain={["auto", "auto"]}
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               tickLine={false}
               axisLine={false}
@@ -202,14 +206,15 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
               type="monotone"
               dataKey="value"
               stroke={mainColor}
-              strokeWidth={2}
+              strokeWidth={2.5}
               fill={`url(#${gradId})`}
               dot={false}
-              activeDot={{ r: 4, fill: mainColor }}
+              activeDot={{ r: 5, fill: mainColor, stroke: "var(--background)", strokeWidth: 2 }}
               isAnimationActive={false}
             />
           </AreaChart>
         </ResponsiveContainer>
+        </div>
       )}
     </div>
   );

@@ -41,7 +41,7 @@ function ProfileSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
       {/* Identity card skeleton */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-[22px] border border-border bg-card p-5">
         <div className="flex items-start gap-4">
           <div className="size-14 shrink-0 rounded-full bg-muted/50" />
           <div className="flex-1 space-y-2">
@@ -61,7 +61,7 @@ function ProfileSkeleton() {
         </div>
       </div>
       {/* Chart skeleton */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-[22px] border border-border bg-card p-4">
         <div className="flex gap-2 mb-4">
           <div className="h-7 w-20 rounded-full bg-muted/50" />
           <div className="h-7 w-24 rounded-full bg-muted/40" />
@@ -71,7 +71,7 @@ function ProfileSkeleton() {
         <div className="h-32 rounded bg-muted/20" />
       </div>
       {/* Activity skeleton */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-[22px] border border-border bg-card overflow-hidden">
         <div className="border-b border-border px-4 py-2.5">
           <div className="h-2.5 w-28 rounded bg-muted/40" />
         </div>
@@ -109,88 +109,77 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   return (
     <>
       {/* ── 1. Identity card ─────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <div className="flex items-start gap-4">
-
-          {/* Avatar */}
-          {avatarSrc ? (
-            <Image
-              src={avatarSrc}
-              alt={displayName}
-              width={56}
-              height={56}
-              className="size-14 shrink-0 rounded-full object-cover ring-2 ring-border"
-            />
-          ) : (
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-orange-600 ring-2 ring-border dark:bg-orange-900/30 dark:text-orange-400">
-              {displayName[0].toUpperCase()}
-            </div>
-          )}
-
-          {/* Name + meta */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-base font-semibold text-foreground">
-                {displayName}
-              </h1>
-              <OctoBadge totalOcto={data.stats.octo_balance} size={16} />
-            </div>
-
-            {data.wallet?.display_name && (
-              <p className="font-mono text-xs text-muted-foreground">
-                {shortAddress(wallet)}
-              </p>
-            )}
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {joinedAt && (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                  Member since {fmtDate(joinedAt)}
-                </span>
-              )}
-              {data.wallet?.twitter_handle && (
-                <a
-                  href={`https://twitter.com/${data.wallet.twitter_handle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`@${data.wallet.twitter_handle}`}
-                  className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-foreground hover:text-background"
-                >
-                  <XLogo size={12} />
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Rank */}
+      <div className="-mx-4 overflow-hidden border-b border-border bg-card sm:mx-0 sm:rounded-[24px] sm:border">
+        {/* Banner */}
+        <div className="profile-banner relative h-32 sm:h-44">
           {data.stats.rank && (
-            <div className="shrink-0 text-right">
-              <p className="text-[10px] text-muted-foreground">Rank</p>
-              <p className="text-2xl font-bold text-orange-500">#{data.stats.rank}</p>
+            <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-3.5 py-2 text-white backdrop-blur-md">
+              <span className="text-[13px] font-medium text-white/75">Rank</span>
+              <span className="num text-[15px] font-bold">#{data.stats.rank}</span>
             </div>
           )}
         </div>
 
-        {/* Stats row */}
-        <div className="mt-4 grid grid-cols-3 divide-x divide-border border-t border-border pt-4">
-          <div className="px-2 text-center">
-            <p className="text-[10px] text-muted-foreground">Rounds</p>
-            <p className="text-lg font-semibold text-foreground">{data.stats.total_rounds}</p>
+        <div className="px-5 pb-5">
+          {/* Avatar — overlaps the banner */}
+          <div className="relative z-10 -mt-12 mb-3 w-fit">
+            {avatarSrc ? (
+              <Image
+                src={avatarSrc}
+                alt={displayName}
+                width={96}
+                height={96}
+                className={`size-24 shrink-0 rounded-full object-cover ring-4 ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}
+              />
+            ) : (
+              <div className={`flex size-24 shrink-0 items-center justify-center rounded-full bg-primary text-4xl font-bold text-white ring-4 ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}>
+                {displayName[0].toUpperCase()}
+              </div>
+            )}
           </div>
-          <div className="px-2 text-center">
-            <p className="text-[10px] text-muted-foreground">Win rate</p>
-            <p className="text-lg font-semibold text-emerald-600">{data.stats.win_rate}%</p>
+
+          {/* Name + badges */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-[28px] font-bold leading-tight tracking-tight text-foreground">
+              {displayName}
+            </h1>
+            <OctoBadge totalOcto={data.stats.octo_balance} size={18} />
+            {data.wallet?.twitter_handle && (
+              <a
+                href={`https://twitter.com/${data.wallet.twitter_handle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`@${data.wallet.twitter_handle}`}
+                className="flex size-8 items-center justify-center rounded-lg bg-muted text-foreground transition-colors hover:bg-foreground hover:text-background"
+              >
+                <XLogo size={14} />
+              </a>
+            )}
           </div>
-          <div className="px-2 text-center">
-            <p className="text-[10px] text-muted-foreground">OMERO</p>
-            <p className="text-lg font-semibold text-foreground">{fmt(data.stats.octo_balance, 0)}</p>
+
+          {data.wallet?.display_name && (
+            <p className="mt-0.5 font-mono text-[15px] text-muted-foreground">
+              {shortAddress(wallet)}
+            </p>
+          )}
+
+          {/* Stats — inline, like followers / following */}
+          <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">
+            <span><span className="font-bold text-foreground">{data.stats.total_rounds}</span> <span className="text-muted-foreground">Rounds</span></span>
+            <span><span className="font-bold text-up">{data.stats.win_rate}%</span> <span className="text-muted-foreground">Win rate</span></span>
+            <span><span className="font-bold text-foreground">{fmt(data.stats.octo_balance, 0)}</span> <span className="text-muted-foreground">OMERO</span></span>
           </div>
-        </div>
+
+          {joinedAt && (
+            <p className="mt-2 text-[13px] text-muted-foreground">
+              Member since {fmtDate(joinedAt)}
+            </p>
+          )}
 
         {/* Volume bars */}
         {totalVolume > 0 && (
-          <div className="mt-4 space-y-2 border-t border-border pt-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="mt-5 space-y-2.5 border-t border-border pt-4">
+            <p className="text-[13px] font-semibold text-muted-foreground">
               Volume by token
             </p>
             {data.volume.usdc > 0 && (
@@ -205,7 +194,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${usdcPct}%` }} />
+                  <div className="h-full rounded-full bg-sky-500" style={{ width: `${usdcPct}%` }} />
                 </div>
               </div>
             )}
@@ -227,6 +216,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* ── 2. P&L Chart ────────────────────────────────────────────── */}
@@ -246,7 +236,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
       {/* Empty state */}
       {data.stats.total_rounds === 0 && data.created_markets.length === 0 && (
-        <div className="rounded-xl border border-border bg-card px-6 py-16 text-center">
+        <div className="rounded-[22px] border border-border bg-card px-6 py-16 text-center">
           <p className="text-muted-foreground">No activity yet for this address.</p>
         </div>
       )}
@@ -269,7 +259,7 @@ export default async function PublicProfilePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl space-y-4 px-4 py-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-4 pb-6 sm:pt-6">
         <Suspense fallback={<ProfileSkeleton />}>
           <ProfileContent wallet={wallet} />
         </Suspense>

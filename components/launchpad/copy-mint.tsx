@@ -29,7 +29,7 @@ export function CopyMint({ address }: { address: string }) {
       title="Copy address"
     >
       {copied
-        ? <Check className="size-3 text-emerald-400" />
+        ? <Check className="size-3 text-up" />
         : <Copy className="size-3" />
       }
     </button>
