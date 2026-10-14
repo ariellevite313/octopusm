@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
 import { TrendingStrip } from "@/components/launchpad/trending-strip";
 import { PlatformStats } from "@/components/launchpad/platform-stats";
+import { LaunchpadBoard } from "@/components/desktop/launchpad-board";
 
 export const revalidate = 30;
 
@@ -64,48 +63,18 @@ function LaunchpadSkeleton() {
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6">
-      <div className="mb-2 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Left : title, total volume, trending */}
-        <div className="min-w-0">
-          <div className="mb-5">
-            <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
-            <p className="text-sm text-muted-foreground">Tokens launched on Solana</p>
-          </div>
-          <div className="mb-7">
-            <PlatformStats />
-          </div>
-          <TrendingStrip />
+    <main className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
+      <div className="mb-6 lg:flex lg:items-end lg:justify-between lg:gap-6">
+        <div className="mb-5 lg:mb-0">
+          <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
+          <p className="text-sm text-muted-foreground">Tokens launched on Solana</p>
         </div>
-
-        {/* Right (desktop) : launch your token */}
-        <aside className="relative hidden overflow-hidden rounded-[28px] border border-border bg-card p-6 lg:block">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_85%_0%,rgba(255,122,26,0.22),transparent_70%)]" />
-          <div className="relative">
-            <Image src="/omdot-icon.png" alt="" width={56} height={56} className="logo-bounce mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Launch your token</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Live in a few minutes, on Solana or Arc.</p>
-            <ol className="mt-5 space-y-3">
-              {[
-                "Pick a name, ticker and image",
-                "Launch it on Solana or Arc",
-                "Earn creator fees on every trade",
-              ].map((step, i) => (
-                <li key={step} className="flex items-center gap-3 text-[15px] text-foreground">
-                  <span className="num flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">{i + 1}</span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-            <Link
-              href="/launchpad/create"
-              className="btn-primary mt-6 flex h-12 w-full items-center justify-center rounded-2xl text-base"
-            >
-              + Launch
-            </Link>
-          </div>
-        </aside>
+        <PlatformStats />
       </div>
+      <div className="lg:hidden">
+        <TrendingStrip />
+      </div>
+      <LaunchpadBoard />
       <Suspense fallback={<LaunchpadSkeleton />}>
         <LaunchpadContent />
       </Suspense>
