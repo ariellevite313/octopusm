@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -38,13 +38,20 @@ function isActive(href: string, pathname: string) {
 
 export function LaunchpadHeader() {
   const [open, setOpen] = useState(false);
+
+  // The desktop sidebar's "⋯" button opens this same menu
+  useEffect(() => {
+    const openMenu = () => setOpen(true);
+    window.addEventListener("open-main-menu", openMenu);
+    return () => window.removeEventListener("open-main-menu", openMenu);
+  }, []);
   const pathname = usePathname();
   const { isAuthenticated, walletAddress } = useAuth();
   const NAV_LINKS = isAuthenticated ? AUTH_NAV_LINKS : PUBLIC_NAV_LINKS;
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95">
+      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 lg:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
 
           {/* Logo */}
@@ -90,7 +97,7 @@ export function LaunchpadHeader() {
             <button
               onClick={() => setOpen(true)}
               aria-label="Open navigation menu"
-              className="flex size-10 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors hover:bg-muted/70 md:hidden"
+              className="flex size-10 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors hover:bg-muted/70"
             >
               <Menu className="size-5" />
             </button>
@@ -102,10 +109,10 @@ export function LaunchpadHeader() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl md:hidden flex flex-col">
+          <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
             <div className="flex h-16 items-center justify-between px-5">
               <span className="text-lg font-bold tracking-tight text-foreground">Launchpad</span>
               <button
