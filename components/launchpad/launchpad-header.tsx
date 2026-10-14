@@ -50,7 +50,7 @@ export function LaunchpadHeader() {
           {/* Logo */}
           <Link href="/launchpad" className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-foreground">
             <Image src="/omdot-icon.png" alt="OMdotfun" width={38} height={38} className="logo-bounce drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]" />
-            <span>OMdotfun</span>
+            <span className="sr-only">OMdotfun</span>
           </Link>
 
           {/* Nav desktop */}

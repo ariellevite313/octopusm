@@ -32,7 +32,7 @@ export function Header() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-foreground">
             <Image src="/omdot-icon.png" alt="OMdotfun" width={38} height={38} className="logo-bounce drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]" />
-            <span>OMdotfun</span>
+            <span className="sr-only">OMdotfun</span>
           </Link>
 
           <nav className="hidden items-center gap-1 rounded-2xl bg-muted/70 p-1 text-sm md:flex">
