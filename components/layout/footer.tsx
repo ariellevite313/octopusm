@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { AppIcon } from "@/components/shared/app-icon";
 
 const CLT_CA = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 
@@ -38,7 +39,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="flex size-8 items-center justify-center rounded-lg transition-colors bg-background border border-border text-muted-foreground hover:text-foreground"
                 >
-                  <i className={`ti ${s.icon} text-base`} aria-hidden />
+                  <AppIcon name={s.icon} className="size-4" />
                 </Link>
               ))}
             </div>
@@ -65,7 +66,7 @@ export function Footer() {
                     rel={l.internal ? undefined : "noopener noreferrer"}
                     className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <i className={`ti ${l.icon} text-sm`} aria-hidden />
+                    <AppIcon name={l.icon} className="size-3.5" />
                     {l.label}
                   </Link>
                 </li>
@@ -90,7 +91,7 @@ export function Footer() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <i className={`ti ${l.icon} text-sm`} aria-hidden />
+                    <AppIcon name={l.icon} className="size-3.5" />
                     {l.label}
                   </Link>
                 </li>
@@ -129,7 +130,7 @@ export function Footer() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <i className="ti ti-brand-x text-sm" aria-hidden />
+                    <AppIcon name="ti-brand-x" className="size-3.5" />
                     {l.label}
                   </Link>
                 </li>
@@ -169,7 +170,7 @@ export function Footer() {
             </Link>
           </div>
           <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-violet-500 border border-violet-500/20">
-            <i className="ti ti-circle-filled text-[8px]" aria-hidden />
+            <AppIcon name="ti-circle-filled" className="size-2" />
             Built on Solana
           </div>
         </div>

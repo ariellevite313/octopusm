@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { AppIcon } from "@/components/shared/app-icon";
 
 const PREDICT_NAV = [
   { label: "Markets",     href: "/prediction",              icon: BarChart2,  exact: true  },
@@ -123,7 +124,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
                 className="flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors group"
               >
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-foreground">
-                  <i className={`ti ${item.icon} text-lg`} aria-hidden />
+                  <AppIcon name={item.icon} className="size-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[15px] font-semibold text-foreground">{item.label}</p>

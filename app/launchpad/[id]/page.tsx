@@ -26,6 +26,7 @@ import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
+import { AppIcon } from "@/components/shared/app-icon";
 
 export const revalidate = 30;
 
@@ -353,7 +354,7 @@ export default async function TokenDetailPage({ params }: Props) {
               title={s.label}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              <i className={`ti ${s.icon} text-base`} aria-hidden />
+              <AppIcon name={s.icon} className="size-4" />
             </a>
           ))}
           <TokenShareButton name={token.name} ticker={token.ticker} />
