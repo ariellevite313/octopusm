@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
 import { RefCapture } from "@/components/layout/ref-capture";
 import { RootBottomNav } from "@/components/layout/root-bottom-nav";
+import { DesktopSidebar } from "@/components/desktop/desktop-sidebar";
 import { getDistinctCategories } from "@/services/prediction-service";
 import "./globals.css";
 
@@ -58,12 +59,15 @@ export default async function RootLayout({
       <body suppressHydrationWarning>
         <Providers>
           <RefCapture />
-          <div className="flex min-h-screen flex-col">
+          <div className="flex min-h-screen">
+          <DesktopSidebar />
+          <div className="flex min-h-screen min-w-0 flex-1 flex-col">
             <HeaderSwitch />
             <CategoryNavWrapper categories={categories} />
             <main className="flex-1 pb-28 md:pb-0">{children}</main>
             <div className="hidden md:block"><Footer /></div>
             <RootBottomNav />
+          </div>
           </div>
         </Providers>
       </body>
