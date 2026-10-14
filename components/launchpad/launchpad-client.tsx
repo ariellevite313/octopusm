@@ -169,16 +169,16 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
 
       <div className="flex flex-col gap-1 px-1.5 pt-2.5 pb-1">
         <div className="flex items-center gap-1 min-w-0">
-          <span className="truncate text-[15px] font-bold tracking-tight text-foreground">
+          <span className="truncate text-[15px] font-bold tracking-tight text-foreground lg:text-sm">
             {token.name}
           </span>
           {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-[13px] text-muted-foreground font-medium">${token.ticker}</span>
+          <span className="text-[13px] text-muted-foreground font-medium lg:text-xs">${token.ticker}</span>
           {mcap !== null && (
-            <span className="num text-[15px] font-bold text-foreground">{fmtMcap(mcap)}</span>
+            <span className="num text-[15px] font-bold text-foreground lg:text-sm">{fmtMcap(mcap)}</span>
           )}
         </div>
 
@@ -359,7 +359,7 @@ function Pagination({
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {Array.from({ length: LIMIT }).map((_, i) => (
         <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card p-2 animate-pulse">
           <div className="aspect-square w-full rounded-[16px] bg-muted/60" />
@@ -651,7 +651,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           )}
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
         </div>
       ) : (

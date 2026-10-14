@@ -41,7 +41,7 @@ function LaunchpadSkeleton() {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card p-2 animate-pulse">
             <div className="aspect-square w-full rounded-[16px] bg-muted/60" />

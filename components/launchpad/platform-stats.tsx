@@ -38,7 +38,7 @@ export function PlatformStats() {
       {display ? (
         <>
           <span className="flex items-center gap-2">
-            <span className="num text-[40px] leading-none font-bold tracking-[-0.04em] text-foreground sm:text-[56px]">
+            <span className="num text-[38px] leading-none font-bold tracking-[-0.04em] text-foreground sm:text-[44px]">
               {fmtUsd(display.totalVolume)}
             </span>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{flexShrink:0}}>
