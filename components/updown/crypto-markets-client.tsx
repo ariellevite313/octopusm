@@ -276,7 +276,7 @@ function RoundCard({
               LIVE
             </span>
             {liveCountdown && (
-              <span className="text-[10px] tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">{liveCountdown}</span>
+              <span className="text-[10px] tabular-nums font-semibold text-up">{liveCountdown}</span>
             )}
           </div>
         )}
@@ -295,13 +295,13 @@ function RoundCard({
       {/* Strike / close */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Strike</p>
+          <p className="text-[13px] text-muted-foreground">Strike</p>
           <p className="text-base font-bold tabular-nums text-foreground">${formatPrice(market.strike_price)}</p>
         </div>
         {isResolved && market.open_price && (
           <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Close</p>
-            <p className={`text-base font-bold tabular-nums ${Number(market.open_price) > market.strike_price ? "text-emerald-500" : "text-red-500"}`}>
+            <p className="text-[13px] text-muted-foreground">Close</p>
+            <p className={`text-base font-bold tabular-nums ${Number(market.open_price) > market.strike_price ? "text-up" : "text-down"}`}>
               ${formatPrice(Number(market.open_price))}
             </p>
           </div>
@@ -311,8 +311,8 @@ function RoundCard({
       {/* Pool bar */}
       <div className="px-4 pb-3">
         <div className="flex text-[10px] font-semibold mb-1 justify-between">
-          <span className="text-emerald-600 dark:text-emerald-400">↑ UP {upPct}% (${poolUp.toFixed(0)})</span>
-          <span className="text-red-600 dark:text-red-400">DOWN {downPct}% (${poolDown.toFixed(0)}) ↓</span>
+          <span className="text-up">↑ UP {upPct}% (${poolUp.toFixed(0)})</span>
+          <span className="text-down">DOWN {downPct}% (${poolDown.toFixed(0)}) ↓</span>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden flex">
           <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${upPct}%` }} />
@@ -326,8 +326,8 @@ function RoundCard({
       {/* My bet */}
       {myBet && (
         <div className={`mx-4 mb-3 rounded-xl px-3 py-2 text-xs flex items-center justify-between ${
-          myBet.status === "won"     ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" :
-          myBet.status === "lost"    ? "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400" :
+          myBet.status === "won"     ? "bg-emerald-100 dark:bg-emerald-950/40 text-up" :
+          myBet.status === "lost"    ? "bg-red-100 dark:bg-red-950/40 text-down" :
           myBet.status === "claimed" ? "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400" :
           myBet.status === "paid"    ? "bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400" :
           "bg-muted text-muted-foreground"
@@ -336,7 +336,7 @@ function RoundCard({
             My predict: <strong>${myBet.amount} {myBet.direction === "up" ? "↑ UP" : "↓ DOWN"}</strong>
             {myBet.payout && myBet.status !== "lost" ? ` → $${myBet.payout.toFixed(2)}` : ""}
           </span>
-          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-emerald-600">🏆 Claim in dashboard</span>}
+          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-up">🏆 Claim in dashboard</span>}
           {myBet.status === "claimed" && <span className="text-[10px]">⏳ Pending</span>}
           {myBet.status === "paid"    && <span className="text-[10px]">✅ Paid</span>}
         </div>
@@ -456,7 +456,7 @@ export function CryptoMarketsClient() {
           <div className="flex items-center gap-2 mb-4">
             <Zap className="size-5 text-amber-500" />
             <h1 className="text-lg font-bold text-foreground">Crypto Up/Down</h1>
-            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">LIVE</span>
+            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-bold text-up">LIVE</span>
           </div>
           <div className="flex gap-2">
             {SYMBOLS.map(s => (

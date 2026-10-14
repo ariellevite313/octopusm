@@ -89,7 +89,7 @@ function ChartTooltip({ active, payload }: any) {
       <p className="font-semibold text-foreground">{fmtPrice(d.price)}</p>
       <p className="text-muted-foreground">{new Date(d.time * 1000).toLocaleString()}</p>
       {d.isBuy !== undefined && (
-        <p className={d.isBuy ? "text-emerald-400" : "text-red-400"}>
+        <p className={d.isBuy ? "text-up" : "text-red-400"}>
           {d.isBuy ? "▲ Buy" : "▼ Sell"}
         </p>
       )}
@@ -294,7 +294,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-[22px] border border-border bg-card overflow-hidden">
 
       {/* ── Header ── */}
       <div className="px-4 pt-4 pb-2 flex items-center gap-3">
@@ -308,7 +308,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
               {fmtPrice(latestPrice ?? 0)}
             </span>
             {priceChangePct !== null && (
-              <span className={`text-sm font-semibold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+              <span className={`text-sm font-semibold ${isPositive ? "text-up" : "text-red-400"}`}>
                 {isPositive ? "+" : ""}{priceChangePct.toFixed(2)}%
               </span>
             )}
@@ -321,7 +321,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
           <button
             onClick={() => setMode("line")}
             title="Line chart"
-            className={`p-1.5 rounded-md transition-colors ${
+            className={`p-1.5 rounded-xl transition-colors ${
               mode === "line"
                 ? "bg-orange-500/20 text-orange-400"
                 : "text-muted-foreground hover:text-foreground"
@@ -332,7 +332,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
           <button
             onClick={() => setMode("candle")}
             title="Candlestick chart"
-            className={`p-1.5 rounded-md transition-colors ${
+            className={`p-1.5 rounded-xl transition-colors ${
               mode === "candle"
                 ? "bg-orange-500/20 text-orange-400"
                 : "text-muted-foreground hover:text-foreground"
@@ -348,7 +348,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
             <button
               key={tf.key}
               onClick={() => setActiveTf(tf.key)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
                 activeTf === tf.key
                   ? "bg-orange-500 text-white"
                   : "text-muted-foreground hover:text-foreground"

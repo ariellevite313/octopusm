@@ -452,8 +452,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
     <div className="rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         {meta.img
-          ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-md bg-white p-0.5 shrink-0" />
-          : <div className="flex size-8 items-center justify-center rounded-md text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+          ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-xl bg-white p-0.5 shrink-0" />
+          : <div className="flex size-8 items-center justify-center rounded-xl text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
         }
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-foreground">{meta.label} Up or Down {durationMin}m</p>
@@ -473,12 +473,12 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                     <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Live
                   </span>
-                  <span className="text-[10px] tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{liveCountdownChart}</span>
+                  <span className="text-[10px] tabular-nums font-medium text-up">{liveCountdownChart}</span>
                 </>
               )}
             </>
           ) : (
-            <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
+            <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-up" : "text-muted-foreground"}`}>
               <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
               {live ? "Live" : "Connecting..."}
             </span>
@@ -494,7 +494,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           </span>
         </span>
         {pctDiff != null && (
-          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+          <span className={`rounded-xl px-2 py-0.5 text-xs font-semibold ${
             isAbove
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
               : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
@@ -507,7 +507,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       <div className="mx-4 mb-1 flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
         <span className="text-xs text-muted-foreground">Strike price</span>
         <span className="text-xs font-semibold text-foreground">${formatPrice(strikePrice)}</span>
-        <span className={`text-xs font-semibold ${isAbove ? "text-emerald-500" : "text-red-500"}`}>
+        <span className={`text-xs font-semibold ${isAbove ? "text-up" : "text-down"}`}>
           {isAbove ? "Above ↑" : "Below ↓"}
         </span>
       </div>
@@ -909,7 +909,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                 ? "bg-emerald-500/10 border-emerald-500/30"
                 : "bg-red-500/10 border-red-500/30"
             }`}>
-              <p className={`text-center text-sm font-bold mb-2 ${market.outcome === "up" ? "text-emerald-400" : "text-red-400"}`}>
+              <p className={`text-center text-sm font-bold mb-2 ${market.outcome === "up" ? "text-up" : "text-red-400"}`}>
                 {market.outcome === "up" ? "↑ UP won this round" : "↓ DOWN won this round"}
               </p>
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -919,7 +919,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               {market.open_price != null && (
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>Close</span>
-                  <span className={`font-semibold ${market.outcome === "up" ? "text-emerald-400" : "text-red-400"}`}>
+                  <span className={`font-semibold ${market.outcome === "up" ? "text-up" : "text-red-400"}`}>
                     ${formatPrice(market.open_price)}
                   </span>
                 </div>
@@ -932,14 +932,14 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             <div className="space-y-2">
               {currentRoundBets.map(bet => (
                 <div key={bet.id} className={`rounded-2xl px-4 py-3 flex items-center justify-between text-sm border ${
-                  bet.status === "won"     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                  bet.status === "won"     ? "bg-emerald-500/10 text-up border-emerald-500/20" :
                   bet.status === "lost"    ? "bg-red-500/10 text-red-400 border-red-500/20" :
                   bet.status === "claimed" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
                   bet.status === "paid"    ? "bg-violet-500/10 text-violet-400 border-violet-500/20" :
                   "bg-muted/40 text-muted-foreground border-border"
                 }`}>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide opacity-60 mb-0.5">My predict</p>
+                    <p className="text-[13px] opacity-60 mb-0.5">My predict</p>
                     <p className="font-bold">${bet.amount} USDC · {bet.direction === "up" ? "↑ UP" : "↓ DOWN"}</p>
                     {bet.status === "won" && bet.payout != null && (
                       <p className="text-xs mt-0.5 font-semibold">Win: ${Number(bet.payout).toFixed(2)} USDC</p>
@@ -979,15 +979,15 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             {/* Panel header */}
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
               {meta.img
-                ? <Image src={meta.img} alt={meta.symbol} width={28} height={28} className="rounded-md bg-white p-0.5 shrink-0" />
-                : <div className="flex size-7 items-center justify-center rounded-md text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
+                ? <Image src={meta.img} alt={meta.symbol} width={28} height={28} className="rounded-xl bg-white p-0.5 shrink-0" />
+                : <div className="flex size-7 items-center justify-center rounded-xl text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
               }
               <div>
                 <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>
                 {isOpen
                   ? liveCountdown === "Termine"
                     ? <p className="text-[10px] text-amber-500 font-semibold flex items-center gap-1"><Loader2 className="size-3 animate-spin" />Resolving…</p>
-                    : <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live · {liveCountdown}</p>
+                    : <p className="text-[10px] text-up font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live · {liveCountdown}</p>
                   : <p className="text-[10px] text-muted-foreground">{market.status}</p>
                 }
               </div>
@@ -1002,7 +1002,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             ) : isOpen ? (
               <div className="p-4 space-y-4">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Quick predict</p>
+                  <p className="text-[13px] text-muted-foreground mb-2">Quick predict</p>
                   <div className="grid grid-cols-2 gap-2">
                     {QUICK_AMOUNTS.map(q => (
                       <button key={q} type="button" onClick={() => setAmount(q)}
@@ -1028,7 +1028,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                 {totalPool > 0 && (
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-semibold">
-                      <span className="text-emerald-500">↑ UP {upPct}%</span>
+                      <span className="text-up">↑ UP {upPct}%</span>
                       <span className="text-red-500">{downPct}% DOWN ↓</span>
                     </div>
                     <div className="flex h-1.5 overflow-hidden rounded-full">
@@ -1060,7 +1060,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <div className="p-6 text-center space-y-1">
                 <p className="text-sm font-semibold text-foreground">{market.status === "resolved" ? "Round resolved" : "Round cancelled"}</p>
                 {market.outcome && (
-                  <p className={`text-sm font-bold ${market.outcome === "up" ? "text-emerald-400" : "text-red-400"}`}>
+                  <p className={`text-sm font-bold ${market.outcome === "up" ? "text-up" : "text-red-400"}`}>
                     {market.outcome === "up" ? "↑ UP won" : "↓ DOWN won"}
                   </p>
                 )}

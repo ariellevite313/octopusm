@@ -41,21 +41,21 @@ export function TrendingStrip() {
   if (!loading && tokens.length === 0) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-8">
       {/* Header */}
-      <div className="flex items-center gap-1.5 mb-3">
-        <TrendingUp className="size-4 text-emerald-400" />
-        <span className="text-sm font-semibold text-foreground">Trending</span>
-        <span className="text-[10px] text-muted-foreground/60 ml-1">· 24h volume</span>
+      <div className="flex items-center gap-2 mb-3">
+        <TrendingUp className="size-5 text-primary" />
+        <span className="text-lg font-bold tracking-tight text-foreground">Trending</span>
+        <span className="text-sm text-muted-foreground">24h volume</span>
       </div>
 
       {/* Horizontal scroll strip */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+      <div className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4 pb-1">
         {loading
           ? Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="shrink-0 w-32 h-16 rounded-xl bg-muted/30 animate-pulse border border-border"
+                className="shrink-0 w-[208px] h-[118px] rounded-[20px] bg-card animate-pulse border border-border"
               />
             ))
           : tokens.map((t, i) => {
@@ -68,42 +68,38 @@ export function TrendingStrip() {
                 <Link
                   key={t.id}
                   href={`/launchpad/${slug}`}
-                  className="shrink-0 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors min-w-[148px]"
+                  className="shrink-0 flex w-[208px] flex-col overflow-hidden rounded-[20px] border border-border bg-card transition-colors hover:border-primary/40"
                 >
-                  {/* Rank */}
-                  <span className="text-[11px] font-bold text-muted-foreground/50 w-4 shrink-0">
-                    #{i + 1}
-                  </span>
-
-                  {/* Logo */}
-                  <div className="relative size-8 shrink-0 overflow-hidden rounded-lg bg-black">
-                    {t.logo_url ? (
-                      <Image src={t.logo_url} alt={t.name} fill className="object-cover" unoptimized />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[9px] font-bold text-white/60">
-                        {t.ticker.slice(0, 3)}
-                      </div>
+                  {/* Ticker + rank */}
+                  <div className="flex items-center gap-1.5 border-b border-border/70 px-4 py-3">
+                    <span className="truncate text-[15px] font-bold text-foreground">{t.ticker}</span>
+                    {t.is_verified && (
+                      <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />
                     )}
+                    {isArc && (
+                      <span className="text-[10px] font-bold text-sky-400 bg-sky-400/10 rounded-md px-1 py-0.5">
+                        ARC
+                      </span>
+                    )}
+                    <span className="num ml-auto rounded-lg bg-muted px-2 py-0.5 text-[12px] font-bold text-muted-foreground shrink-0">
+                      #{i + 1}
+                    </span>
                   </div>
 
-                  {/* Info */}
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-0.5">
-                      <span className="truncate text-xs font-semibold text-foreground">{t.ticker}</span>
-                      {t.is_verified && (
-                        <BadgeCheck className="size-3 shrink-0 text-orange-400" />
+                  {/* Logo + 24h volume */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-muted">
+                      {t.logo_url ? (
+                        <Image src={t.logo_url} alt={t.name} fill className="object-cover" unoptimized />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-muted-foreground">
+                          {t.ticker.slice(0, 3)}
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-emerald-400 font-medium">
-                        {fmtCompact(t.volume_24h_usd)}
-                      </span>
-                      {isArc && (
-                        <span className="text-[9px] font-bold text-blue-400/80 bg-blue-400/10 rounded px-0.5">
-                          ARC
-                        </span>
-                      )}
-                    </div>
+                    <span className="num truncate text-xl font-bold text-up">
+                      {fmtCompact(t.volume_24h_usd)}
+                    </span>
                   </div>
                 </Link>
               );

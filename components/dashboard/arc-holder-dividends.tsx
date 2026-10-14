@@ -173,7 +173,7 @@ export function ArcHolderDividends() {
     <div className="space-y-2.5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <h3 className="text-[13px] font-semibold text-muted-foreground">
           Arc · {t.dividends}
         </h3>
         {totalPending > 0n && (
@@ -245,7 +245,7 @@ export function ArcHolderDividends() {
                   href={`https://explorer.arc.io/tx/${token.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
+                  className="mt-0.5 flex items-center gap-1 text-[11px] text-up hover:underline"
                 >
                   <CheckCircle2 className="size-3" /> {t.claimedViewExplorer}
                 </a>

@@ -58,7 +58,7 @@ function CopyButton({ text, children }: { text: string; children?: React.ReactNo
       title="Copier le CA"
     >
       {copied
-        ? <Check className="size-3 text-emerald-400" />
+        ? <Check className="size-3 text-up" />
         : <Copy className="size-3" />
       }
       {children && <span className="text-[10px] font-mono">{children}</span>}
@@ -94,11 +94,11 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  active:     { label: "Live",       cls: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" },
-  graduating: { label: "Graduating", cls: "bg-amber-500/15 text-amber-400 border border-amber-500/30" },
-  graduated:  { label: "Graduated",  cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
-  pending:    { label: "Pending",    cls: "bg-zinc-500/15 text-zinc-400 border border-zinc-500/30" },
-  cancelled:  { label: "Cancelled",  cls: "bg-red-500/15 text-red-400 border border-red-500/30" },
+  active:     { label: "Live",       cls: "bg-black/55 text-emerald-300 backdrop-blur-md" },
+  graduating: { label: "Graduating", cls: "bg-black/55 text-amber-300 backdrop-blur-md" },
+  graduated:  { label: "Graduated",  cls: "bg-black/55 text-sky-300 backdrop-blur-md" },
+  pending:    { label: "Pending",    cls: "bg-black/55 text-zinc-300 backdrop-blur-md" },
+  cancelled:  { label: "Cancelled",  cls: "bg-black/55 text-red-300 backdrop-blur-md" },
 };
 
 const LIMIT = 20;
@@ -115,33 +115,33 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
   return (
     <Link
       href={`/launchpad/${token.mint_address ?? token.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-200 hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]"
-      style={{ borderColor: isGraduated ? "rgba(59,130,246,0.25)" : "rgba(16,185,129,0.18)" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "rgba(59,130,246,0.55)" : "rgba(16,185,129,0.50)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "rgba(59,130,246,0.25)" : "rgba(16,185,129,0.18)"; }}
+      className="group relative flex flex-col overflow-hidden rounded-[22px] border bg-card p-2 transition-colors duration-200 hover:bg-muted/60"
+      style={{ borderColor: isGraduated ? "color-mix(in oklab, #38bdf8 22%, transparent)" : "var(--border)" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "color-mix(in oklab, #38bdf8 45%, transparent)" : "color-mix(in oklab, var(--primary) 40%, transparent)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = isGraduated ? "color-mix(in oklab, #38bdf8 22%, transparent)" : "var(--border)"; }}
     >
-      <div className="relative aspect-square w-full overflow-hidden bg-black">
+      <div className="relative aspect-square w-full overflow-hidden rounded-[16px] bg-muted">
         {token.logo_url ? (
           <Image
             src={token.logo_url}
             alt={token.name}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             unoptimized
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl font-bold tracking-tighter text-white/70">
+          <div className="flex h-full w-full items-center justify-center text-3xl font-bold tracking-tighter text-muted-foreground">
             {token.ticker.slice(0, 3)}
           </div>
         )}
         <div className="absolute right-2 top-2">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.cls}`}>
+          <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${badge.cls}`}>
             {badge.label}
           </span>
         </div>
         {isScheduled && (
           <div className="absolute left-2 top-2">
-            <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-400 border border-violet-500/30">
+            <span className="rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-violet-300 backdrop-blur-md">
               Soon
             </span>
           </div>
@@ -149,7 +149,7 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
         {/* Stock-paired badge */}
         {token.stock_symbol && !isScheduled && (
           <div className="absolute left-2 top-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
+            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-amber-300 backdrop-blur-md">
               <XStockIcon symbol={token.stock_symbol} size={12} />
               ${token.stock_symbol.replace(/^x/, "")}
             </span>
@@ -160,20 +160,32 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
           <Image
             src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
             alt={token.chain === "arc" ? "Arc" : "Solana"}
-            width={18} height={18}
-            className="rounded-full ring-1 ring-white/20"
+            width={20} height={20}
+            className="rounded-full ring-2 ring-black/40"
             unoptimized
           />
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5 p-3">
+      <div className="flex flex-col gap-1 px-1.5 pt-2.5 pb-1">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate text-[15px] font-bold tracking-tight text-foreground">
+            {token.name}
+          </span>
+          {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] text-muted-foreground font-medium">${token.ticker}</span>
+          {mcap !== null && (
+            <span className="num text-[15px] font-bold text-foreground">{fmtMcap(mcap)}</span>
+          )}
+        </div>
+
         <div className="flex items-center justify-between gap-1 min-w-0">
           <div className="flex items-center gap-1 min-w-0">
-            <span className="truncate text-sm font-bold text-foreground group-hover:text-emerald-400 transition-colors">
-              {token.name}
-            </span>
-            {token.is_verified && <BadgeCheck className="size-3.5 shrink-0 text-orange-400" />}
+            <span className="text-[11px] text-muted-foreground">By</span>
+            <span className="truncate text-[11px] font-semibold text-foreground/80">{creatorLabel}</span>
           </div>
           {token.mint_address && (
             <CopyButton text={token.mint_address}>
@@ -183,22 +195,10 @@ function TokenCard({ token }: { token: LaunchpadToken }) {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium">${token.ticker}</span>
-          {mcap !== null && (
-            <span className="text-xs font-bold text-emerald-400">{fmtMcap(mcap)}</span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="text-[10px] text-muted-foreground">By</span>
-          <span className="truncate text-[10px] font-semibold text-foreground">{creatorLabel}</span>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono text-muted-foreground/50">
+          <span className="text-[11px] font-mono text-muted-foreground/60">
             {shortAddr(token.creator_wallet, 4, 4)}
           </span>
-          <span className="text-[10px] font-bold text-muted-foreground/60">
+          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
             {timeAgo(token.created_at)}
           </span>
         </div>
@@ -216,13 +216,13 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
   return (
     <Link
       href={`/launchpad/${token.mint_address ?? token.id}`}
-      className="group flex items-center gap-3 px-3 py-3 transition-colors"
+      className="group flex items-center gap-3.5 rounded-2xl px-2 py-3 transition-colors hover:bg-muted/50"
     >
-      <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-black">
+      <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-muted">
         {token.logo_url ? (
           <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white/60">
+          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
             {token.ticker.slice(0, 3)}
           </div>
         )}
@@ -230,10 +230,10 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 mb-0.5">
-          <span className="truncate text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
+          <span className="truncate text-base font-bold tracking-tight text-foreground">
             {token.name}
           </span>
-          {token.is_verified && <BadgeCheck className="size-3.5 shrink-0 text-orange-400" />}
+          {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
           {/* Chain icon */}
           <Image
             src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
@@ -244,16 +244,16 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
           />
           {/* Stock-paired badge */}
           {token.stock_symbol && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/30 shrink-0">
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500 dark:text-amber-300 shrink-0">
               <XStockIcon symbol={token.stock_symbol} size={11} />
               ${token.stock_symbol.replace(/^x/, "")}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] text-muted-foreground">${token.ticker}</span>
+          <span className="text-[13px] text-muted-foreground">${token.ticker}</span>
           <span className="text-muted-foreground/40 text-[10px]">·</span>
-          <span className="text-[10px] text-muted-foreground/60">{token.category}</span>
+          <span className="text-[12px] text-muted-foreground/70">{token.category}</span>
           {token.mint_address && (
             <CopyButton text={token.mint_address}>
               {shortAddr(token.mint_address, 4, 4)}
@@ -261,23 +261,23 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
           )}
         </div>
         <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-[10px] text-muted-foreground/50">By {creatorLabel}</span>
+          <span className="text-[11px] text-muted-foreground/60">By {creatorLabel}</span>
         </div>
       </div>
 
       <div className="hidden sm:flex flex-col items-end gap-0.5 shrink-0">
         {token.market_cap_usd !== null && (
-          <span className="text-xs font-bold text-emerald-400">{fmtMcap(token.market_cap_usd)}</span>
+          <span className="num text-base font-bold text-foreground">{fmtMcap(token.market_cap_usd)}</span>
         )}
         {token.volume_24h_usd !== null && (
-          <span className="text-[10px] text-muted-foreground/60">
+          <span className="num text-[12px] text-muted-foreground">
             Vol {fmtMcap(token.volume_24h_usd)}
           </span>
         )}
       </div>
 
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${badge.cls}`}>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.cls}`}>
           {badge.label}
         </span>
         <span className="text-[10px] text-muted-foreground/50">
@@ -321,7 +321,7 @@ function Pagination({
       <button
         onClick={() => onChange(page - 1)}
         disabled={page === 0}
-        className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+        className="flex size-9 items-center justify-center rounded-xl bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
       >
         <ChevronLeft className="size-4" />
       </button>
@@ -333,10 +333,10 @@ function Pagination({
           <button
             key={p}
             onClick={() => onChange(p as number)}
-            className={`flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition-colors border ${
+            className={`num flex size-9 items-center justify-center rounded-xl text-sm font-bold transition-colors ${
               p === page
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : "border-border text-muted-foreground hover:text-foreground"
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             {(p as number) + 1}
@@ -347,7 +347,7 @@ function Pagination({
       <button
         onClick={() => onChange(page + 1)}
         disabled={page >= totalPages - 1}
-        className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+        className="flex size-9 items-center justify-center rounded-xl bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
       >
         <ChevronRight className="size-4" />
       </button>
@@ -361,8 +361,8 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {Array.from({ length: LIMIT }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card animate-pulse">
-          <div className="aspect-square w-full bg-muted/30" />
+        <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card p-2 animate-pulse">
+          <div className="aspect-square w-full rounded-[16px] bg-muted/60" />
           <div className="p-3 space-y-2">
             <div className="h-3.5 w-24 rounded bg-muted/40" />
             <div className="h-2.5 w-14 rounded bg-muted/30" />
@@ -524,18 +524,18 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
   return (
     <div className="space-y-4">
       {/* Top bar */}
-      <div className="border-b border-border pb-3 space-y-2">
+      <div className="space-y-3">
         {/* Row 1: Tabs + chain filter + view toggle */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
+        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border">
+          <div className="-mb-px flex items-center gap-1 overflow-x-auto scrollbar-none">
             {TABS.map(t => (
               <button
                 key={t.id}
                 onClick={() => handleTabChange(t.id)}
-                className={`shrink-0 flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-[15px] font-bold transition-colors ${
                   tab === t.id
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t.icon}
@@ -544,18 +544,18 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 pb-2">
             {/* Chain filter — segmented tabs (Option B) */}
-            <div className="flex items-center border border-border rounded-lg overflow-hidden">
+            <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
               {CHAINS.map((c, i) => (
                 <button
                   key={c.id}
                   onClick={() => handleChainChange(c.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    i < CHAINS.length - 1 ? "border-r border-border" : ""
+                  className={`flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-bold transition-colors ${
+                    i < CHAINS.length - 1 ? "" : ""
                   } ${
                     chain === c.id
-                      ? "bg-card text-foreground"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -570,19 +570,19 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 pb-2">
             {/* Grid / List toggle */}
-            <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+            <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-emerald-500/10 text-emerald-400" : "text-muted-foreground hover:text-foreground"}`}
+                className={`rounded-[10px] p-1.5 transition-colors ${viewMode === "grid" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 aria-label="Grid view"
               >
                 <LayoutGrid className="size-3.5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`rounded p-1.5 transition-colors ${viewMode === "list" ? "bg-emerald-500/10 text-emerald-400" : "text-muted-foreground hover:text-foreground"}`}
+                className={`rounded-[10px] p-1.5 transition-colors ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 aria-label="List view"
               >
                 <List className="size-3.5" />
@@ -598,15 +598,15 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search…"
-            className="h-8 flex-1 rounded-lg border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+            className="h-11 min-w-0 flex-1 rounded-2xl border border-transparent bg-muted px-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
           />
           {tab !== "watchlist" && (
             <div className="relative shrink-0">
-              <ArrowUpDown className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+              <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <select
                 value={sort}
                 onChange={e => handleSortChange(e.target.value as SortOption)}
-                className="h-8 appearance-none rounded-lg border border-border bg-background pl-7 pr-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/50 cursor-pointer"
+                className="h-11 w-[140px] appearance-none rounded-2xl border border-transparent bg-muted pl-9 pr-3 text-sm font-semibold sm:w-auto text-foreground focus:outline-none focus:border-primary/50 cursor-pointer"
               >
                 {SORT_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -643,7 +643,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
               <p className="mb-5 text-xs text-muted-foreground">Be the first to launch a token on OMdotfun</p>
               <Link
                 href="/launchpad/create"
-                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                className="btn-primary rounded-2xl px-6 py-3 text-sm"
               >
                 Launch a token
               </Link>
@@ -655,7 +655,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-border">
+        <div className="flex flex-col gap-0.5">
           {visibleTokens.map(token => <TokenRow key={token.id} token={token} />)}
         </div>
       )}

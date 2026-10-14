@@ -89,7 +89,7 @@ export function TokenShareButton({ name, ticker }: Props) {
             className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors border-t border-border"
           >
             {copied
-              ? <Check className="size-4 text-emerald-500 shrink-0" />
+              ? <Check className="size-4 text-up shrink-0" />
               : <Copy className="size-4 shrink-0" />}
             {copied ? "Copied!" : "Copy link"}
           </button>

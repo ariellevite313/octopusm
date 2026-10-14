@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import Link from "next/link";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
 import { TrendingStrip } from "@/components/launchpad/trending-strip";
@@ -38,14 +37,14 @@ function LaunchpadSkeleton() {
       <div className="flex items-center gap-2 border-b border-border pb-3">
         <div className="flex gap-1">
           {[80, 56, 88, 76].map(w => (
-            <div key={w} className="h-7 animate-pulse rounded-md bg-muted/40" style={{ width: w }} />
+            <div key={w} className="h-7 animate-pulse rounded-xl bg-muted/40" style={{ width: w }} />
           ))}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-xl border border-border bg-card animate-pulse">
-            <div className="aspect-square w-full bg-muted/30" />
+          <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card p-2 animate-pulse">
+            <div className="aspect-square w-full rounded-[16px] bg-muted/60" />
             <div className="p-2.5 space-y-2">
               <div className="h-3.5 w-24 rounded bg-muted/40" />
               <div className="h-2.5 w-14 rounded bg-muted/30" />
@@ -64,19 +63,15 @@ function LaunchpadSkeleton() {
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
-          <p className="text-xs text-muted-foreground">Tokens launched on Solana</p>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-x-4 gap-y-5">
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
+            <p className="text-sm text-muted-foreground">Tokens launched on Solana</p>
+          </div>
+          <PlatformStats />
         </div>
-        <Link
-          href="/launchpad/create"
-          className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          + Launch
-        </Link>
       </div>
-      <PlatformStats />
       <TrendingStrip />
       <Suspense fallback={<LaunchpadSkeleton />}>
         <LaunchpadContent />

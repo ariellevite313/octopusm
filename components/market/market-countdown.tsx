@@ -37,10 +37,10 @@ export function MarketCountdownBadge({ eventStartAt }: { eventStartAt: string })
 
   if (status === "live") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/12 px-2.5 py-1 text-xs font-bold text-red-500">
         <span className="relative flex size-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+          <span className="relative inline-flex size-1.5 rounded-full bg-red-500" />
         </span>
         LIVE
       </span>
@@ -49,7 +49,7 @@ export function MarketCountdownBadge({ eventStartAt }: { eventStartAt: string })
 
   if (status === "upcoming") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+      <span className="num inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">
         {formatCountdown(eventStartAt)}
       </span>
     );

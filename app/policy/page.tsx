@@ -16,7 +16,7 @@ const SECTIONS = [
 function TOC({ active }: { active: string }) {
   return (
     <nav className="sticky top-24 hidden lg:block w-56 shrink-0">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+      <p className="mb-3 text-[13px] font-semibold text-muted-foreground">
         On this page
       </p>
       <ul className="space-y-1">
@@ -114,7 +114,7 @@ export default function PolicyPage() {
 
             <section id="prohibited-lp">
               <h2 className="text-xl font-semibold text-foreground mb-2">Prohibited on ŌM</h2>
-              <p className="text-sm font-medium text-muted-foreground/60 uppercase tracking-widest mb-5">Launchpad</p>
+              <p className="text-base font-bold text-foreground mb-5">Launchpad</p>
               <ol className="space-y-4">
                 <NumberedItem n={1}>Creating or offering a sale before the public fair launch.</NumberedItem>
                 <NumberedItem n={2}>Buying (or having someone buy) the token before it is open to everyone.</NumberedItem>
@@ -137,7 +137,7 @@ export default function PolicyPage() {
             </section>
 
             <section id="prohibited-pm">
-              <p className="text-sm font-medium text-muted-foreground/60 uppercase tracking-widest mb-5">Prediction markets</p>
+              <p className="text-base font-bold text-foreground mb-5">Prediction markets</p>
               <ol className="space-y-4">
                 <NumberedItem n={1}>Vague resolution criteria, without a source, or deliberately unjudgeable.</NumberedItem>
                 <NumberedItem n={2}>Changing the rules after the fact to favor one side.</NumberedItem>
@@ -226,7 +226,7 @@ export default function PolicyPage() {
 
             <section id="single-rule">
               <div className="rounded-2xl border border-border bg-muted/30 px-6 py-6">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
+                <p className="text-[13px] font-bold text-muted-foreground mb-3">
                   Single rule
                 </p>
                 <p className="text-foreground font-semibold text-base leading-relaxed mb-2">

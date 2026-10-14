@@ -14,13 +14,13 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
   return (
     <Link
       href={market.href}
-      className="flex flex-col w-[240px] shrink-0 rounded-2xl border border-orange-200 bg-card p-4 transition-shadow hover:shadow-md dark:border-orange-900/30 snap-start cursor-pointer"
+      className="flex flex-col w-[264px] shrink-0 rounded-[22px] border border-border bg-card p-4 transition-colors hover:border-primary/40 snap-start cursor-pointer"
     >
       {/* Header: Option A — image marché à gauche, catégorie + titre à droite */}
       <div className="flex items-start gap-3 mb-4">
         {/* Image du marché (ou placeholder) */}
         {market.img ? (
-          <div className="size-9 shrink-0 overflow-hidden rounded-lg border border-border bg-white">
+          <div className="size-10 shrink-0 overflow-hidden rounded-xl bg-muted">
             <Image
               src={market.img}
               alt={market.title}
@@ -30,19 +30,19 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
             />
           </div>
         ) : (
-          <div className="size-9 shrink-0 rounded-lg border border-border bg-muted/40 flex items-center justify-center">
+          <div className="size-10 shrink-0 rounded-xl bg-muted flex items-center justify-center">
             <span className="text-base">🐙</span>
           </div>
         )}
 
         {/* Catégorie + titre */}
         <div className="flex-1 min-w-0">
-          <span className="block text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+          <span className="block text-xs font-medium text-muted-foreground mb-0.5">
             {getCategoryLabel(market.category)}
           </span>
           {/* fixed 2-line height */}
           <div className="h-[2.6rem] overflow-hidden">
-            <p className="text-xs font-semibold leading-snug text-foreground line-clamp-2">
+            <p className="text-sm font-bold leading-snug tracking-tight text-foreground line-clamp-2">
               {market.title}
             </p>
           </div>
@@ -58,10 +58,10 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
             <div key={opt.id} className="flex items-center gap-2">
               {/* label + bar */}
               <div className="flex-1 min-w-0 space-y-1">
-                <span className="block text-[10px] font-medium text-foreground truncate">
+                <span className="block text-xs font-semibold text-foreground truncate">
                   {opt.label}
                 </span>
-                <div className="h-[2px] rounded-full bg-muted overflow-hidden">
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${opt.pct}%`, background: color }}
@@ -70,7 +70,7 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
               </div>
               {/* pill */}
               <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 min-w-[38px] text-center"
+                className="num text-xs font-bold px-2 py-0.5 rounded-lg border shrink-0 min-w-[44px] text-center"
                 style={{ borderColor: border, color }}
               >
                 {opt.pct}%
@@ -81,16 +81,16 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-orange-100 pt-2.5 dark:border-orange-900/30">
-        <span className="text-[10px] text-muted-foreground">
+      <div className="num flex items-center justify-between border-t border-border pt-3">
+        <span className="text-xs font-semibold text-muted-foreground">
           {formatVolume(market.volume_usdc, market.bet_token)}
         </span>
         {market.bet_count > 0 && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {market.bet_count} predicts
           </span>
         )}
-        <span className="text-[10px] font-bold text-accent">Predict →</span>
+        <span className="text-xs font-bold text-primary">Predict →</span>
       </div>
     </Link>
   );

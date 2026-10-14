@@ -29,41 +29,41 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
   return (
     <Link
       href={href}
-      className="block overflow-hidden rounded-2xl border border-orange-200 bg-card shadow-none transition-shadow hover:shadow-md dark:border-orange-900/30"
+      className="group flex h-full flex-col overflow-hidden rounded-[22px] border border-border bg-card transition-colors hover:border-primary/40"
     >
-      <div className="space-y-4 p-5">
+      <div className="flex flex-1 flex-col gap-4 p-5">
 
         {/* Header */}
         <div className="flex items-start gap-3">
           {market.cover_image_src && (
-            <div className="size-10 shrink-0 overflow-hidden rounded-xl border border-orange-200 dark:border-orange-900/40">
+            <div className="size-11 shrink-0 overflow-hidden rounded-2xl bg-muted">
               <img
                 src={market.cover_image_src}
                 alt=""
-                className="size-10 object-cover"
+                className="size-11 object-cover"
                 loading="lazy"
               />
             </div>
           )}
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">
+              <p className="text-xs font-medium text-muted-foreground">
                 {getCategoryLabel(market.category)}
               </p>
-              <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
-                MARKET
+              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                Market
               </span>
               {isUsdc ? (
-                <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                <span className="rounded-md bg-sky-500/12 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-400">
                   USDC
                 </span>
               ) : (
-                <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                <span className="rounded-md bg-violet-500/12 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
                   ClawdTrust
                 </span>
               )}
             </div>
-            <p className="line-clamp-2 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-100">
+            <p className="line-clamp-2 text-[16px] font-bold leading-snug tracking-tight text-foreground">
               {market.title}
             </p>
           </div>
@@ -74,29 +74,29 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
           {options.slice(0, 3).map((opt) => (
             <div
               key={opt.id}
-              className="flex items-center gap-2 rounded-xl border border-orange-200 bg-muted/40 px-3 py-2 dark:border-orange-900/40"
+              className="flex items-center gap-2.5 rounded-2xl bg-muted/70 px-3.5 py-2.5 transition-colors group-hover:bg-muted"
             >
               {opt.image_url && (
                 <img
                   src={opt.image_url}
                   alt=""
-                  className="size-5 shrink-0 rounded-md object-cover"
+                  className="size-6 shrink-0 rounded-full object-cover"
                   loading="lazy"
                 />
               )}
-              <span className="line-clamp-1 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+              <span className="line-clamp-1 text-[13px] font-semibold text-foreground">
                 {opt.label}
               </span>
             </div>
           ))}
           {options.length > 3 && (
-            <p className="pl-1 text-[11px] text-zinc-400">+{options.length - 3} more options</p>
+            <p className="pl-1 text-xs text-muted-foreground">+{options.length - 3} more options</p>
           )}
           <div className="flex-1" />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-orange-100 pt-3 text-xs font-medium text-muted-foreground dark:border-orange-900/30">
+        <div className="num flex items-center justify-between gap-2 border-t border-border pt-3 text-[13px] font-semibold text-muted-foreground">
           <span>
             {pool > 0
               ? formatVolume(pool, market.bet_token)

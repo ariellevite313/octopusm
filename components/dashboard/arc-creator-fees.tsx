@@ -181,7 +181,7 @@ export function ArcCreatorFees() {
       {tokens.map((token, idx) => (
         <div
           key={token.id}
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+          className="flex items-center gap-3 rounded-[22px] border border-border bg-card px-4 py-3"
         >
           {/* Logo */}
           <div className="size-10 shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
@@ -222,7 +222,7 @@ export function ArcCreatorFees() {
                 href={`https://explorer.arc.io/tx/${token.txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline mt-0.5"
+                className="flex items-center gap-1 text-[11px] text-up hover:underline mt-0.5"
               >
                 <CheckCircle2 className="size-3" /> Claimed
               </a>
@@ -248,7 +248,7 @@ export function ArcCreatorFees() {
             <button
               onClick={() => void handleClaim(idx)}
               disabled={token.claiming}
-              className="rounded-full px-4 py-2 text-xs font-semibold transition-colors shrink-0 bg-orange-500 hover:bg-orange-400 text-white disabled:opacity-60"
+              className="rounded-full px-4 py-2 text-xs font-bold transition-colors shrink-0 bg-orange-500 hover:bg-orange-400 text-white disabled:opacity-60 btn-primary"
             >
               {token.claiming
                 ? <Loader2 className="size-3.5 animate-spin" />

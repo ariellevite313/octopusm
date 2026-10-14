@@ -37,10 +37,10 @@ function TypeBadge({ item }: { item: ActivityItem }) {
   if (item.market_type === "updown") {
     const isUp = item.direction_badge === "UP";
     return (
-      <span className={`min-w-[58px] rounded-full px-2 py-0.5 text-center text-[10px] font-semibold ${
+      <span className={`min-w-[58px] rounded-full px-2 py-0.5 text-center text-[11px] font-semibold ${
         isUp
-          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-          : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+          ? "bg-up/12 text-up"
+          : "bg-down/12 text-down"
       }`}>
         {isUp ? "↑ UP" : "↓ DOWN"}
       </span>
@@ -48,13 +48,13 @@ function TypeBadge({ item }: { item: ActivityItem }) {
   }
   if (item.market_type === "pool") {
     return (
-      <span className="min-w-[58px] rounded-full bg-violet-100 px-2 py-0.5 text-center text-[10px] font-semibold text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+      <span className="min-w-[58px] rounded-full bg-violet-500/12 px-2 py-0.5 text-center text-[11px] font-semibold text-violet-600 dark:text-violet-400">
         POOL
       </span>
     );
   }
   return (
-    <span className="min-w-[58px] rounded-full border border-border bg-muted px-2 py-0.5 text-center text-[10px] font-semibold text-muted-foreground">
+    <span className="min-w-[58px] rounded-full bg-muted px-2 py-0.5 text-center text-[11px] font-semibold text-muted-foreground">
       PRED
     </span>
   );
@@ -79,9 +79,9 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="overflow-hidden rounded-[22px] border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <p className="text-lg font-bold tracking-tight text-foreground">
           Recent activity
         </p>
         {totalPages > 1 && (
@@ -93,10 +93,10 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
 
       <div className="divide-y divide-border">
         {slice.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 px-4 py-3">
+          <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
             <TypeBadge item={item} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{item.label}</p>
+              <p className="truncate text-[15px] font-semibold text-foreground">{item.label}</p>
               <p className="text-[10px] text-muted-foreground">
                 {item.market_type === "updown" ? "UP/DOWN" : item.market_type === "pool" ? "Pool" : "Prediction"}
                 {" · "}
@@ -105,8 +105,8 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
             </div>
             <div className="shrink-0 text-right">
               {item.pnl !== 0 ? (
-                <p className={`text-sm font-semibold ${
-                  item.pnl > 0 ? "text-emerald-600" : "text-red-500"
+                <p className={`num text-[15px] font-bold ${
+                  item.pnl > 0 ? "text-up" : "text-down"
                 }`}>
                   {item.pnl > 0 ? "+" : ""}
                   {fmt(item.pnl)}{" "}
@@ -115,7 +115,7 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
                   </span>
                 </p>
               ) : (
-                <p className="text-sm font-semibold text-muted-foreground">
+                <p className="num text-[15px] font-bold text-muted-foreground">
                   {fmt(item.amount)}{" "}
                   <span className="text-[10px] font-normal">
                     <TokenDisplay token={item.token} />
@@ -129,11 +129,11 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
+        <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="rounded-lg px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
+            className="rounded-xl bg-muted px-3.5 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-30"
           >
             ← Previous
           </button>
@@ -143,7 +143,7 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
           <button
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            className="rounded-lg px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-30"
+            className="rounded-xl bg-muted px-3.5 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-30"
           >
             Next →
           </button>

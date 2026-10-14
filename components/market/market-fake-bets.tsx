@@ -48,7 +48,7 @@ export function FakeBetOverlay({
       {active.map((bet, i) => (
         <span
           key={bet.id}
-          className="animate-float-bet pointer-events-none absolute bottom-full left-1/2 mb-1 text-xs font-bold text-emerald-500 drop-shadow-sm"
+          className="animate-float-bet pointer-events-none absolute bottom-full left-1/2 mb-1 text-xs font-bold text-up drop-shadow-sm"
           style={{
             transform: `translateX(calc(-50% + ${(i - 0.5) * 16}px))`,
             whiteSpace: "nowrap",

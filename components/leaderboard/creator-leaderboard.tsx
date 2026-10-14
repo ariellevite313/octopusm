@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Trophy, ArrowLeft } from "lucide-react";
+import { Trophy, ArrowLeft, Crown } from "lucide-react";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
 
 type Period = "24h" | "7d" | "30d" | "1y" | "all";
@@ -15,14 +15,12 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: "all", label: "All"  },
 ];
 
-const MEDAL = ["🥇", "🥈", "🥉"];
-
 function short(addr: string) {
   return `${addr.slice(0, 5)}…${addr.slice(-4)}`;
 }
 
 function Avatar({ entry, size = "md" }: { entry: LeaderboardEntry; size?: "sm" | "md" }) {
-  const dim = size === "sm" ? "size-7" : "size-10";
+  const dim = size === "sm" ? "size-7" : "size-11";
   const txt = size === "sm" ? "text-[10px]" : "text-xs";
   const initials = (entry.displayName ?? entry.walletAddress).slice(0, 2).toUpperCase();
   if (entry.avatarSrc) {
@@ -31,7 +29,7 @@ function Avatar({ entry, size = "md" }: { entry: LeaderboardEntry; size?: "sm" |
       <img
         src={entry.avatarSrc}
         alt={entry.displayName ?? entry.walletAddress}
-        className={`${dim} rounded-full object-cover border border-border`}
+        className={`${dim} shrink-0 rounded-full object-cover`}
       />
     );
   }
@@ -52,29 +50,42 @@ function fmtSol(n: number) {
   return `${n.toFixed(6)} SOL`;
 }
 
-function PodiumCard({ entry }: { entry: LeaderboardEntry }) {
-  const heights = ["h-28", "h-20", "h-16"];
-  const sizes   = ["text-3xl", "text-2xl", "text-xl"];
-  const idx     = entry.rank - 1;
+// ── Visual helpers (podium) ─────────────────────────────────────────────────
 
+const TONES = {
+  gold:   { frame: "from-amber-100 via-amber-400 to-amber-700",   num: "from-amber-200 to-amber-500",   glow: "shadow-[0_0_40px_-6px_rgba(245,179,1,0.65)]",  text: "text-amber-400" },
+  silver: { frame: "from-zinc-50 via-zinc-300 to-zinc-500",       num: "from-zinc-100 to-zinc-400",     glow: "shadow-[0_0_28px_-8px_rgba(212,212,216,0.5)]", text: "text-zinc-300" },
+  bronze: { frame: "from-orange-200 via-orange-500 to-orange-700", num: "from-orange-200 to-orange-500", glow: "shadow-[0_0_28px_-8px_rgba(249,115,22,0.6)]",  text: "text-orange-400" },
+  violet: { frame: "from-violet-200 via-violet-500 to-violet-800", num: "from-violet-200 to-violet-500", glow: "shadow-[0_0_28px_-8px_rgba(139,92,246,0.6)]",  text: "text-violet-400" },
+} as const;
+
+type Tone = keyof typeof TONES;
+
+const RANK_TONE: Tone[] = ["gold", "silver", "bronze", "violet"];
+
+function FrameCard({ entry, tone, className = "" }: { entry: LeaderboardEntry; tone: Tone; className?: string }) {
+  const t = TONES[tone];
+  const initials = (entry.displayName ?? entry.walletAddress).slice(0, 2).toUpperCase();
   return (
-    <div className="flex flex-col items-center gap-2">
-      <span className={`${sizes[idx]} font-bold text-foreground`}>{MEDAL[idx]}</span>
-      <div className="flex flex-col items-center">
-        <Avatar entry={entry} size="md" />
-        <p className="mt-1 text-xs font-semibold text-foreground max-w-[72px] truncate text-center">
-          {displayLabel(entry)}
-        </p>
-        <p className="text-xs font-bold text-primary">{fmtSol(entry.totalFeeSol)}</p>
+    <Link
+      href={`/profile/${entry.walletAddress}`}
+      className={`relative block aspect-square rounded-[22px] bg-gradient-to-br p-[5px] transition-transform hover:scale-[1.03] ${t.frame} ${t.glow} ${className}`}
+    >
+      <div className="relative h-full w-full overflow-hidden rounded-[17px] bg-zinc-900">
+        {entry.avatarSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={entry.avatarSrc} alt={displayLabel(entry)} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950 text-3xl font-black text-white/80">
+            {initials}
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/10" />
       </div>
-      <div
-        className={`w-20 ${heights[idx]} rounded-t-xl flex items-end justify-center pb-2 text-xs font-bold text-white ${
-          idx === 0 ? "bg-amber-400" : idx === 1 ? "bg-zinc-400" : "bg-amber-700"
-        }`}
-      >
-        #{entry.rank}
-      </div>
-    </div>
+      <span className={`absolute -left-1 -top-3 bg-gradient-to-b bg-clip-text text-4xl font-black italic leading-none text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.6)] ${t.num}`}>
+        {entry.rank}
+      </span>
+    </Link>
   );
 }
 
@@ -126,25 +137,26 @@ export function CreatorLeaderboard() {
       </Link>
 
       {/* Title */}
-      <div className="mb-6 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Trophy className="size-5 text-amber-400" />
-          <h1 className="text-xl font-bold text-foreground">Creator Leaderboard</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Trophy className="size-6 shrink-0 text-primary" />
+          <h1 className="whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight tracking-tight text-foreground">Creator Leaderboard</h1>
         </div>
-        <span className="rounded-full bg-amber-400/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400 border border-amber-400/20">
+        <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-muted-foreground">
           Top 100
         </span>
       </div>
 
       {/* Period tabs */}
-      <div className="mb-6 flex gap-1 rounded-lg bg-muted p-0.5">
+      <div className="mb-6 flex w-fit items-center gap-0.5 rounded-full border border-border p-1">
+        <Trophy className="mx-2 size-4 text-muted-foreground" />
         {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
-            className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+            className={`rounded-full px-3 py-1 text-[13px] font-bold transition-all ${
               period === p.key
-                ? "bg-card text-foreground shadow-sm"
+                ? "bg-foreground text-background"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -156,11 +168,11 @@ export function CreatorLeaderboard() {
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted" />
+            <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted/60" />
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50/60 py-12 text-center text-sm text-red-600 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400">
+        <div className="rounded-2xl bg-down/12 py-12 text-center text-sm text-red-600 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400">
           {error}
         </div>
       ) : entries.length === 0 ? (
@@ -171,52 +183,77 @@ export function CreatorLeaderboard() {
         <>
           {/* Podium */}
           {top3.length >= 3 && (
-            <div className="mb-10 flex items-end justify-center gap-4">
-              {[top3[1], top3[0], top3[2]].filter(Boolean).map(e => (
-                <PodiumCard key={e.walletAddress} entry={e} />
-              ))}
+            <div className="relative mb-8 overflow-hidden rounded-[28px] border border-border bg-[radial-gradient(80%_60%_at_70%_20%,rgba(245,179,1,0.18),transparent_70%),radial-gradient(60%_50%_at_10%_90%,rgba(139,92,246,0.14),transparent_70%)] px-5 pb-6 pt-6">
+              <div className="grid grid-cols-[1fr_1.15fr] items-start gap-4">
+                {/* Leader */}
+                <div className="pt-1">
+                  <div className="flex items-start gap-2">
+                    <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-[64px] font-black italic leading-[0.85] text-transparent">1</span>
+                    <div className="min-w-0 pt-1">
+                      <p className="truncate text-lg font-bold tracking-tight text-foreground">{displayLabel(top3[0])}</p>
+                      <p className="num text-base font-bold text-up">+{fmtSol(top3[0].totalFeeSol)}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[13px] text-muted-foreground">
+                    {top3[0].tokenCount} tokens · {top3[0].claimCount} claims
+                  </p>
+                </div>
+                <div className="relative">
+                  <Crown className="absolute -top-5 left-1/2 z-10 size-9 -translate-x-1/2 rotate-[8deg] fill-amber-400 text-amber-500 drop-shadow-[0_2px_6px_rgba(245,179,1,0.6)]" />
+                  <FrameCard entry={top3[0]} tone="gold" className="rotate-[4deg]" />
+                </div>
+              </div>
+
+              {/* #2, #3, #4 */}
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                {[top3[1], top3[2], entries[3]].filter(Boolean).map((e, i) => (
+                  <div key={e.walletAddress} className="min-w-0">
+                    <FrameCard entry={e} tone={RANK_TONE[i + 1]} className={i === 0 ? "-rotate-[5deg]" : i === 1 ? "rotate-[2deg]" : "-rotate-[3deg]"} />
+                    <p className="mt-2.5 truncate text-center text-[13px] font-semibold text-foreground">{displayLabel(e)}</p>
+                    <p className="num truncate text-center text-xs font-bold text-up">+{fmtSol(e.totalFeeSol)}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Table */}
-          <div className="rounded-2xl border border-border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 border-b border-border">
-                <tr>
-                  {["#", "Creator", "Tokens", "Claims", "Total earned"].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {entries.map(entry => (
-                  <tr key={entry.walletAddress} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 text-xs font-bold text-muted-foreground w-8">
-                      {entry.rank <= 3 ? MEDAL[entry.rank - 1] : `#${entry.rank}`}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar entry={entry} size="sm" />
-                        <span className="text-xs font-semibold text-foreground truncate max-w-[90px]">
-                          {displayLabel(entry)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {entry.tokenCount}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {entry.claimCount}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-bold text-primary">
-                      {fmtSol(entry.totalFeeSol)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Ranking list */}
+          <div className="rounded-[24px] border border-border bg-card px-2 py-2">
+            {entries.map(entry => {
+              const top = entry.rank <= 3;
+              const tone = top ? TONES[RANK_TONE[entry.rank - 1]] : null;
+              return (
+                <Link
+                  key={entry.walletAddress}
+                  href={`/profile/${entry.walletAddress}`}
+                  className="flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-muted/50"
+                >
+                  <span className={`num w-6 shrink-0 text-center text-sm font-bold ${tone ? tone.text : "text-muted-foreground"}`}>
+                    {entry.rank}
+                  </span>
+                  <Avatar entry={entry} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`truncate text-[15px] font-semibold ${tone ? tone.text : "text-foreground"}`}>
+                        {displayLabel(entry)}
+                      </span>
+                      {top && <Crown className={`size-4 shrink-0 ${tone?.text ?? ""}`} />}
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="rounded-lg bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                        {entry.tokenCount} tokens
+                      </span>
+                      <span className="rounded-lg bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                        {entry.claimCount} claims
+                      </span>
+                    </div>
+                  </div>
+                  <span className="num shrink-0 text-right text-[15px] font-bold text-up">
+                    +{fmtSol(entry.totalFeeSol)}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </>
       )}

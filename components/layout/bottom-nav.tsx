@@ -3,19 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Trophy, Rocket, User } from "lucide-react";
+import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const PREDICT_NAV = [
   { label: "Markets",     href: "/prediction",              icon: BarChart2,  exact: true  },
-  { label: "Leaderboard", href: "/leaderboard/predictions", icon: Trophy,     exact: false },
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
 ];
 
 const LAUNCHPAD_NAV = [
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
   { label: "Launch",      href: "/launchpad/create",        icon: Rocket,     exact: true  },
-  { label: "Leaderboard", href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
   { label: "Portfolio",    href: "/dashboard/launchpad",     icon: User,       exact: false },
 ];
 
@@ -92,21 +90,21 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background border-t border-border md:hidden transition-transform duration-300 ease-out ${
+        className={`fixed bottom-0 left-0 right-0 z-50 rounded-t-[28px] bg-card border-t border-border md:hidden transition-transform duration-300 ease-out ${
           open ? "translate-y-0" : "translate-y-full"
         }`}
       >
         {/* Handle pill */}
         <div className="flex justify-center pt-2.5 pb-1">
-          <div className="h-1 w-10 rounded-full bg-muted" />
+          <div className="h-1.5 w-12 rounded-full bg-muted" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-border">
-          <span className="text-sm font-semibold text-foreground">More</span>
+        <div className="flex items-center justify-between px-5 pt-2 pb-3">
+          <span className="text-lg font-bold tracking-tight text-foreground">More</span>
           <button
             onClick={onClose}
-            className="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -114,7 +112,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         </div>
 
         {/* Links */}
-        <ul className="px-3 py-3 space-y-1 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+        <ul className="px-4 py-3 space-y-2 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
           {MORE_ITEMS.map((item) => (
             <li key={item.label}>
               <Link
@@ -122,13 +120,13 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
                 target={item.external ? "_blank" : undefined}
                 rel={item.external ? "noopener noreferrer" : undefined}
                 onClick={onClose}
-                className="flex items-center gap-4 px-3 py-3.5 rounded-xl hover:bg-muted/60 transition-colors group"
+                className="flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors group"
               >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-foreground">
                   <i className={`ti ${item.icon} text-lg`} aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="text-[15px] font-semibold text-foreground">{item.label}</p>
                   <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
                 {item.external && (
@@ -162,7 +160,7 @@ export function BottomNav() {
     <>
       <MoreSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="fixed inset-x-4 bottom-4 z-40 flex gap-1 p-1.5 md:hidden nav-pill" style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {navItems.map(({ label, href, icon: Icon, exact }) => {
           // Treat "/" as "/launchpad" for active-state purposes (homepage = launchpad)
           const effectivePath = pathname === "/" ? "/launchpad" : pathname;
@@ -173,22 +171,22 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors ${
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${
+                active ? "nav-pill-active text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon className="size-5" strokeWidth={active ? 2.5 : 1.75} />
-              <span>{label}</span>
+              <Icon className="size-[26px]" strokeWidth={active ? 2.25 : 1.75} />
+              <span className="sr-only">{label}</span>
             </Link>
           );
         })}
 
         <button
           onClick={() => setSheetOpen(true)}
-          className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="flex h-14 flex-1 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
         >
-          <MoreHorizontal className="size-5" strokeWidth={1.75} />
-          <span>More</span>
+          <MoreHorizontal className="size-[26px]" strokeWidth={1.75} />
+          <span className="sr-only">More</span>
         </button>
       </nav>
     </>

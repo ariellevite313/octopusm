@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Rocket, Trophy, User } from "lucide-react";
+import { LayoutGrid, Rocket, User } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const NAV_ITEMS = [
   { label: "Tokens",      href: "/launchpad",             icon: LayoutGrid },
   { label: "+ Launch",    href: "/launchpad/create",      icon: Rocket     },
-  { label: "Leaderboard", href: "/leaderboard/launchpad", icon: Trophy     },
   { label: "My tokens",   href: "/dashboard/launchpad",   icon: User       },
 ];
 
@@ -35,7 +34,7 @@ export function LaunchpadBottomNav() {
     : NAV_ITEMS.filter(({ href }) => href !== "/dashboard/launchpad");
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden border-t border-border bg-background" style={{ paddingBottom: isPhantom ? '90px' : 'env(safe-area-inset-bottom, 0px)' }}>
+    <nav className="fixed inset-x-4 bottom-4 z-40 flex gap-1 p-1.5 md:hidden nav-pill" style={{ marginBottom: isPhantom ? '90px' : 'env(safe-area-inset-bottom, 0px)' }}>
       {visibleItems.map(({ label, href, icon: Icon }) => {
         const active =
           href === "/launchpad"
@@ -51,10 +50,10 @@ export function LaunchpadBottomNav() {
             <button
               key={href}
               onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors text-muted-foreground hover:text-foreground`}
+              className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors text-muted-foreground hover:text-foreground`}
             >
-              <Icon className="size-5" strokeWidth={1.75} />
-              <span>{label}</span>
+              <Icon className="size-[26px]" strokeWidth={1.75} />
+              <span className="sr-only">{label}</span>
             </button>
           );
         }
@@ -62,12 +61,12 @@ export function LaunchpadBottomNav() {
           <Link
             key={href}
             href={href}
-            className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors ${
-              active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${
+              active ? "nav-pill-active text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Icon className="size-5" strokeWidth={active ? 2.5 : 1.75} />
-            <span>{label}</span>
+            <Icon className="size-[26px]" strokeWidth={active ? 2.25 : 1.75} />
+            <span className="sr-only">{label}</span>
           </Link>
         );
       })}

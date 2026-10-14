@@ -141,7 +141,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-md p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+          className="absolute right-4 top-4 rounded-xl p-1.5 text-muted-foreground hover:bg-muted transition-colors"
         >
           <X className="size-5" />
         </button>
@@ -170,7 +170,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
         {step === "done" && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
-              <CheckCircle className="size-7 text-emerald-500" />
+              <CheckCircle className="size-7 text-up" />
             </div>
             <p className="text-sm font-semibold text-foreground">Request submitted!</p>
             <p className="text-xs text-muted-foreground max-w-xs">
@@ -186,7 +186,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             </div>
             <button
               onClick={onClose}
-              className="mt-3 w-full rounded-md border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+              className="mt-3 w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
               Close
             </button>
@@ -209,7 +209,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
                   {fmtAmount(token, existing.amount)}
                 </span>{" "}
                 withdrawal{" "}
-                <span className={existing.status === "approved" ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-amber-600 dark:text-amber-400 font-semibold"}>
+                <span className={existing.status === "approved" ? "text-up font-semibold" : "text-amber-600 dark:text-amber-400 font-semibold"}>
                   {existing.status === "approved" ? "approved" : "pending"}
                 </span>
                 {". "}
@@ -223,7 +223,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               <button
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="flex w-full items-center justify-center gap-2 rounded-md border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
               >
                 {cancelling ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 Cancel pending request
@@ -232,7 +232,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
 
             <button
               onClick={onClose}
-              className="w-full rounded-md border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+              className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
               Close
             </button>
@@ -245,7 +245,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             {/* Amount input */}
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <label className="text-[13px] font-semibold text-muted-foreground">
                   Amount
                 </label>
                 <button
@@ -308,7 +308,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             <button
               type="submit"
               disabled={!valid || submitting}
-              className={`flex w-full items-center justify-center gap-2 rounded-md py-3 text-sm font-semibold text-white transition-colors ${btnClass}`}
+              className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-colors ${btnClass}`}
             >
               {submitting ? (
                 <>

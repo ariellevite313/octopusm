@@ -31,29 +31,29 @@ export function PlatformStats() {
   const display = stats ?? (loaded ? FALLBACK : null);
 
   return (
-    <div className="flex items-baseline gap-3 mb-5">
-      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+    <div className="flex flex-col gap-1">
+      <span className="text-sm text-muted-foreground font-medium">
         Total volume
       </span>
       {display ? (
         <>
-          <span className="flex items-center gap-1.5">
-            <span className="text-2xl font-semibold text-foreground">
+          <span className="flex items-center gap-2">
+            <span className="num text-[40px] leading-none font-bold tracking-[-0.04em] text-foreground sm:text-[56px]">
               {fmtUsd(display.totalVolume)}
             </span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{flexShrink:0}}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{flexShrink:0}}>
               <path d="M12 2C12 2 10 6 10 9C10 9 8 7 8 4C8 4 4 7 4 12C4 16.418 7.582 20 12 20C16.418 20 20 16.418 20 12C20 8 17 5 17 5C17 5 16 8 14 9C14 9 14 5 12 2Z" fill="#f97316"/>
               <path d="M12 13C12 13 11 15 11 16.5C11 17.328 11.672 18 12.5 18C13.328 18 14 17.328 14 16.5C14 15 13 13 13 13H12Z" fill="#fbbf24"/>
             </svg>
           </span>
           {display.volume24h > 0 && (
-            <span className="text-xs text-emerald-500 font-medium">
+            <span className="num text-[15px] font-semibold text-up">
               +{fmtUsd(display.volume24h)} today
             </span>
           )}
         </>
       ) : (
-        <span className="h-7 w-28 rounded-md bg-muted/40 animate-pulse inline-block" />
+        <span className="h-12 w-48 rounded-2xl bg-muted animate-pulse inline-block" />
       )}
     </div>
   );

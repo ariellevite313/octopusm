@@ -98,7 +98,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
   }, [token.id, token.name, onDelete, t]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="overflow-hidden rounded-[22px] border border-border bg-card">
       <div className="p-4 flex items-start gap-3">
 
         {/* Logo — use <img> to avoid next/image domain restrictions for R2/external CDN */}

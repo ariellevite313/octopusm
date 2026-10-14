@@ -31,9 +31,9 @@ export function DashboardTabs() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-2 px-4 pb-3 pt-1 text-[15px] font-bold border-b-2 transition-colors -mb-px ${
               active
-                ? "border-primary text-primary"
+                ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
             }`}
           >

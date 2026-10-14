@@ -64,7 +64,7 @@ function PredictionCard({ market }: { market: PredictionMarketRow }) {
   return (
     <Link
       href={href}
-      className="group block rounded-2xl border border-border bg-card p-4 transition-all hover:border-orange-300 hover:shadow-md dark:hover:border-orange-700/50"
+      className="group block rounded-[22px] border border-border bg-card p-4 transition-all hover:border-orange-300 hover:shadow-md dark:hover:border-orange-700/50"
     >
       {isVs && (
         <div className="mb-3 flex items-center justify-center gap-3">
@@ -93,8 +93,8 @@ function PredictionCard({ market }: { market: PredictionMarketRow }) {
       </p>
 
       <div className="mt-2 flex items-center gap-1.5">
-        <CheckCircle2 className="size-3.5 shrink-0 text-emerald-500" />
-        <span className="truncate text-xs font-medium text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="size-3.5 shrink-0 text-up" />
+        <span className="truncate text-xs font-medium text-up">
           {winningLabel}
         </span>
       </div>
@@ -124,20 +124,20 @@ function PoolCard({ market }: { market: MutuelMarketRow }) {
   return (
     <Link
       href={href}
-      className="group block rounded-2xl border border-orange-200 bg-orange-50/60 p-4 transition-all hover:border-orange-400 hover:shadow-md dark:border-orange-900/30 dark:bg-orange-950/5 dark:hover:border-orange-700/60"
+      className="group block rounded-2xl border border-border bg-orange-50/60 p-4 transition-all hover:border-orange-400 hover:shadow-md dark:bg-orange-950/5 dark:hover:border-orange-700/60"
     >
       {/* Icon + title */}
       <div className="mb-3 flex items-center gap-2.5">
         {market.cover_image_src ? (
-          <div className="size-9 shrink-0 overflow-hidden rounded-xl border border-orange-200 dark:border-orange-900/40">
+          <div className="size-9 shrink-0 overflow-hidden rounded-xl border border-border">
             <img src={market.cover_image_src} alt="" className="size-9 object-cover" />
           </div>
         ) : (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-orange-200 bg-orange-100 text-base dark:border-orange-900/40 dark:bg-orange-950/30">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-orange-100 text-base dark:bg-orange-950/30">
             🎱
           </div>
         )}
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">
+        <span className="text-[13px] font-semibold text-orange-500">
           Bookmake · {market.category}
         </span>
       </div>
@@ -255,7 +255,7 @@ export default async function ArchivePage({
             <Link
               key={t}
               href={href}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize transition-colors ${
+              className={`rounded-full border px-3 py-1 text-xs font-bold capitalize transition-colors ${
                 active
                   ? "border-orange-400 bg-orange-500 text-white"
                   : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
@@ -312,7 +312,7 @@ export default async function ArchivePage({
       {/* Timeline groups */}
       {Object.entries(grouped).map(([monthLabel, groupEntries]) => (
         <section key={monthLabel} className="mb-10">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-foreground">
             <span className="flex-1 border-t border-border" />
             <span className="capitalize">{monthLabel}</span>
             <span className="flex-1 border-t border-border" />

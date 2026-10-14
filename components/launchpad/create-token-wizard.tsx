@@ -234,7 +234,7 @@ function StepIdentity({ data, set, errors }: {
             placeholder="e.g. Octopus Coin"
             className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
-          {availability.name === true && <p className="mt-1 text-xs text-emerald-500">✓ Available</p>}
+          {availability.name === true && <p className="mt-1 text-xs text-up">✓ Available</p>}
           {availability.name === false && <p className="mt-1 text-xs text-red-500">✗ Already taken</p>}
           {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
         </div>
@@ -250,7 +250,7 @@ function StepIdentity({ data, set, errors }: {
               className="w-full rounded-xl border border-border bg-background pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary uppercase"
             />
           </div>
-          {availability.ticker === true && <p className="mt-1 text-xs text-emerald-500">✓ Available</p>}
+          {availability.ticker === true && <p className="mt-1 text-xs text-up">✓ Available</p>}
           {availability.ticker === false && <p className="mt-1 text-xs text-red-500">✗ Already taken</p>}
           {checking && <p className="mt-1 text-xs text-muted-foreground">Checking…</p>}
           {errors.ticker && <p className="mt-1 text-xs text-red-500">{errors.ticker}</p>}
@@ -706,7 +706,7 @@ function FeeTierCard({
 
       {/* Barres */}
       <div className="space-y-2.5">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">During bonding curve</p>
+        <p className="text-[13px] text-muted-foreground">During bonding curve</p>
         {def.rows.map((r) => (
           <div key={r.label} className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground w-16 shrink-0">{r.label}</span>
@@ -723,7 +723,7 @@ function FeeTierCard({
 
       {/* Post-graduation */}
       <div className="pt-3 border-t border-border space-y-2.5">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           After graduation — 0.50% V4 pool fee split
         </p>
         {/* Barres post-grad */}
@@ -866,7 +866,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
 
       {/* Token */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Token</p>
+        <p className="text-[13px] font-semibold text-muted-foreground">Token</p>
         <div className="flex items-center gap-3">
           {data.logo_preview && (
             <Image src={data.logo_preview} alt="Logo" width={44} height={44} className="rounded-xl object-cover" unoptimized />
@@ -885,7 +885,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
 
       {/* Socials */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-1.5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Socials</p>
+        <p className="text-[13px] font-semibold text-muted-foreground mb-2">Socials</p>
         {[
           { label: "Website", value: data.website },
           { label: "Twitter", value: data.twitter },
@@ -902,7 +902,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
 
       {/* Options */}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Options</p>
+        <p className="text-[13px] font-semibold text-muted-foreground mb-2">Options</p>
         {chain === "arc" ? (
           <>
             <Row label="Supply" value="1,000,000,000 tokens" />
@@ -939,7 +939,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
       {/* Coût */}
       {chain === "arc" ? (
         <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Coût — Arc</p>
+          <p className="text-[13px] font-semibold text-muted-foreground mb-2">Coût — Arc</p>
           <div className="space-y-1">
             <Row label="Creation fee" value="Gratuit" />
             {data.arc_first_buy_enabled && (
@@ -962,7 +962,7 @@ function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "sol
         </div>
       ) : (
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Cost</p>
+          <p className="text-[13px] font-semibold text-muted-foreground mb-2">Cost</p>
           <div className="space-y-1">
             <Row label="Platform fee" value="0.05 SOL" />
             <Row label="Network rent (Meteora)" value="~0.0245 SOL" />
@@ -1310,7 +1310,7 @@ export function CreateTokenWizard({
         {walletAddress && (
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-up hover:bg-emerald-500/20 transition-colors"
           >
             Switch wallet
           </button>
@@ -1340,7 +1340,7 @@ export function CreateTokenWizard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
+    <div className="rounded-[22px] border border-border bg-card p-6">
       <StepBar current={step} steps={effectiveSteps} />
 
       <div className="min-h-[400px]">
@@ -1362,12 +1362,12 @@ export function CreateTokenWizard({
 
         {step < maxStep ? (
           <button type="button" onClick={next}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
+            className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
             Continue <ChevronRight className="size-4" />
           </button>
         ) : (
           <button type="button" onClick={submit} disabled={submitting}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
+            className="flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
             {submitting
               ? chain === "arc" ? "Deploying on Arc…" : "Creating…"
               : chain === "arc" ? "🚀 Deploy on Arc" : "🚀 Launch Token"}

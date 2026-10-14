@@ -152,7 +152,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function StatusBadge({ status, isTradeable }: { status: string; isTradeable: boolean }) {
   const map: Record<string, { label: string; cls: string }> = {
     pending:    { label: "Pending",    cls: "bg-yellow-500/15 text-yellow-500 border border-yellow-500/30" },
-    active:     { label: isTradeable ? "Live" : "Scheduled", cls: isTradeable ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-violet-500/15 text-violet-400 border border-violet-500/30" },
+    active:     { label: isTradeable ? "Live" : "Scheduled", cls: isTradeable ? "bg-emerald-500/15 text-up border border-emerald-500/30" : "bg-violet-500/15 text-violet-400 border border-violet-500/30" },
     graduating: { label: "Graduating", cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
     graduated:  { label: "Graduated",  cls: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30" },
     cancelled:  { label: "Cancelled",  cls: "bg-red-500/15 text-red-400 border border-red-500/30" },
@@ -172,7 +172,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+    <p className="text-[13px] font-semibold text-muted-foreground mb-3">
       {children}
     </p>
   );
@@ -245,7 +245,7 @@ export default async function TokenDetailPage({ params }: Props) {
       <div className={`relative ${token.banner_url ? "aspect-[3/1]" : "h-36 md:h-48"}`}>
 
         {/* Background */}
-        <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+        <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-950">
           {token.banner_url ? (
             <Image
               src={token.banner_url}
@@ -273,7 +273,7 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="absolute top-4 left-4">
           <Link
             href="/launchpad"
-            className="inline-flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors"
+            className="inline-flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-md hover:text-white transition-colors"
           >
             ← Launchpad
           </Link>
@@ -294,11 +294,11 @@ export default async function TokenDetailPage({ params }: Props) {
               alt={token.name}
               width={72}
               height={72}
-              className="size-14 md:size-[72px] rounded-2xl border-2 border-background object-cover shadow-lg"
+              className="size-16 md:size-20 rounded-[22px] border-4 border-background object-cover shadow-lg"
               unoptimized
             />
           ) : (
-            <div className="size-14 md:size-[72px] rounded-2xl border-2 border-background bg-violet-900/60 flex items-center justify-center text-xl font-semibold text-violet-300 shadow-lg">
+            <div className="size-16 md:size-20 rounded-[22px] border-4 border-background bg-muted flex items-center justify-center text-xl font-bold text-muted-foreground shadow-lg">
               {token.ticker.slice(0, 2)}
             </div>
           )}
@@ -311,19 +311,19 @@ export default async function TokenDetailPage({ params }: Props) {
         {/* Left: name, ticker, badges, CA */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h1 className="text-xl font-semibold text-foreground">{token.name}</h1>
+            <h1 className="text-[26px] font-bold tracking-tight text-foreground md:text-[32px]">{token.name}</h1>
             <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-lg bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
               {token.category}
             </span>
             {token.is_verified && (
-              <BadgeCheck className="size-5 text-orange-400 shrink-0" />
+              <BadgeCheck className="size-6 fill-primary text-background shrink-0" />
             )}
           </div>
-          <div className="text-sm text-muted-foreground mb-2">${token.ticker}</div>
+          <div className="text-base font-medium text-muted-foreground mb-2">${token.ticker}</div>
           {token.mint_address && (
             <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="rounded-lg bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
                 {shortAddr(token.mint_address, 6, 6)}
               </span>
               <CopyMint address={token.mint_address} />
@@ -408,7 +408,7 @@ export default async function TokenDetailPage({ params }: Props) {
           )}
 
           {isPending && (
-            <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
+            <div className="rounded-[22px] border border-dashed border-border px-5 py-10 text-center">
               <p className="text-sm font-medium text-foreground mb-1">Awaiting launch</p>
               <p className="text-xs text-muted-foreground">The chart will appear once the token is deployed on-chain.</p>
             </div>
@@ -480,7 +480,7 @@ export default async function TokenDetailPage({ params }: Props) {
                 href={arcScanTokenUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-muted px-5 py-3 text-sm font-bold text-foreground hover:bg-muted/70 transition-colors"
               >
                 View on ArcScan →
               </a>
@@ -522,7 +522,7 @@ export default async function TokenDetailPage({ params }: Props) {
                 href={birdeyeTokenUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-muted px-5 py-3 text-sm font-bold text-foreground hover:bg-muted/70 transition-colors"
               >
                 Trade on Birdeye →
               </a>
@@ -584,7 +584,7 @@ export default async function TokenDetailPage({ params }: Props) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-500 shrink-0">
+                  <span className="inline-flex items-center rounded-md bg-up/12 px-2 py-0.5 text-[11px] font-semibold text-up shrink-0">
                     1% fees
                   </span>
                   <a
@@ -626,7 +626,6 @@ export default async function TokenDetailPage({ params }: Props) {
 
         {/* ── Comments — last on mobile, row 2 col 1 on desktop ───────────── */}
         <div className="md:row-start-2 md:col-start-1">
-          <SectionLabel>Comments</SectionLabel>
           <LaunchpadComments
             tokenId={token.id}
             initialComments={initialComments}

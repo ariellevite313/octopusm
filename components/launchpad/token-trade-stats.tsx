@@ -68,7 +68,7 @@ function StatRow({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium text-emerald-500">
+        <span className="text-[11px] font-medium text-up">
           {fmtCount(leftCount)} <span className="text-muted-foreground font-normal">{leftLabel}</span>
         </span>
         <span className="text-[11px] font-medium text-red-400">
@@ -89,7 +89,7 @@ function Skeleton() {
         <div className="h-2.5 w-24 rounded bg-muted/50" />
         <div className="flex gap-1">
           {TIMEFRAMES.map(t => (
-            <div key={t.key} className="h-5 w-7 rounded-md bg-muted/50" />
+            <div key={t.key} className="h-5 w-7 rounded-xl bg-muted/50" />
           ))}
         </div>
       </div>
@@ -138,7 +138,7 @@ export function TokenTradeStats({ mintAddress }: { mintAddress: string }) {
     <div>
       {/* Section header + timeframe selector */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <p className="text-[13px] font-semibold text-muted-foreground">
           Transactions
         </p>
         <div className="flex items-center gap-0.5">
@@ -146,9 +146,9 @@ export function TokenTradeStats({ mintAddress }: { mintAddress: string }) {
             <button
               key={t.key}
               onClick={() => setTf(t.key)}
-              className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${
+              className={`px-2 py-0.5 text-[10px] font-medium rounded-xl transition-colors ${
                 tf === t.key
-                  ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+                  ? "bg-emerald-500/15 text-up border border-emerald-500/30"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >

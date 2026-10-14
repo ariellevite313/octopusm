@@ -225,14 +225,14 @@ function ProfileDrawer({
                   title="Copy address"
                 >
                   {copied
-                    ? <Check className="size-3 text-emerald-500" />
+                    ? <Check className="size-3 text-up" />
                     : <Copy className="size-3" />}
                 </button>
               </div>
             </div>
 
             <button type="button" onClick={startEdit}
-              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+              className="shrink-0 rounded-xl p-1.5 text-muted-foreground hover:bg-muted"
               title="Edit profile">
               <Pencil className="size-4" />
             </button>
@@ -277,7 +277,7 @@ function ProfileDrawer({
           {/* Balances */}
           {!editing && (
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.overview}</p>
+              <p className="text-[13px] font-semibold text-muted-foreground">{t.overview}</p>
               <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
@@ -313,11 +313,11 @@ function ProfileDrawer({
 
           {/* Referral mini */}
           {!editing && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+            <div className="rounded-2xl bg-up/12 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/10">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">{t.referral}</p>
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                  <p className="text-[11px] text-up mt-0.5">
                     {drawerStats?.referral_count ?? 0} {t.filleuls} · {(drawerStats?.referral_octo ?? 0).toLocaleString()} {t.octoEarned}
                   </p>
                 </div>
@@ -338,7 +338,7 @@ function ProfileDrawer({
           {/* Edit form */}
           {editing && (
             <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-[13px] font-semibold text-muted-foreground">
                 {t.editProfile}
               </p>
               <div>
@@ -374,7 +374,7 @@ function ProfileDrawer({
                   {t.cancel}
                 </button>
                 <button type="button" onClick={saveProfile} disabled={saving}
-                  className="flex-1 rounded-md bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60">
+                  className="flex-1 rounded-[14px] bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-60 btn-primary">
                   {saving ? t.saving : t.save}
                 </button>
               </div>
@@ -387,7 +387,7 @@ function ProfileDrawer({
           <Link
             href="/dashboard/pools"
             onClick={onClose}
-            className="flex w-full items-center gap-3 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+            className="flex w-full items-center gap-3 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
           >
             <Plus className="size-4" />
             <span>{t.createMarket}</span>
@@ -459,7 +459,7 @@ function ProfileDrawer({
             <button
               type="button"
               onClick={onDisconnect}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 transition-colors"
             >
               <LogOut className="size-4" />
               {t.disconnect}
@@ -483,8 +483,13 @@ function WalletButtonInner() {
 
   useEffect(() => {
     const handler = () => setShowDialog(true);
+    const openProfile = () => setShowProfile(true);
     window.addEventListener("open-wallet-connect", handler);
-    return () => window.removeEventListener("open-wallet-connect", handler);
+    window.addEventListener("open-wallet-profile", openProfile);
+    return () => {
+      window.removeEventListener("open-wallet-connect", handler);
+      window.removeEventListener("open-wallet-profile", openProfile);
+    };
   }, []);
 
   async function handleSelectWallet(type: WalletType) {
@@ -516,7 +521,7 @@ function WalletButtonInner() {
     router.push("/");
   }
 
-  if (isLoading) return <div className="h-9 w-36 animate-pulse rounded-md bg-muted" />;
+  if (isLoading) return <div className="hidden h-9 w-36 animate-pulse rounded-xl bg-muted md:block" />;
 
   if (isAuthenticated && walletAddress) {
     const walletIcon = walletType ? WALLET_ICONS[walletType] : null;
@@ -525,7 +530,7 @@ function WalletButtonInner() {
         <button
           type="button"
           onClick={() => setShowProfile(true)}
-          className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted md:flex"
         >
           {walletIcon ? (
             <Image src={walletIcon} alt={walletType ?? "wallet"} width={16} height={16}
@@ -555,7 +560,7 @@ function WalletButtonInner() {
         type="button"
         onClick={() => setShowDialog(true)}
         disabled={isConnecting}
-        className="rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-400 disabled:opacity-60"
+        className="hidden rounded-[14px] bg-orange-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-400 disabled:opacity-60 btn-primary md:inline-block"
       >
         {isConnecting ? "Connecting..." : "Connect Wallet"}
       </button>
@@ -572,7 +577,7 @@ function WalletButtonInner() {
 
 export function WalletButton() {
   return (
-    <Suspense fallback={<div className="h-9 w-36 animate-pulse rounded-md bg-muted" />}>
+    <Suspense fallback={<div className="hidden h-9 w-36 animate-pulse rounded-xl bg-muted md:block" />}>
       <WalletButtonInner />
     </Suspense>
   );

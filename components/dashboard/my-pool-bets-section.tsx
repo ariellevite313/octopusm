@@ -67,11 +67,11 @@ function betStatus(bet: ValidatedBet): {
   if (market.status === "resolved") {
     const isWinner = market.winning_option_id === bet.option_id;
     if (!isWinner) return { label: "Lost", color: "text-red-500" };
-    return { label: "Won", color: "text-emerald-500" };
+    return { label: "Won", color: "text-up" };
   }
 
   if (market.status === "closed") return { label: "Awaiting resolution", color: "text-amber-500" };
-  if (market.status === "active")  return { label: "Active", color: "text-emerald-500" };
+  if (market.status === "active")  return { label: "Active", color: "text-up" };
   return { label: market.status, color: "text-muted-foreground" };
 }
 
@@ -164,7 +164,7 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
           return (
             <div
               key={bet.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ export function MyPoolBetsSection({ walletAddress }: Props) {
                 </p>
                 <p className={`text-[11px] ${status.color}`}>{status.label}</p>
                 {netPayout !== null && (
-                  <p className="flex items-center justify-end gap-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+                  <p className="flex items-center justify-end gap-0.5 text-[11px] text-up">
                     +<TokenLogo token={bet.token} className="size-3" />
                     {netPayout.toFixed(dec(bet.token))}
                   </p>

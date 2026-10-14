@@ -61,7 +61,7 @@ export function PoolWinningsSection({ walletAddress }: Props) {
     return (
       <section>
         <div className="mb-3 flex items-center gap-2">
-          <Gift className="size-4 text-emerald-500" />
+          <Gift className="size-4 text-up" />
           <h2 className="text-base font-bold text-foreground">Pool Winnings</h2>
         </div>
         <div className="flex flex-col gap-2">
@@ -78,7 +78,7 @@ export function PoolWinningsSection({ walletAddress }: Props) {
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
-        <Gift className="size-4 text-emerald-500" />
+        <Gift className="size-4 text-up" />
         <h2 className="text-base font-bold text-foreground">Pool Winnings</h2>
         {unpaid.length > 0 && (
           <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
@@ -154,7 +154,7 @@ export function PoolWinningsSection({ walletAddress }: Props) {
       {/* Paid by admin */}
       {paid.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-[13px] font-semibold text-muted-foreground">
             Received
           </p>
           {paid.map(bet => {
@@ -163,7 +163,7 @@ export function PoolWinningsSection({ walletAddress }: Props) {
             return (
               <div
                 key={bet.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">
@@ -173,7 +173,7 @@ export function PoolWinningsSection({ walletAddress }: Props) {
                     {bet.is_refund ? "Refund received" : "Winnings received"}
                   </p>
                 </div>
-                <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-up">
                   <TokenLogo token={bet.token} className="size-5" />
                   +{bet.net_payout.toFixed(dec)}
                 </span>

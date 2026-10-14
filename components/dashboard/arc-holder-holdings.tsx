@@ -84,7 +84,7 @@ export function ArcHolderHoldings() {
     <div className="space-y-2.5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <h3 className="text-[13px] font-semibold text-muted-foreground">
           {t.myArcPositions}
         </h3>
         {totalUsd > 0 && (
@@ -103,7 +103,7 @@ export function ArcHolderHoldings() {
           <Link
             key={h.id}
             href={tokenHref}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card px-3.5 py-3 transition-colors hover:border-orange-500/20 hover:bg-muted/30"
+            className="flex items-center gap-3 rounded-[22px] border border-border bg-card px-3.5 py-3 transition-colors hover:border-orange-500/20 hover:bg-muted/30"
           >
             {/* Logo */}
             <div className="size-[42px] shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">

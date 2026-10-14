@@ -36,13 +36,6 @@ function fmt(n: number) {
   return n.toFixed(2);
 }
 
-function rankDisplay(rank: number) {
-  if (rank === 1) return { emoji: "🥇", cls: "text-yellow-500" };
-  if (rank === 2) return { emoji: "🥈", cls: "text-zinc-400"   };
-  if (rank === 3) return { emoji: "🥉", cls: "text-amber-600"  };
-  return { emoji: `#${rank}`, cls: "text-muted-foreground" };
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LeaderboardTabs() {
@@ -60,7 +53,7 @@ export function LeaderboardTabs() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/leaderboard/predictions?token=${token}&period=${period}&limit=20`, { signal: controller.signal })
+    fetch(`/api/leaderboard/predictions?token=${token}&period=${period}&limit=100`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         return res.json() as Promise<{ entries: LeaderboardEntry[]; error?: string }>;
@@ -86,123 +79,126 @@ export function LeaderboardTabs() {
 
   return (
     <div>
-      {/* ── Token tabs ─────────────────────────────────────────────────── */}
-      <div className="mb-3 flex gap-1.5 rounded-xl bg-muted p-1">
+      {/* ── Token cards ───────────────────────────────────────────────── */}
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Best winners</h2>
+      </div>
+      <div className="-mx-4 mb-6 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
         {TOKENS.map((t) => (
           <button
             key={t.key}
             onClick={() => setToken(t.key)}
-            className={`flex flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-2 transition-all ${
+            className={`flex w-[150px] shrink-0 flex-col items-center gap-2 rounded-[24px] border px-3 pb-4 pt-5 transition-all ${
               token === t.key
-                ? "bg-card shadow-sm"
-                : "hover:bg-card/50"
+                ? "border-primary/60 bg-card"
+                : "border-border bg-card/60 hover:bg-card"
             }`}
           >
-            <div className="flex items-center gap-1.5">
-              <Image src={t.logo} alt={t.label} width={22} height={22} className="shrink-0 rounded-full" />
-              <span className={`text-sm font-semibold ${token === t.key ? "text-foreground" : "text-muted-foreground"}`}>
-                {t.label}
-              </span>
-            </div>
-            <span className="text-[9px] text-muted-foreground">Best winners</span>
+            <Image src={t.logo} alt={t.label} width={56} height={56} className="size-14 shrink-0 rounded-2xl object-cover" />
+            <span className="text-[15px] font-bold text-foreground">{t.label}</span>
+            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
+              token === t.key ? "border-primary/40 text-primary" : "border-border text-muted-foreground"
+            }`}>
+              {token === t.key ? "Selected" : "View"}
+            </span>
           </button>
         ))}
       </div>
 
-      {/* ── Period tabs ────────────────────────────────────────────────── */}
-      <div className="mb-4 flex gap-1 rounded-lg bg-muted p-0.5">
-        {PERIODS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
-              period === p.key
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* ── Filters row ───────────────────────────────────────────────── */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 rounded-full border border-border px-3.5 py-1.5">
+          <Image src={tokenCfg.logo} alt={tokenCfg.label} width={18} height={18} className="rounded-full" />
+          <span className="text-sm font-bold text-foreground">{tokenCfg.label}</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={`rounded-xl px-3 py-1.5 text-sm font-bold transition-all ${
+                period === p.key
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── Context label ──────────────────────────────────────────────── */}
-      <div className="mb-3 flex items-center gap-1.5">
-        <Image src={tokenCfg.logo} alt={tokenCfg.label} width={20} height={20} className="rounded-full opacity-70" />
-        <p className="text-xs text-muted-foreground">
-          Top {tokenCfg.label} winners · {periodCfg.label}
-        </p>
-      </div>
+      <p className="mb-2 px-1 text-[13px] text-muted-foreground">
+        Top {tokenCfg.label} winners · {periodCfg.label}
+      </p>
 
       {/* ── List ───────────────────────────────────────────────────────── */}
       {loading ? (
         <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted" />
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-[72px] animate-pulse rounded-2xl bg-muted/60" />
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50/60 py-12 text-center text-sm text-red-600 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400">
+        <div className="rounded-2xl bg-down/12 py-12 text-center text-sm text-down">
           {error}
         </div>
       ) : entries.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">
+        <div className="rounded-[22px] bg-card py-14 text-center text-sm text-muted-foreground">
           No winners found for this period.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col">
           {entries.map((entry) => {
-            const { emoji, cls } = rankDisplay(entry.rank);
-            const isTop3 = entry.rank <= 3;
+            const name = entry.display_name ?? shortAddress(entry.wallet_address);
             return (
               <Link
                 key={entry.wallet_address}
                 href={`/profile/${entry.wallet_address}`}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors hover:bg-muted/50 ${
-                  isTop3
-                    ? "border-orange-200 bg-orange-50/60 dark:border-orange-900/50 dark:bg-orange-950/10"
-                    : "border-border bg-card"
-                }`}
+                className="flex items-center gap-3 rounded-2xl px-1 py-3 transition-colors hover:bg-muted/40"
               >
                 {/* Rank */}
-                <span className={`w-8 shrink-0 text-center text-sm font-bold ${cls}`}>
-                  {emoji}
-                </span>
+                <RankMark rank={entry.rank} />
 
                 {/* Avatar */}
-                {entry.avatar_src ? (
-                  <Image
-                    src={entry.avatar_src}
-                    alt={entry.display_name ?? entry.wallet_address}
-                    width={36}
-                    height={36}
-                    unoptimized
-                    className="size-9 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
-                    {(entry.display_name ?? entry.wallet_address)[0].toUpperCase()}
-                  </div>
-                )}
+                <div className="relative shrink-0">
+                  {entry.avatar_src ? (
+                    <Image
+                      src={entry.avatar_src}
+                      alt={name}
+                      width={56}
+                      height={56}
+                      unoptimized
+                      className="size-14 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-14 items-center justify-center rounded-full bg-primary/15 text-xl font-bold text-primary">
+                      {name[0].toUpperCase()}
+                    </div>
+                  )}
+                  {entry.octo_balance > 0 && (
+                    <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-background p-0.5">
+                      <OctoBadge totalOcto={entry.octo_balance} size={14} />
+                    </span>
+                  )}
+                </div>
 
                 {/* Name */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {entry.display_name ?? shortAddress(entry.wallet_address)}
-                    </p>
-                    {entry.octo_balance > 0 && <OctoBadge totalOcto={entry.octo_balance} size={12} />}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    {token === "octo" ? "total earned" : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`}
+                  <p className="truncate text-[17px] font-semibold tracking-tight text-foreground">{name}</p>
+                  <p className="truncate font-mono text-[13px] text-muted-foreground">
+                    {entry.display_name ? shortAddress(entry.wallet_address) : (token === "octo" ? "total earned" : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`)}
                   </p>
                 </div>
 
                 {/* Gains */}
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <Image src={tokenCfg.logo} alt={tokenCfg.label} width={20} height={20} className="shrink-0 rounded-full" />
-                  <span className="text-sm font-bold text-emerald-600">
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="num text-[17px] font-bold text-up">
                     {tokenCfg.prefix}{fmt(entry.total_gains)}
+                  </span>
+                  <span className="flex items-center gap-1 rounded-full bg-muted py-0.5 pl-0.5 pr-2 text-[11px] font-semibold text-muted-foreground">
+                    <Image src={tokenCfg.logo} alt={tokenCfg.label} width={16} height={16} className="rounded-full" />
+                    {token === "octo" ? tokenCfg.unit : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`}
                   </span>
                 </div>
               </Link>
@@ -211,9 +207,34 @@ export function LeaderboardTabs() {
         </div>
       )}
 
-      <p className="mt-4 text-center text-[10px] text-muted-foreground">
+      <p className="mt-6 text-center text-xs text-muted-foreground">
         Net gains (payouts − stakes) · Click a profile to see details
       </p>
     </div>
+  );
+}
+
+// ─── Rank mark : laurier pour le top 3 ─────────────────────────────────────
+
+const LAUREL = ["#f5b301", "#c9c9d3", "#e0712b"];
+
+function RankMark({ rank }: { rank: number }) {
+  if (rank > 3) {
+    return <span className="num w-11 shrink-0 text-center text-base font-semibold text-muted-foreground">{rank}.</span>;
+  }
+  const c = LAUREL[rank - 1];
+  return (
+    <span className="relative flex h-9 w-11 shrink-0 items-center justify-center" aria-label={`Rank ${rank}`}>
+      <svg viewBox="0 0 44 36" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <g key={i} fill={c}>
+            <ellipse cx={9 - i * 1.2} cy={24 - i * 7} rx="2.2" ry="4.4" transform={`rotate(${-30 + i * 18} ${9 - i * 1.2} ${24 - i * 7})`} />
+            <ellipse cx={35 + i * 1.2} cy={24 - i * 7} rx="2.2" ry="4.4" transform={`rotate(${30 - i * 18} ${35 + i * 1.2} ${24 - i * 7})`} />
+          </g>
+        ))}
+        <path d="M10 31 Q22 36 34 31" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      </svg>
+      <span className="num relative text-lg font-black" style={{ color: c }}>{rank}</span>
+    </span>
   );
 }

@@ -101,13 +101,13 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
         <CommentAvatar user={comment} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+            <span className="text-xs font-semibold text-foreground">
               {comment.username ?? shortAddr(comment.wallet_address)}
             </span>
             {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
             <span className="text-xs text-muted-foreground">{timeAgo(comment.created_at)}</span>
           </div>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">{comment.content}</p>
+          <p className="text-sm text-foreground leading-relaxed break-words">{comment.content}</p>
           <div className="mt-1.5 flex items-center gap-4">
             <button type="button" onClick={() => onLike(comment.id, false)} disabled={!isAuthenticated}
               className={`flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${comment.liked_by_me ? "text-orange-500" : "text-muted-foreground hover:text-orange-400"}`}>
@@ -124,19 +124,19 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
       </div>
 
       {comment.replies.length > 0 && (
-        <div className="ml-11 mt-3 space-y-3 border-l-2 border-orange-100 pl-4 dark:border-orange-900/30">
+        <div className="ml-11 mt-3 space-y-3 border-l-2 border-border pl-4">
           {comment.replies.map(reply => (
             <div key={reply.id} className="flex gap-3">
               <CommentAvatar user={reply} size="sm" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                  <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                  <span className="text-xs font-semibold text-foreground">
                     {reply.username ?? shortAddr(reply.wallet_address)}
                   </span>
                   {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
                   <span className="text-xs text-muted-foreground">{timeAgo(reply.created_at)}</span>
                 </div>
-                <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed break-words">{reply.content}</p>
+                <p className="text-sm text-foreground leading-relaxed break-words">{reply.content}</p>
                 <button type="button" onClick={() => onLike(reply.id, true)} disabled={!isAuthenticated}
                   className={`mt-1 flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${reply.liked_by_me ? "text-orange-500" : "text-muted-foreground hover:text-orange-400"}`}>
                   <Heart className={`size-3.5 ${reply.liked_by_me ? "fill-orange-500" : ""}`} />
@@ -163,7 +163,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
           </div>
           <div className="self-end flex flex-col gap-1.5">
             <button onClick={() => void submitReply()} disabled={!replyText.trim() || replyPosting}
-              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors btn-primary">
               {replyPosting ? "..." : "Reply"}
             </button>
             <button onClick={() => { setShowReplyForm(false); setReplyText(""); }}
@@ -274,7 +274,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
         Comments {totalCount > 0 && `(${totalCount})`}
       </h2>
 
@@ -294,7 +294,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
           )}
         </div>
         <button onClick={() => void postComment()} disabled={posting}
-          className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          className="self-end rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors btn-primary">
           {posting ? "..." : "Post"}
         </button>
       </div>

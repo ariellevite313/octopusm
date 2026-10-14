@@ -48,7 +48,7 @@ function TypeBadge({ kind }: { kind: "market" | "pool" | "pool_pending" | "updow
     return <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">Pool</span>;
   if (kind === "updown")
     return <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300">Up/Down</span>;
-  return <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">Market</span>;
+  return <span className="inline-flex items-center rounded-full border border-border bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-950/20 dark:text-orange-300">Market</span>;
 }
 
 const MARKET_STATUS_LABEL: Record<PredictionResultStatus, string> = {
@@ -163,7 +163,7 @@ export function BetHistory({ bets, walletAddress }: {
     <section>
       <h2 className="mb-4 text-base font-bold text-foreground">Prediction history</h2>
       {isEmpty ? (
-        <div className="rounded-2xl border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No predictions yet. Place your first prediction!</div>
+        <div className="rounded-[22px] border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No predictions yet. Place your first prediction!</div>
       ) : loadingPool && rows.length === 0 ? (
         <div className="space-y-2">{[1,2,3].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted" />)}</div>
       ) : (
@@ -175,7 +175,7 @@ export function BetHistory({ bets, walletAddress }: {
                 const b = row.data; const m = b.updown_markets;
                 const { label, cls } = updownStatus(b);
                 return (
-                  <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-1">
+                  <div key={b.id} className="rounded-[22px] border border-border bg-card p-4 space-y-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <TypeBadge kind="updown" />
@@ -194,7 +194,7 @@ export function BetHistory({ bets, walletAddress }: {
               if (row.kind === "market") {
                 const b = row.data;
                 return (
-                  <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-1">
+                  <div key={b.id} className="rounded-[22px] border border-border bg-card p-4 space-y-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <TypeBadge kind="market" />
@@ -248,7 +248,7 @@ export function BetHistory({ bets, walletAddress }: {
               const optLabel = m?.options?.find((o) => o.id === b.option_id)?.label ?? b.option_id;
               const { label, cls } = poolBetStatus(b);
               return (
-                <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-1">
+                <div key={b.id} className="rounded-[22px] border border-border bg-card p-4 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <TypeBadge kind="pool" />
@@ -273,7 +273,7 @@ export function BetHistory({ bets, walletAddress }: {
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {["Type", "Market", "Selection", "Stake", "Odds", "Status", "Date"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[13px] font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>

@@ -500,7 +500,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
   // ── Shared header ──────────────────────────────────────────────────────────
   const isPositive = (priceChange ?? 0) >= 0;
-  const changeColor = isPositive ? "text-emerald-400" : "text-red-400";
+  const changeColor = isPositive ? "text-up" : "text-red-400";
 
   const Header = () => (
     <div className="flex items-start justify-between px-4 py-3 border-b border-border">
@@ -564,7 +564,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
             title="Live line"
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
               chartType === "line"
-                ? "bg-emerald-500/20 text-emerald-400"
+                ? "bg-emerald-500/20 text-up"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -598,7 +598,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       {showType && chartType === "line" && !loading && (
         <div className="flex items-center gap-1">
           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] text-emerald-400 font-medium">Live</span>
+          <span className="text-[10px] text-up font-medium">Live</span>
         </div>
       )}
     </div>

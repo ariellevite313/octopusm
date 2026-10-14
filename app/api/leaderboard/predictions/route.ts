@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const tokenKey  = searchParams.get("token")  ?? "usdc";
     const periodKey = searchParams.get("period") ?? "all";
-    const limit     = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
+    const limit     = Math.min(parseInt(searchParams.get("limit") ?? "20"), 100);
 
     const hours = PERIOD_HOURS[periodKey] ?? null;
 
