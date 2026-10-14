@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, BadgeCheck } from "lucide-react";
+import { ExternalLink, BadgeCheck, ChevronLeft, Sprout } from "lucide-react";
 import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
@@ -27,6 +27,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { AppIcon } from "@/components/shared/app-icon";
+import { TokenDetailShell } from "@/components/launchpad/token-detail-shell";
 
 export const revalidate = 30;
 
@@ -183,6 +184,22 @@ function formatSupply(n: number): string {
   return n.toLocaleString("en-US");
 }
 
+function fmtMcap(n: number | null): string {
+  if (!n) return "—";
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(2)}B`;
+  if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)         return `$${(n / 1_000).toFixed(2)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+function age(d: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 1000));
+  if (s < 3600)  return `${Math.max(1, Math.floor(s / 60))}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d`;
+  return `${Math.floor(s / (86400 * 30))}mo`;
+}
+
 function shortAddr(s: string, head = 4, tail = 4) {
   return `${s.slice(0, head)}…${s.slice(-tail)}`;
 }
@@ -239,94 +256,69 @@ export default async function TokenDetailPage({ params }: Props) {
   const creatorDisplayName  = token.creator_display_name ?? null;
 
   return (
-    <main className="mx-auto max-w-5xl">
+    <main className="mx-auto max-w-6xl pb-44 md:pb-12">
 
-      {/* ── Hero banner ─────────────────────────────────────────────────────── */}
-      {/* Ratio 3:1 when banner_url is set, otherwise compact fallback */}
-      <div className={`relative ${token.banner_url ? "aspect-[3/1]" : "h-36 md:h-48"}`}>
-
-        {/* Background */}
-        <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-950">
-          {token.banner_url ? (
-            <Image
-              src={token.banner_url}
-              alt=""
-              fill
-              className="object-cover"
-              unoptimized
-              priority
-              role="presentation"
-            />
-          ) : token.logo_url ? (
-            <Image
-              src={token.logo_url}
-              alt=""
-              fill
-              className="object-cover opacity-20 blur-md scale-110"
-              unoptimized
-              role="presentation"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+      {/* ── Top bar ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-4 py-3 md:px-6">
+        <Link
+          href="/launchpad"
+          aria-label="Back to launchpad"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-muted"
+        >
+          <ChevronLeft className="size-6" />
+        </Link>
+        <span className="truncate text-[15px] font-semibold text-muted-foreground">{token.ticker}</span>
+        <span className="flex items-center gap-1 text-[13px] text-muted-foreground">
+          <Sprout className="size-3.5" />{age(token.created_at)}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {isCreator && <BannerUploadButton tokenId={token.id} />}
+          <TokenShareButton name={token.name} ticker={token.ticker} />
         </div>
+      </div>
 
-        {/* Back link */}
-        <div className="absolute top-4 left-4">
-          <Link
-            href="/launchpad"
-            className="inline-flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-md hover:text-white transition-colors"
-          >
-            ← Launchpad
-          </Link>
+      {/* Optional banner */}
+      {token.banner_url && (
+        <div className="relative mx-4 mb-4 aspect-[4/1] overflow-hidden rounded-[22px] md:mx-6">
+          <Image src={token.banner_url} alt="" fill className="object-cover" unoptimized priority role="presentation" />
         </div>
+      )}
 
-        {/* Creator banner upload button */}
-        {isCreator && (
-          <div className="absolute top-4 right-4">
-            <BannerUploadButton tokenId={token.id} />
-          </div>
-        )}
-
-        {/* Floating avatar */}
-        <div className="absolute bottom-0 translate-y-1/2 left-4 md:left-6">
+      {/* ── Token header ────────────────────────────────────────────────── */}
+      <div className="flex items-start gap-3.5 px-4 md:px-6">
+        <div className="relative shrink-0">
           {token.logo_url ? (
             <Image
               src={token.logo_url}
               alt={token.name}
               width={72}
               height={72}
-              className="size-16 md:size-20 rounded-[22px] border-4 border-background object-cover shadow-lg"
+              className="size-[72px] rounded-[20px] object-cover ring-2 ring-primary/50"
               unoptimized
             />
           ) : (
-            <div className="size-16 md:size-20 rounded-[22px] border-4 border-background bg-muted flex items-center justify-center text-xl font-bold text-muted-foreground shadow-lg">
+            <div className="flex size-[72px] items-center justify-center rounded-[20px] bg-muted text-xl font-bold text-muted-foreground ring-2 ring-primary/50">
               {token.ticker.slice(0, 2)}
             </div>
           )}
+          <Image
+            src={isArc ? "/arc-logo.jpeg" : "/solana.png"}
+            alt={isArc ? "Arc" : "Solana"}
+            width={22}
+            height={22}
+            className="absolute -bottom-1.5 -left-1.5 rounded-full ring-[3px] ring-background"
+            unoptimized
+          />
         </div>
-      </div>
 
-      {/* ── Token header ────────────────────────────────────────────────────── */}
-      <div className="pt-10 md:pt-12 px-4 md:px-6 flex items-start justify-between gap-4 flex-wrap">
-
-        {/* Left: name, ticker, badges, CA */}
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h1 className="text-[26px] font-bold tracking-tight text-foreground md:text-[32px]">{token.name}</h1>
-            <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
-            <span className="rounded-lg bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-              {token.category}
-            </span>
-            {token.is_verified && (
-              <BadgeCheck className="size-6 fill-primary text-background shrink-0" />
-            )}
+        <div className="min-w-0 flex-1 pt-1">
+          <div className="flex items-center gap-1.5">
+            <h1 className="truncate text-[22px] font-bold leading-tight tracking-tight text-foreground md:text-[26px]">{token.name}</h1>
+            {token.is_verified && <BadgeCheck className="size-5 shrink-0 fill-primary text-background" />}
           </div>
-          <div className="text-base font-medium text-muted-foreground mb-2">${token.ticker}</div>
           {token.mint_address && (
-            <div className="flex items-center gap-1.5">
-              <span className="rounded-lg bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
-                {shortAddr(token.mint_address, 6, 6)}
-              </span>
+            <div className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+              <span className="font-mono">{shortAddr(token.mint_address, 4, 4)}</span>
               <CopyMint address={token.mint_address} />
               <a
                 href={isArc
@@ -334,48 +326,51 @@ export default async function TokenDetailPage({ params }: Props) {
                   : `https://solscan.io/token/${token.mint_address}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="hover:text-foreground transition-colors"
                 title={isArc ? "View on ArcScan" : "View on Solscan"}
               >
-                <ExternalLink className="size-3" />
+                <ExternalLink className="size-3.5" />
               </a>
+              {socials.map(s => (
+                <a key={s.label} href={s.href!} target="_blank" rel="noopener noreferrer" title={s.label} className="hover:text-foreground transition-colors">
+                  <AppIcon name={s.icon} className="size-3.5" />
+                </a>
+              ))}
             </div>
           )}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{token.category}</span>
+          </div>
         </div>
 
-        {/* Right: socials + share */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {socials.map(s => (
-            <a
-              key={s.label}
-              href={s.href!}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={s.label}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <AppIcon name={s.icon} className="size-4" />
-            </a>
-          ))}
-          <TokenShareButton name={token.name} ticker={token.ticker} />
+        <div className="shrink-0 pt-1 text-right">
+          <p className="text-xs text-muted-foreground">MC</p>
+          <p className="num text-xl font-bold text-foreground md:text-2xl">{fmtMcap(token.market_cap_usd)}</p>
         </div>
       </div>
 
-      {/* ── Stats bar ───────────────────────────────────────────────────────── */}
+      {/* ── Tabs + trade panel ──────────────────────────────────────────── */}
+      <div className="mt-4 px-4 md:mt-6 md:px-6">
+        <TokenDetailShell
+          ticker={token.ticker}
+          chart={
+            <>
+      {/* ── Stats bar ───────────────────────────────────────────────────── */}
       {showChart && (
-        <div className="mt-4">
+        <div className="-mx-4 md:mx-0">
           <TokenMarketStats mintAddress={token.mint_address!} variant="bar" chain="solana" />
         </div>
       )}
       {showArcChart && (
-        <div className="mt-4">
+        <div className="-mx-4 md:mx-0">
           <TokenMarketStats mintAddress={token.arc_launch_id!} variant="bar" chain="arc" isV4={isArcV4} />
         </div>
       )}
 
-      {/* ── Chart — full width ──────────────────────────────────────────────── */}
+      {/* ── Chart — full width ──────────────────────────────────────────── */}
       {showChart && (
-        <div className="mt-4 px-4 md:px-6">
+        <div>
           <TokenChart
             mintAddress={token.mint_address!}
             name={token.name}
@@ -384,10 +379,8 @@ export default async function TokenDetailPage({ params }: Props) {
           />
         </div>
       )}
-
-      {/* ── Arc chart (on-chain Trade events) ───────────────────────────────── */}
       {showArcChart && (
-        <div className="mt-4 px-4 md:px-6">
+        <div>
           <TokenChart
             arcCurveAddress={token.arc_launch_id!}
             isV4={isArcV4}
@@ -398,51 +391,29 @@ export default async function TokenDetailPage({ params }: Props) {
         </div>
       )}
 
-      {/* ── Body ────────────────────────────────────────────────────────────── */}
-      <div className="mt-6 px-4 md:px-6 pb-10 grid gap-8 md:grid-cols-[1fr_280px] items-start">
+      {isPending && (
+        <div className="rounded-[22px] border border-dashed border-border px-5 py-10 text-center md:mx-6">
+          <p className="text-sm font-medium text-foreground mb-1">Awaiting launch</p>
+          <p className="text-xs text-muted-foreground">The chart will appear once the token is deployed on-chain.</p>
+        </div>
+      )}
 
-        {/* ── Left column (stats + description) — row 1 col 1 ────────────── */}
-        <div className="space-y-8 md:row-start-1 md:col-start-1">
-
-          {showChart && token.mint_address && (
-            <TokenTradeStats mintAddress={token.mint_address} />
-          )}
-
-          {isPending && (
-            <div className="rounded-[22px] border border-dashed border-border px-5 py-10 text-center">
-              <p className="text-sm font-medium text-foreground mb-1">Awaiting launch</p>
-              <p className="text-xs text-muted-foreground">The chart will appear once the token is deployed on-chain.</p>
-            </div>
-          )}
-
-          {isGraduated && (
-            <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center">
-              <p className="text-sm font-semibold text-indigo-400">🎓 Graduated to DAMM</p>
-              <p className="text-xs text-muted-foreground mt-1">This token is now fully tradeable.</p>
-              {birdeyeTokenUrl && (
-                <a
-                  href={birdeyeTokenUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block text-xs font-medium text-indigo-400 underline"
-                >
-                  Trade on Birdeye →
-                </a>
-              )}
-            </div>
-          )}
-
-          {token.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {token.description}
-            </p>
+      {isGraduated && (
+        <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center md:mx-6">
+          <p className="text-sm font-semibold text-indigo-400">🎓 Graduated to DAMM</p>
+          <p className="text-xs text-muted-foreground mt-1">This token is now fully tradeable.</p>
+          {birdeyeTokenUrl && (
+            <a href={birdeyeTokenUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-medium text-indigo-400 underline">
+              Trade on Birdeye →
+            </a>
           )}
         </div>
+      )}
 
-        {/* ── Right sidebar — row 1 col 2, spans both rows on desktop ────── */}
-        <div className="space-y-6 md:row-start-1 md:col-start-2 md:row-span-2">
-
-          <div className="space-y-2">
+            </>
+          }
+          trade={
+            <>
             {/* ── Arc bonding curve swap ── */}
             {isArc && token.mint_address && token.arc_launch_id && (
               <TokenSwapArc
@@ -554,10 +525,24 @@ export default async function TokenDetailPage({ params }: Props) {
                 />
               </div>
             )}
-          </div>
-
-          <div className="border-t border-border" />
-
+            </>
+          }
+          comments={
+            <LaunchpadComments
+              tokenId={token.id}
+              initialComments={initialComments}
+              isAuthenticated={!!walletAddress}
+              walletAddress={walletAddress}
+            />
+          }
+          about={
+            <div className="space-y-6">
+              {token.description && (
+                <p className="text-[15px] leading-relaxed text-muted-foreground">{token.description}</p>
+              )}
+              {showChart && token.mint_address && (
+                <TokenTradeStats mintAddress={token.mint_address} />
+              )}
           {/* Token info */}
           <div>
             <SectionLabel>Token info</SectionLabel>
@@ -623,18 +608,9 @@ export default async function TokenDetailPage({ params }: Props) {
               </div>
             </>
           )}
-        </div>
-
-        {/* ── Comments — last on mobile, row 2 col 1 on desktop ───────────── */}
-        <div className="md:row-start-2 md:col-start-1">
-          <LaunchpadComments
-            tokenId={token.id}
-            initialComments={initialComments}
-            isAuthenticated={!!walletAddress}
-            walletAddress={walletAddress}
-          />
-        </div>
-
+            </div>
+          }
+        />
       </div>
     </main>
   );
