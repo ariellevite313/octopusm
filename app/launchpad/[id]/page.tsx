@@ -272,17 +272,25 @@ export default async function TokenDetailPage({ params }: Props) {
           <Sprout className="size-3.5" />{age(token.created_at)}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          {isCreator && <BannerUploadButton tokenId={token.id} />}
           <TokenShareButton name={token.name} ticker={token.ticker} />
         </div>
       </div>
 
-      {/* Optional banner */}
-      {token.banner_url && (
-        <div className="relative mx-4 mb-4 aspect-[4/1] overflow-hidden rounded-[22px] md:mx-6">
+      {/* Banner — shown when set ; the creator can add or change it */}
+      {token.banner_url ? (
+        <div className="relative mx-4 mb-4 aspect-[3/1] overflow-hidden rounded-[22px] md:mx-6">
           <Image src={token.banner_url} alt="" fill className="object-cover" unoptimized priority role="presentation" />
+          {isCreator && (
+            <div className="absolute right-3 top-3">
+              <BannerUploadButton tokenId={token.id} />
+            </div>
+          )}
         </div>
-      )}
+      ) : isCreator ? (
+        <div className="relative mx-4 mb-4 flex aspect-[5/1] items-center justify-center overflow-hidden rounded-[22px] border border-dashed border-border bg-muted/30 md:mx-6">
+          <BannerUploadButton tokenId={token.id} />
+        </div>
+      ) : null}
 
       {/* ── Token header ────────────────────────────────────────────────── */}
       <div className="flex items-start gap-3.5 px-4 md:px-6">

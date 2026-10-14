@@ -140,8 +140,8 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
 
 function getChartTheme(isDark: boolean) {
   return isDark
-    ? { background: "#000000", text: "#555555", grid: "#111111", border: "#1a1a1a" }
-    : { background: "#ffffff", text: "#888888", grid: "#f0f0f0", border: "#e5e5e5" };
+    ? { background: "#07060c", text: "#6f6e7d", grid: "#14131c", border: "#1a1a24" }
+    : { background: "#f5f5f7", text: "#888888", grid: "#e8e8ee", border: "#e2e2e8" };
 }
 
 // ── Price formatting ──────────────────────────────────────────────────────────
@@ -503,7 +503,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
   const changeColor = isPositive ? "text-up" : "text-red-400";
 
   const Header = () => (
-    <div className="flex items-start justify-between px-4 py-3 border-b border-border">
+    <div className="flex items-start justify-between px-1 py-2">
       <div className="flex items-center gap-2.5">
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -543,7 +543,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
     loading?: boolean;
     showType?: boolean;
   }) => (
-    <div className="flex items-center justify-between px-3 py-2 border-t border-border">
+    <div className="flex items-center justify-between px-1 py-2">
       {showType ? (
         <div className="flex items-center gap-0.5">
           <button
@@ -608,7 +608,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
   if (status === "embed" && dexData) {
     const embedUrl = `https://dexscreener.com/solana/${dexData.pairAddress}?embed=1&loadChartSettings=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=${activeDexTf.dexInterval}`;
     return (
-      <div className="rounded-2xl overflow-hidden border border-border bg-card">
+      <div className="overflow-hidden">
         <Header />
         {!embedReady && (
           <div className="flex items-center justify-center" style={{ height: 260 }}>
@@ -635,7 +635,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
   // ── GeckoTerminal / loading / error ───────────────────────────────────────
   return (
-    <div className="rounded-2xl overflow-hidden border border-border bg-card">
+    <div className="overflow-hidden">
       <style>{`.tv-lightweight-charts a[href*="tradingview"]{display:none!important}`}</style>
 
       <Header />
