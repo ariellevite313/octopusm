@@ -45,7 +45,7 @@ export function TrendingStrip() {
     <div className="mb-8">
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <BurningFire className="size-6 -mt-1" />
+        <BurningFire />
         <span className="text-lg font-bold tracking-tight text-foreground">Trending</span>
         <span className="text-sm text-muted-foreground">24h volume</span>
       </div>

@@ -315,17 +315,17 @@
   transform-origin: 50% 100%;
 }
 
-/* Feu animé (section Trending) */
-@keyframes bf-flicker-a { 0%,100% { transform: scale(1,1) skewX(0deg); } 25% { transform: scale(1.04,0.94) skewX(-3deg); } 50% { transform: scale(0.96,1.07) skewX(2deg); } 75% { transform: scale(1.03,0.97) skewX(-1deg); } }
-@keyframes bf-flicker-b { 0%,100% { transform: scale(0.78,0.8) translateY(4px) skewX(0deg); } 33% { transform: scale(0.74,0.88) translateY(3px) skewX(4deg); } 66% { transform: scale(0.82,0.76) translateY(5px) skewX(-3deg); } }
-@keyframes bf-flicker-c { 0%,100% { transform: scale(0.5,0.52) translateY(10px); opacity: .95; } 50% { transform: scale(0.46,0.6) translateY(8px); opacity: 1; } }
-@keyframes bf-glow { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
-@keyframes bf-rise { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-9px); opacity: 0; } }
-.burning-fire path, .burning-fire ellipse, .burning-fire circle { transform-box: fill-box; transform-origin: 50% 100%; }
-.burning-fire .bf-outer { animation: bf-flicker-a 0.9s ease-in-out infinite; }
-.burning-fire .bf-mid   { animation: bf-flicker-b 0.7s ease-in-out infinite; }
-.burning-fire .bf-inner { animation: bf-flicker-c 0.55s ease-in-out infinite; }
-.burning-fire .bf-glow  { animation: bf-glow 1.2s ease-in-out infinite; transform-origin: 50% 50%; }
-.burning-fire .bf-ember { animation: bf-rise 1.6s ease-out infinite; }
-.burning-fire .bf-e2 { animation-delay: .5s; }
-.burning-fire .bf-e3 { animation-delay: 1s; }
+/* Feu animé (section Trending) : l'emoji 🔥 danse et rougeoie */
+@keyframes fire-dance {
+  0%   { transform: scale(1, 1) rotate(0deg); text-shadow: 0 0 6px rgb(255 122 26 / 0.6); }
+  20%  { transform: scale(1.06, 0.94) rotate(-4deg); }
+  40%  { transform: scale(0.95, 1.08) rotate(3deg); text-shadow: 0 0 12px rgb(255 122 26 / 0.9); }
+  60%  { transform: scale(1.04, 0.96) rotate(-2deg); }
+  80%  { transform: scale(0.97, 1.05) rotate(4deg); text-shadow: 0 0 9px rgb(255 160 40 / 0.75); }
+  100% { transform: scale(1, 1) rotate(0deg); text-shadow: 0 0 6px rgb(255 122 26 / 0.6); }
+}
+.fire-emoji {
+  font-size: 22px;
+  transform-origin: 50% 90%;
+  animation: fire-dance 0.9s ease-in-out infinite;
+}
