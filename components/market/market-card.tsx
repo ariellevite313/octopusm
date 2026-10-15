@@ -14,7 +14,8 @@ type Props = {
 export function MarketCard({ market, volumes }: Props) {
   const options = parseMarketOptions(market.options);
   const vol = volumes?.[market.id];
-  const fakeBets = useFakeLiveBets(options.length, false);
+  const hasVolume = !!vol && (vol.usdc > 0 || vol.clt > 0);
+  const fakeBets = useFakeLiveBets(options.length, !hasVolume);
   const href = `/prediction/${market.slug ?? market.id}`;
 
   return (
@@ -51,7 +52,7 @@ export function MarketCard({ market, volumes }: Props) {
                 className={`relative flex flex-col gap-2.5 rounded-2xl border border-transparent bg-muted/70 px-3.5 py-3 transition-colors group-hover:bg-muted${options.length === 3 ? " min-w-[130px] shrink-0 sm:min-w-0 sm:shrink" : ""}`}
               >
                 {/* Fake bet overlay */}
-                <FakeBetOverlay optionIndex={idx} bets={fakeBets} />
+                <FakeBetOverlay optionIndex={idx} bets={fakeBets} optionCount={options.length} />
 
                 <div className="flex items-center justify-between gap-2">
                   {option.logoSrc ? (

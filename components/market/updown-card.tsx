@@ -71,7 +71,7 @@ function DurationCard({ market, symColor, symLabel }: {
   symLabel: string;
 }) {
   const countdown = useCountdown(market?.status === "open" ? market.closes_at : null);
-  const fakeBets  = useFakeLiveBets(2, false);
+  const fakeBets  = useFakeLiveBets(2, !(Number(market?.pool_up ?? 0) + Number(market?.pool_down ?? 0) > 0));
 
   if (!market) {
     return (
