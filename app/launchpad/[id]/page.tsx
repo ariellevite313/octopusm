@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { SolanaMark } from "@/components/shared/solana-mark";
+import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -344,7 +344,7 @@ export default async function TokenDetailPage({ params }: Props) {
             <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
             <span className="text-[13px] font-semibold text-muted-foreground">{token.category}</span>
             {isArc
-              ? <Image src="/arc-logo.jpeg" alt="Arc" width={14} height={14} className="size-[14px] rounded-full" unoptimized />
+              ? <ArcMark className="size-[13px] text-foreground" />
               : <SolanaMark className="size-[13px] text-foreground" />}
           </div>
         </div>

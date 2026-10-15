@@ -10,7 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT } from "@/lib/i18n";
-import { SolanaMark } from "@/components/shared/solana-mark";
+import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
@@ -160,13 +160,7 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
         )}
         {/* Chain badge — bottom-left corner */}
         <div className="absolute bottom-2 left-2">
-          {token.chain === "arc" ? <Image
-            src="/arc-logo.jpeg"
-            alt="Arc"
-            width={20} height={20}
-            className="rounded-full ring-2 ring-black/40"
-            unoptimized
-          /> : <span className="flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-black/40"><SolanaMark className="size-3.5 text-white" /></span>}
+          {token.chain === "arc" ? <span className="flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-black/40"><ArcMark className="size-3.5 text-white" /></span> : <span className="flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-black/40"><SolanaMark className="size-3.5 text-white" /></span>}
         </div>
       </div>
 
@@ -255,13 +249,7 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
               <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>
             )}
           </div>
-          {isArc ? <Image
-            src="/arc-logo.jpeg"
-            alt="Arc"
-            width={24} height={24}
-            className="absolute -bottom-1 -right-1 size-5 rounded-full ring-2 ring-card sm:size-6"
-            unoptimized
-          /> : <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-card sm:size-7"><SolanaMark className="size-3 text-white sm:size-3.5" /></span>}
+          {isArc ? <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-card sm:size-7"><ArcMark className="size-3 text-white sm:size-3.5" /></span> : <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-card sm:size-7"><SolanaMark className="size-3 text-white sm:size-3.5" /></span>}
         </div>
         {token.mint_address && (
           <CopyButton text={token.mint_address}>{shortAddr(token.mint_address, 3, 4)}</CopyButton>
@@ -335,8 +323,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
               ? <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
               : <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>}
           </div>
-          {isArc ? <Image src="/arc-logo.jpeg" alt="Arc" width={18} height={18}
-            className="absolute -bottom-1 -right-1 rounded-full ring-2 ring-background" unoptimized /> : <span className="absolute -bottom-1 -right-1 flex size-[20px] items-center justify-center rounded-full bg-black ring-2 ring-background"><SolanaMark className="size-[11px] text-white" /></span>}
+          {isArc ? <span className="absolute -bottom-1 -right-1 flex size-[20px] items-center justify-center rounded-full bg-black ring-2 ring-background"><ArcMark className="size-[11px] text-white" /></span> : <span className="absolute -bottom-1 -right-1 flex size-[20px] items-center justify-center rounded-full bg-black ring-2 ring-background"><SolanaMark className="size-[11px] text-white" /></span>}
         </div>
         <div className="min-w-0">
           <p className="flex min-w-0 items-baseline gap-2">
@@ -435,8 +422,7 @@ function TokenTable({ tokens, offset, sort, onSort }: {
                 <td className="num px-3 py-2.5 text-sm text-muted-foreground">#{offset + i + 1}</td>
                 <td className="px-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    {token.chain === "arc" ? <Image src="/arc-logo.jpeg" alt="Arc"
-                      width={16} height={16} className="shrink-0 rounded-full" unoptimized /> : <SolanaMark className="shrink-0 size-[16px]" />}
+                    {token.chain === "arc" ? <ArcMark className="shrink-0 size-[16px]" /> : <SolanaMark className="shrink-0 size-[16px]" />}
                     <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {token.logo_url ? (
                         <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
@@ -752,7 +738,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                   }`}
                 >
                   {c.id === "arc" ? (
-                    <Image src="/arc-logo.jpeg" alt="Arc" width={14} height={14} className="rounded-full shrink-0" unoptimized />
+                    <ArcMark className="shrink-0 size-[14px]" />
                   ) : c.id === "solana" ? (
                     <SolanaMark className="shrink-0 size-[14px]" />
                   ) : null}
