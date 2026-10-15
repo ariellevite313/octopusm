@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     description: "All resolved prediction markets and pool predictions on OMdotfun.",
     url: "https://omdot.fun/archive",
     type: "website",
-    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "OMdotfun Archive" }],
+    images: [{ url: "/opengraph-image?v=2", width: 1200, height: 630, alt: "OMdotfun Archive" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Archive | OMdotfun",
     description: "All resolved prediction markets and pool predictions on OMdotfun.",
-    images: ["/branding-logo.jpeg"],
+    images: ["/opengraph-image?v=2"],
   },
 };
 
