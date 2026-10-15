@@ -4,8 +4,9 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ActivityItem } from "@/services/profile-service";
 import { fmt } from "@/lib/format";
+import { ListPager } from "./list-pager";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -79,25 +80,16 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-[22px] border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <p className="text-lg font-bold tracking-tight text-foreground">
-          Recent activity
-        </p>
-        {totalPages > 1 && (
-          <span className="text-[10px] text-muted-foreground">
-            {page + 1} / {totalPages}
-          </span>
-        )}
-      </div>
+    <section>
+      <h2 className="mb-1 text-lg font-bold tracking-tight text-foreground">Recent activity</h2>
 
-      <div className="divide-y divide-border">
+      <div>
         {slice.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
+          <div key={item.id} className="flex items-center gap-3 py-3">
             <TypeBadge item={item} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold text-foreground">{item.label}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {item.market_type === "updown" ? "UP/DOWN" : item.market_type === "pool" ? "Pool" : "Prediction"}
                 {" · "}
                 {timeAgo(item.created_at)}
@@ -122,33 +114,13 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
                   </span>
                 </p>
               )}
-              <p className="text-[10px] capitalize text-muted-foreground">{formatStatus(item.status)}</p>
+              <p className="text-[11px] capitalize text-muted-foreground">{formatStatus(item.status)}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-border px-5 py-3">
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="rounded-xl bg-muted px-3.5 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-30"
-          >
-            ← Previous
-          </button>
-          <span className="text-[10px] text-muted-foreground">
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, items.length)} of {items.length}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            className="rounded-xl bg-muted px-3.5 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-30"
-          >
-            Next →
-          </button>
-        </div>
-      )}
-    </div>
+      <ListPager page={page} total={totalPages} onChange={setPage} />
+    </section>
   );
 }

@@ -38,6 +38,13 @@ function fmt(n: number) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+function walletGradient(addr: string) {
+  let h = 0;
+  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) >>> 0;
+  const a = h % 360, b = (a + 40 + (h >> 9) % 80) % 360;
+  return `linear-gradient(135deg, hsl(${a} 70% 55%), hsl(${b} 70% 40%))`;
+}
+
 export function LeaderboardTabs() {
   const [token,   setToken]   = useState<LeaderboardToken>("usdc");
   const [period,  setPeriod]  = useState<LeaderboardPeriod>("all");
@@ -172,7 +179,10 @@ export function LeaderboardTabs() {
                       className="size-14 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex size-14 items-center justify-center rounded-full bg-muted text-xl font-bold text-foreground">
+                    <div
+                      className="flex size-14 items-center justify-center rounded-full text-xl font-bold text-white"
+                      style={{ background: walletGradient(entry.wallet_address) }}
+                    >
                       {name[0].toUpperCase()}
                     </div>
                   )}
@@ -186,7 +196,7 @@ export function LeaderboardTabs() {
                 {/* Name */}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[17px] font-semibold tracking-tight text-foreground">{name}</p>
-                  <p className="truncate font-mono text-[13px] text-muted-foreground">
+                  <p className="truncate text-[13px] text-muted-foreground">
                     {entry.display_name ? shortAddress(entry.wallet_address) : (token === "octo" ? "total earned" : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`)}
                   </p>
                 </div>
