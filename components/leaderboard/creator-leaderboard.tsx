@@ -45,8 +45,12 @@ function displayLabel(entry: LeaderboardEntry) {
   return entry.displayName ?? short(entry.walletAddress);
 }
 
-function fmtSol(n: number) {
-  if (n === 0) return "0 SOL";
+/** Gains dans la devise du créateur : SOL (Solana) ou USDC (Arc / MetaMask). */
+function fmtFee(e: { totalFee?: number; totalFeeSol: number; currency?: "SOL" | "USDC" }) {
+  const cur = e.currency ?? "SOL";
+  const n = e.totalFee ?? e.totalFeeSol;
+  if (n === 0) return `0 ${cur}`;
+  if (cur === "USDC") return `${n >= 1000 ? n.toLocaleString("en-US", { maximumFractionDigits: 0 }) : n.toFixed(2)} USDC`;
   if (n >= 1) return `${n.toFixed(4)} SOL`;
   return `${n.toFixed(6)} SOL`;
 }
@@ -194,7 +198,7 @@ export function CreatorLeaderboard() {
                     <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-[64px] font-black italic leading-[0.85] text-transparent">1</span>
                     <div className="min-w-0 pt-1">
                       <p className="truncate text-lg font-bold tracking-tight text-foreground">{displayLabel(top3[0])}</p>
-                      <p className="num text-base font-bold text-up">+{fmtSol(top3[0].totalFeeSol)}</p>
+                      <p className="num text-base font-bold text-up">+{fmtFee(top3[0])}</p>
                     </div>
                   </div>
                 </div>
@@ -210,7 +214,7 @@ export function CreatorLeaderboard() {
                   <div key={e.walletAddress} className="min-w-0">
                     <FrameCard entry={e} tone={RANK_TONE[i + 1]} className={i === 0 ? "-rotate-[5deg]" : i === 1 ? "rotate-[2deg]" : "-rotate-[3deg]"} />
                     <p className="mt-2.5 truncate text-center text-[13px] font-semibold text-foreground">{displayLabel(e)}</p>
-                    <p className="num truncate text-center text-xs font-bold text-up">+{fmtSol(e.totalFeeSol)}</p>
+                    <p className="num truncate text-center text-xs font-bold text-up">+{fmtFee(e)}</p>
                   </div>
                 ))}
               </div>
@@ -241,7 +245,7 @@ export function CreatorLeaderboard() {
                     </div>
                   </div>
                   <span className="num shrink-0 text-right text-[15px] font-bold text-up">
-                    +{fmtSol(entry.totalFeeSol)}
+                    +{fmtFee(entry)}
                   </span>
                 </Link>
               );
