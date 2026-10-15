@@ -547,7 +547,7 @@ export default async function TokenDetailPage({ params }: Props) {
           about={
             <div className="space-y-6">
               {token.description && (
-                <p className="text-[15px] leading-relaxed text-muted-foreground">{token.description}</p>
+                <p className="whitespace-pre-line break-words text-[15px] leading-relaxed text-muted-foreground">{token.description}</p>
               )}
               {showChart && token.mint_address && (
                 <TokenTradeStats mintAddress={token.mint_address} />
