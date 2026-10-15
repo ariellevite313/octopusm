@@ -15,8 +15,8 @@ const DOMAIN_LOGOS: Record<string, string> = {
   "twitter.com":     "/x-logo.png",
   "t.me":            "/telegram-logo.png",
   "telegram.org":    "/telegram-logo.png",
-  "discord.com":     "/discord-logo.png",
-  "discord.gg":      "/discord-logo.png",
+  "discord.com":     "/discord.png",
+  "discord.gg":      "/discord.png",
   "dexscreener.com": "/dexcrenner.png",
   "clawdtrust.com":  "/clawdtrust-coin.png",
 };
@@ -185,7 +185,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
               return (
                 <div key={task.id} className="flex items-center gap-3.5 border-b border-border py-3.5 last:border-b-0">
                   {logo ? (
-                    <img src={logo} alt="" className={`size-9 shrink-0 rounded-full object-contain ${logo === "/x-logo.png" ? "dark:invert" : ""} ${done ? "opacity-40 grayscale" : ""}`} />
+                    <img src={logo} alt="" className={`size-9 shrink-0 rounded-full object-contain ${logo === "/x-logo.png" ? "dark:invert" : ""}`} />
                   ) : (
                     <Gift className={`size-9 shrink-0 p-1.5 ${done ? "text-muted-foreground/50" : "text-primary"}`} />
                   )}

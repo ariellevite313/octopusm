@@ -13,8 +13,8 @@ const DOMAIN_LOGOS: Record<string, string> = {
   "twitter.com":     "/x-logo.png",
   "t.me":            "/telegram-logo.png",
   "telegram.org":    "/telegram-logo.png",
-  "discord.com":     "/discord-logo.png",
-  "discord.gg":      "/discord-logo.png",
+  "discord.com":     "/discord.png",
+  "discord.gg":      "/discord.png",
   "dexscreener.com": "/dexcrenner.png",
   "clawdtrust.com":  "/clawdtrust-coin.png",
 };
@@ -140,7 +140,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
           return (
             <div key={task.id} className="flex items-center gap-3 px-4 py-3 opacity-60">
               {logo ? (
-                <Image src={logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded-xl object-contain grayscale" unoptimized />
+                <Image src={logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded-xl object-contain" unoptimized />
               ) : (
                 <CheckCircle2 className="size-5 shrink-0 text-up" />
               )}
