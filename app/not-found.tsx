@@ -18,7 +18,7 @@ export default function NotFound() {
           Markets
         </Link>
         <Link
-          href="/launchpad"
+          href="/"
           className="rounded-xl border border-border bg-muted px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/70 transition-colors"
         >
           Launchpad

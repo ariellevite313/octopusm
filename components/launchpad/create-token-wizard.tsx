@@ -1198,7 +1198,7 @@ export function CreateTokenWizard({
       {step === 0 ? (
         <>
         <div className="mb-6 grid grid-cols-[40px_1fr_40px] items-center">
-          <Link href="/launchpad" aria-label="Back" className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted">
+          <Link href="/" aria-label="Back" className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted">
             <ChevronLeft className="size-6" />
           </Link>
           <h1 className="text-center text-[17px] font-bold text-foreground">Create a coin</h1>

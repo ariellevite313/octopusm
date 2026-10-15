@@ -266,7 +266,7 @@ export default async function TokenDetailPage({ params }: Props) {
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-3 md:px-6">
         <Link
-          href="/launchpad"
+          href="/"
           aria-label="Back to launchpad"
           className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-muted"
         >

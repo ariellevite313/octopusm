@@ -55,7 +55,7 @@ export function LaunchpadHeader() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
 
           {/* Logo */}
-          <Link href="/launchpad" className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-foreground lg:invisible">
+          <Link href="/" className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-foreground lg:invisible">
             <Image src="/omdot-icon.png" alt="OMdotfun" width={38} height={38} className="logo-bounce drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]" />
             <span className="sr-only">OMdotfun</span>
           </Link>
