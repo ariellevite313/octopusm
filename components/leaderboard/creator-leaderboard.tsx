@@ -199,7 +199,7 @@ export function CreatorLeaderboard() {
         <>
           {/* Podium */}
           {top3.length >= 3 && (
-            <div className="relative mb-8 pb-2 pt-6">
+            <div className="relative mx-auto mb-8 max-w-[26rem] pb-2 pt-6">
               <div className="grid grid-cols-[1fr_1.15fr] items-start gap-4">
                 {/* Leader */}
                 <div className="pt-1">
