@@ -180,9 +180,9 @@ async function waitForConfirmation(sig: string): Promise<void> {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-type Props = { tokenId: string; walletAddress: string; isScheduled: boolean };
+type Props = { tokenId: string; walletAddress: string; isScheduled: boolean; autoStart?: boolean };
 
-export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
+export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = false }: Props) {
   const router = useRouter();
   const { t } = useT();
   const [phase, setPhase]     = useState<Phase>("ready");
@@ -513,6 +513,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled }: Props) {
     }
     setPhase("pick-wallet");
   }, [handleWalletSelected]);
+
+  // Lancement direct après la création (depuis l'assistant) — une seule fois
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    void handleLaunch();
+  }, [autoStart, handleLaunch]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
