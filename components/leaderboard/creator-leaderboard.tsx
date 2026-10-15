@@ -105,13 +105,13 @@ export function CreatorLeaderboard() {
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         return res.json() as Promise<{ entries: LeaderboardEntry[] }>;
       })
-      .then((json) => setEntries(json.entries ?? []))
-      .catch((err) => {
-        if (err.name === "AbortError") return;
+      .then((json) => { if (!controller.signal.aborted) setEntries(json.entries ?? []); })
+      .catch(() => {
+        if (controller.signal.aborted) return;
         setError("Failed to load leaderboard. Please try again.");
         setEntries([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
 
     return controller;
   }, [period]);

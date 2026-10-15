@@ -101,13 +101,14 @@ export async function GET(req: Request) {
     const { data: profiles } = walletAddresses.length > 0
       ? await admin
           .from("wallets")
-          .select("address, display_name, username, avatar_src")
+          .select("address, display_name, username, twitter_handle, avatar_src")
           .in("address", walletAddresses)
       : { data: [] };
 
     const profileMap = new Map<string, { display_name: string | null; avatar_src: string | null }>();
-    for (const p of (profiles ?? []) as { address: string; display_name: string | null; username: string | null; avatar_src: string | null }[]) {
-      profileMap.set(p.address, { display_name: p.display_name || p.username || null, avatar_src: p.avatar_src || null });
+    for (const p of (profiles ?? []) as { address: string; display_name: string | null; username: string | null; twitter_handle: string | null; avatar_src: string | null }[]) {
+      const handle = p.twitter_handle ? `@${p.twitter_handle.replace(/^@/, "")}` : null;
+      profileMap.set(p.address, { display_name: p.display_name || p.username || handle, avatar_src: p.avatar_src || null });
     }
 
     const entries: LeaderboardEntry[] = sortedWallets.map((entry, i) => {

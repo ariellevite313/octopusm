@@ -66,15 +66,18 @@ export function LeaderboardTabs() {
         return res.json() as Promise<{ entries: LeaderboardEntry[]; error?: string }>;
       })
       .then((json) => {
+        if (controller.signal.aborted) return;
         if (json.error) throw new Error(json.error);
         setEntries(json.entries ?? []);
       })
-      .catch((err) => {
-        if (err.name === "AbortError") return; // tab switched — ignore
+      .catch(() => {
+        // Requête annulée (changement d'onglet/période) : on ignore, quel que soit
+        // le message d'erreur du navigateur (Safari/WebView ne renvoient pas toujours "AbortError").
+        if (controller.signal.aborted) return;
         setError("Failed to load leaderboard. Please try again.");
         setEntries([]);
       })
-      .finally(() => { setLoading(false); });
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
 
     return controller;
   }, [token, period]);
@@ -186,16 +189,14 @@ export function LeaderboardTabs() {
                       {name[0].toUpperCase()}
                     </div>
                   )}
-                  {entry.octo_balance > 0 && (
-                    <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-background p-0.5">
-                      <OctoBadge totalOcto={entry.octo_balance} size={14} />
-                    </span>
-                  )}
                 </div>
 
                 {/* Name */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[17px] font-semibold tracking-tight text-foreground">{name}</p>
+                  <p className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-[17px] font-semibold tracking-tight text-foreground">{name}</span>
+                    {entry.octo_balance > 0 && <OctoBadge totalOcto={entry.octo_balance} size={16} />}
+                  </p>
                   <p className="truncate text-[13px] text-muted-foreground">
                     {entry.display_name ? shortAddress(entry.wallet_address) : (token === "octo" ? "total earned" : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`)}
                   </p>
