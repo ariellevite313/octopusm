@@ -105,7 +105,7 @@ const LIMIT = 20;
 
 // ── TokenCard ─────────────────────────────────────────────────────────────────
 
-function TokenCard({ token }: { token: LaunchpadToken }) {
+export function TokenCard({ token }: { token: LaunchpadToken }) {
   const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
   const isGraduated = token.status === "graduated";
   const isScheduled = token.is_scheduled && !token.is_tradeable;
