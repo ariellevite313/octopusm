@@ -2,6 +2,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { CATEGORY_SLUGS } from "@/lib/categories";
 import type { PredictionMarketRow, MutuelMarketRow, UnifiedMarket, MarketCommentRow, MarketCommentEnriched } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
+import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 export type { MarketOption, MarketVolumes } from "@/lib/market/utils";
 export type { UnifiedMarket } from "@/lib/supabase/types";
 export { parseMarketOptions } from "@/lib/market/utils";
@@ -200,6 +201,8 @@ export async function getMarketComments(marketId: string): Promise<MarketComment
     }
   }
 
+
+  applyProfiles(roots, await getProfiles(createAdminClient(), commentWallets(roots)));
 
   // Roots: newest first, replies: chronological
   return roots.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

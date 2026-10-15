@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { LaunchpadToken } from "@/services/launchpad-service";
+import { getProfiles } from "@/lib/profiles";
 
 // Public columns to select (mirrors launchpad-service to avoid exposing secrets)
 const PUBLIC_COLUMNS = [
@@ -49,22 +50,14 @@ export async function GET(req: Request) {
 
   const tokens = (tokenRows ?? []) as LaunchpadToken[];
 
-  // 3. Batch-fetch creator display names
-  const walletAddrs = [...new Set(tokens.map((t: LaunchpadToken) => t.creator_wallet).filter(Boolean))];
-  if (walletAddrs.length > 0) {
-    const { data: walletRows } = await admin
-      .from("wallets")
-      .select("address, display_name")
-      .in("address", walletAddrs);
-    if (walletRows) {
-      const nameMap = new Map(
-        (walletRows as { address: string; display_name: string | null }[]).map(w => [w.address, w.display_name]),
-      );
-      tokens.forEach((t: LaunchpadToken) => {
-        t.creator_display_name = nameMap.get(t.creator_wallet) ?? null;
-      });
-    }
-  }
+  // 3. Profils créateurs en direct
+  const profiles = await getProfiles(admin, tokens.map((t: LaunchpadToken) => t.creator_wallet));
+  tokens.forEach((t: LaunchpadToken) => {
+    const p = profiles.get(t.creator_wallet);
+    t.creator_display_name = p?.name ?? null;
+    t.creator_avatar_src = p?.avatar_src ?? null;
+    t.creator_octo = p?.octo ?? 0;
+  });
 
   return NextResponse.json({ tokenIds, tokens });
 }

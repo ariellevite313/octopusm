@@ -30,6 +30,9 @@ import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { AppIcon } from "@/components/shared/app-icon";
 import { TokenDetailShell } from "@/components/launchpad/token-detail-shell";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
+import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 export const revalidate = 30;
 
@@ -114,6 +117,7 @@ async function getInitialComments(tokenId: string, wallet: string | null): Promi
     }
   }
 
+  applyProfiles(topLevel, await getProfiles(admin, commentWallets(topLevel)));
   return topLevel;
 }
 
@@ -254,7 +258,6 @@ export default async function TokenDetailPage({ params }: Props) {
     ? `https://explorer.arc.io/token/${token.mint_address}`
     : null;
 
-  const creatorInitials     = token.creator_wallet.slice(0, 2).toUpperCase();
   const creatorDisplayName  = token.creator_display_name ?? null;
 
   return (
@@ -570,9 +573,7 @@ export default async function TokenDetailPage({ params }: Props) {
           <div>
             <SectionLabel>Creator</SectionLabel>
             <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground border border-border shrink-0">
-                {creatorInitials}
-              </div>
+              <UserAvatar src={token.creator_avatar_src} name={creatorDisplayName ?? token.creator_wallet} size={32} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="inline-flex items-center rounded-md bg-up/12 px-2 py-0.5 text-[11px] font-semibold text-up shrink-0">
@@ -584,7 +585,7 @@ export default async function TokenDetailPage({ params }: Props) {
                   >
                   {creatorDisplayName ? (
                     <>
-                      <span className="block text-xs font-medium text-foreground">{creatorDisplayName}</span>
+                      <span className="flex items-center gap-1 text-xs font-medium text-foreground">{creatorDisplayName}{(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}</span>
                       <span className="font-mono text-[10px] text-muted-foreground">{shortAddr(token.creator_wallet, 6, 6)}</span>
                     </>
                   ) : (

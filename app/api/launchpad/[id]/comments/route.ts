@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
+import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -91,6 +92,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
   }
 
+  applyProfiles(topLevel, await getProfiles(admin, commentWallets(topLevel)));
   return NextResponse.json(topLevel);
 }
 
