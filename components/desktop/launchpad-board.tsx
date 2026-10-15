@@ -33,7 +33,7 @@ export function LaunchpadBoard() {
                   ? <img src={e.avatarSrc} alt="" className="size-5 rounded-full object-cover" />
                   : <span className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary">{(e.displayName ?? e.walletAddress).slice(0, 1)}</span>}
                 <span className="font-semibold text-foreground">@{e.displayName ?? short(e.walletAddress)}</span>
-                <span className="num font-bold text-up">+{e.currency === "USDC" ? `${(e.totalFee ?? 0).toFixed(2)} USDC` : `${sol(e.totalFeeSol)} SOL`}</span>
+                <span className="num font-bold text-up">+{e.usdValue != null ? `$${e.usdValue.toFixed(2)}` : e.currency === "USDC" ? `${(e.totalFee ?? 0).toFixed(2)} USDC` : `${sol(e.totalFeeSol)} SOL`}</span>
               </Link>
             ))}
           </div>
