@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ExternalLink, Loader2, Trophy, Flame } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { PmMarket } from "@/lib/polymarket";
@@ -14,7 +15,7 @@ function fmtVol(n: number) {
 }
 
 
-function PmCard({ m, className = "" }: { m: PmMarket; className?: string }) {
+export function PmCard({ m, className = "" }: { m: PmMarket; className?: string }) {
   const { tr } = useT();
   return (
           <a
@@ -133,7 +134,7 @@ export function PolymarketColumn({ className = "" }: { className?: string }) {
   return (
     <section className={className}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold tracking-tight text-foreground">Polymarket</h2>
+        <Link href="/polymarket" className="text-lg font-bold tracking-tight text-foreground hover:text-primary">Polymarket <span className="text-muted-foreground">›</span></Link>
         <div className="flex gap-1.5">
           {chip("trending", tr("Trending"), Flame)}
           {chip("sports", tr("Sports"), Trophy)}
