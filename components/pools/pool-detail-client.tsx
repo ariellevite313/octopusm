@@ -412,7 +412,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       </div>
 
       {market.description && (
-        <p className="mb-6 text-sm text-muted-foreground">{market.description}</p>
+        <p className="mb-6 whitespace-pre-line break-words text-sm text-muted-foreground">{market.description}</p>
       )}
 
       <div className="mb-8 flex flex-wrap gap-4 text-xs text-muted-foreground">

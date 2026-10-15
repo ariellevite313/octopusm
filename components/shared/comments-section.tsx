@@ -107,7 +107,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
             {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
             <span className="text-sm text-muted-foreground">· {timeAgo(comment.created_at)}</span>
           </div>
-          <p className="mt-1 break-words text-[15px] leading-relaxed text-foreground">{comment.content}</p>
+          <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground">{comment.content}</p>
           <div className="mt-2.5 flex items-center gap-12">
             <button type="button" aria-label="Reply" onClick={() => { if (!isAuthenticated) { onRequestConnect?.(); return; } setShowReplyForm(v => !v); }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -136,7 +136,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
                   {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
                   <span className="text-sm text-muted-foreground">· {timeAgo(reply.created_at)}</span>
                 </div>
-                <p className="mt-1 break-words text-[15px] leading-relaxed text-foreground">{reply.content}</p>
+                <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground">{reply.content}</p>
                 <button type="button" aria-label="Like" onClick={() => onLike(reply.id, true)}
                   className={`mt-2 flex items-center gap-1.5 text-sm transition-colors ${reply.liked_by_me ? "text-down" : "text-muted-foreground hover:text-foreground"}`}>
                   <Heart className={`size-5 ${reply.liked_by_me ? "fill-current" : ""}`} />
