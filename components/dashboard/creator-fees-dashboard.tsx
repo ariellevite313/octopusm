@@ -263,13 +263,18 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
 
     setClaimingAll(true);
     let claimed = 0;
-    for (let i = 0; i < tokensWithPending.length; i++) {
-      const t = tokensWithPending[i];
-      toast.info(t.claimingProgress(i + 1, tokensWithPending.length, t.name));
-      const ok = await claimToken(t);
-      if (ok) claimed++;
+    try {
+      for (let i = 0; i < tokensWithPending.length; i++) {
+        // ⚠️ ne pas nommer cette variable "t" : elle masquait les traductions (t.claimingProgress)
+        // et faisait planter Claim All avant la première signature.
+        const tok = tokensWithPending[i];
+        toast.info(t.claimingProgress(i + 1, tokensWithPending.length, tok.name));
+        const ok = await claimToken(tok);
+        if (ok) claimed++;
+      }
+    } finally {
+      setClaimingAll(false);
     }
-    setClaimingAll(false);
     if (claimed > 0) {
       toast.success(t.allFeesClaimed(claimed, tokensWithPending.length));
       await refresh(true);
