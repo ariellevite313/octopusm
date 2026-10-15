@@ -200,7 +200,7 @@ function RewardSummary({
       : `$${n.toFixed(2)} USDC`;
 
   return (
-    <div className="num rounded-2xl bg-muted/70 px-4 py-4 space-y-2 text-sm">
+    <div className="num space-y-2 border-t border-border pt-4 text-sm">
       <div className="flex justify-between text-muted-foreground">
         <span>Stake</span>
         <span className="font-medium text-foreground">{fmt(reward.stake)}</span>
@@ -793,7 +793,7 @@ export function PredictionDetail({
       )}
 
       {/* Market header card */}
-      <div className="rounded-[24px] border border-border bg-card p-5 mb-6 sm:p-6">
+      <div className="mb-6">
         {/* Top row: status + share */}
         <div className="flex items-center justify-between gap-3 mb-3">
           <StatusBadge market={market} />
@@ -1023,7 +1023,7 @@ export function PredictionDetail({
 
           {/* 7 — Resolution criteria */}
           {market.resolution_criteria && (
-            <section className="rounded-[20px] bg-muted/60 px-5 py-4 space-y-2">
+            <section className="space-y-2">
               <h2 className="text-[13px] font-semibold text-muted-foreground">
                  Resolution criteria
               </h2>
