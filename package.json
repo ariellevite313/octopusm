@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:unused": "node scripts/check-unused-components.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
