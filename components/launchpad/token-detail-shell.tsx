@@ -8,12 +8,12 @@ import { useT } from "@/lib/i18n";
 // + panneau de trading. Sur mobile, le trading s'ouvre depuis un gros
 // bouton fixe en bas ; sur ordinateur il reste dans la colonne de droite.
 
-type Tab = "comments" | "about";
+type Tab = "comments" | "holders" | "about";
 
 export function TokenDetailShell({
-  chart, trade, comments, about, ticker,
+  chart, trade, comments, about, holders, ticker,
 }: {
-  chart?: React.ReactNode; trade: React.ReactNode; comments: React.ReactNode; about: React.ReactNode; ticker: string;
+  chart?: React.ReactNode; trade: React.ReactNode; comments: React.ReactNode; about: React.ReactNode; holders?: React.ReactNode; ticker: string;
 }) {
   const { tr } = useT();
   const [tab, setTab] = useState<Tab>("comments");
@@ -28,6 +28,7 @@ export function TokenDetailShell({
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "comments", label: tr("Comments") },
+    ...(holders ? [{ id: "holders" as Tab, label: tr("Holders") }] : []),
     { id: "about",    label: tr("About") },
   ];
 
@@ -53,6 +54,7 @@ export function TokenDetailShell({
           </div>
           <div className="pt-5">
             <div hidden={tab !== "comments"}>{comments}</div>
+            {holders && tab === "holders" && <div>{holders}</div>}
             <div hidden={tab !== "about"}>{about}</div>
           </div>
         </div>

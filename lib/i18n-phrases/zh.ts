@@ -1015,5 +1015,10 @@ const p: Record<string, string> = {
   "Couldn't load Polymarket markets.": "无法加载 Polymarket 市场。",
   "No Polymarket markets right now.": "目前没有 Polymarket 市场。",
   "Data from Polymarket. Bets are placed on polymarket.com.": "数据来自 Polymarket。投注在 polymarket.com 进行。",
+  "Holders": "持有者",
+  "Top 25 of {count} holders": "{count} 位持有者中的前 25 名",
+  "Holders unavailable right now.": "暂时无法获取持有者。",
+  "No holders yet.": "暂无持有者。",
+  "Pool / program": "池 / 程序",
 };
 export default p;
