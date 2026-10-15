@@ -1024,7 +1024,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               className="flex size-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted">
               <Share2 className="size-5" />
             </button>
-            <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} images={["/og-omdot.jpg"]} text={tr("Up or down? Trade it on OMdotfun")} />
+            <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} images={["/og-omdot-1200.jpg"]} text={tr("Up or down? Trade it on OMdotfun")} />
           </div>
 
           <LiveChart
