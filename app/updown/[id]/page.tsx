@@ -37,13 +37,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: `https://omdot.fun/updown/${id}`,
       type: "website",
-      images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: title }],
+      images: [{ url: "/opengraph-image?v=2", width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/branding-logo.jpeg"],
+      images: ["/opengraph-image?v=2"],
     },
   };
 }
