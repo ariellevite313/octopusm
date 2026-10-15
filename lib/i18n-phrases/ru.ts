@@ -1002,5 +1002,13 @@ const p: Record<string, string> = {
   "Coming Soon": "Скоро",
   "Profile": "Профиль",
   "Return to the app": "Вернуться в приложение",
+  "Share & earn": "Делись и зарабатывай",
+  "when your friends trade": "когда твои друзья торгуют",
+  "<b>1%</b> of the losing bets your invites place": "<b>1%</b> от проигранных ставок твоих приглашённых",
+  "<b>200 OMERO</b> for each friend who joins with your link": "<b>200 OMERO</b> за каждого друга, пришедшего по твоей ссылке",
+  "<b>50 OMERO</b> welcome bonus for your friend": "<b>50 OMERO</b> приветственного бонуса для друга",
+  "Link copied — paste it in Discord": "Ссылка скопирована — вставь её в Discord",
+  "{title} — what's your prediction? Trade on OMdotfun": "{title} — каков твой прогноз? Торгуй на OMdotfun",
+  "Up or down? Trade it on OMdotfun": "Вверх или вниз? Торгуй на OMdotfun",
 };
 export default p;

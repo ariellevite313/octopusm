@@ -6,6 +6,7 @@ import { ArrowLeft, Clock, Loader2, Share2, Trophy } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { CommentsSection } from "@/components/shared/comments-section";
+import { ShareSheet } from "@/components/shared/share-sheet";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { submitPoolBet } from "@/lib/market/pool-betting";
 import type { PoolBetToken } from "@/lib/market/pool-betting";
@@ -321,6 +322,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
   const { tr } = useT();
   const { walletAddress, setWalletType } = useAuth();
   const [showWalletDialog, setShowWalletDialog] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   async function handleSelectWallet(type: WalletType) {
     setShowWalletDialog(false);
@@ -405,16 +407,18 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
         </div>
         <button
           type="button"
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href).then(() => {
-              toast.success(tr("Link copied!"));
-            });
-          }}
+          onClick={() => setShareOpen(true)}
           className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           title={tr("Share")}
         >
           <Share2 className="size-[18px]" />
         </button>
+        <ShareSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          images={[`/api/og/market/${encodeURIComponent(market.slug)}`]}
+          text={tr("{title} — what's your prediction? Trade on OMdotfun", { title: market.title })}
+        />
       </div>
       <h1 className="mb-3 text-[22px] font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-[26px]">{market.title}</h1>
 

@@ -26,6 +26,7 @@ import type { MarketVolumeDetail } from "@/services/prediction-service";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import dynamic from "next/dynamic";
 import { CommentsSection } from "@/components/shared/comments-section";
+import { ShareSheet } from "@/components/shared/share-sheet";
 import { useT } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
 
@@ -119,26 +120,25 @@ function computeProbabilities(options: MarketOption[]): number[] {
 
 // ─── Share button ──────────────────────────────────────────────────────────────────
 
-function ShareButton() {
+function ShareButton({ slug, title }: { slug: string; title: string }) {
   const { tr } = useT();
-  const [copied, setCopied] = useState(false);
-
-  function handleShare() {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      onClick={handleShare}
-      className="flex items-center gap-1.5 rounded-xl bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-    >
-      {copied ? <Check className="size-3.5 text-up" /> : <Share2 className="size-3.5" />}
-      {copied ? tr("Copied!") : tr("Share")}
-    </button>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-xl bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Share2 className="size-3.5" />
+        {tr("Share")}
+      </button>
+      <ShareSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        images={[`/api/og/market/${encodeURIComponent(slug)}`]}
+        text={tr("{title} — what's your prediction? Trade on OMdotfun", { title })}
+      />
+    </>
   );
 }
 
@@ -364,7 +364,7 @@ export function PredictionDetail({
         {/* Top row: status + share */}
         <div className="flex items-center justify-between gap-3 mb-3">
           <StatusBadge market={market} />
-          <ShareButton />
+          <ShareButton slug={market.slug ?? market.id} title={market.title} />
         </div>
 
         {/* Title */}

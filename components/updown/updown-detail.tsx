@@ -14,6 +14,7 @@ import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
 import { CommentsSection } from "@/components/shared/comments-section";
+import { ShareSheet } from "@/components/shared/share-sheet";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
 import type { WalletType } from "@/lib/wallet/adapters";
@@ -648,6 +649,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 });
 
 export function UpDownDetail({ marketId }: { marketId: string }) {
+  const [shareOpen, setShareOpen] = useState(false);
   const router = useRouter();
   const { tr, lang } = useT();
   const { walletAddress, walletType } = useAuth();
@@ -1018,10 +1020,11 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <ChevronLeft className="size-5" /><span className="hidden lg:inline">{tr("Up / Down")}</span>
             </button>
             <button type="button" aria-label={tr("Share")}
-              onClick={() => { try { if (navigator.share) void navigator.share({ url: location.href }); else { void navigator.clipboard.writeText(location.href); toast.success(tr("Link copied")); } } catch { /* ignore */ } }}
+              onClick={() => setShareOpen(true)}
               className="flex size-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted">
               <Share2 className="size-5" />
             </button>
+            <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} images={["/branding-logo.jpeg"]} text={tr("Up or down? Trade it on OMdotfun")} />
           </div>
 
           <LiveChart
