@@ -181,10 +181,10 @@ export default async function OgImage({ params }: Props) {
         {/* Buy pill */}
         <div style={{ display: "flex", marginTop: "auto", paddingTop: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18, background: ORANGE, borderRadius: 60, padding: "10px 12px 10px 34px" }}>
-            <span style={{ fontSize: 30, fontWeight: 800, color: "#1a0d02", letterSpacing: "1px" }}>BUY</span>
-            <div style={{ width: 46, height: 46, borderRadius: 46, background: "#1a0d02", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 30, fontWeight: 800, color: "#ffffff", letterSpacing: "1px" }}>BUY</span>
+            <div style={{ width: 46, height: 46, borderRadius: 46, background: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="24" height="24" viewBox="0 0 24 24">
-                <path d="M7 17 17 7M8 7h9v9" fill="none" stroke={ORANGE} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M7 17 17 7M8 7h9v9" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           </div>
