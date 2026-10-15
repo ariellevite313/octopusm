@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { formatVolume } from "@/lib/market/utils";
+import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
 
 export interface UpDownMarket {
   id: string;
@@ -84,6 +85,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
 
   const poolUp   = Number(market.pool_up);
   const poolDown = Number(market.pool_down);
+  const fakeBets = useFakeLiveBets(2, !(poolUp + poolDown > 0) || market.status !== "open");
   const total    = poolUp + poolDown;
   const upPct    = total > 0 ? Math.round((poolUp / total) * 100) : 50;
   const downPct  = 100 - upPct;
@@ -139,11 +141,13 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center justify-center rounded-xl bg-up/12 px-3 py-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-            <span className="text-sm font-bold text-up">UP</span>
+          <div className="relative flex items-center justify-center rounded-xl bg-up/12 px-3 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+            <FakeBetOverlay optionIndex={0} bets={fakeBets} />
+            <span className="text-sm font-bold text-up">Up</span>
           </div>
-          <div className="flex items-center justify-center rounded-xl bg-down/12 px-3 py-2.5 dark:border-red-900/40 dark:bg-red-950/20">
-            <span className="text-sm font-bold text-down">DOWN</span>
+          <div className="relative flex items-center justify-center rounded-xl bg-down/12 px-3 py-4 dark:border-red-900/40 dark:bg-red-950/20">
+            <FakeBetOverlay optionIndex={1} bets={fakeBets} />
+            <span className="text-sm font-bold text-down">Down</span>
           </div>
         </div>
 
