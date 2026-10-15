@@ -11,11 +11,11 @@ export const revalidate = 30;
 
 export const metadata: Metadata = {
   title: { absolute: "OMdotfun | Prediction markets & token launchpad" },
-  description: "Bet on real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
+  description: "Trade real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
   alternates: { canonical: "https://omdot.fun" },
   openGraph: {
     title: "OMdotfun | Prediction markets & token launchpad",
-    description: "Bet on real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
+    description: "Trade real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
     url: "https://omdot.fun",
     siteName: "OMdotfun",
     type: "website",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "OMdotfun | Prediction markets & token launchpad",
-    description: "Bet on real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
+    description: "Trade real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
     images: ["/opengraph-image?v=2"],
   },
 };
