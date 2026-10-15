@@ -1,5 +1,6 @@
 "use client";
 
+import { SolanaMark } from "@/components/shared/solana-mark";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -245,7 +246,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     set("sol_token_type", p === "stock" ? "stock" : "sol");
   }
   const PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
-    { key: "sol",   label: "SOL",   icon: <Image src="/solana.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
+    { key: "sol",   label: "SOL",   icon: <SolanaMark className="size-9 text-foreground" /> },
     { key: "usdc",  label: "USDC",  icon: <Image src="/usdc-coin.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
     { key: "stock", label: "Stock", icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
   ];
