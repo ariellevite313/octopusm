@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { TrendingCard } from "./trending-card";
+import { MiniCard } from "./featured";
+import { useFeatured } from "./featured-home";
 import { useT } from "@/lib/i18n";
 import type { TrendingMarket } from "@/app/api/markets/trending/route";
 import { Flame } from "lucide-react";
@@ -9,6 +11,8 @@ import { Flame } from "lucide-react";
 export function TrendingSection() {
   const { tr } = useT();
   const [markets, setMarkets] = useState<TrendingMarket[] | null>(null);
+  const feat = useFeatured();
+  const extra = feat?.featured ?? [];
 
   useEffect(() => {
     fetch("/api/markets/trending")
@@ -23,7 +27,8 @@ export function TrendingSection() {
   // Pause au toucher / survol ; le glissé manuel reste possible.
   const scroller = useRef<HTMLDivElement>(null);
   const paused = useRef(false);
-  const loopable = !!markets && markets.length > 2;
+  const total = (markets?.length ?? 0) + extra.length;
+  const loopable = total > 2;
   useEffect(() => {
     const el = scroller.current;
     if (!el || !loopable) return;
@@ -32,7 +37,7 @@ export function TrendingSection() {
     const SPEED = 38; // px / seconde
     const tick = (now: number) => {
       const dt = Math.min(now - last, 64); last = now;
-      const dup = el.children[markets!.length] as HTMLElement | undefined;
+      const dup = el.children[total] as HTMLElement | undefined;
       const half = dup ? dup.offsetLeft - (el.children[0] as HTMLElement).offsetLeft : 0;
       if (!paused.current && half > el.clientWidth) {
         pos += (SPEED * dt) / 1000;
@@ -58,10 +63,11 @@ export function TrendingSection() {
       el.removeEventListener("pointerleave", release); el.removeEventListener("pointerup", release);
       el.removeEventListener("touchend", release);
     };
-  }, [loopable]);
+  }, [loopable, total]);
 
   // Don't render until loaded (null = loading) — avoids layout shift
-  if (!markets || markets.length === 0) return null;
+  if (markets === null && !feat) return null;
+  if (total === 0) return null;
 
   return (
     <section className="mt-6 mb-8">
@@ -73,12 +79,10 @@ export function TrendingSection() {
         className={`flex gap-3 overflow-x-auto pb-1 ${loopable ? "" : "snap-x snap-mandatory"}`}
         style={{ scrollbarWidth: "none" }}
       >
-        {markets.map((m) => (
-          <TrendingCard key={m.id} market={m} />
-        ))}
-        {loopable && markets.map((m) => (
-          <TrendingCard key={`dup-${m.id}`} market={m} />
-        ))}
+        {(markets ?? []).map((m) => <TrendingCard key={m.id} market={m} />)}
+        {extra.map((e) => <MiniCard key={e.id} e={e} usMap={feat?.usMap ?? {}} />)}
+        {loopable && (markets ?? []).map((m) => <TrendingCard key={`dup-${m.id}`} market={m} />)}
+        {loopable && extra.map((e) => <MiniCard key={`dup-${e.id}`} e={e} usMap={feat?.usMap ?? {}} />)}
         {/* Spacer so last card isn't cut off on mobile */}
         <div className="w-1 shrink-0" aria-hidden />
       </div>
