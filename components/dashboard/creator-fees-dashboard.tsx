@@ -311,9 +311,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
             {avatarSrc ? (
               <Image src={avatarSrc} alt="" width={52} height={52} className="size-[52px] shrink-0 rounded-full object-cover" unoptimized />
             ) : (
-              <div className="flex size-[52px] shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-foreground">
-                {name.replace(/^@/, "").slice(0, 2).toUpperCase()}
-              </div>
+              <Image src="/omdot-icon.png" alt="" width={52} height={52} className="size-[52px] shrink-0 rounded-full bg-muted object-cover p-1.5" />
             )}
             <span className="truncate text-[19px] font-semibold text-foreground">{name}</span>
             <CopyIcon text={walletAddress} />
