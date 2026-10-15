@@ -1023,5 +1023,7 @@ const p: Record<string, string> = {
   "Open on Polymarket": "在 Polymarket 打开",
   "Trending topics": "热门话题",
   "Explore all on Polymarket": "在 Polymarket 浏览全部",
+  "Democrats": "民主党",
+  "Republicans": "共和党",
 };
 export default p;

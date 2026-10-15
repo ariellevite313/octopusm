@@ -5,9 +5,10 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Flame, Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { PmCard } from "@/components/market/polymarket-column";
-import type { PmEvent, PmTag, PmTopic } from "@/lib/polymarket";
+import { UsDotMap } from "@/components/market/us-dot-map";
+import type { PmEvent, PmStateLean, PmTag, PmTopic } from "@/lib/polymarket";
 
-type Home = { featured: PmEvent[]; topics: PmTopic[]; categories: PmTag[]; markets: PmEvent[]; error?: boolean };
+type Home = { featured: PmEvent[]; topics: PmTopic[]; categories: PmTag[]; markets: PmEvent[]; usMap?: Record<string, PmStateLean>; error?: boolean };
 
 function fmtVol(n: number) {
   if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
@@ -16,7 +17,7 @@ function fmtVol(n: number) {
   return `$${Math.round(n)}`;
 }
 
-function Featured({ events }: { events: PmEvent[] }) {
+function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, PmStateLean> }) {
   const { tr } = useT();
   const [i, setI] = useState(0);
   const hold = useRef(false);
@@ -31,6 +32,7 @@ function Featured({ events }: { events: PmEvent[] }) {
 
   const e = events[i];
   if (!e) return null;
+  const hasMap = Object.keys(usMap).length > 0 && /midterm|election|senate|congress/i.test(`${e.title} ${e.category ?? ""} ${e.tags.map((t) => t.slug).join(" ")}`);
   return (
     <div
       className="rounded-3xl border border-border bg-card p-5 md:p-6"
@@ -51,7 +53,8 @@ function Featured({ events }: { events: PmEvent[] }) {
         </a>
       </div>
 
-      <div className="mt-4 divide-y divide-border/60">
+      <div className={hasMap ? "mt-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-6" : "mt-4"}>
+      <div className="divide-y divide-border/60">
         {e.items.slice(0, 6).map((o) => (
           <div key={o.label} className="flex items-center gap-3 py-2.5">
             {o.image ? (
@@ -65,6 +68,16 @@ function Featured({ events }: { events: PmEvent[] }) {
             <span className="num w-10 shrink-0 text-right text-[15px] font-bold text-foreground">{o.pct}%</span>
           </div>
         ))}
+      </div>
+      {hasMap && (
+        <div className="mt-4 md:mt-0">
+          <UsDotMap leans={usMap} className="mx-auto w-full max-w-md" />
+          <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-blue-500" />{tr("Democrats")}</span>
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-red-500" />{tr("Republicans")}</span>
+          </div>
+        </div>
+      )}
       </div>
 
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
@@ -110,7 +123,7 @@ export function PolymarketHome() {
         if (tag === "") base.current = d;
         setData((prev) => (tag && prev ? { ...prev, markets: d.markets } : d));
       })
-      .catch(() => { if (alive && !data) setData({ featured: [], topics: [], categories: [], markets: [], error: true }); })
+      .catch(() => { if (alive && !data) setData({ featured: [], topics: [], categories: [], markets: [], usMap: {}, error: true }); })
       .finally(() => { if (alive) setGridLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,7 +149,7 @@ export function PolymarketHome() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <Featured events={data.featured} />
+            <Featured events={data.featured} usMap={data.usMap ?? {}} />
 
             <aside className="rounded-3xl border border-border bg-card p-5">
               <h2 className="mb-3 flex items-center gap-1.5 text-[15px] font-bold text-foreground">
