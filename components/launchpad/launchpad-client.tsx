@@ -72,9 +72,9 @@ type TabId   = "all" | "graduated" | "scheduled" | "watchlist";
 type ChainId = "all" | "solana" | "arc";
 
 const TABS: { id: TabId; label: string; icon?: React.ReactNode }[] = [
-  { id: "all",       label: "New" },
-  { id: "scheduled", label: "Soon" },
-  { id: "graduated", label: "Bonded" },
+  { id: "all",       label: "All" },
+  { id: "graduated", label: "Graduated" },
+  { id: "scheduled", label: "Scheduled" },
   { id: "watchlist", label: "Watchlist", icon: <Bell className="size-3" /> },
 ];
 
@@ -385,6 +385,60 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
           </div>
         </div>
       </div>
+    </Link>
+  );
+}
+
+// ── TokenDeskRow (ordinateur) ────────────────────────────────────────────────
+
+const RING: Record<string, string> = {
+  active: "ring-up", graduating: "ring-amber-500", graduated: "ring-sky-500", pending: "ring-border", cancelled: "ring-down",
+};
+
+function TokenDeskRow({ token }: { token: LaunchpadToken }) {
+  const href = `/launchpad/${token.mint_address ?? token.id}`;
+  const isArc = token.chain === "arc";
+  const st = STATUS_PILL[token.status] ?? STATUS_PILL.pending;
+  const isScheduled = token.is_scheduled && !token.is_tradeable;
+  const creator = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
+  return (
+    <Link href={href} className="grid grid-cols-[minmax(0,1fr)_120px_120px_80px_auto] items-center gap-6 border-b border-border px-2 py-4 transition-colors last:border-0 hover:bg-muted/30">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="relative size-14 shrink-0">
+          <div className={`relative size-14 overflow-hidden rounded-full bg-muted ring-2 ring-offset-2 ring-offset-background ${isScheduled ? "ring-violet-500" : RING[token.status] ?? "ring-border"}`}>
+            {token.logo_url
+              ? <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
+              : <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>}
+          </div>
+          <Image src={isArc ? "/arc-logo.jpeg" : "/solana.png"} alt={isArc ? "Arc" : "Solana"} width={18} height={18}
+            className="absolute -bottom-1 -right-1 rounded-full ring-2 ring-background" unoptimized />
+        </div>
+        <div className="min-w-0">
+          <p className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-[16px] font-bold tracking-tight text-foreground">{token.name}</span>
+            {token.is_verified && <BadgeCheck className="size-4 shrink-0 self-center fill-primary text-card" />}
+            <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>
+          </p>
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+            by <span className="font-semibold text-foreground/80">{creator}</span>
+            <span className="mx-1.5">·</span>
+            <span className={`font-semibold ${isScheduled ? "text-violet-500" : st.cls}`}>{isScheduled ? "Soon" : st.label === "Bonded" ? "Graduated" : st.label}</span>
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Mcap</p>
+        <p className="num text-[15px] font-bold text-foreground">{fmtK(token.market_cap_usd)}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vol 24h</p>
+        <p className="num text-[15px] font-bold text-foreground">{fmtK(token.volume_24h_usd)}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Age</p>
+        <p className="num text-[15px] font-bold text-foreground">{timeAgo(token.created_at).toLowerCase()}</p>
+      </div>
+      <span className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white transition-opacity group-hover:opacity-90">Trade</span>
     </Link>
   );
 }
@@ -739,16 +793,16 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       {/* Top bar */}
       <div className="space-y-3">
         {/* Row 1: Tabs + chain filter + view toggle */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border">
+          <div className="-mb-px flex items-center gap-1 overflow-x-auto scrollbar-none">
             {TABS.map(t => (
               <button
                 key={t.id}
                 onClick={() => handleTabChange(t.id)}
-                className={`shrink-0 flex items-center gap-1.5 rounded-full px-5 py-2.5 text-[15px] font-bold transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-[15px] font-bold transition-colors ${
                   tab === t.id
-                    ? "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t.icon}
@@ -783,7 +837,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </div>
           </div>
 
-          <div className="hidden">
+          <div className="flex items-center gap-1.5 shrink-0 pb-2 lg:hidden">
             {/* Grid / List toggle */}
             <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
               <button
@@ -876,13 +930,24 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[24px] border border-border bg-card lg:grid lg:grid-cols-2 lg:gap-px lg:bg-border">
-          {visibleTokens.map(token => (
-            <div key={token.id} className="border-b border-border last:border-0 lg:border-0 lg:bg-card">
-              <TokenPulseRow token={token} />
-            </div>
-          ))}
-        </div>
+        <>
+          {/* Ordinateur : une colonne, lignes aérées */}
+          <div className="hidden lg:block">
+            {visibleTokens.map(token => <TokenDeskRow key={token.id} token={token} />)}
+          </div>
+          {/* Téléphone : cartes ou liste (inchangé) */}
+          <div className="lg:hidden">
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {visibleTokens.map(token => <TokenRow key={token.id} token={token} />)}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Pagination (not for watchlist) */}
