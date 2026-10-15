@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT } from "@/lib/i18n";
+import { LiveTradeBubbles } from "@/components/launchpad/live-trade-bubbles";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -156,6 +157,7 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
             </span>
           </div>
         )}
+        <LiveTradeBubbles volume24h={token.volume_24h_usd} className="bottom-2 right-2 h-12 w-24" />
         {/* Chain badge — bottom-left corner */}
         <div className="absolute bottom-2 left-2">
           <Image
@@ -403,7 +405,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
   const isScheduled = token.is_scheduled && !token.is_tradeable;
   const creator = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
   return (
-    <Link href={href} className="grid grid-cols-[minmax(0,1fr)_120px_120px_80px_auto] items-center gap-6 border-b border-border px-2 py-4 transition-colors last:border-0 hover:bg-muted/30">
+    <Link href={href} className="grid grid-cols-[minmax(0,1fr)_120px_120px_80px_90px_auto] items-center gap-6 border-b border-border px-2 py-4 transition-colors last:border-0 hover:bg-muted/30">
       <div className="flex min-w-0 items-center gap-4">
         <div className="relative size-14 shrink-0">
           <div className={`relative size-14 overflow-hidden rounded-full bg-muted ring-2 ring-offset-2 ring-offset-background ${isScheduled ? "ring-violet-500" : RING[token.status] ?? "ring-border"}`}>
@@ -438,6 +440,9 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
       <div className="text-right">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Age</p>
         <p className="num text-[15px] font-bold text-foreground">{timeAgo(token.created_at).toLowerCase()}</p>
+      </div>
+      <div className="relative h-12 self-stretch">
+        <LiveTradeBubbles volume24h={token.volume_24h_usd} className="inset-x-0 bottom-1 h-12" />
       </div>
       <span className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white transition-opacity group-hover:opacity-90">Trade</span>
     </Link>
