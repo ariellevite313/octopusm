@@ -1025,5 +1025,8 @@ const p: Record<string, string> = {
   "Explore all on Polymarket": "Tout explorer sur Polymarket",
   "Democrats": "Démocrates",
   "Republicans": "Républicains",
+  "Failed to load leaderboard. Please try again.": "Impossible de charger le classement. Réessaie.",
+  "Network error": "Erreur réseau",
+  "Network error — please retry": "Erreur réseau — réessaie",
 };
 export default p;

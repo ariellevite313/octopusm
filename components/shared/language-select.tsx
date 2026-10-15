@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Globe } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { LANGS, useT } from "@/lib/i18n";
 
 function List({ onPick, onClose, className, style }: { onPick: () => void; onClose: () => void; className: string; style?: React.CSSProperties }) {
@@ -79,10 +79,10 @@ export function LanguageSelectRail() {
         aria-expanded={open}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => setOpen((v) => !v)}
-        className={`flex size-11 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors ${open ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+        className={`flex h-10 items-center gap-1 rounded-full px-3 text-[13px] font-semibold transition-colors ${open ? "bg-muted/70 text-foreground" : "bg-muted text-foreground hover:bg-muted/70"}`}
       >
-        <Globe className="size-[18px]" strokeWidth={1.75} />
-        <span className="flex items-center text-[10px] font-bold leading-none">{cur.short}<ChevronDown className="size-2.5" /></span>
+        {cur.short}
+        <ChevronDown className={`size-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && createPortal(
         <List
