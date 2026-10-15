@@ -40,7 +40,7 @@ function fmtOut(amount: string, decimals = 6): string {
 
 export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker: string }) {
   const { walletAddress, walletType, isAuthenticated } = useAuth();
-  const { t } = useT();
+  const { t, tr } = useT();
 
   const [tab,         setTab]         = useState<"market" | "limit" | "orders">("market");
   const [solAmount,   setSolAmount]   = useState("");
@@ -143,7 +143,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
           prioritizationFeeLamports: "auto",
         }),
       });
-      if (!swapRes.ok) throw new Error("Transaction failed");
+      if (!swapRes.ok) throw new Error(tr("Transaction failed"));
       const { swapTransaction } = await swapRes.json() as { swapTransaction: string };
 
       const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
@@ -198,7 +198,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
                 : "text-white/40 hover:text-white/60"
             } ${t !== "market" ? "cursor-not-allowed opacity-50" : ""}`}
           >
-            {t === "market" ? "Market" : t === "limit" ? "Limit" : "Orders"}
+            {t === "market" ? tr("Market") : t === "limit" ? tr("Limit") : tr("Orders")}
           </button>
         ))}
       </div>
@@ -207,7 +207,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
 
         {/* ── Sell box ── */}
         <div className="rounded-2xl bg-white/5 px-4 py-3.5 space-y-1">
-          <p className="text-[12px] text-white/40 font-medium">Sell</p>
+          <p className="text-[12px] text-white/40 font-medium">{tr("Sell")}</p>
           <input
             type="number"
             value={solAmount}
@@ -222,7 +222,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
               <span className="text-[13px] font-semibold text-white">SOL</span>
             </div>
             <span className="text-[11px] text-white/30">
-              {walletAddress ? `Solde: ${solBalanceFmt}` : "—"}
+              {walletAddress ? tr("Balance: {balance}", { balance: solBalanceFmt }) : "—"}
             </span>
           </div>
         </div>
@@ -236,7 +236,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
 
         {/* ── Buy box ── */}
         <div className="rounded-2xl bg-white/5 px-4 py-3.5 space-y-1">
-          <p className="text-[12px] text-white/40 font-medium">Buy</p>
+          <p className="text-[12px] text-white/40 font-medium">{tr("Buy")}</p>
           <div className="min-h-[40px] flex items-center">
             {quoteLoading ? (
               <Loader2 className="size-5 animate-spin text-white/40" />
@@ -250,7 +250,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
           </div>
           <p className="text-[12px] text-white/30">
             {priceImpact !== null && !quoteLoading
-              ? <span className={highImpact ? "text-red-400" : "text-white/30"}>Impact: {priceImpact.toFixed(2)}%</span>
+              ? <span className={highImpact ? "text-red-400" : "text-white/30"}>{tr("Impact: {value}%", { value: priceImpact.toFixed(2) })}</span>
               : "$0.00"
             }
           </p>
@@ -261,7 +261,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
               </div>
               <span className="text-[13px] font-semibold text-white">{ticker}</span>
             </div>
-            <span className="text-[11px] text-white/30">0 available</span>
+            <span className="text-[11px] text-white/30">{tr("0 available")}</span>
           </div>
         </div>
 
@@ -290,7 +290,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
 
         {/* ── Slippage ── */}
         <div className="flex items-center justify-between px-1 pt-1">
-          <span className="text-[12px] text-white/40">Slippage</span>
+          <span className="text-[12px] text-white/40">{tr("Slippage")}</span>
           <button
             onClick={() => setShowSlip(s => !s)}
             className="flex items-center gap-1.5 bg-white/8 hover:bg-white/12 rounded-full px-3 py-1 transition-colors"
@@ -299,7 +299,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
               {SLIP_OPTIONS.find(o => o.bps === slippageBps)?.label ?? "1%"}
             </span>
             <Settings2 className="size-3 text-white/40" />
-            <span className="text-[12px] text-white/40">Adjust</span>
+            <span className="text-[12px] text-white/40">{tr("Adjust")}</span>
           </button>
         </div>
 
@@ -337,7 +337,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
         )}
 
         {/* ── Error ── */}
-        {error && <p className="text-[11px] text-red-400 text-center">{error}</p>}
+        {error && <p className="text-[11px] text-red-400 text-center">{tr(error)}</p>}
 
         {/* ── Success ── */}
         {txSig && (

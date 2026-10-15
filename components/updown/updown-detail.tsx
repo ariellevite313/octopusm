@@ -17,6 +17,8 @@ import { CommentsSection } from "@/components/shared/comments-section";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
 import type { WalletType } from "@/lib/wallet/adapters";
+import { useT, Rich } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 interface UpDownMarket {
   id: string; symbol: string; duration_min: number; strike_price: number;
@@ -42,6 +44,12 @@ const COIN_META: Record<string, { label: string; symbol: string; color: string; 
   DOGEUSDT: { label: "Dogecoin", symbol: "DOGE", color: "#C2A633", img: "/doge.png" },
 };
 
+const MARKET_STATUS_LABEL: Record<string, string> = {
+  open: T("Open"),
+  resolved: T("Resolved"),
+  cancelled: T("Cancelled"),
+};
+
 const QUICK_AMOUNTS = [5, 25, 100, 500];
 const MIN_AMOUNT = 2;
 const MAX_POINTS = 60;
@@ -54,16 +62,16 @@ function getSupabase() {
   );
 }
 
-function formatPrice(p: number): string {
-  if (p >= 1000)   return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1)      return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+function formatPrice(p: number, locale = "en-US"): string {
+  if (p >= 1000)   return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1)      return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   if (p >= 0.01)   return p.toFixed(4);
   if (p >= 0.0001) return p.toFixed(6);
   return p.toFixed(8);
 }
 
-function formatTime(ms: number): string {
-  return new Date(ms).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+function formatTime(ms: number, locale = "en-US"): string {
+  return new Date(ms).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function useCountdown(closeAt: string | null | undefined): string {
@@ -91,17 +99,21 @@ function useCountdown(closeAt: string | null | undefined): string {
 }
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value: number; payload: PricePoint }[] }) {
+  const { lang } = useT();
   if (!active || !payload?.length) return null;
   const pt = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
-      <p className="font-mono font-semibold text-foreground">${formatPrice(pt.price)}</p>
-      <p className="text-muted-foreground">{formatTime(pt.time)}</p>
+      <p className="font-mono font-semibold text-foreground">${formatPrice(pt.price, LOCALES[lang])}</p>
+      <p className="text-muted-foreground">{formatTime(pt.time, LOCALES[lang])}</p>
     </div>
   );
 }
 
 const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, resolveAt, marketStatus, liveCountdown }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; resolveAt: string | null; marketStatus: string; liveCountdown: string; }) {
+  const { tr, lang } = useT();
+  const localeRef = useRef(LOCALES[lang]);
+  localeRef.current = LOCALES[lang];
   const [points, setPoints] = useState<PricePoint[]>([]);
   const [smoothData, setSmoothData] = useState<PricePoint[]>([]); // ~12fps chart data
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
@@ -139,7 +151,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       if (target != null) {
         // 60fps : mise à jour du span DOM sans re-render React
         if (displayPriceRef.current) {
-          displayPriceRef.current.textContent = `$${formatPrice(target)}`;
+          displayPriceRef.current.textContent = `$${formatPrice(target, localeRef.current)}`;
         }
 
         // 1s : ajouter le prix réel Binance comme point du graphe
@@ -174,8 +186,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
   const opensAtFormatted = (() => {
     try {
       const d = new Date(opensAt);
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " +
-        d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleDateString(LOCALES[lang], { month: "short", day: "numeric" }) + " · " +
+        d.toLocaleTimeString(LOCALES[lang], { hour: "2-digit", minute: "2-digit" });
     } catch { return opensAt; }
   })();
 
@@ -459,7 +471,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           ? <Image src={meta.img} alt={meta.symbol} width={52} height={52} className="size-[52px] shrink-0 rounded-2xl bg-white p-1 lg:size-14" />
           : <div className="flex size-[52px] shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white" style={{ background: meta.color }}>{meta.symbol[0]}</div>}
         <div className="min-w-0">
-          <h1 className="truncate text-[21px] font-bold tracking-tight text-foreground lg:text-[26px]">{meta.label} Up or Down · {durationMin} min</h1>
+          <h1 className="truncate text-[21px] font-bold tracking-tight text-foreground lg:text-[26px]">{tr("{coin} Up or Down · {n} min", { coin: meta.label, n: durationMin })}</h1>
           <p className="text-sm text-muted-foreground">{opensAtFormatted}</p>
         </div>
       </div>
@@ -467,35 +479,35 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
       {/* Chiffres clés */}
       <div className="grid grid-cols-[1fr_1.15fr_0.9fr] gap-2 lg:flex lg:gap-14">
         <div className="min-w-0">
-          <p className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">Price to beat</p>
-          <p className="num mt-1 truncate text-[19px] font-bold tracking-tight text-muted-foreground lg:text-[26px]">${formatPrice(strikePrice)}</p>
+          <p className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">{tr("Price to beat")}</p>
+          <p className="num mt-1 truncate text-[19px] font-bold tracking-tight text-muted-foreground lg:text-[26px]">${formatPrice(strikePrice, LOCALES[lang])}</p>
         </div>
         <div className="min-w-0">
           <p className="flex items-center gap-1 truncate text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">
-            Live price
+            {tr("Live price")}
             {diffAbs != null && (
               <span className={`flex items-center gap-0.5 normal-case ${isAbove ? "text-up" : "text-down"}`}>
                 <svg viewBox="0 0 10 10" className="size-2" aria-hidden><path d={isAbove ? "M0 9h10L5 1z" : "M0 1h10L5 9z"} fill="currentColor" /></svg>
-                ${formatPrice(Math.abs(diffAbs))}
+                ${formatPrice(Math.abs(diffAbs), LOCALES[lang])}
               </span>
             )}
           </p>
           <p className={`num mt-1 truncate text-[19px] font-bold tracking-tight lg:text-[26px] ${currentPrice == null ? "text-foreground" : isAbove ? "text-up" : "text-down"}`}>
             {/* ref updated at 60fps via RAF without React re-render */}
-            <span ref={displayPriceRef}>{currentPrice != null ? `$${formatPrice(currentPrice)}` : "—"}</span>
+            <span ref={displayPriceRef}>{currentPrice != null ? `$${formatPrice(currentPrice, LOCALES[lang])}` : "—"}</span>
           </p>
         </div>
         <div className="min-w-0 text-right lg:text-left">
           <p className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">
-            {marketStatus === "open" ? "Ends in" : "Status"}
+            {marketStatus === "open" ? tr("Ends in") : tr("Status")}
           </p>
           <p className="num mt-1 flex items-center justify-end gap-1.5 text-[19px] font-bold tracking-tight text-foreground lg:justify-start lg:text-[26px]">
             {marketStatus === "open" ? (
               liveCountdownChart === "Termine"
-                ? <><Loader2 className="size-4 animate-spin text-primary" /><span className="text-base">Resolving</span></>
+                ? <><Loader2 className="size-4 animate-spin text-primary" /><span className="text-base">{tr("Resolving")}</span></>
                 : <><Hourglass className="size-[18px] text-primary" strokeWidth={2.25} />{liveCountdownChart}</>
             ) : (
-              <span className="text-base capitalize text-muted-foreground">{marketStatus}</span>
+              <span className="text-base capitalize text-muted-foreground">{MARKET_STATUS_LABEL[marketStatus] ? tr(MARKET_STATUS_LABEL[marketStatus]) : marketStatus}</span>
             )}
           </p>
         </div>
@@ -505,7 +517,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         {loading || points.length === 0 ? (
           <div className="flex h-40 items-center justify-center">
             <span className="text-xs text-muted-foreground animate-pulse">
-              {loading ? "Loading price data..." : "Waiting for first price..."}
+              {loading ? tr("Loading price data...") : tr("Waiting for first price...")}
             </span>
           </div>
         ) : (
@@ -522,7 +534,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                 type="number"
                 scale="time"
                 domain={[xNow - WINDOW_MS, xNow]}
-                tickFormatter={formatTime}
+                tickFormatter={(ms: number) => formatTime(ms, LOCALES[lang])}
                 tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                 tickLine={false} axisLine={false}
                 tickCount={6}
@@ -531,8 +543,8 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                 domain={yDomain}
                 orientation="right"
                 tickFormatter={(v: number) => {
-                  if (v >= 10_000) return `$${Math.round(v).toLocaleString("en-US")}`;
-                  if (v >= 1_000) return `$${v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`;
+                  if (v >= 10_000) return `$${Math.round(v).toLocaleString(LOCALES[lang])}`;
+                  if (v >= 1_000) return `$${v.toLocaleString(LOCALES[lang], { minimumFractionDigits: 0, maximumFractionDigits: 1 })}`;
                   if (v >= 100)   return `$${v.toFixed(2)}`;
                   if (v >= 10)    return `$${v.toFixed(3)}`;
                   return `$${v.toFixed(4)}`;
@@ -565,7 +577,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
                 // Arrow si hors vue
                 const arrow = isAboveView ? ' ↑' : isBelowView ? ' ↓' : '';
-                const labelText = `Target ${formatPrice(strikePrice)}${arrow}`;
+                const labelText = tr("Target {price}", { price: formatPrice(strikePrice, LOCALES[lang]) }) + arrow;
 
                 // X de début de l'axe Y (plot area se termine là)
                 const yAxisX = yAxis.x ?? (w - (yAxis.width ?? 68));
@@ -637,6 +649,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
 export function UpDownDetail({ marketId }: { marketId: string }) {
   const router = useRouter();
+  const { tr, lang } = useT();
   const { walletAddress, walletType } = useAuth();
   const [market, setMarket] = useState<UpDownMarket | null>(null);
   const [myBets, setMyBets] = useState<UpDownBet[]>([]);
@@ -745,10 +758,10 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
   const handleBet = async (dir: "up" | "down") => {
     if (!walletAddress || !walletType) { setShowWalletDialog(true); return; }
-    if (amount < MIN_AMOUNT) { toast.error(`Minimum $${MIN_AMOUNT} USDC`); return; }
+    if (amount < MIN_AMOUNT) { toast.error(tr("Minimum ${min} USDC", { min: MIN_AMOUNT })); return; }
     if (!market) return;
     // Guard: block transaction if betting window has closed (avoids losing USDC on-chain)
-    if (bettingClosed) { toast.error("Betting is closed for this round"); return; }
+    if (bettingClosed) { toast.error(tr("Betting is closed for this round")); return; }
 
     setSubmitting(true);
     setActiveDir(dir);
@@ -761,7 +774,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         const w = window as any;
         if (w.solana?.signAndSendTransaction || w.solana?.signTransaction) provider = w.solana;
       }
-      if (!provider) { toast.error("Wallet not found"); return; }
+      if (!provider) { toast.error(tr("Wallet not found")); return; }
 
       const TOKEN_PROGRAM    = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
       const ASSOC_TOKEN_PROG = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -834,7 +847,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         } catch { /* try next RPC */ }
       }
 
-      if (!signature) { toast.error("Transaction failed"); return; }
+      if (!signature) { toast.error(tr("Transaction failed")); return; }
 
       const res = await fetch("/api/updown/bet", {
         method: "POST",
@@ -843,17 +856,17 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
-        toast.error(err.error ?? "Server error");
+        toast.error(tr(err.error ?? "Server error"));
         return;
       }
-      toast.success(`${dir.toUpperCase()} predict placed!`);
+      toast.success(dir === "up" ? tr("UP predict placed!") : tr("DOWN predict placed!"));
       setSheetOpen(false);
       void fetchMyBets();
       void fetchMarket();
     } catch (e: any) {
       const msg = (e?.message ?? "").toLowerCase();
-      if (msg.includes("cancel") || msg.includes("reject")) toast.error("Transaction cancelled");
-      else toast.error("Error: " + (e?.message ?? ""));
+      if (msg.includes("cancel") || msg.includes("reject")) toast.error(tr("Transaction cancelled"));
+      else toast.error(tr("Error: {msg}", { msg: e?.message ?? "" }));
     } finally {
       setSubmitting(false);
       setActiveDir(null);
@@ -868,7 +881,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     );
   }
   if (!market) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Market not found.</div>;
+    return <div className="py-20 text-center text-sm text-muted-foreground">{tr("Market not found.")}</div>;
   }
 
   const isOpen      = market.status === "open";
@@ -909,14 +922,14 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     isOpen && bettingClosed ? (
       <div className="py-8 text-center">
         <Loader2 className="mx-auto mb-2 size-5 animate-spin text-primary" />
-        <p className="text-sm font-semibold text-foreground">Resolving…</p>
-        <p className="text-xs text-muted-foreground">Betting is closed. Awaiting outcome.</p>
+        <p className="text-sm font-semibold text-foreground">{tr("Resolving…")}</p>
+        <p className="text-xs text-muted-foreground">{tr("Betting is closed. Awaiting outcome.")}</p>
       </div>
     ) : !isOpen ? (
       <div className="py-8 text-center">
-        <p className="text-sm font-semibold text-foreground">{market.status === "resolved" ? "Round resolved" : "Round cancelled"}</p>
+        <p className="text-sm font-semibold text-foreground">{market.status === "resolved" ? tr("Round resolved") : tr("Round cancelled")}</p>
         {market.outcome && (
-          <p className={`mt-1 text-sm font-bold ${market.outcome === "up" ? "text-up" : "text-down"}`}>{market.outcome === "up" ? "Up won" : "Down won"}</p>
+          <p className={`mt-1 text-sm font-bold ${market.outcome === "up" ? "text-up" : "text-down"}`}>{market.outcome === "up" ? tr("Up won") : tr("Down won")}</p>
         )}
       </div>
     ) : (
@@ -933,13 +946,13 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}>
                 <Icon className="size-[18px]" strokeWidth={3} />
-                {d === "up" ? "Up" : "Down"} <span className="num">{(d === "up" ? multUp : multDown).toFixed(2)}x</span>
+                {d === "up" ? tr("Up") : tr("Down")} <span className="num">{(d === "up" ? multUp : multDown).toFixed(2)}x</span>
               </button>
             );
           })}
         </div>
 
-        <p className="mt-5 text-[15px] font-semibold text-foreground">Amount</p>
+        <p className="mt-5 text-[15px] font-semibold text-foreground">{tr("Amount")}</p>
         {withKeypad ? (
           <div className="flex items-baseline justify-center gap-2 py-3">
             <span className={`num text-[48px] font-bold leading-none tracking-tight ${rawAmt ? "text-foreground" : "text-muted-foreground/50"}`}>{rawAmt || "0"}</span>
@@ -967,8 +980,8 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
         <div className="mt-4 flex items-center justify-between">
           <span className="flex items-center gap-2 text-[15px] text-muted-foreground">
-            To win
-            <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${selDir === "up" ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{selDir === "up" ? "Up" : "Down"}</span>
+            {tr("To win")}
+            <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${selDir === "up" ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{selDir === "up" ? tr("Up") : tr("Down")}</span>
           </span>
           <span className="num text-[28px] font-bold leading-none text-up">${(amount >= MIN_AMOUNT ? estPayout(selDir) : 0).toFixed(2)}</span>
         </div>
@@ -978,16 +991,16 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <div className="rounded-full bg-up" style={{ width: `${upPct}%` }} />
               <div className="flex-1 rounded-full bg-down" />
             </div>
-            <p className="num mt-1 flex justify-between text-[11px] text-muted-foreground"><span>{upPct}% Up</span><span>Pool ${totalPool.toFixed(2)}</span><span>{downPct}% Down</span></p>
+            <p className="num mt-1 flex justify-between text-[11px] text-muted-foreground"><span>{tr("{pct}% Up", { pct: upPct })}</span><span>{tr("Pool ${total}", { total: totalPool.toFixed(2) })}</span><span>{tr("{pct}% Down", { pct: downPct })}</span></p>
           </div>
         )}
 
         <button type="button" onClick={() => void handleBet(selDir)} disabled={submitting}
           className="mt-4 h-[52px] w-full rounded-2xl bg-primary text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
-          {submitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Confirming…</span>
-            : !walletAddress ? "Connect wallet" : `Buy ${selDir === "up" ? "Up" : "Down"}`}
+          {submitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{tr("Confirming…")}</span>
+            : !walletAddress ? tr("Connect wallet") : (selDir === "up" ? tr("Buy Up") : tr("Buy Down"))}
         </button>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">Min ${MIN_AMOUNT} · USDC · Multiple bets allowed</p>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">{tr("Min ${min} · USDC · Multiple bets allowed", { min: MIN_AMOUNT })}</p>
 
         {withKeypad && <div className="mt-2"><SwapKeypad value={rawAmt} onChange={setAmt} maxDecimals={2} /></div>}
       </div>
@@ -1002,10 +1015,10 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         <div className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <button type="button" onClick={() => router.back()} className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
-              <ChevronLeft className="size-5" /><span className="hidden lg:inline">Up / Down</span>
+              <ChevronLeft className="size-5" /><span className="hidden lg:inline">{tr("Up / Down")}</span>
             </button>
-            <button type="button" aria-label="Share"
-              onClick={() => { try { if (navigator.share) void navigator.share({ url: location.href }); else { void navigator.clipboard.writeText(location.href); toast.success("Link copied"); } } catch { /* ignore */ } }}
+            <button type="button" aria-label={tr("Share")}
+              onClick={() => { try { if (navigator.share) void navigator.share({ url: location.href }); else { void navigator.clipboard.writeText(location.href); toast.success(tr("Link copied")); } } catch { /* ignore */ } }}
               className="flex size-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted">
               <Share2 className="size-5" />
             </button>
@@ -1025,7 +1038,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           {pastRounds.length > 0 && (
             <div className="mt-2 flex items-center gap-4 overflow-x-auto border-t border-border py-4 scrollbar-none">
               <span className="flex shrink-0 items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm font-bold text-foreground">
-                Past
+                {tr("Past")}
                 <span className="h-4 w-px bg-foreground/15" />
                 <span className={`flex size-5 items-center justify-center rounded-full ${pastRounds[0].outcome === "up" ? "bg-up" : "bg-down"}`}>
                   {pastRounds[0].outcome === "up" ? <ChevronUp className="size-3.5 text-white" strokeWidth={3} /> : <ChevronDown className="size-3.5 text-white" strokeWidth={3} />}
@@ -1035,7 +1048,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                 <button key={r.id} type="button" onClick={() => router.push(`/updown/${r.id}`)}
                   className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   <span className={`size-1.5 rounded-full ${r.outcome === "up" ? "bg-up" : r.outcome === "down" ? "bg-down" : "bg-muted-foreground"}`} />
-                  {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(r.opens_at))}
+                  {new Intl.DateTimeFormat(LOCALES[lang], { hour: "numeric", minute: "2-digit" }).format(new Date(r.opens_at))}
                 </button>
               ))}
             </div>
@@ -1047,11 +1060,11 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => { setBetDir("up"); setSheetOpen(true); }}
                   className="flex h-[58px] items-center justify-center gap-1.5 rounded-[18px] bg-up/15 text-[20px] font-bold text-up">
-                  <ChevronUp className="size-5" strokeWidth={3} />Up
+                  <ChevronUp className="size-5" strokeWidth={3} />{tr("Up")}
                 </button>
                 <button type="button" onClick={() => { setBetDir("down"); setSheetOpen(true); }}
                   className="flex h-[58px] items-center justify-center gap-1.5 rounded-[18px] bg-down/15 text-[20px] font-bold text-down">
-                  <ChevronDown className="size-5" strokeWidth={3} />Down
+                  <ChevronDown className="size-5" strokeWidth={3} />{tr("Down")}
                 </button>
               </div>
               <div className="num mt-2 grid grid-cols-2 text-center text-[15px] font-semibold text-foreground">
@@ -1063,10 +1076,10 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           {/* Résultat de la manche */}
           {isResolved && market.outcome && (
             <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-              <p className={`text-base font-bold ${market.outcome === "up" ? "text-up" : "text-down"}`}>{market.outcome === "up" ? "Up won this round" : "Down won this round"}</p>
-              <p className="num text-sm text-muted-foreground">
-                Strike <span className="font-semibold text-foreground">${formatPrice(market.strike_price)}</span>
-                {market.open_price != null && <> · Close <span className="font-semibold text-foreground">${formatPrice(market.open_price)}</span></>}
+              <p className={`text-base font-bold ${market.outcome === "up" ? "text-up" : "text-down"}`}>{market.outcome === "up" ? tr("Up won this round") : tr("Down won this round")}</p>
+              <p className="num text-sm text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
+                <Rich>{tr("Strike <b>${price}</b>", { price: formatPrice(market.strike_price, LOCALES[lang]) })}</Rich>
+                {market.open_price != null && <> · <Rich>{tr("Close <b>${price}</b>", { price: formatPrice(market.open_price, LOCALES[lang]) })}</Rich></>}
               </p>
             </div>
           )}
@@ -1074,20 +1087,20 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           {/* Mes mises */}
           {currentRoundBets.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
-              <p className="mb-2 text-[15px] font-bold text-foreground">My bets</p>
+              <p className="mb-2 text-[15px] font-bold text-foreground">{tr("My bets")}</p>
               {currentRoundBets.map(bet => (
                 <div key={bet.id} className="flex items-center justify-between border-b border-border py-2.5 text-sm last:border-0">
                   <span className="num font-semibold text-foreground">
-                    ${bet.amount} USDC · <span className={bet.direction === "up" ? "text-up" : "text-down"}>{bet.direction === "up" ? "Up" : "Down"}</span>
-                    {bet.status === "won" && bet.payout != null && <span className="ml-2 text-up">Win ${Number(bet.payout).toFixed(2)}</span>}
-                    {bet.status === "refunded" && <span className="ml-2 text-muted-foreground">Refund ${Number(bet.amount).toFixed(2)}</span>}
+                    ${bet.amount} USDC · <span className={bet.direction === "up" ? "text-up" : "text-down"}>{bet.direction === "up" ? tr("Up") : tr("Down")}</span>
+                    {bet.status === "won" && bet.payout != null && <span className="ml-2 text-up">{tr("Win ${amount}", { amount: Number(bet.payout).toFixed(2) })}</span>}
+                    {bet.status === "refunded" && <span className="ml-2 text-muted-foreground">{tr("Refund ${amount}", { amount: Number(bet.amount).toFixed(2) })}</span>}
                   </span>
                   <span className="text-xs font-semibold text-muted-foreground">
-                    {(bet.status === "won" || bet.status === "refunded") && "Claim in dashboard"}
-                    {bet.status === "claimed" && "Pending"}
-                    {bet.status === "paid" && "Paid"}
-                    {bet.status === "lost" && "Lost"}
-                    {(bet.status === "pending" || bet.status === "approved") && "In progress"}
+                    {(bet.status === "won" || bet.status === "refunded") && tr("Claim in dashboard")}
+                    {bet.status === "claimed" && tr("Pending")}
+                    {bet.status === "paid" && tr("Paid")}
+                    {bet.status === "lost" && tr("Lost")}
+                    {(bet.status === "pending" || bet.status === "approved") && tr("In progress")}
                   </span>
                 </div>
               ))}
@@ -1097,13 +1110,13 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           {/* Règles */}
           <div className="mt-6">
             <button type="button" onClick={() => setRulesOpen((v) => !v)} className="flex w-full items-center justify-between text-left">
-              <span className="flex items-center gap-2.5 text-[17px] font-bold text-foreground"><Scale className="size-5" />Rules summary</span>
+              <span className="flex items-center gap-2.5 text-[17px] font-bold text-foreground"><Scale className="size-5" />{tr("Rules summary")}</span>
               {rulesOpen ? <ChevronUp className="size-5 text-muted-foreground" /> : <ChevronDown className="size-5 text-muted-foreground" />}
             </button>
             {rulesOpen && (
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                Resolves <b className="text-foreground">Up</b> if {meta.label} closes above the price to beat (${formatPrice(market.strike_price)}) at the end of the round, otherwise <b className="text-foreground">Down</b>.
-                The live price on the chart is indicative — resolution uses the Binance 1-minute close at the end of the round.
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground [&_strong]:text-foreground">
+                <Rich>{tr("Resolves <b>Up</b> if {coin} closes above the price to beat (${price}) at the end of the round, otherwise <b>Down</b>.", { coin: meta.label, price: formatPrice(market.strike_price, LOCALES[lang]) })}</Rich>{" "}
+                {tr("The live price on the chart is indicative — resolution uses the Binance 1-minute close at the end of the round.")}
               </p>
             )}
           </div>
@@ -1125,7 +1138,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         <aside className="hidden lg:block">
           <div className="sticky top-5 space-y-6">
             <div className="rounded-[24px] border border-border bg-card p-5">
-              <p className="mb-4 text-[17px] font-bold text-foreground">Place your bet</p>
+              <p className="mb-4 text-[17px] font-bold text-foreground">{tr("Place your bet")}</p>
               {betPanel(false)}
             </div>
             <CommentsSection
@@ -1151,9 +1164,9 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                 {meta.img
                   ? <Image src={meta.img} alt="" width={44} height={44} className="size-11 shrink-0 rounded-xl bg-white p-0.5" />
                   : <div className="flex size-11 shrink-0 items-center justify-center rounded-xl font-bold text-white" style={{ background: meta.color }}>{meta.symbol[0]}</div>}
-                <p className="truncate text-[15px] font-semibold text-foreground">{meta.label} Up or Down · {market.duration_min} min</p>
+                <p className="truncate text-[15px] font-semibold text-foreground">{tr("{coin} Up or Down · {n} min", { coin: meta.label, n: market.duration_min })}</p>
               </div>
-              <button type="button" onClick={() => setSheetOpen(false)} aria-label="Close" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label={tr("Close")} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <X className="size-4" />
               </button>
             </div>
@@ -1171,7 +1184,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             try {
               await connectWalletAndAuth(walletType);
             } catch (e) {
-              toast.error("Connection failed");
+              toast.error(tr("Connection failed"));
             }
           }}
         />

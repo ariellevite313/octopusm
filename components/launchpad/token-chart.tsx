@@ -9,6 +9,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { Loader2, CandlestickChart, TrendingUp } from "lucide-react";
+import { useT } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -115,11 +117,11 @@ async function resolveGeckoPool(mintAddress: string): Promise<string> {
     `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mintAddress}/pools?page=1`,
     { headers: { Accept: "application/json" } },
   );
-  if (!res.ok) throw new Error("Pool introuvable");
+  if (!res.ok) throw new Error(T("Pool not found"));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json  = await res.json() as any;
   const addr  = json?.data?.[0]?.attributes?.address as string | undefined;
-  if (!addr) throw new Error("Pool not found");
+  if (!addr) throw new Error(T("Pool not found"));
   return addr;
 }
 
@@ -128,11 +130,11 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
     `https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${tf.gecko}&currency=usd`,
     { headers: { Accept: "application/json" } },
   );
-  if (!res.ok) throw new Error("Data unavailable");
+  if (!res.ok) throw new Error(T("Data unavailable"));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json = await res.json() as any;
   const list = json?.data?.attributes?.ohlcv_list as RawList | undefined;
-  if (!list?.length) throw new Error("No data");
+  if (!list?.length) throw new Error(T("No data"));
   return parseOHLCV(list);
 }
 
@@ -146,9 +148,9 @@ function getChartTheme(isDark: boolean) {
 
 // ── Price formatting ──────────────────────────────────────────────────────────
 
-function fmtPrice(n: number): string {
+function fmtPrice(n: number, loc = "en-US"): string {
   if (n === 0) return "—";
-  if (n >= 1)      return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  if (n >= 1)      return n.toLocaleString(loc, { maximumFractionDigits: 4 });
   if (n >= 0.01)   return n.toFixed(6);
   // small numbers: show up to 8 significant digits
   return n.toPrecision(4);
@@ -171,6 +173,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
   const isArc = Boolean(arcCurveAddress);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme !== "light";
+  const { tr, lang } = useT();
 
   // DexScreener
   const [dexData,    setDexData]    = useState<DexData | null>(null);
@@ -317,7 +320,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         setStatus("ready");
       } catch (e) {
         if (!cancelled) {
-          setErrorMsg(e instanceof Error ? e.message : "Chart unavailable");
+          setErrorMsg(e instanceof Error ? e.message : tr("Chart unavailable"));
           setStatus("error");
         }
       }
@@ -385,7 +388,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
       } catch (e) {
         if (!cancelled) {
-          setErrorMsg(e instanceof Error ? e.message : "Chart unavailable");
+          setErrorMsg(e instanceof Error ? e.message : tr("Chart unavailable"));
           setStatus("error");
         }
       }
@@ -520,7 +523,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       </div>
       <div className="text-right">
         <p className="text-[18px] font-bold text-foreground leading-tight">
-          {currentPrice != null ? `$${fmtPrice(currentPrice)}` : "—"}
+          {currentPrice != null ? `$${fmtPrice(currentPrice, LOCALES[lang])}` : "—"}
         </p>
         {priceChange != null && (
           <p className={`text-[12px] font-semibold leading-tight ${changeColor}`}>
@@ -549,7 +552,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
           <button
             type="button"
             onClick={() => switchType("candle")}
-            title="Candlestick"
+            title={tr("Candlestick")}
             className={`p-1.5 rounded-lg transition-colors ${
               chartType === "candle"
                 ? "bg-white/10 text-white"
@@ -561,7 +564,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
           <button
             type="button"
             onClick={() => switchType("line")}
-            title="Live line"
+            title={tr("Live line")}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
               chartType === "line"
                 ? "bg-emerald-500/20 text-up"
@@ -569,7 +572,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
             }`}
           >
             <TrendingUp className="size-3.5" />
-            Live
+            {tr("Live")}
           </button>
         </div>
       ) : (
@@ -598,7 +601,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       {showType && chartType === "line" && !loading && (
         <div className="flex items-center gap-1">
           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] text-up font-medium">Live</span>
+          <span className="text-[10px] text-up font-medium">{tr("Live")}</span>
         </div>
       )}
     </div>
@@ -618,7 +621,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         <iframe
           key={activeDexTf.label} // remounts on TF change
           src={embedUrl}
-          title={`${name} chart`}
+          title={tr("{name} chart", { name })}
           width="100%"
           height="260"
           style={{ border: "none", display: embedReady ? "block" : "none" }}
@@ -647,13 +650,13 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       )}
       {status === "error" && (
         <div className="flex items-center justify-center" style={{ height: 260 }}>
-          <p className="text-sm text-muted-foreground">{errorMsg || "No chart data available"}</p>
+          <p className="text-sm text-muted-foreground">{errorMsg ? tr(errorMsg) : tr("No chart data available")}</p>
         </div>
       )}
       {status === "nodata" && (
         <div className="flex items-center justify-center flex-col gap-2" style={{ height: 260 }}>
           <p className="text-sm text-muted-foreground">
-            {isArc ? "No trades yet — chart will appear after the first trade." : "No price data yet."}
+            {isArc ? tr("No trades yet — chart will appear after the first trade.") : tr("No price data yet.")}
           </p>
         </div>
       )}

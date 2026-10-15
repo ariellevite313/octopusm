@@ -1,10 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { AppIcon } from "@/components/shared/app-icon";
+import { useT, Rich } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 const CLT_CA = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 
 export function Footer() {
+  const { tr } = useT();
   return (
     <footer className="mt-12 px-4 pb-6">
       <div className="mx-auto max-w-7xl rounded-3xl border border-border/60 px-6 py-10 bg-card">
@@ -25,7 +30,7 @@ export function Footer() {
               <p className="text-base font-semibold text-foreground">OMdotfun</p>
             </div>
             <p className="mb-5 text-sm leading-relaxed text-muted-foreground" style={{ maxWidth: 200 }}>
-              Where knowledge meets prediction on-chain.
+              {tr("Where knowledge meets prediction on-chain.")}
             </p>
             <div className="flex gap-2">
               {[
@@ -48,16 +53,16 @@ export function Footer() {
           {/* Platform */}
           <div>
             <p className="mb-3.5 text-[13px] font-semibold text-muted-foreground">
-              Platform
+              {tr("Platform")}
             </p>
             <ul className="space-y-1">
               {[
-                { href: "/prediction",    icon: "ti-chart-bar",    label: "Markets",     internal: true },
-                { href: "/launchpad",     icon: "ti-rocket",       label: "Launchpad",   internal: true },
-                { href: "/leaderboard",   icon: "ti-trophy",       label: "Leaderboard", internal: true },
-                { href: "/faq",           icon: "ti-help-circle",  label: "FAQ",         internal: true },
-                { href: "https://t.me/Omdotfun",     icon: "ti-brand-telegram", label: "News & Updates", internal: false },
-                { href: "https://t.me/OmdotfunTuto", icon: "ti-brand-telegram", label: "Tutorials",      internal: false },
+                { href: "/prediction",    icon: "ti-chart-bar",    label: T("Markets"),     internal: true },
+                { href: "/launchpad",     icon: "ti-rocket",       label: T("Launchpad"),   internal: true },
+                { href: "/leaderboard",   icon: "ti-trophy",       label: T("Leaderboard"), internal: true },
+                { href: "/faq",           icon: "ti-help-circle",  label: T("FAQ"),         internal: true },
+                { href: "https://t.me/Omdotfun",     icon: "ti-brand-telegram", label: T("News & Updates"), internal: false },
+                { href: "https://t.me/OmdotfunTuto", icon: "ti-brand-telegram", label: T("Tutorials"),      internal: false },
               ].map((l) => (
                 <li key={l.href + l.label}>
                   <Link
@@ -67,7 +72,7 @@ export function Footer() {
                     className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <AppIcon name={l.icon} className="size-3.5" />
-                    {l.label}
+                    {tr(l.label)}
                   </Link>
                 </li>
               ))}
@@ -77,7 +82,7 @@ export function Footer() {
           {/* ClawdTrust */}
           <div>
             <p className="mb-3.5 text-[13px] font-semibold text-muted-foreground">
-              ClawdTrust <span className="normal-case tracking-normal font-normal opacity-60">Partner</span>
+              ClawdTrust <span className="normal-case tracking-normal font-normal opacity-60">{tr("Partner")}</span>
             </p>
             <ul className="space-y-1">
               {[
@@ -116,7 +121,7 @@ export function Footer() {
           {/* Team */}
           <div>
             <p className="mb-3.5 text-[13px] font-semibold text-muted-foreground">
-              Team
+              {tr("Team")}
             </p>
             <ul className="space-y-1">
               {[
@@ -142,36 +147,31 @@ export function Footer() {
 
         {/* Disclaimer */}
         <p className="mb-4 text-[11px] text-muted-foreground/60 leading-relaxed border-t border-border pt-4">
-          ⚠️ Trading prediction markets and launching tokens involve a risk of loss. Nothing on this platform constitutes financial advice.
-          Always check the current{" "}
-          <Link href="/faq" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
-            terms
-          </Link>{" "}
-          before acting.
+          <Rich linkClass="underline underline-offset-2 hover:text-muted-foreground transition-colors">{tr("⚠️ Trading prediction markets and launching tokens involve a risk of loss. Nothing on this platform constitutes financial advice. Always check the current [terms](/faq) before acting.")}</Rich>
         </p>
 
         {/* Bottom bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <p className="text-[11px] text-muted-foreground">
-              © {new Date().getFullYear()} OMdotfun — All rights reserved
+              {tr("© {year} OMdotfun — All rights reserved", { year: new Date().getFullYear() })}
             </p>
             <Link
               href="/privacy"
               className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
             >
-              Privacy Policy
+              {tr("Privacy Policy")}
             </Link>
             <Link
               href="/policy"
               className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
             >
-              ŌM Policy
+              {tr("ŌM Policy")}
             </Link>
           </div>
           <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-violet-500 border border-violet-500/20">
             <AppIcon name="ti-circle-filled" className="size-2" />
-            Built on Solana
+            {tr("Built on Solana")}
           </div>
         </div>
 

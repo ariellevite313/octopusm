@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 type Stats = {
   priceUsd:    number | null;
@@ -65,9 +66,10 @@ async function fetchStats(address: string, chain: "solana" | "arc", isV4 = false
 // ── Bar variant (horizontal, borderless) ──────────────────────────────────────
 
 function StatItem({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) {
+  const { tr } = useT();
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-[10px] text-muted-foreground md:text-xs">{label}</span>
+      <span className="text-[10px] text-muted-foreground md:text-xs">{tr(label)}</span>
       <span className={`num whitespace-nowrap text-[13px] font-bold md:text-lg ${accent ? "text-up" : "text-foreground"}`}>
         {value}
       </span>
@@ -118,15 +120,17 @@ function StatBar({ stats, chain = "solana" }: { stats: Stats; chain?: "solana" |
 // ── Card variant (legacy vertical) ────────────────────────────────────────────
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  const { tr } = useT();
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground">{tr(label)}</span>
       <span className="num text-sm font-bold text-foreground">{value}</span>
     </div>
   );
 }
 
 function StatCard({ stats }: { stats: Stats }) {
+  const { tr } = useT();
   const changeColor =
     stats.priceChange === null ? "text-foreground" :
     stats.priceChange > 0 ? "text-up" : "text-down";
@@ -134,7 +138,7 @@ function StatCard({ stats }: { stats: Stats }) {
   return (
     <div>
       <p className="text-[13px] font-semibold text-muted-foreground mb-3">
-        Market
+        {tr("Market")}
       </p>
       <Row
         label="Price"
@@ -154,7 +158,7 @@ function StatCard({ stats }: { stats: Stats }) {
       {stats.volume24h !== null && <Row label="Volume 24h" value={fmt(stats.volume24h, { prefix: "$" })} />}
       {stats.holders   !== null && <Row label="Holders"    value={fmtHolders(stats.holders)} />}
       <p className="mt-2 text-[10px] text-muted-foreground text-right">
-        Source: GeckoTerminal · Birdeye
+        {tr("Source: GeckoTerminal · Birdeye")}
       </p>
     </div>
   );
@@ -173,6 +177,7 @@ export function TokenMarketStats({
   chain?: "solana" | "arc";
   isV4?: boolean;
 }) {
+  const { tr } = useT();
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
@@ -190,14 +195,14 @@ export function TokenMarketStats({
       return (
         <div className="flex items-center gap-2 py-3 px-4 md:px-6 border-y border-border">
           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Loading…</span>
+          <span className="text-xs text-muted-foreground">{tr("Loading…")}</span>
         </div>
       );
     }
     return (
       <div className="flex items-center gap-2 py-6">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Loading market data…</span>
+        <span className="text-xs text-muted-foreground">{tr("Loading market data…")}</span>
       </div>
     );
   }

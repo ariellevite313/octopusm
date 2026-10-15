@@ -8,20 +8,21 @@ import {
   getMarketComments,
 } from "@/services/prediction-service";
 import { PredictionDetail } from "@/components/prediction/prediction-detail";
+import { Tr } from "@/lib/i18n";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { id }  = await params;
   const market  = await getMarketBySlug(id);
-  if (!market) return { title: "Market not found - OMdotfun" };
+  if (!market) return { title: "Market not found" };
 
   const slug    = market.slug ?? market.id;
   const ogImage = `/api/og/market/${slug}`;
   const description = market.resolution_criteria ?? market.resolution_label ?? "Prediction market on OMdotfun.";
 
   return {
-    title: `${market.title} - OMdotfun`,
+    title: market.title,
     description,
     alternates: { canonical: `https://omdot.fun/prediction/${slug}` },
     openGraph: {
@@ -62,7 +63,7 @@ export default async function PredictionPage({ params }: Props) {
         <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
         </svg>
-        All markets
+        <Tr>All markets</Tr>
       </Link>
 
       <PredictionDetail

@@ -6,7 +6,7 @@ import { getLaunchpadTokens } from "@/services/launchpad-service";
 import type { LaunchpadToken } from "@/services/launchpad-service";
 
 export const metadata: Metadata = {
-  title: "Coming Soon — Launchpad",
+  title: "Coming Soon",
   description: "Upcoming token launches on OMdotfun.",
 };
 

@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 interface MatchScore {
   id: number;
@@ -31,20 +32,23 @@ interface LiveScoreProps {
 
 const POLL_INTERVAL_MS = 60_000; // 60 secondes
 
-function stageLabel(type: string, group: string): string {
+function stageLabel(type: string, group: string, tr: (s: string, v?: Record<string, string | number>) => string): string {
   const map: Record<string, string> = {
-    group: `Group ${group}`,
-    r32: "Round of 32",
-    r16: "Round of 16",
-    qf: "Quarterfinal",
-    sf: "Semifinal",
-    third: "3rd Place",
-    final: "Final",
+    group: tr("Group {group}", { group }),
+    r32: tr("Round of 32"),
+    r16: tr("Round of 16"),
+    qf: tr("Quarterfinal"),
+    sf: tr("Semifinal"),
+    third: tr("3rd Place"),
+    final: tr("Final"),
   };
   return map[type] ?? type.toUpperCase();
 }
 
-export function LiveScore({ matchId, homeName = "Home", awayName = "Away" }: LiveScoreProps) {
+export function LiveScore({ matchId, homeName: homeNameProp, awayName: awayNameProp }: LiveScoreProps) {
+  const { tr } = useT();
+  const homeName = homeNameProp ?? tr("Home");
+  const awayName = awayNameProp ?? tr("Away");
   const [score, setScore] = useState<MatchScore | null>(null);
   const [status, setStatus] = useState<"loading" | "live" | "finished" | "upcoming" | "error">("loading");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,17 +115,17 @@ export function LiveScore({ matchId, homeName = "Home", awayName = "Away" }: Liv
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[13px] font-semibold text-muted-foreground">
-          {score ? stageLabel(score.type, score.group) : "Match"}
+          {score ? stageLabel(score.type, score.group, tr) : tr("Match")}
         </span>
         {isLive && (
           <span className="flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 dark:bg-red-950/20 dark:text-red-400">
             <span className="size-1.5 rounded-full bg-red-500 animate-pulse" />
-            LIVE
+            {tr("LIVE")}
           </span>
         )}
         {isFinished && (
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            Full time
+            {tr("Full time")}
           </span>
         )}
         {status === "upcoming" && (
@@ -161,9 +165,9 @@ export function LiveScore({ matchId, homeName = "Home", awayName = "Away" }: Liv
 
       {/* Footer */}
       <p className="mt-2 text-center text-[10px] text-muted-foreground">
-        {isLive && "Updated every 60s"}
-        {isFinished && "Final result"}
-        {status === "upcoming" && `Scheduled: ${score.local_date}`}
+        {isLive && tr("Updated every 60s")}
+        {isFinished && tr("Final result")}
+        {status === "upcoming" && tr("Scheduled: {date}", { date: score.local_date })}
       </p>
     </div>
   );

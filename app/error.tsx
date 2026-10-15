@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 
 export default function GlobalError({
   error,
@@ -15,14 +16,15 @@ export default function GlobalError({
   }, [error]);
 
   const router = useRouter();
+  const { tr } = useT();
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 text-center">
       <div className="space-y-2">
         <p className="text-4xl">⚠️</p>
-        <h1 className="text-xl font-semibold text-foreground">Something went wrong</h1>
+        <h1 className="text-xl font-semibold text-foreground">{tr("Something went wrong")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
-          An unexpected error occurred. Please try again or go back to the home page.
+          {tr("An unexpected error occurred. Please try again or go back to the home page.")}
         </p>
         {error.digest && (
           <p className="text-xs text-muted-foreground/60 font-mono">ref: {error.digest}</p>
@@ -33,13 +35,13 @@ export default function GlobalError({
           onClick={reset}
           className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          Try again
+          {tr("Try again")}
         </button>
         <button
           onClick={() => router.push("/")}
           className="rounded-xl border border-border bg-muted px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/70 transition-colors"
         >
-          Home
+          {tr("Home")}
         </button>
       </div>
     </div>

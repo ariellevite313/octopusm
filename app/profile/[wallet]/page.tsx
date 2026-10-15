@@ -7,7 +7,9 @@ import { ProfilePnlChart } from "@/components/profile/profile-pnl-chart";
 import { ProfileActivityList } from "@/components/profile/profile-activity-list";
 import { ProfileMarketsList } from "@/components/profile/profile-markets-list";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
-import { fmt, fmtDate, shortAddress } from "@/lib/format";
+import { fmt, shortAddress } from "@/lib/format";
+import { Tr } from "@/lib/i18n";
+import { MemberSince } from "@/components/profile/member-since";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -114,7 +116,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         <div className="profile-banner relative h-32 sm:h-44">
           {data.stats.rank && (
             <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-3.5 py-2 text-white backdrop-blur-md">
-              <span className="text-[13px] font-medium text-white/75">Rank</span>
+              <span className="text-[13px] font-medium text-white/75"><Tr>Rank</Tr></span>
               <span className="num text-[15px] font-bold">#{data.stats.rank}</span>
             </div>
           )}
@@ -165,14 +167,14 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
           {/* Stats — inline, like followers / following */}
           <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">
-            <span><span className="font-bold text-foreground">{data.stats.total_rounds}</span> <span className="text-muted-foreground">Rounds</span></span>
-            <span><span className="font-bold text-up">{data.stats.win_rate}%</span> <span className="text-muted-foreground">Win rate</span></span>
+            <span><span className="font-bold text-foreground">{data.stats.total_rounds}</span> <span className="text-muted-foreground"><Tr>Rounds</Tr></span></span>
+            <span><span className="font-bold text-up">{data.stats.win_rate}%</span> <span className="text-muted-foreground"><Tr>Win rate</Tr></span></span>
             <span><span className="font-bold text-foreground">{fmt(data.stats.octo_balance, 0)}</span> <span className="text-muted-foreground">OMERO</span></span>
           </div>
 
           {joinedAt && (
             <p className="mt-2 text-[13px] text-muted-foreground">
-              Member since {fmtDate(joinedAt)}
+              <MemberSince iso={joinedAt} />
             </p>
           )}
 
@@ -180,7 +182,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         {totalVolume > 0 && (
           <div className="mt-5 space-y-2.5 border-t border-border pt-4">
             <p className="text-[13px] font-semibold text-muted-foreground">
-              Volume by token
+              <Tr>Volume by token</Tr>
             </p>
             {data.volume.usdc > 0 && (
               <div className="space-y-1">
@@ -237,7 +239,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       {/* Empty state */}
       {data.stats.total_rounds === 0 && data.created_markets.length === 0 && (
         <div className="rounded-[22px] border border-border bg-card px-6 py-16 text-center">
-          <p className="text-muted-foreground">No activity yet for this address.</p>
+          <p className="text-muted-foreground"><Tr>No activity yet for this address.</Tr></p>
         </div>
       )}
     </>

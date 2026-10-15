@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 type Stats = {
   totalVolume: number;
@@ -17,6 +18,7 @@ function fmtUsd(n: number): string {
 const FALLBACK: Stats = { totalVolume: 0, volume24h: 0 };
 
 export function PlatformStats() {
+  const { tr } = useT();
   const [stats, setStats]     = useState<Stats | null>(null);
   const [loaded, setLoaded]   = useState(false);
 
@@ -33,7 +35,7 @@ export function PlatformStats() {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-sm text-muted-foreground font-medium">
-        Total volume
+        {tr("Total volume")}
       </span>
       {display ? (
         <>
@@ -44,7 +46,7 @@ export function PlatformStats() {
           </span>
           {display.volume24h > 0 && (
             <span className="num text-[15px] font-semibold text-up">
-              +{fmtUsd(display.volume24h)} today
+              {tr("+{amount} today", { amount: fmtUsd(display.volume24h) })}
             </span>
           )}
         </>
@@ -56,6 +58,7 @@ export function PlatformStats() {
 }
 
 export function PlatformStatsInline() {
+  const { tr } = useT();
   const [stats, setStats] = useState<Stats | null>(null);
   useEffect(() => {
     fetch("/api/launchpad/platform-stats").then(r => r.ok ? r.json() : FALLBACK).then((d: Stats) => setStats(d)).catch(() => setStats(FALLBACK));
@@ -64,9 +67,9 @@ export function PlatformStatsInline() {
   return (
     <div className="mb-6">
       <p className="text-[15px] text-muted-foreground">
-        Total Volume : <span className="num text-[22px] font-bold text-foreground">{fmtUsd(stats.totalVolume)}</span>
+        {tr("Total Volume :")} <span className="num text-[22px] font-bold text-foreground">{fmtUsd(stats.totalVolume)}</span>
       </p>
-      {stats.volume24h > 0 && <p className="num text-sm font-semibold text-up">+{fmtUsd(stats.volume24h)} today</p>}
+      {stats.volume24h > 0 && <p className="num text-sm font-semibold text-up">{tr("+{amount} today", { amount: fmtUsd(stats.volume24h) })}</p>}
     </div>
   );
 }

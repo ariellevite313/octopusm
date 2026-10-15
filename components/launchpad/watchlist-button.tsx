@@ -10,7 +10,7 @@ type Props = { tokenId: string };
 
 export function WatchlistButton({ tokenId }: Props) {
   const { walletAddress } = useAuth();
-  const { t } = useT();
+  const { t, tr } = useT();
   const [watching, setWatching] = useState(false);
   const [loading, setLoading]   = useState(false);
 
@@ -54,7 +54,7 @@ export function WatchlistButton({ tokenId }: Props) {
       }`}
     >
       {watching ? <BellOff className="size-4" /> : <Bell className="size-4" />}
-      {watching ? "Remove from watchlist" : "Add to watchlist"}
+      {watching ? tr("Remove from watchlist") : tr("Add to watchlist")}
     </button>
   );
 }

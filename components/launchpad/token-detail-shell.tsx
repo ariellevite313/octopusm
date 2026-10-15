@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeftRight, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 // Mise en page de la page d'un token : onglets (Commentaires / À propos)
 // + panneau de trading. Sur mobile, le trading s'ouvre depuis un gros
@@ -14,6 +15,7 @@ export function TokenDetailShell({
 }: {
   chart?: React.ReactNode; trade: React.ReactNode; comments: React.ReactNode; about: React.ReactNode; ticker: string;
 }) {
+  const { tr } = useT();
   const [tab, setTab] = useState<Tab>("comments");
   const [sheet, setSheet] = useState(false);
 
@@ -25,8 +27,8 @@ export function TokenDetailShell({
   }, [sheet]);
 
   const TABS: { id: Tab; label: string }[] = [
-    { id: "comments", label: "Comments" },
-    { id: "about",    label: "About" },
+    { id: "comments", label: tr("Comments") },
+    { id: "about",    label: tr("About") },
   ];
 
   return (
@@ -65,8 +67,8 @@ export function TokenDetailShell({
             <div className="mx-auto h-1.5 w-12 rounded-full bg-muted" />
           </div>
           <div className="mb-3 flex items-center justify-between md:hidden">
-            <span className="text-lg font-bold tracking-tight text-foreground">Trade ${ticker}</span>
-            <button type="button" onClick={() => setSheet(false)} aria-label="Close" className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <span className="text-lg font-bold tracking-tight text-foreground">{tr("Trade ${ticker}", { ticker })}</span>
+            <button type="button" onClick={() => setSheet(false)} aria-label={tr("Close")} className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <X className="size-4" />
             </button>
           </div>
@@ -86,7 +88,7 @@ export function TokenDetailShell({
         className={`btn-primary fixed inset-x-4 bottom-[calc(92px+env(safe-area-inset-bottom,0px))] z-30 flex h-14 items-center justify-center gap-2 rounded-2xl text-[17px] md:hidden ${sheet ? "hidden" : ""}`}
       >
         <ArrowLeftRight className="size-5" />
-        Buy / Sell
+        {tr("Buy / Sell")}
       </button>
       {/* Espace pour que la fin de page ne passe pas sous le bouton */}
       <div className="h-20 md:hidden" aria-hidden />

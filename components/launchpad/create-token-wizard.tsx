@@ -12,7 +12,8 @@ import {
   ImageIcon, Link as LinkIcon, User, Users, SlidersHorizontal, Delete,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { useT } from "@/lib/i18n";
+import { useT, Tr } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
 import { arc } from "@/lib/arc-chain";
 import {
@@ -95,7 +96,7 @@ const INITIAL: WizardData = {
   sol_stock_symbol: "xNVDA",
 };
 
-const CATEGORIES = ["Meme","Utility","AI","Gaming","DeFi","NFT","x402"];
+const CATEGORIES = [T("Meme"), T("Utility"), T("AI"), T("Gaming"), T("DeFi"), T("NFT"), "x402"];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -124,7 +125,8 @@ function Label({ children, hint }: { children: React.ReactNode; hint?: string })
 }
 
 function Err({ msg }: { msg?: string }) {
-  return msg ? <p className="mt-1.5 text-xs text-red-500">{msg}</p> : null;
+  const { tr } = useT();
+  return msg ? <p className="mt-1.5 text-xs text-red-500">{tr(msg)}</p> : null;
 }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -188,7 +190,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
 }) {
   const logoRef = useRef<HTMLInputElement>(null);
   const pdfRef  = useRef<HTMLInputElement>(null);
-  const { t } = useT();
+  const { t, tr } = useT();
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<{ name?: boolean; ticker?: boolean }>({});
   const [share, setShare] = useState(data.fee_recipients.length > 0);
@@ -248,7 +250,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
   const PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
     { key: "sol",   label: "SOL",   icon: <SolanaMark className="size-9 text-foreground" /> },
     { key: "usdc",  label: "USDC",  icon: <Image src="/usdc-coin.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
-    { key: "stock", label: "Stock", icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
+    { key: "stock", label: tr("Stock"), icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
   ];
 
   return (
@@ -256,25 +258,25 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
 
       {/* Média */}
       <div>
-        <Label>Media</Label>
+        <Label>{tr("Media")}</Label>
         <button
           type="button"
           onClick={() => logoRef.current?.click()}
           className="relative flex h-40 w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30"
         >
           {data.logo_preview ? (
-            <Image src={data.logo_preview} alt="Logo" fill className="object-contain p-2" unoptimized />
+            <Image src={data.logo_preview} alt={tr("Logo")} fill className="object-contain p-2" unoptimized />
           ) : (
             <>
               <ImageIcon className="size-9 text-foreground" />
-              <span className="text-sm">Upload an image · PNG, JPG, GIF · 5 MB max</span>
+              <span className="text-sm">{tr("Upload an image · PNG, JPG, GIF · 5 MB max")}</span>
             </>
           )}
         </button>
         {data.logo_file && (
           <button type="button" onClick={() => { if (data.logo_preview) URL.revokeObjectURL(data.logo_preview); set("logo_file", null); set("logo_preview", null); }}
             className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-            <X className="size-3" /> Remove
+            <X className="size-3" /> {tr("Remove")}
           </button>
         )}
         <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleLogo} />
@@ -283,42 +285,42 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
 
       {/* Nom */}
       <div>
-        <Label>Name</Label>
+        <Label>{tr("Name")}</Label>
         <input
           value={data.name}
           onChange={(e) => { set("name", e.target.value); setAvailability({}); }}
           onBlur={checkAvailability}
-          placeholder="Enter the coin name"
+          placeholder={tr("Enter the coin name")}
           className={FIELD}
         />
-        {availability.name === true && <p className="mt-1.5 text-xs text-up">✓ Available</p>}
-        {availability.name === false && <p className="mt-1.5 text-xs text-red-500">✗ Already taken</p>}
+        {availability.name === true && <p className="mt-1.5 text-xs text-up">{tr("✓ Available")}</p>}
+        {availability.name === false && <p className="mt-1.5 text-xs text-red-500">{tr("✗ Already taken")}</p>}
         <Err msg={errors.name} />
       </div>
 
       {/* Ticker */}
       <div>
-        <Label>Ticker</Label>
+        <Label>{tr("Ticker")}</Label>
         <input
           value={data.ticker}
           onChange={(e) => { set("ticker", e.target.value.toUpperCase().slice(0, 10)); setAvailability({}); }}
           onBlur={checkAvailability}
-          placeholder="Add a ticker (e.g. DOGE)"
+          placeholder={tr("Add a ticker (e.g. DOGE)")}
           className={`${FIELD} uppercase placeholder:normal-case`}
         />
-        {availability.ticker === true && <p className="mt-1.5 text-xs text-up">✓ Available</p>}
-        {availability.ticker === false && <p className="mt-1.5 text-xs text-red-500">✗ Already taken</p>}
-        {checking && <p className="mt-1.5 text-xs text-muted-foreground">Checking…</p>}
+        {availability.ticker === true && <p className="mt-1.5 text-xs text-up">{tr("✓ Available")}</p>}
+        {availability.ticker === false && <p className="mt-1.5 text-xs text-red-500">{tr("✗ Already taken")}</p>}
+        {checking && <p className="mt-1.5 text-xs text-muted-foreground">{tr("Checking…")}</p>}
         <Err msg={errors.ticker} />
       </div>
 
       {/* Description */}
       <div>
-        <Label>Description</Label>
+        <Label>{tr("Description")}</Label>
         <textarea
           value={data.description}
           onChange={(e) => set("description", e.target.value)}
-          placeholder="Enter the coin description"
+          placeholder={tr("Enter the coin description")}
           rows={3}
           maxLength={500}
           className={`${FIELD} resize-none`}
@@ -328,7 +330,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
 
       {/* Catégorie */}
       <div>
-        <Label>Category</Label>
+        <Label>{tr("Category")}</Label>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (
             <button
@@ -339,7 +341,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
                 data.category === cat ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
-              {cat}
+              {tr(cat)}
             </button>
           ))}
         </div>
@@ -347,7 +349,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
 
       {/* Paire de pool */}
       <div>
-        <Label>Pool pair</Label>
+        <Label>{tr("Pool pair")}</Label>
         <div className="grid grid-cols-3 gap-2.5">
           {PAIRS.map((p) => (
             <button
@@ -365,7 +367,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           ))}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          {pair === "usdc" ? "Launches on Arc, traded in USDC." : pair === "stock" ? "Launches on Solana, paired with a tokenized stock." : "Launches on Solana, traded in SOL."}
+          {pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : tr("Launches on Solana, traded in SOL.")}
         </p>
 
         {pair === "stock" && (
@@ -388,38 +390,38 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       </div>
 
       {/* Liens sociaux */}
-      <ExpandRow icon={<LinkIcon className="size-5" />} title="Social links" hint="Optional" open={openSocials} onToggle={() => setOpenSocials(!openSocials)}>
-        <SocialInput icon={<Globe className="size-4" />}         value={data.website}      onChange={(v) => set("website", v)}      placeholder="Website · https://yourtoken.com" error={errors.website} />
-        <SocialInput icon={<Twitter className="size-4" />}       value={data.twitter}      onChange={(v) => set("twitter", v)}      placeholder="X · https://x.com/yourtoken" error={errors.twitter} />
-        <SocialInput icon={<MessageCircle className="size-4" />} value={data.telegram}     onChange={(v) => set("telegram", v)}     placeholder="Telegram · https://t.me/yourtoken" error={errors.telegram} />
-        <SocialInput icon={<Hash className="size-4" />}          value={data.discord}      onChange={(v) => set("discord", v)}      placeholder="Discord · https://discord.gg/yourtoken" error={errors.discord} />
-        <SocialInput icon={<ExternalLink className="size-4" />}  value={data.other_social} onChange={(v) => set("other_social", v)} placeholder="Other · https://…" error={errors.other_social} />
+      <ExpandRow icon={<LinkIcon className="size-5" />} title={tr("Social links")} hint={tr("Optional")} open={openSocials} onToggle={() => setOpenSocials(!openSocials)}>
+        <SocialInput icon={<Globe className="size-4" />}         value={data.website}      onChange={(v) => set("website", v)}      placeholder={tr("Website · https://yourtoken.com")} error={errors.website} />
+        <SocialInput icon={<Twitter className="size-4" />}       value={data.twitter}      onChange={(v) => set("twitter", v)}      placeholder={tr("X · https://x.com/yourtoken")} error={errors.twitter} />
+        <SocialInput icon={<MessageCircle className="size-4" />} value={data.telegram}     onChange={(v) => set("telegram", v)}     placeholder={tr("Telegram · https://t.me/yourtoken")} error={errors.telegram} />
+        <SocialInput icon={<Hash className="size-4" />}          value={data.discord}      onChange={(v) => set("discord", v)}      placeholder={tr("Discord · https://discord.gg/yourtoken")} error={errors.discord} />
+        <SocialInput icon={<ExternalLink className="size-4" />}  value={data.other_social} onChange={(v) => set("other_social", v)} placeholder={tr("Other · https://…")} error={errors.other_social} />
       </ExpandRow>
 
       {/* Récompenses créateur */}
       {chain === "arc" ? (
         <div>
-          <Label>Fees &amp; rewards</Label>
+          <Label>{tr("Fees & rewards")}</Label>
           <FeeTierCard tier={data.arc_fee_tier} setTier={(tier) => set("arc_fee_tier", tier)} />
         </div>
       ) : (
         <div>
-          <Label>Send creator rewards to:</Label>
+          <Label>{tr("Send creator rewards to:")}</Label>
           <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
             {[
-              { on: !share, label: "Me", icon: <User className="size-4" />, click: () => { setShare(false); set("fee_recipients", []); } },
-              { on: share,  label: "Shared", icon: <Users className="size-4" />, click: () => { setShare(true); if (data.fee_recipients.length === 0) addRecipient(); } },
+              { on: !share, label: T("Me"), icon: <User className="size-4" />, click: () => { setShare(false); set("fee_recipients", []); } },
+              { on: share,  label: T("Shared"), icon: <Users className="size-4" />, click: () => { setShare(true); if (data.fee_recipients.length === 0) addRecipient(); } },
             ].map((o) => (
               <button key={o.label} type="button" onClick={o.click}
                 className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors ${
                   o.on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}>
-                {o.icon}{o.label}
+                {o.icon}{tr(o.label)}
               </button>
             ))}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            2% trading fee per trade. {share ? "Split your creator fees with up to 4 wallets." : "100% of your creator fees go to your wallet."}
+            {share ? tr("2% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("2% trading fee per trade. 100% of your creator fees go to your wallet.")}
           </p>
 
           {share && (
@@ -429,7 +431,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
                   <input
                     value={r.address}
                     onChange={(e) => updateRecipient(i, "address", e.target.value)}
-                    placeholder="Solana wallet address"
+                    placeholder={tr("Solana wallet address")}
                     className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-3 font-mono text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/15"
                   />
                   <div className="relative">
@@ -441,14 +443,14 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                   </div>
-                  <button type="button" onClick={() => removeRecipient(i)} aria-label="Remove" className="text-muted-foreground transition-colors hover:text-red-500">
+                  <button type="button" onClick={() => removeRecipient(i)} aria-label={tr("Remove")} className="text-muted-foreground transition-colors hover:text-red-500">
                     <Trash2 className="size-4" />
                   </button>
                 </div>
               ))}
               {data.fee_recipients.length < 4 && (
                 <button type="button" onClick={addRecipient} className="flex items-center gap-1 text-sm font-semibold text-foreground hover:opacity-80">
-                  <Plus className="size-4" /> Add wallet
+                  <Plus className="size-4" /> {tr("Add wallet")}
                 </button>
               )}
               <Err msg={errors.fee_recipients} />
@@ -458,13 +460,13 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       )}
 
       {/* Plus d'options */}
-      <ExpandRow icon={<SlidersHorizontal className="size-5" />} title="More options" hint={chain === "arc" ? "Whitepaper" : "Scheduled launch, whitepaper"} open={openMore} onToggle={() => setOpenMore(!openMore)}>
+      <ExpandRow icon={<SlidersHorizontal className="size-5" />} title={tr("More options")} hint={chain === "arc" ? tr("Whitepaper") : tr("Scheduled launch, whitepaper")} open={openMore} onToggle={() => setOpenMore(!openMore)}>
         {chain === "solana" && data.sol_token_type === "sol" && (
           <div className="rounded-xl bg-background p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">Scheduled launch</p>
-                <p className="text-xs text-muted-foreground">+0.1 SOL · not tradeable until the chosen date</p>
+                <p className="text-sm font-semibold text-foreground">{tr("Scheduled launch")}</p>
+                <p className="text-xs text-muted-foreground">{tr("+0.1 SOL · not tradeable until the chosen date")}</p>
               </div>
               <Toggle on={data.is_scheduled} onClick={() => set("is_scheduled", !data.is_scheduled)} />
             </div>
@@ -489,7 +491,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           className="flex w-full items-center gap-2 rounded-xl bg-background px-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <Upload className="size-4" />
-          <span className="truncate">{data.whitepaper_file ? data.whitepaper_file.name : "Whitepaper · PDF, 20 MB max"}</span>
+          <span className="truncate">{data.whitepaper_file ? data.whitepaper_file.name : tr("Whitepaper · PDF, 20 MB max")}</span>
           {data.whitepaper_file && (
             <X className="ml-auto size-4" onClick={(e) => { e.stopPropagation(); set("whitepaper_file", null); }} />
           )}

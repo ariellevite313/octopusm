@@ -15,18 +15,20 @@ import Link                    from "next/link";
 import { Loader2, ExternalLink } from "lucide-react";
 import { useAuth }             from "@/providers/auth-provider";
 import { useT }               from "@/lib/i18n";
+import type { Lang }           from "@/lib/i18n";
+import { LOCALES }             from "@/lib/i18n-mark";
 
-function fmtBalance(raw: string): string {
+function fmtBalance(raw: string, lang: Lang): string {
   const n = Number(BigInt(raw)) / 1e18;
   if (n === 0) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(2)}K`;
-  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return n.toLocaleString(LOCALES[lang], { maximumFractionDigits: 2 });
 }
 
-function fmtUsdc(n: number): string {
+function fmtUsdc(n: number, lang: Lang): string {
   if (n === 0) return "< $0.01";
-  if (n >= 1000) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  if (n >= 1000) return `$${n.toLocaleString(LOCALES[lang], { maximumFractionDigits: 2 })}`;
   return `$${n.toFixed(4)}`;
 }
 
@@ -44,7 +46,7 @@ type Holding = {
 
 export function ArcHolderHoldings() {
   const { isAuthenticated } = useAuth();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading,  setLoading]  = useState(true);
 
@@ -89,7 +91,7 @@ export function ArcHolderHoldings() {
         </h3>
         {totalUsd > 0 && (
           <span className="rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-orange-500">
-            {fmtUsdc(totalUsd)}
+            {fmtUsdc(totalUsd, lang)}
           </span>
         )}
       </div>
@@ -133,14 +135,14 @@ export function ArcHolderHoldings() {
                 </span>
               </div>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
-                {fmtBalance(h.balance_raw)} tokens
+                {fmtBalance(h.balance_raw, lang)} tokens
               </p>
             </div>
 
             {/* Valeur + lien */}
             <div className="flex flex-col items-end gap-0.5 shrink-0">
               <span className="text-[13px] font-semibold text-foreground">
-                {valueUsd > 0 ? fmtUsdc(valueUsd) : "—"}
+                {valueUsd > 0 ? fmtUsdc(valueUsd, lang) : "—"}
               </span>
               <ExternalLink className="size-3 text-muted-foreground/40" />
             </div>

@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   tokenId:       string;
@@ -19,6 +20,7 @@ type Props = {
 
 export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
   const router = useRouter();
+  const { tr } = useT();
   const [checking, setChecking] = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -41,7 +43,7 @@ export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
         setNotFound(true);
       }
     } catch {
-      setError("Network error — try again.");
+      setError(tr("Network error — try again."));
     } finally {
       setChecking(false);
     }
@@ -49,13 +51,13 @@ export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
 
   return (
     <div className="rounded-2xl border border-dashed border-orange-500/40 bg-orange-500/5 px-5 py-6 text-center space-y-3">
-      <p className="text-sm font-semibold text-foreground">Pool address not found</p>
+      <p className="text-sm font-semibold text-foreground">{tr("Pool address not found")}</p>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Your token is active but the pool address wasn&apos;t saved. Click below to search for it on-chain.
+        {tr("Your token is active but the pool address wasn't saved. Click below to search for it on-chain.")}
       </p>
       {notFound && (
         <p className="text-xs text-red-400">
-          Pool not found on-chain yet. Wait a few seconds and try again.
+          {tr("Pool not found on-chain yet. Wait a few seconds and try again.")}
         </p>
       )}
       {error && <p className="text-xs text-red-400">{error}</p>}
@@ -65,7 +67,7 @@ export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
         className="inline-flex items-center gap-2 rounded-full bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white text-[13px] font-bold px-5 py-2.5 transition-colors btn-primary"
       >
         {checking && <Loader2 className="size-3.5 animate-spin" />}
-        {checking ? "Searching…" : "Find my pool"}
+        {checking ? tr("Searching…") : tr("Find my pool")}
       </button>
     </div>
   );

@@ -20,10 +20,13 @@ import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
+import { useT, Rich } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
+import type { Lang } from "@/lib/i18n";
 
-function fmtUsdc(raw: bigint): string {
+function fmtUsdc(raw: bigint, lang: Lang): string {
   const n = Number(raw) / 1e18; // USDC natif Arc = 18 dec
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return n.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
 type ArcToken = {
@@ -45,6 +48,7 @@ type TokenWithFees = ArcToken & {
 
 export function ArcCreatorFees() {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
+  const { tr, lang } = useT();
   const [tokens, setTokens] = useState<TokenWithFees[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -167,17 +171,17 @@ export function ArcCreatorFees() {
 
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" /> Loading Arc tokens…
+      <Loader2 className="size-4 animate-spin" /> {tr("Loading Arc tokens…")}
     </div>
   );
 
   if (tokens.length === 0) return (
-    <p className="text-sm text-muted-foreground py-2">No Arc V2 tokens launched yet.</p>
+    <p className="text-sm text-muted-foreground py-2">{tr("No Arc V2 tokens launched yet.")}</p>
   );
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">Arc tokens — creator fees</h3>
+      <h3 className="text-sm font-semibold text-foreground">{tr("Arc tokens — creator fees")}</h3>
       {tokens.map((token, idx) => (
         <div
           key={token.id}
@@ -211,10 +215,10 @@ export function ArcCreatorFees() {
 
             <p className="text-xs text-muted-foreground">
               {token.accrued === null
-                ? "Reading…"
+                ? tr("Reading…")
                 : token.accrued === 0n
-                ? "No creator fees yet"
-                : `${fmtUsdc(token.accrued)} USDC claimable`}
+                ? tr("No creator fees yet")
+                : tr("{amount} USDC claimable", { amount: fmtUsdc(token.accrued, lang) })}
             </p>
 
             {token.txHash && (
@@ -224,18 +228,18 @@ export function ArcCreatorFees() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-[11px] text-up hover:underline mt-0.5"
               >
-                <CheckCircle2 className="size-3" /> Claimed
+                <CheckCircle2 className="size-3" /> {tr("Claimed")}
               </a>
             )}
             {token.error && (
-              <p className="text-[11px] text-red-400 mt-0.5">{token.error}</p>
+              <p className="text-[11px] text-red-400 mt-0.5">{tr(token.error)}</p>
             )}
           </div>
 
           {/* Claim button — only shown when connected on Arc AND fees are available */}
           {selectedChain !== "arc" ? (
             <span className="text-[10px] text-muted-foreground text-right shrink-0">
-              Connect<br />MetaMask
+              <Rich>{tr("Connect<br/>MetaMask")}</Rich>
             </span>
           ) : token.accrued === null ? (
             /* Still loading */
@@ -252,7 +256,7 @@ export function ArcCreatorFees() {
             >
               {token.claiming
                 ? <Loader2 className="size-3.5 animate-spin" />
-                : "Claim"}
+                : tr("Claim")}
             </button>
           )}
         </div>

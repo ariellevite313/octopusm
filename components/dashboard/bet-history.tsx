@@ -6,6 +6,8 @@ import Image from "next/image";
 import { ExternalLink, Clock } from "lucide-react";
 import type { BetHistoryRow, UpdownBetHistory } from "@/services/dashboard-service";
 import type { PredictionResultStatus } from "@/lib/supabase/types";
+import { useT } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 interface PoolMarket {
   id: string; title: string; slug: string; status: string;
@@ -44,16 +46,17 @@ function TokenAmount({ token, amount }: { token: string; amount: number }) {
 }
 
 function TypeBadge({ kind }: { kind: "market" | "pool" | "pool_pending" | "updown" }) {
+  const { tr } = useT();
   if (kind === "pool" || kind === "pool_pending")
-    return <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">Pool</span>;
+    return <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">{tr("Pool")}</span>;
   if (kind === "updown")
-    return <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300">Up/Down</span>;
-  return <span className="inline-flex items-center rounded-full border border-border bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-950/20 dark:text-orange-300">Market</span>;
+    return <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300">{tr("Up/Down")}</span>;
+  return <span className="inline-flex items-center rounded-full border border-border bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-950/20 dark:text-orange-300">{tr("Market")}</span>;
 }
 
 const MARKET_STATUS_LABEL: Record<PredictionResultStatus, string> = {
-  open: "Open", pending_review: "Reviewing", approved_pending_result: "Awaiting result",
-  win: "Won", lose: "Lost", claimed: "Won", paid: "Won", rejected: "Rejected",
+  open: T("Open"), pending_review: T("Reviewing"), approved_pending_result: T("Awaiting result"),
+  win: T("Won"), lose: T("Lost"), claimed: T("Won"), paid: T("Won"), rejected: T("Rejected"),
 };
 const MARKET_STATUS_CLASS: Record<PredictionResultStatus, string> = {
   open: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
@@ -68,42 +71,43 @@ const MARKET_STATUS_CLASS: Record<PredictionResultStatus, string> = {
 
 function poolBetStatus(bet: PoolBet): { label: string; cls: string } {
   const m = bet.mutuel_markets;
-  if (!m) return { label: "Unknown", cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
+  if (!m) return { label: T("Unknown"), cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
   if (m.status === "cancelled") {
-    if (bet.payout_amount !== null) return { label: "Refunded", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
-    return { label: "Cancelled", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
+    if (bet.payout_amount !== null) return { label: T("Refunded"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
+    return { label: T("Cancelled"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
   }
   if (m.status === "resolved") {
     const won = m.winning_option_id === bet.option_id;
-    if (!won) return { label: "Lost", cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
-    return { label: "Won", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
+    if (!won) return { label: T("Lost"), cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
+    return { label: T("Won"), cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   }
-  if (m.status === "closed") return { label: "Awaiting result", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
-  if (m.status === "active") return { label: "Active", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
+  if (m.status === "closed") return { label: T("Awaiting result"), cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
+  if (m.status === "active") return { label: T("Active"), cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   return { label: m.status, cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
 }
 
 function updownStatus(bet: UpdownBetHistory): { label: string; cls: string } {
-  if (bet.status === "pending")   return { label: "Reviewing",      cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
-  if (bet.status === "rejected")  return { label: "Rejected",       cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
-  if (bet.status === "lost")      return { label: "Lost",           cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
-  if (bet.status === "refunded")  return { label: "Refunded",       cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
+  if (bet.status === "pending")   return { label: T("Reviewing"),      cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
+  if (bet.status === "rejected")  return { label: T("Rejected"),       cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
+  if (bet.status === "lost")      return { label: T("Lost"),           cls: "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" };
+  if (bet.status === "refunded")  return { label: T("Refunded"),       cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" };
   if (bet.status === "won" || bet.status === "claimed" || bet.status === "paid")
-    return { label: "Won", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
+    return { label: T("Won"), cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
   if (bet.status === "approved") {
     const m = bet.updown_markets;
-    if (!m || m.status === "open") return { label: "Active",           cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
-    return { label: "Awaiting result", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
+    if (!m || m.status === "open") return { label: T("Active"),           cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" };
+    return { label: T("Awaiting result"), cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400" };
   }
   return { label: bet.status, cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" };
 }
 
 function StatusBadge({ label, cls }: { label: string; cls: string }) {
-  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
+  const { tr } = useT();
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{tr(label)}</span>;
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+function fmtDateLocale(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
 const PAGE_SIZE = 10;
@@ -112,6 +116,8 @@ export function BetHistory({ bets, walletAddress }: {
   bets: BetHistoryRow[];
   walletAddress: string;
 }) {
+  const { tr, lang } = useT();
+  const fmtDate = (iso: string) => fmtDateLocale(iso, LOCALES[lang]);
   const [poolBets, setPoolBets]               = useState<PoolBet[]>([]);
   const [poolPending, setPoolPending]         = useState<PendingPoolBet[]>([]);
   const [marketPending, setMarketPending]     = useState<PendingMarketBet[]>([]);
@@ -161,9 +167,9 @@ export function BetHistory({ bets, walletAddress }: {
 
   return (
     <section>
-      <h2 className="mb-4 text-base font-bold text-foreground">Prediction history</h2>
+      <h2 className="mb-4 text-base font-bold text-foreground">{tr("Prediction history")}</h2>
       {isEmpty ? (
-        <div className="rounded-[22px] border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No predictions yet. Place your first prediction!</div>
+        <div className="rounded-[22px] border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">{tr("No predictions yet. Place your first prediction!")}</div>
       ) : loadingPool && rows.length === 0 ? (
         <div className="space-y-2">{[1,2,3].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted" />)}</div>
       ) : (
@@ -179,11 +185,11 @@ export function BetHistory({ bets, walletAddress }: {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <TypeBadge kind="updown" />
-                        <p className="text-xs font-semibold text-foreground line-clamp-1">{m ? `${m.symbol} · ${m.duration_min}min` : "Up/Down"}</p>
+                        <p className="text-xs font-semibold text-foreground line-clamp-1">{m ? tr("{symbol} · {n}min", { symbol: m.symbol, n: m.duration_min }) : tr("Up/Down")}</p>
                       </div>
                       <StatusBadge label={label} cls={cls} />
                     </div>
-                    <p className="text-xs text-muted-foreground">{b.direction === "up" ? "↑ UP" : "↓ DOWN"}{m ? ` · Strike $${m.strike_price}` : ""}</p>
+                    <p className="text-xs text-muted-foreground">{b.direction === "up" ? tr("↑ UP") : tr("↓ DOWN")}{m ? ` · ${tr("Strike ${price}", { price: m.strike_price })}` : ""}</p>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs font-medium"><TokenAmount token="usdc" amount={b.amount} /></span>
                       <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
@@ -221,7 +227,7 @@ export function BetHistory({ bets, walletAddress }: {
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs font-medium"><TokenAmount token={b.token} amount={b.amount_usdc} /></span>
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><Clock className="size-3" />Reviewing</span>
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><Clock className="size-3" />{tr("Reviewing")}</span>
                       <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
                     </div>
                   </div>
@@ -238,7 +244,7 @@ export function BetHistory({ bets, walletAddress }: {
                     <p className="text-xs text-muted-foreground">{b.selection_label}</p>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs font-medium"><TokenAmount token={b.token} amount={b.amount_usdc} /></span>
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><Clock className="size-3" />Reviewing</span>
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><Clock className="size-3" />{tr("Reviewing")}</span>
                       <span className="text-xs text-muted-foreground">{fmtDate(b.created_at)}</span>
                     </div>
                   </div>
@@ -252,7 +258,7 @@ export function BetHistory({ bets, walletAddress }: {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <TypeBadge kind="pool" />
-                      <p className="text-xs font-semibold text-foreground line-clamp-1">{m?.title ?? "Pool"}</p>
+                      <p className="text-xs font-semibold text-foreground line-clamp-1">{m?.title ?? tr("Pool")}</p>
                     </div>
                     <StatusBadge label={label} cls={cls} />
                   </div>
@@ -272,8 +278,8 @@ export function BetHistory({ bets, walletAddress }: {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {["Type", "Market", "Selection", "Stake", "Odds", "Status", "Date"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[13px] font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                  {[T("Type"), T("Market"), T("Selection"), T("Stake"), T("Odds"), T("Status"), T("Date")].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[13px] font-semibold text-muted-foreground whitespace-nowrap">{tr(h)}</th>
                   ))}
                 </tr>
               </thead>
@@ -285,8 +291,8 @@ export function BetHistory({ bets, walletAddress }: {
                     return (
                       <tr key={b.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3"><TypeBadge kind="updown" /></td>
-                        <td className="px-4 py-3 font-medium text-foreground max-w-[180px] truncate">{m ? `${m.symbol} · ${m.duration_min}min` : "Up/Down"}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{b.direction === "up" ? "↑ UP" : "↓ DOWN"}{m ? ` · $${m.strike_price}` : ""}</td>
+                        <td className="px-4 py-3 font-medium text-foreground max-w-[180px] truncate">{m ? tr("{symbol} · {n}min", { symbol: m.symbol, n: m.duration_min }) : tr("Up/Down")}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{b.direction === "up" ? tr("↑ UP") : tr("↓ DOWN")}{m ? ` · $${m.strike_price}` : ""}</td>
                         <td className="px-4 py-3 whitespace-nowrap"><TokenAmount token="usdc" amount={b.amount} /></td>
                         <td className="px-4 py-3 text-muted-foreground">{b.payout ? `$${b.payout.toFixed(2)}` : "-"}</td>
                         <td className="px-4 py-3"><StatusBadge label={label} cls={cls} /></td>
@@ -317,7 +323,7 @@ export function BetHistory({ bets, walletAddress }: {
                         <td className="px-4 py-3 text-muted-foreground">-</td>
                         <td className="px-4 py-3 whitespace-nowrap"><TokenAmount token={b.token} amount={b.amount_usdc} /></td>
                         <td className="px-4 py-3 text-muted-foreground">-</td>
-                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"><Clock className="size-3" />Reviewing</span></td>
+                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"><Clock className="size-3" />{tr("Reviewing")}</span></td>
                         <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{fmtDate(b.created_at)}</td>
                       </tr>
                     );
@@ -331,7 +337,7 @@ export function BetHistory({ bets, walletAddress }: {
                         <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate">{b.selection_label}</td>
                         <td className="px-4 py-3 whitespace-nowrap"><TokenAmount token={b.token} amount={b.amount_usdc} /></td>
                         <td className="px-4 py-3 text-muted-foreground">-</td>
-                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"><Clock className="size-3" />Reviewing</span></td>
+                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"><Clock className="size-3" />{tr("Reviewing")}</span></td>
                         <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{fmtDate(b.created_at)}</td>
                       </tr>
                     );
@@ -344,7 +350,7 @@ export function BetHistory({ bets, walletAddress }: {
                       <td className="px-4 py-3"><TypeBadge kind="pool" /></td>
                       <td className="px-4 py-3 font-medium text-foreground max-w-[180px]">
                         <div className="flex items-center gap-1.5 truncate">
-                          <span className="truncate">{m?.title ?? "Pool"}</span>
+                          <span className="truncate">{m?.title ?? tr("Pool")}</span>
                           {m?.slug && <Link href={`/pools/${m.slug}`} className="shrink-0 text-muted-foreground hover:text-foreground"><ExternalLink className="size-3" /></Link>}
                         </div>
                       </td>
@@ -364,12 +370,12 @@ export function BetHistory({ bets, walletAddress }: {
             <div className="mt-4 flex items-center justify-center gap-2">
               <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-40 transition-colors">
-                Previous
+                {tr("Previous")}
               </button>
               <span className="text-xs text-muted-foreground">{page + 1} / {totalPages}</span>
               <button type="button" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-40 transition-colors">
-                Next
+                {tr("Next")}
               </button>
             </div>
           )}

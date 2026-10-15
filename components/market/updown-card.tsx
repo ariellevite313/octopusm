@@ -5,6 +5,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Clock } from "lucide-react";
 import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
 import { formatVolume } from "@/lib/market/utils";
+import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 interface UpDownMarket {
   id: string;
@@ -37,9 +39,9 @@ function formatDuration(min: number): string {
   return "24h";
 }
 
-function formatPrice(p: number): string {
-  if (p >= 1000)   return "$" + p.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  if (p >= 1)      return "$" + p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+function formatPrice(p: number, locale = "en-US"): string {
+  if (p >= 1000)   return "$" + p.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  if (p >= 1)      return "$" + p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   if (p >= 0.01)   return "$" + p.toFixed(4);
   if (p >= 0.0001) return "$" + p.toFixed(6);
   return "$" + p.toFixed(8);
@@ -70,6 +72,7 @@ function DurationCard({ market, symColor, symLabel }: {
   symColor: string;
   symLabel: string;
 }) {
+  const { tr, lang } = useT();
   const countdown = useCountdown(market?.status === "open" ? market.closes_at : null);
   const fakeBets  = useFakeLiveBets(2, !(Number(market?.pool_up ?? 0) + Number(market?.pool_down ?? 0) > 0));
 
@@ -77,7 +80,7 @@ function DurationCard({ market, symColor, symLabel }: {
     return (
       <div className="overflow-hidden rounded-[22px] border border-dashed border-border bg-card">
         <div className="flex h-full min-h-[200px] items-center justify-center p-5">
-          <p className="text-xs text-muted-foreground">Round pending...</p>
+          <p className="text-xs text-muted-foreground">{tr("Round pending...")}</p>
         </div>
       </div>
     );
@@ -100,11 +103,11 @@ function DurationCard({ market, symColor, symLabel }: {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-[16px] font-bold leading-snug tracking-tight text-foreground">
-              {symLabel} · Up/Down
+              {tr("{sym} · Up/Down", { sym: symLabel })}
             </p>
             <div className="mt-1.5 flex items-center gap-2">
               <span className="num text-[13px] font-semibold text-muted-foreground">
-                Strike {formatPrice(market.strike_price)}
+                {tr("Strike {price}", { price: formatPrice(market.strike_price, LOCALES[lang]) })}
               </span>
               {isResolved && market.outcome && (
                 <span className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -112,7 +115,7 @@ function DurationCard({ market, symColor, symLabel }: {
                     ? "bg-up/12 text-up"
                     : "bg-down/12 text-down"
                 }`}>
-                  {market.outcome === "up" ? "↑ UP" : "↓ DOWN"}
+                  {market.outcome === "up" ? tr("↑ UP") : tr("↓ DOWN")}
                 </span>
               )}
             </div>
@@ -143,22 +146,22 @@ function DurationCard({ market, symColor, symLabel }: {
         <div className="grid grid-cols-2 gap-2">
           <div className="relative flex items-center justify-center gap-1 rounded-2xl bg-up/12 px-3 py-3.5 transition-colors group-hover:bg-up/18">
             <FakeBetOverlay optionIndex={0} bets={fakeBets} />
-            <span className="text-sm font-bold text-up">↑ Up</span>
+            <span className="text-sm font-bold text-up">{tr("↑ Up")}</span>
             {isResolved && market.outcome === "up" && <span className="text-xs font-bold text-up">✓</span>}
           </div>
           <div className="relative flex items-center justify-center gap-1 rounded-2xl bg-down/12 px-3 py-3.5 transition-colors group-hover:bg-down/18">
             <FakeBetOverlay optionIndex={1} bets={fakeBets} />
-            <span className="text-sm font-bold text-down">↓ Down</span>
+            <span className="text-sm font-bold text-down">{tr("↓ Down")}</span>
             {isResolved && market.outcome === "down" && <span className="text-xs font-bold text-red-500">✓</span>}
           </div>
         </div>
 
         {/* Footer */}
         <div className="num mt-auto flex items-center justify-between border-t border-border pt-3 text-[13px] font-medium text-muted-foreground">
-          <span>{formatDuration(market.duration_min)} · {market.fee_rate}% fee</span>
+          <span>{tr("{duration} · {rate}% fee", { duration: formatDuration(market.duration_min), rate: market.fee_rate })}</span>
           {isResolved && market.open_price && (
             <span className={`font-semibold ${Number(market.open_price) > market.strike_price ? "text-up" : "text-down"}`}>
-              Close {formatPrice(Number(market.open_price))}
+              {tr("Close {price}", { price: formatPrice(Number(market.open_price), LOCALES[lang]) })}
             </span>
           )}
         </div>
@@ -170,6 +173,7 @@ function DurationCard({ market, symColor, symLabel }: {
 // ── Export principal ───────────────────────────────────────────────────────────
 
 export function UpDownCards() {
+  const { tr } = useT();
   const [activeSymbol, setActiveSymbol] = useState("BTCUSDT");
   const [markets, setMarkets] = useState<Record<number, UpDownMarket | undefined>>({});
   const [loading, setLoading] = useState(true);
@@ -202,7 +206,7 @@ export function UpDownCards() {
     <>
       {/* Symbol selector — ligne horizontale compacte AU-DESSUS des cards, pas dans la grille */}
       <div className="col-span-full flex flex-wrap items-center gap-2 mb-1">
-        <span className="text-lg font-bold tracking-tight text-foreground mr-2">Up/Down</span>
+        <span className="text-lg font-bold tracking-tight text-foreground mr-2">{tr("Up/Down")}</span>
         {SYMBOLS.map(s => (
           <button
             key={s.value}
@@ -225,7 +229,7 @@ export function UpDownCards() {
         Array.from({ length: DURATIONS.length }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-[22px] border border-border bg-card animate-pulse">
             <div className="flex h-[200px] items-center justify-center">
-              <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
+              <span className="text-xs text-muted-foreground animate-pulse">{tr("Loading...")}</span>
             </div>
           </div>
         ))

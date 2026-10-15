@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Trophy, ArrowLeft, Crown } from "lucide-react";
 import { PlatformStatsInline } from "@/components/launchpad/platform-stats";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
+import { useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 type Period = "24h" | "7d" | "30d" | "1y" | "all";
 
@@ -13,7 +16,7 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: "7d",  label: "7D"   },
   { key: "30d", label: "30D"  },
   { key: "1y",  label: "1Y"   },
-  { key: "all", label: "All"  },
+  { key: "all", label: T("All")  },
 ];
 
 function short(addr: string) {
@@ -46,16 +49,16 @@ function displayLabel(entry: LeaderboardEntry) {
 }
 
 /** Gains dans la devise du créateur : SOL (Solana) ou USDC (Arc / MetaMask). */
-function fmtFee(e: { totalFee?: number; totalFeeSol: number; currency?: "SOL" | "USDC"; usdValue?: number | null }) {
+function fmtFee(e: { totalFee?: number; totalFeeSol: number; currency?: "SOL" | "USDC"; usdValue?: number | null }, lang: Lang) {
   // Tout le monde en dollars (SOL converti au prix du marché, USDC = 1 $)
   if (e.usdValue != null) {
     const v = e.usdValue;
-    return v >= 1000 ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : `$${v.toFixed(2)}`;
+    return v >= 1000 ? `$${v.toLocaleString(LOCALES[lang], { maximumFractionDigits: 0 })}` : `$${v.toFixed(2)}`;
   }
   const cur = e.currency ?? "SOL";
   const n = e.totalFee ?? e.totalFeeSol;
   if (n === 0) return `0 ${cur}`;
-  if (cur === "USDC") return `${n >= 1000 ? n.toLocaleString("en-US", { maximumFractionDigits: 0 }) : n.toFixed(2)} USDC`;
+  if (cur === "USDC") return `${n >= 1000 ? n.toLocaleString(LOCALES[lang], { maximumFractionDigits: 0 }) : n.toFixed(2)} USDC`;
   if (n >= 1) return `${n.toFixed(4)} SOL`;
   return `${n.toFixed(6)} SOL`;
 }
@@ -100,6 +103,7 @@ function FrameCard({ entry, tone, className = "" }: { entry: LeaderboardEntry; t
 }
 
 export function CreatorLeaderboard() {
+  const { tr, lang } = useT();
   const [period,  setPeriod]  = useState<Period>("all");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,17 +147,17 @@ export function CreatorLeaderboard() {
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="size-4" />
-        Launchpad
+        {tr("Launchpad")}
       </Link>
 
       {/* Title */}
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Trophy className="size-6 shrink-0 text-primary" />
-          <h1 className="whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight tracking-tight text-foreground">Creator Leaderboard</h1>
+          <h1 className="whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight tracking-tight text-foreground">{tr("Creator Leaderboard")}</h1>
         </div>
         <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-muted-foreground">
-          Top 100
+          {tr("Top 100")}
         </span>
       </div>
 
@@ -172,7 +176,7 @@ export function CreatorLeaderboard() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {p.label}
+            {tr(p.label)}
           </button>
         ))}
       </div>
@@ -185,11 +189,11 @@ export function CreatorLeaderboard() {
         </div>
       ) : error ? (
         <div className="rounded-2xl bg-down/12 py-12 text-center text-sm text-red-600 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-400">
-          {error}
+          {tr(error)}
         </div>
       ) : entries.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
-          No claims for this period.
+          {tr("No claims for this period.")}
         </p>
       ) : (
         <>
@@ -203,7 +207,7 @@ export function CreatorLeaderboard() {
                     <span className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-[64px] font-black italic leading-[0.85] text-transparent">1</span>
                     <div className="min-w-0 pt-1">
                       <p className="truncate text-lg font-bold tracking-tight text-foreground">{displayLabel(top3[0])}</p>
-                      <p className="num text-base font-bold text-up">+{fmtFee(top3[0])}</p>
+                      <p className="num text-base font-bold text-up">+{fmtFee(top3[0], lang)}</p>
                     </div>
                   </div>
                 </div>
@@ -219,7 +223,7 @@ export function CreatorLeaderboard() {
                   <div key={e.walletAddress} className="min-w-0">
                     <FrameCard entry={e} tone={RANK_TONE[i + 1]} className={i === 0 ? "-rotate-[5deg]" : i === 1 ? "rotate-[2deg]" : "-rotate-[3deg]"} />
                     <p className="mt-2.5 truncate text-center text-[13px] font-semibold text-foreground">{displayLabel(e)}</p>
-                    <p className="num truncate text-center text-xs font-bold text-up">+{fmtFee(e)}</p>
+                    <p className="num truncate text-center text-xs font-bold text-up">+{fmtFee(e, lang)}</p>
                   </div>
                 ))}
               </div>
@@ -250,7 +254,7 @@ export function CreatorLeaderboard() {
                     </div>
                   </div>
                   <span className="num shrink-0 text-right text-[15px] font-bold text-up">
-                    +{fmtFee(entry)}
+                    +{fmtFee(entry, lang)}
                   </span>
                 </Link>
               );

@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n";
 
 export function CopyMint({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
-  const { t } = useT();
+  const { t, tr } = useT();
 
   const copy = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -26,7 +26,7 @@ export function CopyMint({ address }: { address: string }) {
     <button
       onClick={copy}
       className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-      title="Copy address"
+      title={tr("Copy address")}
     >
       {copied
         ? <Check className="size-3 text-up" />

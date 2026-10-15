@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Image from "next/image";
 import { getDashboardData } from "@/services/dashboard-service";
 import { BalancesSection } from "@/components/dashboard/balances-section";
 import { OctoBadgeSection } from "@/components/dashboard/octo-badge-section";
@@ -7,6 +6,7 @@ import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { DashboardBottomNavSwitch } from "@/components/layout/dashboard-bottom-nav-switch";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { HideOnLaunchpad } from "@/components/dashboard/hide-on-launchpad";
+import { DashboardAvatar } from "@/components/dashboard/dashboard-avatar";
 
 export const revalidate = 0;
 
@@ -35,14 +35,7 @@ export default async function DashboardLayout({
         <HideOnLaunchpad>
         <div className="flex items-center gap-4">
           {avatarSrc ? (
-            <Image
-              src={avatarSrc}
-              alt="avatar"
-              width={48}
-              height={48}
-              unoptimized
-              className="size-16 rounded-full object-cover shrink-0"
-            />
+            <DashboardAvatar src={avatarSrc} />
           ) : (
             <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/15">
               <span className="text-2xl font-bold text-primary">

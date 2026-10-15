@@ -5,16 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, Rocket, User, Trophy } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 const NAV_ITEMS = [
-  { label: "Tokens",      href: "/launchpad",             icon: LayoutGrid },
-  { label: "Leaderboard", href: "/leaderboard/launchpad", icon: Trophy     },
-  { label: "+ Launch",    href: "/launchpad/create",      icon: Rocket     },
-  { label: "My tokens",   href: "/dashboard/launchpad",   icon: User       },
+  { label: T("Tokens"),      href: "/launchpad",             icon: LayoutGrid },
+  { label: T("Leaderboard"), href: "/leaderboard/launchpad", icon: Trophy     },
+  { label: T("+ Launch"),    href: "/launchpad/create",      icon: Rocket     },
+  { label: T("My tokens"),   href: "/dashboard/launchpad",   icon: User       },
 ];
 
 export function LaunchpadBottomNav() {
   const [mounted, setMounted] = useState(false);
+  const { tr } = useT();
   const { isAuthenticated } = useAuth();
   const pathname = usePathname();
 
@@ -48,7 +51,7 @@ export function LaunchpadBottomNav() {
               className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors text-muted-foreground hover:text-foreground`}
             >
               <Icon className="size-[26px]" strokeWidth={1.75} />
-              <span className="sr-only">{label}</span>
+              <span className="sr-only">{tr(label)}</span>
             </button>
           );
         }
@@ -61,7 +64,7 @@ export function LaunchpadBottomNav() {
             }`}
           >
             <Icon className="size-[26px]" strokeWidth={active ? 2.25 : 1.75} />
-            <span className="sr-only">{label}</span>
+            <span className="sr-only">{tr(label)}</span>
           </Link>
         );
       })}

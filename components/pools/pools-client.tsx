@@ -5,22 +5,32 @@ import Link from "next/link";
 import { Clock } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import { TokenAmount } from "@/components/shared/token-logo";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeLeft(closesAt: string): string {
+function timeLeft(closesAt: string, tr: (s: string, v?: Record<string, string | number>) => string): string {
   const diff = new Date(closesAt).getTime() - Date.now();
-  if (diff <= 0) return "Closed";
+  if (diff <= 0) return tr("Closed");
   const h = Math.floor(diff / 3_600_000);
   const m = Math.floor((diff % 3_600_000) / 60_000);
-  if (h >= 48) return `${Math.floor(h / 24)}d left`;
-  if (h >= 1) return `${h}h ${m}m left`;
-  return `${m}m left`;
+  if (h >= 48) return tr("{d}d left", { d: Math.floor(h / 24) });
+  if (h >= 1) return tr("{h}h {m}m left", { h, m });
+  return tr("{m}m left", { m });
 }
 
 function tokenLabel(token: string) {
   return token === "usdc" ? "USDC" : "ClawdTrust";
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  all: T("All"),
+  pending: T("Pending"),
+  active: T("Active"),
+  closed: T("Closed"),
+  resolved: T("Resolved"),
+};
 
 const STATUS_BADGE: Record<string, string> = {
   pending:  "border-zinc-300 bg-zinc-50 text-zinc-500 dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-400",
@@ -32,6 +42,7 @@ const STATUS_BADGE: Record<string, string> = {
 // ─── Pool Card ────────────────────────────────────────────────────────────────
 
 function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: Record<string, number> }) {
+  const { tr } = useT();
   const options = (market.options ?? []) as MutuelOption[];
   const rawTotal = options.reduce((s, o) => s + (betTotals[o.id] ?? 0), 0);
   const pool = market.bet_token === "usdc" ? market.total_pool_usdc : market.total_pool_clt;
@@ -70,17 +81,17 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
               </span>
-              Live
+              {tr("Live")}
             </span>
           )}
           {!isActive && market.status === "pending" && (
             <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_BADGE["pending"]}`}>
-              Pending review
+              {tr("Pending review")}
             </span>
           )}
           {!isActive && market.status !== "pending" && (
             <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${STATUS_BADGE[market.status] ?? "border-border bg-muted text-muted-foreground"}`}>
-              {market.status}
+              {STATUS_LABEL[market.status] ? tr(STATUS_LABEL[market.status]) : market.status}
             </span>
           )}
         </div>
@@ -122,13 +133,13 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
               logoClass="size-3.5"
               className="font-semibold text-foreground"
             />
-            <span className="text-zinc-400">· {market.bet_count} predictions</span>
+            <span className="text-zinc-400">· {tr("{n} predictions", { n: market.bet_count })}</span>
           </span>
           <div className="flex items-center gap-2">
             {isActive && (
               <span className="flex items-center gap-1 text-xs text-zinc-400">
                 <Clock className="size-3" />
-                {timeLeft(market.betting_closes_at)}
+                {timeLeft(market.betting_closes_at, tr)}
               </span>
             )}
 
@@ -142,6 +153,7 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarketRow[] }) {
+  const { tr } = useT();
   const [markets, setMarkets] = useState<MutuelMarketRow[]>(initialMarkets);
   const [betTotals, setBetTotals] = useState<Record<string, Record<string, number>>>({});
   const [filter, setFilter] = useState<"all" | "pending" | "active" | "closed" | "resolved">("all");
@@ -185,7 +197,7 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Bookmake</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Community-created pari-mutuel markets — odds update in real time.
+          {tr("Community-created pari-mutuel markets — odds update in real time.")}
         </p>
       </div>
 
@@ -198,7 +210,7 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
               filter === f ? "bg-orange-500 text-white" : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
           >
-            {f}
+            {tr(STATUS_LABEL[f])}
           </button>
         ))}
       </div>
@@ -206,7 +218,7 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-24 text-center">
           <span className="text-5xl">🎱</span>
-          <p className="text-muted-foreground">No pools here yet.</p>
+          <p className="text-muted-foreground">{tr("No pools here yet.")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

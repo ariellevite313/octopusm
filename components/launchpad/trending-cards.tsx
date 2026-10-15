@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { BurningFire } from "@/components/shared/burning-fire";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
+import { useT } from "@/lib/i18n";
 
 type TrendingToken = {
   id:             string;
@@ -33,6 +34,7 @@ function slugOf(t: TrendingToken) {
 
 /** Trending (ordinateur) — bandeau compact du Top 20 qui défile tout seul. */
 export function TrendingCards() {
+  const { tr } = useT();
   const [tokens, setTokens] = useState<TrendingToken[]>([]);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export function TrendingCards() {
   return (
     <section className="mb-5 flex items-center gap-3">
       <span className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-foreground">
-        <BurningFire className="!text-[15px]" />Top 20
+        <BurningFire className="!text-[15px]" />{tr("Top 20")}
       </span>
       <div className="ticker-mask min-w-0 flex-1 overflow-hidden">
         <div className="ticker-track flex w-max gap-2" style={{ animationDuration: `${Math.max(items.length * 4, 30)}s` }}>

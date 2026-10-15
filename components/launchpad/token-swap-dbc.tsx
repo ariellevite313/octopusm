@@ -13,16 +13,18 @@ import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { XStockIcon } from "@/components/shared/xstock-icon";
+import { useT, Rich } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SLIP_OPTIONS  = [{ label: "0.5%", bps: 50 }, { label: "1%", bps: 100 }, { label: "3%", bps: 300 }];
 const PCT_SHORTCUTS = [25, 50, 75, 100];
 
-function fmtTokens(raw: number, decimals: number): string {
+function fmtTokens(raw: number, decimals: number, loc = "en-US"): string {
   const n       = raw / Math.pow(10, decimals);
   const rounded = Math.floor(n);
-  return rounded.toLocaleString("en-US");
+  return rounded.toLocaleString(loc);
 }
 
 function fmtSol(lamports: number): string {
@@ -53,6 +55,8 @@ function openWalletModal() {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockSymbol, quoteMintAddress }: Props) {
+  const { tr, lang } = useT();
+  const loc = LOCALES[lang];
   const isXStock = Boolean(stockSymbol && quoteMintAddress);
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
 
@@ -60,16 +64,15 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   if (isAuthenticated && selectedChain !== "solana") {
     return (
       <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">Solana wallet required</p>
+        <p className="text-sm font-semibold text-foreground">{tr("Solana wallet required")}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          This token runs on Solana.<br />
-          Connect a Solana wallet (Phantom, Solflare…) to trade.
+          <Rich>{tr("This token runs on Solana.<br/>Connect a Solana wallet (Phantom, Solflare…) to trade.")}</Rich>
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-up hover:bg-emerald-500/20 transition-colors"
         >
-          Switch wallet
+          {tr("Switch wallet")}
         </button>
       </div>
     );
@@ -201,7 +204,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
       });
       if (!res.ok) {
         const { error: msg } = await res.json() as { error?: string };
-        throw new Error(msg ?? "Quote failed");
+        throw new Error(msg ?? tr("Quote failed"));
       }
       const data = await res.json() as { estimatedOut: number };
       setEstimatedOut(data.estimatedOut ?? null);
@@ -246,7 +249,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   const handleSwap = async () => {
     if (!quoteReady || !walletAddress || !walletType) return;
     const provider = getProviderByType(walletType);
-    if (!provider) { setError("Wallet unavailable"); return; }
+    if (!provider) { setError(tr("Wallet unavailable")); return; }
 
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) return;
@@ -257,20 +260,20 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         // Quote is xStock — check xStock balance (SOL is always available for TX fees separately)
         const neededRaw = Math.round(parsed * Math.pow(10, quoteDecimals));
         if (quoteBalance !== null && neededRaw > quoteBalance) {
-          setError(`Insufficient ${stockSymbol} balance`);
+          setError(tr("Insufficient {symbol} balance", { symbol: stockSymbol ?? "" }));
           return;
         }
       } else {
         const neededLamports = Math.round(parsed * 1e9) + 2_000_000; // +0.002 SOL for fees
         if (solBalance !== null && neededLamports > solBalance) {
-          setError("Insufficient SOL balance");
+          setError(tr("Insufficient SOL balance"));
           return;
         }
       }
     } else {
       const neededRaw = Math.round(parsed * Math.pow(10, tokDecimals));
       if (tokBalance !== null && neededRaw > tokBalance) {
-        setError(`Insufficient ${ticker} balance`);
+        setError(tr("Insufficient {symbol} balance", { symbol: ticker }));
         return;
       }
     }
@@ -302,7 +305,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
 
       if (!swapRes.ok) {
         const { error: msg } = await swapRes.json() as { error?: string };
-        throw new Error(msg ?? "Failed to build transaction");
+        throw new Error(msg ?? tr("Failed to build transaction"));
       }
 
       const { txBase64 } = await swapRes.json() as { txBase64: string };
@@ -320,7 +323,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           const conn = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com", "confirmed");
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signature = await conn.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
-        } else throw new Error("Wallet does not support signing");
+        } else throw new Error(tr("Wallet does not support signing"));
       } catch {
         const tx = Transaction.from(rawBytes);
         tx.feePayer = new PublicKey(walletAddress);
@@ -335,7 +338,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           const signed = await provider.signTransaction(tx);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signature = await conn.sendRawTransaction((signed as any).serialize(), { skipPreflight: false, maxRetries: 3 });
-        } else throw new Error("Wallet does not support signing");
+        } else throw new Error(tr("Wallet does not support signing"));
       }
 
       setTxSig(signature!);
@@ -367,10 +370,10 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           .catch(() => { /* ignore — reward is best-effort */ });
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Swap failed";
+      const msg = e instanceof Error ? e.message : tr("Swap failed");
       setError(
         msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel")
-          ? "Transaction cancelled"
+          ? tr("Transaction cancelled")
           : msg,
       );
     } finally {
@@ -386,19 +389,19 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     ? isXStock
       ? (quoteBalance !== null ? `${(quoteBalance / Math.pow(10, quoteDecimals)).toFixed(4)} ${quoteLabel}` : "—")
       : (solBalance  !== null ? `${(solBalance  / 1e9).toFixed(4)} SOL` : "—")
-    : (tokBalance !== null ? `${fmtTokens(tokBalance, tokDecimals)} ${ticker}` : "—");
+    : (tokBalance !== null ? `${fmtTokens(tokBalance, tokDecimals, loc)} ${ticker}` : "—");
 
   const outFormatted = estimatedOut != null && estimatedOut > 0
     ? isBuy
-      ? `~${fmtTokens(estimatedOut, tokDecimals)} ${ticker}`
+      ? `~${fmtTokens(estimatedOut, tokDecimals, loc)} ${ticker}`
       : isXStock
         ? `~${(estimatedOut / Math.pow(10, quoteDecimals)).toFixed(4)} ${quoteLabel}`
         : `~${fmtSol(estimatedOut)} SOL`
     : "";
 
   const ctaLabel = !amount
-    ? "Enter an amount"
-    : isBuy ? `Buy $${ticker}` : `Sell $${ticker}`;
+    ? tr("Enter an amount")
+    : isBuy ? tr("Buy ${ticker}", { ticker }) : tr("Sell ${ticker}", { ticker });
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -454,7 +457,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {d}
+              {d === "buy" ? tr("Buy") : tr("Sell")}
             </button>
           ))}
         </div>
@@ -477,11 +480,11 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             {quoteLoading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : quoteError ? (
-              <span>No quote available</span>
+              <span>{tr("No quote available")}</span>
             ) : outFormatted ? (
-              <span>You receive <span className="num font-semibold text-foreground">{outFormatted}</span></span>
+              <span>{tr("You receive")} <span className="num font-semibold text-foreground">{outFormatted}</span></span>
             ) : (
-              <span>{amount ? "" : "Enter an amount"}</span>
+              <span>{amount ? "" : tr("Enter an amount")}</span>
             )}
           </div>
         </div>
@@ -493,9 +496,9 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             onClick={toggleDirection}
             className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             style={{ transform: spinning ? "scale(0.96)" : "none", transition: "transform 0.2s ease" }}
-            title="Switch buy / sell"
+            title={tr("Switch buy / sell")}
           >
-            {isBuy ? "Pay with" : "Sell"}
+            {isBuy ? tr("Pay with") : tr("Sell")}
             <span className="flex items-center gap-1.5 font-semibold text-foreground">
               {isBuy ? (isXStock
                 ? (stockSymbol ? <XStockIcon symbol={stockSymbol} size={16} /> : null)
@@ -533,7 +536,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                 activePct === pct ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
-              {pct === 100 ? "Max" : `${pct}%`}
+              {pct === 100 ? tr("Max") : `${pct}%`}
             </button>
           ))}
         </div>
@@ -543,7 +546,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
 
         {/* ── Slippage ── */}
         <div className="flex items-center justify-between px-1 pt-1">
-          <span className="text-[12px] text-muted-foreground">Slippage</span>
+          <span className="text-[12px] text-muted-foreground">{tr("Slippage")}</span>
           <button
             onClick={() => setShowSlip(s => !s)}
             className="flex items-center gap-1.5 bg-muted/50 hover:bg-muted rounded-full px-3 py-1 transition-colors"
@@ -552,7 +555,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               {SLIP_OPTIONS.find(o => o.bps === slippageBps)?.label ?? "1%"}
             </span>
             <Settings2 className="size-3 text-muted-foreground" />
-            <span className="text-[12px] text-muted-foreground">Adjust</span>
+            <span className="text-[12px] text-muted-foreground">{tr("Adjust")}</span>
           </button>
         </div>
 
@@ -575,7 +578,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         )}
 
         {/* ── Error ── */}
-        {error && <p className="text-[11px] text-red-400 text-center">{error}</p>}
+        {error && <p className="text-[11px] text-red-400 text-center">{tr(error)}</p>}
 
         {/* ── Success ── */}
         {txSig && (
@@ -587,14 +590,14 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               className="flex items-center justify-center gap-1.5 text-[11px] text-up hover:underline"
             >
               <CheckCircle2 className="size-3.5" />
-              Swap confirmed — View on Solscan
+              {tr("Swap confirmed — View on Solscan")}
             </a>
             {omeroEarned != null && omeroEarned > 0 && (
               <div className="flex items-center justify-center gap-1.5 animate-pulse">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/octo-coin.png" alt="OMERO" className="size-4 rounded-full object-cover" />
                 <span className="text-[11px] font-semibold text-orange-400">
-                  +{omeroEarned.toLocaleString("en-US")} OMERO earned
+                  {tr("+{amount} OMERO earned", { amount: omeroEarned.toLocaleString(loc) })}
                 </span>
               </div>
             )}
@@ -607,7 +610,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             onClick={openWalletModal}
             className="mt-1 w-full rounded-2xl bg-primary py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
           >
-            Connect wallet
+            {tr("Connect wallet")}
           </button>
         ) : (
           <button
@@ -624,7 +627,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
-                {isBuy ? "Buying…" : "Selling…"}
+                {isBuy ? tr("Buying…") : tr("Selling…")}
               </span>
             ) : ctaLabel}
           </button>
@@ -634,7 +637,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         {poolProgress && !poolProgress.graduated && (
           <div className="space-y-1 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/60 font-medium">Bonding curve</span>
+              <span className="text-[10px] text-muted-foreground/60 font-medium">{tr("Bonding curve")}</span>
               <span className="text-[10px] text-muted-foreground/60 font-medium tabular-nums">
                 {poolProgress.solRaised.toFixed(2)} / {poolProgress.gradThresholdSol.toFixed(0)} {quoteLabel}
                 <span className="ml-1 text-orange-400 font-semibold">{poolProgress.progressPct.toFixed(1)}%</span>
@@ -649,7 +652,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           </div>
         )}
         {poolProgress?.graduated && (
-          <p className="text-[10px] text-center text-indigo-400 font-semibold pt-1">🎓 Graduated to DAMM</p>
+          <p className="text-[10px] text-center text-indigo-400 font-semibold pt-1">{tr("🎓 Graduated to DAMM")}</p>
         )}
 
       </div>

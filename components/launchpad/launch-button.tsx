@@ -23,6 +23,7 @@ import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ async function broadcastTx(signedTx: Transaction): Promise<string> {
       );
     } catch { /* try next */ }
   }
-  throw new Error("All RPCs failed — please try again");
+  throw new Error(T("All RPCs failed — please try again"));
 }
 
 async function signAndBroadcast(
@@ -165,6 +166,7 @@ async function walletFirstSignAndSend(
   tokenId: string,
   walletAddress: string,
   onSending: () => void,
+  tr: ReturnType<typeof useT>["tr"],
 ): Promise<string> {
   const tx = Transaction.from(Buffer.from(txBase64, "base64"));
   const me = new PublicKey(walletAddress);
@@ -182,7 +184,7 @@ async function walletFirstSignAndSend(
     }),
   });
   const body = await res.json() as { signature?: string; error?: string };
-  if (!res.ok || !body.signature) throw new Error(body.error ?? `Broadcast failed (${res.status})`);
+  if (!res.ok || !body.signature) throw new Error(body.error ?? tr("Broadcast failed ({status})", { status: res.status }));
   return body.signature;
 }
 
@@ -217,7 +219,7 @@ type Props = { tokenId: string; walletAddress: string; isScheduled: boolean; aut
 
 export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = false }: Props) {
   const router = useRouter();
-  const { t } = useT();
+  const { t, tr } = useT();
   const [phase, setPhase]     = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]     = useState<string | null>(null);
@@ -307,8 +309,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       if (!found) {
         const isCancel = /rejected|cancel|annul|refus|abort|denied/i.test(raw);
         setError(isCancel
-          ? "Pool creation cancelled. Click Retry — your fee won't be charged again."
-          : `TX C failed: ${raw}`);
+          ? tr("Pool creation cancelled. Click Retry — your fee won't be charged again.")
+          : tr("TX C failed: {error}", { error: raw }));
         setPhase("error");
       }
       return;
@@ -322,8 +324,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         body: JSON.stringify({ txSignature: poolSig, walletAddress }),
       });
       const body = await res.json() as { ok?: boolean; error?: string };
-      if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
-      if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
+      if (res.status === 422) { setError(tr("Transaction failed on-chain. Click Retry.")); setPhase("error"); return; }
+      if (res.status === 202) { setError(tr("Transaction pending — wait a few seconds then click Retry.")); setPhase("error"); return; }
       if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(poolSig.slice(0, 8)), { duration: 8000 });
     } catch {
       toast.warning(t.txSentWaiting(poolSig.slice(0, 8)), { duration: 8000 });
@@ -332,7 +334,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     setPhase("done");
     toast.success(isScheduled ? t.tokenScheduledDate : t.tokenLaunched);
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish]);
+  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, tr]);
 
   // ── Core launch flow (runs after wallet is selected) ─────────────────────────
   const runLaunchFlow = useCallback(async (wallet: SolanaWallet) => {
@@ -355,7 +357,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         mintAddress?: string;
         error?: string;
       };
-      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? "Failed to prepare transactions");
+      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? tr("Failed to prepare transactions"));
       txABase64  = body.txABase64  ?? null;
       txBBase64  = body.txBBase64;
       txCBase64  = body.txCBase64  ?? null;
@@ -363,8 +365,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       setHasThreeTx(txCBase64 !== null);
       if (body.mintAddress) setMintAddress(body.mintAddress);
     } catch (e) {
-      const raw = e instanceof Error ? e.message : "Preparation failed";
-      const msg = /rejected|cancel|annul|refus|abort/i.test(raw) ? "Cancelled." : raw;
+      const raw = e instanceof Error ? e.message : tr("Preparation failed");
+      const msg = /rejected|cancel|annul|refus|abort/i.test(raw) ? tr("Cancelled.") : tr(raw);
       setError(msg); setPhase("error"); toast.error(msg); return;
     }
 
@@ -374,15 +376,15 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       try {
         txASig = await signAndBroadcast(wallet, txABase64, () => setPhase("sending-a"));
       } catch (e) {
-        const raw = e instanceof Error ? e.message : "TX A failed";
-        setError(/rejected|cancel|annul|refus|abort/i.test(raw) ? "Cancelled." : raw);
+        const raw = e instanceof Error ? e.message : tr("TX A failed");
+        setError(/rejected|cancel|annul|refus|abort/i.test(raw) ? tr("Cancelled.") : tr(raw));
         setPhase("error");
         return;
       }
       try {
         await waitForConfirmation(txASig);
       } catch {
-        setError("Mint creation failed on-chain. Click Retry.");
+        setError(tr("Mint creation failed on-chain. Click Retry."));
         setPhase("error");
         return;
       }
@@ -396,7 +398,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     try {
       txBSig = txCBase64
         ? await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"))       // xStock : inchangé
-        : await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"));
+        : await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"), tr);
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       console.error("[launch] TX B failed:", raw);
@@ -405,8 +407,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       if (!found) {
         const isCancel = /rejected|cancel|annul|refus|abort|denied/i.test(raw);
         setError(isCancel
-          ? "Pool creation cancelled. Click Retry — your fee won't be charged again."
-          : `TX B failed: ${raw}`);
+          ? tr("Pool creation cancelled. Click Retry — your fee won't be charged again.")
+          : tr("TX B failed: {error}", { error: raw }));
         setPhase("error");
       }
       return;
@@ -417,7 +419,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       try {
         await waitForConfirmation(txBSig);
       } catch {
-        setError("DBC config creation failed on-chain. Click Retry.");
+        setError(tr("DBC config creation failed on-chain. Click Retry."));
         setPhase("error");
         return;
       }
@@ -434,8 +436,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         body: JSON.stringify({ txSignature: txBSig, walletAddress }),
       });
       const body = await res.json() as { ok?: boolean; error?: string };
-      if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
-      if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
+      if (res.status === 422) { setError(tr("Transaction failed on-chain. Click Retry.")); setPhase("error"); return; }
+      if (res.status === 202) { setError(tr("Transaction pending — wait a few seconds then click Retry.")); setPhase("error"); return; }
       if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
     } catch {
       toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
@@ -444,7 +446,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     setPhase("done");
     toast.success(isScheduled ? t.tokenScheduledDate : t.tokenLaunched);
     setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC]);
+  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC, tr]);
 
   // ── Called when user picks a wallet from the picker ──────────────────────────
   const handleWalletSelected = useCallback(async (cfg: WalletConfig) => {
@@ -490,12 +492,12 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-up">
           <CheckCircle2 className="size-5" />
           <span className="text-sm font-semibold">
-            {isScheduled ? "Scheduled! Coming soon." : "Launched successfully!"}
+            {isScheduled ? tr("Scheduled! Coming soon.") : tr("Launched successfully!")}
           </span>
         </div>
         {mintAddress && (
           <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
-            <p className="text-xs text-muted-foreground mb-1">Contract address (CA)</p>
+            <p className="text-xs text-muted-foreground mb-1">{tr("Contract address (CA)")}</p>
             <button
               type="button"
               onClick={() => { navigator.clipboard.writeText(mintAddress); toast.success(t.caCopied); }}
@@ -513,7 +515,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     const installed = getInstalledWallets();
     return (
       <div className="space-y-3">
-        <p className="text-sm font-medium text-foreground">Choose your wallet</p>
+        <p className="text-sm font-medium text-foreground">{tr("Choose your wallet")}</p>
         <div className="space-y-2">
           {WALLET_CONFIGS.map(cfg => {
             const isInstalled = installed.some(wc => wc.id === cfg.id);
@@ -530,12 +532,12 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
                   {cfg.name}
                   {cfg.recommended && (
                     <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
-                      Recommended
+                      {tr("Recommended")}
                     </span>
                   )}
                 </span>
                 {isInstalled ? (
-                  <span className="text-xs text-up font-normal">Detected</span>
+                  <span className="text-xs text-up font-normal">{tr("Detected")}</span>
                 ) : (
                   <a
                     href={cfg.installUrl}
@@ -544,7 +546,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
                     onClick={e => e.stopPropagation()}
                     className="text-xs text-violet-600 dark:text-violet-400 hover:underline font-normal"
                   >
-                    Install
+                    {tr("Install")}
                   </a>
                 )}
               </button>
@@ -556,7 +558,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
           onClick={() => setPhase("ready")}
           className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          Cancel
+          {tr("Cancel")}
         </button>
       </div>
     );
@@ -566,14 +568,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     return (
       <div className="space-y-3">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-down whitespace-pre-line">
-          {error}
+          {error ? tr(error) : error}
         </div>
         <button
           type="button"
           onClick={() => { setError(null); setPhase("ready"); }}
           className="w-full rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors"
         >
-          Retry
+          {tr("Retry")}
         </button>
       </div>
     );
@@ -581,19 +583,19 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
 
   const totalSteps = hasThreeTx ? 3 : 2;
   const labels: Record<Phase, string> = {
-    ready:          isScheduled ? "Sign & Schedule Launch" : "Sign & Launch 🚀",
-    "pick-wallet":  "Choose wallet…",
-    "signing-a":    `Step 1/${totalSteps} — Approve in wallet…`,
-    "sending-a":    hasThreeTx ? "Paying creation fee…" : hasTxA ? "Creating mint…" : "Sending fee…",
+    ready:          isScheduled ? tr("Sign & Schedule Launch") : tr("Sign & Launch 🚀"),
+    "pick-wallet":  tr("Choose wallet…"),
+    "signing-a":    tr("Step 1/{total} — Approve in wallet…", { total: totalSteps }),
+    "sending-a":    hasThreeTx ? tr("Paying creation fee…") : hasTxA ? tr("Creating mint…") : tr("Sending fee…"),
     "signing-b":    hasThreeTx
-                      ? `Step 2/${totalSteps} — Approve DBC config in wallet…`
-                      : `Step 2/${totalSteps} — Approve pool in wallet…`,
-    "sending-b":    hasThreeTx ? "Creating DBC config…" : "Creating pool…",
-    "signing-c":    `Step 3/${totalSteps} — Approve pool in wallet…`,
-    "sending-c":    "Creating pool…",
-    confirming:     "Confirming…",
-    done:           "Done",
-    error:          "Error",
+                      ? tr("Step 2/{total} — Approve DBC config in wallet…", { total: totalSteps })
+                      : tr("Step 2/{total} — Approve pool in wallet…", { total: totalSteps }),
+    "sending-b":    hasThreeTx ? tr("Creating DBC config…") : tr("Creating pool…"),
+    "signing-c":    tr("Step 3/{total} — Approve pool in wallet…", { total: totalSteps }),
+    "sending-c":    tr("Creating pool…"),
+    confirming:     tr("Confirming…"),
+    done:           tr("Done"),
+    error:          tr("Error"),
   };
 
   const busy = phase !== "ready";
@@ -603,7 +605,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       {isScheduled && (
         <div className="flex items-center gap-2 rounded-xl bg-violet-500/10 border border-violet-500/20 px-4 py-2.5 text-xs text-violet-700 dark:text-violet-300">
           <Clock className="size-3.5 shrink-0" />
-          Token won&apos;t be tradeable until the scheduled launch date.
+          {tr("Token won't be tradeable until the scheduled launch date.")}
         </div>
       )}
 
@@ -619,7 +621,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
 
       {phase === "ready" && (
         <p className="text-center text-xs text-muted-foreground">
-          2 signatures: mint + pool (3 for stock-paired tokens).
+          {tr("2 signatures: mint + pool (3 for stock-paired tokens).")}
         </p>
       )}
     </div>

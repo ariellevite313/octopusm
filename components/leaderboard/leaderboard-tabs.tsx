@@ -8,6 +8,8 @@ import type { LeaderboardEntry } from "@/app/api/leaderboard/predictions/route";
 type LeaderboardToken  = "usdc" | "clt" | "octo";
 type LeaderboardPeriod = "24h" | "7d" | "31d" | "all";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -21,7 +23,7 @@ const PERIODS: { key: LeaderboardPeriod; label: string }[] = [
   { key: "24h", label: "24h"      },
   { key: "7d",  label: "7d"       },
   { key: "31d", label: "31d"      },
-  { key: "all", label: "All Time" },
+  { key: "all", label: T("All Time") },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,6 +48,7 @@ function walletGradient(addr: string) {
 }
 
 export function LeaderboardTabs() {
+  const { tr } = useT();
   const [token,   setToken]   = useState<LeaderboardToken>("usdc");
   const [period,  setPeriod]  = useState<LeaderboardPeriod>("all");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -91,7 +94,7 @@ export function LeaderboardTabs() {
     <div>
       {/* ── Token cards ───────────────────────────────────────────────── */}
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Best winners</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">{tr("Best winners")}</h2>
       </div>
       <div className="-mx-4 mb-6 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
         {TOKENS.map((t) => (
@@ -109,7 +112,7 @@ export function LeaderboardTabs() {
             <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
               token === t.key ? "border-foreground/40 text-foreground" : "border-border text-muted-foreground"
             }`}>
-              {token === t.key ? "Selected" : "View"}
+              {token === t.key ? tr("Selected") : tr("View")}
             </span>
           </button>
         ))}
@@ -132,14 +135,14 @@ export function LeaderboardTabs() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {p.label}
+              {tr(p.label)}
             </button>
           ))}
         </div>
       </div>
 
       <p className="mb-2 px-1 text-[13px] text-muted-foreground">
-        Top {tokenCfg.label} winners · {periodCfg.label}
+        {tr("Top {token} winners · {period}", { token: tokenCfg.label, period: tr(periodCfg.label) })}
       </p>
 
       {/* ── List ───────────────────────────────────────────────────────── */}
@@ -151,11 +154,11 @@ export function LeaderboardTabs() {
         </div>
       ) : error ? (
         <div className="rounded-2xl bg-down/12 py-12 text-center text-sm text-down">
-          {error}
+          {tr(error)}
         </div>
       ) : entries.length === 0 ? (
         <div className="rounded-[22px] bg-card py-14 text-center text-sm text-muted-foreground">
-          No winners found for this period.
+          {tr("No winners found for this period.")}
         </div>
       ) : (
         <div className="flex flex-col">
@@ -198,7 +201,7 @@ export function LeaderboardTabs() {
                     {entry.octo_balance > 0 && <OctoBadge totalOcto={entry.octo_balance} size={16} />}
                   </p>
                   <p className="truncate text-[13px] text-muted-foreground">
-                    {entry.display_name ? shortAddress(entry.wallet_address) : (token === "octo" ? "total earned" : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`)}
+                    {entry.display_name ? shortAddress(entry.wallet_address) : (token === "octo" ? tr("total earned") : (entry.win_count !== 1 ? tr("{count} wins", { count: entry.win_count }) : tr("{count} win", { count: entry.win_count })))}
                   </p>
                 </div>
 
@@ -209,7 +212,7 @@ export function LeaderboardTabs() {
                   </span>
                   <span className="flex items-center gap-1 rounded-full bg-muted py-0.5 pl-0.5 pr-2 text-[11px] font-semibold text-muted-foreground">
                     <Image src={tokenCfg.logo} alt={tokenCfg.label} width={16} height={16} className="rounded-full" />
-                    {token === "octo" ? tokenCfg.unit : `${entry.win_count} win${entry.win_count !== 1 ? "s" : ""}`}
+                    {token === "octo" ? tokenCfg.unit : (entry.win_count !== 1 ? tr("{count} wins", { count: entry.win_count }) : tr("{count} win", { count: entry.win_count }))}
                   </span>
                 </div>
               </Link>
@@ -219,7 +222,7 @@ export function LeaderboardTabs() {
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Net gains (payouts − stakes) · Click a profile to see details
+        {tr("Net gains (payouts − stakes) · Click a profile to see details")}
       </p>
     </div>
   );
@@ -230,12 +233,13 @@ export function LeaderboardTabs() {
 const LAUREL = ["#f5b301", "#c9c9d3", "#e0712b"];
 
 function RankMark({ rank }: { rank: number }) {
+  const { tr } = useT();
   if (rank > 3) {
     return <span className="num w-11 shrink-0 text-center text-base font-semibold text-muted-foreground">{rank}.</span>;
   }
   const c = LAUREL[rank - 1];
   return (
-    <span className="relative flex h-9 w-11 shrink-0 items-center justify-center" aria-label={`Rank ${rank}`}>
+    <span className="relative flex h-9 w-11 shrink-0 items-center justify-center" aria-label={tr("Rank {rank}", { rank })}>
       <svg viewBox="0 0 44 36" className="absolute inset-0 h-full w-full" aria-hidden="true">
         {[0, 1, 2].map((i) => (
           <g key={i} fill={c}>

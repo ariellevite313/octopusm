@@ -6,21 +6,24 @@ import { ChevronDown, ArrowUpRight } from "lucide-react";
 import type { TokenActivity, OctoActivity, TokenStats, OctoStats } from "@/services/dashboard-service";
 import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import { createClient } from "@/lib/supabase/client";
+import { useT, Rich } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
-function fmtUsdc(n: number) {
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtUsdc(n: number, lang: Lang) {
+  return n.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function fmtClt(n: number) {
+function fmtClt(n: number, lang: Lang) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString("en-US");
+  return n.toLocaleString(LOCALES[lang]);
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function fmtDate(iso: string, lang: Lang) {
+  return new Date(iso).toLocaleDateString(LOCALES[lang], { month: "short", day: "numeric" });
 }
 
 // ─── Stat box ─────────────────────────────────────────────────────────────────
@@ -30,13 +33,14 @@ function StatBox({ label, value, variant = "neutral" }: {
   value: string;
   variant?: "neutral" | "gain" | "loss";
 }) {
+  const { tr } = useT();
   const color =
     variant === "gain" ? "text-up" :
     variant === "loss" ? "text-down" :
     "text-foreground";
   return (
     <div className="rounded-2xl bg-card px-3 py-3 text-center">
-      <p className="text-[13px] font-semibold text-muted-foreground">{label}</p>
+      <p className="text-[13px] font-semibold text-muted-foreground">{tr(label)}</p>
       <p className={`num mt-1 text-base font-bold ${color}`}>{value}</p>
     </div>
   );
@@ -79,17 +83,18 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
   balance: number;
   onWithdraw: () => void;
 }) {
+  const { tr, lang } = useT();
   return (
     <div className="border-t border-border bg-muted/30 px-4 py-4 space-y-4">
       <div className="grid grid-cols-3 gap-2">
-        <StatBox label="Volume"     value={`$${fmtUsdc(stats.volume)}`} />
-        <StatBox label="Total wins"  value={`+$${fmtUsdc(stats.gains)}`}  variant="gain" />
-        <StatBox label="Total losses" value={`-$${fmtUsdc(stats.losses)}`} variant="loss" />
+        <StatBox label={T("Volume")}     value={`$${fmtUsdc(stats.volume, lang)}`} />
+        <StatBox label={T("Total wins")}  value={`+$${fmtUsdc(stats.gains, lang)}`}  variant="gain" />
+        <StatBox label={T("Total losses")} value={`-$${fmtUsdc(stats.losses, lang)}`} variant="loss" />
       </div>
       {activity.length > 0 ? (
         <div>
           <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
-            Recent activity
+            {tr("Recent activity")}
           </p>
           <div className="max-h-[240px] overflow-y-auto">
             {activity.slice(0, 8).map((a) => (
@@ -97,15 +102,15 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
                 key={a.id}
                 label={a.label}
                 sub={a.sub}
-                amount={a.direction === "out" ? `-$${fmtUsdc(a.amount)}` : `+$${fmtUsdc(a.amount)}`}
-                date={fmtDate(a.created_at)}
+                amount={a.direction === "out" ? `-$${fmtUsdc(a.amount, lang)}` : `+$${fmtUsdc(a.amount, lang)}`}
+                date={fmtDate(a.created_at, lang)}
                 direction={a.direction}
               />
             ))}
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No activity yet.</p>
+        <p className="text-xs text-muted-foreground">{tr("No activity yet.")}</p>
       )}
       {balance >= 2 ? (
         <button
@@ -114,11 +119,11 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
           className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-orange-500 py-3 text-sm font-bold text-white hover:bg-orange-400 transition-colors btn-primary"
         >
           <ArrowUpRight className="size-4" />
-          Withdraw USDC
+          {tr("Withdraw USDC")}
         </button>
       ) : balance > 0 ? (
-        <p className="text-center text-xs text-muted-foreground">
-          Minimum withdrawal: <span className="font-semibold text-foreground">$2.00 USDC</span>
+        <p className="text-center text-xs text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
+          <Rich>{tr("Minimum withdrawal: <b>$2.00 USDC</b>")}</Rich>
         </p>
       ) : null}
     </div>
@@ -133,17 +138,18 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
   balance: number;
   onWithdraw: () => void;
 }) {
+  const { tr, lang } = useT();
   return (
     <div className="border-t border-border bg-muted/30 px-4 py-4 space-y-4">
       <div className="grid grid-cols-3 gap-2">
-        <StatBox label="Volume"      value={fmtClt(stats.volume)} />
-        <StatBox label="Total wins"  value={`+${fmtClt(stats.gains)}`}  variant="gain" />
-        <StatBox label="Total losses" value={`-${fmtClt(stats.losses)}`} variant="loss" />
+        <StatBox label={T("Volume")}      value={fmtClt(stats.volume, lang)} />
+        <StatBox label={T("Total wins")}  value={`+${fmtClt(stats.gains, lang)}`}  variant="gain" />
+        <StatBox label={T("Total losses")} value={`-${fmtClt(stats.losses, lang)}`} variant="loss" />
       </div>
       {activity.length > 0 ? (
         <div>
           <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
-            Recent activity
+            {tr("Recent activity")}
           </p>
           <div className="max-h-[240px] overflow-y-auto">
             {activity.slice(0, 8).map((a) => (
@@ -151,15 +157,15 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
                 key={a.id}
                 label={a.label}
                 sub={a.sub}
-                amount={a.direction === "out" ? `-${fmtClt(a.amount)} CLT` : `+${fmtClt(a.amount)} CLT`}
-                date={fmtDate(a.created_at)}
+                amount={a.direction === "out" ? `-${fmtClt(a.amount, lang)} CLT` : `+${fmtClt(a.amount, lang)} CLT`}
+                date={fmtDate(a.created_at, lang)}
                 direction={a.direction}
               />
             ))}
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No activity yet.</p>
+        <p className="text-xs text-muted-foreground">{tr("No activity yet.")}</p>
       )}
       {balance >= 500_000 ? (
         <button
@@ -168,11 +174,11 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
           className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-violet-600 py-3 text-sm font-bold text-white hover:bg-violet-500 transition-colors"
         >
           <ArrowUpRight className="size-4" />
-          Withdraw CLT
+          {tr("Withdraw CLT")}
         </button>
       ) : balance > 0 ? (
-        <p className="text-center text-xs text-muted-foreground">
-          Minimum withdrawal: <span className="font-semibold text-foreground">500K CLT</span>
+        <p className="text-center text-xs text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
+          <Rich>{tr("Minimum withdrawal: <b>500K CLT</b>")}</Rich>
         </p>
       ) : null}
     </div>
@@ -185,17 +191,18 @@ function OctoDropdown({ stats, activity }: {
   stats: OctoStats;
   activity: OctoActivity[];
 }) {
+  const { tr, lang } = useT();
   return (
     <div className="border-t border-border bg-muted/30 px-4 py-4 space-y-4">
       <div className="grid grid-cols-3 gap-2">
-        <StatBox label="Referrals"   value={`+${stats.referral.toLocaleString("en-US")}`} variant="gain" />
-        <StatBox label="Predictions" value={`+${stats.bet.toLocaleString("en-US")}`}      variant="gain" />
-        <StatBox label="Tasks"       value={`+${stats.task.toLocaleString("en-US")}`}      variant="gain" />
+        <StatBox label={T("Referrals")}   value={`+${stats.referral.toLocaleString(LOCALES[lang])}`} variant="gain" />
+        <StatBox label={T("Predictions")} value={`+${stats.bet.toLocaleString(LOCALES[lang])}`}      variant="gain" />
+        <StatBox label={T("Tasks")}       value={`+${stats.task.toLocaleString(LOCALES[lang])}`}      variant="gain" />
       </div>
       {activity.length > 0 ? (
         <div>
           <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
-            Recent activity
+            {tr("Recent activity")}
           </p>
           <div className="max-h-[240px] overflow-y-auto">
             {activity.slice(0, 8).map((a) => (
@@ -203,17 +210,17 @@ function OctoDropdown({ stats, activity }: {
                 key={a.id}
                 label={a.label}
                 sub={a.sub}
-                amount={`+${a.amount.toLocaleString("en-US")} OMERO`}
-                date={fmtDate(a.created_at)}
+                amount={`+${a.amount.toLocaleString(LOCALES[lang])} OMERO`}
+                date={fmtDate(a.created_at, lang)}
               />
             ))}
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No activity yet.</p>
+        <p className="text-xs text-muted-foreground">{tr("No activity yet.")}</p>
       )}
       <p className="text-[10px] text-muted-foreground">
-        OMERO points are non-transferable — they reflect your platform rank.
+        {tr("OMERO points are non-transferable — they reflect your platform rank.")}
       </p>
     </div>
   );
@@ -279,6 +286,7 @@ export function TokenBalances({
   cltActivity: TokenActivity[];
   octoActivity: OctoActivity[];
 }) {
+  const { lang } = useT();
   const [open, setOpen] = useState<"usdc" | "clt" | "octo" | null>(null);
   const [withdrawToken, setWithdrawToken] = useState<"usdc" | "clawdtrust" | null>(null);
   const [usdcBalance, setUsdcBalance]     = useState(initialUsdcBalance);
@@ -378,7 +386,7 @@ export function TokenBalances({
           logo="/usdc-coin.png"
           name="USD Coin"
           symbol="USDC"
-          balance={`$${fmtUsdc(usdcBalance)}`}
+          balance={`$${fmtUsdc(usdcBalance, lang)}`}
           open={open === "usdc"}
           onToggle={() => toggle("usdc")}
         >
@@ -394,7 +402,7 @@ export function TokenBalances({
           logo="/clawdtrust-coin.png"
           name="ClawdTrust"
           symbol="CLT"
-          balance={fmtClt(cltBalance)}
+          balance={fmtClt(cltBalance, lang)}
           open={open === "clt"}
           onToggle={() => toggle("clt")}
         >
@@ -410,7 +418,7 @@ export function TokenBalances({
           logo="/octo-coin.png"
           name="OMERO"
           symbol="OMERO"
-          balance={octoBalance.toLocaleString("en-US")}
+          balance={octoBalance.toLocaleString(LOCALES[lang])}
           open={open === "octo"}
           onToggle={() => toggle("octo")}
         >

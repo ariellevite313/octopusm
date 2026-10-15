@@ -6,6 +6,8 @@ import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { formatVolume } from "@/lib/market/utils";
 import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
+import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 export interface UpDownMarket {
   id: string;
@@ -46,9 +48,9 @@ function formatDuration(min: number): string {
   return "24h";
 }
 
-export function formatPrice(p: number): string {
-  if (p >= 1000)   return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1)      return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+export function formatPrice(p: number, locale = "en-US"): string {
+  if (p >= 1000)   return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1)      return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   if (p >= 0.01)   return p.toFixed(4);
   if (p >= 0.0001) return p.toFixed(6);
   return p.toFixed(8);
@@ -79,6 +81,7 @@ export function useCountdown(closeAt: string | null | undefined): string {
 }
 
 export function UpDownCard({ market }: { market: UpDownMarket }) {
+  const { tr, lang } = useT();
   const resolveAt     = getResolveAt(market);
   const isLive        = market.status === "open";
   const liveCountdown = useCountdown(isLive ? resolveAt : null);
@@ -103,8 +106,8 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {img && <Image src={img} alt={label} width={28} height={28} className="rounded-xl shrink-0 bg-white p-0.5" />}
             <div className="min-w-0">
-              <p className="text-[16px] font-bold leading-snug tracking-tight text-foreground">{label} Up or Down</p>
-              <p className="text-xs text-muted-foreground">{formatDuration(market.duration_min)} &middot; Strike ${formatPrice(market.strike_price)}</p>
+              <p className="text-[16px] font-bold leading-snug tracking-tight text-foreground">{tr("{sym} Up or Down", { sym: label })}</p>
+              <p className="text-xs text-muted-foreground">{formatDuration(market.duration_min)} &middot; {tr("Strike ${price}", { price: formatPrice(market.strike_price, LOCALES[lang]) })}</p>
             </div>
           </div>
           {/* Badge Live + countdown résolution */}
@@ -113,12 +116,12 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
               {liveCountdown === "Termine" ? (
                 <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                   <Loader2 className="size-3 animate-spin" />
-                  Resolving
+                  {tr("Resolving")}
                 </span>
               ) : (
                 <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                   <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live
+                  {tr("Live")}
                 </span>
               )}
               {liveCountdown !== "Termine" && (
@@ -129,11 +132,11 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
           {isResolved && (
             <div className="flex flex-col items-end gap-0.5">
               <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${market.outcome === "up" ? "bg-up/12 text-up" : "bg-down/12 text-down"}`}>
-                {market.outcome === "up" ? "▲ UP" : "▼ DOWN"}
+                {market.outcome === "up" ? tr("▲ UP") : tr("▼ DOWN")}
               </span>
               {market.open_price != null && (
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  Close ${formatPrice(market.open_price)}
+                  {tr("Close ${price}", { price: formatPrice(market.open_price, LOCALES[lang]) })}
                 </span>
               )}
             </div>
@@ -143,11 +146,11 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
         <div className="grid grid-cols-2 gap-2">
           <div className="relative flex items-center justify-center rounded-xl bg-up/12 px-3 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
             <FakeBetOverlay optionIndex={0} bets={fakeBets} />
-            <span className="text-sm font-bold text-up">Up</span>
+            <span className="text-sm font-bold text-up">{tr("Up")}</span>
           </div>
           <div className="relative flex items-center justify-center rounded-xl bg-down/12 px-3 py-4 dark:border-red-900/40 dark:bg-red-950/20">
             <FakeBetOverlay optionIndex={1} bets={fakeBets} />
-            <span className="text-sm font-bold text-down">Down</span>
+            <span className="text-sm font-bold text-down">{tr("Down")}</span>
           </div>
         </div>
 
@@ -157,14 +160,14 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
             <div className="bg-red-500 transition-all" style={{ width: `${downPct}%` }} />
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-up font-medium">{upPct}% UP</span>
-            <span className="text-red-600 font-medium">{downPct}% DOWN</span>
+            <span className="text-up font-medium">{tr("{pct}% UP", { pct: upPct })}</span>
+            <span className="text-red-600 font-medium">{tr("{pct}% DOWN", { pct: downPct })}</span>
           </div>
         </div>
 
         {total > 0 && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Volume</span>
+            <span>{tr("Volume")}</span>
             <span className="font-semibold text-foreground">{formatVolume(total, "usdc")}</span>
           </div>
         )}
@@ -174,6 +177,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
 }
 
 export function UpDownSection() {
+  const { tr } = useT();
   const [allMarkets, setAllMarkets] = useState<UpDownMarket[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDuration, setActiveDuration] = useState<number>(5);
@@ -219,8 +223,8 @@ export function UpDownSection() {
     return (
       <div className="flex flex-col items-center gap-3 py-20 text-center">
         <span className="text-4xl">📈</span>
-        <p className="text-muted-foreground">No active Up/Down rounds at the moment.</p>
-        <p className="text-xs text-muted-foreground">Rounds are created automatically.</p>
+        <p className="text-muted-foreground">{tr("No active Up/Down rounds at the moment.")}</p>
+        <p className="text-xs text-muted-foreground">{tr("Rounds are created automatically.")}</p>
       </div>
     );
   }
@@ -244,7 +248,7 @@ export function UpDownSection() {
 
       {visible.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <p className="text-sm text-muted-foreground">No active {activeDuration} min round.</p>
+          <p className="text-sm text-muted-foreground">{tr("No active {n} min round.", { n: activeDuration })}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

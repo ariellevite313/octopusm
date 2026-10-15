@@ -4,7 +4,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { CreatePageClient } from "./create-page-client";
 
 export const metadata: Metadata = {
-  title: "Launch a Token — Launchpad",
+  title: "Launch a Token",
   description: "Create and launch your token on OMdotfun.",
   robots: { index: false, follow: false },
 };

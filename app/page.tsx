@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Tr } from "@/lib/i18n";
 import { Suspense } from "react";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
@@ -9,7 +10,7 @@ import { LaunchpadBoard } from "@/components/desktop/launchpad-board";
 export const revalidate = 30;
 
 export const metadata: Metadata = {
-  title: "Launchpad - OMdotfun",
+  title: { absolute: "Launchpad - OMdotfun" },
   description: "Launch your token on OMdotfun.",
   alternates: { canonical: "https://omdot.fun" },
   openGraph: {
@@ -64,7 +65,7 @@ function LaunchpadSkeleton() {
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
-      <h1 className="sr-only">Launchpad</h1>
+      <h1 className="sr-only"><Tr>Launchpad</Tr></h1>
       <div className="lg:hidden">
         <TrendingStrip />
       </div>

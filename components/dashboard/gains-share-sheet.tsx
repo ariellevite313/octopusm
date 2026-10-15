@@ -10,13 +10,15 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Share, Link2, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 type Period = "24h" | "7d" | "30d" | "all";
 const PERIODS: { id: Period; label: string; ms: number | null }[] = [
   { id: "24h", label: "24h", ms: 24 * 3600_000 },
   { id: "7d",  label: "7d",  ms: 7 * 24 * 3600_000 },
   { id: "30d", label: "30d", ms: 30 * 24 * 3600_000 },
-  { id: "all", label: "All", ms: null },
+  { id: "all", label: T("All"), ms: null },
 ];
 
 function fmt(n: number, cur: string) {
@@ -26,11 +28,11 @@ function fmt(n: number, cur: string) {
   return `${n.toFixed(6)} ${cur}`;
 }
 
-function _unusedFmtDate(ms: number, span: number) {
+function _unusedFmtDate(ms: number, span: number, locale: string) {
   const d = new Date(ms);
   return span <= 2 * 24 * 3600_000
-    ? d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric" })
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    ? d.toLocaleString(locale, { month: "short", day: "numeric", hour: "numeric" })
+    : d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 export function GainsShareSheet({
@@ -45,6 +47,7 @@ export function GainsShareSheet({
   totalClaimed: number;
   history: { t: string; amount: number }[];
 }) {
+  const { tr } = useT();
   const [period, setPeriod] = useState<Period>("30d");
   const [refCode, setRefCode] = useState<string | null>(null);
   const [busy, setBusy] = useState<"share" | "image" | null>(null);
@@ -93,21 +96,21 @@ export function GainsShareSheet({
     try {
       // Le Promise directement dans ClipboardItem : requis par Safari / iPhone
       await navigator.clipboard.write([new ClipboardItem({ "image/png": getBlob })]);
-      toast.success("Image copied");
+      toast.success(tr("Image copied"));
     } catch {
       // Navigateur sans copie d'image (navigateurs intégrés aux wallets…) : on enregistre l'image
       try {
         const b = await getBlob;
         const file = new File([b], "omdot-gains.png", { type: "image/png" });
         if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] });
-        else { downloadImage(b); toast.success("Image saved"); }
-      } catch { toast.error("Could not copy the image"); }
+        else { downloadImage(b); toast.success(tr("Image saved")); }
+      } catch { toast.error(tr("Could not copy the image")); }
     } finally { setBusy(null); }
   }
 
   async function share() {
     setBusy("share");
-    const text = `+${fmt(totalClaimed, currency)} earned as a creator on OMdot`;
+    const text = tr("+{amount} earned as a creator on OMdot", { amount: fmt(totalClaimed, currency) });
     try {
       const file = blob ? new File([blob], "omdot-gains.png", { type: "image/png" }) : null;
       if (file && navigator.canShare?.({ files: [file] })) {
@@ -116,7 +119,7 @@ export function GainsShareSheet({
         await navigator.share({ text, url: link });   // l'aperçu du lien affiche la carte
       } else {
         await navigator.clipboard.writeText(`${text} ${link}`);
-        toast.success("Link copied");
+        toast.success(tr("Link copied"));
       }
     } catch { /* annulé */ } finally { setBusy(null); }
   }
@@ -129,8 +132,8 @@ export function GainsShareSheet({
 
       <div className="relative flex items-center justify-between px-4 pt-[max(16px,env(safe-area-inset-top))]">
         <span className="w-10" />
-        <p className="text-[19px] font-bold tracking-tight">Creator gains</p>
-        <button onClick={onClose} className="flex size-10 items-center justify-center rounded-full text-black/50 hover:text-black" aria-label="Close">
+        <p className="text-[19px] font-bold tracking-tight">{tr("Creator gains")}</p>
+        <button onClick={onClose} className="flex size-10 items-center justify-center rounded-full text-black/50 hover:text-black" aria-label={tr("Close")}>
           <X className="size-6" />
         </button>
       </div>
@@ -142,7 +145,7 @@ export function GainsShareSheet({
           <div className="relative aspect-[1200/630] overflow-hidden rounded-[22px] bg-white">
             {!imgReady && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="size-6 animate-spin text-[#ff7a1a]" /></div>}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img key={imgUrl} src={imgUrl} alt="Creator gains" onLoad={() => setImgReady(true)} className={`size-full object-cover transition-opacity ${imgReady ? "opacity-100" : "opacity-0"}`} />
+            <img key={imgUrl} src={imgUrl} alt={tr("Creator gains")} onLoad={() => setImgReady(true)} className={`size-full object-cover transition-opacity ${imgReady ? "opacity-100" : "opacity-0"}`} />
           </div>
         </div>
 
@@ -155,7 +158,7 @@ export function GainsShareSheet({
                 onClick={() => setPeriod(p.id)}
                 className={`rounded-full px-4 py-2 text-[15px] font-semibold transition-colors ${period === p.id ? "bg-white text-black shadow-sm" : "text-black/45 hover:text-black"}`}
               >
-                {p.label}
+                {tr(p.label)}
               </button>
             ))}
           </div>
@@ -163,9 +166,9 @@ export function GainsShareSheet({
 
         {/* Actions */}
         <div className="mt-6 grid grid-cols-3 gap-2 pb-[max(24px,env(safe-area-inset-bottom))]">
-          <ShareAction label="Share" onClick={share} busy={busy === "share"}><Share className="size-6" /></ShareAction>
-          <ShareAction label="Copy link" onClick={() => navigator.clipboard.writeText(link).then(() => toast.success("Link copied"))}><Link2 className="size-6" /></ShareAction>
-          <ShareAction label="Copy image" onClick={copyImage} busy={busy === "image"}><Copy className="size-6" /></ShareAction>
+          <ShareAction label={T("Share")} onClick={share} busy={busy === "share"}><Share className="size-6" /></ShareAction>
+          <ShareAction label={T("Copy link")} onClick={() => navigator.clipboard.writeText(link).then(() => toast.success(tr("Link copied")))}><Link2 className="size-6" /></ShareAction>
+          <ShareAction label={T("Copy image")} onClick={copyImage} busy={busy === "image"}><Copy className="size-6" /></ShareAction>
         </div>
       </div>
     </div>,
@@ -174,12 +177,13 @@ export function GainsShareSheet({
 }
 
 function ShareAction({ label, onClick, busy, children }: { label: string; onClick: () => void; busy?: boolean; children: React.ReactNode }) {
+  const { tr } = useT();
   return (
     <button onClick={onClick} disabled={busy} className="group flex flex-col items-center gap-2 disabled:opacity-60">
       <span className="flex size-16 items-center justify-center rounded-full bg-black/[0.05] ring-1 ring-black/5 transition-colors group-hover:bg-black/[0.09]">
         {busy ? <Loader2 className="size-6 animate-spin" /> : children}
       </span>
-      <span className="text-[15px] font-medium">{label}</span>
+      <span className="text-[15px] font-medium">{tr(label)}</span>
     </button>
   );
 }

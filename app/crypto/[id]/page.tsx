@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const market = await getUpDownMarket(id);
 
   if (!market) {
-    return { title: "Up/Down Round | OMdotfun" };
+    return { title: "Up/Down Round" };
   }
 
   const pair = market.pair ?? "Crypto";

@@ -4,36 +4,39 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { CreatedMarket } from "@/services/profile-service";
-import { fmt, fmtDate } from "@/lib/format";
+import { fmt } from "@/lib/format";
 import { ListPager } from "./list-pager";
+import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 const PAGE_SIZE = 5;
 
 function StatusBadge({ status }: { status: string }) {
+  const { tr } = useT();
   switch (status) {
     case "open":
       return (
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-up/12 px-2 py-0.5 text-[11px] font-semibold text-up">
           <span className="size-1.5 rounded-full bg-emerald-500" />
-          Active
+          {tr("Active")}
         </span>
       );
     case "resolved":
       return (
         <span className="shrink-0 rounded-full bg-sky-500/12 px-2 py-0.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
-          Resolved
+          {tr("Resolved")}
         </span>
       );
     case "cancelled":
       return (
         <span className="shrink-0 rounded-full bg-down/12 px-2 py-0.5 text-[11px] font-semibold text-down">
-          Cancelled
+          {tr("Cancelled")}
         </span>
       );
     default:
       return (
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-          Pending
+          {tr("Pending")}
         </span>
       );
   }
@@ -67,6 +70,9 @@ function TokenLabel({ token }: { token: "usdc" | "clawdtrust" }) {
 }
 
 export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
+  const { tr, lang } = useT();
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(LOCALES[lang], { month: "short", day: "numeric", year: "numeric" });
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(markets.length / PAGE_SIZE);
   const slice = markets.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -84,16 +90,16 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">Markets created</h2>
+      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">{tr("Markets created")}</h2>
 
       {/* Summary */}
       <div className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
         <div>
-          <p className="text-xs text-muted-foreground">Created</p>
+          <p className="text-xs text-muted-foreground">{tr("Created")}</p>
           <p className="num text-lg font-bold text-foreground">{markets.length}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Volume</p>
+          <p className="text-xs text-muted-foreground">{tr("Volume")}</p>
           {totalVolumeUsdc > 0 && (
             <p className="num flex items-center gap-1 text-[15px] font-bold text-foreground">
               <Image src="/usdc-coin.png" alt="USDC" width={12} height={12} className="rounded-full" />
@@ -111,7 +117,7 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
           )}
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Fees (1%)</p>
+          <p className="text-xs text-muted-foreground">{tr("Fees (1%)")}</p>
           {totalFeesUsdc > 0 && (
             <p className="num flex items-center gap-1 text-[15px] font-bold text-up">
               <Image src="/usdc-coin.png" alt="USDC" width={12} height={12} className="rounded-full" />
@@ -129,7 +135,7 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
           )}
         </div>
         <div className="hidden sm:block">
-          <p className="text-xs text-muted-foreground">Participants</p>
+          <p className="text-xs text-muted-foreground">{tr("Participants")}</p>
           <p className="num text-lg font-bold text-foreground">{totalParticipants}</p>
         </div>
       </div>
@@ -152,16 +158,16 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
                   <StatusBadge status={market.status} />
                   {market.status === "resolved" && market.winning_option_label && (
                     <span className="truncate">
-                      Winner <span className="font-semibold text-foreground">{market.winning_option_label}</span>
+                      {tr("Winner")} <span className="font-semibold text-foreground">{market.winning_option_label}</span>
                     </span>
                   )}
-                  {market.status === "cancelled" && <span className="truncate">Refunded</span>}
-                  {market.status === "pending" && <span className="truncate">In review</span>}
+                  {market.status === "cancelled" && <span className="truncate">{tr("Refunded")}</span>}
+                  {market.status === "pending" && <span className="truncate">{tr("In review")}</span>}
                 </div>
                 <p className="mt-1 flex min-w-0 items-center gap-1 truncate whitespace-nowrap text-xs text-muted-foreground">
                   <span className="num">{fmt(market.volume)}</span>
                   <TokenLabel token={market.bet_token} />
-                  <span>· {market.bet_count} {market.bet_count === 1 ? "bet" : "bets"} · {fmtDate(market.created_at)}</span>
+                  <span>· {market.bet_count} {market.bet_count === 1 ? tr("bet") : tr("bets")} · {fmtDate(market.created_at)}</span>
                 </p>
               </div>
 
@@ -181,7 +187,7 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
                 ) : (
                   <p className="num text-[15px] font-bold text-muted-foreground">0</p>
                 )}
-                <p className="text-[11px] text-muted-foreground">fees</p>
+                <p className="text-[11px] text-muted-foreground">{tr("fees")}</p>
               </div>
             </Link>
           );

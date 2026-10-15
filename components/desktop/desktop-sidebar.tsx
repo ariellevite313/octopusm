@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { LanguageSelectRail } from "@/components/shared/language-select";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 // Barre d'icônes verticale (ordinateur uniquement).
 
@@ -17,28 +20,29 @@ const isPredictSection = (p: string) =>
 function items(pathname: string) {
   const predict = isPredictSection(pathname);
   return [
-    { href: "/",                       label: "Tokens",      icon: LayoutGrid, match: (p: string) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
+    { href: "/",                       label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
     predict
-      ? { href: "/leaderboard/predictions", label: "Prediction leaderboard", icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/predictions") }
-      : { href: "/leaderboard/launchpad",   label: "Creator leaderboard",    icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/launchpad") || p === "/leaderboard" },
-    { href: "/prediction",             label: "Predictions", icon: BarChart2,  match: (p: string) => isPredictSection(p) && !p.startsWith("/leaderboard") },
-    { href: "/dashboard/launchpad",    label: "My tokens",   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
+      ? { href: "/leaderboard/predictions", label: T("Prediction leaderboard"), icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/predictions") }
+      : { href: "/leaderboard/launchpad",   label: T("Creator leaderboard"),    icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/launchpad") || p === "/leaderboard" },
+    { href: "/prediction",             label: T("Predictions"), icon: BarChart2,  match: (p: string) => isPredictSection(p) && !p.startsWith("/leaderboard") },
+    { href: "/dashboard/launchpad",    label: T("My tokens"),   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
   ];
 }
 
 const EXTRA = [
-  { href: "/archive",                    label: "Archive",        description: "Past markets and tokens",       icon: Archive,     external: false },
-  { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", description: "Our partner token on Solana", icon: Coins, external: true },
-  { href: "https://t.me/Omdotfun",       label: "Support",        description: "Get help from the team",        icon: Headset,     external: true  },
-  { href: "/faq",                        label: "FAQ",            description: "Frequently asked questions",    icon: HelpCircle,  external: false },
-  { href: "https://t.me/OmdotfunTuto",   label: "Tutorial",       description: "Learn how to use OMdotfun",     icon: BookOpen,    external: true  },
-  { href: "/policy",                     label: "ŌM Policy",      description: "Rules, prohibitions, removals", icon: ShieldCheck, external: false },
-  { href: "/privacy",                    label: "Privacy Policy", description: "How we handle your data",       icon: Lock,        external: false },
+  { href: "/archive",                    label: T("Archive"),        description: T("Past markets and tokens"),       icon: Archive,     external: false },
+  { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", description: T("Our partner token on Solana"), icon: Coins, external: true },
+  { href: "https://t.me/Omdotfun",       label: T("Support"),        description: T("Get help from the team"),        icon: Headset,     external: true  },
+  { href: "/faq",                        label: T("FAQ"),            description: T("Frequently asked questions"),    icon: HelpCircle,  external: false },
+  { href: "https://t.me/OmdotfunTuto",   label: T("Tutorial"),       description: T("Learn how to use OMdotfun"),     icon: BookOpen,    external: true  },
+  { href: "/policy",                     label: T("ŌM Policy"),      description: T("Rules, prohibitions, removals"), icon: ShieldCheck, external: false },
+  { href: "/privacy",                    label: T("Privacy Policy"), description: T("How we handle your data"),       icon: Lock,        external: false },
 ];
 
 // Menu ⋯ : panneau ouvert à côté de la barre latérale
 function MoreMenu({ onClose }: { onClose: () => void }) {
+  const { tr } = useT();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const down = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
@@ -49,7 +53,7 @@ function MoreMenu({ onClose }: { onClose: () => void }) {
   }, [onClose]);
   return createPortal(
     <div ref={ref} className="fixed bottom-4 left-[84px] z-[100] w-80 rounded-3xl border border-border bg-card p-2 shadow-2xl">
-      <p className="px-3 pb-1 pt-2 text-[15px] font-bold tracking-tight text-foreground">More</p>
+      <p className="px-3 pb-1 pt-2 text-[15px] font-bold tracking-tight text-foreground">{tr("More")}</p>
       <ul className="space-y-0.5">
         {EXTRA.map(({ href, label, description, icon: Icon, external }) => (
           <li key={href}>
@@ -64,8 +68,8 @@ function MoreMenu({ onClose }: { onClose: () => void }) {
                 <Icon className="size-[18px]" strokeWidth={1.75} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-semibold text-foreground">{label}</span>
-                <span className="block text-xs text-muted-foreground">{description}</span>
+                <span className="block text-[14px] font-semibold text-foreground">{tr(label)}</span>
+                <span className="block text-xs text-muted-foreground">{tr(description)}</span>
               </span>
               {external && <ExternalLink className="size-3.5 shrink-0 text-muted-foreground/50" />}
             </Link>
@@ -80,6 +84,7 @@ function MoreMenu({ onClose }: { onClose: () => void }) {
 export function DesktopSidebar() {
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
+  const { tr } = useT();
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => { setMoreOpen(false); }, [pathname]);
   if (pathname.startsWith("/admin")) return null;
@@ -96,8 +101,8 @@ export function DesktopSidebar() {
           <Link
             key={href}
             href={href}
-            title={label}
-            aria-label={label}
+            title={tr(label)}
+            aria-label={tr(label)}
             className={`flex size-11 items-center justify-center rounded-2xl transition-colors ${
               active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             }`}
@@ -109,14 +114,14 @@ export function DesktopSidebar() {
 
       {/* Launch */}
       {isAuthenticated ? (
-        <Link href="/launchpad/create" title="Launch a token" aria-label="Launch a token" className="btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl">
+        <Link href="/launchpad/create" title={tr("Launch a token")} aria-label={tr("Launch a token")} className="btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl">
           <Plus className="size-6" strokeWidth={2.5} />
         </Link>
       ) : (
         <button
           type="button"
-          title="Launch a token"
-          aria-label="Launch a token"
+          title={tr("Launch a token")}
+          aria-label={tr("Launch a token")}
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
           className="btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl"
         >
@@ -128,17 +133,18 @@ export function DesktopSidebar() {
       <div className="mt-auto flex flex-col items-center gap-2">
         <button
           type="button"
-          title={isAuthenticated ? "My wallet" : "Connect wallet"}
-          aria-label={isAuthenticated ? "My wallet" : "Connect wallet"}
+          title={isAuthenticated ? tr("My wallet") : tr("Connect wallet")}
+          aria-label={isAuthenticated ? tr("My wallet") : tr("Connect wallet")}
           onClick={() => window.dispatchEvent(new CustomEvent(isAuthenticated ? "open-wallet-profile" : "open-wallet-connect"))}
           className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/70"
         >
           <Wallet className="size-[20px]" />
         </button>
+        <LanguageSelectRail />
         <button
           type="button"
-          title="More"
-          aria-label="More"
+          title={tr("More")}
+          aria-label={tr("More")}
           aria-expanded={moreOpen}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => setMoreOpen((v) => !v)}

@@ -3,7 +3,7 @@ import { getActiveMarketsUnified } from "@/services/prediction-service";
 import { MarketsClient } from "@/components/market/markets-client";
 
 export const metadata: Metadata = {
-  title: "Crypto Markets | OMdotfun",
+  title: "Crypto Markets",
   description: "Crypto prediction markets on OMdotfun.",
   robots: { index: true, follow: true },
 };

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { TrendingCard } from "./trending-card";
+import { useT } from "@/lib/i18n";
 import type { TrendingMarket } from "@/app/api/markets/trending/route";
 
 export function TrendingSection() {
+  const { tr } = useT();
   const [markets, setMarkets] = useState<TrendingMarket[] | null>(null);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function TrendingSection() {
   return (
     <section className="mt-6 mb-8">
       <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
-        🔥 Trending
+        {tr("🔥 Trending")}
       </h2>
       <div
         className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory"

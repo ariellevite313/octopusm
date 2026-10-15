@@ -53,7 +53,7 @@ async function claimTaskClient(taskId: string): Promise<{ error?: string }> {
 }
 
 export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
-  const { t } = useT();
+  const { t, tr } = useT();
   const [claiming, setClaiming]   = useState<Set<string>>(new Set());
   const [localDone, setLocalDone] = useState<Set<string>>(new Set());
   const [visited, setVisited]     = useState<Set<string>>(new Set());
@@ -72,7 +72,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
     setClaiming((prev) => new Set(prev).add(task.id));
     const { error } = await claimTaskClient(task.id);
     setClaiming((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
-    if (error) { toast.error(error); return; }
+    if (error) { toast.error(tr(error)); return; }
     setLocalDone((prev) => new Set(prev).add(task.id));
     toast.success(t.omeroEarned(task.reward_octo));
   }
@@ -118,7 +118,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
                     onClick={() => handleFollow(task)}
                     className="rounded-xl bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700 transition-colors dark:bg-zinc-700 dark:hover:bg-zinc-600"
                   >
-                    Follow
+                    {tr("Follow")}
                   </button>
                 ) : (
                   <button
@@ -127,7 +127,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
                     onClick={() => void handleClaim(task)}
                     className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
                   >
-                    {claiming_ ? "Claiming..." : "Claim"}
+                    {claiming_ ? tr("Claiming...") : tr("Claim")}
                   </button>
                 )}
               </div>
@@ -157,7 +157,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
 
         {tasks.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            No tasks available at the moment.
+            {tr("No tasks available at the moment.")}
           </div>
         )}
       </div>

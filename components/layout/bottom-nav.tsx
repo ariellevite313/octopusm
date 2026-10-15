@@ -6,18 +6,20 @@ import { usePathname } from "next/navigation";
 import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User, Trophy } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { AppIcon } from "@/components/shared/app-icon";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 const PREDICT_NAV = [
-  { label: "Markets",     href: "/prediction",              icon: BarChart2,  exact: true  },
-  { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
-  { label: "Leaderboard", href: "/leaderboard/predictions", icon: Trophy,     exact: true  },
+  { label: T("Markets"),     href: "/prediction",              icon: BarChart2,  exact: true  },
+  { label: T("Tokens"),      href: "/launchpad",               icon: LayoutGrid, exact: false },
+  { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy,     exact: true  },
 ];
 
 const LAUNCHPAD_NAV = [
-  { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
-  { label: "Leaderboard", href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
-  { label: "Launch",      href: "/launchpad/create",        icon: Rocket,     exact: true  },
-  { label: "Portfolio",    href: "/dashboard/launchpad",     icon: User,       exact: false },
+  { label: T("Tokens"),      href: "/launchpad",               icon: LayoutGrid, exact: false },
+  { label: T("Leaderboard"), href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
+  { label: T("Launch"),      href: "/launchpad/create",        icon: Rocket,     exact: true  },
+  { label: T("Portfolio"),    href: "/dashboard/launchpad",     icon: User,       exact: false },
 ];
 
 const CLT_DEXSCREENER = "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc";
@@ -25,42 +27,42 @@ const CLT_DEXSCREENER = "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tv
 const MORE_ITEMS = [
   {
     label: "$CLAWDTRUST",
-    description: "Our partner token on Solana",
+    description: T("Our partner token on Solana"),
     href: CLT_DEXSCREENER,
     icon: "ti-coin",
     external: true,
   },
   {
-    label: "Support",
-    description: "Get help from the team",
+    label: T("Support"),
+    description: T("Get help from the team"),
     href: "https://t.me/Omdotfun",
     icon: "ti-headset",
     external: true,
   },
   {
-    label: "FAQ",
-    description: "Frequently asked questions",
+    label: T("FAQ"),
+    description: T("Frequently asked questions"),
     href: "/faq",
     icon: "ti-help-circle",
     external: false,
   },
   {
-    label: "Tutorial",
-    description: "Learn how to use OMdotfun",
+    label: T("Tutorial"),
+    description: T("Learn how to use OMdotfun"),
     href: "https://t.me/OmdotfunTuto",
     icon: "ti-book",
     external: true,
   },
   {
-    label: "ŌM Policy",
-    description: "Rules, prohibitions, removals",
+    label: T("ŌM Policy"),
+    description: T("Rules, prohibitions, removals"),
     href: "/policy",
     icon: "ti-shield-check",
     external: false,
   },
   {
-    label: "Privacy Policy",
-    description: "How we handle your data",
+    label: T("Privacy Policy"),
+    description: T("How we handle your data"),
     href: "/privacy",
     icon: "ti-lock",
     external: false,
@@ -68,6 +70,7 @@ const MORE_ITEMS = [
 ];
 
 function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { tr } = useT();
   // Lock body scroll + close on Escape
   useEffect(() => {
     if (!open) return;
@@ -104,11 +107,11 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-2 pb-3">
-          <span className="text-lg font-bold tracking-tight text-foreground">More</span>
+          <span className="text-lg font-bold tracking-tight text-foreground">{tr("More")}</span>
           <button
             onClick={onClose}
             className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close"
+            aria-label={tr("Close")}
           >
             <X className="size-4" />
           </button>
@@ -129,8 +132,8 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
                   <AppIcon name={item.icon} className="size-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-foreground">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.description}</p>
+                  <p className="text-[15px] font-semibold text-foreground">{tr(item.label)}</p>
+                  <p className="text-xs text-muted-foreground">{tr(item.description)}</p>
                 </div>
                 {item.external && (
                   <ExternalLink className="size-3.5 text-muted-foreground/50 shrink-0" />
@@ -148,6 +151,7 @@ export function BottomNav() {
   const [mounted, setMounted]       = useState(false);
   const [sheetOpen, setSheetOpen]   = useState(false);
   const { isAuthenticated } = useAuth();
+  const { tr } = useT();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -179,7 +183,7 @@ export function BottomNav() {
               }`}
             >
               <Icon className="size-[26px]" strokeWidth={active ? 2.25 : 1.75} />
-              <span className="sr-only">{label}</span>
+              <span className="sr-only">{tr(label)}</span>
             </Link>
           );
         })}
@@ -189,7 +193,7 @@ export function BottomNav() {
           className="flex h-14 flex-1 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
         >
           <MoreHorizontal className="size-[26px]" strokeWidth={1.75} />
-          <span className="sr-only">More</span>
+          <span className="sr-only">{tr("More")}</span>
         </button>
       </nav>
     </>

@@ -10,6 +10,8 @@ import { getAvailableWallets } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
 import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
 import type { WalletType } from "@/lib/wallet/adapters";
+import { useT, Rich } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,9 +71,9 @@ function getSupabase() {
   );
 }
 
-function formatPrice(p: number): string {
-  if (p >= 1000)   return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (p >= 1)      return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+function formatPrice(p: number, locale = "en-US"): string {
+  if (p >= 1000)   return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1)      return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   if (p >= 0.01)   return p.toFixed(4);
   if (p >= 0.0001) return p.toFixed(6);
   return p.toFixed(8);
@@ -119,6 +121,7 @@ function RoundCard({
   onNeedWallet: () => void;
   onMarketExpired: () => void;
 }) {
+  const { tr, lang } = useT();
   const resolveAt = getResolveAt(market);
 
   // Modèle Limitless : une seule fenêtre, Paris + Live simultanés jusqu'à resolve_at
@@ -148,7 +151,7 @@ function RoundCard({
   const handleBet = async (dir: Direction) => {
     if (!walletAddress || !walletType) { onNeedWallet(); return; }
     if (amount < MIN_AMOUNT) {
-      toast.error(`Minimum $${MIN_AMOUNT} USDC`);
+      toast.error(tr("Minimum ${min} USDC", { min: MIN_AMOUNT }));
       return;
     }
     setSubmitting(true);
@@ -162,7 +165,7 @@ function RoundCard({
         const w = window as any;
         if (w.solana?.signAndSendTransaction || w.solana?.signTransaction) provider = w.solana;
       }
-      if (!provider) { toast.error("Wallet not found"); return; }
+      if (!provider) { toast.error(tr("Wallet not found")); return; }
 
       const TOKEN_PROGRAM    = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
       const ASSOC_TOKEN_PROG = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
@@ -237,7 +240,7 @@ function RoundCard({
         } catch { /* try next RPC */ }
       }
 
-      if (!signature) { toast.error("Transaction failed"); return; }
+      if (!signature) { toast.error(tr("Transaction failed")); return; }
 
       const res = await fetch("/api/updown/bet", {
         method: "POST",
@@ -246,15 +249,15 @@ function RoundCard({
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
-        toast.error(err.error ?? "Server error");
+        toast.error(tr(err.error ?? "Server error"));
         return;
       }
-      toast.success(`${dir.toUpperCase()} predict placed!`);
+      toast.success(dir === "up" ? tr("UP predict placed!") : tr("DOWN predict placed!"));
       onBetPlaced();
     } catch (e: any) {
       const msg = (e?.message ?? "").toLowerCase();
-      if (msg.includes("cancel") || msg.includes("reject")) toast.error("Transaction cancelled");
-      else toast.error("Error: " + (e?.message ?? ""));
+      if (msg.includes("cancel") || msg.includes("reject")) toast.error(tr("Transaction cancelled"));
+      else toast.error(tr("Error: {msg}", { msg: e?.message ?? "" }));
     } finally {
       setSubmitting(false);
       setActiveDir(null);
@@ -267,13 +270,13 @@ function RoundCard({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
         <div className="flex items-center gap-2">
           <Clock className="size-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold text-foreground">{market.duration_min} minutes</span>
+          <span className="text-xs font-semibold text-foreground">{tr("{n} minutes", { n: market.duration_min })}</span>
         </div>
         {isLive && (
           <div className="flex flex-col items-end gap-0.5">
             <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-              LIVE
+              {tr("LIVE")}
             </span>
             {liveCountdown && (
               <span className="text-[10px] tabular-nums font-semibold text-up">{liveCountdown}</span>
@@ -287,7 +290,7 @@ function RoundCard({
               : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
           }`}>
             {market.outcome === "up" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-            {market.outcome === "up" ? "UP" : "DOWN"}
+            {market.outcome === "up" ? tr("UP") : tr("DOWN")}
           </span>
         )}
       </div>
@@ -295,14 +298,14 @@ function RoundCard({
       {/* Strike / close */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-[13px] text-muted-foreground">Strike</p>
-          <p className="text-base font-bold tabular-nums text-foreground">${formatPrice(market.strike_price)}</p>
+          <p className="text-[13px] text-muted-foreground">{tr("Strike")}</p>
+          <p className="text-base font-bold tabular-nums text-foreground">${formatPrice(market.strike_price, LOCALES[lang])}</p>
         </div>
         {isResolved && market.open_price && (
           <div className="text-right">
-            <p className="text-[13px] text-muted-foreground">Close</p>
+            <p className="text-[13px] text-muted-foreground">{tr("Close")}</p>
             <p className={`text-base font-bold tabular-nums ${Number(market.open_price) > market.strike_price ? "text-up" : "text-down"}`}>
-              ${formatPrice(Number(market.open_price))}
+              ${formatPrice(Number(market.open_price), LOCALES[lang])}
             </p>
           </div>
         )}
@@ -311,15 +314,15 @@ function RoundCard({
       {/* Pool bar */}
       <div className="px-4 pb-3">
         <div className="flex text-[10px] font-semibold mb-1 justify-between">
-          <span className="text-up">↑ UP {upPct}% (${poolUp.toFixed(0)})</span>
-          <span className="text-down">DOWN {downPct}% (${poolDown.toFixed(0)}) ↓</span>
+          <span className="text-up">{tr("↑ UP {pct}% (${pool})", { pct: upPct, pool: poolUp.toFixed(0) })}</span>
+          <span className="text-down">{tr("DOWN {pct}% (${pool}) ↓", { pct: downPct, pool: poolDown.toFixed(0) })}</span>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden flex">
           <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${upPct}%` }} />
           <div className="bg-red-500 flex-1" />
         </div>
         <p className="text-[10px] text-muted-foreground mt-1 text-center">
-          Pool: ${total.toFixed(2)} USDC · Fee {market.fee_rate}%
+          {tr("Pool: ${total} USDC · Fee {rate}%", { total: total.toFixed(2), rate: market.fee_rate })}
         </p>
       </div>
 
@@ -333,12 +336,12 @@ function RoundCard({
           "bg-muted text-muted-foreground"
         }`}>
           <span>
-            My predict: <strong>${myBet.amount} {myBet.direction === "up" ? "↑ UP" : "↓ DOWN"}</strong>
+            <Rich>{tr("My predict: <b>${amount} {dir}</b>", { amount: myBet.amount, dir: myBet.direction === "up" ? tr("↑ UP") : tr("↓ DOWN") })}</Rich>
             {myBet.payout && myBet.status !== "lost" ? ` → $${myBet.payout.toFixed(2)}` : ""}
           </span>
-          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-up">🏆 Claim in dashboard</span>}
-          {myBet.status === "claimed" && <span className="text-[10px]">⏳ Pending</span>}
-          {myBet.status === "paid"    && <span className="text-[10px]">✅ Paid</span>}
+          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-up">{tr("🏆 Claim in dashboard")}</span>}
+          {myBet.status === "claimed" && <span className="text-[10px]">{tr("⏳ Pending")}</span>}
+          {myBet.status === "paid"    && <span className="text-[10px]">{tr("✅ Paid")}</span>}
         </div>
       )}
 
@@ -366,12 +369,12 @@ function RoundCard({
             <button disabled={submitting} onClick={() => handleBet("up")}
               className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
             >
-              {submitting && activeDir === "up" ? "..." : <><TrendingUp className="size-4" /> UP ~${estPayout("up").toFixed(2)}</>}
+              {submitting && activeDir === "up" ? "..." : <><TrendingUp className="size-4" /> {tr("UP ~${est}", { est: estPayout("up").toFixed(2) })}</>}
             </button>
             <button disabled={submitting} onClick={() => handleBet("down")}
               className="flex items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
             >
-              {submitting && activeDir === "down" ? "..." : <><TrendingDown className="size-4" /> DOWN ~${estPayout("down").toFixed(2)}</>}
+              {submitting && activeDir === "down" ? "..." : <><TrendingDown className="size-4" /> {tr("DOWN ~${est}", { est: estPayout("down").toFixed(2) })}</>}
             </button>
           </div>
         </div>
@@ -383,6 +386,7 @@ function RoundCard({
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export function CryptoMarketsClient() {
+  const { tr } = useT();
   const { walletAddress, walletType } = useAuth();
   const [activeSymbol, setActiveSymbol] = useState<Symbol>("BTCUSDT");
   const [markets, setMarkets] = useState<Record<number, { open?: UpDownMarket; resolved?: UpDownMarket }>>({});
@@ -455,8 +459,8 @@ export function CryptoMarketsClient() {
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center gap-2 mb-4">
             <Zap className="size-5 text-amber-500" />
-            <h1 className="text-lg font-bold text-foreground">Crypto Up/Down</h1>
-            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-bold text-up">LIVE</span>
+            <h1 className="text-lg font-bold text-foreground">{tr("Crypto Up/Down")}</h1>
+            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-bold text-up">{tr("LIVE")}</span>
           </div>
           <div className="flex gap-2">
             {SYMBOLS.map(s => (
@@ -476,12 +480,12 @@ export function CryptoMarketsClient() {
       <div className="mx-auto max-w-3xl px-4 py-6">
         {loading ? (
           <div className="flex h-40 items-center justify-center">
-            <span className="text-sm text-muted-foreground animate-pulse">Loading rounds...</span>
+            <span className="text-sm text-muted-foreground animate-pulse">{tr("Loading rounds...")}</span>
           </div>
         ) : Object.keys(markets).length === 0 ? (
           <div className="flex h-40 items-center justify-center flex-col gap-2">
-            <p className="text-sm text-muted-foreground">No active rounds at the moment.</p>
-            <p className="text-xs text-muted-foreground">Rounds are created automatically every minute.</p>
+            <p className="text-sm text-muted-foreground">{tr("No active rounds at the moment.")}</p>
+            <p className="text-xs text-muted-foreground">{tr("Rounds are created automatically every minute.")}</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-3">
@@ -490,7 +494,7 @@ export function CryptoMarketsClient() {
               const market = slot?.open ?? slot?.resolved;
               if (!market) return (
                 <div key={`waiting-${d}`} className="rounded-2xl border border-dashed border-border/40 flex items-center justify-center h-40">
-                  <span className="text-xs text-muted-foreground">{d}m — Waiting...</span>
+                  <span className="text-xs text-muted-foreground">{tr("{d}m — Waiting...", { d })}</span>
                 </div>
               );
               const isTransitioning = !slot?.open && !!slot?.resolved
@@ -514,7 +518,7 @@ export function CryptoMarketsClient() {
                           <span className="size-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "150ms" }} />
                           <span className="size-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "300ms" }} />
                         </div>
-                        <p className="text-xs font-semibold text-muted-foreground">Nouveau round en cours...</p>
+                        <p className="text-xs font-semibold text-muted-foreground">{tr("New round in progress...")}</p>
                       </div>
                     </div>
                   )}
@@ -525,10 +529,10 @@ export function CryptoMarketsClient() {
         )}
 
         <div className="mt-6 rounded-2xl bg-muted/40 px-4 py-4 text-xs text-muted-foreground space-y-1">
-          <p className="font-semibold text-foreground text-sm mb-2">How it works</p>
-          <p>Predict whether the price will be <strong>UP</strong> or <strong>DOWN</strong> at the end of the round.</p>
-          <p>The strike price is locked at open. Winners share the pool minus 5% fee.</p>
-          <p>USDC only. Min $2 per predict. Multiple predicts allowed per round.</p>
+          <p className="font-semibold text-foreground text-sm mb-2">{tr("How it works")}</p>
+          <p><Rich>{tr("Predict whether the price will be <b>UP</b> or <b>DOWN</b> at the end of the round.")}</Rich></p>
+          <p>{tr("The strike price is locked at open. Winners share the pool minus 5% fee.")}</p>
+          <p>{tr("USDC only. Min $2 per predict. Multiple predicts allowed per round.")}</p>
         </div>
       </div>
 
@@ -541,7 +545,7 @@ export function CryptoMarketsClient() {
             try {
               await connectWalletAndAuth(type);
             } catch (e: any) {
-              toast.error(e?.message ?? "Connection failed");
+              toast.error(tr(e?.message ?? "Connection failed"));
             }
           }}
         />

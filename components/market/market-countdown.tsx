@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 function getStatus(eventStartAt: string): "live" | "upcoming" | "none" {
   const start = new Date(eventStartAt).getTime();
@@ -10,19 +11,20 @@ function getStatus(eventStartAt: string): "live" | "upcoming" | "none" {
   return "none";
 }
 
-function formatCountdown(eventStartAt: string): string {
+function formatCountdown(eventStartAt: string, tr: (s: string, v?: Record<string, string | number>) => string): string {
   const diff = new Date(eventStartAt).getTime() - Date.now();
-  if (diff <= 0) return "LIVE";
+  if (diff <= 0) return tr("LIVE");
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   const mins = Math.floor((diff % 3600000) / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m ${secs}s`;
+  if (days > 0) return tr("{days}d {hours}h", { days, hours });
+  if (hours > 0) return tr("{hours}h {mins}m", { hours, mins });
+  return tr("{mins}m {secs}s", { mins, secs });
 }
 
 export function MarketCountdownBadge({ eventStartAt }: { eventStartAt: string }) {
+  const { tr } = useT();
   const [mounted, setMounted] = useState(false);
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -42,7 +44,7 @@ export function MarketCountdownBadge({ eventStartAt }: { eventStartAt: string })
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
           <span className="relative inline-flex size-1.5 rounded-full bg-red-500" />
         </span>
-        LIVE
+        {tr("LIVE")}
       </span>
     );
   }
@@ -50,7 +52,7 @@ export function MarketCountdownBadge({ eventStartAt }: { eventStartAt: string })
   if (status === "upcoming") {
     return (
       <span className="num inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">
-        {formatCountdown(eventStartAt)}
+        {formatCountdown(eventStartAt, tr)}
       </span>
     );
   }

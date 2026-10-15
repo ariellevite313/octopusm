@@ -8,6 +8,7 @@ import { MutuelMarketRow } from "@/lib/supabase/types";
 import { useAuth } from "@/providers/auth-provider";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import { submitPoolCreation } from "@/lib/market/pool-betting";
+import { useT } from "@/lib/i18n";
 
 type Category = CategorySlug;
 
@@ -26,6 +27,7 @@ type CreateStep = "idle" | "paying" | "sending" | "done" | "error";
 // ─── Image upload widget ──────────────────────────────────────────────────────
 
 function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const { tr } = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -41,7 +43,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
       if (!res.ok) throw new Error(body.error ?? "Upload failed");
       onChange(body.url);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+      toast.error(tr(err instanceof Error ? err.message : "Upload failed"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -51,7 +53,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-[13px] font-semibold text-muted-foreground">
-        Icon image (optional)
+        {tr("Icon image (optional)")}
       </label>
       <div className="flex items-center gap-3">
         <div
@@ -79,14 +81,14 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
           )}
         </div>
         <div className="flex flex-col gap-0.5">
-          <p className="text-xs text-muted-foreground">Square icon displayed beside your market title.</p>
-          <p className="text-[10px] text-muted-foreground">JPG, PNG, WEBP or GIF · max 2MB</p>
+          <p className="text-xs text-muted-foreground">{tr("Square icon displayed beside your market title.")}</p>
+          <p className="text-[10px] text-muted-foreground">{tr("JPG, PNG, WEBP or GIF · max 2MB")}</p>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
             className="mt-1 self-start rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors"
           >
-            {value ? "Change icon" : "Upload icon"}
+            {value ? tr("Change icon") : tr("Upload icon")}
           </button>
         </div>
       </div>
@@ -98,6 +100,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function CreatePoolModal({ onClose, onCreated }: Props) {
+  const { tr } = useT();
   const { walletAddress, walletType } = useAuth();
 
   const [title,          setTitle]          = useState("");
@@ -135,7 +138,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       if (!res.ok) throw new Error(body.error ?? "Upload failed");
       updateOptionImage(i, body.url);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+      toast.error(tr(err instanceof Error ? err.message : "Upload failed"));
     } finally {
       if (optionFileRefs.current[i]) optionFileRefs.current[i]!.value = "";
     }
@@ -150,21 +153,21 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     setErrorMsg(null);
 
     // ── Validation ──────────────────────────────────────────────────────────
-    if (title.trim().length < 5) { toast.error("Title must be at least 5 characters."); return; }
+    if (title.trim().length < 5) { toast.error(tr("Title must be at least 5 characters.")); return; }
     for (const o of options) {
       if (!o.label.trim() || o.label.trim().length < 2) {
-        toast.error("Each option must be at least 2 characters."); return;
+        toast.error(tr("Each option must be at least 2 characters.")); return;
       }
     }
     const labels = options.map(o => o.label.trim().toLowerCase());
-    if (new Set(labels).size !== labels.length) { toast.error("Options must be unique."); return; }
-    if (!closesAt) { toast.error("Prediction close date is required."); return; }
+    if (new Set(labels).size !== labels.length) { toast.error(tr("Options must be unique.")); return; }
+    if (!closesAt) { toast.error(tr("Prediction close date is required.")); return; }
     const closesAtDate = new Date(closesAt);
     if (isNaN(closesAtDate.getTime()) || closesAtDate.getTime() < Date.now() + 60 * 60 * 1000) {
-      toast.error("Closing date must be at least 1 hour from now."); return;
+      toast.error(tr("Closing date must be at least 1 hour from now.")); return;
     }
-    if (!walletAddress) { toast.error("Wallet not connected. Please sign in first."); return; }
-    if (!walletType) { toast.error("Wallet type unknown. Please reconnect."); return; }
+    if (!walletAddress) { toast.error(tr("Wallet not connected. Please sign in first.")); return; }
+    if (!walletType) { toast.error(tr("Wallet type unknown. Please reconnect.")); return; }
 
     // ── Step 1: on-chain payment ────────────────────────────────────────────
     setStep("paying");
@@ -181,7 +184,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       const msg = isUserCancel ? "Transaction cancelled. Please try again." : rawMsg;
       setStep("error");
       setErrorMsg(msg);
-      if (!isUserCancel) toast.error(msg);
+      if (!isUserCancel) toast.error(tr(msg));
       return;
     }
 
@@ -209,7 +212,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
         setStep("error");
         const msg = data.error ?? "Something went wrong.";
         setErrorMsg(msg);
-        toast.error(msg);
+        toast.error(tr(msg));
         return;
       }
       setStep("done");
@@ -218,7 +221,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
       setStep("error");
       const msg = "Network error, please try again.";
       setErrorMsg(msg);
-      toast.error(msg);
+      toast.error(tr(msg));
     }
   }
 
@@ -232,9 +235,9 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           <X className="size-5" />
         </button>
 
-        <h2 className="mb-1 text-lg font-bold text-foreground">Create a Market</h2>
+        <h2 className="mb-1 text-lg font-bold text-foreground">{tr("Create a Market")}</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          An admin will review your market before it goes live.
+          {tr("An admin will review your market before it goes live.")}
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -242,12 +245,12 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Question / Title *
+              {tr("Question / Title *")}
             </label>
             <input
               value={title}
               onChange={e => { resetError(); setTitle(e.target.value); }}
-              placeholder="e.g. Who will win the 2026 World Cup?"
+              placeholder={tr("e.g. Who will win the 2026 World Cup?")}
               maxLength={200}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -256,12 +259,12 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Description (optional)
+              {tr("Description (optional)")}
             </label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Add context or resolution criteria…"
+              placeholder={tr("Add context or resolution criteria…")}
               rows={2}
               maxLength={1000}
               className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -274,7 +277,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {/* Options */}
           <div className="flex flex-col gap-2">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Options * (2–8)
+              {tr("Options * (2–8)")}
             </label>
             {options.map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -282,7 +285,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                   type="button"
                   onClick={() => optionFileRefs.current[i]?.click()}
                   className="relative size-9 shrink-0 overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 flex items-center justify-center transition-colors hover:bg-muted/60"
-                  title="Add image"
+                  title={tr("Add image")}
                 >
                   {opt.image_url ? (
                     <>
@@ -303,7 +306,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                 <input
                   value={opt.label}
                   onChange={e => updateOption(i, e.target.value)}
-                  placeholder={`Option ${i + 1}`}
+                  placeholder={tr("Option {n}", { n: i + 1 })}
                   maxLength={80}
                   className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
@@ -312,7 +315,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                     type="button"
                     onClick={() => updateOptionImage(i, "")}
                     className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted"
-                    title="Remove image"
+                    title={tr("Remove image")}
                   >
                     <X className="size-4" />
                   </button>
@@ -335,7 +338,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                 className="flex items-center gap-1.5 self-start rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
               >
                 <Plus className="size-3.5" />
-                Add option
+                {tr("Add option")}
               </button>
             )}
           </div>
@@ -343,7 +346,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {/* Betting close date */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Predictions close at *
+              {tr("Predictions close at *")}
             </label>
             <input
               type="datetime-local"
@@ -352,13 +355,13 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               onChange={e => { resetError(); setClosesAt(e.target.value); }}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            <p className="text-[10px] text-muted-foreground">Time is interpreted in your local timezone.</p>
+            <p className="text-[10px] text-muted-foreground">{tr("Time is interpreted in your local timezone.")}</p>
           </div>
 
           {/* Category */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Category
+              {tr("Category")}
             </label>
             <select
               value={category}
@@ -366,7 +369,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 capitalize"
             >
               {CATEGORIES.map(c => (
-                <option key={c.slug} value={c.slug}>{c.label}</option>
+                <option key={c.slug} value={c.slug}>{tr(c.label)}</option>
               ))}
             </select>
           </div>
@@ -374,7 +377,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {/* Bet token */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Prediction token
+              {tr("Prediction token")}
             </label>
             <div className="flex gap-2">
               {(["usdc", "clawdtrust"] as const).map(token => (
@@ -394,14 +397,14 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Token used by all predictors. Winnings paid in the same token.
+              {tr("Token used by all predictors. Winnings paid in the same token.")}
             </p>
           </div>
 
           {/* Creation fee */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-muted-foreground">
-              Pay creation fee with
+              {tr("Pay creation fee with")}
             </label>
             <div className="flex gap-2">
               {(["usdc", "clawdtrust"] as const).map(token => (
@@ -421,7 +424,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              One-time fee sent on-chain before your market is submitted.
+              {tr("One-time fee sent on-chain before your market is submitted.")}
             </p>
           </div>
 
@@ -429,25 +432,25 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           {step === "paying" && (
             <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-sm text-amber-500">
               <Loader2 className="size-4 animate-spin" />
-              Waiting for payment confirmation…
+              {tr("Waiting for payment confirmation…")}
             </div>
           )}
           {step === "sending" && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 px-3 py-2.5 text-sm text-blue-500">
               <Loader2 className="size-4 animate-spin" />
-              Submitting market…
+              {tr("Submitting market…")}
             </div>
           )}
           {step === "done" && (
             <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-sm text-up">
               <CheckCircle className="size-4" />
-              Market submitted! Pending admin review.
+              {tr("Market submitted! Pending admin review.")}
             </div>
           )}
           {step === "error" && errorMsg && (
             <div className="flex items-start gap-2 rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
               <AlertCircle className="size-4 mt-0.5 shrink-0" />
-              <span>{errorMsg}</span>
+              <span>{tr(errorMsg)}</span>
             </div>
           )}
 
@@ -456,11 +459,11 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
             disabled={submitting || step === "done"}
             className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {step === "paying"  ? "Waiting for payment…"
-             : step === "sending" ? "Submitting…"
-             : step === "done"    ? "Market submitted!"
-             : step === "error"   ? "Try again"
-             : `Pay ${feeToken === "usdc" ? "2 USDC" : "500K CLT"} & Submit`}
+            {step === "paying"  ? tr("Waiting for payment…")
+             : step === "sending" ? tr("Submitting…")
+             : step === "done"    ? tr("Market submitted!")
+             : step === "error"   ? tr("Try again")
+             : tr("Pay {fee} & Submit", { fee: feeToken === "usdc" ? "2 USDC" : "500K CLT" })}
           </button>
         </form>
       </div>

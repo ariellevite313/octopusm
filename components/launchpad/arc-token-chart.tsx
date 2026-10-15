@@ -19,6 +19,8 @@ import {
   ReferenceDot,
 } from "recharts";
 import { Loader2, TrendingUp, CandlestickChart } from "lucide-react";
+import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,9 +47,9 @@ const TIMEFRAMES: { key: TfKey; label: string; seconds: number; bucketSec: numbe
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtPrice(n: number): string {
+function fmtPrice(n: number, loc = "en-US"): string {
   if (!n || n === 0) return "—";
-  if (n >= 1)     return `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+  if (n >= 1)     return `$${n.toLocaleString(loc, { maximumFractionDigits: 4 })}`;
   if (n >= 0.001) return `$${n.toFixed(6)}`;
   return `$${n.toPrecision(4)}`;
 }
@@ -81,16 +83,17 @@ function buildOHLCV(trades: Trade[], bucketSec: number): Bar[] {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload }: any) {
+  const { tr, lang } = useT();
   if (!active || !payload?.length) return null;
   const d: Point = payload[0]?.payload;
   if (!d) return null;
   return (
     <div className="rounded-xl border border-border bg-card/90 backdrop-blur px-3 py-2 text-xs shadow-xl space-y-0.5">
-      <p className="font-semibold text-foreground">{fmtPrice(d.price)}</p>
+      <p className="font-semibold text-foreground">{fmtPrice(d.price, LOCALES[lang])}</p>
       <p className="text-muted-foreground">{new Date(d.time * 1000).toLocaleString()}</p>
       {d.isBuy !== undefined && (
         <p className={d.isBuy ? "text-up" : "text-red-400"}>
-          {d.isBuy ? "▲ Buy" : "▼ Sell"}
+          {d.isBuy ? tr("▲ Buy") : tr("▼ Sell")}
         </p>
       )}
     </div>
@@ -194,6 +197,7 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: Props) {
+  const { tr, lang } = useT();
   const [trades,     setTrades]     = useState<Trade[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
@@ -207,13 +211,13 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
     try {
       const v4Param = isV4 ? "&isV4=1" : "";
       const res  = await fetch(`/api/launchpad/arc-trades?curveAddress=${encodeURIComponent(curveAddress)}&limit=500${v4Param}`);
-      if (!res.ok) throw new Error("fetch failed");
+      if (!res.ok) throw new Error(tr("fetch failed"));
       const data = await res.json() as { trades?: Trade[]; error?: string };
       if (data.error) throw new Error(data.error);
       setTrades(data.trades ?? []);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
+      setError(e instanceof Error ? e.message : tr("Error"));
     } finally {
       setLoading(false);
     }
@@ -271,7 +275,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
     return (
       <div className="flex items-center justify-center h-48 text-muted-foreground gap-2">
         <Loader2 className="size-4 animate-spin" />
-        <span className="text-sm">Loading chart…</span>
+        <span className="text-sm">{tr("Loading chart…")}</span>
       </div>
     );
   }
@@ -279,8 +283,8 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-48 gap-2">
-        <p className="text-sm text-muted-foreground">Chart unavailable</p>
-        <p className="text-[11px] text-muted-foreground/50">{error}</p>
+        <p className="text-sm text-muted-foreground">{tr("Chart unavailable")}</p>
+        <p className="text-[11px] text-muted-foreground/50">{tr(error)}</p>
       </div>
     );
   }
@@ -288,7 +292,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
   if (points.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-48 gap-2">
-        <p className="text-sm text-muted-foreground">No trades yet — be the first!</p>
+        <p className="text-sm text-muted-foreground">{tr("No trades yet — be the first!")}</p>
       </div>
     );
   }
@@ -305,7 +309,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-xl font-bold text-foreground tabular-nums">
-              {fmtPrice(latestPrice ?? 0)}
+              {fmtPrice(latestPrice ?? 0, LOCALES[lang])}
             </span>
             {priceChangePct !== null && (
               <span className={`text-sm font-semibold ${isPositive ? "text-up" : "text-red-400"}`}>
@@ -313,14 +317,14 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">{ticker ?? "Token"} · {points.length} trades</p>
+          <p className="text-xs text-muted-foreground">{tr("{ticker} · {n} trades", { ticker: ticker ?? tr("Token"), n: points.length })}</p>
         </div>
 
         {/* Chart mode toggle */}
         <div className="flex items-center gap-1 mr-1">
           <button
             onClick={() => setMode("line")}
-            title="Line chart"
+            title={tr("Line chart")}
             className={`p-1.5 rounded-xl transition-colors ${
               mode === "line"
                 ? "bg-orange-500/20 text-orange-400"
@@ -331,7 +335,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
           </button>
           <button
             onClick={() => setMode("candle")}
-            title="Candlestick chart"
+            title={tr("Candlestick chart")}
             className={`p-1.5 rounded-xl transition-colors ${
               mode === "candle"
                 ? "bg-orange-500/20 text-orange-400"
@@ -385,7 +389,7 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
               />
               <YAxis
                 domain={[Math.max(0, minPrice - pad), maxPrice + pad]}
-                tickFormatter={v => fmtPrice(v as number)}
+                tickFormatter={v => fmtPrice(v as number, LOCALES[lang])}
                 tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                 axisLine={false}
                 tickLine={false}
@@ -432,14 +436,14 @@ export function ArcTokenChart({ curveAddress, isV4 = false, ticker, logoUrl }: P
                 : "border-border text-muted-foreground"
             }`}
           >
-            {showTrades ? "● Trades on" : "○ Trades off"}
+            {showTrades ? tr("● Trades on") : tr("○ Trades off")}
           </button>
         ) : (
           <span className="text-[10px] text-muted-foreground">
-            {bars.length} candle{bars.length !== 1 ? "s" : ""} · {tfConfig.bucketSec / 60}m bucket
+            {bars.length !== 1 ? tr("{n} candles · {m}m bucket", { n: bars.length, m: tfConfig.bucketSec / 60 }) : tr("{n} candle · {m}m bucket", { n: bars.length, m: tfConfig.bucketSec / 60 })}
           </span>
         )}
-        <span className="text-[10px] text-muted-foreground/40">On-chain</span>
+        <span className="text-[10px] text-muted-foreground/40">{tr("On-chain")}</span>
       </div>
     </div>
   );

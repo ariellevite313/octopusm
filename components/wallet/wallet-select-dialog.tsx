@@ -1,5 +1,6 @@
 "use client";
 
+import { useT, Rich } from "@/lib/i18n";
 import { type WalletInfo, type WalletType, WALLET_COLORS } from "@/lib/wallet/adapters";
 
 type Props = {
@@ -15,6 +16,7 @@ function isMobile(): boolean {
 
 
 export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
+  const { tr } = useT();
   const installed = wallets.filter((w) => w.detected);
   const notInstalled = wallets.filter((w) => !w.detected);
   const mobile = isMobile();
@@ -50,12 +52,12 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
       <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-2xl">
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Connect your wallet</h2>
+          <h2 className="text-lg font-semibold text-foreground">{tr("Connect your wallet")}</h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-xl p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label="Close"
+            aria-label={tr("Close")}
           >
             <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -77,7 +79,7 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
           <>
             {installed.length > 0 && (
               <p className="mb-2 text-[13px] font-medium text-muted-foreground">
-                {mobile ? "Open in app" : "Not installed"}
+                {mobile ? tr("Open in app") : tr("Not installed")}
               </p>
             )}
             <div className="space-y-2">
@@ -89,15 +91,7 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
         )}
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          New to Solana?{" "}
-          <a
-            href="https://phantom.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
-          >
-            Get started with Phantom
-          </a>
+          <Rich linkClass="text-primary hover:underline">{tr("New to Solana? [Get started with Phantom](https://phantom.app)")}</Rich>
         </p>
       </div>
     </div>
@@ -113,6 +107,7 @@ function WalletItem({
   onClick: () => void;
   mobile?: boolean;
 }) {
+  const { tr } = useT();
   return (
     <button
       type="button"
@@ -134,21 +129,21 @@ function WalletItem({
         <p className="text-sm font-semibold text-foreground">{wallet.name}</p>
         <p className="text-xs text-muted-foreground">
           {wallet.detected
-            ? "Detected"
+            ? tr("Detected")
             : mobile
-            ? "Tap to open app"
-            : "Click to install"}
+            ? tr("Tap to open app")
+            : tr("Click to install")}
         </p>
       </div>
 
       {wallet.detected && (
         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-          Ready
+          {tr("Ready")}
         </span>
       )}
       {!wallet.detected && mobile && (
         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-          Open
+          {tr("Open")}
         </span>
       )}
     </button>

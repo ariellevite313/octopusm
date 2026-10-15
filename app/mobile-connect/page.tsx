@@ -19,6 +19,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 import { createClient } from "@/lib/supabase/client";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 // ─── Helpers (dupliqués depuis lib/wallet/auth.ts pour éviter les imports circulaires) ──
 
@@ -46,6 +48,7 @@ type Status = "waiting" | "connecting" | "signing" | "authenticating" | "redirec
 
 function MobileConnectInner() {
   const searchParams = useSearchParams();
+  const { tr } = useT();
   const attempted = useRef(false);
   const [status, setStatus] = useState<Status>("waiting");
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +89,7 @@ function MobileConnectInner() {
         // 2. Connecter le wallet
         await provider.connect();
         const address = provider.publicKey?.toString();
-        if (!address) throw new Error("Impossible de récupérer la clé publique.");
+        if (!address) throw new Error("Unable to retrieve the public key.");
 
         // 3. Signer le message
         setStatus("signing");
@@ -115,7 +118,7 @@ function MobileConnectInner() {
         });
 
         if (fnError || !data?.access_token || !data?.refresh_token) {
-          throw new Error(fnError?.message ?? "Authentification échouée.");
+          throw new Error(fnError?.message ?? "Authentication failed.");
         }
 
         // 5. Encoder les tokens et rediriger vers la TWA
@@ -132,7 +135,7 @@ function MobileConnectInner() {
         window.location.href = `${returnBase}#twa_session=${encodeURIComponent(payload)}`;
       } catch (err) {
         const msg =
-          err instanceof Error ? err.message : "Une erreur est survenue.";
+          err instanceof Error ? err.message : "An error occurred.";
         // Annulation utilisateur : retour silencieux
         if (/reject|cancel|denied|refused/i.test(msg)) {
           window.location.href = returnBase;
@@ -147,12 +150,12 @@ function MobileConnectInner() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const labels: Record<Status, string> = {
-    waiting:        "Initialisation…",
-    connecting:     "Connexion au wallet…",
-    signing:        "En attente de signature…",
-    authenticating: "Authentification…",
-    redirecting:    "Retour vers l'app…",
-    error:          "Erreur",
+    waiting:        T("Initializing…"),
+    connecting:     T("Connecting to wallet…"),
+    signing:        T("Waiting for signature…"),
+    authenticating: T("Authenticating…"),
+    redirecting:    T("Returning to the app…"),
+    error:          T("Error"),
   };
 
   return (
@@ -176,12 +179,12 @@ function MobileConnectInner() {
 
       {/* Titre */}
       <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-        {status === "error" ? "Connexion échouée" : "Connexion en cours…"}
+        {status === "error" ? tr("Connection failed") : tr("Connecting…")}
       </p>
 
       {/* Statut */}
       <p style={{ fontSize: 15, color: "#aaa", margin: 0 }}>
-        {status === "error" ? error : labels[status]}
+        {status === "error" ? tr(error ?? "") : tr(labels[status])}
       </p>
 
       {/* Spinner (sauf erreur) */}
@@ -214,7 +217,7 @@ function MobileConnectInner() {
             cursor: "pointer",
           }}
         >
-          Retour
+          {tr("Back")}
         </button>
       )}
 

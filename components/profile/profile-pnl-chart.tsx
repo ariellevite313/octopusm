@@ -12,6 +12,9 @@ import {
 } from "recharts";
 import type { PnlPoint } from "@/services/profile-service";
 import { fmt as formatAmount } from "@/lib/format";
+import { useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 interface Props {
   series:    PnlPoint[];
@@ -25,6 +28,7 @@ type Range = "1W" | "1M" | "ALL";
 type Token = "usdc" | "clt";
 
 const RANGES: Range[] = ["1W", "1M", "ALL"];
+const RANGE_LABELS: Record<Range, string> = { "1W": T("1W"), "1M": T("1M"), "ALL": T("ALL") };
 
 const TOKEN_CONFIG = {
   usdc: {
@@ -49,9 +53,9 @@ const TOKEN_CONFIG = {
   },
 } as const;
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, lang: Lang): string {
   const d = new Date(dateStr + "T00:00:00Z");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString(LOCALES[lang], { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,6 +85,7 @@ function filterSeries(series: PnlPoint[], range: Range): PnlPoint[] {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volumeClt }: Props) {
+  const { tr, lang } = useT();
   const [activeToken, setActiveToken] = useState<Token>("usdc");
   const [range, setRange] = useState<Range>("1W");
 
@@ -91,7 +96,7 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
   const filtered = useMemo(() => filterSeries(series, range), [series, range]);
 
   const data = filtered.map(p => ({
-    date:  formatDate(p.date),
+    date:  formatDate(p.date, lang),
     value: Number(p[cfg.dataKey].toFixed(4)),
   }));
 
@@ -140,14 +145,14 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
       {/* Header: total + range selector */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <p className="text-sm text-muted-foreground mb-0.5">Profit/Loss · {cfg.label}</p>
+          <p className="text-sm text-muted-foreground mb-0.5">{tr("Profit/Loss · {token}", { token: cfg.label })}</p>
           <p className="num text-[40px] leading-[1.05] font-bold tracking-[-0.035em]" style={{ color: mainColor }}>
             {isPositive ? "+" : ""}{formatAmount(total)}{" "}
             <span className="text-lg font-semibold text-muted-foreground">{cfg.unit}</span>
           </p>
           {vol !== undefined && vol > 0 && (
             <p className="num text-[13px] text-muted-foreground mt-1">
-              Volume : {formatAmount(vol)} {cfg.unit}
+              {tr("Volume : {amount} {unit}", { amount: formatAmount(vol), unit: cfg.unit })}
             </p>
           )}
         </div>
@@ -163,7 +168,7 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {r}
+              {tr(RANGE_LABELS[r])}
             </button>
           ))}
         </div>
@@ -172,7 +177,7 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
       {/* Chart */}
       {data.length === 0 ? (
         <div className="chart-dots flex h-44 items-center justify-center rounded-2xl text-sm text-muted-foreground">
-          No data
+          {tr("No data")}
         </div>
       ) : (
         <div className="chart-dots -mx-1 rounded-2xl">

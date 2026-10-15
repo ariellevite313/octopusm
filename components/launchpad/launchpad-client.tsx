@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
@@ -43,7 +44,7 @@ function fmtMcap(usd: number): string {
 
 function CopyButton({ text, children }: { text: string; children?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
-  const { t } = useT();
+  const { t, tr } = useT();
   const copy = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -60,7 +61,7 @@ function CopyButton({ text, children }: { text: string; children?: React.ReactNo
     <button
       onClick={copy}
       className="flex items-center gap-0.5 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
-      title="Copier le CA"
+      title={tr("Copy CA")}
     >
       {copied
         ? <Check className="size-3 text-up" />
@@ -77,33 +78,33 @@ type TabId   = "all" | "graduated" | "scheduled" | "watchlist";
 type ChainId = "all" | "solana" | "arc";
 
 const TABS: { id: TabId; label: string; icon?: React.ReactNode }[] = [
-  { id: "all",       label: "All" },
-  { id: "graduated", label: "Graduated" },
-  { id: "scheduled", label: "Scheduled" },
-  { id: "watchlist", label: "Watchlist", icon: <Bell className="size-3" /> },
+  { id: "all",       label: T("All") },
+  { id: "graduated", label: T("Graduated") },
+  { id: "scheduled", label: T("Scheduled") },
+  { id: "watchlist", label: T("Watchlist"), icon: <Bell className="size-3" /> },
 ];
 
 const CHAINS: { id: ChainId; label: string; dot?: string }[] = [
-  { id: "all",    label: "All" },
+  { id: "all",    label: T("All") },
   { id: "solana", label: "SOL", dot: "#14F195" },
   { id: "arc",    label: "ARC", dot: "#6366f1" },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "new",            label: "Newest" },
-  { value: "old",            label: "Oldest" },
-  { value: "verified",       label: "Verified only" },
-  { value: "market_cap_desc", label: "Market cap ↓" },
-  { value: "market_cap_asc",  label: "Market cap ↑" },
-  { value: "volume",         label: "Volume 24h" },
+  { value: "new",            label: T("Newest") },
+  { value: "old",            label: T("Oldest") },
+  { value: "verified",       label: T("Verified only") },
+  { value: "market_cap_desc", label: T("Market cap ↓") },
+  { value: "market_cap_asc",  label: T("Market cap ↑") },
+  { value: "volume",         label: T("Volume 24h") },
 ];
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  active:     { label: "Live",       cls: "bg-black/55 text-emerald-300 backdrop-blur-md" },
-  graduating: { label: "Graduating", cls: "bg-black/55 text-amber-300 backdrop-blur-md" },
-  graduated:  { label: "Graduated",  cls: "bg-black/55 text-sky-300 backdrop-blur-md" },
-  pending:    { label: "Pending",    cls: "bg-black/55 text-zinc-300 backdrop-blur-md" },
-  cancelled:  { label: "Cancelled",  cls: "bg-black/55 text-red-300 backdrop-blur-md" },
+  active:     { label: T("Live"),       cls: "bg-black/55 text-emerald-300 backdrop-blur-md" },
+  graduating: { label: T("Graduating"), cls: "bg-black/55 text-amber-300 backdrop-blur-md" },
+  graduated:  { label: T("Graduated"),  cls: "bg-black/55 text-sky-300 backdrop-blur-md" },
+  pending:    { label: T("Pending"),    cls: "bg-black/55 text-zinc-300 backdrop-blur-md" },
+  cancelled:  { label: T("Cancelled"),  cls: "bg-black/55 text-red-300 backdrop-blur-md" },
 };
 
 const LIMIT = 20;
@@ -111,6 +112,7 @@ const LIMIT = 20;
 // ── TokenCard ─────────────────────────────────────────────────────────────────
 
 export function TokenCard({ token }: { token: LaunchpadToken }) {
+  const { tr } = useT();
   const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
   const isGraduated = token.status === "graduated";
   const isScheduled = token.is_scheduled && !token.is_tradeable;
@@ -141,13 +143,13 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
         )}
         <div className="absolute right-2 top-2">
           <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${badge.cls}`}>
-            {badge.label}
+            {tr(badge.label)}
           </span>
         </div>
         {isScheduled && (
           <div className="absolute left-2 top-2">
             <span className="rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-violet-300 backdrop-blur-md">
-              Soon
+              {tr("Soon")}
             </span>
           </div>
         )}
@@ -218,14 +220,15 @@ function fmtK(n: number | null): string {
 }
 
 const STATUS_PILL: Record<string, { label: string; cls: string }> = {
-  active:     { label: "Live",       cls: "text-up" },
-  graduating: { label: "Graduating", cls: "text-amber-500" },
-  graduated:  { label: "Bonded",     cls: "text-sky-500" },
-  pending:    { label: "Pending",    cls: "text-muted-foreground" },
-  cancelled:  { label: "Cancelled",  cls: "text-down" },
+  active:     { label: T("Live"),       cls: "text-up" },
+  graduating: { label: T("Graduating"), cls: "text-amber-500" },
+  graduated:  { label: T("Bonded"),     cls: "text-sky-500" },
+  pending:    { label: T("Pending"),    cls: "text-muted-foreground" },
+  cancelled:  { label: T("Cancelled"),  cls: "text-down" },
 };
 
 function TokenPulseRow({ token }: { token: LaunchpadToken }) {
+  const { tr } = useT();
   const href = `/launchpad/${token.mint_address ?? token.id}`;
   const isArc = token.chain === "arc";
   const quote = isArc ? "USDC" : token.stock_symbol ? token.stock_symbol.replace(/^x/, "") : "SOL";
@@ -276,7 +279,7 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="num text-[13px] font-bold text-up sm:text-sm">{timeAgo(token.created_at).toLowerCase()}</span>
-              <span className="whitespace-nowrap text-[12px] font-semibold text-muted-foreground sm:text-xs">Fee 2%</span>
+              <span className="whitespace-nowrap text-[12px] font-semibold text-muted-foreground sm:text-xs">{tr("Fee 2%")}</span>
               <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">
                 {token.stock_symbol && !isArc
                   ? <XStockIcon symbol={token.stock_symbol} size={12} />
@@ -311,6 +314,7 @@ const RING: Record<string, string> = {
 };
 
 function TokenDeskRow({ token }: { token: LaunchpadToken }) {
+  const { tr } = useT();
   const href = `/launchpad/${token.mint_address ?? token.id}`;
   const isArc = token.chain === "arc";
   const st = STATUS_PILL[token.status] ?? STATUS_PILL.pending;
@@ -334,25 +338,25 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
             <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>
           </p>
           <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-            by <UserAvatar src={token.creator_avatar_src} name={creator} size={16} className="mr-1 inline-flex align-text-bottom" /><span className="font-semibold text-foreground/80">{creator}</span>{(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
+            {tr("by")}{" "}<UserAvatar src={token.creator_avatar_src} name={creator} size={16} className="mr-1 inline-flex align-text-bottom" /><span className="font-semibold text-foreground/80">{creator}</span>{(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
             <span className="mx-1.5">·</span>
-            <span className={`font-semibold ${isScheduled ? "text-violet-500" : st.cls}`}>{isScheduled ? "Soon" : st.label === "Bonded" ? "Graduated" : st.label}</span>
+            <span className={`font-semibold ${isScheduled ? "text-violet-500" : st.cls}`}>{isScheduled ? tr("Soon") : st.label === "Bonded" ? tr("Graduated") : tr(st.label)}</span>
           </p>
         </div>
       </div>
       <div className="text-right">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Mcap</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Mcap")}</p>
         <p className="num text-[15px] font-bold text-foreground">{fmtK(token.market_cap_usd)}</p>
       </div>
       <div className="text-right">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Vol 24h</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Vol 24h")}</p>
         <p className="num text-[15px] font-bold text-foreground">{fmtK(token.volume_24h_usd)}</p>
       </div>
       <div className="text-right">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Age</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Age")}</p>
         <p className="num text-[15px] font-bold text-foreground">{timeAgo(token.created_at).toLowerCase()}</p>
       </div>
-      <span className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white transition-opacity group-hover:opacity-90">Trade</span>
+      <span className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white transition-opacity group-hover:opacity-90">{tr("Trade")}</span>
     </Link>
   );
 }
@@ -367,26 +371,27 @@ function fmtPrice(usd: number | null): string {
 }
 
 const STATUS_TEXT: Record<string, { label: string; cls: string }> = {
-  active:     { label: "Live",       cls: "text-up" },
-  graduating: { label: "Graduating", cls: "text-amber-500" },
-  graduated:  { label: "Graduated",  cls: "text-sky-500" },
-  pending:    { label: "Pending",    cls: "text-muted-foreground" },
-  cancelled:  { label: "Cancelled",  cls: "text-down" },
+  active:     { label: T("Live"),       cls: "text-up" },
+  graduating: { label: T("Graduating"), cls: "text-amber-500" },
+  graduated:  { label: T("Graduated"),  cls: "text-sky-500" },
+  pending:    { label: T("Pending"),    cls: "text-muted-foreground" },
+  cancelled:  { label: T("Cancelled"),  cls: "text-down" },
 };
 
 function SortHead({ label, active, dir, onClick, align = "right" }: {
   label: string; active: boolean; dir?: "up" | "down"; onClick?: () => void; align?: "left" | "right";
 }) {
+  const { tr } = useT();
   return (
     <th className={`px-3 py-3 text-[12px] font-bold uppercase tracking-wide ${align === "right" ? "text-right" : "text-left"}`}>
       {onClick ? (
         <button type="button" onClick={onClick}
           className={`inline-flex items-center gap-1 uppercase transition-colors ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          {label}
+          {tr(label)}
           {active && (dir === "up" ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />)}
         </button>
       ) : (
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground">{tr(label)}</span>
       )}
     </th>
   );
@@ -396,21 +401,22 @@ function TokenTable({ tokens, offset, sort, onSort }: {
   tokens: LaunchpadToken[]; offset: number; sort: SortOption; onSort: (s: SortOption) => void;
 }) {
   const router = useRouter();
+  const { tr } = useT();
   return (
     <div className="overflow-hidden rounded-2xl border border-border">
       <table className="w-full border-collapse">
         <thead className="bg-muted/60">
           <tr className="border-b border-border">
             <th className="w-12 px-3 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-muted-foreground">#</th>
-            <SortHead label="Token" active={false} align="left" />
-            <SortHead label="Mcap" active={sort === "market_cap_desc" || sort === "market_cap_asc"} dir={sort === "market_cap_asc" ? "up" : "down"}
+            <SortHead label={T("Token")} active={false} align="left" />
+            <SortHead label={T("Mcap")} active={sort === "market_cap_desc" || sort === "market_cap_asc"} dir={sort === "market_cap_asc" ? "up" : "down"}
               onClick={() => onSort(sort === "market_cap_desc" ? "market_cap_asc" : "market_cap_desc")} />
-            <SortHead label="Price" active={false} />
-            <SortHead label="Age" active={sort === "new" || sort === "old"} dir={sort === "old" ? "down" : "up"}
+            <SortHead label={T("Price")} active={false} />
+            <SortHead label={T("Age")} active={sort === "new" || sort === "old"} dir={sort === "old" ? "down" : "up"}
               onClick={() => onSort(sort === "new" ? "old" : "new")} />
-            <SortHead label="Volume 24h" active={sort === "volume"} dir="down" onClick={() => onSort("volume")} />
-            <SortHead label="Status" active={false} />
-            <SortHead label="Creator" active={false} />
+            <SortHead label={T("Volume 24h")} active={sort === "volume"} dir="down" onClick={() => onSort("volume")} />
+            <SortHead label={T("Status")} active={false} />
+            <SortHead label={T("Creator")} active={false} />
           </tr>
         </thead>
         <tbody>
@@ -448,7 +454,7 @@ function TokenTable({ tokens, offset, sort, onSort }: {
                 <td className="num px-3 py-2.5 text-right text-sm text-foreground">
                   {token.volume_24h_usd !== null ? fmtMcap(token.volume_24h_usd) : "—"}
                 </td>
-                <td className={`px-3 py-2.5 text-right text-sm font-semibold ${st.cls}`}>{st.label}</td>
+                <td className={`px-3 py-2.5 text-right text-sm font-semibold ${st.cls}`}>{tr(st.label)}</td>
                 <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">
                   <span className="inline-flex items-center justify-end gap-1.5">
                     <UserAvatar src={token.creator_avatar_src} name={token.creator_display_name ?? token.creator_wallet} size={18} />
@@ -466,10 +472,10 @@ function TokenTable({ tokens, offset, sort, onSort }: {
 }
 
 const DESKTOP_SORTS: { value: SortOption; label: string; icon: React.ReactNode }[] = [
-  { value: "volume",          label: "Trending",  icon: <Flame className="size-4" /> },
-  { value: "market_cap_desc", label: "Top",       icon: <Trophy className="size-4" /> },
-  { value: "new",             label: "New pairs", icon: <Sprout className="size-4" /> },
-  { value: "verified",        label: "Verified",  icon: <BadgeCheck className="size-4" /> },
+  { value: "volume",          label: T("Trending"),  icon: <Flame className="size-4" /> },
+  { value: "market_cap_desc", label: T("Top"),       icon: <Trophy className="size-4" /> },
+  { value: "new",             label: T("New pairs"), icon: <Sprout className="size-4" /> },
+  { value: "verified",        label: T("Verified"),  icon: <BadgeCheck className="size-4" /> },
 ];
 
 // ── Pagination ─────────────────────────────────────────────────────────────────
@@ -570,6 +576,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
   initialTokens: LaunchpadToken[];
   initialTotal: number;
 }) {
+  const { tr } = useT();
   const [tab,      setTab]      = useState<TabId>("all");
   const [chain,    setChain]    = useState<ChainId>("all");
   const [sort,     setSort]     = useState<SortOption>("new");
@@ -723,7 +730,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                 }`}
               >
                 {t.icon}
-                {t.label}
+                {tr(t.label)}
               </button>
             ))}
           </div>
@@ -748,7 +755,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                   ) : c.id === "solana" ? (
                     <SolanaMark className="shrink-0 size-[14px]" />
                   ) : null}
-                  {c.label}
+                  {tr(c.label)}
                 </button>
               ))}
             </div>
@@ -760,14 +767,14 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
               <button
                 onClick={() => setViewMode("grid")}
                 className={`rounded-[10px] p-1.5 transition-colors ${viewMode === "grid" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label="Grid view"
+                aria-label={tr("Grid view")}
               >
                 <LayoutGrid className="size-3.5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
                 className={`rounded-[10px] p-1.5 transition-colors ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label="List view"
+                aria-label={tr("List view")}
               >
                 <List className="size-3.5" />
               </button>
@@ -781,7 +788,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search…"
+            placeholder={tr("Search…")}
             className="h-11 min-w-0 flex-1 rounded-2xl border border-transparent bg-muted px-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
           />
           {tab !== "watchlist" && (
@@ -791,7 +798,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                   className={`flex h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-bold transition-colors ${
                     sort === o.value ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
                   }`}>
-                  {o.icon}{o.label}
+                  {o.icon}{tr(o.label)}
                 </button>
               ))}
             </div>
@@ -805,7 +812,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                 className="h-11 w-[140px] appearance-none rounded-2xl border border-transparent bg-muted pl-9 pr-3 text-sm font-semibold sm:w-auto text-foreground focus:outline-none focus:border-primary/50 cursor-pointer"
               >
                 {SORT_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>{tr(o.label)}</option>
                 ))}
               </select>
             </div>
@@ -817,8 +824,8 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       {tab === "watchlist" && !walletAddress ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <Bell className="mb-3 size-8 text-muted-foreground/40" />
-          <p className="mb-1 text-sm font-medium text-foreground">Connect your wallet</p>
-          <p className="text-xs text-muted-foreground">Connect to see your watchlisted tokens.</p>
+          <p className="mb-1 text-sm font-medium text-foreground">{tr("Connect your wallet")}</p>
+          <p className="text-xs text-muted-foreground">{tr("Connect to see your watchlisted tokens.")}</p>
         </div>
       ) : tab === "watchlist" && watchlistLoading ? (
         <GridSkeleton />
@@ -829,19 +836,19 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           {tab === "watchlist" ? (
             <>
               <Bell className="mb-3 size-8 text-muted-foreground/40" />
-              <p className="mb-1 text-sm font-medium text-foreground">No watchlisted tokens</p>
-              <p className="text-xs text-muted-foreground">Add tokens to your watchlist from their detail page.</p>
+              <p className="mb-1 text-sm font-medium text-foreground">{tr("No watchlisted tokens")}</p>
+              <p className="text-xs text-muted-foreground">{tr("Add tokens to your watchlist from their detail page.")}</p>
             </>
           ) : (
             <>
               <p className="mb-3 text-3xl">🚀</p>
-              <p className="mb-1 text-sm font-medium text-foreground">No tokens yet</p>
-              <p className="mb-5 text-xs text-muted-foreground">Be the first to launch a token on OMdotfun</p>
+              <p className="mb-1 text-sm font-medium text-foreground">{tr("No tokens yet")}</p>
+              <p className="mb-5 text-xs text-muted-foreground">{tr("Be the first to launch a token on OMdotfun")}</p>
               <Link
                 href="/launchpad/create"
                 className="btn-primary rounded-2xl px-6 py-3 text-sm"
               >
-                Launch a token
+                {tr("Launch a token")}
               </Link>
             </>
           )}
@@ -873,7 +880,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        {tab !== "watchlist" ? `${total} token${total !== 1 ? "s" : ""}` : `${visibleTokens.length} token${visibleTokens.length !== 1 ? "s" : ""}`}
+        {(() => { const n = tab !== "watchlist" ? total : visibleTokens.length; return n !== 1 ? tr("{n} tokens", { n }) : tr("{n} token", { n }); })()}
       </p>
     </div>
   );
