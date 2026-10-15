@@ -323,7 +323,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
         {/* Amount */}
         <div className="flex items-center gap-3 mt-2">
           <div className="size-10 rounded-full bg-black/20 flex items-center justify-center shrink-0 overflow-hidden">
-            <img src="/arc-logo.jpeg" alt="Arc" className="size-10 object-cover" />
+            <img src={isArc ? "/arc-logo.jpeg" : "/solana.png"} alt={isArc ? "Arc" : "Solana"} className="size-10 object-cover" />
           </div>
           <span className="text-4xl font-bold tracking-tight">{fmt(stats.totalClaimed)}</span>
         </div>
