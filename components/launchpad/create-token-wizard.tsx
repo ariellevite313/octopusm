@@ -3,10 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Check, ChevronRight, ChevronLeft, Upload, X, Plus, Trash2,
+  ChevronRight, ChevronLeft, Upload, X, Plus, Trash2,
   Globe, Twitter, MessageCircle, Hash, ExternalLink, TrendingUp,
+  ImageIcon, Link as LinkIcon, User, Users, SlidersHorizontal, Delete,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -106,51 +108,88 @@ function maxSchedule(): string {
   return d.toISOString().slice(0, 16);
 }
 
-// ─── Progress bar ───────────────────────────────────────────────────────────
+// ─── UI primitives ──────────────────────────────────────────────────────────
 
-const STEPS = ["Identity", "Socials", "Advanced", "Review"];
+const FIELD = "w-full rounded-2xl bg-muted px-4 py-3.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-foreground/15";
 
-function StepBar({ current, steps = STEPS }: { current: number; steps?: string[] }) {
+function Label({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
-    <div className="mb-8 flex items-center gap-0">
-      {steps.map((label, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <div key={`${label}-${i}`} className="flex flex-1 flex-col items-center">
-            <div className="flex w-full items-center">
-              {i > 0 && <div className={`h-px flex-1 ${done ? "bg-primary" : "bg-border"}`} />}
-              <div className={`flex size-7 items-center justify-center rounded-full text-xs font-bold transition-colors
-                ${done ? "bg-primary text-primary-foreground"
-                  : active ? "border-2 border-primary text-primary"
-                  : "border-2 border-border text-muted-foreground"}`}
-              >
-                {done ? <Check className="size-3.5" /> : i + 1}
-              </div>
-              {i < STEPS.length - 1 && <div className={`h-px flex-1 ${done ? "bg-primary" : "bg-border"}`} />}
-            </div>
-            <span className={`mt-1.5 text-[10px] font-medium ${active ? "text-primary" : "text-muted-foreground"}`}>
-              {label}
-            </span>
-          </div>
-        );
-      })}
+    <p className="mb-2 flex items-baseline gap-1.5 text-[15px] font-semibold text-foreground">
+      {children}
+      {hint && <span className="text-xs font-normal text-muted-foreground">{hint}</span>}
+    </p>
+  );
+}
+
+function Err({ msg }: { msg?: string }) {
+  return msg ? <p className="mt-1.5 text-xs text-red-500">{msg}</p> : null;
+}
+
+function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? "bg-up" : "bg-muted-foreground/30"}`}
+    >
+      <span className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
+    </button>
+  );
+}
+
+function ExpandRow({ icon, title, hint, open, onToggle, children }: {
+  icon: React.ReactNode; title: string; hint?: string; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-muted">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-foreground">{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-foreground">{title}</span>
+          {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+        </span>
+        <ChevronRight className={`size-5 shrink-0 text-foreground transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
     </div>
   );
 }
 
-// ─── Étape 1 — Identité ─────────────────────────────────────────────────────
+function SocialInput({ icon, value, onChange, placeholder, error }: {
+  icon: React.ReactNode; value: string; onChange: (v: string) => void; placeholder: string; error?: string;
+}) {
+  return (
+    <div>
+      <div className="relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          className="w-full rounded-xl bg-background py-3 pl-11 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-foreground/15" />
+      </div>
+      <Err msg={error} />
+    </div>
+  );
+}
 
-function StepIdentity({ data, set, errors }: {
+// ─── Écran 1 — Le coin ───────────────────────────────────────────────────────
+
+type Pair = "sol" | "usdc" | "stock";
+
+function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpenSocials, openMore, setOpenMore }: {
   data: WizardData;
   set: (k: keyof WizardData, v: unknown) => void;
   errors: Record<string, string>;
+  chain: "solana" | "arc";
+  onChainChange?: (c: "solana" | "arc") => void;
+  openSocials: boolean; setOpenSocials: (v: boolean) => void;
+  openMore: boolean; setOpenMore: (v: boolean) => void;
 }) {
   const logoRef = useRef<HTMLInputElement>(null);
   const pdfRef  = useRef<HTMLInputElement>(null);
   const { t } = useT();
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<{ name?: boolean; ticker?: boolean }>({});
+  const [share, setShare] = useState(data.fee_recipients.length > 0);
 
   const checkAvailability = useCallback(async () => {
     if (!data.name || !data.ticker) return;
@@ -173,10 +212,7 @@ function StepIdentity({ data, set, errors }: {
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!VALID_LOGO_TYPES.includes(file.type)) {
-      toast.error(t.unsupportedFormat);
-      return;
-    }
+    if (!VALID_LOGO_TYPES.includes(file.type)) { toast.error(t.unsupportedFormat); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error(t.logoMaxSize); return; }
     if (data.logo_preview) URL.revokeObjectURL(data.logo_preview);
     set("logo_file", file);
@@ -190,86 +226,115 @@ function StepIdentity({ data, set, errors }: {
     set("whitepaper_file", file);
   }
 
-  return (
-    <div className="space-y-5">
+  function addRecipient() {
+    if (data.fee_recipients.length >= 4) return;
+    set("fee_recipients", [...data.fee_recipients, { address: "", share_pct: 0 }]);
+  }
+  function updateRecipient(i: number, field: keyof FeeRecipient, val: string | number) {
+    set("fee_recipients", data.fee_recipients.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+  }
+  function removeRecipient(i: number) {
+    set("fee_recipients", data.fee_recipients.filter((_, idx) => idx !== i));
+  }
 
-      {/* Logo upload */}
+  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" ? "stock" : "sol";
+  function pickPair(p: Pair) {
+    if (p === "usdc") { onChainChange?.("arc"); return; }
+    onChainChange?.("solana");
+    set("sol_token_type", p === "stock" ? "stock" : "sol");
+  }
+  const PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
+    { key: "sol",   label: "SOL",   icon: <Image src="/solana.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
+    { key: "usdc",  label: "USDC",  icon: <Image src="/usdc-coin.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
+    { key: "stock", label: "Stock", icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
+  ];
+
+  return (
+    <div className="space-y-6">
+
+      {/* Média */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Token Logo *</label>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => logoRef.current?.click()}
-            className="relative flex size-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary/50"
-          >
-            {data.logo_preview ? (
-              <Image src={data.logo_preview} alt="Logo" fill className="object-cover" unoptimized />
-            ) : (
-              <Upload className="size-6 text-muted-foreground" />
-            )}
+        <Label>Media</Label>
+        <button
+          type="button"
+          onClick={() => logoRef.current?.click()}
+          className="relative flex h-40 w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30"
+        >
+          {data.logo_preview ? (
+            <Image src={data.logo_preview} alt="Logo" fill className="object-contain p-2" unoptimized />
+          ) : (
+            <>
+              <ImageIcon className="size-9 text-foreground" />
+              <span className="text-sm">Upload an image · PNG, JPG, GIF · 5 MB max</span>
+            </>
+          )}
+        </button>
+        {data.logo_file && (
+          <button type="button" onClick={() => { if (data.logo_preview) URL.revokeObjectURL(data.logo_preview); set("logo_file", null); set("logo_preview", null); }}
+            className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+            <X className="size-3" /> Remove
           </button>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>PNG, JPG, GIF — max 5 MB</p>
-            <p>Recommended: 400×400 px</p>
-            {data.logo_file && (
-              <button type="button" onClick={() => { if (data.logo_preview) URL.revokeObjectURL(data.logo_preview); set("logo_file", null); set("logo_preview", null); }}
-                className="flex items-center gap-1 text-red-500 hover:text-red-600">
-                <X className="size-3" /> Remove
-              </button>
-            )}
-          </div>
-        </div>
+        )}
         <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleLogo} />
-        {errors.logo && <p className="mt-1 text-xs text-red-500">{errors.logo}</p>}
+        <Err msg={errors.logo} />
       </div>
 
-      {/* Nom + Ticker */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">Token Name *</label>
-          <input
-            value={data.name}
-            onChange={(e) => { set("name", e.target.value); setAvailability({}); }}
-            onBlur={checkAvailability}
-            placeholder="e.g. Octopus Coin"
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          {availability.name === true && <p className="mt-1 text-xs text-up">✓ Available</p>}
-          {availability.name === false && <p className="mt-1 text-xs text-red-500">✗ Already taken</p>}
-          {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">Ticker *</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-            <input
-              value={data.ticker}
-              onChange={(e) => { set("ticker", e.target.value.toUpperCase().slice(0, 10)); setAvailability({}); }}
-              onBlur={checkAvailability}
-              placeholder="OMERO"
-              className="w-full rounded-xl border border-border bg-background pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary uppercase"
-            />
-          </div>
-          {availability.ticker === true && <p className="mt-1 text-xs text-up">✓ Available</p>}
-          {availability.ticker === false && <p className="mt-1 text-xs text-red-500">✗ Already taken</p>}
-          {checking && <p className="mt-1 text-xs text-muted-foreground">Checking…</p>}
-          {errors.ticker && <p className="mt-1 text-xs text-red-500">{errors.ticker}</p>}
-        </div>
+      {/* Nom */}
+      <div>
+        <Label>Name</Label>
+        <input
+          value={data.name}
+          onChange={(e) => { set("name", e.target.value); setAvailability({}); }}
+          onBlur={checkAvailability}
+          placeholder="Enter the coin name"
+          className={FIELD}
+        />
+        {availability.name === true && <p className="mt-1.5 text-xs text-up">✓ Available</p>}
+        {availability.name === false && <p className="mt-1.5 text-xs text-red-500">✗ Already taken</p>}
+        <Err msg={errors.name} />
+      </div>
+
+      {/* Ticker */}
+      <div>
+        <Label>Ticker</Label>
+        <input
+          value={data.ticker}
+          onChange={(e) => { set("ticker", e.target.value.toUpperCase().slice(0, 10)); setAvailability({}); }}
+          onBlur={checkAvailability}
+          placeholder="Add a ticker (e.g. DOGE)"
+          className={`${FIELD} uppercase placeholder:normal-case`}
+        />
+        {availability.ticker === true && <p className="mt-1.5 text-xs text-up">✓ Available</p>}
+        {availability.ticker === false && <p className="mt-1.5 text-xs text-red-500">✗ Already taken</p>}
+        {checking && <p className="mt-1.5 text-xs text-muted-foreground">Checking…</p>}
+        <Err msg={errors.ticker} />
+      </div>
+
+      {/* Description */}
+      <div>
+        <Label>Description</Label>
+        <textarea
+          value={data.description}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="Enter the coin description"
+          rows={3}
+          maxLength={500}
+          className={`${FIELD} resize-none`}
+        />
+        <Err msg={errors.description} />
       </div>
 
       {/* Catégorie */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Category *</label>
+        <Label>Category</Label>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => set("category", cat)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                data.category === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                data.category === cat ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {cat}
@@ -278,282 +343,303 @@ function StepIdentity({ data, set, errors }: {
         </div>
       </div>
 
-      {/* Description */}
+      {/* Paire de pool */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Description *</label>
-        <textarea
-          value={data.description}
-          onChange={(e) => set("description", e.target.value)}
-          placeholder="Describe your token project…"
-          rows={4}
-          maxLength={500}
-          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-        <p className="mt-0.5 text-right text-xs text-muted-foreground">{data.description.length}/500</p>
-        {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
+        <Label>Pool pair</Label>
+        <div className="grid grid-cols-3 gap-2.5">
+          {PAIRS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => pickPair(p.key)}
+              aria-pressed={pair === p.key}
+              className={`flex flex-col items-center gap-2 rounded-2xl border-2 bg-muted px-2 py-4 transition-colors ${
+                pair === p.key ? "border-up" : "border-transparent hover:border-border"
+              }`}
+            >
+              {p.icon}
+              <span className="text-[15px] font-bold text-foreground">{p.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {pair === "usdc" ? "Launches on Arc, traded in USDC." : pair === "stock" ? "Launches on Solana, paired with a tokenized stock." : "Launches on Solana, traded in SOL."}
+        </p>
+
+        {pair === "stock" && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {XSTOCK_CATALOG_SOLANA.map((s) => (
+              <button
+                key={s.symbol}
+                type="button"
+                onClick={() => set("sol_stock_symbol", s.symbol)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  data.sol_stock_symbol === s.symbol ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <XStockIcon symbol={s.symbol} size={14} />
+                <span>${s.ticker}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Whitepaper PDF */}
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">
-          Whitepaper <span className="text-muted-foreground font-normal">(optional, PDF, max 20 MB)</span>
-        </label>
+      {/* Liens sociaux */}
+      <ExpandRow icon={<LinkIcon className="size-5" />} title="Social links" hint="Optional" open={openSocials} onToggle={() => setOpenSocials(!openSocials)}>
+        <SocialInput icon={<Globe className="size-4" />}         value={data.website}      onChange={(v) => set("website", v)}      placeholder="Website · https://yourtoken.com" error={errors.website} />
+        <SocialInput icon={<Twitter className="size-4" />}       value={data.twitter}      onChange={(v) => set("twitter", v)}      placeholder="X · https://x.com/yourtoken" error={errors.twitter} />
+        <SocialInput icon={<MessageCircle className="size-4" />} value={data.telegram}     onChange={(v) => set("telegram", v)}     placeholder="Telegram · https://t.me/yourtoken" error={errors.telegram} />
+        <SocialInput icon={<Hash className="size-4" />}          value={data.discord}      onChange={(v) => set("discord", v)}      placeholder="Discord · https://discord.gg/yourtoken" error={errors.discord} />
+        <SocialInput icon={<ExternalLink className="size-4" />}  value={data.other_social} onChange={(v) => set("other_social", v)} placeholder="Other · https://…" error={errors.other_social} />
+      </ExpandRow>
+
+      {/* Récompenses créateur */}
+      {chain === "arc" ? (
+        <div>
+          <Label>Fees &amp; rewards</Label>
+          <FeeTierCard tier={data.arc_fee_tier} setTier={(tier) => set("arc_fee_tier", tier)} />
+        </div>
+      ) : (
+        <div>
+          <Label>Send creator rewards to:</Label>
+          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+            {[
+              { on: !share, label: "Me", icon: <User className="size-4" />, click: () => { setShare(false); set("fee_recipients", []); } },
+              { on: share,  label: "Shared", icon: <Users className="size-4" />, click: () => { setShare(true); if (data.fee_recipients.length === 0) addRecipient(); } },
+            ].map((o) => (
+              <button key={o.label} type="button" onClick={o.click}
+                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors ${
+                  o.on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                {o.icon}{o.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            2% trading fee per trade. {share ? "Split your creator fees with up to 4 wallets." : "100% of your creator fees go to your wallet."}
+          </p>
+
+          {share && (
+            <div className="mt-3 space-y-2">
+              {data.fee_recipients.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={r.address}
+                    onChange={(e) => updateRecipient(i, "address", e.target.value)}
+                    placeholder="Solana wallet address"
+                    className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-3 font-mono text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/15"
+                  />
+                  <div className="relative">
+                    <input
+                      type="number" min={1} max={99}
+                      value={r.share_pct}
+                      onChange={(e) => updateRecipient(i, "share_pct", Number(e.target.value))}
+                      className="w-16 rounded-xl bg-muted py-3 pl-2 pr-5 text-center text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/15"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                  </div>
+                  <button type="button" onClick={() => removeRecipient(i)} aria-label="Remove" className="text-muted-foreground transition-colors hover:text-red-500">
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              ))}
+              {data.fee_recipients.length < 4 && (
+                <button type="button" onClick={addRecipient} className="flex items-center gap-1 text-sm font-semibold text-foreground hover:opacity-80">
+                  <Plus className="size-4" /> Add wallet
+                </button>
+              )}
+              <Err msg={errors.fee_recipients} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Plus d'options */}
+      <ExpandRow icon={<SlidersHorizontal className="size-5" />} title="More options" hint={chain === "arc" ? "Whitepaper" : "Scheduled launch, whitepaper"} open={openMore} onToggle={() => setOpenMore(!openMore)}>
+        {chain === "solana" && data.sol_token_type === "sol" && (
+          <div className="rounded-xl bg-background p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Scheduled launch</p>
+                <p className="text-xs text-muted-foreground">+0.1 SOL · not tradeable until the chosen date</p>
+              </div>
+              <Toggle on={data.is_scheduled} onClick={() => set("is_scheduled", !data.is_scheduled)} />
+            </div>
+            {data.is_scheduled && (
+              <>
+                <input
+                  type="datetime-local"
+                  min={tomorrowMin()}
+                  max={maxSchedule()}
+                  value={data.scheduled_at}
+                  onChange={(e) => set("scheduled_at", e.target.value)}
+                  className="mt-3 w-full rounded-xl bg-muted px-3 py-2.5 text-sm text-foreground focus:outline-none"
+                />
+                <Err msg={errors.scheduled_at} />
+              </>
+            )}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => pdfRef.current?.click()}
-          className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground hover:border-primary/50 transition-colors"
+          className="flex w-full items-center gap-2 rounded-xl bg-background px-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <Upload className="size-4" />
-          {data.whitepaper_file ? data.whitepaper_file.name : "Upload PDF"}
+          <span className="truncate">{data.whitepaper_file ? data.whitepaper_file.name : "Whitepaper · PDF, 20 MB max"}</span>
           {data.whitepaper_file && (
-            <X className="size-4 ml-auto text-red-500" onClick={(e) => { e.stopPropagation(); set("whitepaper_file", null); }} />
+            <X className="ml-auto size-4" onClick={(e) => { e.stopPropagation(); set("whitepaper_file", null); }} />
           )}
         </button>
         <input ref={pdfRef} type="file" accept=".pdf" className="hidden" onChange={handlePdf} />
-      </div>
-
+      </ExpandRow>
     </div>
   );
 }
 
-// ─── Étape 2 — Réseaux sociaux ───────────────────────────────────────────────
+// ─── Écran 2 — Premier achat ─────────────────────────────────────────────────
 
-function SocialInput({ icon, label, value, onChange, placeholder }: {
-  icon: React.ReactNode; label: string; value: string;
-  onChange: (v: string) => void; placeholder: string;
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "del"] as const;
+
+function BuyScreen({ data, set, errors, chain, onBack }: {
+  data: WizardData;
+  set: (k: keyof WizardData, v: unknown) => void;
+  errors: Record<string, string>;
+  chain: "solana" | "arc";
+  onBack: () => void;
 }) {
+  const isArc   = chain === "arc";
+  const isStock = !isArc && data.sol_token_type === "stock";
+  const unit    = isArc ? "USDC" : "SOL";
+  const maxDec  = isArc ? 2 : 3;
+  const [raw, setRaw] = useState(() => {
+    if (isArc) return data.arc_first_buy_enabled ? String(data.arc_first_buy_usdc) : "0";
+    return data.first_buy_enabled ? String(data.first_buy_amount) : "0";
+  });
+  const [showFees, setShowFees] = useState(false);
+
+  function commit(next: string) {
+    setRaw(next);
+    const n = parseFloat(next);
+    const ok = !isNaN(n) && n > 0;
+    if (isArc) {
+      set("arc_first_buy_enabled", ok);
+      if (ok) set("arc_first_buy_usdc", n);
+    } else {
+      set("first_buy_enabled", ok);
+      if (ok) set("first_buy_amount", n);
+    }
+  }
+
+  function press(k: (typeof KEYS)[number]) {
+    if (k === "del") { commit(raw.length <= 1 ? "0" : raw.slice(0, -1)); return; }
+    if (k === ".") { if (!raw.includes(".")) commit(raw + "."); return; }
+    const [, dec] = raw.split(".");
+    if (dec !== undefined && dec.length >= maxDec) return;
+    const next = raw === "0" ? k : raw + k;
+    const n = parseFloat(next);
+    if (!isArc && n > 100) return;
+    if (isArc && n > 1_000_000) return;
+    commit(next);
+  }
+
+  const QUICK = isArc ? [25, 50, 100] : [0.1, 0.5, 1];
+  const amount = parseFloat(raw) || 0;
+
+  // Estimation de tokens sur Arc (courbe initiale)
+  let tokensEst = "";
+  if (isArc && amount > 0) {
+    try {
+      const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
+      const usdcWei = BigInt(Math.round(amount * 1e15)) * 1000n;
+      const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
+      const tok = Number(tokensOut / 10n ** 12n) / 1e6;
+      tokensEst = tok >= 1_000_000 ? `≈ ${(tok / 1_000_000).toFixed(2)}M ${data.ticker}` : tok >= 1_000 ? `≈ ${(tok / 1_000).toFixed(1)}K ${data.ticker}` : `≈ ${tok.toFixed(0)} ${data.ticker}`;
+    } catch { tokensEst = ""; }
+  }
+
+  // Coûts (mêmes montants qu'avant)
+  const NETWORK_RENT = data.sol_token_type === "stock" ? 0.038 : 0.02449768;
+  const mintCost = 0.05 + NETWORK_RENT + (data.is_scheduled ? 0.1 : 0);
+  const total = isArc
+    ? `~${(amount + 0.04).toFixed(2)} USDC`
+    : `~${(mintCost + (isStock ? 0 : amount)).toFixed(3)} SOL`;
+  const feeRows: [string, string][] = isArc
+    ? [["Creation fee", "Free"], ["Network gas", "~0.04 USDC"], ...(amount > 0 ? [["First buy", `${amount} USDC`] as [string, string]] : [])]
+    : [
+        ["Platform fee", "0.05 SOL"],
+        ["Network rent", `~${NETWORK_RENT.toFixed(4)} SOL`],
+        ...(data.is_scheduled ? [["Scheduled launch", "0.10 SOL"] as [string, string]] : []),
+        ...(!isStock && amount > 0 ? [["First buy", `${amount} SOL`] as [string, string]] : []),
+        ...(isStock ? [["Signatures", "3 (fee + config + pool)"] as [string, string]] : []),
+      ];
+
   return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-foreground">{label}</label>
-      <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        />
+    <div className="flex flex-col">
+      {/* En-tête */}
+      <div className="mb-2 grid grid-cols-[40px_1fr_40px] items-center">
+        <button type="button" onClick={onBack} aria-label="Back" className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted">
+          <ChevronLeft className="size-6" />
+        </button>
+        <p className="truncate text-center text-[17px] font-bold text-foreground">Buy {data.ticker ? `$${data.ticker}` : "your coin"}</p>
+        <span />
       </div>
-    </div>
-  );
-}
+      <p className="text-center text-sm text-muted-foreground">(Optional) Buy your own coin before launch.</p>
 
-function StepSocials({ data, set, errors }: { data: WizardData; set: (k: keyof WizardData, v: unknown) => void; errors: Record<string, string> }) {
-  return (
-    <div className="space-y-4">
-      <SocialInput icon={<Globe className="size-4" />}           label="Website (optional)"          value={data.website}      onChange={(v) => set("website", v)}      placeholder="https://yourtoken.com" />
-      {errors.website  && <p className="-mt-3 text-xs text-red-500">{errors.website}</p>}
-      <SocialInput icon={<Twitter className="size-4" />}         label="Twitter / X (optional)"      value={data.twitter}      onChange={(v) => set("twitter", v)}      placeholder="https://x.com/yourtoken" />
-      {errors.twitter  && <p className="-mt-3 text-xs text-red-500">{errors.twitter}</p>}
-      <SocialInput icon={<MessageCircle className="size-4" />}   label="Telegram (optional)"         value={data.telegram}     onChange={(v) => set("telegram", v)}     placeholder="https://t.me/yourtoken" />
-      {errors.telegram && <p className="-mt-3 text-xs text-red-500">{errors.telegram}</p>}
-      <SocialInput icon={<Hash className="size-4" />}            label="Discord (optional)" value={data.discord}      onChange={(v) => set("discord", v)}      placeholder="https://discord.gg/yourtoken" />
-      {errors.discord      && <p className="-mt-3 text-xs text-red-500">{errors.discord}</p>}
-      <SocialInput icon={<ExternalLink className="size-4" />}    label="Other (optional)"   value={data.other_social} onChange={(v) => set("other_social", v)} placeholder="https://…" />
-      {errors.other_social && <p className="-mt-3 text-xs text-red-500">{errors.other_social}</p>}
-    </div>
-  );
-}
-
-// ─── Étape 3 — Options avancées ──────────────────────────────────────────────
-
-function StepAdvanced({ data, set, errors }: { data: WizardData; set: (k: keyof WizardData, v: unknown) => void; errors: Record<string, string> }) {
-  function addRecipient() {
-    if (data.fee_recipients.length >= 4) return;
-    set("fee_recipients", [...data.fee_recipients, { address: "", share_pct: 0 }]);
-  }
-  function updateRecipient(i: number, field: keyof FeeRecipient, val: string | number) {
-    const updated = data.fee_recipients.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
-    set("fee_recipients", updated);
-  }
-  function removeRecipient(i: number) {
-    set("fee_recipients", data.fee_recipients.filter((_, idx) => idx !== i));
-  }
-
-  return (
-    <div className="space-y-6">
-
-      {/* Token type — SOL Meme vs Stock-Paired */}
-      <div>
-        <p className="mb-2 text-sm font-medium text-foreground">Token type</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => set("sol_token_type", "sol")}
-            className={`rounded-xl border p-3 text-left transition-colors ${
-              data.sol_token_type === "sol"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-muted-foreground/40"
-            }`}
-          >
-            <p className="text-sm font-semibold text-foreground">◎ SOL Meme</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Classic. Buy/sell with SOL.</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => set("sol_token_type", "stock")}
-            className={`rounded-xl border p-3 text-left transition-colors ${
-              data.sol_token_type === "stock"
-                ? "border-orange-500 bg-orange-500/5"
-                : "border-border hover:border-muted-foreground/40"
-            }`}
-          >
-            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><TrendingUp className="size-4 text-orange-400" /> Stock-Paired</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Paired with an xStock token.</p>
-          </button>
-        </div>
-
-        {/* Stock selector */}
-        {data.sol_token_type === "stock" && (
-          <div className="mt-3 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Choose the paired stock</p>
-            <div className="flex flex-wrap gap-2">
-              {XSTOCK_CATALOG_SOLANA.map((s) => (
-                <button
-                  key={s.symbol}
-                  type="button"
-                  onClick={() => set("sol_stock_symbol", s.symbol)}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    data.sol_stock_symbol === s.symbol
-                      ? "bg-orange-500 text-white"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <XStockIcon symbol={s.symbol} size={14} />
-                  <span>${s.ticker}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Traders will need{" "}
-              <span className="font-semibold text-foreground">{data.sol_stock_symbol}</span>{" "}
-              to buy your token (via Meteora DBC).
+      {isStock ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">First buy isn&apos;t available for stock-paired coins.</p>
+      ) : (
+        <>
+          {/* Montant */}
+          <div className="flex flex-col items-center py-10">
+            <p className="num flex items-baseline gap-2 text-[56px] font-bold leading-none tracking-tight">
+              <span className={amount > 0 ? "text-foreground" : "text-muted-foreground"}>{raw}</span>
+              <span className="text-3xl text-muted-foreground">{unit}</span>
             </p>
+            {tokensEst && <p className="mt-3 text-sm text-muted-foreground">{tokensEst}</p>}
+            <Err msg={errors.first_buy_amount ?? errors.arc_first_buy_usdc} />
           </div>
-        )}
-      </div>
 
-      {/* Frais créateur — fixé à 1% */}
-      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
-        <p className="text-sm font-medium text-foreground">Trading fees</p>
-        <p className="text-xs text-muted-foreground mt-0.5">2% trading fee per trade</p>
-      </div>
-
-      {/* Partage frais — jusqu'à 4 adresses */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="text-sm font-medium text-foreground">
-            Share creator fees <span className="text-muted-foreground font-normal">(optional, max 4)</span>
-          </label>
-          {data.fee_recipients.length < 4 && (
-            <button type="button" onClick={addRecipient}
-              className="flex items-center gap-1 text-xs text-primary hover:opacity-80">
-              <Plus className="size-3.5" /> Add address
-            </button>
-          )}
-        </div>
-        {data.fee_recipients.length === 0 && (
-          <p className="text-xs text-muted-foreground">No co-recipients — 100% goes to your wallet.</p>
-        )}
-        <div className="space-y-2">
-          {data.fee_recipients.map((r, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                value={r.address}
-                onChange={(e) => updateRecipient(i, "address", e.target.value)}
-                placeholder="Solana wallet address"
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <div className="relative">
-                <input
-                  type="number" min={1} max={99}
-                  value={r.share_pct}
-                  onChange={(e) => updateRecipient(i, "share_pct", Number(e.target.value))}
-                  className="w-16 rounded-xl border border-border bg-background px-2 py-2 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-              </div>
-              <button type="button" onClick={() => removeRecipient(i)}
-                className="text-muted-foreground hover:text-red-500 transition-colors">
-                <Trash2 className="size-4" />
+          {/* Raccourcis */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {QUICK.map((q) => (
+              <button key={q} type="button" onClick={() => commit(String(q))}
+                className="rounded-full bg-muted py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                {isArc ? `$${q}` : `${q} SOL`}
               </button>
+            ))}
+          </div>
+
+          {/* Pavé numérique */}
+          <div className="mt-2 grid grid-cols-3">
+            {KEYS.map((k) => (
+              <button key={k} type="button" onClick={() => press(k)} aria-label={k === "del" ? "Delete" : k}
+                className="flex h-14 items-center justify-center rounded-2xl text-2xl font-semibold text-foreground transition-colors active:bg-muted md:hover:bg-muted">
+                {k === "del" ? <Delete className="size-6" /> : k}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Coût */}
+      <button type="button" onClick={() => setShowFees(!showFees)} className="mt-4 flex items-center justify-between py-2 text-sm">
+        <span className="flex items-center gap-1 text-muted-foreground">
+          Total cost <ChevronRight className={`size-4 transition-transform ${showFees ? "rotate-90" : ""}`} />
+        </span>
+        <span className="num font-bold text-foreground">{total}</span>
+      </button>
+      {showFees && (
+        <div className="space-y-1.5 pb-2">
+          {feeRows.map(([l, v]) => (
+            <div key={l} className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{l}</span>
+              <span className="num font-medium text-foreground">{v}</span>
             </div>
           ))}
         </div>
-        {errors.fee_recipients && (
-          <p className="mt-1 text-xs text-red-500">{errors.fee_recipients}</p>
-        )}
-      </div>
-
-      {/* First buy — SOL only (not supported for stock-paired) */}
-      {data.sol_token_type === "sol" && (
-        <div className="rounded-xl border border-border p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">First Buy</p>
-              <p className="text-xs text-muted-foreground">Buy tokens immediately at mint</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => set("first_buy_enabled", !data.first_buy_enabled)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.first_buy_enabled ? "bg-primary" : "bg-muted"}`}
-            >
-              <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.first_buy_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
-            </button>
-          </div>
-          {data.first_buy_enabled && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number" min={0.01} max={100} step={0.01}
-                  value={data.first_buy_amount}
-                  onChange={(e) => set("first_buy_amount", Number(e.target.value))}
-                  className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <span className="text-sm text-muted-foreground">SOL</span>
-              </div>
-              {errors.first_buy_amount && (
-                <p className="text-xs text-red-500">{errors.first_buy_amount}</p>
-              )}
-            </div>
-          )}
-        </div>
       )}
-
-      {/* Lancement programmé — SOL only (not supported for stock-paired) */}
-      {data.sol_token_type === "sol" && (
-        <div className="rounded-xl border border-border p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Scheduled Launch</p>
-              <p className="text-xs text-muted-foreground">+0.1 SOL · Token not tradeable until chosen date</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => set("is_scheduled", !data.is_scheduled)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.is_scheduled ? "bg-primary" : "bg-muted"}`}
-            >
-              <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${data.is_scheduled ? "translate-x-4" : "translate-x-0.5"}`} />
-            </button>
-          </div>
-          {data.is_scheduled && (
-            <div className="space-y-1">
-              <input
-                type="datetime-local"
-                min={tomorrowMin()}
-                max={maxSchedule()}
-                value={data.scheduled_at}
-                onChange={(e) => set("scheduled_at", e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {errors.scheduled_at && (
-                <p className="text-xs text-red-500">{errors.scheduled_at}</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
     </div>
   );
 }
@@ -665,13 +751,6 @@ const ARC_TIER_DEFS = [
   },
 ];
 
-const TIER_TAB_COLORS = [
-  "border-border bg-muted/50 text-foreground",
-  "border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-400",
-  "border-purple-300 bg-purple-50 text-purple-600 dark:border-purple-700 dark:bg-purple-950 dark:text-purple-400",
-  "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-400",
-];
-
 function FeeTierCard({
   tier,
   setTier,
@@ -683,7 +762,7 @@ function FeeTierCard({
   const maxPct = Math.max(...def.rows.map((r) => r.pct));
 
   return (
-    <div className="rounded-xl border border-border bg-background p-4 space-y-4">
+    <div className="space-y-4 rounded-2xl bg-muted p-4">
       {/* Tabs */}
       <div className="grid grid-cols-4 gap-1.5">
         {ARC_TIER_DEFS.map((t) => (
@@ -692,7 +771,7 @@ function FeeTierCard({
             type="button"
             onClick={() => setTier(t.index)}
             className={`rounded-lg border py-1.5 text-[11px] font-medium transition-colors ${
-              tier === t.index ? TIER_TAB_COLORS[t.index] : "border-border text-muted-foreground hover:bg-muted/50"
+              tier === t.index ? "border-foreground bg-background text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             <span className="block">{t.name}</span>
@@ -756,240 +835,6 @@ function FeeTierCard({
   );
 }
 
-// ─── Étape 3 Arc — Options (V2) ─────────────────────────────────────────────
-
-function StepArcOptions({
-  data, set, errors,
-}: {
-  data: WizardData;
-  set: (k: keyof WizardData, v: unknown) => void;
-  errors: Record<string, string>;
-}) {
-  // State local pour le raw string du champ USDC — évite le snap à 0 sur "0."
-  const [rawUsdc, setRawUsdc] = useState(String(data.arc_first_buy_usdc));
-
-  // Estimation tokens sur les réserves initiales de la courbe
-  const usdc = data.arc_first_buy_usdc;
-  const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
-  let tokensEst = "";
-  if (usdc > 0) {
-    try {
-      const usdcWei = BigInt(Math.round(usdc * 1e15)) * 1000n;
-      const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
-      const tok = Number(tokensOut / 10n ** 12n) / 1e6;
-      tokensEst = tok >= 1_000_000
-        ? `≈ ${(tok / 1_000_000).toFixed(2)}M tokens`
-        : tok >= 1_000
-        ? `≈ ${(tok / 1_000).toFixed(1)}K tokens`
-        : `≈ ${tok.toFixed(0)} tokens`;
-    } catch { tokensEst = ""; }
-  }
-
-  return (
-    <div className="space-y-5 pt-2">
-
-      {/* First buy */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">First Buy</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Buy tokens immediately after deployment.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => set("arc_first_buy_enabled", !data.arc_first_buy_enabled)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              data.arc_first_buy_enabled ? "bg-primary" : "bg-muted"
-            }`}
-          >
-            <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${
-              data.arc_first_buy_enabled ? "translate-x-4" : "translate-x-0.5"
-            }`} />
-          </button>
-        </div>
-        {data.arc_first_buy_enabled && (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={rawUsdc}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  setRawUsdc(raw);
-                  // Accepte virgule (FR) ou point (EN) comme séparateur décimal
-                  const n = parseFloat(raw.replace(",", "."));
-                  if (!isNaN(n) && n >= 0) set("arc_first_buy_usdc", n);
-                }}
-                onBlur={() => {
-                  const n = parseFloat(rawUsdc.replace(",", "."));
-                  const valid = !isNaN(n) && n >= 0.01 ? n : 0.1;
-                  setRawUsdc(String(valid));
-                  set("arc_first_buy_usdc", valid);
-                }}
-                placeholder="10"
-                className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <span className="text-sm text-muted-foreground">USDC</span>
-              {tokensEst && (
-                <span className="text-xs text-muted-foreground">{tokensEst}</span>
-              )}
-            </div>
-            {errors.arc_first_buy_usdc && (
-              <p className="text-xs text-red-500">{errors.arc_first_buy_usdc}</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Fee tier selector */}
-      <FeeTierCard
-        tier={data.arc_fee_tier}
-        setTier={(t) => set("arc_fee_tier", t)}
-      />
-
-    </div>
-  );
-}
-
-// ─── Étape 4 — Récapitulatif ─────────────────────────────────────────────────
-
-function StepReview({ data, chain = "solana" }: { data: WizardData; chain?: "solana" | "arc" }) {
-  const PLATFORM_FEE  = 0.05;
-  // xStock: 3 TXs — config + pool accounts add ~0.013 SOL extra rent vs SOL path
-  const NETWORK_RENT  = data.sol_token_type === "stock" ? 0.038 : 0.02449768;
-  const mintCost = PLATFORM_FEE + NETWORK_RENT + (data.is_scheduled ? 0.1 : 0);
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Review everything before signing. This action is irreversible.</p>
-
-      {/* Token */}
-      <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
-        <p className="text-[13px] font-semibold text-muted-foreground">Token</p>
-        <div className="flex items-center gap-3">
-          {data.logo_preview && (
-            <Image src={data.logo_preview} alt="Logo" width={44} height={44} className="rounded-xl object-cover" unoptimized />
-          )}
-          <div>
-            <p className="font-semibold text-foreground">{data.name} <span className="text-muted-foreground font-normal">${data.ticker}</span></p>
-            <p className="text-xs text-muted-foreground">
-              {data.category} · {chain === "arc"
-                ? `${(data.arc_supply / 1_000_000_000).toFixed(data.arc_supply % 1_000_000_000 === 0 ? 0 : 1)}B supply`
-                : "1B supply"}
-            </p>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground">{data.description}</p>
-      </div>
-
-      {/* Socials */}
-      <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-1.5">
-        <p className="text-[13px] font-semibold text-muted-foreground mb-2">Socials</p>
-        {[
-          { label: "Website", value: data.website },
-          { label: "Twitter", value: data.twitter },
-          { label: "Telegram", value: data.telegram },
-          { label: "Discord", value: data.discord },
-          { label: "Other", value: data.other_social },
-        ].filter(s => s.value).map(s => (
-          <div key={s.label} className="flex items-center gap-2 text-sm">
-            <span className="w-16 text-xs text-muted-foreground shrink-0">{s.label}</span>
-            <span className="truncate text-foreground">{s.value}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Options */}
-      <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-2">
-        <p className="text-[13px] font-semibold text-muted-foreground mb-2">Options</p>
-        {chain === "arc" ? (
-          <>
-            <Row label="Supply" value="1,000,000,000 tokens" />
-            <Row label="Type" value="USDC Meme (native Arc)" />
-            <Row label="Bonding curve" value="BondingCurveArcV2 standalone" />
-            <Row label="Graduation" value="2 000 USDC levés" />
-            <Row label="Post-graduation" value="Pool V4 (fee=0.50%, hook=0x0)" />
-            <Row label="Creation fee" value="Gratuit" />
-            {data.arc_first_buy_enabled && (
-              <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
-            )}
-            <Row label="Adresses" value="Auto-générées" highlight />
-          </>
-        ) : (
-          <>
-            <Row label="Type" value={data.sol_token_type === "stock" ? `Stock-Paired (${data.sol_stock_symbol})` : "SOL Meme"} />
-            {data.sol_token_type === "stock" && (
-              <Row label="Signatures" value="3 (fee + DBC config + pool)" />
-            )}
-            {data.fee_recipients.length > 0 && (
-              <Row label="Fee sharing" value={`${data.fee_recipients.length} co-recipient(s)`} />
-            )}
-            {data.first_buy_enabled && data.sol_token_type === "sol" && (
-              <Row label="First buy" value={`${data.first_buy_amount} SOL`} />
-            )}
-            {data.is_scheduled && data.scheduled_at && data.sol_token_type === "sol" && (
-              <Row label="Launch date" value={new Date(data.scheduled_at).toLocaleString()} />
-            )}
-            <Row label="Mint address" value="Auto-generated" highlight />
-          </>
-        )}
-      </div>
-
-      {/* Coût */}
-      {chain === "arc" ? (
-        <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
-          <p className="text-[13px] font-semibold text-muted-foreground mb-2">Coût — Arc</p>
-          <div className="space-y-1">
-            <Row label="Creation fee" value="Gratuit" />
-            {data.arc_first_buy_enabled && (
-              <Row label="First buy" value={`${data.arc_first_buy_usdc} USDC`} />
-            )}
-            <Row label="Gas (deploy ~2M gas)" value="~0.04 USDC" />
-            <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-              <span className="text-sm font-semibold text-foreground">Total</span>
-              <span className="text-sm font-bold text-blue-500">
-                ~{((data.arc_first_buy_enabled ? data.arc_first_buy_usdc : 0) + 0.04).toFixed(2)} USDC
-              </span>
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            MetaMask will open to sign the transaction on Arc.
-          </p>
-          <p className="mt-1 text-xs text-amber-500">
-            ⚠️ Phantom must not be set as the default EVM wallet. Go to Phantom → Settings → Default wallet → Always ask.
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-[13px] font-semibold text-muted-foreground mb-2">Cost</p>
-          <div className="space-y-1">
-            <Row label="Platform fee" value="0.05 SOL" />
-            <Row label="Network rent (Meteora)" value="~0.0245 SOL" />
-            {data.is_scheduled && <Row label="Scheduled launch" value="0.10 SOL" />}
-            {data.first_buy_enabled && <Row label="First buy" value={`${data.first_buy_amount} SOL`} />}
-            <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-              <span className="text-sm font-semibold text-foreground">Total</span>
-              <span className="text-sm font-bold text-primary">
-                ~{(mintCost + (data.first_buy_enabled ? data.first_buy_amount : 0)).toFixed(2)} SOL
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={`font-medium ${highlight ? "font-mono text-violet-600 dark:text-violet-400" : "text-foreground"}`}>{value}</span>
-    </div>
-  );
-}
-
 // ─── Validation ──────────────────────────────────────────────────────────────
 
 function isValidUrl(s: string): boolean {
@@ -1028,6 +873,18 @@ function validate(step: number, data: WizardData): Record<string, string> {
   return errors;
 }
 
+function validateScreen(screen: number, data: WizardData): Record<string, string> {
+  if (screen === 0) {
+    const e = { ...validate(0, data), ...validate(1, data), ...validate(2, data) };
+    delete e.first_buy_amount;
+    return e;
+  }
+  const e: Record<string, string> = {};
+  if (data.first_buy_enabled && data.sol_token_type === "sol" && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
+  if (data.arc_first_buy_enabled && data.arc_first_buy_usdc < 0.01) e.arc_first_buy_usdc = "Minimum first buy is 0.01 USDC";
+  return e;
+}
+
 // ─── Wizard principal ────────────────────────────────────────────────────────
 
 type InitialData = Partial<Pick<WizardData,
@@ -1038,9 +895,11 @@ type InitialData = Partial<Pick<WizardData,
 export function CreateTokenWizard({
   initialData,
   chain = "solana",
+  onChainChange,
 }: {
   initialData?: InitialData;
   chain?: "solana" | "arc";
+  onChainChange?: (c: "solana" | "arc") => void;
 }) {
   const router = useRouter();
   const { walletAddress, walletType, selectedChain } = useAuth();
@@ -1049,6 +908,8 @@ export function CreateTokenWizard({
   const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [openSocials, setOpenSocials] = useState(false);
+  const [openMore, setOpenMore] = useState(false);
 
   // Réinitialiser le step quand on change de chaîne
   useEffect(() => { setStep(0); setErrors({}); }, [chain]);
@@ -1059,10 +920,17 @@ export function CreateTokenWizard({
   }
 
   function next() {
-    const errs = validate(step, data);
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    const errs = validateScreen(0, data);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      if (["website", "twitter", "telegram", "discord", "other_social"].some((k) => errs[k])) setOpenSocials(true);
+      if (errs.scheduled_at) setOpenMore(true);
+      toast.error(Object.values(errs)[0]);
+      return;
+    }
     setErrors({});
-    setStep((s) => s + 1);
+    setStep(1);
+    window.scrollTo({ top: 0 });
   }
 
   function back() { setStep((s) => s - 1); }
@@ -1272,6 +1140,8 @@ export function CreateTokenWizard({
   }
 
   async function submit() {
+    const errs = validateScreen(1, data);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSubmitting(true);
     try {
       if (chain === "arc") {
@@ -1287,93 +1157,65 @@ export function CreateTokenWizard({
     }
   }
 
-  // Pour Arc : 4 étapes — Identity, Socials, Options, Review
-  const arcSteps = ["Identity", "Socials", "Options", "Review"];
-  const effectiveSteps = chain === "arc" ? arcSteps : STEPS;
-  const maxStep = effectiveSteps.length - 1;
-
-  // Résoudre l'index réel pour les composants Solana partagés
-  // Arc step 0 = Identity, 1 = Socials, 2 = ArcOptions (nouveau), 3 = Review (= solana step 3)
-  const solanaStep = chain === "arc" && step === 3 ? 3 : step;
-
-  if (chain === "solana" && (!walletAddress || selectedChain !== "solana")) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">
-          {walletAddress ? "Solana wallet required" : "Connect your wallet to launch a token"}
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {walletAddress
-            ? "Connect a Solana wallet (Phantom, Solflare…) to deploy on Solana."
-            : "You need a Solana wallet to create and sign the transaction."}
-        </p>
-        {walletAddress && (
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-up hover:bg-emerald-500/20 transition-colors"
-          >
-            Switch wallet
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (chain === "arc" && selectedChain !== "arc") {
-    return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">Arc wallet required</p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Deploying on Arc requires an EVM wallet.<br />
-          {walletAddress
-            ? "Connect an EVM wallet (MetaMask, Rabby…) to deploy on Arc."
-            : "Connect an EVM wallet to deploy on Arc."}
-        </p>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
-        >
-          Switch wallet
-        </button>
-      </div>
-    );
-  }
+  // Wallet requis selon la chaîne (affiché à la place du bouton Créer)
+  const walletIssue =
+    chain === "solana" && (!walletAddress || selectedChain !== "solana")
+      ? (walletAddress ? "Connect a Solana wallet (Phantom, Solflare…) to launch on Solana." : "Connect your wallet to launch a coin.")
+      : chain === "arc" && selectedChain !== "arc"
+      ? "Connect an EVM wallet (MetaMask, Rabby…) to launch on Arc."
+      : null;
 
   return (
-    <div className="rounded-[22px] border border-border bg-card p-6">
-      <StepBar current={step} steps={effectiveSteps} />
+    <div className="pb-4">
+      {step === 0 ? (
+        <>
+        <div className="mb-6 grid grid-cols-[40px_1fr_40px] items-center">
+          <Link href="/launchpad" aria-label="Back" className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted">
+            <ChevronLeft className="size-6" />
+          </Link>
+          <h1 className="text-center text-[17px] font-bold text-foreground">Create a coin</h1>
+          <span />
+        </div>
+        <CoinForm
+          data={data} set={set} errors={errors} chain={chain} onChainChange={onChainChange}
+          openSocials={openSocials} setOpenSocials={setOpenSocials}
+          openMore={openMore} setOpenMore={setOpenMore}
+        />
+        </>
+      ) : (
+        <BuyScreen data={data} set={set} errors={errors} chain={chain} onBack={() => setStep(0)} />
+      )}
 
-      <div className="min-h-[400px]">
-        {solanaStep === 0 && <StepIdentity   data={data} set={set} errors={errors} />}
-        {solanaStep === 1 && <StepSocials    data={data} set={set} errors={errors} />}
-        {chain === "arc"  && step === 2 && <StepArcOptions data={data} set={set} errors={errors} />}
-        {chain !== "arc"  && solanaStep === 2 && <StepAdvanced data={data} set={set} errors={errors} />}
-        {solanaStep === 3 && <StepReview     data={data} chain={chain} />}
-      </div>
-
-      {/* Navigation */}
-      <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
-        {step > 0 ? (
-          <button type="button" onClick={back}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft className="size-4" /> Back
-          </button>
-        ) : <div />}
-
-        {step < maxStep ? (
+      {/* Action */}
+      <div className="sticky bottom-24 z-10 mt-6 md:bottom-4">
+        {step === 0 ? (
           <button type="button" onClick={next}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
-            Continue <ChevronRight className="size-4" />
+            className="w-full rounded-2xl bg-up py-4 text-base font-bold text-black shadow-lg transition-opacity hover:opacity-90">
+            Next
           </button>
+        ) : walletIssue ? (
+          <div className="rounded-2xl bg-muted p-4 text-center">
+            <p className="text-sm text-foreground">{walletIssue}</p>
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+              className="mt-3 rounded-full bg-foreground px-5 py-2 text-sm font-bold text-background">
+              {walletAddress ? "Switch wallet" : "Connect wallet"}
+            </button>
+          </div>
         ) : (
           <button type="button" onClick={submit} disabled={submitting}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity">
+            className="w-full rounded-2xl bg-up py-4 text-base font-bold text-black shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50">
             {submitting
               ? chain === "arc" ? "Deploying on Arc…" : "Creating…"
-              : chain === "arc" ? "🚀 Deploy on Arc" : "🚀 Launch Token"}
+              : `Create ${data.ticker ? `$${data.ticker}` : "coin"}`}
           </button>
         )}
       </div>
+      <p className="mt-2 text-center text-xs text-muted-foreground">Coin data can&apos;t be changed after creation.</p>
+      {step === 1 && chain === "arc" && (
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          MetaMask opens to sign on Arc. In Phantom, set the default wallet to “Always ask”.
+        </p>
+      )}
     </div>
   );
 }
