@@ -20,6 +20,14 @@ function fonts() {
   return fontsP;
 }
 
+// Logo lu sur le disque (pas de fetch réseau : il échouait derrière le proxy/CDN)
+async function cardLogo(): Promise<string | null> {
+  try {
+    const buf = await readFile(path.join(process.cwd(), "public", "card-logo.png"));
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch { return null; }
+}
+
 function fmtDate(ms: number, span: number) {
   const d = new Date(ms);
   return span <= 2 * 24 * 3600_000
@@ -31,6 +39,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ wallet: 
   const { wallet } = await params;
   const url = new URL(req.url);
   const origin = url.origin;
+  const logo = await cardLogo();
   const p = (url.searchParams.get("p") ?? "30d") as GainsPeriod;
   const period: GainsPeriod = p in GAINS_PERIODS ? p : "30d";
 
@@ -106,7 +115,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ wallet: 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 128, padding: "0 56px", background: `linear-gradient(90deg, ${ORANGE}, #ff8a2e, #ff5a00)`, color: "#fff" }}>
           <div style={{ display: "flex", alignItems: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${origin}/card-logo.png`} alt="" width={68} height={68} style={{ borderRadius: 68 }} />
+            <img src={logo ?? `${origin}/card-logo.png`} alt="" width={68} height={68} style={{ borderRadius: 68 }} />
             <div style={{ display: "flex", fontSize: 48, fontWeight: 800, marginLeft: 18, letterSpacing: -1 }}>omdot.fun</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
