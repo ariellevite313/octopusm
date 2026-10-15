@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp } from "lucide-react";
+import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
@@ -72,9 +72,9 @@ type TabId   = "all" | "graduated" | "scheduled" | "watchlist";
 type ChainId = "all" | "solana" | "arc";
 
 const TABS: { id: TabId; label: string; icon?: React.ReactNode }[] = [
-  { id: "all",       label: "All" },
-  { id: "graduated", label: "Graduated" },
-  { id: "scheduled", label: "Scheduled" },
+  { id: "all",       label: "New" },
+  { id: "scheduled", label: "Soon" },
+  { id: "graduated", label: "Bonded" },
   { id: "watchlist", label: "Watchlist", icon: <Bell className="size-3" /> },
 ];
 
@@ -283,6 +283,107 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
         <span className="text-[10px] text-muted-foreground/50">
           {timeAgo(token.created_at)}
         </span>
+      </div>
+    </Link>
+  );
+}
+
+// ── TokenPulseRow (téléphone + ordinateur) ───────────────────────────────────
+
+function fmtK(n: number | null): string {
+  if (n === null || n === undefined) return "$—";
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(2)}B`;
+  if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)         return `$${(n / 1_000).toFixed(2)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+const STATUS_PILL: Record<string, { label: string; cls: string }> = {
+  active:     { label: "Live",       cls: "text-up" },
+  graduating: { label: "Graduating", cls: "text-amber-500" },
+  graduated:  { label: "Bonded",     cls: "text-sky-500" },
+  pending:    { label: "Pending",    cls: "text-muted-foreground" },
+  cancelled:  { label: "Cancelled",  cls: "text-down" },
+};
+
+function TokenPulseRow({ token }: { token: LaunchpadToken }) {
+  const href = `/launchpad/${token.mint_address ?? token.id}`;
+  const isArc = token.chain === "arc";
+  const quote = isArc ? "USDC" : token.stock_symbol ? token.stock_symbol.replace(/^x/, "") : "SOL";
+  const st = STATUS_PILL[token.status] ?? STATUS_PILL.pending;
+  const creator = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
+  const isScheduled = token.is_scheduled && !token.is_tradeable;
+
+  return (
+    <Link href={href} className="flex gap-3 px-3 py-3.5 transition-colors hover:bg-muted/40 sm:gap-4 sm:px-4 sm:py-4">
+      {/* Image + CA */}
+      <div className="flex w-[68px] shrink-0 flex-col items-center gap-1.5 sm:w-[88px]">
+        <div className="relative size-[68px] sm:size-[88px]">
+          <div className="relative size-full overflow-hidden rounded-[20px] bg-muted">
+            {token.logo_url ? (
+              <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>
+            )}
+          </div>
+          <Image
+            src={isArc ? "/arc-logo.jpeg" : "/solana.png"}
+            alt={isArc ? "Arc" : "Solana"}
+            width={24} height={24}
+            className="absolute -bottom-1 -right-1 size-5 rounded-full ring-2 ring-card sm:size-6"
+            unoptimized
+          />
+        </div>
+        {token.mint_address && (
+          <CopyButton text={token.mint_address}>{shortAddr(token.mint_address, 3, 4)}</CopyButton>
+        )}
+      </div>
+
+      {/* Infos */}
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-[15px] font-bold tracking-tight text-foreground sm:text-[17px]">{token.ticker}</span>
+            {token.is_verified && <BadgeCheck className="size-4 shrink-0 self-center fill-primary text-card" />}
+            <span className="hidden truncate text-sm text-muted-foreground sm:inline">{token.name}</span>
+          </p>
+          <p className="num flex shrink-0 items-baseline gap-2 text-[13px] font-bold text-foreground sm:gap-2.5 sm:text-[15px]">
+            <span><span className="mr-0.5 text-[10px] font-semibold text-muted-foreground sm:mr-1 sm:text-xs">V</span>{fmtK(token.volume_24h_usd)}</span>
+            <span><span className="mr-0.5 text-[10px] font-semibold text-muted-foreground sm:mr-1 sm:text-xs">MC</span>{fmtK(token.market_cap_usd)}</span>
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="num text-[13px] font-bold text-up sm:text-sm">{timeAgo(token.created_at).toLowerCase()}</span>
+            <span className="whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">Fee 2%</span>
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">
+              {token.stock_symbol && !isArc
+                ? <XStockIcon symbol={token.stock_symbol} size={12} />
+                : <Image src={isArc ? "/usdc-coin.png" : "/solana.png"} alt="" width={12} height={12} className="rounded-full" unoptimized />}
+              {quote}
+            </span>
+          </div>
+          <p className="num shrink-0 text-[13px] font-bold text-foreground sm:text-sm">
+            <span className="mr-0.5 text-[10px] font-semibold text-muted-foreground sm:mr-1 sm:text-xs">P</span>
+            {token.price_usd === null || token.price_usd === undefined ? "$—" : `$${token.price_usd < 0.01 ? token.price_usd.toPrecision(3) : token.price_usd.toFixed(4)}`}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-muted py-1 pl-1 pr-3">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background text-[10px] font-bold text-foreground">
+              {creator.replace(/^@/, "").slice(0, 1).toUpperCase()}
+            </span>
+            <span className="truncate text-[13px] font-semibold text-foreground sm:text-sm">{creator}</span>
+          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className={`hidden text-sm font-semibold min-[400px]:inline ${isScheduled ? "text-violet-500" : st.cls}`}>{isScheduled ? "Soon" : st.label}</span>
+            <span className="flex items-center gap-1 rounded-full bg-up px-3 py-1.5 text-[13px] font-bold text-black sm:px-3.5 sm:text-sm">
+              <Zap className="size-4 fill-current" />Buy
+            </span>
+          </div>
+        </div>
       </div>
     </Link>
   );
@@ -638,16 +739,16 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       {/* Top bar */}
       <div className="space-y-3">
         {/* Row 1: Tabs + chain filter + view toggle */}
-        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border">
-          <div className="-mb-px flex items-center gap-1 overflow-x-auto scrollbar-none">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2">
             {TABS.map(t => (
               <button
                 key={t.id}
                 onClick={() => handleTabChange(t.id)}
-                className={`shrink-0 flex items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-[15px] font-bold transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 rounded-full px-5 py-2.5 text-[15px] font-bold transition-colors ${
                   tab === t.id
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t.icon}
@@ -682,7 +783,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 pb-2 lg:hidden">
+          <div className="hidden">
             {/* Grid / List toggle */}
             <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
               <button
@@ -775,22 +876,13 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           )}
         </div>
       ) : (
-        <>
-          <div className="hidden lg:block">
-            <TokenTable tokens={visibleTokens} offset={tab === "watchlist" ? 0 : page * LIMIT} sort={sort} onSort={handleSortChange} />
-          </div>
-          <div className="lg:hidden">
-            {viewMode === "grid" ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                {visibleTokens.map(token => <TokenRow key={token.id} token={token} />)}
-              </div>
-            )}
-          </div>
-        </>
+        <div className="overflow-hidden rounded-[24px] border border-border bg-card lg:grid lg:grid-cols-2 lg:gap-px lg:bg-border">
+          {visibleTokens.map(token => (
+            <div key={token.id} className="border-b border-border last:border-0 lg:border-0 lg:bg-card">
+              <TokenPulseRow token={token} />
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Pagination (not for watchlist) */}
