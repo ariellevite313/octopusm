@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Rocket, User } from "lucide-react";
+import { LayoutGrid, Rocket, User, Trophy } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const NAV_ITEMS = [
   { label: "Tokens",      href: "/launchpad",             icon: LayoutGrid },
+  { label: "Leaderboard", href: "/leaderboard/launchpad", icon: Trophy     },
   { label: "+ Launch",    href: "/launchpad/create",      icon: Rocket     },
   { label: "My tokens",   href: "/dashboard/launchpad",   icon: User       },
 ];

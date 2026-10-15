@@ -9,7 +9,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const limit = Math.min(Math.max(parseInt(new URL(req.url).searchParams.get("limit") ?? "10") || 10, 1), 20);
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
@@ -23,7 +24,7 @@ export async function GET() {
       .gt("volume_24h_usd", 0)
       .eq("is_hidden", false)
       .order("volume_24h_usd", { ascending: false, nullsFirst: false })
-      .limit(10);
+      .limit(limit);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
