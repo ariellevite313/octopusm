@@ -1,7 +1,7 @@
 "use client";
 
 import { useT, Rich } from "@/lib/i18n";
-import { startPhantomConnect } from "@/lib/wallet/phantom-deeplink";
+import { startDeeplinkConnect } from "@/lib/wallet/phantom-deeplink";
 import { type WalletInfo, type WalletType, WALLET_COLORS } from "@/lib/wallet/adapters";
 
 type Props = {
@@ -35,8 +35,9 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
       // sinon vers Chrome — dans les deux cas auth-provider.tsx restaure la session.
       const inApp = /OMdotApp/.test(navigator.userAgent);
       // Navigateur mobile classique (Chrome, Safari) : Phantom par liens profonds, sans ouvrir le site dans Phantom.
-      if (wallet.type === "phantom" && !inApp) {
-        startPhantomConnect(
+      if ((wallet.type === "phantom" || wallet.type === "solflare") && !inApp) {
+        startDeeplinkConnect(
+          wallet.type,
           sessionStorage.getItem("referral_code") ?? new URLSearchParams(window.location.search).get("ref") ?? undefined,
         );
         return;
