@@ -153,6 +153,40 @@ async function signAndBroadcast(
   return broadcastTx(signed);
 }
 
+/**
+ * "Wallet first" pour la transaction de pool (TX B, chemin SOL) :
+ * on retire la pré-signature du serveur, le wallet signe EN PREMIER
+ * (signTransaction, pas signAndSend), puis le serveur ajoute la signature
+ * de la mint et diffuse. Phantom ne voit plus une transaction déjà signée
+ * par un tiers — cause principale de son avertissement.
+ */
+async function walletFirstSignAndSend(
+  wallet: SolanaWallet,
+  txBase64: string,
+  tokenId: string,
+  walletAddress: string,
+  onSending: () => void,
+): Promise<string> {
+  const tx = Transaction.from(Buffer.from(txBase64, "base64"));
+  const me = new PublicKey(walletAddress);
+  for (const s of tx.signatures) {
+    if (!s.publicKey.equals(me)) s.signature = null;
+  }
+  const signed = await wallet.signTransaction(tx);
+  onSending();
+  const res = await fetch(`/api/launchpad/${tokenId}/cosign-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      signedTransactionBase64: Buffer.from(signed.serialize({ requireAllSignatures: false, verifySignatures: false })).toString("base64"),
+      walletAddress,
+    }),
+  });
+  const body = await res.json() as { signature?: string; error?: string };
+  if (!res.ok || !body.signature) throw new Error(body.error ?? `Broadcast failed (${res.status})`);
+  return body.signature;
+}
+
 /** Wait for a transaction to reach "confirmed" status before proceeding. */
 async function waitForConfirmation(sig: string): Promise<void> {
   const { Connection } = await import("@solana/web3.js");
@@ -374,7 +408,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     setPhase("signing-b");
     let txBSig = "";
     try {
-      txBSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+      txBSig = txCBase64
+        ? await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"))       // xStock : inchangé
+        : await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"));
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       console.error("[launch] TX B failed:", raw);
@@ -436,7 +472,9 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     setPhase("signing-b");
     let txBSig = "";
     try {
-      txBSig = await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"));
+      txBSig = txCBase64
+        ? await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"))       // xStock : inchangé
+        : await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"));
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       console.error("[launch] TX B (Phantom) failed:", raw);
