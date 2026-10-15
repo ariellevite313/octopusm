@@ -320,7 +320,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
     <Link href={href} className="grid grid-cols-[minmax(0,1fr)_120px_120px_80px_auto] items-center gap-6 border-b border-border px-2 py-4 transition-colors last:border-0 hover:bg-muted/30">
       <div className="flex min-w-0 items-center gap-4">
         <div className="relative size-14 shrink-0">
-          <div className={`relative size-14 overflow-hidden rounded-full bg-muted ring-2 ring-offset-2 ring-offset-background ${isScheduled ? "ring-violet-500" : RING[token.status] ?? "ring-border"}`}>
+          <div className={`relative size-14 overflow-hidden rounded-[16px] bg-muted ring-2 ring-offset-2 ring-offset-background ${isScheduled ? "ring-violet-500" : RING[token.status] ?? "ring-border"}`}>
             {token.logo_url
               ? <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
               : <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>}

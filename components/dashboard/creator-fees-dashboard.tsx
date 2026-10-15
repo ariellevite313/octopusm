@@ -90,7 +90,7 @@ function TokenFeeRow({
 }) {
   return (
     <div className="flex items-center gap-3.5 py-3">
-      <div className="size-12 shrink-0 overflow-hidden rounded-full bg-muted">
+      <div className="size-12 shrink-0 overflow-hidden rounded-[14px] bg-muted">
         {token.logoUrl ? (
           <Image src={token.logoUrl} alt={token.name} width={48} height={48} className="size-full object-cover" unoptimized />
         ) : (

@@ -179,11 +179,11 @@ export function LeaderboardTabs() {
                       width={56}
                       height={56}
                       unoptimized
-                      className="size-14 rounded-full object-cover"
+                      className="size-14 rounded-[16px] object-cover"
                     />
                   ) : (
                     <div
-                      className="flex size-14 items-center justify-center rounded-full text-xl font-bold text-white"
+                      className="flex size-14 items-center justify-center rounded-[16px] text-xl font-bold text-white"
                       style={{ background: walletGradient(entry.wallet_address) }}
                     >
                       {name[0].toUpperCase()}
