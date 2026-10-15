@@ -6,13 +6,16 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
+import { LanguageSelect } from "@/components/shared/language-select";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 const NAV_LINKS = [
-  { href: "/prediction",              label: "Markets",     badge: undefined, disabled: false },
-  { href: "/leaderboard/predictions", label: "Leaderboard", badge: undefined, disabled: false },
-  { href: "/launchpad",               label: "Launchpad",   badge: undefined, disabled: false },
-  { href: "/archive",                 label: "Archive",     badge: undefined, disabled: false },
+  { href: "/prediction",              label: T("Markets"),     badge: undefined, disabled: false },
+  { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
+  { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },
+  { href: "/archive",                 label: T("Archive"),     badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
 function isActive(href: string, pathname: string) {
@@ -32,9 +35,10 @@ export function Header() {
   }, []);
   const pathname = usePathname();
   const { isAuthenticated, walletAddress } = useAuth();
+  const { tr } = useT();
   const inLaunchpad = pathname === "/" || pathname.startsWith("/launchpad") || pathname.startsWith("/dashboard") || pathname.startsWith("/leaderboard/launchpad");
   type NavLink = { href: string; label: string; badge?: string; disabled: boolean; external?: boolean };
-  const links: NavLink[] = (NAV_LINKS as NavLink[]).map((l) => (l.label === "Leaderboard" && inLaunchpad ? { ...l, href: "/leaderboard/launchpad" } : l));
+  const links: NavLink[] = (NAV_LINKS as NavLink[]).map((l) => (l.label === T("Leaderboard") && inLaunchpad ? { ...l, href: "/leaderboard/launchpad" } : l));
 
   return (
     <>
@@ -52,10 +56,10 @@ export function Header() {
                   key={label}
                   className="flex items-center gap-1.5 cursor-not-allowed text-muted-foreground/50 select-none"
                 >
-                  {label}
+                  {tr(label)}
                   {badge && (
                     <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-                      {badge}
+                      {tr(badge)}
                     </span>
                   )}
                 </span>
@@ -71,7 +75,7 @@ export function Header() {
                       : "text-muted-foreground"
                   }`}
                 >
-                  {label}
+                  {tr(label)}
                   {external && <span className="text-[10px] opacity-40">↗</span>}
                 </Link>
               )
@@ -79,10 +83,11 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <LanguageSelect />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}
-              aria-label="Open navigation menu"
+              aria-label={tr("Open navigation menu")}
               className="flex size-10 items-center justify-center text-foreground transition-opacity hover:opacity-70"
             >
               <span aria-hidden className="flex w-6 flex-col gap-[6px]"><span className="h-[3px] w-full rounded-full bg-current" /><span className="h-[3px] w-full rounded-full bg-current" /></span>
@@ -100,10 +105,10 @@ export function Header() {
           />
           <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
             <div className="flex h-16 items-center justify-between px-5">
-              <span className="text-lg font-bold tracking-tight text-foreground">Menu</span>
+              <span className="text-lg font-bold tracking-tight text-foreground">{tr("Menu")}</span>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="Close menu"
+                aria-label={tr("Close menu")}
                 className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
               >
                 <X className="size-4" />
@@ -119,7 +124,7 @@ export function Header() {
                 >
                   <span className="flex items-center gap-2.5">
                     <span className="size-2 rounded-full bg-up" />
-                    <span className="text-[15px] font-semibold text-foreground">My wallet</span>
+                    <span className="text-[15px] font-semibold text-foreground">{tr("My wallet")}</span>
                   </span>
                   <span className="font-mono text-[13px] text-muted-foreground">
                     {walletAddress.slice(0, 4)}…{walletAddress.slice(-4)}
@@ -131,7 +136,7 @@ export function Header() {
                   onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-wallet-connect")); }}
                   className="btn-primary flex h-12 w-full items-center justify-center rounded-2xl text-[15px]"
                 >
-                  Connect Wallet
+                  {tr("Connect Wallet")}
                 </button>
               )}
             </div>
@@ -142,10 +147,10 @@ export function Header() {
                     key={label}
                     className="flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-muted-foreground/50 cursor-not-allowed select-none"
                   >
-                    {label}
+                    {tr(label)}
                     {badge && (
                       <span className="text-[9px] font-normal text-muted-foreground/60">
-                        {badge.toLowerCase()}
+                        {tr(badge).toLowerCase()}
                       </span>
                     )}
                   </span>
@@ -162,7 +167,7 @@ export function Header() {
                         : "text-muted-foreground"
                     }`}
                   >
-                    {label}
+                    {tr(label)}
                     {external && <span className="text-xs opacity-30">↗</span>}
                   </Link>
                 )

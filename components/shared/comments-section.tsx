@@ -8,15 +8,16 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { useQuery } from "@tanstack/react-query";
 import { getWalletProfile } from "@/services/wallet-service";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { useT } from "@/lib/i18n";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60)    return "just now";
-  if (diff < 3600)  return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
-  return `${Math.floor(diff / 86400)} d ago`;
+  if (diff < 60)    return tr("just now");
+  if (diff < 3600)  return tr("{n} min ago", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return tr("{n} h ago", { n: Math.floor(diff / 3600) });
+  return tr("{n} d ago", { n: Math.floor(diff / 86400) });
 }
 
 function shortAddr(addr: string) {
@@ -66,6 +67,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
   onReply: (parentId: string, content: string) => Promise<void>;
   onRequestConnect?: () => void;
 }) {
+  const { tr } = useT();
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText]         = useState("");
   const [replyPosting, setReplyPosting]   = useState(false);
@@ -92,7 +94,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
       setReplyText("");
       setShowReplyForm(false);
     } catch {
-      toast.error("Failed to post reply");
+      toast.error(tr("Failed to post reply"));
     } finally {
       setReplyPosting(false);
     }
@@ -108,16 +110,16 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
               {comment.username ?? shortAddr(comment.wallet_address)}
             </span>
             {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
-            <span className="text-sm text-muted-foreground">· {timeAgo(comment.created_at)}</span>
+            <span className="text-sm text-muted-foreground">· {timeAgo(comment.created_at, tr)}</span>
           </div>
           <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground">{comment.content}</p>
           <div className="mt-2.5 flex items-center gap-12">
-            <button type="button" aria-label="Reply" onClick={() => { if (!isAuthenticated) { onRequestConnect?.(); return; } setShowReplyForm(v => !v); }}
+            <button type="button" aria-label={tr("Reply")} onClick={() => { if (!isAuthenticated) { onRequestConnect?.(); return; } setShowReplyForm(v => !v); }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
               <MessageCircle className="size-5" />
               {comment.replies.length > 0 && <span className="num">{comment.replies.length}</span>}
             </button>
-            <button type="button" aria-label="Like" onClick={() => onLike(comment.id, false)}
+            <button type="button" aria-label={tr("Like")} onClick={() => onLike(comment.id, false)}
               className={`flex items-center gap-1.5 text-sm transition-colors ${comment.liked_by_me ? "text-down" : "text-muted-foreground hover:text-foreground"}`}>
               <Heart className={`size-5 ${comment.liked_by_me ? "fill-current" : ""}`} />
               {comment.like_count > 0 && <span className="num">{comment.like_count}</span>}
@@ -137,10 +139,10 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
                     {reply.username ?? shortAddr(reply.wallet_address)}
                   </span>
                   {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
-                  <span className="text-sm text-muted-foreground">· {timeAgo(reply.created_at)}</span>
+                  <span className="text-sm text-muted-foreground">· {timeAgo(reply.created_at, tr)}</span>
                 </div>
                 <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground">{reply.content}</p>
-                <button type="button" aria-label="Like" onClick={() => onLike(reply.id, true)}
+                <button type="button" aria-label={tr("Like")} onClick={() => onLike(reply.id, true)}
                   className={`mt-2 flex items-center gap-1.5 text-sm transition-colors ${reply.liked_by_me ? "text-down" : "text-muted-foreground hover:text-foreground"}`}>
                   <Heart className={`size-5 ${reply.liked_by_me ? "fill-current" : ""}`} />
                   {reply.like_count > 0 && <span className="num">{reply.like_count}</span>}
@@ -156,22 +158,22 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
           <div className="relative flex-1">
             <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void submitReply(); }}
-              placeholder="Write a reply..." rows={2} maxLength={1000} disabled={replyPosting}
+              placeholder={tr("Write a reply...")} rows={2} maxLength={1000} disabled={replyPosting}
               className="w-full resize-none rounded-2xl bg-muted px-4 py-2.5 pb-8 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50" />
             <div className="absolute bottom-2 left-3" ref={emojiRef}>
               <button type="button" onClick={() => setShowEmoji(v => !v)}
-                className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity" aria-label="Add emoji">😊</button>
+                className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity" aria-label={tr("Add emoji")}>😊</button>
               {showEmoji && <EmojiPicker onSelect={e => { setReplyText(t => t + e); setShowEmoji(false); }} />}
             </div>
           </div>
           <div className="self-end flex flex-col gap-1.5">
             <button onClick={() => void submitReply()} disabled={!replyText.trim() || replyPosting}
               className="rounded-full bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">
-              {replyPosting ? "..." : "Reply"}
+              {replyPosting ? "..." : tr("Reply")}
             </button>
             <button onClick={() => { setShowReplyForm(false); setReplyText(""); }}
               className="rounded-full px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted">
-              Cancel
+              {tr("Cancel")}
             </button>
           </div>
         </div>
@@ -190,6 +192,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
   onRequestConnect?: () => void;
   apiBase?: string;
 }) {
+  const { tr } = useT();
   const [comments, setComments] = useState<MarketCommentEnriched[]>(initialComments);
   const [text, setText]         = useState("");
   const [posting, setPosting]   = useState(false);
@@ -222,7 +225,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
       setComments(prev => [{ ...data, like_count: 0, liked_by_me: false, replies: [] }, ...prev]);
       setText("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to post comment");
+      toast.error(tr(err instanceof Error ? err.message : "Failed to post comment"));
     } finally {
       setPosting(false);
     }
@@ -289,7 +292,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold tracking-tight text-foreground">
-        Comments {totalCount > 0 && <span className="text-muted-foreground">{totalCount}</span>}
+        {tr("Comments")} {totalCount > 0 && <span className="text-muted-foreground">{totalCount}</span>}
       </h2>
 
       {/* Composer */}
@@ -301,12 +304,12 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
               onFocus={() => { if (!isAuthenticated) { onRequestConnect?.(); return; } setFocused(true); }}
               onBlur={() => setFocused(false)}
               onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void postComment(); }}
-              placeholder="Join discussion" disabled={posting} rows={open ? 3 : 1} maxLength={1000}
+              placeholder={tr("Join discussion")} disabled={posting} rows={open ? 3 : 1} maxLength={1000}
               className={`w-full resize-none bg-muted px-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 ${open ? "rounded-2xl py-3 pb-9" : "rounded-full py-3"}`} />
             {open && (
               <div className="absolute bottom-2.5 left-3" ref={emojiRef}>
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowEmoji(v => !v)}
-                  className="text-base leading-none opacity-60 transition-opacity hover:opacity-100" aria-label="Add emoji">😊</button>
+                  className="text-base leading-none opacity-60 transition-opacity hover:opacity-100" aria-label={tr("Add emoji")}>😊</button>
                 {showEmoji && <EmojiPicker onSelect={e => { setText(t => t + e); setShowEmoji(false); }} />}
               </div>
             )}
@@ -318,7 +321,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
             <div className="mt-2 flex justify-end">
               <button onMouseDown={e => e.preventDefault()} onClick={() => void postComment()} disabled={posting || !text.trim()}
                 className="rounded-full bg-foreground px-5 py-2 text-sm font-bold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">
-                {posting ? "..." : "Post"}
+                {posting ? "..." : tr("Post")}
               </button>
             </div>
           )}
@@ -326,7 +329,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
       </div>
 
       {comments.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No comments yet. Be the first!</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">{tr("No comments yet. Be the first!")}</p>
       ) : (
         <div className="space-y-7">
           {comments.map(c => (

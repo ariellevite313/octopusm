@@ -5,6 +5,7 @@ import { UpDownSection } from "./updown-cards";
 import { MarketCard } from "@/components/market/market-card";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
+import { useT } from "@/lib/i18n";
 
 type Tab = "updown" | "hitprice";
 
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
+  const { tr } = useT();
   const [tab, setTab] = useState<Tab>("updown");
 
   return (
@@ -29,7 +31,7 @@ export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
               : "text-muted-foreground hover:text-foreground",
           ].join(" ")}
         >
-          Up / Down
+          {tr("Up / Down")}
         </button>
         <button
           type="button"
@@ -41,7 +43,7 @@ export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
               : "text-muted-foreground hover:text-foreground",
           ].join(" ")}
         >
-          Event
+          {tr("Event")}
         </button>
       </div>
 
@@ -51,7 +53,7 @@ export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
         hitPriceMarkets.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <span className="text-5xl">🎯</span>
-            <p className="text-muted-foreground">No active Event markets at the moment.</p>
+            <p className="text-muted-foreground">{tr("No active Event markets at the moment.")}</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -17,12 +17,35 @@ import {
   useContext,
   useState,
   useEffect,
+  useMemo,
+  useCallback,
+  useRef,
   type ReactNode,
 } from "react";
+import { es } from "./i18n-dicts/es";
+import { pt } from "./i18n-dicts/pt";
+import { zh } from "./i18n-dicts/zh";
+import { ru } from "./i18n-dicts/ru";
+import { ar } from "./i18n-dicts/ar";
+import { tr as trTurkish } from "./i18n-dicts/tr";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type Lang = "en" | "fr";
+export type Lang = "en" | "fr" | "es" | "pt" | "zh" | "ru" | "ar" | "tr";
+
+/** Langues proposées (nom dans sa propre langue). */
+export const LANGS: { code: Lang; label: string; short: string; rtl?: boolean }[] = [
+  { code: "en", label: "English",   short: "EN" },
+  { code: "fr", label: "Français",  short: "FR" },
+  { code: "es", label: "Español",   short: "ES" },
+  { code: "pt", label: "Português", short: "PT" },
+  { code: "zh", label: "中文",       short: "中文" },
+  { code: "ru", label: "Русский",   short: "RU" },
+  { code: "ar", label: "العربية",   short: "AR", rtl: true },
+  { code: "tr", label: "Türkçe",    short: "TR" },
+];
+
+const isLang = (v: unknown): v is Lang => LANGS.some((l) => l.code === v);
 
 export type Translations = {
   // ── Common ─────────────────────────────────────────────────────────────────
@@ -481,54 +504,157 @@ const fr: Translations = {
 
 // ── Context ────────────────────────────────────────────────────────────────────
 
+type Vars = Record<string, string | number>;
+
 type LangContextValue = {
   lang: Lang;
   t: Translations;
+  /** Traduit une phrase écrite en anglais (clé = texte anglais). {nom} = variable. Repli : l'anglais. */
+  tr: (text: string, vars?: Vars) => string;
   toggleLang: () => void;
   setLang: (l: Lang) => void;
 };
 
+function fill(text: string, vars?: Vars) {
+  return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+}
+
 const LangContext = createContext<LangContextValue>({
   lang: "en",
   t: en,
+  tr: (text, vars) => fill(text, vars),
   toggleLang: () => {},
   setLang: () => {},
 });
 
 // ── Provider ───────────────────────────────────────────────────────────────────
 
+function applyLang(l: Lang) {
+  const meta = LANGS.find((x) => x.code === l);
+  document.documentElement.lang = l;
+  document.documentElement.dir = meta?.rtl ? "rtl" : "ltr";
+}
+
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    if (typeof window === "undefined") return "en";
-    return (localStorage.getItem("octo-lang") as Lang) ?? "en";
-  });
+  // Même rendu côté serveur et au premier rendu client ; la langue réelle est lue juste après.
+  const [lang, setLangState] = useState<Lang>("en");
 
   useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
+    let l: Lang = "en";
+    try {
+      const saved = localStorage.getItem("octo-lang");
+      if (isLang(saved)) l = saved;
+      else {
+        const nav = (navigator.languages?.[0] ?? navigator.language ?? "en").slice(0, 2).toLowerCase();
+        if (isLang(nav)) l = nav;
+      }
+    } catch { /* ignore */ }
+    setLangState(l);
+    applyLang(l);
+  }, []);
 
   function setLang(l: Lang) {
     setLangState(l);
-    localStorage.setItem("octo-lang", l);
-    document.documentElement.lang = l;
+    try { localStorage.setItem("octo-lang", l); } catch { /* ignore */ }
+    applyLang(l);
   }
 
   function toggleLang() {
     setLang(lang === "en" ? "fr" : "en");
   }
 
-  const value: LangContextValue = {
-    lang,
-    t: lang === "fr" ? fr : en,
-    toggleLang,
-    setLang,
-  };
+  // Les clés non traduites retombent sur l'anglais
+  const t = useMemo<Translations>(() => {
+    const dict: Partial<Translations> =
+      lang === "fr" ? fr : lang === "es" ? es : lang === "pt" ? pt : lang === "zh" ? zh : lang === "ru" ? ru : lang === "ar" ? ar : lang === "tr" ? trTurkish : en;
+    return { ...en, ...dict };
+  }, [lang]);
 
-  return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
+  // Phrases (clé = texte anglais) : chargées à la demande pour la langue choisie
+  const [phrases, setPhrases] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (lang === "en") { setPhrases({}); return; }
+    let live = true;
+    import(`./i18n-phrases/${lang}`)
+      .then((m) => { if (live) setPhrases(m.default ?? {}); })
+      .catch(() => { if (live) setPhrases({}); });
+    return () => { live = false; };
+  }, [lang]);
+
+  const tr = useCallback(
+    (text: string, vars?: Vars) => fill(phrases[text] ?? text, vars),
+    [phrases],
+  );
+
+  const value: LangContextValue = { lang, t, tr, toggleLang, setLang };
+
+  return (
+    <LangContext.Provider value={value}>
+      <DocTitle />
+      {children}
+    </LangContext.Provider>
+  );
+}
+
+/** Traduit le titre de l'onglet (défini côté serveur en anglais) selon la langue choisie. */
+function DocTitle() {
+  const { lang, tr } = useT();
+  const orig = useRef("");
+  const last = useRef("");
+  useEffect(() => {
+    const SUFFIX = " - OMdotfun";
+    const apply = () => {
+      if (document.title !== last.current) orig.current = document.title;
+      const cur = orig.current;
+      if (!cur) return;
+      const hasSuffix = cur.endsWith(SUFFIX);
+      const base = hasSuffix ? cur.slice(0, -SUFFIX.length) : cur;
+      let out = tr(base);
+      if (out === base) {
+        const m = base.match(/^(.+?) ([—|]) (.+)$/);
+        if (m) out = `${tr(m[1])} ${m[2]} ${m[3]}`;
+      }
+      const next = hasSuffix ? out + SUFFIX : out;
+      last.current = next;
+      if (document.title !== next) document.title = next;
+    };
+    apply();
+    const obs = new MutationObserver(apply);
+    obs.observe(document.head, { childList: true, characterData: true, subtree: true });
+    return () => obs.disconnect();
+  }, [lang, tr]);
+  return null;
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
 export function useT() {
   return useContext(LangContext);
+}
+
+/** Texte traduit pour du JSX rendu côté serveur : <Tr>Launch date</Tr> */
+export function Tr({ children, vars }: { children: string; vars?: Vars }) {
+  const { tr } = useT();
+  return <>{tr(children, vars)}</>;
+}
+
+/**
+ * Texte riche : <b>gras</b>, <br/> et [lien](/chemin) dans une phrase traduite.
+ * Ex. : <Rich>{tr("Pay <b>2 USDC</b> or see the [FAQ](/faq).")}</Rich>
+ */
+export function Rich({ children, linkClass = "text-violet-600 dark:text-violet-400 underline underline-offset-2" }: { children: string; linkClass?: string }) {
+  const out: ReactNode[] = [];
+  const re = /<b>(.*?)<\/b>|<br\s*\/?>|\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0, i = 0, m: RegExpExecArray | null;
+  while ((m = re.exec(children))) {
+    if (m.index > last) out.push(children.slice(last, m.index));
+    if (m[1] !== undefined) out.push(<strong key={i++}>{m[1]}</strong>);
+    else if (m[2] !== undefined) {
+      const ext = /^https?:/.test(m[3]);
+      out.push(<a key={i++} href={m[3]} className={linkClass} {...(ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{m[2]}</a>);
+    } else out.push(<br key={i++} />);
+    last = m.index + m[0].length;
+  }
+  if (last < children.length) out.push(children.slice(last));
+  return <>{out}</>;
 }

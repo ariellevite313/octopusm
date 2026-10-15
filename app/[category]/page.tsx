@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cap = category.charAt(0).toUpperCase() + category.slice(1);
   const description = `Prediction markets in the ${cap} category on OMdotfun.`;
   return {
-    title: `${cap} Markets | OMdotfun`,
+    title: `${cap} Markets`,
     description,
     alternates: { canonical: `https://omdot.fun/${category}` },
     openGraph: {

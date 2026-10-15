@@ -6,6 +6,8 @@ import { ExternalLink, Rocket, Clock, AlertCircle, RotateCcw, Trash2 } from "luc
 import { toast } from "sonner";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -40,10 +42,19 @@ const STATUS_PILL: Record<string, string> = {
   cancelled:  "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
 };
 
-function statusLabel(token: MyToken): string {
-  if (token.status === "active" && !token.is_tradeable) return "Scheduled";
-  if (token.status === "active" && token.is_tradeable)  return "Live";
-  return token.status.charAt(0).toUpperCase() + token.status.slice(1);
+const STATUS_LABELS: Record<string, string> = {
+  pending:    T("Pending"),
+  active:     T("Active"),
+  graduating: T("Graduating"),
+  graduated:  T("Graduated"),
+  cancelled:  T("Cancelled"),
+};
+
+function statusLabel(token: MyToken, tr: (s: string) => string): string {
+  if (token.status === "active" && !token.is_tradeable) return tr("Scheduled");
+  if (token.status === "active" && token.is_tradeable)  return tr("Live");
+  const fallback = token.status.charAt(0).toUpperCase() + token.status.slice(1);
+  return tr(STATUS_LABELS[token.status] ?? fallback);
 }
 
 function statusPillClass(token: MyToken): string {
@@ -63,8 +74,8 @@ function fmtAddr(addr: string): string {
   return `${addr.slice(0, 4)}…${addr.slice(-6)}`;
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+function fmtDate(iso: string, lang: Lang): string {
+  return new Date(iso).toLocaleDateString(LOCALES[lang], {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -74,7 +85,7 @@ function fmtDate(iso: string): string {
 // ── Token Card ─────────────────────────────────────────────────────────────────
 
 function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string) => void }) {
-  const { t } = useT();
+  const { t, tr, lang } = useT();
   const isPending    = token.status === "pending";
   const isCancelled  = token.status === "cancelled";
   const isScheduled  = token.status === "active" && !token.is_tradeable;
@@ -92,10 +103,10 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
       toast.success(t.deleted(token.name));
       onDelete(token.id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t.deletionFailed);
+      toast.error(err instanceof Error ? tr(err.message) : t.deletionFailed);
       setDeleting(false);
     }
-  }, [token.id, token.name, onDelete, t]);
+  }, [token.id, token.name, onDelete, t, tr]);
 
   return (
     <div className="overflow-hidden rounded-[22px] border border-border bg-card">
@@ -125,7 +136,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
               <p className="text-xs text-muted-foreground font-mono">${token.ticker}</p>
             </div>
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusPillClass(token)}`}>
-              {statusLabel(token)}
+              {statusLabel(token, tr)}
             </span>
           </div>
 
@@ -140,15 +151,15 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
               <span>{token.category}</span>
             )}
             <span>·</span>
-            <span>Supply {formatSupply(token.supply)}</span>
+            <span>{tr("Supply {amount}", { amount: formatSupply(token.supply) })}</span>
             <span>·</span>
-            <span>Created {fmtDate(token.created_at)}</span>
+            <span>{tr("Created {date}", { date: fmtDate(token.created_at, lang) })}</span>
           </div>
 
           {/* Mint address */}
           {token.mint_address && (
             <p className="text-[11px] font-mono text-muted-foreground">
-              Mint: {fmtAddr(token.mint_address)}
+              {tr("Mint: {address}", { address: fmtAddr(token.mint_address) })}
             </p>
           )}
 
@@ -156,7 +167,7 @@ function TokenCard({ token, onDelete }: { token: MyToken; onDelete: (id: string)
           {isScheduled && token.scheduled_at && (
             <div className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400">
               <Clock className="size-3.5 shrink-0" />
-              Launches {fmtDate(token.scheduled_at)}
+              {tr("Launches {date}", { date: fmtDate(token.scheduled_at, lang) })}
             </div>
           )}
 
@@ -245,7 +256,7 @@ interface Props {
 }
 
 export function MyTokensSection({ walletAddress }: Props) {
-  const { t } = useT();
+  const { t, tr } = useT();
   const [tokens, setTokens]   = useState<MyToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
@@ -277,7 +288,7 @@ export function MyTokensSection({ walletAddress }: Props) {
     <section>
       {/* Header */}
       <div className="mb-3">
-        <h2 className="text-base font-bold text-foreground">My Tokens</h2>
+        <h2 className="text-base font-bold text-foreground">{tr("My Tokens")}</h2>
       </div>
 
       {/* Body */}

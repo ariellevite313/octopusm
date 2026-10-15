@@ -8,6 +8,7 @@ import { MarketGrid } from "./market-grid";
 import { TrendingSection } from "./trending-section";
 import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
+import { useT } from "@/lib/i18n";
 
 // ─── Module-level cache (survives React navigation, cleared on page reload) ────
 interface CacheEntry {
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function MarketsClient({ category, initialMarkets }: Props) {
+  const { tr } = useT();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const key = category ?? "__all__";
@@ -89,8 +91,8 @@ export function MarketsClient({ category, initialMarkets }: Props) {
   }, [key]);
 
   const emptyMsg = category
-    ? "No active markets in this category."
-    : "No active markets right now.";
+    ? tr("No active markets in this category.")
+    : tr("No active markets right now.");
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">

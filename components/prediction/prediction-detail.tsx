@@ -26,6 +26,8 @@ import type { MarketVolumeDetail } from "@/services/prediction-service";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import dynamic from "next/dynamic";
 import { CommentsSection } from "@/components/shared/comments-section";
+import { useT } from "@/lib/i18n";
+import { T, LOCALES } from "@/lib/i18n-mark";
 
 const CryptoPriceChart = dynamic(
   () => import("@/components/prediction/crypto-price-chart").then(m => m.CryptoPriceChart),
@@ -65,9 +67,9 @@ function formatCLT(n: number) {
   return String(n);
 }
 
-function fmtVol(usdc: number, clt: number) {
+function fmtVol(usdc: number, clt: number, locale = "en-US") {
   const parts: string[] = [];
-  if (usdc > 0) parts.push(`$${usdc.toLocaleString("en-US", { maximumFractionDigits: 0 })} USDC`);
+  if (usdc > 0) parts.push(`$${usdc.toLocaleString(locale, { maximumFractionDigits: 0 })} USDC`);
   if (clt > 0)  parts.push(`${(clt / 1_000_000).toFixed(1)}M CLT`);
   return parts.join(" · ") || "—";
 }
@@ -84,13 +86,14 @@ function getMarketStatus(market: PredictionMarketRow): MarketStatus {
 }
 
 const STATUS_STYLES: Record<MarketStatus, { label: string; cls: string; dot?: boolean }> = {
-  open:     { label: "Open",     cls: "border-transparent bg-up/12 text-up", dot: false },
-  live:     { label: "Live",     cls: "border-transparent bg-up/12 text-up", dot: true  },
-  resolved: { label: "Resolved", cls: "border-transparent bg-muted text-muted-foreground", dot: false },
-  closed:   { label: "Closed",   cls: "border-border bg-muted text-muted-foreground", dot: false },
+  open:     { label: T("Open"),     cls: "border-transparent bg-up/12 text-up", dot: false },
+  live:     { label: T("Live"),     cls: "border-transparent bg-up/12 text-up", dot: true  },
+  resolved: { label: T("Resolved"), cls: "border-transparent bg-muted text-muted-foreground", dot: false },
+  closed:   { label: T("Closed"),   cls: "border-border bg-muted text-muted-foreground", dot: false },
 };
 
 function StatusBadge({ market }: { market: PredictionMarketRow }) {
+  const { tr } = useT();
   const status = getMarketStatus(market);
   const { label, cls, dot } = STATUS_STYLES[status];
   return (
@@ -101,7 +104,7 @@ function StatusBadge({ market }: { market: PredictionMarketRow }) {
           <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
         </span>
       )}
-      {label}
+      {tr(label)}
     </span>
   );
 }
@@ -117,6 +120,7 @@ function computeProbabilities(options: MarketOption[]): number[] {
 // ─── Share button ──────────────────────────────────────────────────────────────────
 
 function ShareButton() {
+  const { tr } = useT();
   const [copied, setCopied] = useState(false);
 
   function handleShare() {
@@ -133,7 +137,7 @@ function ShareButton() {
       className="flex items-center gap-1.5 rounded-xl bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
     >
       {copied ? <Check className="size-3.5 text-up" /> : <Share2 className="size-3.5" />}
-      {copied ? "Copied!" : "Share"}
+      {copied ? tr("Copied!") : tr("Share")}
     </button>
   );
 }
@@ -141,11 +145,12 @@ function ShareButton() {
 // ─── Market visual ────────────────────────────────────────────────────────────────
 
 function MarketVisual({ market }: { market: PredictionMarketRow }) {
+  const { tr } = useT();
   if (market.visual_type === "vs") {
     return (
       <div className="flex items-center justify-center gap-4 py-2">
         <Competitor name={market.left_competitor_name}  src={market.left_competitor_image_src}  />
-        <span className="rounded-lg bg-muted px-2 py-1 text-sm font-black text-muted-foreground">VS</span>
+        <span className="rounded-lg bg-muted px-2 py-1 text-sm font-black text-muted-foreground">{tr("VS")}</span>
         <Competitor name={market.right_competitor_name} src={market.right_competitor_image_src} />
       </div>
     );
@@ -194,30 +199,31 @@ function RewardSummary({
   option: MarketOption;
   token: BetToken;
 }) {
+  const { tr, lang } = useT();
   const reward = computeReward(amount, option.oddsMultiplier);
 
   const fmt = (n: number) =>
     token === "clawdtrust"
-      ? `${n.toLocaleString("en-US")} ClawdTrust`
+      ? `${n.toLocaleString(LOCALES[lang])} ClawdTrust`
       : `$${n.toFixed(2)} USDC`;
 
   return (
     <div className="num space-y-2 border-t border-border pt-4 text-sm">
       <div className="flex justify-between text-muted-foreground">
-        <span>Stake</span>
+        <span>{tr("Stake")}</span>
         <span className="font-medium text-foreground">{fmt(reward.stake)}</span>
       </div>
       <div className="flex justify-between text-zinc-500 text-xs dark:text-zinc-500">
-        <span>Reserve fee (1%)</span>
+        <span>{tr("Reserve fee (1%)")}</span>
         <span>+{fmt(reward.reserveFee)}</span>
       </div>
       <div className="flex justify-between border-t border-border pt-2 text-zinc-700 font-semibold dark:text-zinc-300">
-        <span>You pay</span>
+        <span>{tr("You pay")}</span>
         <span>{fmt(reward.totalCharged)}</span>
       </div>
       <div className="flex justify-between text-emerald-700 font-bold dark:text-emerald-400">
-        <span>Potential win ×{option.oddsMultiplier}</span>
-        <span>{fmt(reward.netReward)} <span className="text-xs font-normal text-muted-foreground">net</span></span>
+        <span>{tr("Potential win ×{mult}", { mult: option.oddsMultiplier })}</span>
+        <span>{fmt(reward.netReward)} <span className="text-xs font-normal text-muted-foreground">{tr("net")}</span></span>
       </div>
     </div>
   );
@@ -226,6 +232,7 @@ function RewardSummary({
 // ─── Success banner ───────────────────────────────────────────────────────────────
 
 function SuccessBanner({ reference }: { reference: string }) {
+  const { tr } = useT();
   return (
     <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-5 text-center space-y-2 dark:border-emerald-800/60 dark:bg-emerald-950/20">
       <div className="flex justify-center">
@@ -235,11 +242,11 @@ function SuccessBanner({ reference }: { reference: string }) {
           </svg>
         </span>
       </div>
-      <p className="text-base font-semibold text-emerald-900 dark:text-emerald-300">Prediction submitted!</p>
+      <p className="text-base font-semibold text-emerald-900 dark:text-emerald-300">{tr("Prediction submitted!")}</p>
       <p className="text-sm text-up">
-        Your prediction is pending admin review. You&apos;ll be credited once confirmed.
+        {tr("Your prediction is pending admin review. You'll be credited once confirmed.")}
       </p>
-      <p className="text-xs text-zinc-400 font-mono break-all">ref: {reference}</p>
+      <p className="text-xs text-zinc-400 font-mono break-all">{tr("ref: {ref}", { ref: reference })}</p>
     </div>
   );
 }
@@ -255,6 +262,7 @@ export function PredictionDetail({
   volumeDetail: MarketVolumeDetail;
   initialComments: MarketCommentEnriched[];
 }) {
+  const { tr, lang } = useT();
   const { walletAddress, walletType, isAuthenticated, setWalletType } = useAuth();
 
   const options = useMemo(() => parseMarketOptions(market.options), [market.options]);
@@ -289,11 +297,11 @@ export function PredictionDetail({
       await connectWalletAndAuth(type);
       setWalletType(type);
     } catch (err) {
-      toast.error("Connection failed", {
-        description: err instanceof Error ? err.message : "Could not connect wallet.",
+      toast.error(tr("Connection failed"), {
+        description: tr(err instanceof Error ? err.message : "Could not connect wallet."),
       });
     }
-  }, [setWalletType]);
+  }, [setWalletType, tr]);
 
   async function handleSubmit() {
     if (!isAuthenticated || !walletAddress) {
@@ -301,15 +309,15 @@ export function PredictionDetail({
       return;
     }
     if (!selectedOpt) {
-      toast.error("Choose an option first.");
+      toast.error(tr("Choose an option first."));
       return;
     }
     if (!isAmountValid) {
-      toast.error("Invalid amount", {
+      toast.error(tr("Invalid amount"), {
         description:
           token === "clawdtrust"
-            ? `Minimum ${MIN_STAKE_CLT.toLocaleString("en-US")} ClawdTrust.`
-            : `Enter between $${MIN_STAKE_USDC} and $${MAX_STAKE_USDC} USDC.`,
+            ? tr("Minimum {min} ClawdTrust.", { min: MIN_STAKE_CLT.toLocaleString(LOCALES[lang]) })
+            : tr("Enter between ${min} and ${max} USDC.", { min: MIN_STAKE_USDC, max: MAX_STAKE_USDC }),
       });
       return;
     }
@@ -334,11 +342,11 @@ export function PredictionDetail({
       setSuccessRef(result.reference);
     } else {
       setSubmitState("error");
-      toast.error(result.error);
+      toast.error(tr(result.error));
     }
   }
 
-  const totalVol = fmtVol(volumeDetail.total.usdc, volumeDetail.total.clt);
+  const totalVol = fmtVol(volumeDetail.total.usdc, volumeDetail.total.clt, LOCALES[lang]);
 
   return (
     <>
@@ -388,11 +396,11 @@ export function PredictionDetail({
         <div className="num mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-[13px] text-muted-foreground">
           {totalVol !== "—" && (
             <span>
-              <span className="font-semibold text-foreground">Vol:</span> {totalVol}
+              <span className="font-semibold text-foreground">{tr("Vol:")}</span> {totalVol}
             </span>
           )}
           {market.event_start_at && (
-            <span>{new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(market.event_start_at))}</span>
+            <span>{new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(market.event_start_at))}</span>
           )}
         </div>
       </div>
@@ -406,7 +414,7 @@ export function PredictionDetail({
           {/* 1 — Option selector with % */}
           <section>
             <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
-              Your prediction
+              {tr("Your prediction")}
             </h2>
             <div
               className={
@@ -419,7 +427,7 @@ export function PredictionDetail({
                 const isSelected  = opt.id === selectedId;
                 const prob        = probs[idx];
                 const optVol      = volumeDetail.byOption[opt.id];
-                const optVolLabel = optVol ? fmtVol(optVol.usdc, optVol.clt) : null;
+                const optVolLabel = optVol ? fmtVol(optVol.usdc, optVol.clt, LOCALES[lang]) : null;
                 const color       = optionColor(idx, opt.label);
                 return (
                   <button
@@ -493,7 +501,7 @@ export function PredictionDetail({
                       </button>
                     ))}
                   </div>
-                  <button type="button" onClick={() => setBetOpen(false)} aria-label="Close"
+                  <button type="button" onClick={() => setBetOpen(false)} aria-label={tr("Close")}
                     className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground">
                     <X className="size-4" />
                   </button>
@@ -524,7 +532,7 @@ export function PredictionDetail({
                 </div>
 
                 {/* Montant */}
-                <p className="text-[15px] font-semibold text-foreground">Amount</p>
+                <p className="text-[15px] font-semibold text-foreground">{tr("Amount")}</p>
                 <div className="flex items-baseline justify-center gap-2 py-3">
                   <span className={`num text-[52px] font-bold leading-none tracking-tight ${rawAmount ? "text-foreground" : "text-muted-foreground/50"}`}>{rawAmount || "0"}</span>
                   <span className="text-xl font-bold text-muted-foreground">{token === "clawdtrust" ? "CLT" : "USDC"}</span>
@@ -540,35 +548,38 @@ export function PredictionDetail({
                   <button type="button"
                     onClick={() => setRawAmount(token === "clawdtrust" ? String(Math.max(MIN_STAKE_CLT, amount)) : String(MAX_STAKE_USDC))}
                     className="rounded-xl bg-muted py-2.5 text-[13px] font-bold text-foreground transition-colors hover:bg-muted/70">
-                    {token === "clawdtrust" ? "Min" : "Max"}
+                    {token === "clawdtrust" ? tr("Min") : tr("Max")}
                   </button>
                 </div>
                 {rawAmount && !isAmountValid && (
                   <p className="mt-2 text-xs text-red-500 dark:text-red-400">
                     {token === "clawdtrust"
-                      ? `Minimum ${MIN_STAKE_CLT.toLocaleString("en-US")} ClawdTrust`
-                      : `Enter between $${MIN_STAKE_USDC} and $${MAX_STAKE_USDC}`}
+                      ? tr("Minimum {min} ClawdTrust", { min: MIN_STAKE_CLT.toLocaleString(LOCALES[lang]) })
+                      : tr("Enter between ${min} and ${max}", { min: MIN_STAKE_USDC, max: MAX_STAKE_USDC })}
                   </p>
                 )}
 
                 {/* À gagner */}
                 <div className="mt-4 flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[15px] text-muted-foreground">
-                    To win
+                    {tr("To win")}
                     <span className="rounded-md bg-up/15 px-1.5 py-0.5 text-xs font-semibold text-up">{selectedOpt.label}</span>
                   </span>
                   <span className="num text-[30px] font-bold leading-none text-up">
                     {(() => {
                       const r = isAmountValid ? computeReward(amount, selectedOpt.oddsMultiplier).netReward : 0;
-                      return token === "clawdtrust" ? `${Math.round(r).toLocaleString("en-US")}` : `$${r.toFixed(2)}`;
+                      return token === "clawdtrust" ? `${Math.round(r).toLocaleString(LOCALES[lang])}` : `$${r.toFixed(2)}`;
                     })()}
                   </span>
                 </div>
                 {isAmountValid && (
                   <p className="mt-1 text-right text-xs text-muted-foreground">
-                    You pay {token === "clawdtrust"
-                      ? `${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toLocaleString("en-US")} CLT`
-                      : `$${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toFixed(2)}`} · incl. 1% fee · ×{selectedOpt.oddsMultiplier}
+                    {tr("You pay {amount} · incl. 1% fee · ×{mult}", {
+                      amount: token === "clawdtrust"
+                        ? `${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toLocaleString(LOCALES[lang])} CLT`
+                        : `$${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toFixed(2)}`,
+                      mult: selectedOpt.oddsMultiplier,
+                    })}
                   </p>
                 )}
 
@@ -581,10 +592,10 @@ export function PredictionDetail({
                     isAuthenticated && !canSubmit ? "cursor-not-allowed bg-muted text-muted-foreground" : "bg-primary text-white hover:opacity-90"
                   }`}
                 >
-                  {submitState === "signing" ? "Waiting for signature…"
-                    : submitState === "submitting" ? "Confirming…"
-                    : !isAuthenticated ? "Connect wallet"
-                    : `Predict ${selectedOpt.label}`}
+                  {submitState === "signing" ? tr("Waiting for signature…")
+                    : submitState === "submitting" ? tr("Confirming…")
+                    : !isAuthenticated ? tr("Connect wallet")
+                    : tr("Predict {label}", { label: selectedOpt.label })}
                 </button>
 
                 {/* Pavé numérique */}
@@ -599,7 +610,7 @@ export function PredictionDetail({
           {market.resolution_criteria && (
             <section className="space-y-2">
               <h2 className="text-[13px] font-semibold text-muted-foreground">
-                 Resolution criteria
+                 {tr("Resolution criteria")}
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {market.resolution_criteria}

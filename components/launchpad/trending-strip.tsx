@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { BurningFire } from "@/components/shared/burning-fire";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
+import { useT } from "@/lib/i18n";
 
 type TrendingToken = {
   id:             string;
@@ -28,6 +29,7 @@ function fmtCompact(n: number | null): string {
 }
 
 export function TrendingStrip() {
+  const { tr } = useT();
   const [tokens, setTokens] = useState<TrendingToken[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,8 +48,8 @@ export function TrendingStrip() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <BurningFire />
-        <span className="text-lg font-bold tracking-tight text-foreground">Trending</span>
-        <span className="text-sm text-muted-foreground">24h volume</span>
+        <span className="text-lg font-bold tracking-tight text-foreground">{tr("Trending")}</span>
+        <span className="text-sm text-muted-foreground">{tr("24h volume")}</span>
       </div>
 
       {/* Horizontal scroll strip */}

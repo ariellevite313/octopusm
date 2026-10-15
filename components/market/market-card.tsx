@@ -5,6 +5,7 @@ import { MarketCountdownBadge } from "./market-countdown";
 import { useFakeLiveBets, FakeBetOverlay } from "./market-fake-bets";
 import { parseMarketOptions, formatVolume, type MarketVolumes } from "@/lib/market/utils";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   market: PredictionMarketRow;
@@ -90,11 +91,12 @@ export function MarketCard({ market, volumes }: Props) {
 }
 
 function MarketVisual({ market }: { market: PredictionMarketRow }) {
+  const { tr } = useT();
   if (market.visual_type === "vs") {
     return (
       <div className="flex items-center gap-2">
         <CompetitorAvatar name={market.left_competitor_name} src={market.left_competitor_image_src} />
-        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">VS</span>
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">{tr("VS")}</span>
         <CompetitorAvatar name={market.right_competitor_name} src={market.right_competitor_image_src} />
       </div>
     );

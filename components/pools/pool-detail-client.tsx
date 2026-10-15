@@ -16,6 +16,8 @@ import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { toast } from "sonner";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { ListPager } from "@/components/profile/list-pager";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 // ─── Option color palette ─────────────────────────────────────────────────────
 // Used for progress bars and selected-option highlights (cycles through options)
@@ -75,14 +77,14 @@ function impliedOdds(pct: number) {
   return (100 / pct).toFixed(2) + "x";
 }
 
-function timeLeft(closesAt: string): string {
+function timeLeft(closesAt: string, tr: (s: string, v?: Record<string, string | number>) => string): string {
   const diff = new Date(closesAt).getTime() - Date.now();
-  if (diff <= 0) return "Predictions closed";
+  if (diff <= 0) return tr("Predictions closed");
   const h = Math.floor(diff / 3_600_000);
   const m = Math.floor((diff % 3_600_000) / 60_000);
-  if (h >= 48) return `${Math.floor(h / 24)}d ${h % 24}h left`;
-  if (h >= 1) return `${h}h ${m}m left`;
-  return `${m}m left`;
+  if (h >= 48) return tr("{d}d {h}h left", { d: Math.floor(h / 24), h: h % 24 });
+  if (h >= 1) return tr("{h}h {m}m left", { h, m });
+  return tr("{m}m left", { m });
 }
 
 function truncWallet(w: string) {
@@ -107,6 +109,15 @@ function parseResolutionRates(adminNotes: string | null, betToken: string): { ho
     ? { house: 0.10, creator: 0.06, winners: 0.84 }
     : { house: 0.15, creator: 0.05, winners: 0.80 };
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  active:    T("Active"),
+  closed:    T("Closed"),
+  resolved:  T("Resolved"),
+  cancelled: T("Cancelled"),
+  pending:   T("Pending"),
+  rejected:  T("Rejected"),
+};
 
 const STATUS_COLORS: Record<string, string> = {
   active:    "text-up",
@@ -134,6 +145,7 @@ interface PredictFormProps {
 }
 
 function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormProps) {
+  const { tr } = useT();
   // Bug #6 fix: read walletType from useAuth instead of localStorage directly
   const { walletAddress, walletType } = useAuth();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -148,11 +160,11 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!walletAddress) { onRequestConnect(); return; }
-    if (!selectedOption) { toast.error("Select an option."); return; }
+    if (!selectedOption) { toast.error(tr("Select an option.")); return; }
     const numAmt = parseFloat(amount);
-    if (!numAmt || numAmt <= 0) { toast.error("Enter a valid amount."); return; }
+    if (!numAmt || numAmt <= 0) { toast.error(tr("Enter a valid amount.")); return; }
     const minAmt = token === "usdc" ? 2 : 500_000;
-    if (numAmt < minAmt) { toast.error(`Minimum stake is ${token === "usdc" ? "2 USDC" : "500,000 ClawdTrust"}.`); return; }
+    if (numAmt < minAmt) { toast.error(tr("Minimum stake is {min}.", { min: token === "usdc" ? "2 USDC" : "500,000 ClawdTrust" })); return; }
 
     const opt = options.find(o => o.id === selectedOption);
     if (!opt) return;
@@ -172,7 +184,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
     if (!result.success) {
       setStep("error");
-      toast.error(result.error);
+      toast.error(tr(result.error));
       return;
     }
 
@@ -185,7 +197,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   if (isClosed) {
     return (
       <div className="py-4 text-center text-sm text-muted-foreground">
-        Predictions are closed for this market.
+        {tr("Predictions are closed for this market.")}
       </div>
     );
   }
@@ -196,22 +208,22 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xl">✅</span>
           <p className="font-semibold text-up">
-            Prediction submitted!
+            {tr("Prediction submitted!")}
           </p>
         </div>
         <p className="mb-2 text-sm text-foreground">
-          Your transfer has been sent on-chain. An admin will validate your prediction shortly — it will then appear in the live odds.
+          {tr("Your transfer has been sent on-chain. An admin will validate your prediction shortly — it will then appear in the live odds.")}
         </p>
         {reference && (
           <p className="text-xs text-muted-foreground">
-            Reference: <span className="font-mono">{reference}</span>
+            {tr("Reference:")} <span className="font-mono">{reference}</span>
           </p>
         )}
         <button
           onClick={() => setStep("idle")}
           className="mt-4 rounded-full bg-muted px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted/70"
         >
-          Place another prediction
+          {tr("Place another prediction")}
         </button>
       </div>
     );
@@ -219,12 +231,12 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
   return (
     <form onSubmit={submit}>
-      <h3 className="mb-1 text-lg font-bold tracking-tight text-foreground">Make a prediction</h3>
+      <h3 className="mb-1 text-lg font-bold tracking-tight text-foreground">{tr("Make a prediction")}</h3>
       <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-        Market uses
+        {tr("Market uses")}
         <TokenLogo token={token} className="size-4" />
         <span className="font-semibold text-foreground">{tokenLabel(token)}</span>
-        — winnings paid in {tokenLabel(token)}.
+        {tr("— winnings paid in {token}.", { token: tokenLabel(token) })}
       </p>
 
       <div className="mb-5 flex flex-col divide-y divide-border">
@@ -258,7 +270,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       <div className="mb-4">
         <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <TokenLogo token={token} className="size-4" />
-          Amount ({tokenLabel(token)})
+          {tr("Amount ({token})", { token: tokenLabel(token) })}
         </label>
         <input
           type="number"
@@ -275,7 +287,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       {isBusy && (
         <div className="mb-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-xs text-foreground">
           <Loader2 className="size-3.5 animate-spin" />
-          Approve in wallet and waiting for confirmation...
+          {tr("Approve in wallet and waiting for confirmation...")}
         </div>
       )}
 
@@ -285,11 +297,11 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         className="w-full rounded-[14px] bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 btn-primary"
       >
         {isBusy && <Loader2 className="size-4 animate-spin" />}
-        {isBusy ? "Approving..." : "Predict"}
+        {isBusy ? tr("Approving...") : tr("Predict")}
       </button>
 
       <p className="mt-3 text-center text-[11px] text-muted-foreground">
-        Your prediction is validated by an admin before appearing in live odds.
+        {tr("Your prediction is validated by an admin before appearing in live odds.")}
       </p>
     </form>
   );
@@ -306,6 +318,7 @@ interface Props {
 }
 
 export function PoolDetailClient({ market, initialBets, initialComments, isPreview = false, isAdmin = false }: Props) {
+  const { tr } = useT();
   const { walletAddress, setWalletType } = useAuth();
   const [showWalletDialog, setShowWalletDialog] = useState(false);
 
@@ -315,12 +328,12 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       const result = await connectWalletAndAuth(type);
       if (result.success) {
         setWalletType(type);
-        toast.success("Wallet connected");
+        toast.success(tr("Wallet connected"));
       } else {
-        toast.error(result.error ?? "Connection failed");
+        toast.error(tr(result.error ?? "Connection failed"));
       }
     } catch {
-      toast.error("Connection failed");
+      toast.error(tr("Connection failed"));
     }
   }
 
@@ -357,24 +370,24 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Markets
+        {tr("Markets")}
       </Link>
 
       {isPreview && (
         <div className="mb-6">
           <p className="text-sm font-semibold text-foreground">
             {isAdmin
-              ? market.status === "rejected" ? "⚙️ Admin — Market rejected" : "⚙️ Admin — Preview before approval"
-              : market.status === "rejected" ? "❌ Market rejected" : "⏳ Pending approval"}
+              ? market.status === "rejected" ? tr("⚙️ Admin — Market rejected") : tr("⚙️ Admin — Preview before approval")
+              : market.status === "rejected" ? tr("❌ Market rejected") : tr("⏳ Pending approval")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {isAdmin
               ? market.status === "rejected"
-                ? "This market has been rejected." + (market.admin_notes ? ` Reason: ${market.admin_notes}` : "")
-                : "You are viewing this market as an admin. It is not yet visible to the public."
+                ? tr("This market has been rejected.") + (market.admin_notes ? " " + tr("Reason: {reason}", { reason: market.admin_notes }) : "")
+                : tr("You are viewing this market as an admin. It is not yet visible to the public.")
               : market.status === "rejected"
-                ? "Your market has been rejected by an admin." + (market.admin_notes ? ` Reason: ${market.admin_notes}` : "")
-                : "Your market is under review. This page is only visible to you — share it once approved."}
+                ? tr("Your market has been rejected by an admin.") + (market.admin_notes ? " " + tr("Reason: {reason}", { reason: market.admin_notes }) : "")
+                : tr("Your market is under review. This page is only visible to you — share it once approved.")}
           </p>
         </div>
       )}
@@ -387,18 +400,18 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
             <img src={market.cover_image_src} alt={market.title} className="size-12 shrink-0 rounded-xl object-cover" />
           )}
           <span className={`text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
-            {market.status}
+            {STATUS_LABEL[market.status] ? tr(STATUS_LABEL[market.status]) : market.status}
           </span>
         </div>
         <button
           type="button"
           onClick={() => {
             navigator.clipboard.writeText(window.location.href).then(() => {
-              toast.success("Link copied!");
+              toast.success(tr("Link copied!"));
             });
           }}
           className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="Share"
+          title={tr("Share")}
         >
           <Share2 className="size-[18px]" />
         </button>
@@ -412,13 +425,13 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       <div className="mb-8 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Clock className="size-4" />
-          {market.status === "active" ? timeLeft(market.betting_closes_at) : market.status}
+          {market.status === "active" ? timeLeft(market.betting_closes_at, tr) : (STATUS_LABEL[market.status] ? tr(STATUS_LABEL[market.status]) : market.status)}
         </span>
         <span className="flex items-center gap-1">
           <TokenLogo token={market.bet_token} className="size-4" />
-          {grandTotal.toFixed(decimals)} {tokenLabel(market.bet_token)} total
+          {tr("{amount} {token} total", { amount: grandTotal.toFixed(decimals), token: tokenLabel(market.bet_token) })}
         </span>
-        <span>{bets.length} prediction{bets.length !== 1 ? "s" : ""}</span>
+        <span>{bets.length !== 1 ? tr("{n} predictions", { n: bets.length }) : tr("{n} prediction", { n: bets.length })}</span>
         <span className="flex items-center gap-1 rounded-lg bg-muted px-2 py-0.5 font-semibold text-foreground">
           <TokenLogo token={market.bet_token} className="size-4" />
           {tokenLabel(market.bet_token)}
@@ -428,10 +441,10 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       {market.status === "cancelled" && (
         <div className="mb-6">
           <p className="text-sm font-semibold text-foreground">
-            Market cancelled
+            {tr("Market cancelled")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            This market was cancelled by an admin. All stakes are being refunded (minus 5% fee). Check your dashboard to claim your refund.
+            {tr("This market was cancelled by an admin. All stakes are being refunded (minus 5% fee). Check your dashboard to claim your refund.")}
           </p>
         </div>
       )}
@@ -442,20 +455,20 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
           {market.winning_option_id ? (
             <>
               <p className="text-base font-bold text-foreground">
-                ✅ Winner:{" "}
+                {tr("✅ Winner:")}{" "}
                 {options.find(o => o.id === market.winning_option_id)?.label ?? market.winning_option_id}
               </p>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                Winners total:
+                {tr("Winners total:")}
                 <TokenLogo token={market.bet_token} className="size-4" />
                 {(grandTotal * parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners).toFixed(decimals)}{" "}
                 {tokenLabel(market.bet_token)}{" "}
-                ({Math.round(parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners * 100)}% of {grandTotal.toFixed(decimals)})
+                ({tr("{pct}% of {total}", { pct: Math.round(parseResolutionRates(market.admin_notes ?? null, market.bet_token).winners * 100), total: grandTotal.toFixed(decimals) })})
               </p>
             </>
           ) : (
             <p className="text-base font-bold text-foreground">
-              Market resolved — payouts being processed.
+              {tr("Market resolved — payouts being processed.")}
             </p>
           )}
         </div>
@@ -463,7 +476,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
 
       {/* Odds bars */}
       <div className="mb-8 flex flex-col gap-4">
-        <h2 className="text-lg font-bold tracking-tight text-foreground">Live odds</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground">{tr("Live odds")}</h2>
         {options.map((opt, idx) => {
           const isWinner = market.status === "resolved" && market.winning_option_id === opt.id;
           const col = optionColor(idx, opt.label);
@@ -496,7 +509,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       <div className="mb-8">
         {isPreview ? (
           <div className="py-5 text-center text-sm text-muted-foreground">
-            Bets will open once the market is approved.
+            {tr("Bets will open once the market is approved.")}
           </div>
         ) : (
           <PredictForm
@@ -510,9 +523,9 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
 
       {/* Recent predictions */}
       <div className="mb-10">
-        <h2 className="mb-2 text-lg font-bold tracking-tight text-foreground">Recent predictions</h2>
+        <h2 className="mb-2 text-lg font-bold tracking-tight text-foreground">{tr("Recent predictions")}</h2>
         {bets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No predictions yet. Be the first!</p>
+          <p className="text-sm text-muted-foreground">{tr("No predictions yet. Be the first!")}</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {bets.slice(betPage * 5, betPage * 5 + 5).map((bet, i) => {
@@ -554,7 +567,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
                     </span>
                     {bet.payout_amount != null && (
                       <span className={`flex items-center gap-0.5 tabular-nums text-[11px] font-semibold ${bet.paid_at ? "text-up" : "text-foreground"}`}>
-                        {bet.paid_at ? "✓ Paid " : "→ "}
+                        {bet.paid_at ? tr("✓ Paid") + " " : "→ "}
                         <TokenLogo token={market.bet_token} className="size-4" />
                         {Number(bet.payout_amount).toFixed(decimals)}
                       </span>

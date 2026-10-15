@@ -5,12 +5,14 @@ import Image from "next/image";
 import { getCategoryLabel } from "@/lib/categories";
 import { formatVolume } from "@/lib/market/utils";
 import type { TrendingMarket } from "@/app/api/markets/trending/route";
+import { useT } from "@/lib/i18n";
 
 // Bar colors: first option green, second blue
 const BAR_COLORS    = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444"];
 const BORDER_COLORS = ["#16a34a", "#2563eb", "#d97706", "#dc2626"];
 
 export function TrendingCard({ market }: { market: TrendingMarket }) {
+  const { tr } = useT();
   return (
     <Link
       href={market.href}
@@ -87,10 +89,10 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
         </span>
         {market.bet_count > 0 && (
           <span className="text-xs text-muted-foreground">
-            {market.bet_count} predicts
+            {tr("{n} predicts", { n: market.bet_count })}
           </span>
         )}
-        <span className="text-xs font-bold text-foreground">Predict →</span>
+        <span className="text-xs font-bold text-foreground">{tr("Predict →")}</span>
       </div>
     </Link>
   );

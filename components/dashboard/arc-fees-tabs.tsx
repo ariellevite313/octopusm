@@ -16,13 +16,15 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { BONDING_CURVE_V2_ABI, OM_TOKEN_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
-function fmtUsdc(raw: bigint): string {
+function fmtUsdc(raw: bigint, lang: Lang): string {
   if (raw === 0n) return "0.00";
 
   const DECIMALS = BigInt("1000000000000000000"); // 1e18
@@ -32,7 +34,7 @@ function fmtUsdc(raw: bigint): string {
   // Whole part ≥ 1, or fractional part ≥ 0.00001 → show normally (up to 5 decimal places)
   if (whole > 0n || frac >= 10000000000000n /* 1e13 = 0.00001 USDC */) {
     const n = Number(raw) / 1e18;
-    return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+    return n.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 5 });
   }
 
   // Very small number: compact notation 0.00(N)XX
@@ -102,7 +104,7 @@ function TokenLogo({ token }: { token: BaseToken }) {
 
 export function ArcFeesTabs() {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
-  const { t } = useT();
+  const { t, tr, lang } = useT();
 
   const [activeTab, setActiveTab] = useState<"creator" | "dividend">("creator");
 
@@ -338,7 +340,7 @@ export function ArcFeesTabs() {
           {t.creatorFees}
           {totalCreator > 0n && (
             <span className="ml-2 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-500">
-              {fmtUsdc(totalCreator)}
+              {fmtUsdc(totalCreator, lang)}
             </span>
           )}
         </button>
@@ -354,7 +356,7 @@ export function ArcFeesTabs() {
           {t.dividends}
           {totalDividend > 0n && (
             <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
-              {fmtUsdc(totalDividend)}
+              {fmtUsdc(totalDividend, lang)}
             </span>
           )}
         </button>
@@ -387,7 +389,7 @@ export function ArcFeesTabs() {
                       ? t.reading
                       : token.accrued === 0n
                       ? t.noCreatorFees
-                      : `${fmtUsdc(token.accrued)} ${t.usdcClaimable}`}
+                      : `${fmtUsdc(token.accrued, lang)} ${t.usdcClaimable}`}
                   </div>
                   {token.txHash && (
                     <a
@@ -398,7 +400,7 @@ export function ArcFeesTabs() {
                       <CheckCircle2 className="size-3" /> {t.claimedViewExplorer}
                     </a>
                   )}
-                  {token.error && <p className="text-[11px] text-red-400 mt-0.5">{token.error}</p>}
+                  {token.error && <p className="text-[11px] text-red-400 mt-0.5">{tr(token.error)}</p>}
                 </div>
 
                 {selectedChain !== "arc" ? (
@@ -460,7 +462,7 @@ export function ArcFeesTabs() {
                       <div className={`mt-0.5 flex items-center gap-1 text-[12px] ${hasBalance ? "font-semibold text-primary" : "text-muted-foreground"}`}>
                         <Image src="/usdc-coin.png" alt="USDC" width={13} height={13} className="rounded-full shrink-0" unoptimized />
                         {hasBalance
-                          ? `${fmtUsdc(token.pending!)} ${t.usdcClaimable}`
+                          ? `${fmtUsdc(token.pending!, lang)} ${t.usdcClaimable}`
                           : isClaimed ? "0.00 USDC"
                           : t.noDividends}
                       </div>
@@ -475,7 +477,7 @@ export function ArcFeesTabs() {
                         <CheckCircle2 className="size-3" /> {t.claimedViewExplorer}
                       </a>
                     )}
-                    {token.error && <p className="mt-0.5 text-[11px] text-red-400">{token.error}</p>}
+                    {token.error && <p className="mt-0.5 text-[11px] text-red-400">{tr(token.error)}</p>}
                   </div>
 
                   {selectedChain !== "arc" ? (

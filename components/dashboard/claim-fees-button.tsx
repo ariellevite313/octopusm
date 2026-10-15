@@ -47,7 +47,7 @@ export function ClaimFeesButton({
   graduated = false,
 }: Props) {
   const { walletType, selectedChain } = useAuth();
-  const { t } = useT();
+  const { t, tr } = useT();
   const [phase, setPhase]           = useState<"idle" | "building" | "signing" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg]     = useState("");
   const [claimable, setClaimable]   = useState<number | null>(null);
@@ -117,8 +117,8 @@ export function ClaimFeesButton({
       });
 
       setPhase("done");
-      const label = claimable !== null ? `${claimable.toFixed(6)} USDC claimed!` : "Fees claimed!";
-      toast.success(`${label} — Tx: ${txHash.slice(0, 10)}…`);
+      const label = claimable !== null ? tr("{amount} USDC claimed!", { amount: claimable.toFixed(6) }) : tr("Fees claimed!");
+      toast.success(tr("{label} — Tx: {tx}…", { label, tx: txHash.slice(0, 10) }));
 
       // Log non-bloquant
       fetch("/api/dashboard/log-claim", {
@@ -131,7 +131,7 @@ export function ClaimFeesButton({
       const msg = /rejected|cancel/i.test(raw) ? "Transaction cancelled." : raw;
       setErrorMsg(msg);
       setPhase("error");
-      if (!/rejected|cancel/i.test(raw)) toast.error(msg);
+      if (!/rejected|cancel/i.test(raw)) toast.error(tr(msg));
     }
   }
 
@@ -178,7 +178,7 @@ export function ClaimFeesButton({
       const msg = e instanceof Error ? e.message : "Unknown error";
       setErrorMsg(msg);
       setPhase("error");
-      toast.error(msg);
+      toast.error(tr(msg));
       return;
     }
 
@@ -197,8 +197,8 @@ export function ClaimFeesButton({
       }
 
       setPhase("done");
-      const label = claimableSol !== null ? `${claimableSol.toFixed(6)} SOL claimed!` : "Fees claimed!";
-      toast.success(`${label} — Sig: ${sig.slice(0, 8)}…`);
+      const label = claimableSol !== null ? tr("{amount} SOL claimed!", { amount: claimableSol.toFixed(6) }) : tr("Fees claimed!");
+      toast.success(tr("{label} — Sig: {sig}…", { label, sig: sig.slice(0, 8) }));
 
       if (claimableSol && claimableSol > 0) {
         fetch("/api/dashboard/log-claim", {
@@ -212,7 +212,7 @@ export function ClaimFeesButton({
       const msg = /rejected|cancel/i.test(raw) ? "Transaction cancelled." : raw;
       setErrorMsg(msg);
       setPhase("error");
-      if (!/rejected|cancel/i.test(raw)) toast.error(msg);
+      if (!/rejected|cancel/i.test(raw)) toast.error(tr(msg));
     }
   }
 
@@ -232,7 +232,7 @@ export function ClaimFeesButton({
         className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-2"
       >
         <CoinsIcon className="size-3.5" />
-        Claim fees on Meteora
+        {tr("Claim fees on Meteora")}
       </a>
     );
   }
@@ -248,7 +248,7 @@ export function ClaimFeesButton({
   if (phase === "error") {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-red-500">{errorMsg}</span>
+        <span className="text-xs text-red-500">{tr(errorMsg)}</span>
         <button type="button" onClick={() => setPhase("idle")} className="text-xs text-muted-foreground underline">
           {t.retry}
         </button>
@@ -275,7 +275,7 @@ export function ClaimFeesButton({
         ) : feesUsd24h !== null ? (
           <span className="text-sm font-semibold text-foreground">
             ~${feesUsd24h.toFixed(2)}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">24h fees</span>
+            <span className="ml-1 text-xs font-normal text-muted-foreground">{tr("24h fees")}</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>

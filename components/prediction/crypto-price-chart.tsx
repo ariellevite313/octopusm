@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 type Ticker = "BTCUSDT" | "SOLUSDT" | "ETHUSDT";
 interface PricePoint { time: number; price: number; open: number; high: number; low: number; }
@@ -21,55 +23,57 @@ const COIN_META: Record<Ticker, { label: string; symbol: string; color: string }
 
 const MAX_POINTS = 60;
 
-function formatPrice(p: number): string {
-  if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return p.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+function formatPrice(p: number, locale = "en-US"): string {
+  if (p >= 1000) return p.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return p.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 4 });
 }
 
 function formatTime(ms: number): string {
   return new Date(ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-function useCountdown(closeAt: string | null | undefined) {
+function useCountdown(closeAt: string | null | undefined, tr: (s: string, v?: Record<string, string | number>) => string) {
   const [remaining, setRemaining] = useState("");
   useEffect(() => {
     if (!closeAt) return;
     const target = new Date(closeAt).getTime();
     const tick = () => {
       const diff = target - Date.now();
-      if (diff <= 0) { setRemaining("Closed"); return; }
+      if (diff <= 0) { setRemaining(tr("Closed")); return; }
       const d = Math.floor(diff / 86400000);
       const h = Math.floor((diff % 86400000) / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      if (d > 0) setRemaining(`${d}d ${h}h ${m}m`);
-      else if (h > 0) setRemaining(`${h}h ${m}m ${s}s`);
-      else setRemaining(`${m}m ${s}s`);
+      if (d > 0) setRemaining(tr("{d}d {h}h {m}m", { d, h, m }));
+      else if (h > 0) setRemaining(tr("{h}h {m}m {s}s", { h, m, s }));
+      else setRemaining(tr("{m}m {s}s", { m, s }));
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [closeAt]);
+  }, [closeAt, tr]);
   return remaining;
 }
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value: number; payload: PricePoint }[] }) {
+  const { lang } = useT();
   if (!active || !payload?.length) return null;
   const pt = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-md">
-      <p className="font-mono font-semibold text-foreground">${formatPrice(pt.price)}</p>
+      <p className="font-mono font-semibold text-foreground">${formatPrice(pt.price, LOCALES[lang])}</p>
       <p className="text-muted-foreground">{formatTime(pt.time)}</p>
     </div>
   );
 }
 
 export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) {
+  const { tr, lang } = useT();
   const [points, setPoints] = useState<PricePoint[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
-  const countdown = useCountdown(marketCloseAt);
+  const countdown = useCountdown(marketCloseAt, tr);
   const meta = COIN_META[ticker];
 
   // ── Agrégateur bougie 1s ────────────────────────────────────────────────────
@@ -255,12 +259,12 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
         <div className="flex flex-col items-end gap-0.5">
           {countdown && (
             <span className="text-[10px] text-muted-foreground">
-              Closes in <span className="font-semibold text-foreground">{countdown}</span>
+              {tr("Closes in")} <span className="font-semibold text-foreground">{countdown}</span>
             </span>
           )}
           <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-up" : "text-muted-foreground"}`}>
             <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
-            {live ? "Live" : "Connecting..."}
+            {live ? tr("Live") : tr("Connecting...")}
           </span>
         </div>
       </div>
@@ -271,7 +275,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
           <div className="h-8 w-36 animate-pulse rounded-lg bg-muted" />
         ) : (
           <span className="text-2xl font-bold tabular-nums text-foreground">
-            {currentPrice != null ? `$${formatPrice(currentPrice)}` : "—"}
+            {currentPrice != null ? `$${formatPrice(currentPrice, LOCALES[lang])}` : "—"}
           </span>
         )}
         {!loading && pctFromTarget != null && (
@@ -280,18 +284,18 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
               : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
           }`}>
-            {isAbove ? "+" : ""}{pctFromTarget.toFixed(2)}% vs target
+            {isAbove ? "+" : ""}{tr("{pct}% vs target", { pct: pctFromTarget.toFixed(2) })}
           </span>
         )}
       </div>
 
       {/* Target pill */}
       <div className="mx-4 mb-3 flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
-        <span className="text-xs text-muted-foreground">Target price</span>
-        <span className="text-xs font-semibold text-foreground">${formatPrice(priceTarget)}</span>
+        <span className="text-xs text-muted-foreground">{tr("Target price")}</span>
+        <span className="text-xs font-semibold text-foreground">${formatPrice(priceTarget, LOCALES[lang])}</span>
         {!loading && (
           <span className={`text-xs font-semibold ${isAbove ? "text-up" : "text-down"}`}>
-            {isAbove ? "Above" : "Below"}
+            {isAbove ? tr("Above") : tr("Below")}
           </span>
         )}
       </div>
@@ -302,7 +306,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
           <div className="h-32 w-full animate-pulse rounded-xl bg-muted" />
         ) : points.length === 0 ? (
           <div className="flex h-32 items-center justify-center">
-            <span className="text-xs text-muted-foreground">Waiting for first price...</span>
+            <span className="text-xs text-muted-foreground">{tr("Waiting for first price...")}</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={128}>
@@ -325,7 +329,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
               />
               <YAxis
                 domain={yDomain}
-                tickFormatter={(v: number) => `$${v >= 1000 ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(3)}`}
+                tickFormatter={(v: number) => `$${v >= 1000 ? v.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(3)}`}
                 tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
@@ -337,7 +341,7 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
                 stroke="#60a5fa"
                 strokeDasharray="5 3"
                 strokeWidth={1.5}
-                label={{ value: `Target $${formatPrice(priceTarget)}`, position: "insideTopRight", fontSize: 8, fill: "#60a5fa" }}
+                label={{ value: tr("Target ${price}", { price: formatPrice(priceTarget, LOCALES[lang]) }), position: "insideTopRight", fontSize: 8, fill: "#60a5fa" }}
               />
               <Area
                 type="linear"

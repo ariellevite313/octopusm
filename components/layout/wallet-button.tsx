@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { Camera, Check, Copy, Globe, LayoutDashboard, LogOut, Moon, Pencil, Plus, Settings2, Sun, User } from "lucide-react";
+import { Camera, Check, Copy, LayoutDashboard, LogOut, Moon, Pencil, Plus, Settings2, Sun, User } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -61,7 +61,7 @@ function ProfileDrawer({
   onDisconnect: () => void;
 }) {
   const { isAdmin } = useAuth();
-  const { lang, t, toggleLang } = useT();
+  const { t, tr } = useT();
   const { theme, setTheme } = useTheme();
   const [isPhantom, setIsPhantom] = useState(false);
   useEffect(() => {
@@ -154,7 +154,7 @@ function ProfileDrawer({
       twitter_handle: twitterHandle.trim() || undefined,
     });
     setSaving(false);
-    if (res.error) { toast.error(res.error); return; }
+    if (res.error) { toast.error(tr(res.error)); return; }
     toast.success(t.profileUpdated);
     setEditing(false);
     qc.invalidateQueries({ queryKey: ["wallet-profile", walletAddress] });
@@ -166,7 +166,7 @@ function ProfileDrawer({
     setUploading(true);
     const res = await uploadAvatar(file, walletAddress);
     setUploading(false);
-    if ("error" in res) { toast.error(res.error); return; }
+    if ("error" in res) { toast.error(tr(res.error)); return; }
     toast.success(t.avatarUpdated);
     qc.invalidateQueries({ queryKey: ["wallet-profile", walletAddress] });
   }
@@ -192,7 +192,7 @@ function ProfileDrawer({
           <div className="flex items-center gap-3">
             <div className="relative shrink-0">
               {avatarSrc ? (
-                <Image src={avatarSrc} alt="avatar" width={44} height={44}
+                <Image src={avatarSrc} alt={tr("avatar")} width={44} height={44}
                   className="rounded-full object-cover" unoptimized />
               ) : (
                 <div className="flex size-11 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
@@ -204,7 +204,7 @@ function ProfileDrawer({
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
                 className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted disabled:opacity-50"
-                title="Upload avatar"
+                title={tr("Upload avatar")}
               >
                 <Camera className="size-2.5 text-muted-foreground" />
               </button>
@@ -223,7 +223,7 @@ function ProfileDrawer({
                   type="button"
                   onClick={copyAddress}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Copy address"
+                  title={tr("Copy address")}
                 >
                   {copied
                     ? <Check className="size-3 text-up" />
@@ -234,7 +234,7 @@ function ProfileDrawer({
 
             <button type="button" onClick={startEdit}
               className="shrink-0 rounded-xl p-1.5 text-muted-foreground hover:bg-muted"
-              title="Edit profile">
+              title={tr("Edit profile")}>
               <Pencil className="size-4" />
             </button>
           </div>
@@ -355,7 +355,7 @@ function ProfileDrawer({
                 <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.displayName}</label>
                 <input
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Display name"
+                  placeholder={tr("Display name")}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
@@ -401,7 +401,7 @@ function ProfileDrawer({
               className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
             >
               <LayoutDashboard className="size-4 text-muted-foreground" />
-              <span>Dashboard</span>
+              <span>{tr("Dashboard")}</span>
             </Link>
           )}
 
@@ -427,7 +427,7 @@ function ProfileDrawer({
                 type="button"
                 onClick={() => setShowSettings((s) => !s)}
                 className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted transition-colors"
-                title="Settings"
+                title={tr("Settings")}
               >
                 <Settings2 className="size-4" />
               </button>
@@ -442,15 +442,7 @@ function ProfileDrawer({
                     {isDark
                       ? <Moon className="size-4 text-muted-foreground" />
                       : <Sun className="size-4 text-muted-foreground" />}
-                    <span>{isDark ? "Dark mode" : "Light mode"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { toggleLang(); setShowSettings(false); }}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors border-t border-border"
-                  >
-                    <Globe className="size-4 text-muted-foreground" />
-                    <span>{lang === "en" ? "Français" : "English"}</span>
+                    <span>{isDark ? tr("Dark mode") : tr("Light mode")}</span>
                   </button>
                 </div>
               )}
@@ -475,6 +467,7 @@ function ProfileDrawer({
 // Main button (inner — needs useSearchParams)
 
 function WalletButtonInner() {
+  const { tr } = useT();
   const { walletAddress, walletType, isAuthenticated, isLoading, setWalletType } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -500,14 +493,14 @@ function WalletButtonInner() {
       const result = await connectWalletAndAuth(type);
       if (result.success) {
         setWalletType(type);
-        toast.success("Wallet connected");
+        toast.success(tr("Wallet connected"));
         // Redirect to the page the user was trying to access
         const returnTo = searchParams.get("returnTo");
         if (returnTo && returnTo.startsWith("/")) {
           router.push(returnTo);
         }
       } else {
-        toast.error(result.error ?? "Connection failed");
+        toast.error(tr(result.error ?? "Connection failed"));
       }
     } finally {
       setIsConnecting(false);
@@ -518,7 +511,7 @@ function WalletButtonInner() {
     await disconnectWallet(walletType);
     setWalletType(null);
     setShowProfile(false);
-    toast.success("Disconnected");
+    toast.success(tr("Disconnected"));
     router.push("/");
   }
 
@@ -534,7 +527,7 @@ function WalletButtonInner() {
           className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           {walletIcon ? (
-            <Image src={walletIcon} alt={walletType ?? "wallet"} width={16} height={16}
+            <Image src={walletIcon} alt={walletType ?? tr("wallet")} width={16} height={16}
               className="size-4 rounded-full object-contain" unoptimized />
           ) : (
             <span className="size-2 rounded-full bg-emerald-500" />
@@ -563,7 +556,7 @@ function WalletButtonInner() {
         disabled={isConnecting}
         className="hidden rounded-[14px] bg-orange-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-400 disabled:opacity-60 btn-primary"
       >
-        {isConnecting ? "Connecting..." : "Connect Wallet"}
+        {isConnecting ? tr("Connecting...") : tr("Connect Wallet")}
       </button>
       {showDialog && typeof document !== "undefined" && createPortal(
         <WalletSelectDialog

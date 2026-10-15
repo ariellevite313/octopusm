@@ -18,13 +18,15 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { OM_TOKEN_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
-function fmtUsdc(raw: bigint): string {
+function fmtUsdc(raw: bigint, lang: Lang): string {
   const n = Number(raw) / 1e18;
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
+  return n.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 5 });
 }
 
 type ArcToken = {
@@ -46,7 +48,7 @@ type TokenWithDividend = ArcToken & {
 
 export function ArcHolderDividends() {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
-  const { t } = useT();
+  const { t, tr, lang } = useT();
   const [tokens,  setTokens]  = useState<TokenWithDividend[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -178,7 +180,7 @@ export function ArcHolderDividends() {
         </h3>
         {totalPending > 0n && (
           <span className="rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-orange-500">
-            {fmtUsdc(totalPending)} USDC
+            {fmtUsdc(totalPending, lang)} USDC
           </span>
         )}
       </div>
@@ -233,7 +235,7 @@ export function ArcHolderDividends() {
               ) : (
                 <p className={`mt-0.5 text-[12px] ${hasBalance ? "font-semibold text-orange-500" : "text-muted-foreground"}`}>
                   {hasBalance
-                    ? `${fmtUsdc(token.pending!)} ${t.usdcClaimable}`
+                    ? `${fmtUsdc(token.pending!, lang)} ${t.usdcClaimable}`
                     : isClaimed
                     ? "0.00 USDC"
                     : t.noDividends}
@@ -251,7 +253,7 @@ export function ArcHolderDividends() {
                 </a>
               )}
               {token.error && (
-                <p className="mt-0.5 text-[11px] text-red-400">{token.error}</p>
+                <p className="mt-0.5 text-[11px] text-red-400">{tr(token.error)}</p>
               )}
             </div>
 

@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { X, ArrowUpRight, Loader2, CheckCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useT, Rich } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,24 +30,25 @@ interface Props {
 
 const MIN: Record<Token, number> = { usdc: 2, clawdtrust: 500_000 };
 
-function fmtUsdc(n: number) {
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtUsdc(n: number, lang: Lang) {
+  return n.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function fmtClt(n: number) {
+function fmtClt(n: number, lang: Lang) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString("en-US");
+  return n.toLocaleString(LOCALES[lang]);
 }
-function fmtBalance(token: Token, n: number) {
-  return token === "usdc" ? `$${fmtUsdc(n)} USDC` : `${fmtClt(n)} CLT`;
+function fmtBalance(token: Token, n: number, lang: Lang) {
+  return token === "usdc" ? `$${fmtUsdc(n, lang)} USDC` : `${fmtClt(n, lang)} CLT`;
 }
-function fmtAmount(token: Token, n: number) {
-  return token === "usdc" ? `$${fmtUsdc(n)} USDC` : `${fmtClt(n)} CLT`;
+function fmtAmount(token: Token, n: number, lang: Lang) {
+  return token === "usdc" ? `$${fmtUsdc(n, lang)} USDC` : `${fmtClt(n, lang)} CLT`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function WithdrawModal({ token, balance, onClose }: Props) {
+  const { tr, lang } = useT();
   const [rawAmount, setRawAmount]     = useState("");
   const [step, setStep]               = useState<"checking" | "idle" | "done">("checking");
   const [submitting, setSubmitting]   = useState(false);
@@ -89,13 +93,13 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? "Could not cancel request.");
+        toast.error(tr(data.error ?? "Could not cancel request."));
         return;
       }
-      toast.success("Withdrawal request cancelled.");
+      toast.success(tr("Withdrawal request cancelled."));
       setExisting(null);
     } catch {
-      toast.error("Network error, please try again.");
+      toast.error(tr("Network error, please try again."));
     } finally {
       setCancelling(false);
     }
@@ -114,12 +118,12 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? "Withdrawal request failed.");
+        toast.error(tr(data.error ?? "Withdrawal request failed."));
         return;
       }
       setStep("done");
     } catch {
-      toast.error("Network error, please try again.");
+      toast.error(tr("Network error, please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -152,9 +156,9 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             <Image src={logoSrc} alt={symbol} width={40} height={40} className="size-10 object-cover" unoptimized />
           </div>
           <div>
-            <h2 className="text-base font-bold text-foreground">Withdraw {symbol}</h2>
-            <p className="text-xs text-muted-foreground">
-              Available: <span className="font-medium text-foreground">{fmtBalance(token, balance)}</span>
+            <h2 className="text-base font-bold text-foreground">{tr("Withdraw {symbol}", { symbol })}</h2>
+            <p className="text-xs text-muted-foreground [&_strong]:font-medium [&_strong]:text-foreground">
+              <Rich>{tr("Available: <b>{amount}</b>", { amount: fmtBalance(token, balance, lang) })}</Rich>
             </p>
           </div>
         </div>
@@ -172,23 +176,19 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
               <CheckCircle className="size-7 text-up" />
             </div>
-            <p className="text-sm font-semibold text-foreground">Request submitted!</p>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              Your withdrawal of{" "}
-              <span className="font-medium text-foreground">
-                {fmtAmount(token, parsed)}
-              </span>{" "}
-              has been sent to the team for review.
+            <p className="text-sm font-semibold text-foreground">{tr("Request submitted!")}</p>
+            <p className="text-xs text-muted-foreground max-w-xs [&_strong]:font-medium [&_strong]:text-foreground">
+              <Rich>{tr("Your withdrawal of <b>{amount}</b> has been sent to the team for review.", { amount: fmtAmount(token, parsed, lang) })}</Rich>
             </p>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-amber-500">
               <Clock className="size-3.5" />
-              Usually processed within 24–48 hours
+              {tr("Usually processed within 24–48 hours")}
             </div>
             <button
               onClick={onClose}
               className="mt-3 w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
-              Close
+              {tr("Close")}
             </button>
           </div>
         )}
@@ -200,22 +200,15 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                 <AlertCircle className="size-4 shrink-0" />
                 <p className="text-xs font-semibold">
-                  {existing.status === "approved" ? "Request approved — payment in progress" : "Pending request"}
+                  {existing.status === "approved" ? tr("Request approved — payment in progress") : tr("Pending request")}
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                You have a{" "}
-                <span className="font-semibold text-foreground">
-                  {fmtAmount(token, existing.amount)}
-                </span>{" "}
-                withdrawal{" "}
-                <span className={existing.status === "approved" ? "text-up font-semibold" : "text-amber-600 dark:text-amber-400 font-semibold"}>
-                  {existing.status === "approved" ? "approved" : "pending"}
-                </span>
-                {". "}
-                {existing.status === "approved"
-                  ? "The admin has approved it — payment will arrive soon."
-                  : "Cancel it to submit a new request."}
+              <p className="text-xs text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
+                <Rich>
+                  {existing.status === "approved"
+                    ? tr("You have a <b>{amount}</b> withdrawal approved. The admin has approved it — payment will arrive soon.", { amount: fmtAmount(token, existing.amount, lang) })
+                    : tr("You have a <b>{amount}</b> withdrawal pending. Cancel it to submit a new request.", { amount: fmtAmount(token, existing.amount, lang) })}
+                </Rich>
               </p>
             </div>
 
@@ -226,7 +219,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
               >
                 {cancelling ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                Cancel pending request
+                {tr("Cancel pending request")}
               </button>
             )}
 
@@ -234,7 +227,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               onClick={onClose}
               className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >
-              Close
+              {tr("Close")}
             </button>
           </div>
         )}
@@ -246,14 +239,14 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-semibold text-muted-foreground">
-                  Amount
+                  {tr("Amount")}
                 </label>
                 <button
                   type="button"
                   onClick={handleMax}
                   className="text-xs font-semibold text-primary hover:underline"
                 >
-                  Max
+                  {tr("Max")}
                 </button>
               </div>
 
@@ -278,16 +271,15 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               </div>
 
               <p className="text-[10px] text-muted-foreground">
-                Minimum:{" "}
-                {isUsdc ? `$${fmtUsdc(min)} USDC` : `${fmtClt(min)} CLT`}
+                {tr("Minimum: {amount}", { amount: isUsdc ? `$${fmtUsdc(min, lang)} USDC` : `${fmtClt(min, lang)} CLT` })}
               </p>
 
               {rawAmount && !Number.isNaN(parsed) && parsed > balance && (
-                <p className="text-xs text-destructive">Exceeds your available balance.</p>
+                <p className="text-xs text-destructive">{tr("Exceeds your available balance.")}</p>
               )}
               {rawAmount && !Number.isNaN(parsed) && parsed < min && parsed > 0 && (
                 <p className="text-xs text-destructive">
-                  Minimum is {isUsdc ? `$${fmtUsdc(min)} USDC` : `${fmtClt(min)} CLT`}.
+                  {tr("Minimum is {amount}.", { amount: isUsdc ? `$${fmtUsdc(min, lang)} USDC` : `${fmtClt(min, lang)} CLT` })}
                 </p>
               )}
             </div>
@@ -295,12 +287,12 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
 
             {/* Info box */}
             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 space-y-1">
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">How it works:</span> Your request is reviewed by our team. Once approved, {symbol} will be sent to your connected wallet address.
+              <p className="text-xs text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
+                <Rich>{tr("<b>How it works:</b> Your request is reviewed by our team. Once approved, {symbol} will be sent to your connected wallet address.", { symbol })}</Rich>
               </p>
               <p className="text-xs text-amber-500 flex items-center gap-1">
                 <Clock className="size-3 shrink-0" />
-                Processing time: 24–48 hours
+                {tr("Processing time: 24–48 hours")}
               </p>
             </div>
 
@@ -313,12 +305,12 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
               {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Submitting…
+                  {tr("Submitting…")}
                 </>
               ) : (
                 <>
                   <ArrowUpRight className="size-4" />
-                  Request withdrawal
+                  {tr("Request withdrawal")}
                 </>
               )}
             </button>

@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { getCategoryLabel } from "@/lib/categories";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   categories: string[];
@@ -7,6 +10,7 @@ type Props = {
 };
 
 export function CategoryNav({ categories, active }: Props) {
+  const { tr } = useT();
   return (
     <nav className="mb-6 border-b border-border/60 bg-background">
       <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 scrollbar-hide [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
@@ -18,7 +22,7 @@ export function CategoryNav({ categories, active }: Props) {
               : ""
           }`}
         >
-          All
+          {tr("All")}
         </Link>
         <Link
           href="/updown"
@@ -28,7 +32,7 @@ export function CategoryNav({ categories, active }: Props) {
               : ""
           }`}
         >
-          Up/Down
+          {tr("Up/Down")}
         </Link>
         {categories.map((cat) => (
           <Link
@@ -40,7 +44,7 @@ export function CategoryNav({ categories, active }: Props) {
                 : ""
             }`}
           >
-            {getCategoryLabel(cat)}
+            {tr(getCategoryLabel(cat))}
           </Link>
         ))}
       </div>

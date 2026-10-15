@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Share2, Copy, Check, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   name:    string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function TokenShareButton({ name, ticker }: Props) {
+  const { tr } = useT();
   const [open,   setOpen]   = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -24,7 +26,7 @@ export function TokenShareButton({ name, ticker }: Props) {
   }, [open]);
 
   const url  = typeof window !== "undefined" ? window.location.href : "";
-  const text = `🚀 Check out $${ticker} — ${name} on OMdotfun Launchpad!`;
+  const text = tr("🚀 Check out ${ticker} — {name} on OMdotfun Launchpad!", { ticker, name });
 
   function copyLink() {
     navigator.clipboard.writeText(url).then(() => {
@@ -56,7 +58,7 @@ export function TokenShareButton({ name, ticker }: Props) {
         className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Share2 className="size-3.5" />
-        Share
+        {tr("Share")}
       </button>
 
       {open && (
@@ -69,7 +71,7 @@ export function TokenShareButton({ name, ticker }: Props) {
             <svg viewBox="0 0 24 24" className="size-4 fill-current shrink-0" aria-hidden>
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
-            Share on X
+            {tr("Share on X")}
           </button>
 
           {/* Telegram */}
@@ -91,7 +93,7 @@ export function TokenShareButton({ name, ticker }: Props) {
             {copied
               ? <Check className="size-4 text-up shrink-0" />
               : <Copy className="size-4 shrink-0" />}
-            {copied ? "Copied!" : "Copy link"}
+            {copied ? tr("Copied!") : tr("Copy link")}
           </button>
         </div>
       )}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ShareGainsView } from "@/components/profile/share-gains-view";
 import { getCreatorGains, fmtGain, GAINS_PERIODS, type GainsPeriod } from "@/lib/creator-gains";
 
 type Props = { params: Promise<{ wallet: string }>; searchParams: Promise<{ p?: string; ref?: string }> };
@@ -31,30 +31,5 @@ export default async function ShareGainsPage({ params, searchParams }: Props) {
   const g = await getCreatorGains(w).catch(() => null);
   const code = ref ?? g?.refCode ?? null;
 
-  return (
-    <main className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center px-4 py-10">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/api/og/gains/${encodeURIComponent(w)}?p=${period}`}
-        alt={g ? `${g.name} creator gains` : "Creator gains"}
-        width={1200}
-        height={630}
-        className="w-full rounded-[24px] shadow-[0_20px_60px_-20px_rgba(255,122,26,0.55)] ring-1 ring-border"
-      />
-      <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row">
-        <Link
-          href={code ? `/?ref=${encodeURIComponent(code)}` : "/"}
-          className="flex h-14 flex-1 items-center justify-center rounded-full bg-primary text-[16px] font-bold text-white"
-        >
-          {code ? `Join with code ${code}` : "Open OMdot.fun"}
-        </Link>
-        <Link
-          href={`/profile/${encodeURIComponent(w)}`}
-          className="flex h-14 flex-1 items-center justify-center rounded-full bg-muted text-[16px] font-semibold text-foreground"
-        >
-          View profile
-        </Link>
-      </div>
-    </main>
-  );
+  return <ShareGainsView wallet={w} period={period} code={code} name={g ? g.name : null} />;
 }

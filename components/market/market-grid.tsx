@@ -4,6 +4,7 @@ import { MarketCard } from "./market-card";
 import { PoolGridCard } from "./pool-grid-card";
 import type { UnifiedMarket, PredictionMarketRow, MutuelMarketRow } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   markets: UnifiedMarket[];
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function MarketGrid({ markets, volumes }: Props) {
+  const { tr } = useT();
   const isLiveMarket = (m: UnifiedMarket) =>
     m.source === "prediction" &&
     !!m.event_start_at &&
@@ -23,7 +25,7 @@ export function MarketGrid({ markets, volumes }: Props) {
     return (
       <div className="flex flex-col items-center gap-3 py-20 text-center">
         <span className="text-5xl">🐙</span>
-        <p className="text-muted-foreground">No active markets right now.</p>
+        <p className="text-muted-foreground">{tr("No active markets right now.")}</p>
       </div>
     );
   }

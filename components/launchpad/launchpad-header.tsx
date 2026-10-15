@@ -7,20 +7,22 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
 import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/lib/i18n";
+import { T } from "@/lib/i18n-mark";
 
 const PUBLIC_NAV_LINKS = [
-  { href: "/launchpad",              label: "Tokens"       },
-  { href: "/launchpad/create",       label: "+ Launch"     },
-  { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
-  { href: "/prediction",             label: "Predictions"  },
+  { href: "/launchpad",              label: T("Tokens")       },
+  { href: "/launchpad/create",       label: T("+ Launch")     },
+  { href: "/leaderboard/launchpad",  label: T("Leaderboard")  },
+  { href: "/prediction",             label: T("Predictions")  },
 ];
 
 const AUTH_NAV_LINKS = [
-  { href: "/launchpad",              label: "Tokens"       },
-  { href: "/launchpad/create",       label: "+ Launch"     },
-  { href: "/dashboard/launchpad",    label: "My tokens"    },
-  { href: "/leaderboard/launchpad",  label: "Leaderboard"  },
-  { href: "/prediction",             label: "Predictions"  },
+  { href: "/launchpad",              label: T("Tokens")       },
+  { href: "/launchpad/create",       label: T("+ Launch")     },
+  { href: "/dashboard/launchpad",    label: T("My tokens")    },
+  { href: "/leaderboard/launchpad",  label: T("Leaderboard")  },
+  { href: "/prediction",             label: T("Predictions")  },
 ];
 
 const MOBILE_EXTRA_LINKS: never[] = [];
@@ -37,6 +39,7 @@ function isActive(href: string, pathname: string) {
 }
 
 export function LaunchpadHeader() {
+  const { tr } = useT();
   const [open, setOpen] = useState(false);
 
   // The desktop sidebar's "⋯" button opens this same menu
@@ -71,7 +74,7 @@ export function LaunchpadHeader() {
                     onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
                     className="rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground text-muted-foreground"
                   >
-                    {label}
+                    {tr(label)}
                   </button>
                 );
               }
@@ -85,7 +88,7 @@ export function LaunchpadHeader() {
                       : "text-muted-foreground"
                   }`}
                 >
-                  {label}
+                  {tr(label)}
                 </Link>
               );
             })}
@@ -96,7 +99,7 @@ export function LaunchpadHeader() {
             <WalletButton />
             <button
               onClick={() => setOpen(true)}
-              aria-label="Open navigation menu"
+              aria-label={tr("Open navigation menu")}
               className="flex size-10 items-center justify-center text-foreground transition-opacity hover:opacity-70"
             >
               <span aria-hidden className="flex w-6 flex-col gap-[6px]"><span className="h-[3px] w-full rounded-full bg-current" /><span className="h-[3px] w-full rounded-full bg-current" /></span>
@@ -114,10 +117,10 @@ export function LaunchpadHeader() {
           />
           <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
             <div className="flex h-16 items-center justify-between px-5">
-              <span className="text-lg font-bold tracking-tight text-foreground">Launchpad</span>
+              <span className="text-lg font-bold tracking-tight text-foreground">{tr("Launchpad")}</span>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="Close menu"
+                aria-label={tr("Close menu")}
                 className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
               >
                 <X className="size-4" />
@@ -133,7 +136,7 @@ export function LaunchpadHeader() {
                 >
                   <span className="flex items-center gap-2.5">
                     <span className="size-2 rounded-full bg-up" />
-                    <span className="text-[15px] font-semibold text-foreground">My wallet</span>
+                    <span className="text-[15px] font-semibold text-foreground">{tr("My wallet")}</span>
                   </span>
                   <span className="font-mono text-[13px] text-muted-foreground">
                     {walletAddress.slice(0, 4)}…{walletAddress.slice(-4)}
@@ -145,7 +148,7 @@ export function LaunchpadHeader() {
                   onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-wallet-connect")); }}
                   className="btn-primary flex h-12 w-full items-center justify-center rounded-2xl text-[15px]"
                 >
-                  Connect Wallet
+                  {tr("Connect Wallet")}
                 </button>
               )}
             </div>
@@ -159,7 +162,7 @@ export function LaunchpadHeader() {
                       onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-wallet-connect")); }}
                       className="flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground w-full text-left"
                     >
-                      {label}
+                      {tr(label)}
                     </button>
                   );
                 }
@@ -174,7 +177,7 @@ export function LaunchpadHeader() {
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {label}
+                    {tr(label)}
                   </Link>
                 );
               })}
@@ -186,7 +189,7 @@ export function LaunchpadHeader() {
                   className="flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <Icon className="size-4" />
-                  {label}
+                  {tr(label)}
                 </Link>
               ))}
             </nav>

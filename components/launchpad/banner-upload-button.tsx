@@ -14,7 +14,7 @@ export function BannerUploadButton({ tokenId }: Props) {
   const inputRef  = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const router    = useRouter();
-  const { t } = useT();
+  const { t, tr } = useT();
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -51,7 +51,7 @@ export function BannerUploadButton({ tokenId }: Props) {
         className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-colors backdrop-blur-sm border border-white/20"
       >
         {loading ? <Loader2 className="size-3 animate-spin" /> : <ImagePlus className="size-3" />}
-        {loading ? "Uploading…" : "Edit banner"}
+        {loading ? tr("Uploading…") : tr("Edit banner")}
       </button>
     </>
   );

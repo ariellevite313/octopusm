@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   mintAddress: string;
@@ -22,6 +23,7 @@ declare global {
 const JUPITER_SCRIPT = "https://terminal.jup.ag/main-v3.js";
 
 export function TokenSwapJupiter({ mintAddress }: Props) {
+  const { tr } = useT();
   const containerId = "jupiter-terminal-" + mintAddress.slice(0, 8);
   const loaded      = useRef(false);
   const [ready, setReady] = useState(false);
@@ -81,7 +83,7 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
       {!ready && (
         <div className="flex items-center justify-center gap-2 py-12 text-white/30">
           <Loader2 className="size-4 animate-spin" />
-          <span className="text-[13px]">Loading swap…</span>
+          <span className="text-[13px]">{tr("Loading swap…")}</span>
         </div>
       )}
       {/* Container always in DOM; hidden only before ready so Jupiter can mount into a visible div */}

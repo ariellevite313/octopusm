@@ -22,6 +22,7 @@ import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/p
 import { ArcFeesTabs }       from "@/components/dashboard/arc-fees-tabs";
 import { ArcHolderHoldings } from "@/components/dashboard/arc-holder-holdings";
 import { useT }              from "@/lib/i18n";
+import { T }                from "@/lib/i18n-mark";
 import { GainsShareSheet }   from "@/components/dashboard/gains-share-sheet";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ function TokenFeeRow({
   currency?:  string;
   showClaim?: boolean;
 }) {
+  const { tr } = useT();
   return (
     <div className="flex items-center gap-3.5 py-3">
       <div className="size-12 shrink-0 overflow-hidden rounded-[14px] bg-muted">
@@ -111,7 +113,7 @@ function TokenFeeRow({
               className="num flex items-center gap-1 font-semibold text-primary disabled:opacity-50"
             >
               {claiming && <Loader2 className="size-3 animate-spin" />}
-              {claiming ? "Claiming…" : `+${fmtAmount(token.pending, currency)}`}
+              {claiming ? tr("Claiming…") : `+${fmtAmount(token.pending, currency)}`}
             </button>
           )}
         </p>
@@ -119,7 +121,7 @@ function TokenFeeRow({
 
       <div className="shrink-0 text-right">
         <p className="num text-[15px] font-bold text-foreground">{fmtAmount(earned, currency)}</p>
-        <p className="text-[12px] text-muted-foreground">earned</p>
+        <p className="text-[12px] text-muted-foreground">{tr("earned")}</p>
       </div>
     </div>
   );
@@ -133,7 +135,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   avatarSrc?:    string | null;
 }) {
   const { walletType, selectedChain } = useAuth();
-  const { t } = useT();
+  const { t, tr } = useT();
   const isArc      = selectedChain === "arc";
   const currency   = isArc ? "USDC" : "SOL";
   const fmt        = (n: number) => fmtAmount(n, currency);
@@ -188,7 +190,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       txBase64     = body.transactionBase64;
       claimableSol = body.claimableSol ?? null;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t.failedToBuildTx);
+      toast.error(e instanceof Error ? tr(e.message) : t.failedToBuildTx);
       return false;
     }
 
@@ -220,7 +222,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       return true;
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Transaction failed";
-      if (!/rejected|cancel/i.test(raw)) toast.error(raw);
+      if (!/rejected|cancel/i.test(raw)) toast.error(tr(raw));
       return false;
     }
   }
@@ -312,37 +314,37 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
             onClick={() => refresh(true)}
             disabled={refreshing}
             className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed"
-            title="Refresh"
+            title={tr("Refresh")}
           >
             <RefreshCw className={`size-[18px] ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
 
-        <p className="relative mt-6 text-[13px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total claimed</p>
+        <p className="relative mt-6 text-[13px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{tr("Total claimed")}</p>
         <p className="num relative mt-1 flex items-baseline gap-2 font-bold leading-none tracking-tight">
           <span className="text-[52px] text-foreground">{intPart}{decPart && <span className="text-muted-foreground">.{decPart}</span>}</span>
           <span className="text-xl text-muted-foreground">{currency}</span>
         </p>
         <p className="num relative mt-3 text-[15px] text-muted-foreground">
           {hasPending
-            ? <>+{fmt(pending.total)} <span className="text-primary">to claim</span></>
-            : stats.todayClaimed > 0 ? <>+{fmt(stats.todayClaimed)} today</> : <>Nothing to claim</>}
+            ? <>+{fmt(pending.total)} <span className="text-primary">{tr("to claim")}</span></>
+            : stats.todayClaimed > 0 ? <>+{fmt(stats.todayClaimed)} {tr("today")}</> : <>{tr("Nothing to claim")}</>}
         </p>
       </div>
 
       {/* ── Actions ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-2">
         <ActionCircle
-          label={claimingAll ? "Claiming" : "Claim"}
+          label={claimingAll ? T("Claiming") : T("Claim")}
           onClick={!isArc ? handleClaimAll : () => document.getElementById("arc-fees")?.scrollIntoView({ behavior: "smooth" })}
           disabled={!isArc && (claimingAll || hasPendingTokens.length === 0)}
           highlight={!isArc && hasPending}
         >
           {claimingAll ? <Loader2 className="size-6 animate-spin" /> : <HandCoins className="size-6" />}
         </ActionCircle>
-        <ActionCircle label="Launch" href="/launchpad/create"><Plus className="size-6" /></ActionCircle>
-        <ActionCircle label="Trade" href="/"><ArrowLeftRight className="size-6" /></ActionCircle>
-        <ActionCircle label="Share" onClick={() => setShareOpen(true)}><Send className="size-6" /></ActionCircle>
+        <ActionCircle label={T("Launch")} href="/launchpad/create"><Plus className="size-6" /></ActionCircle>
+        <ActionCircle label={T("Trade")} href="/"><ArrowLeftRight className="size-6" /></ActionCircle>
+        <ActionCircle label={T("Share")} onClick={() => setShareOpen(true)}><Send className="size-6" /></ActionCircle>
       </div>
 
       <GainsShareSheet
@@ -364,15 +366,17 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       {!isArc && (
         <section>
           <Link href={`/profile/${walletAddress}`} className="group inline-flex items-center gap-1">
-            <h2 className="text-[28px] font-bold tracking-tight text-foreground">Tokens launched</h2>
+            <h2 className="text-[28px] font-bold tracking-tight text-foreground">{tr("Tokens launched")}</h2>
             <ChevronRight className="size-6 text-foreground transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
           </Link>
           <p className="num text-[17px] text-muted-foreground">
-            {mergedTokens.length} token{mergedTokens.length !== 1 ? "s" : ""} · {fmt(totalEarned)} earned
+            {mergedTokens.length !== 1
+              ? tr("{count} tokens · {amount} earned", { count: mergedTokens.length, amount: fmt(totalEarned) })
+              : tr("{count} token · {amount} earned", { count: mergedTokens.length, amount: fmt(totalEarned) })}
           </p>
           <div className="mt-3">
             {mergedTokens.length === 0 ? (
-              <p className="py-6 text-sm text-muted-foreground">No token launched yet.</p>
+              <p className="py-6 text-sm text-muted-foreground">{tr("No token launched yet.")}</p>
             ) : mergedTokens.map(({ token, earned }) => (
               <TokenFeeRow
                 key={token.tokenId}
@@ -395,12 +399,13 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
 // ── UI bits ───────────────────────────────────────────────────────────────────
 
 function CopyIcon({ text }: { text: string }) {
+  const { tr } = useT();
   const [copied, setCopied] = useState(false);
   return (
     <button
       onClick={() => navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
       className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-      aria-label="Copy address"
+      aria-label={tr("Copy address")}
     >
       {copied ? <Check className="size-[18px]" /> : <Copy className="size-[18px]" />}
     </button>
@@ -410,13 +415,14 @@ function CopyIcon({ text }: { text: string }) {
 function ActionCircle({ label, href, onClick, disabled, highlight, children }: {
   label: string; href?: string; onClick?: () => void; disabled?: boolean; highlight?: boolean; children: React.ReactNode;
 }) {
+  const { tr } = useT();
   const circle = (
     <span className={`flex size-[60px] items-center justify-center rounded-full transition-colors ${
       highlight ? "bg-primary text-white" : "bg-muted text-foreground group-hover:bg-muted/70"
     }`}>{children}</span>
   );
   const cls = "group flex flex-col items-center gap-2 disabled:opacity-50";
-  const text = <span className="text-[14px] font-medium text-foreground">{label}</span>;
+  const text = <span className="text-[14px] font-medium text-foreground">{tr(label)}</span>;
   if (href) return <Link href={href} className={cls}>{circle}{text}</Link>;
   return <button onClick={onClick} disabled={disabled} className={cls}>{circle}{text}</button>;
 }

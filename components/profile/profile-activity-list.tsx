@@ -5,36 +5,42 @@ import Image from "next/image";
 import type { ActivityItem } from "@/services/profile-service";
 import { fmt } from "@/lib/format";
 import { ListPager } from "./list-pager";
+import { useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
+
+type Tr = (s: string, v?: Record<string, string | number>) => string;
 
 const PAGE_SIZE = 5;
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, tr: Tr, lang: Lang) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const h = Math.floor(diffMs / 3_600_000);
-  if (h < 1)  return "just now";
-  if (h < 24) return `${h}h ago`;
+  if (h < 1)  return tr("just now");
+  if (h < 24) return tr("{n}h ago", { n: h });
   const d = Math.floor(h / 24);
-  if (d < 7)  return `${d}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (d < 7)  return tr("{n}d ago", { n: d });
+  return new Date(iso).toLocaleDateString(LOCALES[lang], { month: "short", day: "numeric", year: "numeric" });
 }
 
-function formatStatus(s: string): string {
+function formatStatus(s: string, tr: Tr): string {
   switch (s) {
-    case "pending":   return "Pending";
-    case "approved":  return "Active";
-    case "won":       return "Won";
-    case "lost":      return "Lost";
-    case "refunded":  return "Refunded";
-    case "claimed":   return "Claimed";
-    case "paid":      return "Paid";
-    case "win":       return "Won";
-    case "lose":      return "Lost";
-    case "cancelled": return "Cancelled";
+    case "pending":   return tr("Pending");
+    case "approved":  return tr("Active");
+    case "won":       return tr("Won");
+    case "lost":      return tr("Lost");
+    case "refunded":  return tr("Refunded");
+    case "claimed":   return tr("Claimed");
+    case "paid":      return tr("Paid");
+    case "win":       return tr("Won");
+    case "lose":      return tr("Lost");
+    case "cancelled": return tr("Cancelled");
     default:          return s;
   }
 }
 
 function TypeBadge({ item }: { item: ActivityItem }) {
+  const { tr } = useT();
   if (item.market_type === "updown") {
     const isUp = item.direction_badge === "UP";
     return (
@@ -43,20 +49,20 @@ function TypeBadge({ item }: { item: ActivityItem }) {
           ? "bg-up/12 text-up"
           : "bg-down/12 text-down"
       }`}>
-        {isUp ? "↑ UP" : "↓ DOWN"}
+        {isUp ? tr("↑ UP") : tr("↓ DOWN")}
       </span>
     );
   }
   if (item.market_type === "pool") {
     return (
       <span className="min-w-[58px] rounded-full bg-violet-500/12 px-2 py-0.5 text-center text-[11px] font-semibold text-violet-600 dark:text-violet-400">
-        POOL
+        {tr("POOL")}
       </span>
     );
   }
   return (
     <span className="min-w-[58px] rounded-full bg-muted px-2 py-0.5 text-center text-[11px] font-semibold text-muted-foreground">
-      PRED
+      {tr("PRED")}
     </span>
   );
 }
@@ -73,6 +79,7 @@ function TokenDisplay({ token }: { token: "usdc" | "clt" }) {
 }
 
 export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
+  const { tr, lang } = useT();
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / PAGE_SIZE);
   const slice = items.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -81,7 +88,7 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
 
   return (
     <section>
-      <h2 className="mb-1 text-lg font-bold tracking-tight text-foreground">Recent activity</h2>
+      <h2 className="mb-1 text-lg font-bold tracking-tight text-foreground">{tr("Recent activity")}</h2>
 
       <div>
         {slice.map((item) => (
@@ -90,9 +97,9 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold text-foreground">{item.label}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {item.market_type === "updown" ? "UP/DOWN" : item.market_type === "pool" ? "Pool" : "Prediction"}
+                {item.market_type === "updown" ? tr("UP/DOWN") : item.market_type === "pool" ? tr("Pool") : tr("Prediction")}
                 {" · "}
-                {timeAgo(item.created_at)}
+                {timeAgo(item.created_at, tr, lang)}
               </p>
             </div>
             <div className="shrink-0 text-right">
@@ -114,7 +121,7 @@ export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
                   </span>
                 </p>
               )}
-              <p className="text-[11px] capitalize text-muted-foreground">{formatStatus(item.status)}</p>
+              <p className="text-[11px] capitalize text-muted-foreground">{formatStatus(item.status, tr)}</p>
             </div>
           </div>
         ))}

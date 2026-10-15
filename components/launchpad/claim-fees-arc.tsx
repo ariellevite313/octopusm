@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CoinsIcon, Loader2, CheckCircle2, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import {
   BONDING_CURVE_V2_ABI,
@@ -30,14 +31,14 @@ type Props = {
   vaultAddress?: string;  // adresse du GraduationVaultV4 (optionnel si pas encore graduée)
 };
 
-function fmtUsdc(raw: bigint): string {
+function fmtUsdc(raw: bigint, locale: string): string {
   const n = Number(raw) / 1e18;
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
 export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Props) {
   const { walletAddress, walletType, selectedChain, isAuthenticated } = useAuth();
-  const { t } = useT();
+  const { t, tr, lang } = useT();
 
   const [graduated,  setGraduated]  = useState<boolean | null>(null);
   const [accrued,    setAccrued]    = useState<bigint | null>(null);
@@ -140,10 +141,10 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
       setTxHash(hash);
       setTimeout(() => { void fetchFees(); }, 3000);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Transaction failed";
+      const msg = e instanceof Error ? e.message : tr("Transaction failed");
       setError(
         msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel")
-          ? "Transaction cancelled"
+          ? tr("Transaction cancelled")
           : msg.length > 120 ? msg.slice(0, 120) + "…" : msg,
       );
     } finally {
@@ -178,7 +179,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
     <div className="rounded-[22px] border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2">
         <CoinsIcon className="size-4 text-orange-400 shrink-0" />
-        <span className="text-sm font-semibold text-foreground">Creator fees (USDC)</span>
+        <span className="text-sm font-semibold text-foreground">{tr("Creator fees (USDC)")}</span>
         {graduated && (
           <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-up">
             <TrendingUpIcon className="size-3" />
@@ -189,11 +190,11 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
 
       <div className="flex items-baseline gap-1.5">
         {loading ? (
-          <span className="text-xs text-muted-foreground">Loading…</span>
+          <span className="text-xs text-muted-foreground">{tr("Loading…")}</span>
         ) : accrued !== null && accrued > 0n ? (
           <>
             <span className="text-2xl font-bold text-foreground tabular-nums">
-              {fmtUsdc(accrued)}
+              {fmtUsdc(accrued, LOCALES[lang])}
             </span>
             <span className="text-sm text-muted-foreground">{t.usdcAvailable}</span>
           </>
@@ -212,7 +213,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
           className="flex items-center gap-1.5 text-[11px] text-up hover:underline"
         >
           <CheckCircle2 className="size-3.5" />
-          {graduated ? "Collected" : "Claimed"} — View on ArcScan
+          {graduated ? tr("Collected — View on ArcScan") : tr("Claimed — View on ArcScan")}
         </a>
       )}
 

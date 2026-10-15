@@ -14,7 +14,8 @@ import { useState, useEffect, useCallback } from "react";
 import { createPublicClient, http, encodeFunctionData, parseAbi } from "viem";
 import { Loader2, CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { useT } from "@/lib/i18n";
+import { useT, Rich } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 import {
   BONDING_CURVE_V2_ABI,
   BC_GRAD_THRESHOLD,
@@ -41,18 +42,18 @@ type Direction = "buy" | "sell";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtUsdc(raw: bigint): string {
-  return (Number(raw) / 1e18).toLocaleString("en-US", {
+function fmtUsdc(raw: bigint, loc = "en-US"): string {
+  return (Number(raw) / 1e18).toLocaleString(loc, {
     minimumFractionDigits: 2, maximumFractionDigits: 6,
   });
 }
 
-function fmtTokens(raw: bigint): string {
+function fmtTokens(raw: bigint, loc = "en-US"): string {
   const n = Number(raw) / 1e18;
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
-  return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  return n.toLocaleString(loc, { maximumFractionDigits: 4 });
 }
 
 function parseDecimalToBigInt(value: string, decimals: number): bigint {
@@ -90,7 +91,8 @@ const ERC20_ABI = parseAbi([
 
 export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props) {
   const { walletAddress, selectedChain, isAuthenticated } = useAuth();
-  const { t } = useT();
+  const { t, tr, lang } = useT();
+  const loc = LOCALES[lang];
 
   const quoteSymbol = "USDC";
 
@@ -133,7 +135,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         (p: { isMetaMask?: boolean; isPhantom?: boolean }) => p.isMetaMask && !p.isPhantom
       ) ?? eth;
     }
-    if (!eth) throw new Error("MetaMask introuvable");
+    if (!eth) throw new Error(tr("MetaMask not found"));
     return eth;
   }
 
@@ -291,7 +293,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         const usdcGross  = BigInt(Math.round(parsed * 1e18));
         const minTokens  = (estimatedOut * slipMul) / 1000n;
 
-        if (quoteBalance !== null && usdcGross > quoteBalance) throw new Error("Solde USDC insuffisant");
+        if (quoteBalance !== null && usdcGross > quoteBalance) throw new Error(tr("Insufficient USDC balance"));
 
         // curve.buy{value: usdcGross}(minTokensOut)
         const data = encodeFunctionData({
@@ -308,7 +310,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         const tokensIn  = parseDecimalToBigInt(amount, 18);
         const minQuote  = (estimatedOut * slipMul) / 1000n;
 
-        if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error("Solde token insuffisant");
+        if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error(tr("Insufficient token balance"));
 
         // Approval si nécessaire
         const client = getPublicClient();
@@ -362,16 +364,15 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   if (isAuthenticated && selectedChain !== "arc") {
     return (
       <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-foreground">Arc wallet required</p>
+        <p className="text-sm font-semibold text-foreground">{tr("Arc wallet required")}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          This token runs on Arc (EVM).<br />
-          Connect an EVM wallet (MetaMask, Rabby…) to trade.
+          <Rich>{tr("This token runs on Arc (EVM).<br/>Connect an EVM wallet (MetaMask, Rabby…) to trade.")}</Rich>
         </p>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
           className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
         >
-          Switch wallet
+          {tr("Switch wallet")}
         </button>
       </div>
     );
@@ -382,11 +383,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   const outputSymbol = direction === "buy" ? ticker       : quoteSymbol;
 
   const balFmt = inputBalance !== null
-    ? `${direction === "buy" ? fmtUsdc(inputBalance) : fmtTokens(inputBalance)} ${inputSymbol}`
+    ? `${direction === "buy" ? fmtUsdc(inputBalance, loc) : fmtTokens(inputBalance, loc)} ${inputSymbol}`
     : "—";
 
   const outFmt = estimatedOut && estimatedOut > 0n
-    ? `~${direction === "buy" ? fmtTokens(estimatedOut) : fmtUsdc(estimatedOut)} ${outputSymbol}`
+    ? `~${direction === "buy" ? fmtTokens(estimatedOut, loc) : fmtUsdc(estimatedOut, loc)} ${outputSymbol}`
     : "";
 
   const canSwap = !!amount && parseFloat(amount) > 0 && !swapping && !graduated && !!estimatedOut;
@@ -433,7 +434,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {/* Post-graduation */}
         {graduated && (
           <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 text-center">
-            <p className="text-xs font-semibold text-indigo-400">🎓 Graduated — trade on Uniswap V4</p>
+            <p className="text-xs font-semibold text-indigo-400">{tr("🎓 Graduated — trade on Uniswap V4")}</p>
           </div>
         )}
 
@@ -450,7 +451,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {d}
+                {d === "buy" ? tr("Buy") : tr("Sell")}
               </button>
             ))}
           </div>
@@ -460,8 +461,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {!graduated && (
           <div className="space-y-1 px-0.5">
             <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>Bonding curve</span>
-              <span>MC {fmtMcap(currentMcapUsdc)} / {fmtMcap(GRAD_MCAP_USDC)}</span>
+              <span>{tr("Bonding curve")}</span>
+              <span>{tr("MC {cap} / {grad}", { cap: fmtMcap(currentMcapUsdc), grad: fmtMcap(GRAD_MCAP_USDC) })}</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
@@ -470,7 +471,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
               />
             </div>
             <p className="text-[10px] text-muted-foreground/50 text-right">
-              {progressBps > 0n ? `${(Number(progressBps) / 100).toFixed(1)}%` : "0%"} to graduation
+              {tr("{pct} to graduation", { pct: progressBps > 0n ? `${(Number(progressBps) / 100).toFixed(1)}%` : "0%" })}
             </p>
           </div>
         )}
@@ -491,7 +492,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             <span className="text-[26px] font-bold text-muted-foreground">{inputSymbol}</span>
           </div>
           <p className="mt-3 h-6 text-sm text-muted-foreground">
-            {outFmt ? <>You receive <span className="num font-semibold text-foreground">{outFmt}</span></> : (amount ? "" : "Enter an amount")}
+            {outFmt ? <>{tr("You receive")} <span className="num font-semibold text-foreground">{outFmt}</span></> : (amount ? "" : tr("Enter an amount"))}
           </p>
         </div>
 
@@ -502,9 +503,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             onClick={() => { setDirection(direction === "buy" ? "sell" : "buy"); setAmount(""); setEstimatedOut(null); }}
             disabled={graduated}
             className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            title="Switch buy / sell"
+            title={tr("Switch buy / sell")}
           >
-            {direction === "buy" ? "Pay with" : "Sell"}
+            {direction === "buy" ? tr("Pay with") : tr("Sell")}
             <span className="flex items-center gap-1.5 font-semibold text-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {direction === "buy" ? <img src="/usdc-coin.png" alt="" className="size-4 rounded-full" /> : (logoUrl ? <img src={logoUrl} alt="" className="size-4 rounded-full object-cover" /> : null)}
@@ -527,7 +528,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                 }}
                 className="rounded-full bg-muted py-2.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
-                {pct === 100 ? "Max" : `${pct}%`}
+                {pct === 100 ? tr("Max") : `${pct}%`}
               </button>
             ))}
           </div>
@@ -540,7 +541,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
         {/* Slippage */}
         <div className="flex items-center justify-between px-1 pt-1">
-          <span className="text-[12px] text-muted-foreground">Slippage</span>
+          <span className="text-[12px] text-muted-foreground">{tr("Slippage")}</span>
           <div className="flex gap-1.5">
             {[1, 2, 5].map(s => (
               <button
@@ -561,14 +562,14 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {/* Fee */}
         {amount && parseFloat(amount) > 0 && direction === "buy" && (
           <div className="flex items-center justify-between px-1 pt-0.5">
-            <span className="text-[11px] text-muted-foreground">Fee (2%)</span>
+            <span className="text-[11px] text-muted-foreground">{tr("Fee (2%)")}</span>
             <span className="text-[11px] text-muted-foreground">
               ~{(parseFloat(amount) * 0.02).toFixed(4)} {quoteSymbol}
             </span>
           </div>
         )}
 
-        {error && <p className="text-[11px] text-red-400 text-center">{error}</p>}
+        {error && <p className="text-[11px] text-red-400 text-center">{tr(error)}</p>}
 
         {txHash && (
           <a
@@ -588,7 +589,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             onClick={openWalletModal}
             className="mt-1 w-full rounded-2xl bg-primary py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
           >
-            Connect wallet
+            {tr("Connect wallet")}
           </button>
         ) : (
           <button
@@ -605,13 +606,13 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
-                {direction === "buy" ? "Buying…" : "Selling…"}
+                {direction === "buy" ? tr("Buying…") : tr("Selling…")}
               </span>
             ) : graduated
-              ? "Graduated"
+              ? tr("Graduated")
               : direction === "buy"
-                ? `Buy $${ticker}`
-                : `Sell $${ticker}`}
+                ? tr("Buy ${ticker}", { ticker })
+                : tr("Sell ${ticker}", { ticker })}
           </button>
         )}
 

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { getTasksWithCompletion } from "@/services/task-service";
 import type { TaskWithCompletion } from "@/lib/supabase/types";
+import { useT } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n-mark";
 
 // ─── Logo helpers (same logic as tasks-section) ───────────────────────────────
 
@@ -87,6 +89,7 @@ export function useOnboardingModal(walletAddress: string | null) {
 type Props = { walletAddress: string; onClose: () => void };
 
 export function OnboardingModal({ walletAddress, onClose }: Props) {
+  const { tr, lang } = useT();
   const queryClient = useQueryClient();
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks", walletAddress],
@@ -113,9 +116,9 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
     setClaiming((prev) => new Set(prev).add(task.id));
     const { error } = await claimTaskClient(task.id);
     setClaiming((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
-    if (error) { toast.error(error); return; }
+    if (error) { toast.error(tr(error)); return; }
     setLocalDone((prev) => new Set(prev).add(task.id));
-    toast.success(`+${task.reward_octo} OMERO earned!`);
+    toast.success(tr("+{amount} OMERO earned!", { amount: task.reward_octo }));
     void queryClient.invalidateQueries({ queryKey: ["tasks", walletAddress] });
   }
 
@@ -141,7 +144,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
           type="button"
           onClick={handleClose}
           className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="Close"
+          aria-label={tr("Close")}
         >
           <X className="size-5" />
         </button>
@@ -156,18 +159,18 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
               </span>
             </div>
 
-            <p className="mt-5 text-[13px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Welcome bonus</p>
+            <p className="mt-5 text-[13px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{tr("Welcome bonus")}</p>
             <h2 className="num mt-1 text-[40px] font-bold leading-none tracking-tight text-foreground">
-              +{totalOcto.toLocaleString("en-US")} <span className="text-primary">OMERO</span>
+              +{totalOcto.toLocaleString(LOCALES[lang])} <span className="text-primary">OMERO</span>
             </h2>
-            <p className="mt-2 text-[15px] text-muted-foreground">Complete a few quick tasks to collect them.</p>
+            <p className="mt-2 text-[15px] text-muted-foreground">{tr("Complete a few quick tasks to collect them.")}</p>
           </div>
 
           {/* Progression */}
           <div className="mt-6">
             <div className="flex items-baseline justify-between text-[13px]">
-              <span className="font-semibold text-foreground">{doneCount} / {tasks.length} done</span>
-              <span className="num text-muted-foreground">{earned.toLocaleString("en-US")} / {totalOcto.toLocaleString("en-US")} OMERO</span>
+              <span className="font-semibold text-foreground">{tr("{done} / {total} done", { done: doneCount, total: tasks.length })}</span>
+              <span className="num text-muted-foreground">{earned.toLocaleString(LOCALES[lang])} / {totalOcto.toLocaleString(LOCALES[lang])} OMERO</span>
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
@@ -193,14 +196,14 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className={`truncate text-[15px] font-semibold ${done ? "text-muted-foreground" : "text-foreground"}`}>{task.title}</p>
                     <p className="num flex items-center gap-1 text-[13px] font-semibold text-muted-foreground">
-                      +{task.reward_octo.toLocaleString("en-US")}
+                      +{task.reward_octo.toLocaleString(LOCALES[lang])}
                       <img src="/octo-coin.png" alt="" className="size-3.5 rounded-full object-cover" />
                     </p>
                   </div>
 
                   {done ? (
                     <span className="flex items-center gap-1 text-[13px] font-semibold text-up">
-                      <Check className="size-4" strokeWidth={3} />Done
+                      <Check className="size-4" strokeWidth={3} />{tr("Done")}
                     </span>
                   ) : needFollow ? (
                     <button
@@ -208,7 +211,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                       onClick={() => handleFollow(task)}
                       className="flex items-center gap-1 rounded-full px-4 py-2 text-[13px] font-bold text-foreground ring-1 ring-border transition-colors hover:bg-muted"
                     >
-                      Go<ArrowUpRight className="size-4" />
+                      {tr("Go")}<ArrowUpRight className="size-4" />
                     </button>
                   ) : (
                     <button
@@ -217,7 +220,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                       onClick={() => void handleClaim(task)}
                       className="flex min-w-[72px] items-center justify-center rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-white transition-all hover:brightness-105 disabled:opacity-60"
                     >
-                      {claiming_ ? <Loader2 className="size-4 animate-spin" /> : "Claim"}
+                      {claiming_ ? <Loader2 className="size-4 animate-spin" /> : tr("Claim")}
                     </button>
                   )}
                 </div>
@@ -230,9 +233,9 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
             onClick={handleClose}
             className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-primary text-[16px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(255,122,26,0.8)] transition-all hover:brightness-105"
           >
-            {doneCount === tasks.length && tasks.length > 0 ? "All done — let's go" : "Let's go"}
+            {doneCount === tasks.length && tasks.length > 0 ? tr("All done — let's go") : tr("Let's go")}
           </button>
-          <p className="mt-3 text-center text-[13px] text-muted-foreground">You can find these tasks anytime in your dashboard.</p>
+          <p className="mt-3 text-center text-[13px] text-muted-foreground">{tr("You can find these tasks anytime in your dashboard.")}</p>
         </div>
       </div>
     </div>

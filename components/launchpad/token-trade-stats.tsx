@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 import type { TfStats, TradeStatsResponse } from "@/app/api/launchpad/trade-stats/[mint]/route";
 
 type Tf = "m5" | "h1" | "h6" | "h24";
@@ -109,6 +110,7 @@ function Skeleton() {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function TokenTradeStats({ mintAddress }: { mintAddress: string }) {
+  const { tr } = useT();
   const [allStats, setAllStats] = useState<TradeStatsResponse | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(false);
@@ -139,7 +141,7 @@ export function TokenTradeStats({ mintAddress }: { mintAddress: string }) {
       {/* Section header + timeframe selector */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-[13px] font-semibold text-muted-foreground">
-          Transactions
+          {tr("Transactions")}
         </p>
         <div className="flex items-center gap-0.5">
           {TIMEFRAMES.map(t => (
@@ -162,29 +164,29 @@ export function TokenTradeStats({ mintAddress }: { mintAddress: string }) {
         {/* Buys vs Sells */}
         <StatRow
           leftCount={stats.buys}
-          leftLabel="Buys"
+          leftLabel={tr("Buys")}
           rightCount={stats.sells}
-          rightLabel="Sells"
+          rightLabel={tr("Sells")}
         />
 
         {/* Buyers vs Sellers */}
         <StatRow
           leftCount={stats.buyers}
-          leftLabel="Buyers"
+          leftLabel={tr("Buyers")}
           rightCount={stats.sellers}
-          rightLabel="Sellers"
+          rightLabel={tr("Sellers")}
         />
 
         {/* Total volume — displayed without ratio (no buy/sell split from free API) */}
         {stats.volume !== null && (
           <div className="flex items-center justify-between pt-0.5 border-t border-border">
-            <span className="text-[11px] text-muted-foreground">Volume</span>
+            <span className="text-[11px] text-muted-foreground">{tr("Volume")}</span>
             <span className="text-[11px] font-medium text-foreground">{fmtVol(stats.volume)}</span>
           </div>
         )}
       </div>
 
-      <p className="mt-3 text-[9px] text-muted-foreground/40 text-right">Source: GeckoTerminal</p>
+      <p className="mt-3 text-[9px] text-muted-foreground/40 text-right">{tr("Source: GeckoTerminal")}</p>
     </div>
   );
 }

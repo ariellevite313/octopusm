@@ -7,9 +7,11 @@ import { parseMarketOptions } from "@/lib/market/utils";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { PredictionMarketRow, MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import { TokenAmount } from "@/components/shared/token-logo";
+import { Tr } from "@/lib/i18n";
+import { LocalizedDate } from "@/components/market/localized-date";
 
 export const metadata: Metadata = {
-  title: "Archive - OMdotfun",
+  title: "Archive",
   description: "All resolved prediction markets and pool predictions on OMdotfun.",
   alternates: { canonical: "https://omdot.fun/archive" },
   openGraph: {
@@ -30,15 +32,6 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(dateStr));
-}
 
 function monthKey(dateStr: string | null): string {
   if (!dateStr) return "Unknown date";
@@ -73,7 +66,7 @@ function PredictionCard({ market }: { market: PredictionMarketRow }) {
               <Image src={market.left_competitor_image_src} alt={market.left_competitor_name ?? ""} fill className="object-cover" sizes="40px" />
             </div>
           )}
-          <span className="text-xs font-bold text-muted-foreground">VS</span>
+          <span className="text-xs font-bold text-muted-foreground"><Tr>VS</Tr></span>
           {market.right_competitor_image_src && (
             <div className="relative size-10 overflow-hidden rounded-full border border-border">
               <Image src={market.right_competitor_image_src} alt={market.right_competitor_name ?? ""} fill className="object-cover" sizes="40px" />
@@ -103,7 +96,7 @@ function PredictionCard({ market }: { market: PredictionMarketRow }) {
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           {market.category_id}
         </span>
-        <span className="text-[10px] text-muted-foreground">{formatDate(market.resolved_at)}</span>
+        <span className="text-[10px] text-muted-foreground"><LocalizedDate iso={market.resolved_at} /></span>
       </div>
     </Link>
   );
@@ -138,7 +131,7 @@ function PoolCard({ market }: { market: MutuelMarketRow }) {
           </div>
         )}
         <span className="text-[13px] font-semibold text-orange-500">
-          Bookmake · {market.category}
+          <Tr>Bookmake</Tr> · {market.category}
         </span>
       </div>
 
@@ -155,9 +148,9 @@ function PoolCard({ market }: { market: MutuelMarketRow }) {
 
       <div className="mt-3 flex items-center justify-between">
         <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
-          Pool ·&nbsp;<TokenAmount amount={market.bet_token === "usdc" ? market.total_pool_usdc.toFixed(2) : market.total_pool_clt.toFixed(0)} token={market.bet_token} logoClass="size-3" />
+          <Tr>Pool</Tr> ·&nbsp;<TokenAmount amount={market.bet_token === "usdc" ? market.total_pool_usdc.toFixed(2) : market.total_pool_clt.toFixed(0)} token={market.bet_token} logoClass="size-3" />
         </span>
-        <span className="text-[10px] text-muted-foreground">{formatDate(market.resolved_at)}</span>
+        <span className="text-[10px] text-muted-foreground"><LocalizedDate iso={market.resolved_at} /></span>
       </div>
     </Link>
   );
@@ -235,9 +228,13 @@ export default async function ArchivePage({
       <div className="mb-8 flex items-center gap-3">
         <Trophy className="size-8 shrink-0 text-orange-500" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Market Archive</h1>
+          <h1 className="text-2xl font-bold text-foreground"><Tr>Market Archive</Tr></h1>
           <p className="text-sm text-muted-foreground">
-            {totalPredictions} prediction{totalPredictions !== 1 ? "s" : ""} · {totalPools} pool{totalPools !== 1 ? "s" : ""} resolved
+            {totalPredictions !== 1
+              ? <Tr vars={{ n: totalPredictions }}>{"{n} predictions"}</Tr>
+              : <Tr vars={{ n: totalPredictions }}>{"{n} prediction"}</Tr>} · {totalPools !== 1
+              ? <Tr vars={{ n: totalPools }}>{"{n} pools resolved"}</Tr>
+              : <Tr vars={{ n: totalPools }}>{"{n} pool resolved"}</Tr>}
           </p>
         </div>
       </div>
@@ -261,7 +258,7 @@ export default async function ArchivePage({
                   : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
               }`}
             >
-              {t === "prediction" ? "Predictions" : t === "pool" ? "Bookmake" : "All"} ({count})
+              {t === "prediction" ? <Tr>Predictions</Tr> : t === "pool" ? <Tr>Bookmake</Tr> : <Tr>All</Tr>} ({count})
             </Link>
           );
         })}
@@ -278,7 +275,7 @@ export default async function ArchivePage({
                 : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
             }`}
           >
-            All categories
+            <Tr>All categories</Tr>
           </Link>
           {categories.map((cat) => {
             const count = allEntries.filter((e) => e.category === cat && (!type || type === "all" || e.kind === type)).length;
@@ -305,7 +302,7 @@ export default async function ArchivePage({
       {filtered.length === 0 && (
         <div className="py-20 text-center text-muted-foreground">
           <Trophy className="mx-auto mb-3 size-10 opacity-30" />
-          <p>No resolved markets here yet.</p>
+          <p><Tr>No resolved markets here yet.</Tr></p>
         </div>
       )}
 
@@ -314,7 +311,7 @@ export default async function ArchivePage({
         <section key={monthLabel} className="mb-10">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-foreground">
             <span className="flex-1 border-t border-border" />
-            <span className="capitalize">{monthLabel}</span>
+            <span className="capitalize">{groupEntries[0]?.resolvedAt ? <LocalizedDate iso={groupEntries[0].resolvedAt} variant="month" /> : <Tr>Unknown date</Tr>}</span>
             <span className="flex-1 border-t border-border" />
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
