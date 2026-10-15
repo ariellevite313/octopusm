@@ -21,7 +21,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
-import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, Rocket, CheckCircle2, Clock, Wallet } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
@@ -527,7 +527,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
                 onClick={() => handleWalletSelected(cfg)}
                 className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <span className="text-lg leading-none">{cfg.icon}</span>
+                <Wallet className="size-5 shrink-0 text-muted-foreground" />
                 <span className="flex-1 text-left flex items-center gap-2">
                   {cfg.name}
                   {cfg.recommended && (
@@ -583,7 +583,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
 
   const totalSteps = hasThreeTx ? 3 : 2;
   const labels: Record<Phase, string> = {
-    ready:          isScheduled ? tr("Sign & Schedule Launch") : tr("Sign & Launch 🚀"),
+    ready:          isScheduled ? tr("Sign & Schedule Launch") : tr("Sign & Launch"),
     "pick-wallet":  tr("Choose wallet…"),
     "signing-a":    tr("Step 1/{total} — Approve in wallet…", { total: totalSteps }),
     "sending-a":    hasThreeTx ? tr("Paying creation fee…") : hasTxA ? tr("Creating mint…") : tr("Sending fee…"),

@@ -652,7 +652,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           </div>
         )}
         {poolProgress?.graduated && (
-          <p className="text-[10px] text-center text-indigo-400 font-semibold pt-1">{tr("🎓 Graduated to DAMM")}</p>
+          <p className="text-[10px] text-center text-indigo-400 font-semibold pt-1">{tr("Graduated to DAMM")}</p>
         )}
 
       </div>

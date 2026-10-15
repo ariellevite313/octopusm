@@ -52,7 +52,7 @@ export const ru: Partial<Translations> = {
   connectToSwap: "Подключите кошелёк для обмена",
   curveUnknown: "Адрес кривой неизвестен",
   quoteExpired: "Котировка устарела — обновление…",
-  highImpact: (pct) => `⚠ Сильное влияние на цену (${pct}%) — попробуйте меньшую сумму.`,
+  highImpact: (pct) => `Сильное влияние на цену (${pct}%) — попробуйте меньшую сумму.`,
   swapping: "Обмен…",
   enterAmount: "Введите сумму",
   buyAnyway: "Всё равно купить",

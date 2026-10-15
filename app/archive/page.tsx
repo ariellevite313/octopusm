@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2, Trophy } from "lucide-react";
+import { CheckCircle2, Trophy, Layers } from "lucide-react";
 import { getResolvedMarkets } from "@/services/prediction-service";
 import { parseMarketOptions } from "@/lib/market/utils";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -126,8 +126,8 @@ function PoolCard({ market }: { market: MutuelMarketRow }) {
             <img src={market.cover_image_src} alt="" className="size-9 object-cover" />
           </div>
         ) : (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-orange-100 text-base dark:bg-orange-950/30">
-            🎱
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-orange-100 text-orange-500 dark:bg-orange-950/30">
+            <Layers className="size-4" />
           </div>
         )}
         <span className="text-[13px] font-semibold text-orange-500">

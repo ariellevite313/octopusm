@@ -28,15 +28,15 @@ export function XStockIcon({ symbol, size = 16, className = "" }: XStockIconProp
   }
 
   const entry = XSTOCK_CATALOG_SOLANA.find(s => s.symbol === symbol);
-  const emoji = entry?.emoji ?? "📈";
+  const label = (entry?.ticker ?? symbol.replace(/^x/, "")).slice(0, 2);
 
   return (
     <span
-      className={`shrink-0 leading-none ${className}`}
-      style={{ fontSize: size * 0.85 }}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-muted font-bold leading-none text-muted-foreground ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
       aria-label={symbol}
     >
-      {emoji}
+      {label}
     </span>
   );
 }

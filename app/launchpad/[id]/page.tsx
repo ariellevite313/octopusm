@@ -408,7 +408,7 @@ export default async function TokenDetailPage({ params }: Props) {
 
       {isGraduated && (
         <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center md:mx-6">
-          <p className="text-sm font-semibold text-indigo-400">🎓 Graduated to DAMM</p>
+          <p className="text-sm font-semibold text-indigo-400">Graduated to DAMM</p>
           <p className="text-xs text-muted-foreground mt-1">This token is now fully tradeable.</p>
           {birdeyeTokenUrl && (
             <a href={birdeyeTokenUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-medium text-indigo-400 underline">

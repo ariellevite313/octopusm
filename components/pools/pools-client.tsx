@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { Clock, Layers, Trophy } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import { TokenAmount } from "@/components/shared/token-logo";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
+import { EmptyIcon } from "@/components/shared/empty-icon";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <span className={`text-xs font-semibold leading-tight ${isWinner ? "text-foreground" : "text-foreground"}`}>
-                    {isWinner && "🏆 "}{opt.label}
+                    {isWinner && <Trophy className="mr-1 inline size-3 align-[-1px]" />}{opt.label}
                   </span>
                   <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-500">{pct}%</span>
                 </div>
@@ -217,7 +218,7 @@ export function PoolsClient({ markets: initialMarkets }: { markets: MutuelMarket
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-24 text-center">
-          <span className="text-5xl">🎱</span>
+          <EmptyIcon icon={Layers} />
           <p className="text-muted-foreground">{tr("No pools here yet.")}</p>
         </div>
       ) : (

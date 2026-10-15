@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Rocket, Clock, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
+import { ExternalLink, Rocket, Clock, AlertCircle, RotateCcw, Trash2, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { ClaimFeesButton } from "@/components/dashboard/claim-fees-button";
 import { useT } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
 import { XStockIcon } from "@/components/shared/xstock-icon";
+import { EmptyIcon } from "@/components/shared/empty-icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -305,7 +306,7 @@ export function MyTokensSection({ walletAddress }: Props) {
         </div>
       ) : tokens.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-10 text-center">
-          <span className="text-3xl">🐙</span>
+          <EmptyIcon icon={Coins} />
           <p className="text-sm text-muted-foreground">{t.noTokensYet}</p>
           <Link
             href="/launchpad/create"

@@ -147,7 +147,7 @@ export function Footer() {
 
         {/* Disclaimer */}
         <p className="mb-4 text-[11px] text-muted-foreground/60 leading-relaxed border-t border-border pt-4">
-          <Rich linkClass="underline underline-offset-2 hover:text-muted-foreground transition-colors">{tr("⚠️ Trading prediction markets and launching tokens involve a risk of loss. Nothing on this platform constitutes financial advice. Always check the current [terms](/faq) before acting.")}</Rich>
+          <Rich linkClass="underline underline-offset-2 hover:text-muted-foreground transition-colors">{tr("Trading prediction markets and launching tokens involve a risk of loss. Nothing on this platform constitutes financial advice. Always check the current [terms](/faq) before acting.")}</Rich>
         </p>
 
         {/* Bottom bar */}

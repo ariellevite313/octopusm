@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, ExternalLink, Layers } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import { CreatePoolModal } from "@/components/pools/create-pool-modal";
 import { TokenLogo } from "@/components/shared/token-logo";
+import { EmptyIcon } from "@/components/shared/empty-icon";
 
 const STATUS_PILL: Record<string, string> = {
   pending:  "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
@@ -71,7 +72,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
         </div>
       ) : markets.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-10 text-center">
-          <span className="text-3xl">🎱</span>
+          <EmptyIcon icon={Layers} />
           <p className="text-sm text-muted-foreground">You haven&apos;t created any pools yet.</p>
           <button
             onClick={() => setShowCreate(true)}
@@ -133,7 +134,7 @@ export function MyPoolsSection({ walletAddress }: Props) {
 
                 {market.status === "resolved" && market.winning_option_id && (
                   <p className="mb-2 text-xs text-purple-600 dark:text-purple-400 font-medium">
-                    ✅ Winner: {options.find(o => o.id === market.winning_option_id)?.label}
+                    Winner: {options.find(o => o.id === market.winning_option_id)?.label}
                   </p>
                 )}
 

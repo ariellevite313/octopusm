@@ -26,7 +26,7 @@ export function TokenShareButton({ name, ticker }: Props) {
   }, [open]);
 
   const url  = typeof window !== "undefined" ? window.location.href : "";
-  const text = tr("🚀 Check out ${ticker} — {name} on OMdotfun Launchpad!", { ticker, name });
+  const text = tr("Check out ${ticker} — {name} on OMdotfun Launchpad!", { ticker, name });
 
   function copyLink() {
     navigator.clipboard.writeText(url).then(() => {

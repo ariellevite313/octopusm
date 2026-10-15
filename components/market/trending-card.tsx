@@ -6,6 +6,7 @@ import { getCategoryLabel } from "@/lib/categories";
 import { formatVolume } from "@/lib/market/utils";
 import type { TrendingMarket } from "@/app/api/markets/trending/route";
 import { useT } from "@/lib/i18n";
+import { BarChart3 } from "lucide-react";
 
 // Bar colors: first option green, second blue
 const BAR_COLORS    = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444"];
@@ -33,7 +34,7 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
           </div>
         ) : (
           <div className="size-10 shrink-0 rounded-xl bg-muted flex items-center justify-center">
-            <span className="text-base">🐙</span>
+            <BarChart3 className="size-4 text-muted-foreground" />
           </div>
         )}
 
