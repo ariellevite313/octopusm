@@ -23,13 +23,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: `https://omdot.fun/${category}`,
       type: "website",
-      images: [{ url: "/og-omdot-1200.jpg", width: 1200, height: 630, alt: `${cap} Markets` }],
+      images: [{ url: "/og-omdot.png", width: 1200, height: 630, alt: `${cap} Markets` }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${cap} Prediction Markets | OMdotfun`,
       description,
-      images: ["/og-omdot-1200.jpg"],
+      images: ["/og-omdot.png"],
     },
   };
 }

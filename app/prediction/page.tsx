@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     description: "Trade on the outcome of sports, crypto, and world events. Decentralized prediction markets powered by USDC and ClawdTrust.",
     url: "https://omdot.fun/prediction",
     type: "website",
-    images: [{ url: "/og-omdot-1200.jpg", width: 1200, height: 630, alt: "OMdotfun — prediction markets & token launchpad" }],
+    images: [{ url: "/og-omdot.png", width: 1200, height: 630, alt: "OMdotfun — prediction markets & token launchpad" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "OMdotfun — Prediction Markets on Solana",
     description: "Trade on the outcome of sports, crypto, and world events.",
-    images: ["/og-omdot-1200.jpg"],
+    images: ["/og-omdot.png"],
   },
 };
 

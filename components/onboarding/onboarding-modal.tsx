@@ -24,7 +24,8 @@ const DOMAIN_LOGOS: Record<string, string> = {
 };
 
 function getTaskLogo(task: TaskWithCompletion): string | null {
-  if (task.icon) return task.icon;
+  // Seulement un chemin / une URL valide (task.icon peut être un libellé comme "X" ou "Discord")
+  if (task.icon && (task.icon.startsWith("/") || task.icon.startsWith("http"))) return task.icon;
   if (!task.external_link) return null;
   try {
     const host = new URL(task.external_link).hostname.replace("www.", "");
