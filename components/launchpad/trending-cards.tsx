@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { BadgeCheck } from "lucide-react";
 import { BurningFire } from "@/components/shared/burning-fire";
+import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 type TrendingToken = {
   id:             string;
@@ -64,7 +64,7 @@ export function TrendingCards() {
                 {t.logo_url && <Image src={t.logo_url} alt="" fill className="object-cover" unoptimized />}
               </span>
               <span className="font-bold text-foreground">{t.ticker}</span>
-              {t.is_verified && <BadgeCheck className="size-3.5 shrink-0 fill-primary text-card" />}
+              {t.is_verified && <VerifiedTokenBadge className="size-3.5" />}
               <span className="num font-semibold text-up">{fmt(t.volume_24h_usd)}</span>
             </Link>
           ))}

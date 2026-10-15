@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, BadgeCheck, ChevronLeft, Sprout } from "lucide-react";
+import { ExternalLink, ChevronLeft, Sprout } from "lucide-react";
 import { getLaunchpadToken, getLaunchpadTokenByMint } from "@/services/launchpad-service";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 import { WatchlistButton } from "@/components/launchpad/watchlist-button";
@@ -28,6 +28,7 @@ import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { AppIcon } from "@/components/shared/app-icon";
 import { TokenDetailShell } from "@/components/launchpad/token-detail-shell";
+import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 export const revalidate = 30;
 
@@ -322,7 +323,7 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="min-w-0 flex-1 pt-1">
           <div className="flex items-center gap-1.5">
             <h1 className="truncate text-[22px] font-bold leading-tight tracking-tight text-foreground md:text-[26px]">{token.name}</h1>
-            {token.is_verified && <BadgeCheck className="size-5 shrink-0 fill-primary text-background" />}
+            {token.is_verified && <VerifiedTokenBadge className="size-5" />}
           </div>
           {token.mint_address && (
             <div className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">

@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { BadgeCheck } from "lucide-react";
 import { BurningFire } from "@/components/shared/burning-fire";
+import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 type TrendingToken = {
   id:             string;
@@ -75,7 +75,7 @@ export function TrendingStrip() {
                   <div className="flex items-center gap-1.5 border-b border-border/70 px-4 py-3">
                     <span className="truncate text-[15px] font-bold text-foreground">{t.ticker}</span>
                     {t.is_verified && (
-                      <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />
+                      <VerifiedTokenBadge className="size-4" />
                     )}
                     {isArc && (
                       <span className="text-[10px] font-bold text-sky-400 bg-sky-400/10 rounded-md px-1 py-0.5">

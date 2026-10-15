@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT } from "@/lib/i18n";
+import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -172,7 +173,7 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
           <span className="truncate text-[15px] font-bold tracking-tight text-foreground lg:text-sm">
             {token.name}
           </span>
-          {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
+          {token.is_verified && <VerifiedTokenBadge className="size-4" />}
         </div>
 
         <div className="flex items-center justify-between">
@@ -233,7 +234,7 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
           <span className="truncate text-base font-bold tracking-tight text-foreground">
             {token.name}
           </span>
-          {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
+          {token.is_verified && <VerifiedTokenBadge className="size-4" />}
           {/* Chain icon */}
           <Image
             src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
@@ -344,7 +345,7 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
         <div className="flex items-baseline justify-between gap-2">
           <p className="flex min-w-0 items-baseline gap-1.5">
             <span className="truncate text-[15px] font-bold tracking-tight text-foreground sm:text-[17px]">{token.ticker}</span>
-            {token.is_verified && <BadgeCheck className="size-4 shrink-0 self-center fill-primary text-card" />}
+            {token.is_verified && <VerifiedTokenBadge className="size-4" />}
             <span className="hidden truncate text-sm text-muted-foreground sm:inline">{token.name}</span>
           </p>
           <p className="num flex shrink-0 items-baseline gap-2 text-[13px] font-bold text-foreground sm:gap-2.5 sm:text-[15px]">
@@ -416,7 +417,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
         <div className="min-w-0">
           <p className="flex min-w-0 items-baseline gap-2">
             <span className="truncate text-[16px] font-bold tracking-tight text-foreground">{token.name}</span>
-            {token.is_verified && <BadgeCheck className="size-4 shrink-0 self-center fill-primary text-card" />}
+            {token.is_verified && <VerifiedTokenBadge className="size-4" />}
             <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>
           </p>
           <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
@@ -524,7 +525,7 @@ function TokenTable({ tokens, offset, sort, onSort }: {
                       <span className="text-xs text-muted-foreground">/{quote}</span>
                       <span className="max-w-[180px] truncate text-sm text-muted-foreground">{token.name}</span>
                     </Link>
-                    {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
+                    {token.is_verified && <VerifiedTokenBadge className="size-4" />}
                   </div>
                 </td>
                 <td className="num px-3 py-2.5 text-right text-[15px] font-semibold text-foreground">
