@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Zap, Circle, CheckCircle2 } from "lucide-react";
+import { X, Check, ArrowUpRight, Loader2, Gift } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -120,6 +120,9 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
   }
 
   const totalOcto = tasks.reduce((sum, t) => sum + t.reward_octo, 0);
+  const earned    = tasks.filter(isDone).reduce((sum, t) => sum + t.reward_octo, 0);
+  const doneCount = tasks.filter(isDone).length;
+  const pct       = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
 
   function handleClose() {
     markSeen(walletAddress);
@@ -128,117 +131,109 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="w-full max-w-sm rounded-t-3xl border border-border bg-card p-5 shadow-2xl dark:border-white/10 sm:rounded-3xl">
-
-        {/* Header */}
-        <div className="mb-1 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-500/15">
-              <Zap className="size-5 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-orange-500">OMdotfun</p>
-              <h2 className="text-lg font-semibold leading-tight text-zinc-900 dark:text-white">Getting started</h2>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-xl p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <p className="mb-4 text-sm text-muted-foreground">
-          Complete these tasks and earn up to{" "}
-          <span className="inline-flex items-center gap-1 font-semibold text-orange-500">
-            +{totalOcto} <img src="/octo-coin.png" alt="OMERO" className="size-4 object-contain" />
-          </span>!
-        </p>
-
-        {/* Task list */}
-        <div className="space-y-2">
-          {tasks.map((task) => {
-            const logo       = getTaskLogo(task);
-            const done       = isDone(task);
-            const needFollow = !!task.external_link && !hasVisited(task.id) && !done;
-            const claiming_  = isClaiming(task.id);
-
-            return (
-              <div
-                key={task.id}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
-                  done
-                    ? "border-emerald-100 bg-emerald-50/60 opacity-60 dark:border-emerald-500/20 dark:bg-emerald-500/5"
-                    : "border-border bg-orange-50/60 dark:border-white/10 dark:bg-white/5"
-                }`}
-              >
-                {/* Logo */}
-                {logo ? (
-                  <img
-                    src={logo}
-                    alt=""
-                    className={`size-9 shrink-0 rounded-xl object-contain ${done ? "grayscale" : ""}`}
-                  />
-                ) : done ? (
-                  <CheckCircle2 className="size-9 shrink-0 text-up" />
-                ) : (
-                  <Circle className="size-9 shrink-0 text-zinc-300 dark:text-zinc-600" />
-                )}
-
-                {/* Title */}
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold ${done ? "text-zinc-400 line-through" : "text-zinc-900 dark:text-white"}`}>
-                    {task.title}
-                  </p>
-                </div>
-
-                {/* Reward + button */}
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold ${done ? "text-up" : "text-orange-500"}`}>
-                    +{task.reward_octo} <img src="/octo-coin.png" alt="OMERO" className="size-3.5 object-contain" />
-                  </span>
-
-                  {!done && (
-                    needFollow ? (
-                      <button
-                        type="button"
-                        onClick={() => handleFollow(task)}
-                        className="rounded-xl bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700 transition-colors dark:bg-zinc-700 dark:hover:bg-zinc-600"
-                      >
-                        Follow
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={claiming_}
-                        onClick={() => void handleClaim(task)}
-                        className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
-                      >
-                        {claiming_ ? "…" : "Claim"}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="relative max-h-[100dvh] w-full overflow-y-auto rounded-t-[32px] bg-background shadow-2xl ring-1 ring-border sm:max-w-[420px] sm:rounded-[32px]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(255,122,26,0.30),transparent_70%)]" />
 
         <button
           type="button"
           onClick={handleClose}
-          className="mt-4 w-full rounded-[14px] bg-orange-500 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600 btn-primary"
+          className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="Close"
         >
-          {"Let's Go"}
+          <X className="size-5" />
         </button>
-        <p className="mt-3 text-center text-xs text-muted-foreground">
-          You can find these tasks anytime in your dashboard.
-        </p>
+
+        <div className="relative px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-8">
+          {/* Pièce OMERO */}
+          <div className="flex flex-col items-center text-center">
+            <div className="relative size-24 rounded-full p-[3px]">
+              <span className="absolute inset-0 overflow-hidden rounded-full"><span className="gains-frame absolute inset-[-40%]" /></span>
+              <span className="relative flex size-full items-center justify-center overflow-hidden rounded-full border-[3px] border-background bg-muted">
+                <img src="/octo-coin.png" alt="OMERO" className="size-full object-cover" />
+              </span>
+            </div>
+
+            <p className="mt-5 text-[13px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Welcome bonus</p>
+            <h2 className="num mt-1 text-[40px] font-bold leading-none tracking-tight text-foreground">
+              +{totalOcto.toLocaleString("en-US")} <span className="text-primary">OMERO</span>
+            </h2>
+            <p className="mt-2 text-[15px] text-muted-foreground">Complete a few quick tasks to collect them.</p>
+          </div>
+
+          {/* Progression */}
+          <div className="mt-6">
+            <div className="flex items-baseline justify-between text-[13px]">
+              <span className="font-semibold text-foreground">{doneCount} / {tasks.length} done</span>
+              <span className="num text-muted-foreground">{earned.toLocaleString("en-US")} / {totalOcto.toLocaleString("en-US")} OMERO</span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* Tâches */}
+          <div className="mt-4">
+            {tasks.map((task) => {
+              const logo       = getTaskLogo(task);
+              const done       = isDone(task);
+              const needFollow = !!task.external_link && !hasVisited(task.id) && !done;
+              const claiming_  = isClaiming(task.id);
+
+              return (
+                <div key={task.id} className="flex items-center gap-3.5 border-b border-border py-3.5 last:border-b-0">
+                  {logo ? (
+                    <img src={logo} alt="" className={`size-9 shrink-0 rounded-full object-contain ${logo === "/x-logo.png" ? "dark:invert" : ""} ${done ? "opacity-40 grayscale" : ""}`} />
+                  ) : (
+                    <Gift className={`size-9 shrink-0 p-1.5 ${done ? "text-muted-foreground/50" : "text-primary"}`} />
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate text-[15px] font-semibold ${done ? "text-muted-foreground" : "text-foreground"}`}>{task.title}</p>
+                    <p className="num flex items-center gap-1 text-[13px] font-semibold text-muted-foreground">
+                      +{task.reward_octo.toLocaleString("en-US")}
+                      <img src="/octo-coin.png" alt="" className="size-3.5 rounded-full object-cover" />
+                    </p>
+                  </div>
+
+                  {done ? (
+                    <span className="flex items-center gap-1 text-[13px] font-semibold text-up">
+                      <Check className="size-4" strokeWidth={3} />Done
+                    </span>
+                  ) : needFollow ? (
+                    <button
+                      type="button"
+                      onClick={() => handleFollow(task)}
+                      className="flex items-center gap-1 rounded-full px-4 py-2 text-[13px] font-bold text-foreground ring-1 ring-border transition-colors hover:bg-muted"
+                    >
+                      Go<ArrowUpRight className="size-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={claiming_}
+                      onClick={() => void handleClaim(task)}
+                      className="flex min-w-[72px] items-center justify-center rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-white transition-all hover:brightness-105 disabled:opacity-60"
+                    >
+                      {claiming_ ? <Loader2 className="size-4 animate-spin" /> : "Claim"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleClose}
+            className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-primary text-[16px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(255,122,26,0.8)] transition-all hover:brightness-105"
+          >
+            {doneCount === tasks.length && tasks.length > 0 ? "All done — let's go" : "Let's go"}
+          </button>
+          <p className="mt-3 text-center text-[13px] text-muted-foreground">You can find these tasks anytime in your dashboard.</p>
+        </div>
       </div>
     </div>
   );
