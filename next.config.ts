@@ -57,6 +57,11 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Pages HTML : toujours revalidées (jamais servies périmées par un CDN/navigateur après un déploiement)
+        source: "/((?!_next/|api/|.*\\..*).*)",
+        headers: [{ key: "Cache-Control", value: "private, no-cache, must-revalidate" }],
+      },
+      {
         source: "/(.*)",
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
