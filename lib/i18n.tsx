@@ -543,11 +543,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
     let l: Lang = "en";
     try {
       const saved = localStorage.getItem("octo-lang");
+      // Anglais par défaut ; seule une langue choisie par l'utilisateur est mémorisée.
       if (isLang(saved)) l = saved;
-      else {
-        const nav = (navigator.languages?.[0] ?? navigator.language ?? "en").slice(0, 2).toLowerCase();
-        if (isLang(nav)) l = nav;
-      }
     } catch { /* ignore */ }
     setLangState(l);
     applyLang(l);

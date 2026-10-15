@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     url: "https://omdot.fun",
     siteName: "OMdotfun",
     type: "website",
-    images: [{ url: "/og-omdot-1200.jpg", width: 1200, height: 630, alt: "OMdotfun — prediction markets & token launchpad" }],
+    images: [{ url: "/og-omdot.png", width: 1200, height: 630, alt: "OMdotfun — prediction markets & token launchpad" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "OMdotfun | Prediction markets & token launchpad",
     description: "Trade real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
-    images: ["/og-omdot-1200.jpg"],
+    images: ["/og-omdot.png"],
   },
 };
 
