@@ -6,7 +6,6 @@ import { BarChart2, BarChart3 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { MarketGrid } from "./market-grid";
 import { TrendingSection } from "./trending-section";
-import { FeaturedHome } from "./featured-home";
 import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 import { useT } from "@/lib/i18n";
@@ -117,7 +116,6 @@ export function MarketsClient({ category, initialMarkets }: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">
       <TrendingSection />
-      <FeaturedHome />
       {omContent}
     </div>
   );

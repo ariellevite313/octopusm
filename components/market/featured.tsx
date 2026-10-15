@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useT } from "@/lib/i18n";
 import { UsDotMap } from "@/components/market/us-dot-map";
 import type { PmEvent, PmStateLean } from "@/lib/polymarket";
@@ -15,7 +14,7 @@ function fmtVol(n: number) {
 const isMid = (e: PmEvent) => /midterm|\bsenate\b|congress|\bu\.?s\.? (house|election)/i.test(`${e.title} ${e.category ?? ""} ${e.tags.map((t) => t.slug).join(" ")}`);
 
 /** Petite carte de taille fixe (même mesure pour toutes). */
-function MiniCard({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> }) {
+export function MiniCard({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> }) {
   const { tr } = useT();
   const hasMap = Object.keys(usMap).length > 0 && isMid(e);
   return (
@@ -23,7 +22,7 @@ function MiniCard({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean>
       href={e.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex h-[13.5rem] w-[19rem] shrink-0 flex-col rounded-2xl border border-border bg-card p-3.5 transition-colors hover:border-primary/40"
+      className="flex min-h-[13.5rem] w-[264px] shrink-0 flex-col rounded-[22px] border border-border bg-card p-3.5 transition-colors hover:border-primary/40"
     >
       <div className="flex items-start gap-2.5">
         {e.image ? (
@@ -53,53 +52,5 @@ function MiniCard({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean>
         <span className="font-semibold text-foreground">{tr("View market")} →</span>
       </div>
     </a>
-  );
-}
-
-/** Bande de petites cartes qui défile en continu (pause au toucher/survol, glissé manuel possible). */
-export function FeaturedStrip({ events, usMap }: { events: PmEvent[]; usMap: Record<string, PmStateLean> }) {
-  const scroller = useRef<HTMLDivElement>(null);
-  const paused = useRef(false);
-  const n = events.length;
-
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el || n < 3) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0, pos = el.scrollLeft, last = performance.now(), resume: ReturnType<typeof setTimeout> | undefined;
-    const SPEED = 34;
-    const tick = (now: number) => {
-      const dt = Math.min(now - last, 64); last = now;
-      const dup = el.children[n] as HTMLElement | undefined;
-      const half = dup ? dup.offsetLeft - (el.children[0] as HTMLElement).offsetLeft : 0;
-      if (!paused.current && half > el.clientWidth) {
-        pos += (SPEED * dt) / 1000;
-        if (pos >= half) pos -= half;
-        el.scrollLeft = pos;
-      } else pos = el.scrollLeft;
-      raf = requestAnimationFrame(tick);
-    };
-    const hold = () => { paused.current = true; if (resume) clearTimeout(resume); };
-    const release = () => { if (resume) clearTimeout(resume); resume = setTimeout(() => { paused.current = false; }, 1800); };
-    const wheel = () => { hold(); release(); };
-    el.addEventListener("pointerdown", hold); el.addEventListener("pointerenter", hold);
-    el.addEventListener("pointerleave", release); el.addEventListener("pointerup", release);
-    el.addEventListener("touchend", release); el.addEventListener("wheel", wheel, { passive: true });
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf); if (resume) clearTimeout(resume);
-      el.removeEventListener("pointerdown", hold); el.removeEventListener("pointerenter", hold);
-      el.removeEventListener("pointerleave", release); el.removeEventListener("pointerup", release);
-      el.removeEventListener("touchend", release); el.removeEventListener("wheel", wheel);
-    };
-  }, [n]);
-
-  if (n === 0) return null;
-  const loop = n >= 3;
-  return (
-    <div ref={scroller} className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-      {events.map((e) => <MiniCard key={e.id} e={e} usMap={usMap} />)}
-      {loop && events.map((e) => <MiniCard key={`dup-${e.id}`} e={e} usMap={usMap} />)}
-    </div>
   );
 }
