@@ -577,10 +577,7 @@ export default async function TokenDetailPage({ params }: Props) {
             <div className="flex items-center gap-2.5">
               <UserAvatar src={token.creator_avatar_src} name={creatorDisplayName ?? token.creator_wallet} size={32} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center rounded-md bg-up/12 px-2 py-0.5 text-[11px] font-semibold text-up shrink-0">
-                    1% fees
-                  </span>
+                <div className="flex items-center justify-between gap-3">
                   <a
                     href={`/profile/${token.creator_wallet}`}
                     className="block hover:text-primary transition-colors min-w-0"
@@ -594,6 +591,7 @@ export default async function TokenDetailPage({ params }: Props) {
                     <span className="font-mono text-[11px] text-foreground break-all">{shortAddr(token.creator_wallet, 6, 6)}</span>
                   )}
                   </a>
+                  <span className="shrink-0 text-xs font-semibold text-up">1% fees</span>
                 </div>
               </div>
             </div>
@@ -603,15 +601,15 @@ export default async function TokenDetailPage({ params }: Props) {
           {token.pool_address && (
             <>
               <div className="border-t border-border" />
-              <div>
-                <SectionLabel>Pool</SectionLabel>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[13px] font-semibold text-muted-foreground">Pool</p>
                 <a
                   href={`https://birdeye.so/token/${token.pool_address}?chain=solana`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-[11px] text-blue-400 break-all hover:underline"
+                  className="shrink-0 font-mono text-[11px] text-blue-400 hover:underline"
                 >
-                  {shortAddr(token.pool_address, 8, 8)}
+                  {shortAddr(token.pool_address, 6, 6)}
                 </a>
               </div>
             </>
