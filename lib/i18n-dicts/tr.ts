@@ -52,7 +52,7 @@ export const tr: Partial<Translations> = {
   connectToSwap: "Takas için cüzdanınızı bağlayın",
   curveUnknown: "Eğri adresi bilinmiyor",
   quoteExpired: "Fiyat teklifinin süresi doldu — yenileniyor…",
-  highImpact: (pct) => `⚠ Yüksek etki (%${pct}) — daha küçük bir miktar deneyin.`,
+  highImpact: (pct) => `Yüksek etki (%${pct}) — daha küçük bir miktar deneyin.`,
   swapping: "Takas yapılıyor…",
   enterAmount: "Bir miktar girin",
   buyAnyway: "Yine de al",

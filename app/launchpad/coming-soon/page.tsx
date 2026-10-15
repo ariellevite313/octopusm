@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import type { LaunchpadToken } from "@/services/launchpad-service";
+import { EmptyIcon } from "@/components/shared/empty-icon";
+import { Clock } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Coming Soon",
@@ -81,7 +83,7 @@ async function ComingSoonContent() {
   if (tokens.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="text-3xl mb-3">🕐</p>
+        <EmptyIcon icon={Clock} className="mb-3" />
         <p className="text-sm font-medium text-foreground mb-1">No scheduled launches yet</p>
         <p className="text-xs text-muted-foreground mb-5">
           Schedule your token launch up to 1 month in advance

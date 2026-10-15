@@ -339,9 +339,9 @@ function RoundCard({
             <Rich>{tr("My predict: <b>${amount} {dir}</b>", { amount: myBet.amount, dir: myBet.direction === "up" ? tr("↑ UP") : tr("↓ DOWN") })}</Rich>
             {myBet.payout && myBet.status !== "lost" ? ` → $${myBet.payout.toFixed(2)}` : ""}
           </span>
-          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-up">{tr("🏆 Claim in dashboard")}</span>}
-          {myBet.status === "claimed" && <span className="text-[10px]">{tr("⏳ Pending")}</span>}
-          {myBet.status === "paid"    && <span className="text-[10px]">{tr("✅ Paid")}</span>}
+          {(myBet.status === "won" || myBet.status === "refunded") && <span className="text-[10px] font-semibold text-up">{tr("Claim in dashboard")}</span>}
+          {myBet.status === "claimed" && <span className="text-[10px]">{tr("Pending")}</span>}
+          {myBet.status === "paid"    && <span className="text-[10px]">{tr("Paid")}</span>}
         </div>
       )}
 

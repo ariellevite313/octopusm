@@ -72,7 +72,7 @@ export async function GET(
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 20,
             }}>
-              🐙
+              O
             </div>
             <span style={{ fontSize: 16, color: "#f97316", fontWeight: 600, letterSpacing: "0.05em" }}>
               OMdotfun

@@ -21,6 +21,7 @@ import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 import { createClient } from "@/lib/supabase/client";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
+import { Lock } from "lucide-react";
 
 // ─── Helpers (dupliqués depuis lib/wallet/auth.ts pour éviter les imports circulaires) ──
 
@@ -175,7 +176,7 @@ function MobileConnectInner() {
       }}
     >
       {/* Logo */}
-      <div style={{ fontSize: 52, marginBottom: 4 }}>🔐</div>
+      <Lock size={48} strokeWidth={1.75} style={{ marginBottom: 4 }} />
 
       {/* Titre */}
       <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>

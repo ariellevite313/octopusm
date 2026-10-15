@@ -52,7 +52,7 @@ export const es: Partial<Translations> = {
   connectToSwap: "Conecta tu wallet para hacer swap",
   curveUnknown: "Dirección de la curva desconocida",
   quoteExpired: "Cotización caducada — actualizando…",
-  highImpact: (pct) => `⚠ Impacto alto (${pct}%) — prueba con una cantidad menor.`,
+  highImpact: (pct) => `Impacto alto (${pct}%) — prueba con una cantidad menor.`,
   swapping: "Intercambiando…",
   enterAmount: "Introduce una cantidad",
   buyAnyway: "Comprar igualmente",

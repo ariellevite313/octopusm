@@ -378,7 +378,7 @@ export default function FaqContent() {
       {/* Disclaimer */}
       <p className="text-xs text-muted-foreground border-t border-border pt-6">
         <Rich linkClass="text-violet-600 dark:text-violet-400 hover:underline">
-          {tr("⚠️ Trading prediction markets and launching a token involve a risk of loss. Always check the current terms on [omdot.fun](/) before acting.")}
+          {tr("Trading prediction markets and launching a token involve a risk of loss. Always check the current terms on [omdot.fun](/) before acting.")}
         </Rich>
       </p>
     </main>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp } from "lucide-react";
+import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
@@ -16,6 +16,7 @@ import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-ch
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { EmptyIcon } from "@/components/shared/empty-icon";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -841,7 +842,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </>
           ) : (
             <>
-              <p className="mb-3 text-3xl">🚀</p>
+              <EmptyIcon icon={Rocket} className="mx-auto mb-3" />
               <p className="mb-1 text-sm font-medium text-foreground">{tr("No tokens yet")}</p>
               <p className="mb-5 text-xs text-muted-foreground">{tr("Be the first to launch a token on OMdotfun")}</p>
               <Link

@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingUp } from "lucide-react";
 import { formatVolume } from "@/lib/market/utils";
 import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
 import { useT } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
+import { EmptyIcon } from "@/components/shared/empty-icon";
 
 export interface UpDownMarket {
   id: string;
@@ -222,7 +223,7 @@ export function UpDownSection() {
   if (allMarkets.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-20 text-center">
-        <span className="text-4xl">📈</span>
+        <EmptyIcon icon={TrendingUp} />
         <p className="text-muted-foreground">{tr("No active Up/Down rounds at the moment.")}</p>
         <p className="text-xs text-muted-foreground">{tr("Rounds are created automatically.")}</p>
       </div>

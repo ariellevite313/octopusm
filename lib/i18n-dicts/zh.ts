@@ -52,7 +52,7 @@ export const zh: Partial<Translations> = {
   connectToSwap: "请连接钱包以进行兑换",
   curveUnknown: "曲线地址未知",
   quoteExpired: "报价已过期 — 正在刷新…",
-  highImpact: (pct) => `⚠ 价格影响较大（${pct}%）— 请尝试较小金额。`,
+  highImpact: (pct) => `价格影响较大（${pct}%）— 请尝试较小金额。`,
   swapping: "兑换中…",
   enterAmount: "请输入金额",
   buyAnyway: "仍然购买",

@@ -52,7 +52,7 @@ export const pt: Partial<Translations> = {
   connectToSwap: "Conecte sua carteira para fazer swap",
   curveUnknown: "Endereço da curva desconhecido",
   quoteExpired: "Cotação expirada — atualizando…",
-  highImpact: (pct) => `⚠ Impacto alto (${pct}%) — tente um valor menor.`,
+  highImpact: (pct) => `Impacto alto (${pct}%) — tente um valor menor.`,
   swapping: "Trocando…",
   enterAmount: "Digite um valor",
   buyAnyway: "Comprar mesmo assim",

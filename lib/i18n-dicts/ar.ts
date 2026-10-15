@@ -52,7 +52,7 @@ export const ar: Partial<Translations> = {
   connectToSwap: "اربط محفظتك للمبادلة",
   curveUnknown: "عنوان المنحنى غير معروف",
   quoteExpired: "انتهت صلاحية السعر — جارٍ التحديث…",
-  highImpact: (pct) => `⚠ تأثير مرتفع على السعر (${pct}%) — جرّب مبلغًا أصغر.`,
+  highImpact: (pct) => `تأثير مرتفع على السعر (${pct}%) — جرّب مبلغًا أصغر.`,
   swapping: "جارٍ المبادلة…",
   enterAmount: "أدخل مبلغًا",
   buyAnyway: "اشترِ على أي حال",

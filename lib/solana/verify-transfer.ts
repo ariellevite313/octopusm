@@ -139,7 +139,7 @@ export async function verifyTokenTransfer(
           return `No ${symbol} transfer of ${expectedAmount} to treasury found in transaction`;
         }
 
-        return null; // ✅ success
+        return null; // success
       } catch {
         // try next RPC
       }

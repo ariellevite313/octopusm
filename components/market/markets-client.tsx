@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart2 } from "lucide-react";
+import { BarChart2, BarChart3 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { MarketGrid } from "./market-grid";
 import { TrendingSection } from "./trending-section";
 import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 import { useT } from "@/lib/i18n";
+import { EmptyIcon } from "@/components/shared/empty-icon";
 
 // ─── Module-level cache (survives React navigation, cleared on page reload) ────
 interface CacheEntry {
@@ -101,7 +102,7 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
       {markets.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
-          <span className="text-5xl">🐙</span>
+          <EmptyIcon icon={BarChart3} />
           <p className="text-muted-foreground">{emptyMsg}</p>
         </div>
       ) : (

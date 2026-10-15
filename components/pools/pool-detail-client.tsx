@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Share2, Trophy } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { CommentsSection } from "@/components/shared/comments-section";
@@ -377,8 +377,8 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
         <div className="mb-6">
           <p className="text-sm font-semibold text-foreground">
             {isAdmin
-              ? market.status === "rejected" ? tr("⚙️ Admin — Market rejected") : tr("⚙️ Admin — Preview before approval")
-              : market.status === "rejected" ? tr("❌ Market rejected") : tr("⏳ Pending approval")}
+              ? market.status === "rejected" ? tr("Admin — Market rejected") : tr("Admin — Preview before approval")
+              : market.status === "rejected" ? tr("Market rejected") : tr("Pending approval")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {isAdmin
@@ -455,7 +455,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
           {market.winning_option_id ? (
             <>
               <p className="text-base font-bold text-foreground">
-                {tr("✅ Winner:")}{" "}
+                {tr("Winner:")}{" "}
                 {options.find(o => o.id === market.winning_option_id)?.label ?? market.winning_option_id}
               </p>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -487,7 +487,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
                   {opt.image_url && (
                     <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-xl object-cover" />
                   )}
-                  {opt.label} {isWinner && "🏆"}
+                  {opt.label} {isWinner && <Trophy className="size-3.5" />}
                 </span>
                 <span className="flex items-center gap-1 tabular-nums text-muted-foreground">
                   {pcts[opt.id]}% · {impliedOdds(pcts[opt.id])} ·

@@ -6,6 +6,8 @@ import { MarketCard } from "@/components/market/market-card";
 import type { PredictionMarketRow } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 import { useT } from "@/lib/i18n";
+import { EmptyIcon } from "@/components/shared/empty-icon";
+import { Target } from "lucide-react";
 
 type Tab = "updown" | "hitprice";
 
@@ -52,7 +54,7 @@ export function CryptoPageClient({ hitPriceMarkets, volumes }: Props) {
       {tab === "hitprice" && (
         hitPriceMarkets.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
-            <span className="text-5xl">🎯</span>
+            <EmptyIcon icon={Target} />
             <p className="text-muted-foreground">{tr("No active Event markets at the moment.")}</p>
           </div>
         ) : (
