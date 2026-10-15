@@ -4,7 +4,6 @@ import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
 import { TrendingStrip } from "@/components/launchpad/trending-strip";
 import { TrendingCards } from "@/components/launchpad/trending-cards";
-import { PlatformStats } from "@/components/launchpad/platform-stats";
 import { LaunchpadBoard } from "@/components/desktop/launchpad-board";
 
 export const revalidate = 30;
@@ -65,10 +64,7 @@ function LaunchpadSkeleton() {
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
-      <div className="mb-6">
-        <h1 className="sr-only">Launchpad</h1>
-        <PlatformStats />
-      </div>
+      <h1 className="sr-only">Launchpad</h1>
       <div className="lg:hidden">
         <TrendingStrip />
       </div>

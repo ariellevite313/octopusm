@@ -54,3 +54,19 @@ export function PlatformStats() {
     </div>
   );
 }
+
+export function PlatformStatsInline() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  useEffect(() => {
+    fetch("/api/launchpad/platform-stats").then(r => r.ok ? r.json() : FALLBACK).then((d: Stats) => setStats(d)).catch(() => setStats(FALLBACK));
+  }, []);
+  if (!stats) return <div className="mb-6 h-12" />;
+  return (
+    <div className="mb-6">
+      <p className="text-[15px] text-muted-foreground">
+        Total Volume : <span className="num text-[22px] font-bold text-foreground">{fmtUsd(stats.totalVolume)}</span>
+      </p>
+      {stats.volume24h > 0 && <p className="num text-sm font-semibold text-up">+{fmtUsd(stats.volume24h)} today</p>}
+    </div>
+  );
+}
