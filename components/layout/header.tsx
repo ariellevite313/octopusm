@@ -66,7 +66,7 @@ export function Header() {
               ) : (
                 <Link
                   key={href}
-                  href={href}
+                  href={href === "/launchpad" ? "/" : href}
                   target={external ? "_blank" : undefined}
                   rel={external ? "noopener noreferrer" : undefined}
                   className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
@@ -157,7 +157,7 @@ export function Header() {
                 ) : (
                   <Link
                     key={href}
-                    href={href}
+                    href={href === "/launchpad" ? "/" : href}
                     target={external ? "_blank" : undefined}
                     rel={external ? "noopener noreferrer" : undefined}
                     onClick={() => setOpen(false)}

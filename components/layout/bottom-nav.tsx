@@ -177,7 +177,7 @@ export function BottomNav() {
           return (
             <Link
               key={href}
-              href={href}
+              href={href === "/launchpad" ? "/" : href}
               className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${
                 active ? "nav-pill-active text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}

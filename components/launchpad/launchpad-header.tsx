@@ -82,7 +82,7 @@ export function LaunchpadHeader() {
               return (
                 <Link
                   key={href}
-                  href={href}
+                  href={href === "/launchpad" ? "/" : href}
                   className={`rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
                     isActive(href, pathname)
                       ? "bg-card text-foreground shadow-sm"
@@ -171,7 +171,7 @@ export function LaunchpadHeader() {
                 return (
                   <Link
                     key={href}
-                    href={href}
+                    href={href === "/launchpad" ? "/" : href}
                     onClick={() => setOpen(false)}
                     className={`flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted ${
                       isActive(href, pathname)
@@ -186,7 +186,7 @@ export function LaunchpadHeader() {
               {[...MOBILE_EXTRA_LINKS].map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
-                  href={href}
+                  href={href === "/launchpad" ? "/" : href}
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
