@@ -536,7 +536,7 @@ export default async function TokenDetailPage({ params }: Props) {
             )}
             </>
           }
-          holders={!isArc && token.mint_address ? <TokenHolders mint={token.mint_address} /> : undefined}
+          holders={token.mint_address ? <TokenHolders mint={token.mint_address} chain={isArc ? "arc" : "solana"} curve={isArc ? token.arc_launch_id ?? undefined : undefined} /> : undefined}
           comments={
             <LaunchpadComments
               tokenId={token.id}

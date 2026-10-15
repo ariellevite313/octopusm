@@ -13,7 +13,7 @@ function fmtAmt(n: number) {
   return n.toFixed(2);
 }
 
-export function TokenHolders({ mint }: { mint: string }) {
+export function TokenHolders({ mint, chain = "solana", curve }: { mint: string; chain?: "solana" | "arc"; curve?: string }) {
   const { tr } = useT();
   const [rows, setRows] = useState<Holder[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -21,12 +21,12 @@ export function TokenHolders({ mint }: { mint: string }) {
 
   useEffect(() => {
     let off = false;
-    fetch(`/api/launchpad/holders/${mint}`)
+    fetch(chain === "arc" ? `/api/launchpad/arc-holders/${mint}${curve ? `?curve=${curve}` : ""}` : `/api/launchpad/holders/${mint}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => { if (!off) { setRows(d.holders ?? []); setTotal(d.total ?? 0); } })
       .catch(() => { if (!off) setErr(true); });
     return () => { off = true; };
-  }, [mint]);
+  }, [mint, chain, curve]);
 
   if (err) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>;
   if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
@@ -39,7 +39,7 @@ export function TokenHolders({ mint }: { mint: string }) {
         {rows.map((h) => (
           <a
             key={h.owner}
-            href={`https://solscan.io/account/${h.owner}`}
+            href={chain === "arc" ? `https://explorer.arc.io/address/${h.owner}` : `https://solscan.io/account/${h.owner}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 py-2.5"
