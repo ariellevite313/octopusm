@@ -277,7 +277,7 @@ export default async function TokenDetailPage({ params }: Props) {
           <Sprout className="size-3.5" />{age(token.created_at)}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <TokenShareButton name={token.name} ticker={token.ticker} />
+          <TokenShareButton id={token.id} name={token.name} ticker={token.ticker} />
         </div>
       </div>
 
