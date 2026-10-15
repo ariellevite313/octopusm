@@ -13,28 +13,11 @@ function fmtVol(n: number) {
   return `$${Math.round(n)}`;
 }
 
-export function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, PmStateLean> }) {
+function Slide({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> }) {
   const { tr } = useT();
-  const [i, setI] = useState(0);
-  const hold = useRef(false);
-  const n = events.length;
-  const go = useCallback((d: number) => setI((v) => (v + d + n) % n), [n]);
-
-  useEffect(() => {
-    if (n < 2) return;
-    const t = setInterval(() => { if (!hold.current) setI((v) => (v + 1) % n); }, 6000);
-    return () => clearInterval(t);
-  }, [n]);
-
-  const e = events[i];
-  if (!e) return null;
   const hasMap = Object.keys(usMap).length > 0 && /midterm|\bsenate\b|congress|\bu\.?s\.? (house|election)/i.test(`${e.title} ${e.category ?? ""} ${e.tags.map((t) => t.slug).join(" ")}`);
   return (
-    <div
-      className="rounded-3xl border border-border bg-card p-5 md:p-6"
-      onPointerEnter={() => { hold.current = true; }}
-      onPointerLeave={() => { hold.current = false; }}
-    >
+    <div className="flex h-full flex-col">
       <div className="flex items-start gap-3">
         {e.image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -76,11 +59,49 @@ export function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<s
       )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mt-auto flex items-center justify-between pt-3 text-xs text-muted-foreground">
         <span>{tr("24h vol")} {fmtVol(e.volume24h)}{e.live ? " · " : ""}{e.live && <span className="font-semibold text-down">LIVE</span>}</span>
         <a href={e.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:text-primary">
           {tr("View market")} →
         </a>
+      </div>
+
+    </div>
+  );
+}
+
+export function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, PmStateLean> }) {
+  const { tr } = useT();
+  const [i, setI] = useState(0);
+  const hold = useRef(false);
+  const n = events.length;
+  const go = useCallback((d: number) => setI((v) => (v + d + n) % n), [n]);
+
+  useEffect(() => {
+    if (n < 2) return;
+    const t = setInterval(() => { if (!hold.current) setI((v) => (v + 1) % n); }, 6000);
+    return () => clearInterval(t);
+  }, [n]);
+
+  const cur = Math.min(i, n - 1);
+  if (n === 0) return null;
+  return (
+    <div
+      className="rounded-3xl border border-border bg-card p-5 md:p-6"
+      onPointerEnter={() => { hold.current = true; }}
+      onPointerLeave={() => { hold.current = false; }}
+    >
+      {/* Toutes les slides sont empilées dans la même cellule : la hauteur = la plus grande, donc rien ne bouge au changement */}
+      <div className="grid">
+        {events.map((e, k) => (
+          <div
+            key={e.id}
+            aria-hidden={k !== cur}
+            className={`[grid-area:1/1] transition-opacity duration-300 ${k === cur ? "opacity-100" : "pointer-events-none invisible opacity-0"}`}
+          >
+            <Slide e={e} usMap={usMap} />
+          </div>
+        ))}
       </div>
 
       {n > 1 && (
@@ -88,7 +109,7 @@ export function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<s
           <div className="flex gap-1.5">
             {events.map((_, k) => (
               <button key={k} type="button" aria-label={`${k + 1}`} onClick={() => setI(k)}
-                className={`h-1.5 rounded-full transition-all ${k === i ? "w-6 bg-foreground" : "w-1.5 bg-muted-foreground/40"}`} />
+                className={`h-1.5 rounded-full transition-all ${k === cur ? "w-6 bg-foreground" : "w-1.5 bg-muted-foreground/40"}`} />
             ))}
           </div>
           <div className="flex gap-1.5">
