@@ -49,7 +49,7 @@ function CommentAvatar({ user, size = "md" }: {
   return user.avatar_src ? (
     <img src={user.avatar_src} alt="" className={`${cls} shrink-0 rounded-full object-cover`} loading="lazy" />
   ) : (
-    <div className={`${cls} shrink-0 flex items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400`}>
+    <div className={`${cls} shrink-0 flex items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground`}>
       {initial}
     </div>
   );
@@ -110,12 +110,12 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
           <p className="text-sm text-foreground leading-relaxed break-words">{comment.content}</p>
           <div className="mt-1.5 flex items-center gap-4">
             <button type="button" onClick={() => onLike(comment.id, false)} disabled={!isAuthenticated}
-              className={`flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${comment.liked_by_me ? "text-orange-500" : "text-muted-foreground hover:text-orange-400"}`}>
-              <Heart className={`size-3.5 ${comment.liked_by_me ? "fill-orange-500" : ""}`} />
+              className={`flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${comment.liked_by_me ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <Heart className={`size-3.5 ${comment.liked_by_me ? "fill-current" : ""}`} />
               {comment.like_count > 0 && <span>{comment.like_count}</span>}
             </button>
             <button type="button" onClick={() => { if (!isAuthenticated) { onRequestConnect?.(); return; } setShowReplyForm(v => !v); }}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-400 transition-colors">
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <MessageCircle className="size-3.5" />
               Reply
             </button>
@@ -138,8 +138,8 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
                 </div>
                 <p className="text-sm text-foreground leading-relaxed break-words">{reply.content}</p>
                 <button type="button" onClick={() => onLike(reply.id, true)} disabled={!isAuthenticated}
-                  className={`mt-1 flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${reply.liked_by_me ? "text-orange-500" : "text-muted-foreground hover:text-orange-400"}`}>
-                  <Heart className={`size-3.5 ${reply.liked_by_me ? "fill-orange-500" : ""}`} />
+                  className={`mt-1 flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${reply.liked_by_me ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  <Heart className={`size-3.5 ${reply.liked_by_me ? "fill-current" : ""}`} />
                   {reply.like_count > 0 && <span>{reply.like_count}</span>}
                 </button>
               </div>

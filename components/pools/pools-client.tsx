@@ -97,7 +97,7 @@ function PoolCard({ market, betTotals }: { market: MutuelMarketRow; betTotals: R
                 className={`rounded-[22px] border border-border bg-card px-3 py-2.5 ${market.status === "resolved" && !isWinner ? "opacity-40" : ""}`}
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className={`text-xs font-semibold leading-tight ${isWinner ? "text-orange-600 dark:text-orange-400" : "text-foreground"}`}>
+                  <span className={`text-xs font-semibold leading-tight ${isWinner ? "text-foreground" : "text-foreground"}`}>
                     {isWinner && "🏆 "}{opt.label}
                   </span>
                   <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-500">{pct}%</span>

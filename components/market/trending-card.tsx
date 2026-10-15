@@ -90,7 +90,7 @@ export function TrendingCard({ market }: { market: TrendingMarket }) {
             {market.bet_count} predicts
           </span>
         )}
-        <span className="text-xs font-bold text-primary">Predict →</span>
+        <span className="text-xs font-bold text-foreground">Predict →</span>
       </div>
     </Link>
   );

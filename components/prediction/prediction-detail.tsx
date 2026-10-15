@@ -36,7 +36,7 @@ const OPTION_COLORS = [
   { bar: "bg-blue-500",   border: "border-blue-500",   bg: "bg-blue-500",   text: "text-white", probText: "text-blue-100",   volText: "text-blue-200",   barBg: "bg-blue-400/40",   barFill: "bg-white/70", idle: "border-blue-200 bg-card hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:border-blue-700/60 dark:hover:bg-zinc-800" },
   { bar: "bg-red-500",    border: "border-red-500",    bg: "bg-red-500",    text: "text-white", probText: "text-red-100",    volText: "text-red-200",    barBg: "bg-red-400/40",    barFill: "bg-white/70", idle: "border-red-200 bg-card hover:border-red-300 hover:bg-red-50 dark:border-red-900/40 dark:hover:border-red-700/60 dark:hover:bg-zinc-800" },
   { bar: "bg-green-500",  border: "border-green-500",  bg: "bg-green-500",  text: "text-white", probText: "text-green-100",  volText: "text-green-200",  barBg: "bg-green-400/40",  barFill: "bg-white/70", idle: "border-green-200 bg-card hover:border-green-300 hover:bg-green-50 dark:border-green-900/40 dark:hover:border-green-700/60 dark:hover:bg-zinc-800" },
-  { bar: "bg-orange-500", border: "border-orange-500", bg: "bg-orange-500", text: "text-white", probText: "text-orange-100", volText: "text-orange-200", barBg: "bg-orange-400/40", barFill: "bg-white/70", idle: "border-border bg-card hover:border-orange-300 hover:bg-orange-50 dark:hover:border-orange-700/60 dark:hover:bg-zinc-800" },
+  { bar: "bg-orange-500", border: "border-orange-500", bg: "bg-orange-500", text: "text-white", probText: "text-white/85", volText: "text-white/70", barBg: "bg-orange-400/40", barFill: "bg-white/70", idle: "border-border bg-card hover:border-orange-300 hover:bg-orange-50 dark:hover:border-orange-700/60 dark:hover:bg-zinc-800" },
   { bar: "bg-purple-500", border: "border-purple-500", bg: "bg-purple-500", text: "text-white", probText: "text-purple-100", volText: "text-purple-200", barBg: "bg-purple-400/40", barFill: "bg-white/70", idle: "border-purple-200 bg-card hover:border-purple-300 hover:bg-purple-50 dark:border-purple-900/40 dark:hover:border-purple-700/60 dark:hover:bg-zinc-800" },
   { bar: "bg-yellow-500", border: "border-yellow-500", bg: "bg-yellow-500", text: "text-white", probText: "text-yellow-100", volText: "text-yellow-200", barBg: "bg-yellow-400/40", barFill: "bg-white/70", idle: "border-yellow-200 bg-card hover:border-yellow-300 hover:bg-yellow-50 dark:border-yellow-900/40 dark:hover:border-yellow-700/60 dark:hover:bg-zinc-800" },
 ];
@@ -172,7 +172,7 @@ function Competitor({ name, src }: { name: string | null; src: string | null }) 
       {src ? (
         <img src={src} alt={name ?? ""} className="size-12 rounded-full object-cover border border-border" loading="lazy" />
       ) : (
-        <div className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-lg font-bold text-primary">
+        <div className="flex size-12 items-center justify-center rounded-full bg-muted text-lg font-bold text-foreground">
           {name?.[0] ?? "?"}
         </div>
       )}
@@ -274,7 +274,7 @@ function CommentAvatar({
     />
   ) : (
     <div
-      className={`${cls} shrink-0 flex items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400`}
+      className={`${cls} shrink-0 flex items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground`}
     >
       {initial}
     </div>
@@ -376,12 +376,12 @@ function CommentItem({
               disabled={!isAuthenticated}
               className={`flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${
                 comment.liked_by_me
-                  ? "text-orange-500"
-                  : "text-muted-foreground hover:text-orange-400"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Heart
-                className={`size-3.5 ${comment.liked_by_me ? "fill-orange-500" : ""}`}
+                className={`size-3.5 ${comment.liked_by_me ? "fill-current" : ""}`}
               />
               {comment.like_count > 0 && <span>{comment.like_count}</span>}
             </button>
@@ -389,7 +389,7 @@ function CommentItem({
               <button
                 type="button"
                 onClick={() => setShowReplyForm((v) => !v)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-400 transition-colors"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <MessageCircle className="size-3.5" />
                 Reply
@@ -422,12 +422,12 @@ function CommentItem({
                   disabled={!isAuthenticated}
                   className={`mt-1 flex items-center gap-1 text-xs transition-colors disabled:opacity-40 disabled:cursor-default ${
                     reply.liked_by_me
-                      ? "text-orange-500"
-                      : "text-muted-foreground hover:text-orange-400"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Heart
-                    className={`size-3.5 ${reply.liked_by_me ? "fill-orange-500" : ""}`}
+                    className={`size-3.5 ${reply.liked_by_me ? "fill-current" : ""}`}
                   />
                   {reply.like_count > 0 && <span>{reply.like_count}</span>}
                 </button>

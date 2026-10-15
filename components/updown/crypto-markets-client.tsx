@@ -349,7 +349,7 @@ function RoundCard({
             {QUICK_AMOUNTS.map(q => (
               <button key={q} onClick={() => setAmount(q)}
                 className={`flex-1 rounded-lg border py-1 text-xs font-semibold transition-colors ${
-                  amount === q ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
+                  amount === q ? "border-foreground bg-foreground/10 text-foreground" : "border-border text-muted-foreground hover:border-primary/50"
                 }`}
               >${q}</button>
             ))}

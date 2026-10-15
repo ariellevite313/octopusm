@@ -24,7 +24,7 @@ export default function PredictionsLeaderboardPage() {
       {/* Title */}
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Trophy className="size-6 shrink-0 text-primary" />
+          <Trophy className="size-6 shrink-0 text-foreground" />
           <h1 className="whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight tracking-tight text-foreground">Predictions Leaderboard</h1>
         </div>
         <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-muted-foreground">
