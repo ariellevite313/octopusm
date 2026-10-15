@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Featured } from "@/components/market/featured";
+import { FeaturedStrip } from "@/components/market/featured";
 import type { PmEvent, PmStateLean } from "@/lib/polymarket";
 
 type Data = { featured: PmEvent[]; usMap: Record<string, PmStateLean> };
@@ -27,11 +27,11 @@ export function FeaturedHome() {
   }, []);
 
   // Emplacement réservé pendant le chargement : la page ne saute pas quand l'annonce arrive
-  if (!data) return <div className="mx-auto mt-4 h-[32rem] max-w-4xl animate-pulse rounded-3xl border border-border bg-card/60 md:h-[27rem]" aria-hidden />;
+  if (!data) return <div className="mb-6 h-[13.5rem] animate-pulse rounded-2xl border border-border bg-card/60" aria-hidden />;
   if (data.featured.length === 0) return null;
   return (
-    <div className="mx-auto mt-4 max-w-4xl">
-      <Featured events={data.featured} usMap={data.usMap} />
+    <div className="mb-6">
+      <FeaturedStrip events={data.featured} usMap={data.usMap} />
     </div>
   );
 }
