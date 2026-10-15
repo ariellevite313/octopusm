@@ -197,9 +197,6 @@ export function CreatorLeaderboard() {
                       <p className="num text-base font-bold text-up">+{fmtSol(top3[0].totalFeeSol)}</p>
                     </div>
                   </div>
-                  <p className="mt-3 text-[13px] text-muted-foreground">
-                    {top3[0].tokenCount} tokens · {top3[0].claimCount} claims
-                  </p>
                 </div>
                 <div className="relative">
                   <Crown className="absolute -top-5 left-1/2 z-10 size-9 -translate-x-1/2 rotate-[8deg] fill-amber-400 text-amber-500 drop-shadow-[0_2px_6px_rgba(245,179,1,0.6)]" />
@@ -241,14 +238,6 @@ export function CreatorLeaderboard() {
                         {displayLabel(entry)}
                       </span>
                       {top && <Crown className={`size-4 shrink-0 ${tone?.text ?? ""}`} />}
-                    </div>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <span className="rounded-lg bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                        {entry.tokenCount} tokens
-                      </span>
-                      <span className="rounded-lg bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                        {entry.claimCount} claims
-                      </span>
                     </div>
                   </div>
                   <span className="num shrink-0 text-right text-[15px] font-bold text-up">

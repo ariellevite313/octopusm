@@ -379,40 +379,34 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
         </div>
       )}
 
-      <div className="mb-2 flex items-start gap-4">
-        {market.cover_image_src && (
-          <div className="size-14 shrink-0 overflow-hidden rounded-xl border border-border">
-            <img
-              src={market.cover_image_src}
-              alt={market.title}
-              className="size-14 object-cover"
-            />
-          </div>
-        )}
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <h1 className="flex-1 text-2xl font-bold leading-snug text-foreground">{market.title}</h1>
-          <div className="flex shrink-0 items-center gap-2 pt-1">
-            <span className={`text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
-              {market.status}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href).then(() => {
-                  toast.success("Link copied!");
-                });
-              }}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="Share"
-            >
-              <Share2 className="size-4" />
-            </button>
-          </div>
+      {/* En-tête : image + statut + partage sur une ligne, titre pleine largeur dessous */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {market.cover_image_src && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={market.cover_image_src} alt={market.title} className="size-12 shrink-0 rounded-xl object-cover" />
+          )}
+          <span className={`text-sm font-semibold capitalize ${STATUS_COLORS[market.status] ?? "text-muted-foreground"}`}>
+            {market.status}
+          </span>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+              toast.success("Link copied!");
+            });
+          }}
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Share"
+        >
+          <Share2 className="size-[18px]" />
+        </button>
       </div>
+      <h1 className="mb-3 text-[22px] font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-[26px]">{market.title}</h1>
 
       {market.description && (
-        <p className="mb-6 whitespace-pre-line break-words text-sm text-muted-foreground">{market.description}</p>
+        <p className="mb-5 whitespace-pre-line break-words text-[15px] leading-relaxed text-muted-foreground">{market.description}</p>
       )}
 
       <div className="mb-8 flex flex-wrap gap-4 text-xs text-muted-foreground">
