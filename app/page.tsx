@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getLaunchpadTokens } from "@/services/launchpad-service";
 import { LaunchpadClient } from "@/components/launchpad/launchpad-client";
 import { TrendingStrip } from "@/components/launchpad/trending-strip";
+import { TrendingCards } from "@/components/launchpad/trending-cards";
 import { PlatformStats } from "@/components/launchpad/platform-stats";
 import { LaunchpadBoard } from "@/components/desktop/launchpad-board";
 
@@ -68,8 +69,13 @@ export default function HomePage() {
         <h1 className="sr-only">Launchpad</h1>
         <PlatformStats />
       </div>
+      <div className="lg:hidden">
+        <TrendingStrip />
+      </div>
       <LaunchpadBoard />
-      <TrendingStrip />
+      <div className="hidden lg:block">
+        <TrendingCards />
+      </div>
       <Suspense fallback={<LaunchpadSkeleton />}>
         <LaunchpadContent />
       </Suspense>
