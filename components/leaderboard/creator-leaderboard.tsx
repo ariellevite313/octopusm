@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Trophy, ArrowLeft, Crown } from "lucide-react";
+import { PlatformStatsInline } from "@/components/launchpad/platform-stats";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
 
 type Period = "24h" | "7d" | "30d" | "1y" | "all";
@@ -146,6 +147,8 @@ export function CreatorLeaderboard() {
           Top 100
         </span>
       </div>
+
+      <PlatformStatsInline />
 
       {/* Period tabs */}
       <div className="mb-6 flex w-fit items-center gap-0.5 rounded-full border border-border p-1">
