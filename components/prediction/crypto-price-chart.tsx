@@ -239,9 +239,9 @@ export function CryptoPriceChart({ ticker, priceTarget, marketCloseAt }: Props) 
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
 
   return (
-    <div className="rounded-[22px] border border-border bg-card overflow-hidden">
+    <div className="overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+      <div className="flex items-center gap-3 pt-2 pb-2">
         <div
           className="flex size-8 items-center justify-center rounded-full text-xs font-bold text-white shrink-0"
           style={{ background: meta.color }}

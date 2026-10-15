@@ -107,7 +107,7 @@ export function LiveScore({ matchId, homeName = "Home", awayName = "Away" }: Liv
   const isFinished = status === "finished";
 
   return (
-    <div className="rounded-[22px] border border-border bg-card p-4">
+    <div>
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[13px] font-semibold text-muted-foreground">

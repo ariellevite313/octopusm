@@ -15,6 +15,7 @@ import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { toast } from "sonner";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { ListPager } from "@/components/profile/list-pager";
 
 // ─── Option color palette ─────────────────────────────────────────────────────
 // Used for progress bars and selected-option highlights (cycles through options)
@@ -183,7 +184,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
   if (isClosed) {
     return (
-      <div className="rounded-2xl border border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+      <div className="py-4 text-center text-sm text-muted-foreground">
         Predictions are closed for this market.
       </div>
     );
@@ -191,14 +192,14 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
   if (step === "pending") {
     return (
-      <div className="rounded-2xl bg-up/12 p-5 dark:border-emerald-800 dark:bg-emerald-950/20">
+      <div className="py-2">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xl">✅</span>
           <p className="font-semibold text-up">
             Prediction submitted!
           </p>
         </div>
-        <p className="mb-2 text-sm text-up">
+        <p className="mb-2 text-sm text-foreground">
           Your transfer has been sent on-chain. An admin will validate your prediction shortly — it will then appear in the live odds.
         </p>
         {reference && (
@@ -208,7 +209,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         )}
         <button
           onClick={() => setStep("idle")}
-          className="mt-4 rounded-xl border border-emerald-300 px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40 transition-colors"
+          className="mt-4 rounded-full bg-muted px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted/70"
         >
           Place another prediction
         </button>
@@ -217,8 +218,8 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   }
 
   return (
-    <form onSubmit={submit} className="rounded-[22px] border border-border bg-card p-5">
-      <h3 className="mb-1 text-sm font-semibold text-foreground">Make a Prediction</h3>
+    <form onSubmit={submit}>
+      <h3 className="mb-1 text-lg font-bold tracking-tight text-foreground">Make a prediction</h3>
       <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
         Market uses
         <TokenLogo token={token} className="size-4" />
@@ -226,35 +227,36 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         — winnings paid in {tokenLabel(token)}.
       </p>
 
-      <div className="mb-4 flex flex-col gap-2">
+      <div className="mb-5 flex flex-col divide-y divide-border">
         {options.map((opt, idx) => {
           const col = optionColor(idx, opt.label);
+          const on = selectedOption === opt.id;
           return (
             <button
               key={opt.id}
               type="button"
               disabled={isBusy}
               onClick={() => { setSelectedOption(opt.id); }}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed ${
-                selectedOption === opt.id
-                  ? col.selected
-                  : `border-border text-foreground ${col.hover}`
-              }`}
+              aria-pressed={on}
+              className="flex items-center justify-between py-3.5 text-left text-[15px] text-foreground transition-opacity disabled:cursor-not-allowed hover:opacity-80"
             >
-              <span className="flex items-center gap-2">
+              <span className={`flex items-center gap-3 ${on ? "font-bold" : "font-medium"}`}>
+                <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-foreground" : "border-muted-foreground/40"}`}>
+                  {on && <span className={`size-2.5 rounded-full ${col.bar}`} />}
+                </span>
                 {opt.image_url && (
                   <img src={opt.image_url} alt="" className="size-5 shrink-0 rounded-xl object-cover" />
                 )}
                 {opt.label}
               </span>
-              <span className="text-xs text-muted-foreground tabular-nums">{pcts[opt.id]}%</span>
+              <span className={`num text-sm tabular-nums ${on ? "font-bold text-foreground" : "text-muted-foreground"}`}>{pcts[opt.id]}%</span>
             </button>
           );
         })}
       </div>
 
       <div className="mb-4">
-        <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <TokenLogo token={token} className="size-4" />
           Amount ({tokenLabel(token)})
         </label>
@@ -266,7 +268,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
           onChange={e => setAmount(e.target.value)}
           placeholder="0.00"
           disabled={isBusy}
-          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 disabled:opacity-50"
+          className="num w-full border-0 border-b border-border bg-transparent px-0 py-2 text-2xl font-bold text-foreground placeholder:text-muted-foreground/50 focus:border-foreground focus:outline-none disabled:opacity-50"
         />
       </div>
 
@@ -324,6 +326,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
 
   const options = (market.options ?? []) as MutuelOption[];
   const [bets, setBets] = useState<RawBet[]>(initialBets);
+  const [betPage, setBetPage] = useState(0);
 
   // Bug #13 fix: memoize expensive computations
   const totals = useMemo(() => computeTotals(bets, options), [bets, options]);
@@ -358,8 +361,8 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       </Link>
 
       {isPreview && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-950/20">
-          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+        <div className="mb-6">
+          <p className="text-sm font-semibold text-foreground">
             {isAdmin
               ? market.status === "rejected" ? "⚙️ Admin — Market rejected" : "⚙️ Admin — Preview before approval"
               : market.status === "rejected" ? "❌ Market rejected" : "⏳ Pending approval"}
@@ -429,8 +432,8 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       </div>
 
       {market.status === "cancelled" && (
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/30">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <div className="mb-6">
+          <p className="text-sm font-semibold text-foreground">
             Market cancelled
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -441,10 +444,10 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
 
       {/* Bug #9 fix: resolved banner shows even when winning_option_id is null */}
       {market.status === "resolved" && (
-        <div className="mb-6 rounded-2xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-950/20">
+        <div className="mb-6">
           {market.winning_option_id ? (
             <>
-              <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
+              <p className="text-base font-bold text-foreground">
                 ✅ Winner:{" "}
                 {options.find(o => o.id === market.winning_option_id)?.label ?? market.winning_option_id}
               </p>
@@ -457,7 +460,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
               </p>
             </>
           ) : (
-            <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
+            <p className="text-base font-bold text-foreground">
               Market resolved — payouts being processed.
             </p>
           )}
@@ -465,8 +468,8 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       )}
 
       {/* Odds bars */}
-      <div className="mb-6 flex flex-col gap-3 rounded-[22px] border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">Live Odds</h2>
+      <div className="mb-8 flex flex-col gap-4">
+        <h2 className="text-lg font-bold tracking-tight text-foreground">Live odds</h2>
         {options.map((opt, idx) => {
           const isWinner = market.status === "resolved" && market.winning_option_id === opt.id;
           const col = optionColor(idx, opt.label);
@@ -485,7 +488,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
                   {totals[opt.id].toFixed(decimals)}
                 </span>
               </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${col.bar}`}
                   style={{ width: `${pcts[opt.id]}%` }}
@@ -498,7 +501,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
 
       <div className="mb-8">
         {isPreview ? (
-          <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-5 text-center text-sm text-muted-foreground">
+          <div className="py-5 text-center text-sm text-muted-foreground">
             Bets will open once the market is approved.
           </div>
         ) : (
@@ -512,13 +515,13 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
       </div>
 
       {/* Recent predictions */}
-      <div className="mb-10 rounded-[22px] border border-border bg-card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-foreground">Recent Predictions</h2>
+      <div className="mb-10">
+        <h2 className="mb-2 text-lg font-bold tracking-tight text-foreground">Recent predictions</h2>
         {bets.length === 0 ? (
           <p className="text-sm text-muted-foreground">No predictions yet. Be the first!</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
-            {bets.slice(0, 30).map((bet, i) => {
+            {bets.slice(betPage * 5, betPage * 5 + 5).map((bet, i) => {
               const optLabel = options.find(o => o.id === bet.option_id)?.label ?? bet.option_id;
               // Bug #10 fix: stable key using created_at + option_id + index fallback
               const key = `${bet.created_at}-${bet.option_id}-${i}`;
@@ -568,12 +571,13 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
             })}
           </div>
         )}
+        <ListPager page={betPage} total={Math.ceil(bets.length / 5)} onChange={setBetPage} />
       </div>
 
       {/* Comments */}
       {/* Bug #5 fix: isAuthenticated based on walletAddress from auth context (already correct — 
           walletAddress is null when disconnected, set on connect) */}
-      <div className="rounded-[22px] border border-border bg-card p-5">
+      <div>
         <CommentsSection
           marketId={market.id}
           initialComments={initialComments}
