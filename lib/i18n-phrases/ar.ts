@@ -1029,5 +1029,9 @@ const p: Record<string, string> = {
   "Network error": "خطأ في الشبكة",
   "Network error — please retry": "خطأ في الشبكة — أعد المحاولة",
   "View market": "عرض السوق",
+  "Language": "اللغة",
+  "Theme": "المظهر",
+  "Light": "فاتح",
+  "Dark": "داكن",
 };
 export default p;
