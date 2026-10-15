@@ -300,7 +300,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     setPhase("signing-c");
     let poolSig = "";
     try {
-      poolSig = await signAndBroadcast(wallet, txCBase64, () => setPhase("sending-c"));
+      poolSig = await walletFirstSignAndSend(wallet, txCBase64, tokenId, walletAddress, () => setPhase("sending-c"), tr);
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       console.error("[launch] TX C failed:", raw);
@@ -396,9 +396,8 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     setPhase("signing-b");
     let txBSig = "";
     try {
-      txBSig = txCBase64
-        ? await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"))       // xStock : inchangé
-        : await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"), tr);
+      // Wallet d'abord, serveur ensuite — aussi pour les tokens xStock
+      txBSig = await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"), tr);
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       console.error("[launch] TX B failed:", raw);

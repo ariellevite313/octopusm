@@ -17,6 +17,24 @@
 import { NextResponse } from "next/server";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getPlatformWallet } from "@/lib/solana/dbc";
+
+// Programmes que certains wallets (Phantom : Lighthouse) ajoutent eux-mêmes comme garde-fous.
+const WALLET_GUARD_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
+
+/** Les instructions (hors garde-fous du wallet) doivent être exactement celles que le serveur a préparées. */
+function sameInstructions(posted: Transaction, prepared: Transaction): boolean {
+  const norm = (tx: Transaction, skipGuards: boolean) =>
+    tx.instructions
+      .filter((ix) => !(skipGuards && WALLET_GUARD_PROGRAMS.has(ix.programId.toBase58())))
+      .map((ix) => JSON.stringify([
+        ix.programId.toBase58(),
+        Buffer.from(ix.data).toString("base64"),
+        ix.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]),
+      ]));
+  const a = norm(posted, true), b = norm(prepared, false);
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -32,7 +50,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token } = await admin
       .from("launchpad_tokens")
-      .select("creator_wallet, status, mint_address, vanity_secret_key")
+      .select("creator_wallet, status, mint_address, vanity_secret_key, stock_symbol, dbc_config_secret, tx_base64")
       .eq("id", id)
       .maybeSingle();
 
@@ -55,7 +73,30 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (token.mint_address && mintKeypair.publicKey.toBase58() !== token.mint_address) {
       return NextResponse.json({ error: "Mint key mismatch" }, { status: 409 });
     }
-    if (tx.signatures.some((s) => s.publicKey.equals(mintKeypair.publicKey))) {
+    if (token.stock_symbol) {
+      // xStock : le serveur ne signe QUE si la transaction reçue est bien l'une de celles qu'il a préparées
+      // (la signature de la plateforme ne doit jamais servir sur une transaction arbitraire).
+      let cached: { b?: string | null; c?: string | null } = {};
+      try { cached = JSON.parse((token.tx_base64 as string) ?? "{}"); } catch { /* ignore */ }
+      const prepB = cached.b ? Transaction.from(Buffer.from(cached.b, "base64")) : null;
+      const prepC = cached.c ? Transaction.from(Buffer.from(cached.c, "base64")) : null;
+
+      if (prepB && sameInstructions(tx, prepB)) {
+        // TX B (createConfig) : signatures plateforme + clé de config
+        const cfgSecret = token.dbc_config_secret as string | null;
+        if (!cfgSecret) return NextResponse.json({ error: "Config key missing — click Retry" }, { status: 409 });
+        const configKeypair = Keypair.fromSecretKey(Uint8Array.from(Buffer.from(cfgSecret, "base64")));
+        const platform = getPlatformWallet();
+        for (const kp of [platform, configKeypair]) {
+          if (tx.signatures.some((sg) => sg.publicKey.equals(kp.publicKey))) tx.partialSign(kp);
+        }
+      } else if (prepC && sameInstructions(tx, prepC)) {
+        // TX C (createPool) : signature de la mint
+        if (tx.signatures.some((sg) => sg.publicKey.equals(mintKeypair.publicKey))) tx.partialSign(mintKeypair);
+      } else {
+        return NextResponse.json({ error: "Transaction does not match the prepared one — click Retry" }, { status: 400 });
+      }
+    } else if (tx.signatures.some((s) => s.publicKey.equals(mintKeypair.publicKey))) {
       tx.partialSign(mintKeypair);
     }
 

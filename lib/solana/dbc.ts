@@ -57,7 +57,7 @@ function getConnection(): Connection {
   return new Connection(rpc, "confirmed");
 }
 
-function getPlatformWallet(): Keypair {
+export function getPlatformWallet(): Keypair {
   const secret = process.env.PLATFORM_WALLET_SECRET;
   if (!secret) throw new Error("PLATFORM_WALLET_SECRET is not set");
   return Keypair.fromSecretKey(bs58.decode(secret));
