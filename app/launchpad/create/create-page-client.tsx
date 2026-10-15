@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { CreateTokenWizard } from "@/components/launchpad/create-token-wizard";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -29,52 +27,10 @@ export function CreatePageClient({
   }, [isAuthenticated]);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6">
-        <Link
-          href="/launchpad"
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Launchpad
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold text-foreground">Launch a Token</h1>
-        <p className="text-sm text-muted-foreground">
-          {chain === "solana"
-            ? "Launch your token on Solana"
-            : "Launch your token on Arc (USDC-native L1)"}
-        </p>
-      </div>
-
-      {/* Chain selector */}
-      <div className="mb-6 flex items-center gap-1.5 rounded-2xl border border-border bg-muted/30 p-1.5">
-        <button
-          type="button"
-          onClick={() => setChain("solana")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-            chain === "solana"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Image src="/solana.png" alt="Solana" width={18} height={18} className="rounded-full" unoptimized />
-          Solana
-        </button>
-        <button
-          type="button"
-          onClick={() => setChain("arc")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-            chain === "arc"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Image src="/arc-logo.jpeg" alt="Arc" width={18} height={18} className="rounded-full" unoptimized />
-          Arc
-        </button>
-      </div>
-
+    <main className="mx-auto max-w-xl px-4 pb-8 pt-4">
       <CreateTokenWizard
         chain={chain}
+        onChainChange={setChain}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         initialData={initialData as any}
       />
