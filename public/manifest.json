@@ -1,7 +1,7 @@
 {
   "id": "/?source=pwa",
-  "name": "OMdotfun",
-  "short_name": "OMdot",
+  "name": "ŌM",
+  "short_name": "ŌM",
   "description": "Decentralized prediction markets on Solana. Predict on sports, crypto, and world events.",
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -62,7 +62,7 @@
       "sizes": "540x960",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "OMdotfun — prediction markets on mobile"
+      "label": "ŌM — prediction markets on mobile"
     }
   ],
   "prefer_related_applications": false

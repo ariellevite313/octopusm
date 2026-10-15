@@ -18,6 +18,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: "ŌM",
+  appleWebApp: { capable: true, title: "ŌM", statusBarStyle: "black-translucent" },
   title: {
     default: "OMdotfun",
     template: "%s - OMdotfun",
