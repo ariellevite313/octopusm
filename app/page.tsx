@@ -9,7 +9,7 @@ import { LaunchpadBoard } from "@/components/desktop/launchpad-board";
 export const revalidate = 30;
 
 export const metadata: Metadata = {
-  title: "Launchpad — OMdotfun",
+  title: "Launchpad - OMdotfun",
   description: "Launch your token on OMdotfun.",
   alternates: { canonical: "https://omdot.fun" },
   openGraph: {

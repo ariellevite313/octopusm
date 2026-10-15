@@ -4,7 +4,7 @@ import { ArrowLeft, Trophy } from "lucide-react";
 import { LeaderboardTabs } from "@/components/leaderboard/leaderboard-tabs";
 
 export const metadata: Metadata = {
-  title: "Leaderboard — OMdotfun",
+  title: "Leaderboard - OMdotfun",
   description: "Top predictors ranked by gains on OMdotfun.",
 };
 

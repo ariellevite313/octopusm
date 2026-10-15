@@ -14,14 +14,14 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props) {
   const { id }  = await params;
   const market  = await getMarketBySlug(id);
-  if (!market) return { title: "Market not found — OMdotfun" };
+  if (!market) return { title: "Market not found - OMdotfun" };
 
   const slug    = market.slug ?? market.id;
   const ogImage = `/api/og/market/${slug}`;
   const description = market.resolution_criteria ?? market.resolution_label ?? "Prediction market on OMdotfun.";
 
   return {
-    title: `${market.title} — OMdotfun`,
+    title: `${market.title} - OMdotfun`,
     description,
     alternates: { canonical: `https://omdot.fun/prediction/${slug}` },
     openGraph: {

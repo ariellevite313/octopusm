@@ -132,7 +132,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const canonical   = token.mint_address
     ? `${siteUrl}/launchpad/${token.mint_address}`
     : `${siteUrl}/launchpad/${id}`;
-  const title       = `${token.name} ($${token.ticker}) — OMdotfun`;
+  const title       = `${token.name} ($${token.ticker}) - OMdotfun`;
   const description = token.description ?? `${token.name} on OMdotfun Launchpad`;
   return {
     title,
