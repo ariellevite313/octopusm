@@ -1025,5 +1025,8 @@ const p: Record<string, string> = {
   "Explore all on Polymarket": "在 Polymarket 浏览全部",
   "Democrats": "民主党",
   "Republicans": "共和党",
+  "Failed to load leaderboard. Please try again.": "无法加载排行榜，请重试。",
+  "Network error": "网络错误",
+  "Network error — please retry": "网络错误 — 请重试",
 };
 export default p;
