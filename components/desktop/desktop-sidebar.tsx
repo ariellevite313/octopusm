@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -93,7 +93,7 @@ export function DesktopSidebar() {
   return (
     <aside className="sticky top-0 hidden h-screen w-[72px] shrink-0 flex-col items-center gap-2 overflow-y-auto scrollbar-none border-r border-border/60 bg-background py-4 lg:flex">
       <Link href="/" aria-label="OMdotfun" className="mb-3">
-        <Image src="/omdot-icon.png" alt="OMdotfun" width={40} height={40} className="logo-bounce" />
+        <BrandLogo size={40} />
       </Link>
 
       {items(pathname).filter((i) => !i.auth || isAuthenticated).map(({ href, label, icon: Icon, match }) => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
@@ -45,7 +45,7 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 lg:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-foreground lg:invisible">
-            <Image src="/omdot-icon.png" alt="OMdotfun" width={38} height={38} className="logo-bounce drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]" />
+            <BrandLogo size={38} />
             <span className="sr-only">OMdotfun</span>
           </Link>
 
