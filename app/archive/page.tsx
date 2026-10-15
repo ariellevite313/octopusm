@@ -9,7 +9,7 @@ import type { PredictionMarketRow, MutuelMarketRow, MutuelOption } from "@/lib/s
 import { TokenAmount } from "@/components/shared/token-logo";
 
 export const metadata: Metadata = {
-  title: "Archive — OMdotfun",
+  title: "Archive - OMdotfun",
   description: "All resolved prediction markets and pool predictions on OMdotfun.",
   alternates: { canonical: "https://omdot.fun/archive" },
   openGraph: {

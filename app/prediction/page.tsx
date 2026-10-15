@@ -5,7 +5,7 @@ import { MarketsClient } from "@/components/market/markets-client";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Prediction Markets — OMdotfun",
+  title: "Prediction Markets - OMdotfun",
   description: "Trade on the outcome of sports, crypto, and world events. Decentralized prediction markets on Solana powered by USDC and ClawdTrust.",
   alternates: { canonical: "https://omdot.fun/prediction" },
   openGraph: {

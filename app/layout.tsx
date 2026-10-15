@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "OMdotfun",
-    template: "%s — OMdotfun",
+    template: "%s - OMdotfun",
   },
   description: "Decentralized prediction markets on Solana. Predict on sports, crypto, and world events with USDC or ClawdTrust.",
   keywords: ["prediction market", "solana", "crypto prediction", "pari mutuel", "USDC", "web3"],
