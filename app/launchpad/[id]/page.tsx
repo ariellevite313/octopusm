@@ -306,7 +306,7 @@ export default async function TokenDetailPage({ params }: Props) {
               alt={token.name}
               width={72}
               height={72}
-              className="size-[72px] rounded-[20px] object-cover ring-2 ring-primary/50"
+              className="size-[72px] rounded-[20px] bg-muted object-cover ring-2 ring-primary/50"
               unoptimized
             />
           ) : (

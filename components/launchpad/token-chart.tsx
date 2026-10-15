@@ -507,9 +507,9 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
       <div className="flex items-center gap-2.5">
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt={ticker ?? name} className="size-7 rounded-full object-cover" />
+          <img src={logoUrl} alt={ticker ?? name} className="size-7 rounded-[9px] object-cover" />
         ) : (
-          <div className="size-7 rounded-full bg-orange-500/80 flex items-center justify-center text-[10px] font-bold text-white">
+          <div className="size-7 rounded-[9px] bg-orange-500/80 flex items-center justify-center text-[10px] font-bold text-white">
             {(ticker ?? name).slice(0, 1)}
           </div>
         )}
