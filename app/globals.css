@@ -324,6 +324,21 @@
   transform-origin: 50% 100%;
 }
 
+/* Contour orange du logo : suit la silhouette, lumière qui tourne en boucle, gonfle au rebond */
+@property --ring-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ring-spin { to { --ring-a: 360deg; } }
+@keyframes ring-swell {
+  0%, 62%, 100% { transform: scale(1.1); }
+  76% { transform: scale(1.24); }
+  90% { transform: scale(1.14); }
+}
+@utility logo-ring {
+  background: conic-gradient(from var(--ring-a), rgb(249 115 22 / 0.45) 0deg, rgb(249 115 22 / 0.45) 250deg, #f97316 310deg, #ffd9a8 355deg, rgb(249 115 22 / 0.45) 360deg);
+  -webkit-mask: url(/omdot-icon.png) center / 100% 100% no-repeat;
+  mask: url(/omdot-icon.png) center / 100% 100% no-repeat;
+  animation: ring-spin 2.8s linear infinite, ring-swell 2.6s cubic-bezier(.3, .7, .4, 1) infinite;
+}
+
 /* Feu animé (section Trending) : l'emoji 🔥 danse et rougeoie */
 @keyframes fire-dance {
   0%   { transform: scale(1, 1) rotate(0deg); text-shadow: 0 0 6px rgb(255 122 26 / 0.6); }
