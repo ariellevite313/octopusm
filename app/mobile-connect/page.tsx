@@ -93,8 +93,9 @@ function MobileConnectInner() {
       }
 
       if (!provider) {
-        // Wallet non détecté : retour silencieux vers l'app
-        goBack();
+        // Wallet non détecté : on l'affiche (au lieu d'un retour silencieux qui masque la cause)
+        setStatus("error");
+        setError("Wallet not detected in this browser. Open this page from inside your wallet app.");
         return;
       }
 
