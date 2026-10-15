@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { SolanaMark } from "@/components/shared/solana-mark";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -154,14 +155,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function StatusBadge({ status, isTradeable }: { status: string; isTradeable: boolean }) {
   const map: Record<string, { label: string; cls: string }> = {
-    pending:    { label: "Pending",    cls: "bg-yellow-500/15 text-yellow-500 border border-yellow-500/30" },
-    active:     { label: isTradeable ? "Live" : "Scheduled", cls: isTradeable ? "bg-emerald-500/15 text-up border border-emerald-500/30" : "bg-violet-500/15 text-violet-400 border border-violet-500/30" },
-    graduating: { label: "Graduating", cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
-    graduated:  { label: "Graduated",  cls: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30" },
-    cancelled:  { label: "Cancelled",  cls: "bg-red-500/15 text-red-400 border border-red-500/30" },
+    pending:    { label: "Pending",    cls: "text-yellow-500" },
+    active:     { label: isTradeable ? "Live" : "Scheduled", cls: isTradeable ? "text-up" : "text-violet-400" },
+    graduating: { label: "Graduating", cls: "text-blue-400" },
+    graduated:  { label: "Graduated",  cls: "text-indigo-400" },
+    cancelled:  { label: "Cancelled",  cls: "text-red-400" },
   };
-  const { label, cls } = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
-  return <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${cls}`}>{label}</span>;
+  const { label, cls } = map[status] ?? { label: status, cls: "text-muted-foreground" };
+  return <span className={`text-[13px] font-semibold ${cls}`}>{label}</span>;
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -310,14 +311,6 @@ export default async function TokenDetailPage({ params }: Props) {
               {token.ticker.slice(0, 2)}
             </div>
           )}
-          <Image
-            src={isArc ? "/arc-logo.jpeg" : "/solana.png"}
-            alt={isArc ? "Arc" : "Solana"}
-            width={22}
-            height={22}
-            className="absolute -bottom-1.5 -left-1.5 rounded-full ring-[3px] ring-background"
-            unoptimized
-          />
         </div>
 
         <div className="min-w-0 flex-1 pt-1">
@@ -347,9 +340,12 @@ export default async function TokenDetailPage({ params }: Props) {
               ))}
             </div>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-2.5 leading-none">
             <StatusBadge status={token.status} isTradeable={token.is_tradeable} />
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{token.category}</span>
+            <span className="text-[13px] font-semibold text-muted-foreground">{token.category}</span>
+            {isArc
+              ? <Image src="/arc-logo.jpeg" alt="Arc" width={14} height={14} className="size-[14px] rounded-full" unoptimized />
+              : <SolanaMark className="size-[13px] text-foreground" />}
           </div>
         </div>
 

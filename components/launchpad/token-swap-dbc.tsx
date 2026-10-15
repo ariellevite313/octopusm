@@ -5,6 +5,7 @@
  * Supports both BUY (SOL → token) and SELL (token → SOL).
  */
 
+import { SolanaMark } from "@/components/shared/solana-mark";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, ArrowUpDown } from "lucide-react";
@@ -429,8 +430,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     </div>
   ) : (
     <div className="flex items-center gap-2 bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/solana.png" alt="SOL" className="size-5 rounded-full object-cover" />
+      <SolanaMark className="size-[18px] text-foreground" />
       <span className="text-[13px] font-semibold text-foreground">SOL</span>
     </div>
   );
@@ -499,8 +499,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             <span className="flex items-center gap-1.5 font-semibold text-foreground">
               {isBuy ? (isXStock
                 ? (stockSymbol ? <XStockIcon symbol={stockSymbol} size={16} /> : null)
-                // eslint-disable-next-line @next/next/no-img-element
-                : <img src="/solana.png" alt="" className="size-4 rounded-full" />)
+                : <SolanaMark className="size-4 text-foreground" />)
                 // eslint-disable-next-line @next/next/no-img-element
                 : (logoUrl ? <img src={logoUrl} alt="" className="size-4 rounded-full object-cover" /> : null)}
               {walletAddress ? activeBalanceFmt : payLabel}

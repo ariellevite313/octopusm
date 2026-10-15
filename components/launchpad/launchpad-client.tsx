@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT } from "@/lib/i18n";
+import { SolanaMark } from "@/components/shared/solana-mark";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -158,13 +159,13 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
         )}
         {/* Chain badge — bottom-left corner */}
         <div className="absolute bottom-2 left-2">
-          <Image
-            src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
-            alt={token.chain === "arc" ? "Arc" : "Solana"}
+          {token.chain === "arc" ? <Image
+            src="/arc-logo.jpeg"
+            alt="Arc"
             width={20} height={20}
             className="rounded-full ring-2 ring-black/40"
             unoptimized
-          />
+          /> : <span className="flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-black/40"><SolanaMark className="size-3.5 text-white" /></span>}
         </div>
       </div>
 
@@ -236,13 +237,13 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
           </span>
           {token.is_verified && <VerifiedTokenBadge className="size-4" />}
           {/* Chain icon */}
-          <Image
-            src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"}
-            alt={token.chain === "arc" ? "Arc" : "Solana"}
+          {token.chain === "arc" ? <Image
+            src="/arc-logo.jpeg"
+            alt="Arc"
             width={14} height={14}
             className="rounded-full shrink-0 ring-1 ring-white/10"
             unoptimized
-          />
+          /> : <SolanaMark className="shrink-0 size-[14px]" />}
           {/* Stock-paired badge */}
           {token.stock_symbol && (
             <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500 dark:text-amber-300 shrink-0">
@@ -327,13 +328,13 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
               <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>
             )}
           </div>
-          <Image
-            src={isArc ? "/arc-logo.jpeg" : "/solana.png"}
-            alt={isArc ? "Arc" : "Solana"}
+          {isArc ? <Image
+            src="/arc-logo.jpeg"
+            alt="Arc"
             width={24} height={24}
             className="absolute -bottom-1 -right-1 size-5 rounded-full ring-2 ring-card sm:size-6"
             unoptimized
-          />
+          /> : <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-black ring-2 ring-card sm:size-7"><SolanaMark className="size-3 text-white sm:size-3.5" /></span>}
         </div>
         {token.mint_address && (
           <CopyButton text={token.mint_address}>{shortAddr(token.mint_address, 3, 4)}</CopyButton>
@@ -361,7 +362,7 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
             <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">
               {token.stock_symbol && !isArc
                 ? <XStockIcon symbol={token.stock_symbol} size={12} />
-                : <Image src={isArc ? "/usdc-coin.png" : "/solana.png"} alt="" width={12} height={12} className="rounded-full" unoptimized />}
+                : (isArc ? <Image src="/usdc-coin.png" alt="" width={12} height={12} className="rounded-full" unoptimized /> : <SolanaMark className="size-[12px]" />)}
               {quote}
             </span>
           </div>
@@ -411,8 +412,8 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
               ? <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
               : <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>}
           </div>
-          <Image src={isArc ? "/arc-logo.jpeg" : "/solana.png"} alt={isArc ? "Arc" : "Solana"} width={18} height={18}
-            className="absolute -bottom-1 -right-1 rounded-full ring-2 ring-background" unoptimized />
+          {isArc ? <Image src="/arc-logo.jpeg" alt="Arc" width={18} height={18}
+            className="absolute -bottom-1 -right-1 rounded-full ring-2 ring-background" unoptimized /> : <span className="absolute -bottom-1 -right-1 flex size-[20px] items-center justify-center rounded-full bg-black ring-2 ring-background"><SolanaMark className="size-[11px] text-white" /></span>}
         </div>
         <div className="min-w-0">
           <p className="flex min-w-0 items-baseline gap-2">
@@ -511,8 +512,8 @@ function TokenTable({ tokens, offset, sort, onSort }: {
                 <td className="num px-3 py-2.5 text-sm text-muted-foreground">#{offset + i + 1}</td>
                 <td className="px-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <Image src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"} alt={token.chain === "arc" ? "Arc" : "Solana"}
-                      width={16} height={16} className="shrink-0 rounded-full" unoptimized />
+                    {token.chain === "arc" ? <Image src="/arc-logo.jpeg" alt="Arc"
+                      width={16} height={16} className="shrink-0 rounded-full" unoptimized /> : <SolanaMark className="shrink-0 size-[16px]" />}
                     <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {token.logo_url ? (
                         <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
@@ -830,7 +831,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                   {c.id === "arc" ? (
                     <Image src="/arc-logo.jpeg" alt="Arc" width={14} height={14} className="rounded-full shrink-0" unoptimized />
                   ) : c.id === "solana" ? (
-                    <Image src="/solana.png" alt="Solana" width={14} height={14} className="rounded-full shrink-0" unoptimized />
+                    <SolanaMark className="shrink-0 size-[14px]" />
                   ) : null}
                   {c.label}
                 </button>
