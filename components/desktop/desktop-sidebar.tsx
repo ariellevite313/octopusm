@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
+import { ThemeSwitchRail } from "@/components/shared/theme-switch";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
@@ -140,6 +141,7 @@ export function DesktopSidebar() {
         >
           <Wallet className="size-[20px]" />
         </button>
+        <ThemeSwitchRail />
         <LanguageSelectRail />
         <button
           type="button"

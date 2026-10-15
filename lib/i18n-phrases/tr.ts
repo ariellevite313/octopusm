@@ -1029,5 +1029,9 @@ const p: Record<string, string> = {
   "Network error": "Ağ hatası",
   "Network error — please retry": "Ağ hatası — lütfen tekrar dene",
   "View market": "Piyasayı gör",
+  "Language": "Dil",
+  "Theme": "Tema",
+  "Light": "Açık",
+  "Dark": "Koyu",
 };
 export default p;
