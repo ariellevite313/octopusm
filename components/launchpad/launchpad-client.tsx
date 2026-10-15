@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
-import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
@@ -288,6 +288,118 @@ function TokenRow({ token }: { token: LaunchpadToken }) {
   );
 }
 
+// ── TokenTable (ordinateur) ──────────────────────────────────────────────────
+
+function fmtPrice(usd: number | null): string {
+  if (usd === null || usd === undefined) return "—";
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  if (usd >= 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toPrecision(4)}`;
+}
+
+const STATUS_TEXT: Record<string, { label: string; cls: string }> = {
+  active:     { label: "Live",       cls: "text-up" },
+  graduating: { label: "Graduating", cls: "text-amber-500" },
+  graduated:  { label: "Graduated",  cls: "text-sky-500" },
+  pending:    { label: "Pending",    cls: "text-muted-foreground" },
+  cancelled:  { label: "Cancelled",  cls: "text-down" },
+};
+
+function SortHead({ label, active, dir, onClick, align = "right" }: {
+  label: string; active: boolean; dir?: "up" | "down"; onClick?: () => void; align?: "left" | "right";
+}) {
+  return (
+    <th className={`px-3 py-3 text-[12px] font-bold uppercase tracking-wide ${align === "right" ? "text-right" : "text-left"}`}>
+      {onClick ? (
+        <button type="button" onClick={onClick}
+          className={`inline-flex items-center gap-1 uppercase transition-colors ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+          {label}
+          {active && (dir === "up" ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />)}
+        </button>
+      ) : (
+        <span className="text-muted-foreground">{label}</span>
+      )}
+    </th>
+  );
+}
+
+function TokenTable({ tokens, offset, sort, onSort }: {
+  tokens: LaunchpadToken[]; offset: number; sort: SortOption; onSort: (s: SortOption) => void;
+}) {
+  const router = useRouter();
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border">
+      <table className="w-full border-collapse">
+        <thead className="bg-muted/60">
+          <tr className="border-b border-border">
+            <th className="w-12 px-3 py-3 text-left text-[12px] font-bold uppercase tracking-wide text-muted-foreground">#</th>
+            <SortHead label="Token" active={false} align="left" />
+            <SortHead label="Mcap" active={sort === "market_cap_desc" || sort === "market_cap_asc"} dir={sort === "market_cap_asc" ? "up" : "down"}
+              onClick={() => onSort(sort === "market_cap_desc" ? "market_cap_asc" : "market_cap_desc")} />
+            <SortHead label="Price" active={false} />
+            <SortHead label="Age" active={sort === "new" || sort === "old"} dir={sort === "old" ? "down" : "up"}
+              onClick={() => onSort(sort === "new" ? "old" : "new")} />
+            <SortHead label="Volume 24h" active={sort === "volume"} dir="down" onClick={() => onSort("volume")} />
+            <SortHead label="Status" active={false} />
+            <SortHead label="Creator" active={false} />
+          </tr>
+        </thead>
+        <tbody>
+          {tokens.map((token, i) => {
+            const href = `/launchpad/${token.mint_address ?? token.id}`;
+            const quote = token.chain === "arc" ? "USDC" : token.stock_symbol ? token.stock_symbol : "SOL";
+            const st = STATUS_TEXT[token.status] ?? STATUS_TEXT.pending;
+            return (
+              <tr key={token.id} onClick={() => router.push(href)}
+                className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50">
+                <td className="num px-3 py-2.5 text-sm text-muted-foreground">#{offset + i + 1}</td>
+                <td className="px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Image src={token.chain === "arc" ? "/arc-logo.jpeg" : "/solana.png"} alt={token.chain === "arc" ? "Arc" : "Solana"}
+                      width={16} height={16} className="shrink-0 rounded-full" unoptimized />
+                    <div className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      {token.logo_url ? (
+                        <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-muted-foreground">{token.ticker.slice(0, 3)}</div>
+                      )}
+                    </div>
+                    <Link href={href} onClick={(e) => e.stopPropagation()} className="flex min-w-0 items-baseline gap-1.5">
+                      <span className="text-[15px] font-bold text-foreground">{token.ticker}</span>
+                      <span className="text-xs text-muted-foreground">/{quote}</span>
+                      <span className="max-w-[180px] truncate text-sm text-muted-foreground">{token.name}</span>
+                    </Link>
+                    {token.is_verified && <BadgeCheck className="size-4 shrink-0 fill-primary text-card" />}
+                  </div>
+                </td>
+                <td className="num px-3 py-2.5 text-right text-[15px] font-semibold text-foreground">
+                  {token.market_cap_usd !== null ? fmtMcap(token.market_cap_usd) : "—"}
+                </td>
+                <td className="num px-3 py-2.5 text-right text-sm text-foreground">{fmtPrice(token.price_usd)}</td>
+                <td className="num px-3 py-2.5 text-right text-sm text-muted-foreground">{timeAgo(token.created_at).toLowerCase()}</td>
+                <td className="num px-3 py-2.5 text-right text-sm text-foreground">
+                  {token.volume_24h_usd !== null ? fmtMcap(token.volume_24h_usd) : "—"}
+                </td>
+                <td className={`px-3 py-2.5 text-right text-sm font-semibold ${st.cls}`}>{st.label}</td>
+                <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">
+                  {token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const DESKTOP_SORTS: { value: SortOption; label: string; icon: React.ReactNode }[] = [
+  { value: "volume",          label: "Trending",  icon: <Flame className="size-4" /> },
+  { value: "market_cap_desc", label: "Top",       icon: <Trophy className="size-4" /> },
+  { value: "new",             label: "New pairs", icon: <Sprout className="size-4" /> },
+  { value: "verified",        label: "Verified",  icon: <BadgeCheck className="size-4" /> },
+];
+
 // ── Pagination ─────────────────────────────────────────────────────────────────
 
 function Pagination({
@@ -570,7 +682,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 pb-2">
+          <div className="flex items-center gap-1.5 shrink-0 pb-2 lg:hidden">
             {/* Grid / List toggle */}
             <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
               <button
@@ -601,7 +713,19 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             className="h-11 min-w-0 flex-1 rounded-2xl border border-transparent bg-muted px-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
           />
           {tab !== "watchlist" && (
-            <div className="relative shrink-0">
+            <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+              {DESKTOP_SORTS.map(o => (
+                <button key={o.value} type="button" onClick={() => handleSortChange(o.value)}
+                  className={`flex h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-bold transition-colors ${
+                    sort === o.value ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {o.icon}{o.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {tab !== "watchlist" && (
+            <div className="relative shrink-0 lg:hidden">
               <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <select
                 value={sort}
@@ -650,14 +774,23 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </>
           )}
         </div>
-      ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
-        </div>
       ) : (
-        <div className="flex flex-col gap-0.5">
-          {visibleTokens.map(token => <TokenRow key={token.id} token={token} />)}
-        </div>
+        <>
+          <div className="hidden lg:block">
+            <TokenTable tokens={visibleTokens} offset={tab === "watchlist" ? 0 : page * LIMIT} sort={sort} onSort={handleSortChange} />
+          </div>
+          <div className="lg:hidden">
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {visibleTokens.map(token => <TokenRow key={token.id} token={token} />)}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Pagination (not for watchlist) */}
