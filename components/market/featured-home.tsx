@@ -27,10 +27,10 @@ export function FeaturedHome() {
   }, []);
 
   // Emplacement réservé pendant le chargement : la page ne saute pas quand l'annonce arrive
-  if (!data) return <div className="mt-4 h-[40rem] animate-pulse rounded-3xl border border-border bg-card/60 md:h-[30rem]" aria-hidden />;
+  if (!data) return <div className="mx-auto mt-4 h-[40rem] max-w-4xl animate-pulse rounded-3xl border border-border bg-card/60 md:h-[30rem]" aria-hidden />;
   if (data.featured.length === 0) return null;
   return (
-    <div className="mt-4">
+    <div className="mx-auto mt-4 max-w-4xl">
       <Featured events={data.featured} usMap={data.usMap} />
     </div>
   );

@@ -34,7 +34,7 @@ function Slide({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> })
 
       <div className={hasMap ? "mt-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-6" : "mt-4"}>
       <div className="divide-y divide-border/60">
-        {e.items.slice(0, 6).map((o) => (
+        {e.items.slice(0, 5).map((o) => (
           <div key={o.label} className="flex items-center gap-3 py-2.5">
             {o.image ? (
               // eslint-disable-next-line @next/next/no-img-element
