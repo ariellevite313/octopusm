@@ -11,7 +11,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
-import { Loader2, RefreshCw, Copy, Check } from "lucide-react";
+import Link from "next/link";
+import { Loader2, RefreshCw, Copy, Check, HandCoins, Plus, ArrowLeftRight, Send, ChevronRight } from "lucide-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -21,6 +22,7 @@ import type { PendingFeesResponse, PendingFeeToken } from "@/app/api/dashboard/p
 import { ArcFeesTabs }       from "@/components/dashboard/arc-fees-tabs";
 import { ArcHolderHoldings } from "@/components/dashboard/arc-holder-holdings";
 import { useT }              from "@/lib/i18n";
+import { GainsShareSheet }   from "@/components/dashboard/gains-share-sheet";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,37 +48,13 @@ type SolanaWallet = {
 };
 
 
-// ── WalletCopyButton ──────────────────────────────────────────────────────────
-
-function WalletCopyButton({ address }: { address: string }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(address).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }
-  const short = `${address.slice(0, 4)}…${address.slice(-4)}`;
-  return (
-    <button
-      onClick={copy}
-      className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity"
-    >
-      <span className="text-sm font-mono font-medium">{short}</span>
-      {copied
-        ? <Check className="size-3.5" />
-        : <Copy className="size-3.5" />}
-    </button>
-  );
-}
-
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function DashboardSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
-      <div className="h-36 rounded-2xl bg-primary/20" />
-      <div className="h-16 rounded-2xl bg-primary/10" />
+      <div className="h-56 rounded-[28px] bg-muted" />
+      <div className="h-20 rounded-2xl bg-muted/60" />
       {[1, 2, 3].map(i => (
         <div key={i} className="flex items-center gap-3 py-3">
           <div className="size-11 rounded-xl bg-muted" />
@@ -111,40 +89,37 @@ function TokenFeeRow({
   showClaim?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-border last:border-b-0">
-      {/* Logo */}
-      <div className="size-11 shrink-0 overflow-hidden rounded-xl bg-muted">
+    <div className="flex items-center gap-3.5 py-3">
+      <div className="size-12 shrink-0 overflow-hidden rounded-full bg-muted">
         {token.logoUrl ? (
-          <Image src={token.logoUrl} alt={token.name} width={44} height={44} className="size-full object-cover" unoptimized />
+          <Image src={token.logoUrl} alt={token.name} width={48} height={48} className="size-full object-cover" unoptimized />
         ) : (
-          <div className="size-full flex items-center justify-center text-xs font-bold text-muted-foreground">
+          <div className="flex size-full items-center justify-center text-xs font-bold text-muted-foreground">
             {token.ticker.slice(0, 2)}
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{token.name}</p>
-        <p className="text-xs text-muted-foreground">${token.ticker}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[16px] font-semibold text-foreground">{token.name}</p>
+        <p className="flex items-center gap-2 text-[14px] text-muted-foreground">
+          <span>${token.ticker}</span>
+          {token.pending > 0 && showClaim && (
+            <button
+              onClick={() => onClaim(token)}
+              disabled={claiming || disabled}
+              className="num flex items-center gap-1 font-semibold text-primary disabled:opacity-50"
+            >
+              {claiming && <Loader2 className="size-3 animate-spin" />}
+              {claiming ? "Claiming…" : `+${fmtAmount(token.pending, currency)}`}
+            </button>
+          )}
+        </p>
       </div>
 
-      {/* Fees */}
-      <div className="text-right shrink-0">
-        {earned > 0 && (
-          <p className="text-[10px] text-muted-foreground">fees earned</p>
-        )}
-        <p className="text-sm font-bold text-foreground">{fmtAmount(earned, currency)}</p>
-        {token.pending > 0 && showClaim && (
-          <button
-            onClick={() => onClaim(token)}
-            disabled={claiming || disabled}
-            className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-primary underline underline-offset-2 disabled:opacity-50"
-          >
-            {claiming && <Loader2 className="size-2.5 animate-spin" />}
-            {claiming ? "Claiming…" : `+${fmtAmount(token.pending, currency)} pending`}
-          </button>
-        )}
+      <div className="shrink-0 text-right">
+        <p className="num text-[15px] font-bold text-foreground">{fmtAmount(earned, currency)}</p>
+        <p className="text-[12px] text-muted-foreground">earned</p>
       </div>
     </div>
   );
@@ -152,7 +127,11 @@ function TokenFeeRow({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string }) {
+export function CreatorFeesDashboard({ walletAddress, displayName = null, avatarSrc = null }: {
+  walletAddress: string;
+  displayName?:  string | null;
+  avatarSrc?:    string | null;
+}) {
   const { walletType, selectedChain } = useAuth();
   const { t } = useT();
   const isArc      = selectedChain === "arc";
@@ -165,6 +144,7 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
   const [refreshing,  setRefreshing]  = useState(false); // soft refresh — no skeleton
   const [claimingId,  setClaimingId]  = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
+  const [shareOpen,   setShareOpen]   = useState(false);
 
   const refresh = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
@@ -304,96 +284,158 @@ export function CreatorFeesDashboard({ walletAddress }: { walletAddress: string 
     };
   }).sort((a, b) => (b.earned + b.token.pending) - (a.earned + a.token.pending));
 
-  // Note: we always render the orange card — even with 0 tokens/claims.
+  const name    = displayName || shortAddr(walletAddress, 4, 4);
+  const total   = fmtAmount(stats.totalClaimed, currency).split(" ")[0];
+  const [intPart, decPart] = total.split(".");
+  const totalEarned = mergedTokens.reduce((acc, m) => acc + m.earned, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
 
-      {/* ── Total claimed card ───────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-primary p-5 text-white">
+      {/* ── Carte solde ──────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-[28px] bg-card p-5 ring-1 ring-border">
+        <WaveTexture />
 
-        {/* Header row */}
-        <div className="flex items-start justify-between mb-1">
-          <p className="text-sm font-semibold opacity-90">Total Claimed</p>
+        <div className="relative flex items-center justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            {avatarSrc ? (
+              <Image src={avatarSrc} alt="" width={52} height={52} className="size-[52px] shrink-0 rounded-full object-cover" unoptimized />
+            ) : (
+              <div className="flex size-[52px] shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-foreground">
+                {name.replace(/^@/, "").slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <span className="truncate text-[19px] font-semibold text-foreground">{name}</span>
+            <CopyIcon text={walletAddress} />
+          </div>
           <button
             onClick={() => refresh(true)}
             disabled={refreshing}
-            className="opacity-60 hover:opacity-100 transition-opacity disabled:cursor-not-allowed"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed"
             title="Refresh"
           >
-            <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`size-[18px] ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
 
-        {/* Amount */}
-        <div className="flex items-center gap-3 mt-2">
-          <div className="size-10 rounded-full bg-black/20 flex items-center justify-center shrink-0 overflow-hidden">
-            <img src={isArc ? "/arc-logo.jpeg" : "/solana.png"} alt={isArc ? "Arc" : "Solana"} className="size-10 object-cover" />
-          </div>
-          <span className="text-4xl font-bold tracking-tight">{fmt(stats.totalClaimed)}</span>
-        </div>
-
-        {stats.todayClaimed > 0 && (
-          <p className="mt-1.5 text-sm opacity-80">
-            +{fmt(stats.todayClaimed)} claimed today
-          </p>
-        )}
-
-        {/* Bottom row: wallet address + cat icon */}
-        <div className="flex items-end justify-between mt-5">
-          <WalletCopyButton address={walletAddress} />
-
-          {/* Card logo */}
-          <img src="/card-logo.png" alt="" className="size-10 rounded-full object-cover shrink-0" />
-        </div>
+        <p className="relative mt-6 text-[13px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total claimed</p>
+        <p className="num relative mt-1 flex items-baseline gap-2 font-bold leading-none tracking-tight">
+          <span className="text-[52px] text-foreground">{intPart}{decPart && <span className="text-muted-foreground">.{decPart}</span>}</span>
+          <span className="text-xl text-muted-foreground">{currency}</span>
+        </p>
+        <p className="num relative mt-3 text-[15px] text-muted-foreground">
+          {hasPending
+            ? <>+{fmt(pending.total)} <span className="text-primary">to claim</span></>
+            : stats.todayClaimed > 0 ? <>+{fmt(stats.todayClaimed)} today</> : <>Nothing to claim</>}
+        </p>
       </div>
 
-      {/* ── Arc : onglets Creator fees / Dividendes en premier ──────────── */}
-      {isArc && <ArcFeesTabs />}
+      {/* ── Actions ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-4 gap-2">
+        <ActionCircle
+          label={claimingAll ? "Claiming" : "Claim"}
+          onClick={!isArc ? handleClaimAll : () => document.getElementById("arc-fees")?.scrollIntoView({ behavior: "smooth" })}
+          disabled={!isArc && (claimingAll || hasPendingTokens.length === 0)}
+          highlight={!isArc && hasPending}
+        >
+          {claimingAll ? <Loader2 className="size-6 animate-spin" /> : <HandCoins className="size-6" />}
+        </ActionCircle>
+        <ActionCircle label="Launch" href="/launchpad/create"><Plus className="size-6" /></ActionCircle>
+        <ActionCircle label="Trade" href="/launchpad"><ArrowLeftRight className="size-6" /></ActionCircle>
+        <ActionCircle label="Share" onClick={() => setShareOpen(true)}><Send className="size-6" /></ActionCircle>
+      </div>
 
-      {/* ── Arc : positions détenues ─────────────────────────────────────── */}
+      <GainsShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        name={name}
+        avatarSrc={avatarSrc}
+        walletAddress={walletAddress}
+        currency={currency}
+        totalClaimed={stats.totalClaimed}
+        history={stats.history ?? []}
+      />
+
+      {/* ── Arc : onglets Creator fees / Dividendes ─────────────────────── */}
+      {isArc && <div id="arc-fees"><ArcFeesTabs /></div>}
       {isArc && <ArcHolderHoldings />}
 
-      {/* ── Solana : barre pending fees ──────────────────────────────────── */}
-      {!isArc && hasPending && (
-        <div className="flex items-center justify-between gap-4 rounded-2xl bg-primary/10 border border-primary/20 px-4 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <svg viewBox="0 0 32 32" className="size-4 fill-primary" aria-hidden>
-                <path d="M6.47 21.41a.8.8 0 0 1 .57-.24h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H3.78a.4.4 0 0 1-.28-.68l2.97-2.97Zm0-13.82A.8.8 0 0 1 7.04 7.35h17.87a.4.4 0 0 1 .28.68l-2.97 2.97a.8.8 0 0 1-.57.24H4.78a.4.4 0 0 1-.28-.68l1.97-1.97Zm17.06 6.88a.8.8 0 0 0-.57-.24H5.09a.4.4 0 0 0-.28.68l2.97 2.97a.8.8 0 0 0 .57.24h17.87a.4.4 0 0 0 .28-.68l-2.97-2.97Z"/>
-              </svg>
-            </div>
-            <span className="text-base font-bold text-primary">{fmt(pending.total)}</span>
+      {/* ── Tokens lancés ────────────────────────────────────────────────── */}
+      {!isArc && (
+        <section>
+          <Link href={`/profile/${walletAddress}`} className="group inline-flex items-center gap-1">
+            <h2 className="text-[28px] font-bold tracking-tight text-foreground">Tokens launched</h2>
+            <ChevronRight className="size-6 text-foreground transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
+          </Link>
+          <p className="num text-[17px] text-muted-foreground">
+            {mergedTokens.length} token{mergedTokens.length !== 1 ? "s" : ""} · {fmt(totalEarned)} earned
+          </p>
+          <div className="mt-3">
+            {mergedTokens.length === 0 ? (
+              <p className="py-6 text-sm text-muted-foreground">No token launched yet.</p>
+            ) : mergedTokens.map(({ token, earned }) => (
+              <TokenFeeRow
+                key={token.tokenId}
+                token={token}
+                earned={earned}
+                onClaim={handleClaimOne}
+                claiming={claimingId === token.tokenId}
+                disabled={claimingAll || (claimingId !== null && claimingId !== token.tokenId)}
+                currency={currency}
+                showClaim={true}
+              />
+            ))}
           </div>
-          <button
-            onClick={handleClaimAll}
-            disabled={claimingAll || hasPendingTokens.length === 0}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
-          >
-            {claimingAll && <Loader2 className="size-4 animate-spin" />}
-            Claim All
-          </button>
-        </div>
+        </section>
       )}
-
-      {/* ── Solana : liste par token ──────────────────────────────────────── */}
-      {!isArc && mergedTokens.length > 0 && (
-        <div>
-          {mergedTokens.map(({ token, earned }) => (
-            <TokenFeeRow
-              key={token.tokenId}
-              token={token}
-              earned={earned}
-              onClaim={handleClaimOne}
-              claiming={claimingId === token.tokenId}
-              disabled={claimingAll || (claimingId !== null && claimingId !== token.tokenId)}
-              currency={currency}
-              showClaim={true}
-            />
-          ))}
-        </div>
-      )}
-
     </div>
+  );
+}
+
+// ── UI bits ───────────────────────────────────────────────────────────────────
+
+function CopyIcon({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
+      className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+      aria-label="Copy address"
+    >
+      {copied ? <Check className="size-[18px]" /> : <Copy className="size-[18px]" />}
+    </button>
+  );
+}
+
+function ActionCircle({ label, href, onClick, disabled, highlight, children }: {
+  label: string; href?: string; onClick?: () => void; disabled?: boolean; highlight?: boolean; children: React.ReactNode;
+}) {
+  const circle = (
+    <span className={`flex size-[60px] items-center justify-center rounded-full transition-colors ${
+      highlight ? "bg-primary text-white" : "bg-muted text-foreground group-hover:bg-muted/70"
+    }`}>{children}</span>
+  );
+  const cls = "group flex flex-col items-center gap-2 disabled:opacity-50";
+  const text = <span className="text-[14px] font-medium text-foreground">{label}</span>;
+  if (href) return <Link href={href} className={cls}>{circle}{text}</Link>;
+  return <button onClick={onClick} disabled={disabled} className={cls}>{circle}{text}</button>;
+}
+
+/** Fines lignes ondulées en fond de carte. */
+function WaveTexture() {
+  const lines = Array.from({ length: 26 }, (_, i) => i);
+  return (
+    <svg aria-hidden viewBox="0 0 400 240" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full text-foreground opacity-[0.07]">
+      {lines.map(i => {
+        const y = -40 + i * 12;
+        return (
+          <path
+            key={i}
+            d={`M-20 ${y + 40} C 80 ${y - 10}, 160 ${y + 70}, 260 ${y + 10} S 380 ${y - 30}, 430 ${y + 20}`}
+            fill="none" stroke="currentColor" strokeWidth={1} strokeDasharray="2 3"
+          />
+        );
+      })}
+    </svg>
   );
 }

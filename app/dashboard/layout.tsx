@@ -6,6 +6,7 @@ import { OctoBadgeSection } from "@/components/dashboard/octo-badge-section";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { DashboardBottomNavSwitch } from "@/components/layout/dashboard-bottom-nav-switch";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
+import { HideOnLaunchpad } from "@/components/dashboard/hide-on-launchpad";
 
 export const revalidate = 0;
 
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
     <>
       <div className="mx-auto max-w-2xl px-4 py-10 pb-28 md:pb-10 space-y-6">
         {/* Identity */}
+        <HideOnLaunchpad>
         <div className="flex items-center gap-4">
           {avatarSrc ? (
             <Image
@@ -56,6 +58,7 @@ export default async function DashboardLayout({
             <p className="text-sm font-mono text-muted-foreground mt-0.5">{fmtAddr(wallet)}</p>
           </div>
         </div>
+        </HideOnLaunchpad>
 
         {/* Balances — hidden on launchpad dashboard */}
         <BalancesSection
