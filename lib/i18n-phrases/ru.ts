@@ -1001,5 +1001,6 @@ const p: Record<string, string> = {
   "Launch a Token": "Запустить токен",
   "Coming Soon": "Скоро",
   "Profile": "Профиль",
+  "Return to the app": "Вернуться в приложение",
 };
 export default p;

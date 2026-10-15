@@ -36,7 +36,8 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
       const ref = new URLSearchParams(window.location.search).get("ref");
       const connectUrl =
         `${origin}/mobile-connect?wallet=${wallet.type}` +
-        (ref ? `&ref=${encodeURIComponent(ref)}` : "");
+        (ref ? `&ref=${encodeURIComponent(ref)}` : "") +
+        (/OMdotApp/.test(navigator.userAgent) ? "&app=1" : "");
       window.location.href = wallet.mobileDeepLink(connectUrl);
       return;
     }

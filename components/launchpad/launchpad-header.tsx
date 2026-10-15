@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
+import { LanguageSelect } from "@/components/shared/language-select";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
@@ -96,6 +97,7 @@ export function LaunchpadHeader() {
 
           {/* Right */}
           <div className="flex items-center gap-2">
+            <LanguageSelect />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}

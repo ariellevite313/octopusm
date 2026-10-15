@@ -53,6 +53,7 @@ function MobileConnectInner() {
   const attempted = useRef(false);
   const [status, setStatus] = useState<Status>("waiting");
   const [error, setError] = useState<string | null>(null);
+  const [appHref, setAppHref] = useState<string | null>(null);
 
   useEffect(() => {
     if (attempted.current) return;
@@ -62,9 +63,20 @@ function MobileConnectInner() {
     const refCode = searchParams.get("ref") ?? undefined;
     // URL de retour (la page d'accueil de la TWA)
     const returnBase = "https://omdot.fun/";
+    // Lancé depuis l'APK : on revient dans l'app via son schéma omdot:// (pas de Digital Asset Links)
+    const fromApp = searchParams.get("app") === "1";
+    const goBack = (hash = "") => {
+      if (fromApp) {
+        const href = `omdot://session${hash}`;
+        setAppHref(href);
+        window.location.href = href;
+      } else {
+        window.location.href = `${returnBase}${hash}`;
+      }
+    };
 
     if (!walletParam) {
-      window.location.href = returnBase;
+      goBack();
       return;
     }
 
@@ -81,8 +93,8 @@ function MobileConnectInner() {
       }
 
       if (!provider) {
-        // Wallet non détecté : retour silencieux vers la TWA
-        window.location.href = returnBase;
+        // Wallet non détecté : retour silencieux vers l'app
+        goBack();
         return;
       }
 
@@ -133,13 +145,13 @@ function MobileConnectInner() {
         );
 
         // Android routera https://omdot.fun/... vers la TWA grâce aux Digital Asset Links
-        window.location.href = `${returnBase}#twa_session=${encodeURIComponent(payload)}`;
+        goBack(`#twa_session=${encodeURIComponent(payload)}`);
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "An error occurred.";
         // Annulation utilisateur : retour silencieux
         if (/reject|cancel|denied|refused/i.test(msg)) {
-          window.location.href = returnBase;
+          goBack();
           return;
         }
         setStatus("error");
@@ -202,10 +214,23 @@ function MobileConnectInner() {
         />
       )}
 
+      {/* Retour à l'app (geste utilisateur : certains navigateurs bloquent la redirection automatique) */}
+      {appHref && status !== "error" && (
+        <a
+          href={appHref}
+          style={{
+            marginTop: 8, padding: "12px 28px", borderRadius: 12, background: "#f97316",
+            color: "#fff", fontWeight: 600, fontSize: 15, textDecoration: "none",
+          }}
+        >
+          {tr("Return to the app")}
+        </a>
+      )}
+
       {/* Bouton retour en cas d'erreur */}
       {status === "error" && (
         <button
-          onClick={() => { window.location.href = "https://omdot.fun/"; }}
+          onClick={() => { window.location.href = searchParams.get("app") === "1" ? "omdot://session" : "https://omdot.fun/"; }}
           style={{
             marginTop: 8,
             padding: "12px 28px",
