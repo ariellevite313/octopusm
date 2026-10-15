@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { getProfiles } from "@/lib/profiles";
 
 export type LaunchpadToken = {
   id: string;
@@ -38,6 +39,8 @@ export type LaunchpadToken = {
   volume_24h_usd:   number | null;
   stats_updated_at: string | null;
   creator_display_name?: string | null;
+  creator_avatar_src?: string | null;
+  creator_octo?: number;
   // Arc-specific fields
   chain:          string | null;
   arc_launch_id:  string | null;
@@ -172,21 +175,14 @@ export async function getLaunchpadTokens({
   if (error) console.error("[launchpad-service] getLaunchpadTokens error:", error.message);
   const tokens = (data ?? []) as LaunchpadToken[];
 
-  // Batch-fetch creator display names from wallets table
-  const walletAddrs = [...new Set(tokens.map((t: LaunchpadToken) => t.creator_wallet).filter(Boolean))];
-  if (walletAddrs.length > 0) {
-    const { data: walletRows } = await admin
-      .from("wallets")
-      .select("address, display_name")
-      .in("address", walletAddrs);
-    if (walletRows) {
-      const nameMap = new Map((walletRows as { address: string; display_name: string | null }[]).map(w => [w.address, w]));
-      tokens.forEach((t: LaunchpadToken) => {
-        const w = nameMap.get(t.creator_wallet);
-        t.creator_display_name = w?.display_name ?? null;
-      });
-    }
-  }
+  // Profils créateurs en direct (nom, photo, niveau OMERO)
+  const profiles = await getProfiles(admin, tokens.map((t: LaunchpadToken) => t.creator_wallet));
+  tokens.forEach((t: LaunchpadToken) => {
+    const p = profiles.get(t.creator_wallet);
+    t.creator_display_name = p?.name ?? null;
+    t.creator_avatar_src = p?.avatar_src ?? null;
+    t.creator_octo = p?.octo ?? 0;
+  });
 
   return { tokens, total: count ?? 0 };
 }
@@ -198,7 +194,17 @@ export async function getLaunchpadToken(id: string): Promise<LaunchpadToken | nu
     .select(PUBLIC_COLUMNS)
     .eq("id", id)
     .maybeSingle();
-  return data as LaunchpadToken | null;
+  return withCreatorProfile(data as LaunchpadToken | null);
+}
+
+async function withCreatorProfile(t: LaunchpadToken | null): Promise<LaunchpadToken | null> {
+  if (!t) return t;
+  const admin = createAdminClient();
+  const p = (await getProfiles(admin, [t.creator_wallet])).get(t.creator_wallet);
+  t.creator_display_name = p?.name ?? null;
+  t.creator_avatar_src = p?.avatar_src ?? null;
+  t.creator_octo = p?.octo ?? 0;
+  return t;
 }
 
 export async function getLaunchpadTokenByMint(mint: string): Promise<LaunchpadToken | null> {
@@ -209,14 +215,14 @@ export async function getLaunchpadTokenByMint(mint: string): Promise<LaunchpadTo
     .select(PUBLIC_COLUMNS)
     .eq("mint_address", mint)
     .maybeSingle();
-  if (data) return data as LaunchpadToken;
+  if (data) return withCreatorProfile(data as LaunchpadToken);
   // Fallback: Arc tokens accessed via their curve address (arc_launch_id)
   const { data: byLaunchId } = await admin
     .from("launchpad_tokens")
     .select(PUBLIC_COLUMNS)
     .eq("arc_launch_id", mint)
     .maybeSingle();
-  return byLaunchId as LaunchpadToken | null;
+  return withCreatorProfile(byLaunchId as LaunchpadToken | null);
 }
 
 // ─── Réservations ──────────────────────────────────────────────────────────

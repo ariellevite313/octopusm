@@ -5,6 +5,7 @@ import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { PoolDetailClient } from "@/components/pools/pool-detail-client";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/services/admin-service";
+import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 
 export const revalidate = 60;
 
@@ -142,6 +143,7 @@ async function getInitialComments(marketId: string, wallet: string | null): Prom
     }
   }
 
+  applyProfiles(topLevel, await getProfiles(admin, commentWallets(topLevel)));
   return topLevel;
 }
 

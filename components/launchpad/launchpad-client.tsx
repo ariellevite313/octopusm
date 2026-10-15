@@ -13,6 +13,8 @@ import { useT } from "@/lib/i18n";
 import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -181,8 +183,9 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
 
         <div className="flex items-center justify-between gap-1 min-w-0">
           <div className="flex items-center gap-1 min-w-0">
-            <span className="text-[11px] text-muted-foreground">By</span>
+            <UserAvatar src={token.creator_avatar_src} name={creatorLabel} size={16} />
             <span className="truncate text-[11px] font-semibold text-foreground/80">{creatorLabel}</span>
+            {(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={11} />}
           </div>
           {token.mint_address && (
             <CopyButton text={token.mint_address}>
@@ -282,10 +285,9 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
               </span>
             </div>
             <span className="flex min-w-0 items-center gap-1.5">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-                {creator.replace(/^@/, "").slice(0, 1).toUpperCase()}
-              </span>
+              <UserAvatar src={token.creator_avatar_src} name={creator} size={20} />
               <span className="truncate text-[13px] font-semibold text-muted-foreground sm:text-sm">{creator}</span>
+              {(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
             </span>
           </div>
           <MiniPriceChart
@@ -332,7 +334,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
             <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>
           </p>
           <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-            by <span className="font-semibold text-foreground/80">{creator}</span>
+            by <UserAvatar src={token.creator_avatar_src} name={creator} size={16} className="mr-1 inline-flex align-text-bottom" /><span className="font-semibold text-foreground/80">{creator}</span>{(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
             <span className="mx-1.5">·</span>
             <span className={`font-semibold ${isScheduled ? "text-violet-500" : st.cls}`}>{isScheduled ? "Soon" : st.label === "Bonded" ? "Graduated" : st.label}</span>
           </p>
@@ -448,7 +450,11 @@ function TokenTable({ tokens, offset, sort, onSort }: {
                 </td>
                 <td className={`px-3 py-2.5 text-right text-sm font-semibold ${st.cls}`}>{st.label}</td>
                 <td className="px-3 py-2.5 text-right text-sm text-muted-foreground">
-                  {token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4)}
+                  <span className="inline-flex items-center justify-end gap-1.5">
+                    <UserAvatar src={token.creator_avatar_src} name={token.creator_display_name ?? token.creator_wallet} size={18} />
+                    {token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4)}
+                    {(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
+                  </span>
                 </td>
               </tr>
             );

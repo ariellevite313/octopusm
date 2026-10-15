@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
+import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -77,6 +78,7 @@ export async function GET(
     }
   }
 
+  applyProfiles(topLevel, await getProfiles(admin, commentWallets(topLevel)));
   return NextResponse.json(topLevel);
 }
 
