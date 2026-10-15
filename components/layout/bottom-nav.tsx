@@ -3,17 +3,19 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User } from "lucide-react";
+import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User, Trophy } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { AppIcon } from "@/components/shared/app-icon";
 
 const PREDICT_NAV = [
   { label: "Markets",     href: "/prediction",              icon: BarChart2,  exact: true  },
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
+  { label: "Leaderboard", href: "/leaderboard/predictions", icon: Trophy,     exact: true  },
 ];
 
 const LAUNCHPAD_NAV = [
   { label: "Tokens",      href: "/launchpad",               icon: LayoutGrid, exact: false },
+  { label: "Leaderboard", href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
   { label: "Launch",      href: "/launchpad/create",        icon: Rocket,     exact: true  },
   { label: "Portfolio",    href: "/dashboard/launchpad",     icon: User,       exact: false },
 ];
