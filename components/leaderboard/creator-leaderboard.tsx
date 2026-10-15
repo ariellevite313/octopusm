@@ -139,7 +139,7 @@ export function CreatorLeaderboard() {
   const rest  = entries.slice(3);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6">
+    <main className="mx-auto max-w-2xl px-4 py-6 lg:max-w-6xl">
 
       {/* Back */}
       <Link
@@ -196,10 +196,10 @@ export function CreatorLeaderboard() {
           {tr("No claims for this period.")}
         </p>
       ) : (
-        <>
+        <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-12">
           {/* Podium */}
           {top3.length >= 3 && (
-            <div className="relative mx-auto mb-8 max-w-[26rem] pb-2 pt-6">
+            <div className="relative mx-auto mb-8 max-w-[26rem] pb-2 pt-6 lg:sticky lg:top-6 lg:mb-0 lg:max-w-none">
               <div className="grid grid-cols-[1fr_1.15fr] items-start gap-4">
                 {/* Leader */}
                 <div className="pt-1">
@@ -230,8 +230,8 @@ export function CreatorLeaderboard() {
             </div>
           )}
 
-          {/* Ranking list */}
-          <div className="-mx-3">
+          {/* Ranking list — défilable à côté du podium sur ordinateur */}
+          <div className="-mx-3 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:pr-1">
             {entries.map(entry => {
               const top = entry.rank <= 3;
               const tone = top ? TONES[RANK_TONE[entry.rank - 1]] : null;
@@ -260,7 +260,7 @@ export function CreatorLeaderboard() {
               );
             })}
           </div>
-        </>
+        </div>
       )}
     </main>
   );
