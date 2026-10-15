@@ -12,9 +12,11 @@ type Props = {
   markets: UnifiedMarket[];
   volumes: MarketVolumes;
   showCategoryTabs?: boolean;
+  /** Une colonne latérale est affichée à côté (écrans larges) */
+  compact?: boolean;
 };
 
-export function MarketGrid({ markets, volumes }: Props) {
+export function MarketGrid({ markets, volumes, compact }: Props) {
   const { tr } = useT();
   const isLiveMarket = (m: UnifiedMarket) =>
     m.source === "prediction" &&
@@ -33,7 +35,7 @@ export function MarketGrid({ markets, volumes }: Props) {
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+    <div className={`grid gap-3 sm:grid-cols-2 sm:gap-4 ${compact ? "xl:grid-cols-2" : "lg:grid-cols-3"}`}>
       {sorted.map((m) =>
         m.source === "pool"
           ? <PoolGridCard key={m.id} market={m as MutuelMarketRow} />
