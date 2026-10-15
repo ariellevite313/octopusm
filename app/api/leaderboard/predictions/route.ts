@@ -127,7 +127,7 @@ export async function GET(req: Request) {
     // Fetch profiles — data lives in the `wallets` table
     const { data: profiles } = await admin
       .from("wallets")
-      .select("address, display_name, avatar_src")
+      .select("address, display_name, username, avatar_src")
       .in("address", wallets);
 
     // Also fetch octo balances
@@ -151,8 +151,8 @@ export async function GET(req: Request) {
       return {
         rank:           i + 1,
         wallet_address: wallet,
-        display_name:   profile?.display_name ?? undefined,
-        avatar_src:     profile?.avatar_src   ?? undefined,
+        display_name:   profile?.display_name || profile?.username || undefined,
+        avatar_src:     profile?.avatar_src   || undefined,
         win_count:      wins,
         total_gains:    Math.round(gains * 1000) / 1000,
         octo_balance:   octoMap.get(wallet) ?? 0,
