@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2, Hourglass, ChevronLeft, ChevronUp, ChevronDown, Share2, Scale, X, Plus } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -14,6 +14,7 @@ import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
 import { CommentsSection } from "@/components/shared/comments-section";
+import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
 import type { WalletType } from "@/lib/wallet/adapters";
 
@@ -448,70 +449,59 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
   const lineColor = isAbove ? "#22c55e" : "#ef4444";
   const pctDiff = currentPrice != null ? ((currentPrice - strikePrice) / strikePrice) * 100 : null;
 
+  const diffAbs = currentPrice != null ? currentPrice - strikePrice : null;
+
   return (
-    <div className="rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+    <div>
+      {/* En-tête */}
+      <div className="flex items-center gap-3 pb-5">
         {meta.img
-          ? <Image src={meta.img} alt={meta.symbol} width={32} height={32} className="rounded-xl bg-white p-0.5 shrink-0" />
-          : <div className="flex size-8 items-center justify-center rounded-xl text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
-        }
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-foreground">{meta.label} Up or Down {durationMin}m</p>
-          <p className="text-[10px] text-muted-foreground">{opensAtFormatted}</p>
-        </div>
-        <div className="flex flex-col items-end gap-0.5">
-          {marketStatus === "open" ? (
-            <>
-              {liveCountdownChart === "Termine" ? (
-                <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                  <Loader2 className="size-2.5 animate-spin" />
-                  Resolving
-                </span>
-              ) : (
-                <>
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                    <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Live
-                  </span>
-                  <span className="text-[10px] tabular-nums font-medium text-up">{liveCountdownChart}</span>
-                </>
-              )}
-            </>
-          ) : (
-            <span className={`flex items-center gap-1 text-[10px] font-semibold ${live ? "text-up" : "text-muted-foreground"}`}>
-              <span className={`inline-block size-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
-              {live ? "Live" : "Connecting..."}
-            </span>
-          )}
+          ? <Image src={meta.img} alt={meta.symbol} width={52} height={52} className="size-[52px] shrink-0 rounded-2xl bg-white p-1 lg:size-14" />
+          : <div className="flex size-[52px] shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white" style={{ background: meta.color }}>{meta.symbol[0]}</div>}
+        <div className="min-w-0">
+          <h1 className="truncate text-[21px] font-bold tracking-tight text-foreground lg:text-[26px]">{meta.label} Up or Down · {durationMin} min</h1>
+          <p className="text-sm text-muted-foreground">{opensAtFormatted}</p>
         </div>
       </div>
 
-      <div className="flex items-baseline gap-3 px-4 pb-3">
-        <span className="text-2xl font-bold tabular-nums text-foreground">
-          {/* ref updated at 60fps via RAF without React re-render */}
-          <span ref={displayPriceRef}>
-            {currentPrice != null ? `$${formatPrice(currentPrice)}` : "—"}
-          </span>
-        </span>
-        {pctDiff != null && (
-          <span className={`rounded-xl px-2 py-0.5 text-xs font-semibold ${
-            isAbove
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-          }`}>
-            {isAbove ? "+" : ""}{pctDiff.toFixed(3)}% vs strike
-          </span>
-        )}
+      {/* Chiffres clés */}
+      <div className="grid grid-cols-[1fr_1.15fr_0.9fr] gap-2 lg:flex lg:gap-14">
+        <div className="min-w-0">
+          <p className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">Price to beat</p>
+          <p className="num mt-1 truncate text-[19px] font-bold tracking-tight text-muted-foreground lg:text-[26px]">${formatPrice(strikePrice)}</p>
+        </div>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1 truncate text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">
+            Live price
+            {diffAbs != null && (
+              <span className={`flex items-center gap-0.5 normal-case ${isAbove ? "text-up" : "text-down"}`}>
+                <svg viewBox="0 0 10 10" className="size-2" aria-hidden><path d={isAbove ? "M0 9h10L5 1z" : "M0 1h10L5 9z"} fill="currentColor" /></svg>
+                ${formatPrice(Math.abs(diffAbs))}
+              </span>
+            )}
+          </p>
+          <p className={`num mt-1 truncate text-[19px] font-bold tracking-tight lg:text-[26px] ${currentPrice == null ? "text-foreground" : isAbove ? "text-up" : "text-down"}`}>
+            {/* ref updated at 60fps via RAF without React re-render */}
+            <span ref={displayPriceRef}>{currentPrice != null ? `$${formatPrice(currentPrice)}` : "—"}</span>
+          </p>
+        </div>
+        <div className="min-w-0 text-right lg:text-left">
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground lg:text-[11px]">
+            {marketStatus === "open" ? "Ends in" : "Status"}
+          </p>
+          <p className="num mt-1 flex items-center justify-end gap-1.5 text-[19px] font-bold tracking-tight text-foreground lg:justify-start lg:text-[26px]">
+            {marketStatus === "open" ? (
+              liveCountdownChart === "Termine"
+                ? <><Loader2 className="size-4 animate-spin text-primary" /><span className="text-base">Resolving</span></>
+                : <><Hourglass className="size-[18px] text-primary" strokeWidth={2.25} />{liveCountdownChart}</>
+            ) : (
+              <span className="text-base capitalize text-muted-foreground">{marketStatus}</span>
+            )}
+          </p>
+        </div>
       </div>
 
-      <div className="mx-4 mb-1 flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
-        <span className="text-xs text-muted-foreground">Strike price</span>
-        <span className="text-xs font-semibold text-foreground">${formatPrice(strikePrice)}</span>
-        <span className={`text-xs font-semibold ${isAbove ? "text-up" : "text-down"}`}>
-          {isAbove ? "Above ↑" : "Below ↓"}
-        </span>
-      </div>
-      <div className="px-2 pb-4">
+      <div className="-mx-2 pb-2 pt-4">
         {loading || points.length === 0 ? (
           <div className="flex h-40 items-center justify-center">
             <span className="text-xs text-muted-foreground animate-pulse">
@@ -519,7 +509,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
             </span>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={smoothData.length > 0 ? smoothData : points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`fill-updown-${ticker}`} x1="0" y1="0" x2="0" y2="1">
@@ -527,7 +517,6 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                   <stop offset="95%" stopColor={lineColor} stopOpacity={0}   />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} vertical={false} />
               <XAxis
                 dataKey="time"
                 type="number"
@@ -576,11 +565,11 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
 
                 // Arrow si hors vue
                 const arrow = isAboveView ? ' ↑' : isBelowView ? ' ↓' : '';
-                const labelText = `$${formatPrice(strikePrice)}${arrow}`;
+                const labelText = `Target ${formatPrice(strikePrice)}${arrow}`;
 
                 // X de début de l'axe Y (plot area se termine là)
                 const yAxisX = yAxis.x ?? (w - (yAxis.width ?? 68));
-                const labelW = 66;
+                const labelW = 104;
 
                 return (
                   <g>
@@ -591,31 +580,30 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
                         y1={rawY}
                         x2={yAxisX}
                         y2={rawY}
-                        stroke="#60a5fa"
-                        strokeDasharray="5 3"
-                        strokeWidth={1.5}
+                        stroke="var(--muted-foreground)"
+                        strokeDasharray="2 6"
+                        strokeWidth={2}
                         style={{ opacity: strikeLineOpacity, transition: 'opacity 0.5s ease' }}
                       />
                     )}
                     {/* Label target — toujours visible, se déplace avec transition */}
                     <g style={{ transform: `translateY(${labelY}px)`, transition: 'transform 0.3s ease' }}>
                       <rect
-                        x={yAxisX}
-                        y={-9}
+                        x={yAxisX + 68 - labelW}
+                        y={-10}
                         width={labelW}
-                        height={18}
-                        rx={3}
-                        fill="#3b82f6"
-                        fillOpacity={0.9}
+                        height={20}
+                        rx={6}
+                        fill="var(--muted)"
+                        fillOpacity={1}
                       />
                       <text
-                        x={yAxisX + labelW / 2}
-                        y={4.5}
+                        x={yAxisX + 68 - labelW / 2}
+                        y={4}
                         textAnchor="middle"
-                        fill="white"
-                        fontSize={9}
-                        fontWeight="bold"
-                        fontFamily="ui-monospace, SFMono-Regular, monospace"
+                        fill="var(--foreground)"
+                        fontSize={10}
+                        fontWeight="600"
                       >
                         {labelText}
                       </text>
@@ -642,9 +630,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
         )}
       </div>
       {/* S-05: informer que la résolution utilise le close klines 1min, pas le prix live */}
-      <p className="mx-4 mt-1 mb-3 text-[10px] text-muted-foreground">
-        Notice : The live price (chart) is indicative. Resolution uses the Binance 1min close at the end of the round.
-      </p>
+
     </div>
   );
 });
@@ -659,6 +645,11 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [activeDir, setActiveDir] = useState<"up" | "down" | null>(null);
   const [showWalletDialog, setShowWalletDialog] = useState(false);
+  const [rawAmt, setRawAmt] = useState("5");
+  const [betDir, setBetDir] = useState<"up" | "down" | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(true);
+  const [pastRounds, setPastRounds] = useState<{ id: string; opens_at: string; outcome: "up" | "down" | null }[]>([]);
   const supabase = useRef(getSupabase());
   const walletAddressRef = useRef(walletAddress);
   useEffect(() => { walletAddressRef.current = walletAddress; }, [walletAddress]);
@@ -701,6 +692,26 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   }, [marketId, walletAddress]);
 
   useEffect(() => { void fetchMarket(); void fetchMyBets(); }, [fetchMarket, fetchMyBets]);
+
+  // Manches précédentes (même actif, même durée)
+  const marketSymbol = market?.symbol; const marketDuration = market?.duration_min; const marketOpens = market?.opens_at;
+  useEffect(() => {
+    if (!marketSymbol || !marketDuration || !marketOpens) return;
+    void supabase.current.from("updown_markets")
+      .select("id, opens_at, outcome")
+      .eq("symbol", marketSymbol).eq("duration_min", marketDuration).eq("status", "resolved")
+      .lt("opens_at", marketOpens)
+      .order("opens_at", { ascending: false }).limit(6)
+      .then(({ data }: { data: { id: string; opens_at: string; outcome: "up" | "down" | null }[] | null }) => setPastRounds(data ?? []));
+  }, [marketSymbol, marketDuration, marketOpens]);
+
+  // Fenêtre de mise : bloque le défilement + fermeture après la mise
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [sheetOpen]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -836,6 +847,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         return;
       }
       toast.success(`${dir.toUpperCase()} predict placed!`);
+      setSheetOpen(false);
       void fetchMyBets();
       void fetchMarket();
     } catch (e: any) {
@@ -883,15 +895,122 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   const upPct   = totalPool > 0 ? Math.round(((market.pool_up ?? 0) / totalPool) * 100) : 50;
   const downPct = 100 - upPct;
 
+  const multUp   = amount > 0 ? estPayout("up") / amount : 0;
+  const multDown = amount > 0 ? estPayout("down") / amount : 0;
+  const selDir: "up" | "down" = betDir ?? "up";
+
+  function setAmt(v: string) {
+    setRawAmt(v);
+    setAmount(parseFloat(v) || 0);
+  }
+
+  // Panneau de mise (ordinateur : colonne de droite · téléphone : fenêtre du bas)
+  const betPanel = (withKeypad: boolean) => (
+    isOpen && bettingClosed ? (
+      <div className="py-8 text-center">
+        <Loader2 className="mx-auto mb-2 size-5 animate-spin text-primary" />
+        <p className="text-sm font-semibold text-foreground">Resolving…</p>
+        <p className="text-xs text-muted-foreground">Betting is closed. Awaiting outcome.</p>
+      </div>
+    ) : !isOpen ? (
+      <div className="py-8 text-center">
+        <p className="text-sm font-semibold text-foreground">{market.status === "resolved" ? "Round resolved" : "Round cancelled"}</p>
+        {market.outcome && (
+          <p className={`mt-1 text-sm font-bold ${market.outcome === "up" ? "text-up" : "text-down"}`}>{market.outcome === "up" ? "Up won" : "Down won"}</p>
+        )}
+      </div>
+    ) : (
+      <div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {(["up", "down"] as const).map((d) => {
+            const on = selDir === d;
+            const Icon = d === "up" ? ChevronUp : ChevronDown;
+            return (
+              <button key={d} type="button" onClick={() => setBetDir(d)}
+                className={`flex h-[52px] items-center justify-center gap-1.5 rounded-2xl text-[16px] font-bold transition-colors ${
+                  on
+                    ? d === "up" ? "bg-up/15 text-up ring-[1.5px] ring-up/50" : "bg-down/15 text-down ring-[1.5px] ring-down/50"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}>
+                <Icon className="size-[18px]" strokeWidth={3} />
+                {d === "up" ? "Up" : "Down"} <span className="num">{(d === "up" ? multUp : multDown).toFixed(2)}x</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="mt-5 text-[15px] font-semibold text-foreground">Amount</p>
+        {withKeypad ? (
+          <div className="flex items-baseline justify-center gap-2 py-3">
+            <span className={`num text-[48px] font-bold leading-none tracking-tight ${rawAmt ? "text-foreground" : "text-muted-foreground/50"}`}>{rawAmt || "0"}</span>
+            <span className="text-lg font-bold text-muted-foreground">USDC</span>
+          </div>
+        ) : (
+          <div className="mt-2 flex items-baseline justify-between rounded-2xl bg-muted px-4 py-3">
+            <input
+              type="text" inputMode="decimal" value={rawAmt}
+              onChange={(e) => setAmt(e.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}
+              placeholder="0"
+              className="num w-full min-w-0 bg-transparent text-[28px] font-bold text-foreground outline-none placeholder:text-muted-foreground/50"
+            />
+            <span className="shrink-0 font-bold text-muted-foreground">USDC</span>
+          </div>
+        )}
+        <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+          {[1, 5, 10, 100].map((v) => (
+            <button key={v} type="button" onClick={() => setAmt(String(Math.round(((parseFloat(rawAmt) || 0) + v) * 100) / 100))}
+              className="num flex items-center justify-center gap-0.5 rounded-xl bg-muted py-2 text-[13px] font-bold text-foreground transition-colors hover:bg-muted/70">
+              <Plus className="size-3" />${v}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <span className="flex items-center gap-2 text-[15px] text-muted-foreground">
+            To win
+            <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${selDir === "up" ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{selDir === "up" ? "Up" : "Down"}</span>
+          </span>
+          <span className="num text-[28px] font-bold leading-none text-up">${(amount >= MIN_AMOUNT ? estPayout(selDir) : 0).toFixed(2)}</span>
+        </div>
+        {totalPool > 0 && (
+          <div className="mt-3">
+            <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-full">
+              <div className="rounded-full bg-up" style={{ width: `${upPct}%` }} />
+              <div className="flex-1 rounded-full bg-down" />
+            </div>
+            <p className="num mt-1 flex justify-between text-[11px] text-muted-foreground"><span>{upPct}% Up</span><span>Pool ${totalPool.toFixed(2)}</span><span>{downPct}% Down</span></p>
+          </div>
+        )}
+
+        <button type="button" onClick={() => void handleBet(selDir)} disabled={submitting}
+          className="mt-4 h-[52px] w-full rounded-2xl bg-primary text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
+          {submitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Confirming…</span>
+            : !walletAddress ? "Connect wallet" : `Buy ${selDir === "up" ? "Up" : "Down"}`}
+        </button>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">Min ${MIN_AMOUNT} · USDC · Multiple bets allowed</p>
+
+        {withKeypad && <div className="mt-2"><SwapKeypad value={rawAmt} onChange={setAmt} maxDecimals={2} /></div>}
+      </div>
+    )
+  );
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Main 2-col layout */}
-      <div className="flex flex-col lg:flex-row lg:items-start">
+      <div className="mx-auto grid max-w-[1400px] gap-8 px-4 pb-8 pt-3 lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:pt-5">
 
-        {/* LEFT — chart + metrics */}
-        <div className="flex-1 min-w-0 p-4 space-y-3">
+        {/* ── Colonne principale ── */}
+        <div className="min-w-0">
+          <div className="mb-3 flex items-center justify-between">
+            <button type="button" onClick={() => router.back()} className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              <ChevronLeft className="size-5" /><span className="hidden lg:inline">Up / Down</span>
+            </button>
+            <button type="button" aria-label="Share"
+              onClick={() => { try { if (navigator.share) void navigator.share({ url: location.href }); else { void navigator.clipboard.writeText(location.href); toast.success("Link copied"); } } catch { /* ignore */ } }}
+              className="flex size-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted">
+              <Share2 className="size-5" />
+            </button>
+          </div>
 
-          {/* Chart */}
           <LiveChart
             ticker={market.symbol}
             strikePrice={market.strike_price}
@@ -902,66 +1021,95 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
             liveCountdown={liveCountdown}
           />
 
-          {/* Round result */}
-          {isResolved && market.outcome && (
-            <div className={`rounded-2xl px-4 py-3 border ${
-              market.outcome === "up"
-                ? "bg-emerald-500/10 border-emerald-500/30"
-                : "bg-red-500/10 border-red-500/30"
-            }`}>
-              <p className={`text-center text-sm font-bold mb-2 ${market.outcome === "up" ? "text-up" : "text-red-400"}`}>
-                {market.outcome === "up" ? "↑ UP won this round" : "↓ DOWN won this round"}
-              </p>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Strike</span>
-                <span className="font-semibold text-foreground">${formatPrice(market.strike_price)}</span>
-              </div>
-              {market.open_price != null && (
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>Close</span>
-                  <span className={`font-semibold ${market.outcome === "up" ? "text-up" : "text-red-400"}`}>
-                    ${formatPrice(market.open_price)}
-                  </span>
-                </div>
-              )}
+          {/* Manches précédentes */}
+          {pastRounds.length > 0 && (
+            <div className="mt-2 flex items-center gap-4 overflow-x-auto border-t border-border py-4 scrollbar-none">
+              <span className="flex shrink-0 items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm font-bold text-foreground">
+                Past
+                <span className="h-4 w-px bg-foreground/15" />
+                <span className={`flex size-5 items-center justify-center rounded-full ${pastRounds[0].outcome === "up" ? "bg-up" : "bg-down"}`}>
+                  {pastRounds[0].outcome === "up" ? <ChevronUp className="size-3.5 text-white" strokeWidth={3} /> : <ChevronDown className="size-3.5 text-white" strokeWidth={3} />}
+                </span>
+              </span>
+              {pastRounds.map((r) => (
+                <button key={r.id} type="button" onClick={() => router.push(`/updown/${r.id}`)}
+                  className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  <span className={`size-1.5 rounded-full ${r.outcome === "up" ? "bg-up" : r.outcome === "down" ? "bg-down" : "bg-muted-foreground"}`} />
+                  {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(r.opens_at))}
+                </button>
+              ))}
             </div>
           )}
 
-          {/* My bets */}
+          {/* Up / Down (téléphone : ouvre la fenêtre de mise) */}
+          {isOpen && !bettingClosed && (
+            <div className="mt-2 lg:hidden">
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => { setBetDir("up"); setSheetOpen(true); }}
+                  className="flex h-[58px] items-center justify-center gap-1.5 rounded-[18px] bg-up/15 text-[20px] font-bold text-up">
+                  <ChevronUp className="size-5" strokeWidth={3} />Up
+                </button>
+                <button type="button" onClick={() => { setBetDir("down"); setSheetOpen(true); }}
+                  className="flex h-[58px] items-center justify-center gap-1.5 rounded-[18px] bg-down/15 text-[20px] font-bold text-down">
+                  <ChevronDown className="size-5" strokeWidth={3} />Down
+                </button>
+              </div>
+              <div className="num mt-2 grid grid-cols-2 text-center text-[15px] font-semibold text-foreground">
+                <span>{multUp.toFixed(2)}x</span><span>{multDown.toFixed(2)}x</span>
+              </div>
+            </div>
+          )}
+
+          {/* Résultat de la manche */}
+          {isResolved && market.outcome && (
+            <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+              <p className={`text-base font-bold ${market.outcome === "up" ? "text-up" : "text-down"}`}>{market.outcome === "up" ? "Up won this round" : "Down won this round"}</p>
+              <p className="num text-sm text-muted-foreground">
+                Strike <span className="font-semibold text-foreground">${formatPrice(market.strike_price)}</span>
+                {market.open_price != null && <> · Close <span className="font-semibold text-foreground">${formatPrice(market.open_price)}</span></>}
+              </p>
+            </div>
+          )}
+
+          {/* Mes mises */}
           {currentRoundBets.length > 0 && (
-            <div className="space-y-2">
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="mb-2 text-[15px] font-bold text-foreground">My bets</p>
               {currentRoundBets.map(bet => (
-                <div key={bet.id} className={`rounded-2xl px-4 py-3 flex items-center justify-between text-sm border ${
-                  bet.status === "won"     ? "bg-emerald-500/10 text-up border-emerald-500/20" :
-                  bet.status === "lost"    ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                  bet.status === "claimed" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                  bet.status === "paid"    ? "bg-violet-500/10 text-violet-400 border-violet-500/20" :
-                  "bg-muted/40 text-muted-foreground border-border"
-                }`}>
-                  <div>
-                    <p className="text-[13px] opacity-60 mb-0.5">My predict</p>
-                    <p className="font-bold">${bet.amount} USDC · {bet.direction === "up" ? "↑ UP" : "↓ DOWN"}</p>
-                    {bet.status === "won" && bet.payout != null && (
-                      <p className="text-xs mt-0.5 font-semibold">Win: ${Number(bet.payout).toFixed(2)} USDC</p>
-                    )}
-                    {bet.status === "refunded" && (
-                      <p className="text-xs mt-0.5 font-semibold">Refund: ${Number(bet.amount).toFixed(2)} USDC</p>
-                    )}
-                  </div>
-                  <span className="text-xs font-semibold shrink-0">
-                    {(bet.status === "won" || bet.status === "refunded") && "🏆 Claim in dashboard"}
-                    {bet.status === "claimed" && "⏳ Pending"}
-                    {bet.status === "paid"    && "✅ Paid"}
-                    {bet.status === "lost"    && "❌ Lost"}
-                    {(bet.status === "pending" || bet.status === "approved") && "⏳ In progress"}
+                <div key={bet.id} className="flex items-center justify-between border-b border-border py-2.5 text-sm last:border-0">
+                  <span className="num font-semibold text-foreground">
+                    ${bet.amount} USDC · <span className={bet.direction === "up" ? "text-up" : "text-down"}>{bet.direction === "up" ? "Up" : "Down"}</span>
+                    {bet.status === "won" && bet.payout != null && <span className="ml-2 text-up">Win ${Number(bet.payout).toFixed(2)}</span>}
+                    {bet.status === "refunded" && <span className="ml-2 text-muted-foreground">Refund ${Number(bet.amount).toFixed(2)}</span>}
+                  </span>
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {(bet.status === "won" || bet.status === "refunded") && "Claim in dashboard"}
+                    {bet.status === "claimed" && "Pending"}
+                    {bet.status === "paid" && "Paid"}
+                    {bet.status === "lost" && "Lost"}
+                    {(bet.status === "pending" || bet.status === "approved") && "In progress"}
                   </span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Comments desktop */}
-          <div className="hidden lg:block">
+          {/* Règles */}
+          <div className="mt-6">
+            <button type="button" onClick={() => setRulesOpen((v) => !v)} className="flex w-full items-center justify-between text-left">
+              <span className="flex items-center gap-2.5 text-[17px] font-bold text-foreground"><Scale className="size-5" />Rules summary</span>
+              {rulesOpen ? <ChevronUp className="size-5 text-muted-foreground" /> : <ChevronDown className="size-5 text-muted-foreground" />}
+            </button>
+            {rulesOpen && (
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                Resolves <b className="text-foreground">Up</b> if {meta.label} closes above the price to beat (${formatPrice(market.strike_price)}) at the end of the round, otherwise <b className="text-foreground">Down</b>.
+                The live price on the chart is indicative — resolution uses the Binance 1-minute close at the end of the round.
+              </p>
+            )}
+          </div>
+
+          {/* Commentaires — téléphone */}
+          <div className="mt-8 lg:hidden">
             <CommentsSection
               marketId={marketId}
               initialComments={[]}
@@ -973,114 +1121,46 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           </div>
         </div>
 
-        {/* RIGHT — bet panel sticky */}
-        <div className="w-full lg:w-80 lg:shrink-0 lg:sticky lg:top-0 p-4">
-          <div className="rounded-2xl border border-border overflow-hidden">
-            {/* Panel header */}
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              {meta.img
-                ? <Image src={meta.img} alt={meta.symbol} width={28} height={28} className="rounded-xl bg-white p-0.5 shrink-0" />
-                : <div className="flex size-7 items-center justify-center rounded-xl text-xs font-bold text-white shrink-0" style={{ background: meta.color }}>{meta.symbol[0]}</div>
-              }
-              <div>
-                <p className="text-xs font-bold text-foreground">{meta.label} Up or Down {market.duration_min}m</p>
-                {isOpen
-                  ? liveCountdown === "Termine"
-                    ? <p className="text-[10px] text-amber-500 font-semibold flex items-center gap-1"><Loader2 className="size-3 animate-spin" />Resolving…</p>
-                    : <p className="text-[10px] text-up font-semibold flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Live · {liveCountdown}</p>
-                  : <p className="text-[10px] text-muted-foreground">{market.status}</p>
-                }
-              </div>
+        {/* ── Colonne de droite (ordinateur) : mise + commentaires ── */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-5 space-y-6">
+            <div className="rounded-[24px] border border-border bg-card p-5">
+              <p className="mb-4 text-[17px] font-bold text-foreground">Place your bet</p>
+              {betPanel(false)}
             </div>
+            <CommentsSection
+              marketId={marketId}
+              initialComments={[]}
+              isAuthenticated={!!walletAddress}
+              walletAddress={walletAddress ?? undefined}
+              onRequestConnect={() => setShowWalletDialog(true)}
+              apiBase="/api/updown"
+            />
+          </div>
+        </aside>
+      </div>
 
-            {isOpen && bettingClosed ? (
-              <div className="p-6 text-center space-y-2">
-                <Loader2 className="mx-auto size-5 animate-spin text-amber-500" />
-                <p className="text-sm font-semibold text-amber-500">Resolving…</p>
-                <p className="text-xs text-muted-foreground">Betting is closed. Awaiting outcome.</p>
+      {/* Fenêtre de mise — téléphone */}
+      {sheetOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end lg:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSheetOpen(false)} aria-hidden />
+          <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] bg-card px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted" />
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {meta.img
+                  ? <Image src={meta.img} alt="" width={44} height={44} className="size-11 shrink-0 rounded-xl bg-white p-0.5" />
+                  : <div className="flex size-11 shrink-0 items-center justify-center rounded-xl font-bold text-white" style={{ background: meta.color }}>{meta.symbol[0]}</div>}
+                <p className="truncate text-[15px] font-semibold text-foreground">{meta.label} Up or Down · {market.duration_min} min</p>
               </div>
-            ) : isOpen ? (
-              <div className="p-4 space-y-4">
-                <div>
-                  <p className="text-[13px] text-muted-foreground mb-2">Quick predict</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {QUICK_AMOUNTS.map(q => (
-                      <button key={q} type="button" onClick={() => setAmount(q)}
-                        className={`rounded-xl border py-2.5 text-sm font-bold transition-colors ${
-                          amount === q ? "border-foreground bg-foreground/10 text-foreground" : "border-border text-foreground hover:border-primary/40 bg-muted/30"
-                        }`}>
-                        ${q}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
-                  <span className="text-sm text-muted-foreground font-semibold">$</span>
-                  <input
-                    type="number" min={MIN_AMOUNT} step="1" value={amount}
-                    onChange={e => setAmount(Number(e.target.value))}
-                    className="flex-1 bg-transparent text-sm font-bold text-foreground focus:outline-none"
-                    placeholder="Custom amount"
-                  />
-                  <span className="text-xs text-muted-foreground">USDC</span>
-                </div>
-                {/* Pool distribution bar */}
-                {totalPool > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-semibold">
-                      <span className="text-up">↑ UP {upPct}%</span>
-                      <span className="text-red-500">{downPct}% DOWN ↓</span>
-                    </div>
-                    <div className="flex h-1.5 overflow-hidden rounded-full">
-                      <div className="bg-emerald-500 transition-all" style={{ width: `${upPct}%` }} />
-                      <div className="bg-red-500 transition-all" style={{ width: `${downPct}%` }} />
-                    </div>
-                    <p className="text-center text-[10px] text-muted-foreground">Pool: ${totalPool.toFixed(2)} USDC</p>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => handleBet("up")} disabled={submitting}
-                    className={`rounded-2xl py-3 font-bold transition-all active:scale-95 disabled:opacity-60 flex flex-col items-center gap-0.5 ${
-                      submitting && activeDir === "up" ? "bg-emerald-600 text-white" : "bg-emerald-500 hover:bg-emerald-400 text-white"
-                    }`}>
-                    <span>{submitting && activeDir === "up" ? "..." : "UP"}</span>
-                    <span className="text-[10px] font-normal opacity-80">~${estPayout("up").toFixed(2)}</span>
-                  </button>
-                  <button onClick={() => handleBet("down")} disabled={submitting}
-                    className={`rounded-2xl py-3 font-bold transition-all active:scale-95 disabled:opacity-60 flex flex-col items-center gap-0.5 ${
-                      submitting && activeDir === "down" ? "bg-red-600 text-white" : "bg-red-500 hover:bg-red-400 text-white"
-                    }`}>
-                    <span>{submitting && activeDir === "down" ? "..." : "DOWN"}</span>
-                    <span className="text-[10px] font-normal opacity-80">~${estPayout("down").toFixed(2)}</span>
-                  </button>
-                </div>
-                <p className="text-center text-[10px] text-muted-foreground">Min $2 · USDC · Multiple bets allowed</p>
-              </div>
-            ) : (
-              <div className="p-6 text-center space-y-1">
-                <p className="text-sm font-semibold text-foreground">{market.status === "resolved" ? "Round resolved" : "Round cancelled"}</p>
-                {market.outcome && (
-                  <p className={`text-sm font-bold ${market.outcome === "up" ? "text-up" : "text-red-400"}`}>
-                    {market.outcome === "up" ? "↑ UP won" : "↓ DOWN won"}
-                  </p>
-                )}
-              </div>
-            )}
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label="Close" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <X className="size-4" />
+              </button>
+            </div>
+            {betPanel(true)}
           </div>
         </div>
-      </div>
-
-      {/* Comments mobile */}
-      <div className="lg:hidden px-4 pb-6">
-        <CommentsSection
-          marketId={marketId}
-          initialComments={[]}
-          isAuthenticated={!!walletAddress}
-          walletAddress={walletAddress ?? undefined}
-          onRequestConnect={() => setShowWalletDialog(true)}
-          apiBase="/api/markets"
-        />
-      </div>
+      )}
 
       {showWalletDialog && (
         <WalletSelectDialog
