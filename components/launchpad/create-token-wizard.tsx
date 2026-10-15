@@ -26,6 +26,7 @@ import {
 } from "@/lib/arc-launchpad";
 import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
 import { XStockIcon } from "@/components/shared/xstock-icon";
+import { LaunchButton } from "@/components/launchpad/launch-button";
 
 // ─── xStock catalogue Arc (ERC-20 sur Arc Mainnet) ───────────────────────────
 const XSTOCK_CATALOG = [
@@ -910,6 +911,7 @@ export function CreateTokenWizard({
   const [submitting, setSubmitting] = useState(false);
   const [openSocials, setOpenSocials] = useState(false);
   const [openMore, setOpenMore] = useState(false);
+  const [launchId, setLaunchId] = useState<string | null>(null);
 
   // Réinitialiser le step quand on change de chaîne
   useEffect(() => { setStep(0); setErrors({}); }, [chain]);
@@ -977,8 +979,8 @@ export function CreateTokenWizard({
     const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
     const json = await res.json() as { id?: string; error?: string };
     if (!res.ok || json.error) throw new Error(json.error ?? "Failed to create token");
-    toast.success(t.tokenCreated);
-    router.push(`/launchpad/${json.id}`);
+    // On reste dans l'assistant : les signatures se font tout de suite (pas de page "Pending")
+    setLaunchId(json.id ?? null);
   }
 
   async function submitArc() {
@@ -1167,6 +1169,31 @@ export function CreateTokenWizard({
 
   return (
     <div className="pb-4">
+      {/* Signatures du lancement Solana, directement dans l'assistant */}
+      {launchId && walletAddress && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 md:items-center">
+          <div className="w-full max-w-md rounded-t-[28px] bg-card px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-5 md:rounded-[28px]">
+            <div className="mb-4 flex items-center gap-3">
+              {data.logo_preview && (
+                <Image src={data.logo_preview} alt="" width={48} height={48} className="size-12 rounded-full object-cover" unoptimized />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-lg font-bold text-foreground">Launch ${data.ticker}</p>
+                <p className="text-sm text-muted-foreground">Approve the signatures in your wallet. Keep this window open.</p>
+              </div>
+            </div>
+            <LaunchButton tokenId={launchId} walletAddress={walletAddress} isScheduled={data.is_scheduled} autoStart />
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/launchpad")}
+              className="mt-4 w-full text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Finish later from My tokens
+            </button>
+          </div>
+        </div>
+      )}
+
       {step === 0 ? (
         <>
         <div className="mb-6 grid grid-cols-[40px_1fr_40px] items-center">

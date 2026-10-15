@@ -242,10 +242,24 @@ export async function checkNameAvailability(name: string, ticker: string): Promi
 
   // Vérifier tokens existants — deux requêtes séparées
   const [{ data: tokName }, { data: tokTicker }] = await Promise.all([
-    admin.from("launchpad_tokens").select("name, ticker").ilike("name", name),
-    admin.from("launchpad_tokens").select("name, ticker").ilike("ticker", ticker),
+    admin.from("launchpad_tokens").select("id, name, ticker, status, created_at, fee_paid_at").ilike("name", name),
+    admin.from("launchpad_tokens").select("id, name, ticker, status, created_at, fee_paid_at").ilike("ticker", ticker),
   ]);
-  const existingTokens = ([...(tokName ?? []), ...(tokTicker ?? [])]) as { name: string; ticker: string }[];
+  type TokRow = { id: string; name: string; ticker: string; status: string; created_at: string | null; fee_paid_at: string | null };
+  const allTokens = ([...(tokName ?? []), ...(tokTicker ?? [])]) as TokRow[];
+
+  // Lancements abandonnés : restés "pending" plus de 6 h sans aucun frais payé.
+  // Ils ne bloquent plus le nom/ticker et sont supprimés (best effort).
+  const ABANDONED_MS = 6 * 3600 * 1000;
+  const isAbandoned = (t: TokRow) =>
+    t.status === "pending" && !t.fee_paid_at && !!t.created_at &&
+    Date.now() - new Date(t.created_at).getTime() > ABANDONED_MS;
+  const abandonedIds = [...new Set(allTokens.filter(isAbandoned).map((t) => t.id))];
+  if (abandonedIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from("launchpad_tokens").delete().in("id", abandonedIds).eq("status", "pending").is("fee_paid_at", null);
+  }
+  const existingTokens = allTokens.filter((t) => !isAbandoned(t));
 
   const takenNames = new Set([
     ...reservations.map((r) => r.name.toLowerCase()),
