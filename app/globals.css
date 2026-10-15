@@ -382,3 +382,13 @@
 .ticker-track { animation: ticker-scroll 40s linear infinite; }
 .ticker-track:hover { animation-play-state: paused; }
 .ticker-mask { mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+
+/* ── Carte de gains : cadre orange animé ─────────────────────────────── */
+@keyframes gains-spin { to { transform: rotate(360deg); } }
+.gains-frame {
+  background: conic-gradient(from 0deg, #ff7a1a, #ffc38a 12%, rgba(255,122,26,0.15) 28%, rgba(255,122,26,0.08) 50%, #ff5a00 70%, #ffb066 82%, #ff7a1a);
+  animation: gains-spin 6s linear infinite;
+}
+@keyframes gains-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.gains-dot { animation: gains-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .gains-frame, .gains-dot { animation: none; } }

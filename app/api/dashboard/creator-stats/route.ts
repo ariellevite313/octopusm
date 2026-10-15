@@ -24,6 +24,8 @@ export type CreatorStatsResponse = {
   totalClaimed: number;
   todayClaimed: number;
   tokens:       CreatorStatsToken[];
+  /** Chaque claim (date ISO + montant), du plus ancien au plus récent — pour la courbe de gains. */
+  history:      { t: string; amount: number }[];
   chain:        "solana" | "arc";
 };
 
@@ -52,8 +54,8 @@ export async function GET(req: Request) {
     const walletFilter = isArc ? wallet.toLowerCase() : wallet;
 
     const claimSelect = isArc
-      ? "token_id, amount_usdc"
-      : "token_id, amount_sol";
+      ? "token_id, amount_usdc, claimed_at"
+      : "token_id, amount_sol, claimed_at";
 
     const [{ data: allClaims }, { data: todayClaims }] = await Promise.all([
       admin
@@ -104,7 +106,12 @@ export async function GET(req: Request) {
         .sort((a, b) => b.totalEarned - a.totalEarned);
     }
 
-    return NextResponse.json({ totalClaimed, todayClaimed, tokens, chain } satisfies CreatorStatsResponse);
+    const history = ((allClaims ?? []) as Record<string, string>[])
+      .filter(r => r["claimed_at"])
+      .map(r => ({ t: r["claimed_at"], amount: parseFloat(r[amountField] ?? "0") }))
+      .sort((a, b) => a.t.localeCompare(b.t));
+
+    return NextResponse.json({ totalClaimed, todayClaimed, tokens, history, chain } satisfies CreatorStatsResponse);
   } catch (err) {
     console.error("[creator-stats] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
