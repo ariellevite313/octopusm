@@ -7,6 +7,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { MarketGrid } from "./market-grid";
 import { TrendingSection } from "./trending-section";
 import { PolymarketColumn } from "./polymarket-column";
+import { FeaturedHome } from "./featured-home";
 import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 import { useT } from "@/lib/i18n";
@@ -121,6 +122,8 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">
+      <FeaturedHome />
+
       {/* Mobile : sélecteur de colonne */}
       <div className="mt-3 flex gap-1 rounded-2xl bg-muted/70 p-1 lg:hidden">
         {([["om", "ŌM"], ["pm", "Polymarket"]] as const).map(([id, label]) => (

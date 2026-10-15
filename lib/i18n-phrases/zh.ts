@@ -1028,5 +1028,6 @@ const p: Record<string, string> = {
   "Failed to load leaderboard. Please try again.": "无法加载排行榜，请重试。",
   "Network error": "网络错误",
   "Network error — please retry": "网络错误 — 请重试",
+  "View market": "查看市场",
 };
 export default p;

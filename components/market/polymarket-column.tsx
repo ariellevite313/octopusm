@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, Loader2, Trophy, Flame } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -50,69 +50,6 @@ export function PmCard({ m, className = "" }: { m: PmMarket; className?: string 
   );
 }
 
-/** Tendance Polymarket : 10 cartes qui défilent en continu (comme les tendances ŌM). */
-function PmMarquee({ markets }: { markets: PmMarket[] }) {
-  const scroller = useRef<HTMLDivElement>(null);
-  const paused = useRef(false);
-  // Ordinateur : colonne verticale qui remplit la hauteur ; mobile : bande horizontale
-  const [vertical, setVertical] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const on = () => setVertical(mq.matches);
-    on(); mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el || markets.length < 3) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const read = () => (vertical ? el.scrollTop : el.scrollLeft);
-    const write = (v: number) => { if (vertical) el.scrollTop = v; else el.scrollLeft = v; };
-    const size = () => (vertical ? el.clientHeight : el.clientWidth);
-    let raf = 0, pos = read(), last = performance.now(), resume: ReturnType<typeof setTimeout> | undefined;
-    const SPEED = 30;
-    const tick = (now: number) => {
-      const dt = Math.min(now - last, 64); last = now;
-      const dup = el.children[markets.length] as HTMLElement | undefined;
-      const first = el.children[0] as HTMLElement;
-      const half = dup ? (vertical ? dup.offsetTop - first.offsetTop : dup.offsetLeft - first.offsetLeft) : 0;
-      if (!paused.current && half > size()) {
-        pos += (SPEED * dt) / 1000;
-        if (pos >= half) pos -= half;
-        write(pos);
-      } else pos = read();
-      raf = requestAnimationFrame(tick);
-    };
-    const hold = () => { paused.current = true; if (resume) clearTimeout(resume); };
-    const release = () => { if (resume) clearTimeout(resume); resume = setTimeout(() => { paused.current = false; }, 1800); };
-    const wheel = () => { hold(); release(); };
-    el.addEventListener("pointerdown", hold); el.addEventListener("pointerenter", hold);
-    el.addEventListener("pointerleave", release); el.addEventListener("pointerup", release);
-    el.addEventListener("touchend", release); el.addEventListener("wheel", wheel, { passive: true });
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf); if (resume) clearTimeout(resume);
-      el.removeEventListener("pointerdown", hold); el.removeEventListener("pointerenter", hold);
-      el.removeEventListener("pointerleave", release); el.removeEventListener("pointerup", release);
-      el.removeEventListener("touchend", release); el.removeEventListener("wheel", wheel);
-    };
-  }, [markets, vertical]);
-
-  return (
-    <div
-      ref={scroller}
-      className={vertical
-        ? "flex h-[calc(100vh-15rem)] flex-col gap-2.5 overflow-y-auto pr-0.5"
-        : "flex gap-2.5 overflow-x-auto pb-1"}
-      style={{ scrollbarWidth: "none" }}
-    >
-      {markets.map((m) => <PmCard key={m.id} m={m} className={vertical ? "shrink-0" : "w-[270px] shrink-0"} />)}
-      {markets.map((m) => <PmCard key={`dup-${m.id}`} m={m} className={vertical ? "shrink-0" : "w-[270px] shrink-0"} />)}
-    </div>
-  );
-}
-
 /** Colonne Polymarket : marchés externes en lecture seule, séparés des marchés ŌM. */
 export function PolymarketColumn({ className = "" }: { className?: string }) {
   const { tr } = useT();
@@ -137,8 +74,6 @@ export function PolymarketColumn({ className = "" }: { className?: string }) {
       .catch(() => { if (alive) { setFailed(true); setMarkets([]); } });
     return () => { alive = false; };
   }, [kind]);
-
-  const trendingStrip = kind === "trending" && (markets?.length ?? 0) > 2;
 
   const chip = (id: "trending" | "sports", label: string, Icon: typeof Flame) => (
     <button
@@ -169,11 +104,8 @@ export function PolymarketColumn({ className = "" }: { className?: string }) {
         </p>
       )}
 
-      {trendingStrip && <PmMarquee markets={(markets ?? []).slice(0, 10)} />}
       <div className="flex flex-col gap-2.5">
-        {trendingStrip
-          ? null
-          : (markets ?? []).map((m) => <PmCard key={m.id} m={m} />)}
+        {(markets ?? []).map((m) => <PmCard key={m.id} m={m} />)}
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">

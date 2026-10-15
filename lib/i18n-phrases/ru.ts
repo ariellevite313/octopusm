@@ -1028,5 +1028,6 @@ const p: Record<string, string> = {
   "Failed to load leaderboard. Please try again.": "Не удалось загрузить рейтинг. Попробуйте ещё раз.",
   "Network error": "Ошибка сети",
   "Network error — please retry": "Ошибка сети — повторите попытку",
+  "View market": "Открыть рынок",
 };
 export default p;
