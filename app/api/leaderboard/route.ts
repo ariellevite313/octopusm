@@ -1,7 +1,9 @@
 /**
  * GET /api/leaderboard
  *
- * Returns the top creator wallets ranked by total SOL fees claimed.
+ * Returns the top creator wallets ranked by fees claimed.
+ * Solana creators earn SOL, Arc creators (0x… / MetaMask) earn USDC.
+ * Ranking compares both in USD (SOL converted at the live SOL price).
  * Data comes from creator_fee_claims (confirmed on-chain claims only).
  */
 import { NextResponse } from "next/server";
@@ -13,6 +15,9 @@ export type LeaderboardEntry = {
   rank:         number;
   walletAddress: string;
   totalFeeSol:  number;
+  /** Montant affiché, dans la devise du créateur (SOL ou USDC). */
+  totalFee:     number;
+  currency:     "SOL" | "USDC";
   tokenCount:   number;
   claimCount:   number;
   displayName:  string | null;
@@ -45,7 +50,7 @@ export async function GET(req: Request) {
     // Note: column names are `wallet` and `claimed_at` (not wallet_address / created_at)
     let claimsQuery = admin
       .from("creator_fee_claims")
-      .select("wallet, amount_sol");
+      .select("wallet, amount_sol, amount_usdc, chain");
 
     if (hours !== null) {
       const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
@@ -68,33 +73,47 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: tokensError.message }, { status: 500 });
     }
 
-    // Aggregate in JS
-    const walletMap = new Map<string, { totalFeeSol: number; claimCount: number }>();
+    // Aggregate in JS (SOL pour Solana, USDC pour Arc)
+    const walletMap = new Map<string, { totalFeeSol: number; totalFeeUsdc: number; claimCount: number }>();
 
-    for (const claim of (claims ?? []) as { wallet: string; amount_sol: number }[]) {
-      const existing = walletMap.get(claim.wallet) ?? { totalFeeSol: 0, claimCount: 0 };
-      walletMap.set(claim.wallet, {
-        totalFeeSol: existing.totalFeeSol + (claim.amount_sol ?? 0),
-        claimCount:  existing.claimCount + 1,
+    for (const claim of (claims ?? []) as { wallet: string; amount_sol: number | string | null; amount_usdc: number | string | null; chain: string | null }[]) {
+      const isArc = claim.chain === "arc" || claim.wallet?.startsWith("0x");
+      const key = claim.wallet;
+      const existing = walletMap.get(key) ?? { totalFeeSol: 0, totalFeeUsdc: 0, claimCount: 0 };
+      walletMap.set(key, {
+        totalFeeSol:  existing.totalFeeSol  + (isArc ? 0 : Number(claim.amount_sol ?? 0)),
+        totalFeeUsdc: existing.totalFeeUsdc + (isArc ? Number(claim.amount_usdc ?? 0) : 0),
+        claimCount:   existing.claimCount + 1,
       });
     }
+
+    const solUsd = await getSolUsd();
 
     // Count tokens per wallet
     const tokenCountMap = new Map<string, number>();
     for (const t of (tokens ?? []) as { creator_wallet: string }[]) {
-      tokenCountMap.set(t.creator_wallet, (tokenCountMap.get(t.creator_wallet) ?? 0) + 1);
+      const k = t.creator_wallet;
+      tokenCountMap.set(k, (tokenCountMap.get(k) ?? 0) + 1);
     }
 
     // Build sorted entries — only wallets with at least one claim
     const sortedWallets = [...walletMap.entries()]
-      .map(([wallet, { totalFeeSol, claimCount }]) => ({
-        walletAddress: wallet,
-        totalFeeSol:   Math.round(totalFeeSol * 1e6) / 1e6,
-        claimCount,
-        tokenCount:    tokenCountMap.get(wallet) ?? 0,
-      }))
-      .sort((a, b) => b.totalFeeSol - a.totalFeeSol)
-      .slice(0, 100);
+      .map(([wallet, { totalFeeSol, totalFeeUsdc, claimCount }]) => {
+        const isArc = wallet.startsWith("0x");
+        return {
+          walletAddress: wallet,
+          totalFeeSol:   Math.round(totalFeeSol * 1e6) / 1e6,
+          totalFee:      Math.round((isArc ? totalFeeUsdc : totalFeeSol) * 1e6) / 1e6,
+          currency:      (isArc ? "USDC" : "SOL") as "SOL" | "USDC",
+          usdValue:      isArc ? totalFeeUsdc : totalFeeSol * solUsd,
+          claimCount,
+          tokenCount:    tokenCountMap.get(wallet) ?? 0,
+        };
+      })
+      // Classement en USD ; sans prix SOL, les SOL passent devant puis les USDC
+      .sort((a, b) => solUsd > 0 ? b.usdValue - a.usdValue : (b.totalFeeSol - a.totalFeeSol) || (b.totalFee - a.totalFee))
+      .slice(0, 100)
+      .map(({ usdValue: _usd, ...e }) => e);
 
     // Fetch profiles from wallets table
     const walletAddresses = sortedWallets.map(e => e.walletAddress);
@@ -129,4 +148,17 @@ export async function GET(req: Request) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+/** Prix SOL en USD (Binance, puis CoinGecko). 0 si indisponible. */
+async function getSolUsd(): Promise<number> {
+  try {
+    const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT", { next: { revalidate: 300 }, signal: AbortSignal.timeout(4000) });
+    if (r.ok) { const d = await r.json() as { price?: string }; const v = Number(d.price); if (v > 0) return v; }
+  } catch { /* fallback */ }
+  try {
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", { next: { revalidate: 300 }, signal: AbortSignal.timeout(4000) });
+    if (r.ok) { const d = await r.json() as { solana?: { usd?: number } }; const v = Number(d.solana?.usd); if (v > 0) return v; }
+  } catch { /* ignore */ }
+  return 0;
 }
