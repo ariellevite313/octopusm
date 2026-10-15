@@ -10,6 +10,7 @@ import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
+import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -434,23 +435,23 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     </div>
   );
 
+  const payLabel = isBuy ? quoteLabel : ticker;
+
   return (
-    <div className="rounded-2xl overflow-hidden border border-border bg-card">
+    <div>
 
-      <div className="p-4 space-y-2">
+      <div className="space-y-3">
 
-        {/* ── Buy / Sell tabs ── */}
-        <div className="flex rounded-xl overflow-hidden border border-border">
+        {/* ── Buy / Sell ── */}
+        <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
           {(["buy", "sell"] as Direction[]).map(d => (
             <button
               key={d}
               onClick={() => switchDirection(d)}
-              className={`flex-1 py-2.5 text-[13px] font-semibold transition-colors capitalize ${
+              className={`rounded-full py-2.5 text-[14px] font-bold capitalize transition-colors ${
                 direction === d
-                  ? d === "buy"
-                    ? "bg-emerald-500 text-white"
-                    : "bg-red-500 text-white"
-                  : "bg-transparent text-muted-foreground hover:text-foreground"
+                  ? d === "buy" ? "bg-up text-black" : "bg-down text-white"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {d}
@@ -458,57 +459,58 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           ))}
         </div>
 
-        {/* ── Pay box ── */}
-        <div className="rounded-2xl bg-muted/40 px-4 py-3.5 space-y-1">
-          <p className="text-[12px] text-muted-foreground font-medium">You pay</p>
-          <input
-            type="number"
-            value={amount}
-            onChange={e => { setAmount(e.target.value); setActivePct(null); }}
-            placeholder="0"
-            className="w-full bg-transparent text-[28px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/30"
-          />
-          <div className="flex items-center justify-between mt-1">
-            {isBuy ? <QuoteBadge /> : <TokenBadge />}
-            <span className="text-[11px] text-muted-foreground/60">
-              {walletAddress ? `Balance: ${activeBalanceFmt}` : "—"}
-            </span>
+        {/* ── Montant ── */}
+        <div className="flex flex-col items-center pb-1 pt-5">
+          <div className="flex w-full items-baseline justify-center gap-2">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={e => { setAmount(e.target.value.replace(",", ".").replace(/[^0-9.]/g, "")); setActivePct(null); }}
+              placeholder="0"
+              style={{ width: `${Math.max(1, (amount || "0").length) * 0.62 + 0.1}em` }}
+              className="num min-w-0 max-w-[70%] bg-transparent text-center text-[52px] font-bold leading-none tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40"
+            />
+            <span className="text-[26px] font-bold text-muted-foreground">{payLabel}</span>
+          </div>
+          <div className="mt-3 flex h-6 items-center text-sm text-muted-foreground">
+            {quoteLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : quoteError ? (
+              <span>No quote available</span>
+            ) : outFormatted ? (
+              <span>You receive <span className="num font-semibold text-foreground">{outFormatted}</span></span>
+            ) : (
+              <span>{amount ? "" : "Enter an amount"}</span>
+            )}
           </div>
         </div>
 
-        {/* ── Arrow toggle ── */}
-        <div className="flex justify-center -my-1 relative z-10">
+        {/* ── Payer avec ── */}
+        <div className="flex justify-center">
           <button
+            type="button"
             onClick={toggleDirection}
-            className="size-9 rounded-xl bg-muted border-2 border-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            style={{ transform: spinning ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.35s ease" }}
+            className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            style={{ transform: spinning ? "scale(0.96)" : "none", transition: "transform 0.2s ease" }}
+            title="Switch buy / sell"
           >
-            <ArrowUpDown className="size-4" />
+            {isBuy ? "Pay with" : "Sell"}
+            <span className="flex items-center gap-1.5 font-semibold text-foreground">
+              {isBuy ? (isXStock
+                ? (stockSymbol ? <XStockIcon symbol={stockSymbol} size={16} /> : null)
+                // eslint-disable-next-line @next/next/no-img-element
+                : <img src="/solana.png" alt="" className="size-4 rounded-full" />)
+                // eslint-disable-next-line @next/next/no-img-element
+                : (logoUrl ? <img src={logoUrl} alt="" className="size-4 rounded-full object-cover" /> : null)}
+              {walletAddress ? activeBalanceFmt : payLabel}
+            </span>
+            <ArrowUpDown className="size-3.5" />
           </button>
         </div>
 
-        {/* ── Receive box ── */}
-        <div className="rounded-2xl bg-muted/40 px-4 py-3.5 space-y-1">
-          <p className="text-[12px] text-muted-foreground font-medium">You receive</p>
-          <div className="min-h-[40px] flex items-center">
-            {quoteLoading ? (
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            ) : quoteError ? (
-              <span className="text-[18px] text-muted-foreground/50">No quote available</span>
-            ) : outFormatted ? (
-              <span className="text-[28px] font-semibold text-foreground">{outFormatted}</span>
-            ) : (
-              <span className="text-[28px] font-semibold text-muted-foreground/30">0</span>
-            )}
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            {isBuy ? <TokenBadge /> : <QuoteBadge />}
-            <span className="text-[11px] text-muted-foreground/60">estimated</span>
-          </div>
-        </div>
-
-        {/* ── % shortcuts ── */}
-        <div className="flex gap-2 pt-1">
+        {/* ── % ── */}
+        <div className="grid grid-cols-4 gap-2">
           {PCT_SHORTCUTS.map(pct => (
             <button
               key={pct}
@@ -528,16 +530,17 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                 const effective = (!isXStock && isBuy && pct === 100) ? Math.max(0, base - 0.002) : base;
                 setAmount(((effective * pct) / 100).toFixed(isBuy ? 4 : 2));
               }}
-              className={`flex-1 py-2 rounded-full text-[12px] font-bold transition-colors border ${
-                activePct === pct
-                  ? "bg-orange-500 border-orange-500 text-white"
-                  : "bg-muted/40 border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
+              className={`rounded-full py-2.5 text-[13px] font-semibold transition-colors ${
+                activePct === pct ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
-              {pct}%
+              {pct === 100 ? "Max" : `${pct}%`}
             </button>
           ))}
         </div>
+
+        {/* ── Pavé numérique ── */}
+        <SwapKeypad value={amount} onChange={(v) => { setAmount(v); setActivePct(null); }} maxDecimals={isBuy ? 4 : 2} />
 
         {/* ── Slippage ── */}
         <div className="flex items-center justify-between px-1 pt-1">
@@ -603,7 +606,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         {!isAuthenticated ? (
           <button
             onClick={openWalletModal}
-            className="w-full rounded-[14px] py-4 text-[15px] font-bold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1 btn-primary"
+            className="mt-1 w-full rounded-2xl bg-primary py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
           >
             Connect wallet
           </button>
@@ -611,12 +614,12 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           <button
             onClick={() => void handleSwap()}
             disabled={!quoteReady || swapping || quoteLoading}
-            className={`w-full rounded-full py-4 text-[15px] font-bold transition-colors mt-1 ${
+            className={`mt-1 w-full rounded-2xl py-4 text-[16px] font-bold transition-colors ${
               !quoteReady || swapping || quoteLoading
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : isBuy
-                  ? "bg-orange-500 hover:bg-orange-400 text-white"
-                  : "bg-violet-600 hover:bg-violet-500 text-white"
+                  ? "bg-primary text-white hover:opacity-90"
+                  : "bg-down text-white hover:opacity-90"
             }`}
           >
             {swapping ? (

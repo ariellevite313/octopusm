@@ -26,6 +26,7 @@ import {
   quoteArcSell,
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
+import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -426,8 +427,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   const RecvBadge = () => direction === "buy" ? <TokenBadge /> : <QuoteBadge />;
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-border bg-card">
-      <div className="p-4 space-y-2">
+    <div>
+      <div className="space-y-3">
 
         {/* Post-graduation */}
         {graduated && (
@@ -438,17 +439,15 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
         {/* Buy / Sell tabs */}
         {!graduated && (
-          <div className="flex rounded-xl overflow-hidden border border-border">
+          <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
             {(["buy", "sell"] as Direction[]).map(d => (
               <button
                 key={d}
                 onClick={() => { setDirection(d); setAmount(""); setEstimatedOut(null); }}
-                className={`flex-1 py-2.5 text-[13px] font-semibold transition-colors capitalize ${
+                className={`rounded-full py-2.5 text-[14px] font-bold capitalize transition-colors ${
                   direction === d
-                    ? d === "buy"
-                      ? "bg-emerald-500 text-white"
-                      : "bg-red-500 text-white"
-                    : "bg-transparent text-muted-foreground hover:text-foreground"
+                    ? d === "buy" ? "bg-up text-black" : "bg-down text-white"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {d}
@@ -476,55 +475,48 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           </div>
         )}
 
-        {/* Pay */}
-        <div className="rounded-2xl bg-muted/40 px-4 py-3.5 space-y-1">
-          <p className="text-[12px] text-muted-foreground font-medium">You pay</p>
-          <input
-            type="number"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            placeholder="0"
-            disabled={graduated || swapping}
-            className="w-full bg-transparent text-[28px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/30 disabled:opacity-50"
-          />
-          <div className="flex items-center justify-between mt-1">
-            <PayBadge />
-            <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
-              {(walletAddress || mmAddress)
-                ? balancesLoading
-                  ? <><Loader2 className="size-3 animate-spin" />Loading…</>
-                  : `Balance: ${balFmt}`
-                : "—"}
+        {/* Montant */}
+        <div className="flex flex-col items-center pb-1 pt-4">
+          <div className="flex w-full items-baseline justify-center gap-2">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={e => setAmount(e.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}
+              placeholder="0"
+              disabled={graduated || swapping}
+              style={{ width: `${Math.max(1, (amount || "0").length) * 0.62 + 0.1}em` }}
+              className="num min-w-0 max-w-[70%] bg-transparent text-center text-[52px] font-bold leading-none tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40 disabled:opacity-50"
+            />
+            <span className="text-[26px] font-bold text-muted-foreground">{inputSymbol}</span>
+          </div>
+          <p className="mt-3 h-6 text-sm text-muted-foreground">
+            {outFmt ? <>You receive <span className="num font-semibold text-foreground">{outFmt}</span></> : (amount ? "" : "Enter an amount")}
+          </p>
+        </div>
+
+        {/* Payer avec */}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => { setDirection(direction === "buy" ? "sell" : "buy"); setAmount(""); setEstimatedOut(null); }}
+            disabled={graduated}
+            className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            title="Switch buy / sell"
+          >
+            {direction === "buy" ? "Pay with" : "Sell"}
+            <span className="flex items-center gap-1.5 font-semibold text-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {direction === "buy" ? <img src="/usdc-coin.png" alt="" className="size-4 rounded-full" /> : (logoUrl ? <img src={logoUrl} alt="" className="size-4 rounded-full object-cover" /> : null)}
+              {(walletAddress || mmAddress) ? (balancesLoading ? "…" : balFmt) : inputSymbol}
             </span>
-          </div>
+            <ArrowUpDown className="size-3.5" />
+          </button>
         </div>
 
-        {/* Arrow */}
-        <div className="flex justify-center -my-0.5">
-          <div className="size-7 rounded-full bg-muted flex items-center justify-center">
-            <ArrowUpDown className="size-3.5 text-muted-foreground" />
-          </div>
-        </div>
-
-        {/* Receive */}
-        <div className="rounded-2xl bg-muted/40 px-4 py-3.5 space-y-1">
-          <p className="text-[12px] text-muted-foreground font-medium">You receive</p>
-          <div className="min-h-[40px] flex items-center">
-            {outFmt ? (
-              <span className="text-[28px] font-semibold text-foreground">{outFmt}</span>
-            ) : (
-              <span className="text-[28px] font-semibold text-muted-foreground/30">0</span>
-            )}
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <RecvBadge />
-            <span className="text-[11px] text-muted-foreground/60">estimated</span>
-          </div>
-        </div>
-
-        {/* % shortcuts */}
+        {/* % */}
         {!graduated && (
-          <div className="flex gap-2 pt-1">
+          <div className="grid grid-cols-4 gap-2">
             {[25, 50, 75, 100].map(pct => (
               <button
                 key={pct}
@@ -533,12 +525,17 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                   const portion = (inputBalance * BigInt(pct)) / 100n;
                   setAmount(bigintToInputString(portion, 18, direction === "buy" ? 2 : 4));
                 }}
-                className="flex-1 py-2 rounded-full text-[12px] font-semibold border bg-muted/40 border-border text-muted-foreground hover:border-border-strong hover:text-foreground transition-colors"
+                className="rounded-full bg-muted py-2.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
-                {pct}%
+                {pct === 100 ? "Max" : `${pct}%`}
               </button>
             ))}
           </div>
+        )}
+
+        {/* Pavé numérique */}
+        {!graduated && (
+          <SwapKeypad value={amount} onChange={setAmount} maxDecimals={direction === "buy" ? 2 : 4} />
         )}
 
         {/* Slippage */}
@@ -589,7 +586,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {!isAuthenticated && !mmAddress ? (
           <button
             onClick={openWalletModal}
-            className="w-full rounded-[14px] py-2.5 text-[15px] font-bold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1 btn-primary"
+            className="mt-1 w-full rounded-2xl bg-primary py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
           >
             Connect wallet
           </button>
@@ -597,7 +594,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           <button
             onClick={() => void handleSwap()}
             disabled={!canSwap}
-            className={`w-full rounded-[14px] py-4 text-[15px] font-bold transition-colors mt-1 ${
+            className={`mt-1 w-full rounded-2xl py-4 text-[16px] font-bold transition-colors ${
               !canSwap
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : direction === "sell"

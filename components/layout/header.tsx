@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -80,9 +80,9 @@ export function Header() {
             <button
               onClick={() => setOpen(true)}
               aria-label="Open navigation menu"
-              className="flex size-10 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors hover:bg-muted/70"
+              className="flex size-10 items-center justify-center text-foreground transition-opacity hover:opacity-70"
             >
-              <Menu className="size-5" />
+              <span aria-hidden className="flex w-6 flex-col gap-[6px]"><span className="h-[3px] w-full rounded-full bg-current" /><span className="h-[3px] w-full rounded-full bg-current" /></span>
             </button>
           </div>
         </div>
