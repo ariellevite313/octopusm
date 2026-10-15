@@ -1004,7 +1004,7 @@ const p: Record<string, string> = {
   "Return to the app": "Uygulamaya dön",
   "Share & earn": "Paylaş ve kazan",
   "when your friends trade": "arkadaşların işlem yaptığında",
-  "<b>1%</b> of the losing bets your invites place": "Davetlilerinin kaybeden bahislerinin <b>%1</b>’i",
+  "<b>1%</b> of every bet your invites place": "Davetlilerinin her bahsinin <b>%1</b>’i",
   "<b>200 OMERO</b> for each friend who joins with your link": "Bağlantınla katılan her arkadaş için <b>200 OMERO</b>",
   "<b>50 OMERO</b> welcome bonus for your friend": "Arkadaşın için <b>50 OMERO</b> hoş geldin bonusu",
   "Link copied — paste it in Discord": "Bağlantı kopyalandı — Discord’a yapıştır",

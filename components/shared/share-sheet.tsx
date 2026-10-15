@@ -17,7 +17,7 @@ import { T } from "@/lib/i18n-mark";
 type Perk = { icon: "users" | "coins"; text: string };
 
 export const MARKET_PERKS: Perk[] = [
-  { icon: "users", text: T("<b>1%</b> of the losing bets your invites place") },
+  { icon: "users", text: T("<b>1%</b> of every bet your invites place") },
   { icon: "coins", text: T("<b>200 OMERO</b> for each friend who joins with your link") },
 ];
 export const TOKEN_PERKS: Perk[] = [
