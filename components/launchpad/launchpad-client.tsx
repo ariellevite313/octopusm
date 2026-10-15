@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT } from "@/lib/i18n";
 import { SolanaMark } from "@/components/shared/solana-mark";
+import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -209,87 +210,6 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
   );
 }
 
-// ── TokenRow ──────────────────────────────────────────────────────────────────
-
-function TokenRow({ token }: { token: LaunchpadToken }) {
-  const badge = STATUS_BADGE[token.status] ?? STATUS_BADGE.pending;
-  const creatorLabel = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
-
-  return (
-    <Link
-      href={`/launchpad/${token.mint_address ?? token.id}`}
-      className="group flex items-center gap-3.5 rounded-2xl px-2 py-3 transition-colors hover:bg-muted/50"
-    >
-      <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-muted">
-        {token.logo_url ? (
-          <Image src={token.logo_url} alt={token.name} fill className="object-cover" unoptimized />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
-            {token.ticker.slice(0, 3)}
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1 mb-0.5">
-          <span className="truncate text-base font-bold tracking-tight text-foreground">
-            {token.name}
-          </span>
-          {token.is_verified && <VerifiedTokenBadge className="size-4" />}
-          {/* Chain icon */}
-          {token.chain === "arc" ? <Image
-            src="/arc-logo.jpeg"
-            alt="Arc"
-            width={14} height={14}
-            className="rounded-full shrink-0 ring-1 ring-white/10"
-            unoptimized
-          /> : <SolanaMark className="shrink-0 size-[14px]" />}
-          {/* Stock-paired badge */}
-          {token.stock_symbol && (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500 dark:text-amber-300 shrink-0">
-              <XStockIcon symbol={token.stock_symbol} size={11} />
-              ${token.stock_symbol.replace(/^x/, "")}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[13px] text-muted-foreground">${token.ticker}</span>
-          <span className="text-muted-foreground/40 text-[10px]">·</span>
-          <span className="text-[12px] text-muted-foreground/70">{token.category}</span>
-          {token.mint_address && (
-            <CopyButton text={token.mint_address}>
-              {shortAddr(token.mint_address, 4, 4)}
-            </CopyButton>
-          )}
-        </div>
-        <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-[11px] text-muted-foreground/60">By {creatorLabel}</span>
-        </div>
-      </div>
-
-      <div className="hidden sm:flex flex-col items-end gap-0.5 shrink-0">
-        {token.market_cap_usd !== null && (
-          <span className="num text-base font-bold text-foreground">{fmtMcap(token.market_cap_usd)}</span>
-        )}
-        {token.volume_24h_usd !== null && (
-          <span className="num text-[12px] text-muted-foreground">
-            Vol {fmtMcap(token.volume_24h_usd)}
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.cls}`}>
-          {badge.label}
-        </span>
-        <span className="text-[10px] text-muted-foreground/50">
-          {timeAgo(token.created_at)}
-        </span>
-      </div>
-    </Link>
-  );
-}
-
 // ── TokenPulseRow (téléphone + ordinateur) ───────────────────────────────────
 
 function fmtK(n: number | null): string {
@@ -312,12 +232,19 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
   const href = `/launchpad/${token.mint_address ?? token.id}`;
   const isArc = token.chain === "arc";
   const quote = isArc ? "USDC" : token.stock_symbol ? token.stock_symbol.replace(/^x/, "") : "SOL";
-  const st = STATUS_PILL[token.status] ?? STATUS_PILL.pending;
   const creator = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
-  const isScheduled = token.is_scheduled && !token.is_tradeable;
+
+  const [trend, setTrend] = useState<Trend>("flat");
+  const tint =
+    trend === "up"   ? "bg-gradient-to-r from-up/[0.14] via-up/[0.06] to-up/[0.12]" :
+    trend === "down" ? "bg-gradient-to-r from-down/[0.14] via-down/[0.06] to-down/[0.12]" :
+                       "";
 
   return (
-    <Link href={href} className="flex gap-3 px-3 py-3.5 transition-colors hover:bg-muted/40 sm:gap-4 sm:px-4 sm:py-4">
+    <Link
+      href={href}
+      className={`relative flex gap-3 px-4 py-3.5 backdrop-blur-md transition-colors sm:gap-4 sm:py-4 ${tint}`}
+    >
       {/* Image + CA */}
       <div className="flex w-[68px] shrink-0 flex-col items-center gap-1.5 sm:w-[88px]">
         <div className="relative size-[68px] sm:size-[88px]">
@@ -342,49 +269,45 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
       </div>
 
       {/* Infos */}
-      <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="flex min-w-0 items-baseline gap-1.5">
+          <p className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-[15px] font-bold tracking-tight text-foreground sm:text-[17px]">{token.ticker}</span>
-            {token.is_verified && <VerifiedTokenBadge className="size-4" />}
-            <span className="hidden truncate text-sm text-muted-foreground sm:inline">{token.name}</span>
+            {token.is_verified && <VerifiedTokenBadge className="size-4 shrink-0" />}
           </p>
-          <p className="num flex shrink-0 items-baseline gap-2 text-[13px] font-bold text-foreground sm:gap-2.5 sm:text-[15px]">
+          <p className="num flex shrink-0 items-baseline gap-2 whitespace-nowrap text-[13px] font-bold text-foreground sm:text-[15px]">
+            <span>{token.price_usd === null || token.price_usd === undefined ? "$—" : `$${token.price_usd < 0.01 ? token.price_usd.toPrecision(3) : token.price_usd.toFixed(4)}`}</span>
             <span><span className="mr-0.5 text-[10px] font-semibold text-muted-foreground sm:mr-1 sm:text-xs">V</span>{fmtK(token.volume_24h_usd)}</span>
-            <span><span className="mr-0.5 text-[10px] font-semibold text-muted-foreground sm:mr-1 sm:text-xs">MC</span>{fmtK(token.market_cap_usd)}</span>
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span className="num text-[13px] font-bold text-up sm:text-sm">{timeAgo(token.created_at).toLowerCase()}</span>
-            <span className="whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">Fee 2%</span>
-            <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">
-              {token.stock_symbol && !isArc
-                ? <XStockIcon symbol={token.stock_symbol} size={12} />
-                : (isArc ? <Image src="/usdc-coin.png" alt="" width={12} height={12} className="rounded-full" unoptimized /> : <SolanaMark className="size-[12px]" />)}
-              {quote}
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="num text-[13px] font-bold text-up sm:text-sm">{timeAgo(token.created_at).toLowerCase()}</span>
+              <span className="whitespace-nowrap text-[12px] font-semibold text-muted-foreground sm:text-xs">Fee 2%</span>
+              <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">
+                {token.stock_symbol && !isArc
+                  ? <XStockIcon symbol={token.stock_symbol} size={12} />
+                  : (isArc ? <Image src="/usdc-coin.png" alt="" width={12} height={12} className="rounded-full" unoptimized /> : <SolanaMark className="size-[12px]" />)}
+                {quote}
+              </span>
+            </div>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
+                {creator.replace(/^@/, "").slice(0, 1).toUpperCase()}
+              </span>
+              <span className="truncate text-[13px] font-semibold text-muted-foreground sm:text-sm">{creator}</span>
             </span>
           </div>
-          <p className="num shrink-0 text-[13px] font-bold text-foreground sm:text-sm">
-            <span className="mr-0.5 text-[10px] font-semibold text-muted-foreground sm:mr-1 sm:text-xs">P</span>
-            {token.price_usd === null || token.price_usd === undefined ? "$—" : `$${token.price_usd < 0.01 ? token.price_usd.toPrecision(3) : token.price_usd.toFixed(4)}`}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-muted py-1 pl-1 pr-3">
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background text-[10px] font-bold text-foreground">
-              {creator.replace(/^@/, "").slice(0, 1).toUpperCase()}
-            </span>
-            <span className="truncate text-[13px] font-semibold text-foreground sm:text-sm">{creator}</span>
-          </span>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className={`hidden text-sm font-semibold min-[400px]:inline ${isScheduled ? "text-violet-500" : st.cls}`}>{isScheduled ? "Soon" : st.label}</span>
-            <span className="flex items-center gap-1 rounded-full bg-up px-3 py-1.5 text-[13px] font-bold text-black sm:px-3.5 sm:text-sm">
-              <Zap className="size-4 fill-current" />Buy
-            </span>
-          </div>
+          <MiniPriceChart
+            chain={isArc ? "arc" : "solana"}
+            pool={token.pool_address}
+            mint={token.mint_address}
+            curve={token.arc_launch_id}
+            className="h-12 w-[42%] shrink-0"
+            onTrend={setTrend}
+          />
         </div>
       </div>
     </Link>
@@ -944,8 +867,8 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
                 {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
               </div>
             ) : (
-              <div className="flex flex-col gap-0.5">
-                {visibleTokens.map(token => <TokenRow key={token.id} token={token} />)}
+              <div className="-mx-4 flex flex-col gap-px">
+                {visibleTokens.map(token => <TokenPulseRow key={token.id} token={token} />)}
               </div>
             )}
           </div>
