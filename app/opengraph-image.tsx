@@ -50,9 +50,6 @@ export default async function OgImage() {
           <span>Predict.</span>
           <span style={{ color: ORANGE }}>Launch. Trade.</span>
         </div>
-        <div style={{ display: "flex", marginTop: 26, fontSize: 30, fontWeight: 600, color: "#a1a1aa" }}>
-          Bet on real-world events and launch tokens in minutes.
-        </div>
       </div>
 
       <div style={{ display: "flex", width: 400, alignItems: "center", justifyContent: "center", marginRight: 60 }}>
