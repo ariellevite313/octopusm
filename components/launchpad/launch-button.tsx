@@ -9,7 +9,7 @@
  *
  * xStock-paired token (stockSymbol set):
  *   TX A  platform fee only               → no Phantom warning
- *   TX B  DBC createConfig               → "Proceed anyway" in Phantom (warn-phantom shown)
+ *   TX B  DBC createConfig               → "Proceed anyway" in Phantom
  *   TX C  DBC createPool                 → "Proceed anyway" in Phantom
  *
  * When TX B/C throws (Phantom fires error even after "Proceed anyway"), we
@@ -21,7 +21,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
-import { Loader2, Rocket, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -31,7 +31,6 @@ type Phase =
   | "pick-wallet"    // Wallet selector shown before TX A
   | "signing-a"
   | "sending-a"
-  | "warn-phantom"   // Modal shown before TX B (first DBC interaction)
   | "signing-b"
   | "sending-b"
   | "signing-c"      // xStock only — TX C (DBC createPool)
@@ -226,9 +225,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
   // Whether this is a 3-TX xStock flow (determines labels + TX C step)
   const [hasThreeTx, setHasThreeTx] = useState(false);
 
-  // Stores pending TXs while the warn-phantom modal is shown
-  const pendingTxBRef = useRef<string | null>(null);
-  const pendingTxCRef = useRef<string | null>(null);
   // The wallet chosen by the user in the picker
   const selectedWalletRef   = useRef<SolanaWallet | null>(null);
   // ID of the selected wallet config (e.g. "phantom", "solflare")
@@ -394,17 +390,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       toast.info(t.feeAlreadyPaid);
     }
 
-    // Store TX B (and TX C if present) for use after warn-phantom modal
-    pendingTxBRef.current = txBBase64;
-    pendingTxCRef.current = txCBase64;
-
-    // Show Phantom warning before any DBC transaction (TX B)
-    if (selectedWalletIdRef.current === "phantom") {
-      setPhase("warn-phantom");
-      return; // proceedToTxB() called by button click
-    }
-
-    // ── Non-Phantom: sign TX B immediately ───────────────────────────────────
+    // ── Sign TX B immediately ───────────────────────────────────
     setPhase("signing-b");
     let txBSig = "";
     try {
@@ -427,70 +413,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     }
 
     // ── xStock: wait for TX B, then sign TX C ────────────────────────────────
-    if (txCBase64) {
-      try {
-        await waitForConfirmation(txBSig);
-      } catch {
-        setError("DBC config creation failed on-chain. Click Retry.");
-        setPhase("error");
-        return;
-      }
-      await signTxC(wallet, txCBase64);
-      return;
-    }
-
-    // ── SOL path: confirm TX B ───────────────────────────────────────────────
-    setPhase("confirming");
-    try {
-      const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txSignature: txBSig, walletAddress }),
-      });
-      const body = await res.json() as { ok?: boolean; error?: string };
-      if (res.status === 422) { setError("Transaction failed on-chain. Click Retry."); setPhase("error"); return; }
-      if (res.status === 202) { setError("Transaction pending — wait a few seconds then click Retry."); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
-    } catch {
-      toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
-    }
-
-    setPhase("done");
-    toast.success(isScheduled ? t.tokenScheduledDate : t.tokenLaunched);
-    setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
-  }, [tokenId, walletAddress, isScheduled, router, checkPoolAndFinish, signTxC]);
-
-  // ── TX B: called from warn-phantom modal "Got it" button ─────────────────────
-  const proceedToTxB = useCallback(async () => {
-    const txBBase64 = pendingTxBRef.current;
-    const txCBase64 = pendingTxCRef.current;
-    if (!txBBase64) { setError("Session expired. Click Retry."); setPhase("error"); return; }
-
-    const wallet = selectedWalletRef.current;
-    if (!wallet) { setError("Wallet disconnected. Click Retry."); setPhase("error"); return; }
-
-    setPhase("signing-b");
-    let txBSig = "";
-    try {
-      txBSig = txCBase64
-        ? await signAndBroadcast(wallet, txBBase64, () => setPhase("sending-b"))       // xStock : inchangé
-        : await walletFirstSignAndSend(wallet, txBBase64, tokenId, walletAddress, () => setPhase("sending-b"));
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : String(err);
-      console.error("[launch] TX B (Phantom) failed:", raw);
-      setPhase("confirming");
-      const found = await checkPoolAndFinish();
-      if (!found) {
-        const isCancel = /rejected|cancel|annul|refus|abort|denied/i.test(raw);
-        setError(isCancel
-          ? "Pool creation cancelled. Click Retry — your fee won't be charged again.\nIn your wallet: scroll down and confirm the transaction."
-          : `TX B failed: ${raw}`);
-        setPhase("error");
-      }
-      return;
-    }
-
-    // ── xStock: wait for TX B (createConfig), then sign TX C (createPool) ────
     if (txCBase64) {
       try {
         await waitForConfirmation(txBSig);
@@ -640,50 +562,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     );
   }
 
-  if (phase === "warn-phantom") {
-    const isXStock = pendingTxCRef.current !== null;
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
-          <div className="flex items-start gap-2">
-            <ShieldAlert className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-              Your wallet will show a security warning
-            </p>
-          </div>
-          <p className="text-xs text-amber-700/90 dark:text-amber-300/90 leading-relaxed">
-            {isXStock
-              ? <>The next transaction creates a <strong>Meteora DBC config</strong> for your stock-paired pool. Followed by a second pool transaction.</>
-              : <>The second transaction creates your trading pool via <strong>Meteora DBC</strong>.</>
-            }{" "}
-            This program is not yet verified by all wallets, which may trigger a warning — this is normal and safe.
-          </p>
-          <div className="rounded-lg bg-amber-500/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 font-medium">
-            👉 In your wallet: scroll down → confirm the transaction
-          </div>
-          <p className="text-xs text-amber-700/70 dark:text-amber-300/70">
-            Funds go directly to the Meteora protocol — not to omdot.fun.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={proceedToTxB}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        >
-          <Rocket className="size-4" />
-          Got it — {isXStock ? "create the config" : "create the pool"}
-        </button>
-        <button
-          type="button"
-          onClick={() => { pendingTxBRef.current = null; pendingTxCRef.current = null; setPhase("ready"); }}
-          className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
   if (phase === "error") {
     return (
       <div className="space-y-3">
@@ -707,7 +585,6 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     "pick-wallet":  "Choose wallet…",
     "signing-a":    `Step 1/${totalSteps} — Approve in wallet…`,
     "sending-a":    hasThreeTx ? "Paying creation fee…" : hasTxA ? "Creating mint…" : "Sending fee…",
-    "warn-phantom": "Security notice",
     "signing-b":    hasThreeTx
                       ? `Step 2/${totalSteps} — Approve DBC config in wallet…`
                       : `Step 2/${totalSteps} — Approve pool in wallet…`,
