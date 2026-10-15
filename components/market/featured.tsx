@@ -25,7 +25,7 @@ function Slide({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> })
         ) : <div className="size-12 shrink-0 rounded-xl bg-muted" />}
         <div className="min-w-0 flex-1">
           {e.category && <p className="text-xs font-medium text-muted-foreground">{e.category}</p>}
-          <h2 className="text-lg font-bold leading-snug tracking-tight text-foreground md:text-2xl">{e.title}</h2>
+          <h2 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-foreground md:text-2xl">{e.title}</h2>
         </div>
         <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={tr("View market")} className="mt-1 text-muted-foreground hover:text-foreground">
           <ExternalLink className="size-4" />
@@ -34,7 +34,7 @@ function Slide({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> })
 
       <div className={hasMap ? "mt-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-6" : "mt-4"}>
       <div className="divide-y divide-border/60">
-        {e.items.slice(0, 5).map((o) => (
+        {e.items.slice(0, hasMap ? 3 : 5).map((o) => (
           <div key={o.label} className="flex items-center gap-3 py-2.5">
             {o.image ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -50,7 +50,7 @@ function Slide({ e, usMap }: { e: PmEvent; usMap: Record<string, PmStateLean> })
       </div>
       {hasMap && (
         <div className="mt-4 md:mt-0">
-          <UsDotMap leans={usMap} className="mx-auto w-full max-w-md" />
+          <UsDotMap leans={usMap} className="mx-auto w-full max-w-[15rem] md:max-w-[17rem]" />
           <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-blue-500" />{tr("Democrats")}</span>
             <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-red-500" />{tr("Republicans")}</span>
@@ -87,12 +87,12 @@ export function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<s
   if (n === 0) return null;
   return (
     <div
-      className="rounded-3xl border border-border bg-card p-5 md:p-6"
+      className="flex h-[32rem] flex-col rounded-3xl border border-border bg-card p-5 md:h-[27rem] md:p-6"
       onPointerEnter={() => { hold.current = true; }}
       onPointerLeave={() => { hold.current = false; }}
     >
       {/* Toutes les slides sont empilées dans la même cellule : la hauteur = la plus grande, donc rien ne bouge au changement */}
-      <div className="grid">
+      <div className="grid min-h-0 flex-1 overflow-hidden">
         {events.map((e, k) => (
           <div
             key={e.id}

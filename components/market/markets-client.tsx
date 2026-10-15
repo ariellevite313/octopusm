@@ -98,9 +98,6 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
   const omContent = (
     <>
-      {/* Trending section — home page only */}
-      {!category && <TrendingSection />}
-
       {markets.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
           <EmptyIcon icon={BarChart3} />
@@ -119,6 +116,7 @@ export function MarketsClient({ category, initialMarkets }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">
+      <TrendingSection />
       <FeaturedHome />
       {omContent}
     </div>
