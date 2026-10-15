@@ -1217,7 +1217,7 @@ export function CreateTokenWizard({
       <div className="sticky bottom-24 z-10 mt-6 md:bottom-4">
         {step === 0 ? (
           <button type="button" onClick={next}
-            className="w-full rounded-2xl bg-up py-4 text-base font-bold text-black shadow-lg transition-opacity hover:opacity-90">
+            className="w-full rounded-2xl bg-primary py-4 text-base font-bold text-white shadow-lg transition-opacity hover:opacity-90">
             Next
           </button>
         ) : walletIssue ? (
@@ -1230,7 +1230,7 @@ export function CreateTokenWizard({
           </div>
         ) : (
           <button type="button" onClick={submit} disabled={submitting}
-            className="w-full rounded-2xl bg-up py-4 text-base font-bold text-black shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50">
+            className="w-full rounded-2xl bg-primary py-4 text-base font-bold text-white shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50">
             {submitting
               ? chain === "arc" ? "Deploying on Arc…" : "Creating…"
               : `Create ${data.ticker ? `$${data.ticker}` : "coin"}`}
