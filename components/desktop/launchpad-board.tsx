@@ -18,13 +18,13 @@ export function LaunchpadBoard() {
       .then((d: { entries?: LeaderboardEntry[] }) => setLeaders(d.entries ?? [])).catch(() => setLeaders([]));
   }, []);
 
-  const tickerItems = (leaders ?? []).slice(0, 12);
+  const tickerItems = (leaders ?? []).slice(0, 10);
 
   return (
-    <div className="mb-2 hidden lg:block">
+    <div className="mb-2">
       {/* Top creators ticker */}
       {tickerItems.length > 0 && (
-        <div className="ticker-mask mb-5 overflow-hidden border-y border-border/60 py-2.5">
+        <div className="ticker-mask -mx-4 mb-5 overflow-hidden lg:mx-0 border-y border-border/60 py-2.5">
           <div className="ticker-track flex w-max gap-8">
             {[...tickerItems, ...tickerItems].map((e, i) => (
               <Link key={`${e.walletAddress}-${i}`} href={`/profile/${e.walletAddress}`} className="flex shrink-0 items-center gap-2 text-sm">

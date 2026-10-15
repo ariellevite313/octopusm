@@ -66,10 +66,10 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
       <h1 className="sr-only"><Tr>Launchpad</Tr></h1>
+      <LaunchpadBoard />
       <div className="lg:hidden">
         <TrendingStrip />
       </div>
-      <LaunchpadBoard />
       <div className="hidden lg:block">
         <TrendingCards />
       </div>
