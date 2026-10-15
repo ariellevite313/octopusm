@@ -44,6 +44,7 @@ export interface ActivityItem {
 
 export interface CreatedMarket {
   id: string;
+  slug: string | null;
   title: string;
   status: string;       // "pending" | "open" | "resolved" | "cancelled"
   cover_image_src: string | null;
@@ -130,7 +131,7 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
     // Markets created (mutuel only for now)
     admin
       .from("mutuel_markets")
-      .select("id, title, status, cover_image_src, bet_token, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, resolved_at, created_at, options")
+      .select("id, slug, title, status, cover_image_src, bet_token, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, resolved_at, created_at, options")
       .eq("creator_wallet", walletAddress)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -399,6 +400,7 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
 
     return {
       id:                   m.id,
+      slug:                 m.slug ?? null,
       title:                m.title ?? "",
       status:               m.status ?? "pending",
       cover_image_src:      m.cover_image_src ?? null,

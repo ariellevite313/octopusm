@@ -147,7 +147,7 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
           return (
             <Link
               key={market.id}
-              href={`/prediction/${market.id}`}
+              href={`/pools/${market.slug ?? market.id}`}
               className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-muted/50"
             >
               <MarketCoverImage market={market} />
