@@ -183,7 +183,7 @@ export function CreatorLeaderboard() {
         <>
           {/* Podium */}
           {top3.length >= 3 && (
-            <div className="relative mb-8 overflow-hidden rounded-[28px] border border-border bg-[radial-gradient(80%_60%_at_70%_20%,rgba(245,179,1,0.18),transparent_70%),radial-gradient(60%_50%_at_10%_90%,rgba(139,92,246,0.14),transparent_70%)] px-5 pb-6 pt-6">
+            <div className="relative mb-8 pb-2 pt-6">
               <div className="grid grid-cols-[1fr_1.15fr] items-start gap-4">
                 {/* Leader */}
                 <div className="pt-1">
@@ -218,7 +218,7 @@ export function CreatorLeaderboard() {
           )}
 
           {/* Ranking list */}
-          <div className="rounded-[24px] border border-border bg-card px-2 py-2">
+          <div className="-mx-3">
             {entries.map(entry => {
               const top = entry.rank <= 3;
               const tone = top ? TONES[RANK_TONE[entry.rank - 1]] : null;
