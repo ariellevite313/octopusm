@@ -18,6 +18,8 @@ export type LeaderboardEntry = {
   /** Montant affiché, dans la devise du créateur (SOL ou USDC). */
   totalFee:     number;
   currency:     "SOL" | "USDC";
+  /** Gains convertis en dollars (SOL au prix du marché, USDC = 1 $). null si le prix SOL est indisponible. */
+  usdValue:     number | null;
   tokenCount:   number;
   claimCount:   number;
   displayName:  string | null;
@@ -113,7 +115,7 @@ export async function GET(req: Request) {
       // Classement en USD ; sans prix SOL, les SOL passent devant puis les USDC
       .sort((a, b) => solUsd > 0 ? b.usdValue - a.usdValue : (b.totalFeeSol - a.totalFeeSol) || (b.totalFee - a.totalFee))
       .slice(0, 100)
-      .map(({ usdValue: _usd, ...e }) => e);
+      .map(e => ({ ...e, usdValue: solUsd > 0 ? Math.round(e.usdValue * 100) / 100 : (e.currency === "USDC" ? e.totalFee : null) }));
 
     // Fetch profiles from wallets table
     const walletAddresses = sortedWallets.map(e => e.walletAddress);

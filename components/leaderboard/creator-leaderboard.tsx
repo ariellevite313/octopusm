@@ -46,7 +46,12 @@ function displayLabel(entry: LeaderboardEntry) {
 }
 
 /** Gains dans la devise du créateur : SOL (Solana) ou USDC (Arc / MetaMask). */
-function fmtFee(e: { totalFee?: number; totalFeeSol: number; currency?: "SOL" | "USDC" }) {
+function fmtFee(e: { totalFee?: number; totalFeeSol: number; currency?: "SOL" | "USDC"; usdValue?: number | null }) {
+  // Tout le monde en dollars (SOL converti au prix du marché, USDC = 1 $)
+  if (e.usdValue != null) {
+    const v = e.usdValue;
+    return v >= 1000 ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : `$${v.toFixed(2)}`;
+  }
   const cur = e.currency ?? "SOL";
   const n = e.totalFee ?? e.totalFeeSol;
   if (n === 0) return `0 ${cur}`;
