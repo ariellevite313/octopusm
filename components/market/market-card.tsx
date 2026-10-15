@@ -64,7 +64,7 @@ export function MarketCard({ market, volumes }: Props) {
                   ) : (
                     <span className="size-6 shrink-0" />
                   )}
-                  <span className="num shrink-0 rounded-lg bg-primary/12 px-2 py-0.5 text-[15px] font-bold text-primary">
+                  <span className="num shrink-0 rounded-lg bg-muted px-2 py-0.5 text-[15px] font-bold text-foreground">
                     x{option.oddsMultiplier}
                   </span>
                 </div>
@@ -117,7 +117,7 @@ function CompetitorAvatar({ name, src }: { name: string | null; src: string | nu
       {src ? (
         <img src={src} alt={name ?? ""} className="size-6 rounded-full object-cover" loading="lazy" />
       ) : (
-        <div className="flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+        <div className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
           {name?.[0] ?? "?"}
         </div>
       )}

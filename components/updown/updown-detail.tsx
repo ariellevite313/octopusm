@@ -1007,7 +1007,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                     {QUICK_AMOUNTS.map(q => (
                       <button key={q} type="button" onClick={() => setAmount(q)}
                         className={`rounded-xl border py-2.5 text-sm font-bold transition-colors ${
-                          amount === q ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground hover:border-primary/40 bg-muted/30"
+                          amount === q ? "border-foreground bg-foreground/10 text-foreground" : "border-border text-foreground hover:border-primary/40 bg-muted/30"
                         }`}>
                         ${q}
                       </button>

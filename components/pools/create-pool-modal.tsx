@@ -332,7 +332,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               <button
                 type="button"
                 onClick={addOption}
-                className="flex items-center gap-1.5 self-start rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                className="flex items-center gap-1.5 self-start rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
               >
                 <Plus className="size-3.5" />
                 Add option
@@ -384,7 +384,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                   onClick={() => setBetToken(token)}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
                     betToken === token
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-foreground bg-foreground/10 text-foreground"
                       : "border-border text-muted-foreground hover:border-primary/40"
                   }`}
                 >
@@ -411,7 +411,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                   onClick={() => setFeeToken(token)}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
                     feeToken === token
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-foreground bg-foreground/10 text-foreground"
                       : "border-border text-muted-foreground hover:border-primary/40"
                   }`}
                 >

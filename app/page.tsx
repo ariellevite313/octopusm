@@ -64,11 +64,8 @@ function LaunchpadSkeleton() {
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
-      <div className="mb-6 lg:flex lg:items-end lg:justify-between lg:gap-6">
-        <div className="mb-5 lg:mb-0">
-          <h1 className="text-xl font-bold text-foreground">Launchpad</h1>
-          <p className="text-sm text-muted-foreground">Tokens launched on Solana</p>
-        </div>
+      <div className="mb-6">
+        <h1 className="sr-only">Launchpad</h1>
         <PlatformStats />
       </div>
       <div className="lg:hidden">

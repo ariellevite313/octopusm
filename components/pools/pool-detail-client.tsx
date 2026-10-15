@@ -22,7 +22,7 @@ const OPTION_COLORS = [
   { bar: "bg-blue-500",   selected: "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400",   hover: "hover:border-blue-300",   winner: "text-blue-600 dark:text-blue-400" },
   { bar: "bg-red-500",    selected: "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400",       hover: "hover:border-red-300",    winner: "text-down" },
   { bar: "bg-green-500",  selected: "border-green-500 bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400", hover: "hover:border-green-300",  winner: "text-green-600 dark:text-green-400" },
-  { bar: "bg-orange-500", selected: "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-400", hover: "hover:border-orange-300", winner: "text-orange-600 dark:text-orange-400" },
+  { bar: "bg-orange-500", selected: "border-orange-500 bg-foreground/5 text-foreground", hover: "hover:border-orange-300", winner: "text-foreground" },
   { bar: "bg-purple-500", selected: "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/20 dark:text-purple-400", hover: "hover:border-purple-300", winner: "text-purple-600 dark:text-purple-400" },
   { bar: "bg-yellow-500", selected: "border-yellow-500 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-400", hover: "hover:border-yellow-300", winner: "text-yellow-600 dark:text-yellow-400" },
 ];
@@ -271,7 +271,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
       </div>
 
       {isBusy && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2.5 text-xs text-orange-700 dark:bg-orange-950/20 dark:text-orange-400">
+        <div className="mb-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-xs text-foreground">
           <Loader2 className="size-3.5 animate-spin" />
           Approve in wallet and waiting for confirmation...
         </div>
@@ -537,7 +537,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
                           loading="lazy"
                         />
                       ) : (
-                        <div className="size-6 shrink-0 flex items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                        <div className="size-6 shrink-0 flex items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
                           {(bet.username ?? bet.wallet_address)?.[0]?.toUpperCase() ?? "?"}
                         </div>
                       )}
@@ -556,7 +556,7 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
                       {Number(bet.amount).toFixed(decimals)}
                     </span>
                     {bet.payout_amount != null && (
-                      <span className={`flex items-center gap-0.5 tabular-nums text-[11px] font-semibold ${bet.paid_at ? "text-up" : "text-orange-500"}`}>
+                      <span className={`flex items-center gap-0.5 tabular-nums text-[11px] font-semibold ${bet.paid_at ? "text-up" : "text-foreground"}`}>
                         {bet.paid_at ? "✓ Paid " : "→ "}
                         <TokenLogo token={market.bet_token} className="size-4" />
                         {Number(bet.payout_amount).toFixed(decimals)}

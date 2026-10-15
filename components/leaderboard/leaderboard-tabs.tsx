@@ -97,7 +97,7 @@ export function LeaderboardTabs() {
             <Image src={t.logo} alt={t.label} width={56} height={56} className="size-14 shrink-0 rounded-2xl object-cover" />
             <span className="text-[15px] font-bold text-foreground">{t.label}</span>
             <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
-              token === t.key ? "border-primary/40 text-primary" : "border-border text-muted-foreground"
+              token === t.key ? "border-foreground/40 text-foreground" : "border-border text-muted-foreground"
             }`}>
               {token === t.key ? "Selected" : "View"}
             </span>
@@ -172,7 +172,7 @@ export function LeaderboardTabs() {
                       className="size-14 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex size-14 items-center justify-center rounded-full bg-primary/15 text-xl font-bold text-primary">
+                    <div className="flex size-14 items-center justify-center rounded-full bg-muted text-xl font-bold text-foreground">
                       {name[0].toUpperCase()}
                     </div>
                   )}
