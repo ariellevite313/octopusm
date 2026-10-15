@@ -10,15 +10,22 @@ import { LaunchpadBoard } from "@/components/desktop/launchpad-board";
 export const revalidate = 30;
 
 export const metadata: Metadata = {
-  title: { absolute: "Launchpad - OMdotfun" },
-  description: "Launch your token on OMdotfun.",
+  title: { absolute: "OMdotfun | Prediction markets & token launchpad" },
+  description: "Bet on real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
   alternates: { canonical: "https://omdot.fun" },
   openGraph: {
-    title: "OMdotfun Launchpad",
-    description: "Launch your token on OMdotfun.",
+    title: "OMdotfun | Prediction markets & token launchpad",
+    description: "Bet on real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
     url: "https://omdot.fun",
+    siteName: "OMdotfun",
     type: "website",
-    images: [{ url: "/branding-logo.jpeg", width: 1200, height: 630, alt: "OMdotfun Launchpad" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "OMdotfun — prediction markets & token launchpad" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OMdotfun | Prediction markets & token launchpad",
+    description: "Bet on real-world events and launch tokens in minutes. Prediction markets and a token launchpad on Solana and Arc.",
+    images: ["/opengraph-image"],
   },
 };
 
