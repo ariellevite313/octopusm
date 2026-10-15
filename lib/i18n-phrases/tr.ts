@@ -1010,5 +1010,10 @@ const p: Record<string, string> = {
   "Link copied — paste it in Discord": "Bağlantı kopyalandı — Discord’a yapıştır",
   "{title} — what's your prediction? Trade on OMdotfun": "{title} — tahminin ne? OMdotfun’da işlem yap",
   "Up or down? Trade it on OMdotfun": "Yukarı mı aşağı mı? OMdotfun’da işlem yap",
+  "Sports": "Spor",
+  "24h vol": "24s hacim",
+  "Couldn't load Polymarket markets.": "Polymarket piyasaları yüklenemedi.",
+  "No Polymarket markets right now.": "Şu anda Polymarket piyasası yok.",
+  "Data from Polymarket. Bets are placed on polymarket.com.": "Veriler Polymarket’tan. Bahisler polymarket.com üzerinde yapılır.",
 };
 export default p;

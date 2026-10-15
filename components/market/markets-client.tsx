@@ -6,6 +6,7 @@ import { BarChart2, BarChart3 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { MarketGrid } from "./market-grid";
 import { TrendingSection } from "./trending-section";
+import { PolymarketColumn } from "./polymarket-column";
 import type { UnifiedMarket } from "@/lib/supabase/types";
 import type { MarketVolumes } from "@/lib/market/utils";
 import { useT } from "@/lib/i18n";
@@ -53,6 +54,8 @@ export function MarketsClient({ category, initialMarkets }: Props) {
     cached?.volumes ?? {}
   );
   const fetchingRef = useRef(false);
+  // Mobile : onglets ŌM / Polymarket (chaque source reste dans sa colonne)
+  const [tab, setTab] = useState<"om" | "pm">("om");
 
   useEffect(() => {
     // Reset fetch flag when category changes
@@ -95,8 +98,8 @@ export function MarketsClient({ category, initialMarkets }: Props) {
     ? tr("No active markets in this category.")
     : tr("No active markets right now.");
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">
+  const omContent = (
+    <>
       {/* Trending section — home page only */}
       {!category && <TrendingSection />}
 
@@ -106,8 +109,38 @@ export function MarketsClient({ category, initialMarkets }: Props) {
           <p className="text-muted-foreground">{emptyMsg}</p>
         </div>
       ) : (
-        <MarketGrid markets={markets} volumes={volumes} showCategoryTabs={false} />
+        <MarketGrid markets={markets} volumes={volumes} showCategoryTabs={false} compact={!category} />
       )}
+    </>
+  );
+
+  // Pages de catégorie : uniquement les marchés ŌM
+  if (category) {
+    return <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">{omContent}</div>;
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 pb-10 pt-0">
+      {/* Mobile : sélecteur de colonne */}
+      <div className="mt-3 flex gap-1 rounded-2xl bg-muted/70 p-1 lg:hidden">
+        {([["om", "ŌM"], ["pm", "Polymarket"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-colors ${tab === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
+        <div className={tab === "om" ? "" : "hidden lg:block"}>{omContent}</div>
+        <div className={`${tab === "pm" ? "mt-4" : "hidden"} lg:mt-6 lg:block`}>
+          <PolymarketColumn className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1" />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1010,5 +1010,10 @@ const p: Record<string, string> = {
   "Link copied — paste it in Discord": "链接已复制 — 粘贴到 Discord",
   "{title} — what's your prediction? Trade on OMdotfun": "{title} — 你的预测是什么？在 OMdotfun 交易",
   "Up or down? Trade it on OMdotfun": "涨还是跌？在 OMdotfun 交易",
+  "Sports": "体育",
+  "24h vol": "24小时量",
+  "Couldn't load Polymarket markets.": "无法加载 Polymarket 市场。",
+  "No Polymarket markets right now.": "目前没有 Polymarket 市场。",
+  "Data from Polymarket. Bets are placed on polymarket.com.": "数据来自 Polymarket。投注在 polymarket.com 进行。",
 };
 export default p;
