@@ -1020,5 +1020,8 @@ const p: Record<string, string> = {
   "Holders unavailable right now.": "暂时无法获取持有者。",
   "No holders yet.": "暂无持有者。",
   "Pool / program": "池 / 程序",
+  "Open on Polymarket": "在 Polymarket 打开",
+  "Trending topics": "热门话题",
+  "Explore all on Polymarket": "在 Polymarket 浏览全部",
 };
 export default p;

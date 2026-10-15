@@ -1020,5 +1020,8 @@ const p: Record<string, string> = {
   "Holders unavailable right now.": "Holders no disponibles por ahora.",
   "No holders yet.": "Aún no hay holders.",
   "Pool / program": "Pool / programa",
+  "Open on Polymarket": "Abrir en Polymarket",
+  "Trending topics": "Temas del momento",
+  "Explore all on Polymarket": "Explorar todo en Polymarket",
 };
 export default p;
