@@ -83,11 +83,13 @@ export function TokenDetailShell({
       <button
         type="button"
         onClick={() => setSheet(true)}
-        className={`btn-primary fixed inset-x-4 bottom-[96px] z-30 flex h-14 items-center justify-center gap-2 rounded-2xl text-[17px] md:hidden ${sheet ? "hidden" : ""}`}
+        className={`btn-primary fixed inset-x-4 bottom-[calc(92px+env(safe-area-inset-bottom,0px))] z-30 flex h-14 items-center justify-center gap-2 rounded-2xl text-[17px] md:hidden ${sheet ? "hidden" : ""}`}
       >
         <ArrowLeftRight className="size-5" />
         Buy / Sell
       </button>
+      {/* Espace pour que la fin de page ne passe pas sous le bouton */}
+      <div className="h-20 md:hidden" aria-hidden />
     </>
   );
 }
