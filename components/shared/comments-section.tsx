@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { Heart, MessageCircle } from "lucide-react";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { useQuery } from "@tanstack/react-query";
+import { getWalletProfile } from "@/services/wallet-service";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -275,6 +278,13 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
   const [focused, setFocused] = useState(false);
   const open = focused || text.length > 0;
   const me = walletAddress ?? "";
+  const { data: myProfile } = useQuery({
+    queryKey: ["wallet-profile", me],
+    queryFn: () => getWalletProfile(me),
+    enabled: !!me,
+    staleTime: 60_000,
+  });
+  const myName = myProfile?.display_name || myProfile?.username || me || "?";
 
   return (
     <section>
@@ -284,9 +294,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
 
       {/* Composer */}
       <div className="mb-6 flex items-start gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground">
-          {me ? me[0].toUpperCase() : "?"}
-        </div>
+        <UserAvatar src={myProfile?.avatar_src} name={myName} size={44} />
         <div className="min-w-0 flex-1">
           <div className="relative">
             <textarea value={text} onChange={e => setText(e.target.value)}
