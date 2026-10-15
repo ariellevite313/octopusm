@@ -1028,5 +1028,6 @@ const p: Record<string, string> = {
   "Failed to load leaderboard. Please try again.": "Sıralama yüklenemedi. Lütfen tekrar dene.",
   "Network error": "Ağ hatası",
   "Network error — please retry": "Ağ hatası — lütfen tekrar dene",
+  "View market": "Piyasayı gör",
 };
 export default p;

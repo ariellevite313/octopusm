@@ -17,7 +17,7 @@ function fmtVol(n: number) {
   return `$${Math.round(n)}`;
 }
 
-function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, PmStateLean> }) {
+export function Featured({ events, usMap, neutral = false }: { events: PmEvent[]; usMap: Record<string, PmStateLean>; neutral?: boolean }) {
   const { tr } = useT();
   const [i, setI] = useState(0);
   const hold = useRef(false);
@@ -32,7 +32,7 @@ function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, 
 
   const e = events[i];
   if (!e) return null;
-  const hasMap = Object.keys(usMap).length > 0 && /midterm|election|senate|congress/i.test(`${e.title} ${e.category ?? ""} ${e.tags.map((t) => t.slug).join(" ")}`);
+  const hasMap = Object.keys(usMap).length > 0 && /midterm|\bsenate\b|congress|\bu\.?s\.? (house|election)/i.test(`${e.title} ${e.category ?? ""} ${e.tags.map((t) => t.slug).join(" ")}`);
   return (
     <div
       className="rounded-3xl border border-border bg-card p-5 md:p-6"
@@ -48,7 +48,7 @@ function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, 
           {e.category && <p className="text-xs font-medium text-muted-foreground">{e.category}</p>}
           <h2 className="text-lg font-bold leading-snug tracking-tight text-foreground md:text-2xl">{e.title}</h2>
         </div>
-        <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={tr("Open on Polymarket")} className="mt-1 text-muted-foreground hover:text-foreground">
+        <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={neutral ? tr("View market") : tr("Open on Polymarket")} className="mt-1 text-muted-foreground hover:text-foreground">
           <ExternalLink className="size-4" />
         </a>
       </div>
@@ -83,7 +83,7 @@ function Featured({ events, usMap }: { events: PmEvent[]; usMap: Record<string, 
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
         <span>{tr("24h vol")} {fmtVol(e.volume24h)}{e.live ? " · " : ""}{e.live && <span className="font-semibold text-down">LIVE</span>}</span>
         <a href={e.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:text-primary">
-          {tr("Open on Polymarket")} →
+          {neutral ? tr("View market") : tr("Open on Polymarket")} →
         </a>
       </div>
 

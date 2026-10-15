@@ -135,6 +135,13 @@ export async function fetchPolymarketHome(tag?: string): Promise<{ featured: PmE
   let featured = top.filter((e) => e.featured && e.items.length >= 2).slice(0, 8);
   if (featured.length < 3) featured = top.filter((e) => e.items.length >= 2).slice(0, 8);
 
+  // Midterms (carte des États-Unis) en premier plan
+  const isMid = (e: PmEvent) => /midterm|\bsenate\b|congress|\bu\.?s\.? (house|election)/i.test(`${e.title} ${e.tags.map((t) => t.slug).join(" ")}`);
+  if (Object.keys(usMap).length > 0) {
+    const mid = top.find(isMid);
+    if (mid) featured = [mid, ...featured.filter((e) => e.id !== mid.id)].slice(0, 8);
+  }
+
   // Sujets d'actualité + catégories : agrégés par tag, classés par volume 24h
   const agg = new Map<string, PmTopic>();
   for (const e of top) for (const t of e.tags) {
