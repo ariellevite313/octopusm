@@ -13,7 +13,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
 
 export const viewport: Viewport = {
   viewportFit: "cover",
-  themeColor: "#f97316",
+  // Barre du navigateur / statut Android : couleur du fond de la page (clair / sombre), plus d'orange
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#07060c" },
+  ],
 };
 
 export const metadata: Metadata = {
