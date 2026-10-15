@@ -1015,5 +1015,10 @@ const p: Record<string, string> = {
   "Couldn't load Polymarket markets.": "Impossible de charger les marchés Polymarket.",
   "No Polymarket markets right now.": "Aucun marché Polymarket pour le moment.",
   "Data from Polymarket. Bets are placed on polymarket.com.": "Données Polymarket. Les paris se font sur polymarket.com.",
+  "Holders": "Holders",
+  "Top 25 of {count} holders": "Top 25 sur {count} holders",
+  "Holders unavailable right now.": "Holders indisponibles pour le moment.",
+  "No holders yet.": "Aucun holder pour le moment.",
+  "Pool / program": "Pool / programme",
 };
 export default p;

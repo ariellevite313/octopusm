@@ -28,6 +28,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { AppIcon } from "@/components/shared/app-icon";
+import { TokenHolders } from "@/components/launchpad/token-holders";
 import { TokenDetailShell } from "@/components/launchpad/token-detail-shell";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
@@ -535,6 +536,7 @@ export default async function TokenDetailPage({ params }: Props) {
             )}
             </>
           }
+          holders={!isArc && token.mint_address ? <TokenHolders mint={token.mint_address} /> : undefined}
           comments={
             <LaunchpadComments
               tokenId={token.id}

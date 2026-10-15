@@ -12,6 +12,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw, Copy, Check, HandCoins, Plus, ArrowLeftRight, Send, ChevronRight } from "lucide-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
@@ -90,8 +91,15 @@ function TokenFeeRow({
   showClaim?: boolean;
 }) {
   const { tr } = useT();
+  const router = useRouter();
   return (
-    <div className="flex items-center gap-3.5 py-3">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/launchpad/${token.tokenId}`)}
+      onKeyDown={(e) => { if (e.key === "Enter") router.push(`/launchpad/${token.tokenId}`); }}
+      className="-mx-2 flex cursor-pointer items-center gap-3.5 rounded-2xl px-2 py-3 transition-colors hover:bg-muted/50"
+    >
       <div className="size-12 shrink-0 overflow-hidden rounded-[14px] bg-muted">
         {token.logoUrl ? (
           <Image src={token.logoUrl} alt={token.name} width={48} height={48} className="size-full object-cover" unoptimized />
@@ -108,7 +116,7 @@ function TokenFeeRow({
           <span>${token.ticker}</span>
           {token.pending > 0 && showClaim && (
             <button
-              onClick={() => onClaim(token)}
+              onClick={(e) => { e.stopPropagation(); onClaim(token); }}
               disabled={claiming || disabled}
               className="num flex items-center gap-1 font-semibold text-primary disabled:opacity-50"
             >
