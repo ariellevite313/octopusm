@@ -30,12 +30,12 @@ function Avatar({ entry, size = "md" }: { entry: LeaderboardEntry; size?: "sm" |
       <img
         src={entry.avatarSrc}
         alt={entry.displayName ?? entry.walletAddress}
-        className={`${dim} shrink-0 rounded-full object-cover`}
+        className={`${dim} shrink-0 rounded-[28%] object-cover`}
       />
     );
   }
   return (
-    <div className={`${dim} rounded-full bg-primary/20 flex items-center justify-center ${txt} font-bold text-primary flex-shrink-0`}>
+    <div className={`${dim} rounded-[28%] bg-primary/20 flex items-center justify-center ${txt} font-bold text-primary flex-shrink-0`}>
       {initials}
     </div>
   );

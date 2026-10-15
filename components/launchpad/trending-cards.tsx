@@ -60,7 +60,7 @@ export function TrendingCards() {
               className="flex shrink-0 items-center gap-2 rounded-full bg-muted/60 py-1 pl-1 pr-3 text-[13px] transition-colors hover:bg-muted"
             >
               <span className="num w-6 text-center text-[11px] font-bold text-muted-foreground">#{(i % items.length) + 1}</span>
-              <span className="relative size-6 shrink-0 overflow-hidden rounded-full bg-background">
+              <span className="relative size-6 shrink-0 overflow-hidden rounded-[7px] bg-background">
                 {t.logo_url && <Image src={t.logo_url} alt="" fill className="object-cover" unoptimized />}
               </span>
               <span className="font-bold text-foreground">{t.ticker}</span>

@@ -89,7 +89,7 @@ export function TrendingStrip() {
 
                   {/* Logo + 24h volume */}
                   <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-muted">
+                    <div className="relative size-10 shrink-0 overflow-hidden rounded-[12px] bg-muted">
                       {t.logo_url ? (
                         <Image src={t.logo_url} alt={t.name} fill className="object-cover" unoptimized />
                       ) : (
