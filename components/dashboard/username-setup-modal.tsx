@@ -3,7 +3,8 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, User } from "lucide-react";
+import { Camera, User, AtSign, Check, ArrowRight, Loader2 } from "lucide-react";
+import { AppIcon } from "@/components/shared/app-icon";
 import Image from "next/image";
 
 // ── Validation helpers ────────────────────────────────────────────────────────
@@ -122,124 +123,128 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
   const isLoading = saving || uploading;
   const canSubmit = username.length >= 3 && displayName.trim().length > 0 && twitter.trim().length > 0;
 
+  const fields = [
+    {
+      key: "username" as const,
+      label: "Username",
+      icon: <AtSign className="size-[18px]" />,
+      value: username,
+      placeholder: "crypto_whale",
+      maxLength: 30,
+      autoFocus: true,
+      ok: username.length >= 3 && !validateUsername(username),
+      onChange: (v: string) => { const t = v.trim(); setUsername(t); setErrors(p => ({ ...p, username: validateUsername(t) })); },
+    },
+    {
+      key: "displayName" as const,
+      label: "Display name",
+      icon: <User className="size-[18px]" />,
+      value: displayName,
+      placeholder: "Crypto Whale",
+      maxLength: 50,
+      ok: !!displayName.trim() && !validateDisplayName(displayName),
+      onChange: (v: string) => { setDisplayName(v); setErrors(p => ({ ...p, displayName: validateDisplayName(v) })); },
+    },
+    {
+      key: "twitter" as const,
+      label: "X handle",
+      icon: <AppIcon name="ti-brand-x" className="size-4" />,
+      value: twitter.replace(/^@/, ""),
+      placeholder: "yourhandle",
+      maxLength: 15,
+      prefix: "@",
+      ok: !!twitter.trim() && !validateTwitter(twitter),
+      onChange: (v: string) => { const t = v.replace(/^@/, ""); setTwitter(t); setErrors(p => ({ ...p, twitter: validateTwitter(t) })); },
+    },
+  ];
+  const fieldError = fields.map(f => errors[f.key] && f.value ? errors[f.key] : "").find(Boolean);
+  const initials = (displayName || username || "").replace(/^@/, "").slice(0, 2).toUpperCase();
+
   return (
-    // Backdrop — non-dismissible
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-sm rounded-[22px] border border-border bg-card shadow-xl overflow-y-auto max-h-[90vh]">
-        <div className="p-6">
-          {/* Header */}
-          <div className="mb-5 text-center">
-            <h2 className="text-lg font-bold text-foreground">Welcome to OMdotfun</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Set up your profile to get started.
-            </p>
+    // Plein écran sur téléphone, fenêtre centrée sur ordinateur — non fermable
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4">
+      <div className="relative max-h-[100dvh] w-full overflow-y-auto rounded-t-[32px] bg-background shadow-2xl ring-1 ring-border sm:max-w-[420px] sm:rounded-[32px]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,rgba(255,122,26,0.28),transparent_70%)]" />
+
+        <form onSubmit={handleSubmit} className="relative px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-7">
+          {/* Marque */}
+          <div className="flex items-center justify-center gap-2">
+            <img src="/card-logo.png" alt="" className="size-7 rounded-full" />
+            <span className="text-[15px] font-black tracking-tight text-foreground">omdot.fun</span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Avatar */}
-            <div className="flex justify-center">
-              <div className="relative">
-                <div className="size-20 rounded-full overflow-hidden bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  {avatarPreview ? (
-                    <Image src={avatarPreview} alt="preview" fill className="object-cover" unoptimized />
-                  ) : (
-                    <User className="size-8 text-orange-400" />
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border-2 border-card bg-orange-500 shadow hover:bg-orange-400 transition-colors"
-                >
-                  <Camera className="size-3.5 text-white" />
-                </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarChange}
-                />
-              </div>
-            </div>
-            <p className="text-center text-xs text-muted-foreground -mt-1">
-              Profile photo <span className="text-muted-foreground/60">(optional)</span>
-            </p>
-
-            {/* Username */}
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                Username <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                autoFocus
-                autoComplete="off"
-                placeholder="e.g. crypto_whale"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value.trim());
-                  setErrors((prev) => ({ ...prev, username: validateUsername(e.target.value.trim()) }));
-                }}
-                maxLength={30}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-              {errors.username && <p className="mt-1 text-xs text-red-500">{errors.username}</p>}
-            </div>
-
-            {/* Display name */}
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                Display name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                autoComplete="off"
-                placeholder="e.g. Crypto Whale"
-                value={displayName}
-                onChange={(e) => {
-                  setDisplayName(e.target.value);
-                  setErrors((prev) => ({ ...prev, displayName: validateDisplayName(e.target.value) }));
-                }}
-                maxLength={50}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-              {errors.displayName && <p className="mt-1 text-xs text-red-500">{errors.displayName}</p>}
-            </div>
-
-            {/* Twitter / X */}
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-foreground">
-                Twitter / X handle <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">@</span>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  placeholder="yourhandle"
-                  value={twitter.replace(/^@/, "")}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/^@/, "");
-                    setTwitter(val);
-                    setErrors((prev) => ({ ...prev, twitter: validateTwitter(val) }));
-                  }}
-                  maxLength={15}
-                  className="w-full rounded-xl border border-border bg-background pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                />
-              </div>
-              {errors.twitter && <p className="mt-1 text-xs text-red-500">{errors.twitter}</p>}
-            </div>
-
+          {/* Avatar */}
+          <div className="mt-7 flex flex-col items-center">
             <button
-              type="submit"
-              disabled={isLoading || !canSubmit}
-              className="w-full rounded-[14px] bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-60 transition-colors btn-primary"
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="group relative size-28 rounded-full p-[3px]"
+              aria-label="Add a profile photo"
             >
-              {uploading ? "Uploading photo..." : saving ? "Saving..." : "Complete setup"}
+              <span className="absolute inset-0 overflow-hidden rounded-full"><span className="gains-frame absolute inset-[-40%]" /></span>
+              <span className="relative flex size-full items-center justify-center overflow-hidden rounded-full border-[3px] border-background bg-muted">
+                {avatarPreview ? (
+                  <Image src={avatarPreview} alt="preview" fill className="object-cover" unoptimized />
+                ) : initials ? (
+                  <span className="text-3xl font-bold text-foreground">{initials}</span>
+                ) : (
+                  <User className="size-10 text-muted-foreground" />
+                )}
+              </span>
+              <span className="absolute bottom-0.5 right-0.5 flex size-9 items-center justify-center rounded-full bg-primary text-white shadow-lg ring-4 ring-background transition-transform group-hover:scale-105">
+                <Camera className="size-4" />
+              </span>
             </button>
-          </form>
-        </div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+
+            <h2 className="mt-5 text-[26px] font-bold tracking-tight text-foreground">Create your profile</h2>
+            <p className="mt-1 text-center text-[15px] text-muted-foreground">This is how traders will see you on OMdot.</p>
+          </div>
+
+          {/* Champs */}
+          <div className="mt-6">
+            {fields.map(f => (
+              <label
+                key={f.key}
+                className={`flex items-center gap-3.5 border-b border-border py-3.5 transition-colors focus-within:border-primary`}
+              >
+                <span className={`flex w-6 shrink-0 items-center justify-center ${f.ok ? "text-primary" : "text-muted-foreground"}`}>
+                  {f.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{f.label}</span>
+                  <span className="flex items-center">
+                    {f.prefix && <span className="text-[16px] text-muted-foreground">{f.prefix}</span>}
+                    <input
+                      type="text"
+                      autoFocus={f.autoFocus}
+                      autoComplete="off"
+                      placeholder={f.placeholder}
+                      value={f.value}
+                      maxLength={f.maxLength}
+                      onChange={e => f.onChange(e.target.value)}
+                      className="w-full bg-transparent text-[16px] font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                    />
+                  </span>
+                </span>
+                {f.ok && <Check className="size-5 shrink-0 text-up" strokeWidth={2.5} />}
+              </label>
+            ))}
+          </div>
+          <p className={`mt-2 min-h-[18px] px-1 text-[13px] ${fieldError ? "text-red-500" : "text-muted-foreground"}`}>
+            {fieldError || "Profile photo is optional."}
+          </p>
+
+          <button
+            type="submit"
+            disabled={isLoading || !canSubmit}
+            className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(255,122,26,0.8)] transition-all hover:brightness-105 disabled:opacity-40 disabled:shadow-none"
+          >
+            {isLoading
+              ? <><Loader2 className="size-5 animate-spin" />{uploading ? "Uploading photo…" : "Saving…"}</>
+              : <>Continue<ArrowRight className="size-5" /></>}
+          </button>
+        </form>
       </div>
     </div>
   );
