@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { Check, Share2 } from "lucide-react";
+import { Check, Share2, X, Plus } from "lucide-react";
+import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { useAuth } from "@/providers/auth-provider";
 import { connectWalletAndAuth } from "@/lib/wallet/auth";
 import { getAvailableWallets } from "@/lib/wallet/adapters";
@@ -265,6 +266,14 @@ export function PredictionDetail({
   const [submitState,   setSubmitState]   = useState<SubmitState>("idle");
   const [successRef,    setSuccessRef]    = useState("");
   const [showWallet,    setShowWallet]    = useState(false);
+  const [betOpen,       setBetOpen]       = useState(false);
+  useEffect(() => { if (submitState === "success") setBetOpen(false); }, [submitState]);
+  useEffect(() => {
+    if (!betOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [betOpen]);
 
   const amount      = parseFloat(rawAmount) || 0;
   const selectedOpt = options.find((o) => o.id === selectedId) ?? null;
@@ -416,7 +425,7 @@ export function PredictionDetail({
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setSelectedId(opt.id)}
+                    onClick={() => { setSelectedId(opt.id); setBetOpen(true); }}
                     className={[
                       "flex flex-col gap-2 rounded-[18px] border-2 px-3.5 py-3.5 text-left transition-all",
                       options.length === 3 ? "min-w-[130px] shrink-0 sm:min-w-0 sm:shrink" : "",
@@ -469,107 +478,122 @@ export function PredictionDetail({
             </div>
           </section>
 
-          {/* 2 — Token selector */}
-          <section>
-            <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
-              Token
-            </h2>
-            <div className="flex gap-2">
-              {(["usdc", "clawdtrust"] as BetToken[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => { setToken(t); setRawAmount(""); }}
-                  className={[
-                    "flex-1 rounded-2xl border py-3 text-[15px] font-bold transition-all",
-                    token === t
-                      ? "border-orange-500 bg-orange-500 text-white"
-                      : "border-transparent bg-muted text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
-                >
-                  {t === "usdc" ? "USDC" : "ClawdTrust"}
-                </button>
-              ))}
-            </div>
-          </section>
+          {/* 2 → 5 — Fenêtre de mise (s'ouvre au choix d'une option) */}
+          {betOpen && selectedOpt && (
+            <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center" role="dialog" aria-modal="true">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setBetOpen(false)} aria-hidden />
+              <div className="relative max-h-[94dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-card px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 md:rounded-[28px] md:pb-5">
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted md:hidden" />
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex gap-1 rounded-full bg-muted p-1">
+                    {(["usdc", "clawdtrust"] as BetToken[]).map((t) => (
+                      <button key={t} type="button" onClick={() => { setToken(t); setRawAmount(""); }}
+                        className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors ${token === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                        {t === "usdc" ? "USDC" : "ClawdTrust"}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setBetOpen(false)} aria-label="Close"
+                    className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground">
+                    <X className="size-4" />
+                  </button>
+                </div>
 
-          {/* 3 — Amount */}
-          <section>
-            <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">
-              Stake amount
-            </h2>
-            <div className="mb-2 flex gap-2 flex-wrap">
-              {(token === "clawdtrust" ? QUICK_CLT : QUICK_USDC).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setRawAmount(String(v))}
-                  className={[
-                    "num rounded-xl border px-4 py-2 text-sm font-bold transition-all",
-                    rawAmount === String(v)
-                      ? "border-orange-500 bg-orange-500 text-white"
-                      : "border-transparent bg-muted text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
-                >
-                  {token === "clawdtrust" ? formatCLT(v) : `$${v}`}
-                </button>
-              ))}
-            </div>
-            <div className="relative">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={rawAmount}
-                onChange={(e) => setRawAmount(e.target.value)}
-                placeholder={
-                  token === "clawdtrust"
-                    ? `Min ${MIN_STAKE_CLT.toLocaleString("en-US")}`
-                    : `$${MIN_STAKE_USDC} – $${MAX_STAKE_USDC}`
-                }
-                className="num h-14 w-full rounded-2xl border border-transparent bg-muted px-4 pr-28 text-lg font-bold outline-none transition placeholder:text-muted-foreground placeholder:font-medium focus:border-primary/60"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                {token === "clawdtrust" ? "ClawdTrust" : "USDC"}
-              </span>
-            </div>
-            {rawAmount && !isAmountValid && (
-              <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">
-                {token === "clawdtrust"
-                  ? `Minimum ${MIN_STAKE_CLT.toLocaleString("en-US")} ClawdTrust`
-                  : `Enter between $${MIN_STAKE_USDC} and $${MAX_STAKE_USDC}`}
-              </p>
-            )}
-          </section>
+                {/* Marché */}
+                <div className="mb-4 flex items-center gap-3">
+                  {(market.single_image_src ?? market.left_competitor_image_src) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={(market.single_image_src ?? market.left_competitor_image_src)!} alt="" className="size-12 shrink-0 rounded-xl object-cover" />
+                  ) : (
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-bold text-foreground">{market.title.trim()[0]?.toUpperCase()}</span>
+                  )}
+                  <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">{market.title}</p>
+                </div>
 
-          {/* 4 — Reward summary */}
-          {selectedOpt && isAmountValid && (
-            <RewardSummary amount={amount} option={selectedOpt} token={token} />
+                {/* Options */}
+                <div className={`mb-5 grid gap-2 ${options.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+                  {options.map((opt, idx) => {
+                    const on = opt.id === selectedId;
+                    return (
+                      <button key={opt.id} type="button" onClick={() => setSelectedId(opt.id)}
+                        className={`min-w-0 rounded-2xl px-2 py-3 text-[15px] font-bold transition-colors ${on ? "bg-up/15 text-up ring-1 ring-up/40" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                        <span className="block truncate">{opt.label} <span className="num">{probs[idx]}%</span></span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Montant */}
+                <p className="text-[15px] font-semibold text-foreground">Amount</p>
+                <div className="flex items-baseline justify-center gap-2 py-3">
+                  <span className={`num text-[52px] font-bold leading-none tracking-tight ${rawAmount ? "text-foreground" : "text-muted-foreground/50"}`}>{rawAmount || "0"}</span>
+                  <span className="text-xl font-bold text-muted-foreground">{token === "clawdtrust" ? "CLT" : "USDC"}</span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {(token === "clawdtrust" ? [100_000, 500_000, 1_000_000, 2_000_000] : [1, 5, 10, 100]).map((v) => (
+                    <button key={v} type="button"
+                      onClick={() => setRawAmount((prev) => String(Math.round(((parseFloat(prev) || 0) + v) * 100) / 100))}
+                      className="num flex items-center justify-center gap-0.5 rounded-xl bg-muted py-2.5 text-[13px] font-bold text-foreground transition-colors hover:bg-muted/70">
+                      <Plus className="size-3" />{token === "clawdtrust" ? formatCLT(v) : `$${v}`}
+                    </button>
+                  ))}
+                  <button type="button"
+                    onClick={() => setRawAmount(token === "clawdtrust" ? String(Math.max(MIN_STAKE_CLT, amount)) : String(MAX_STAKE_USDC))}
+                    className="rounded-xl bg-muted py-2.5 text-[13px] font-bold text-foreground transition-colors hover:bg-muted/70">
+                    {token === "clawdtrust" ? "Min" : "Max"}
+                  </button>
+                </div>
+                {rawAmount && !isAmountValid && (
+                  <p className="mt-2 text-xs text-red-500 dark:text-red-400">
+                    {token === "clawdtrust"
+                      ? `Minimum ${MIN_STAKE_CLT.toLocaleString("en-US")} ClawdTrust`
+                      : `Enter between $${MIN_STAKE_USDC} and $${MAX_STAKE_USDC}`}
+                  </p>
+                )}
+
+                {/* À gagner */}
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[15px] text-muted-foreground">
+                    To win
+                    <span className="rounded-md bg-up/15 px-1.5 py-0.5 text-xs font-semibold text-up">{selectedOpt.label}</span>
+                  </span>
+                  <span className="num text-[30px] font-bold leading-none text-up">
+                    {(() => {
+                      const r = isAmountValid ? computeReward(amount, selectedOpt.oddsMultiplier).netReward : 0;
+                      return token === "clawdtrust" ? `${Math.round(r).toLocaleString("en-US")}` : `$${r.toFixed(2)}`;
+                    })()}
+                  </span>
+                </div>
+                {isAmountValid && (
+                  <p className="mt-1 text-right text-xs text-muted-foreground">
+                    You pay {token === "clawdtrust"
+                      ? `${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toLocaleString("en-US")} CLT`
+                      : `$${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toFixed(2)}`} · incl. 1% fee · ×{selectedOpt.oddsMultiplier}
+                  </p>
+                )}
+
+                {/* Valider */}
+                <button
+                  type="button"
+                  onClick={() => { if (!isAuthenticated) { setBetOpen(false); setShowWallet(true); } else { void handleSubmit(); } }}
+                  disabled={isAuthenticated && !canSubmit}
+                  className={`mt-5 h-14 w-full rounded-2xl px-5 text-base font-bold transition-colors ${
+                    isAuthenticated && !canSubmit ? "cursor-not-allowed bg-muted text-muted-foreground" : "bg-primary text-white hover:opacity-90"
+                  }`}
+                >
+                  {submitState === "signing" ? "Waiting for signature…"
+                    : submitState === "submitting" ? "Confirming…"
+                    : !isAuthenticated ? "Connect wallet"
+                    : `Predict ${selectedOpt.label}`}
+                </button>
+
+                {/* Pavé numérique */}
+                <div className="mt-3">
+                  <SwapKeypad value={rawAmount} onChange={setRawAmount} maxDecimals={token === "clawdtrust" ? 0 : 2} />
+                </div>
+              </div>
+            </div>
           )}
-
-          {/* 5 — Submit */}
-          <button
-            type="button"
-            onClick={() => { if (!isAuthenticated) { setShowWallet(true); } else { void handleSubmit(); } }}
-            disabled={isAuthenticated && !canSubmit}
-            className={[
-              "h-14 w-full rounded-2xl px-5 text-base font-bold transition-all",
-              isAuthenticated && !canSubmit
-                ? "cursor-not-allowed bg-muted text-muted-foreground"
-                : "btn-primary",
-            ].join(" ")}
-          >
-            {submitState === "signing" || submitState === "submitting" ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                {submitState === "signing" ? "Waiting for signature…" : "Confirming…"}
-              </span>
-            ) : (
-              "Confirm prediction"
-            )}
-          </button>
 
           {/* 7 — Resolution criteria */}
           {market.resolution_criteria && (
