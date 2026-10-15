@@ -3,31 +3,85 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 // Barre d'icônes verticale (ordinateur uniquement).
 
-const ITEMS = [
-  { href: "/",                       label: "Tokens",      icon: LayoutGrid, match: (p: string) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
-  { href: "/leaderboard/launchpad",  label: "Leaderboard", icon: Trophy,     match: (p: string) => p.startsWith("/leaderboard") },
-  { href: "/prediction",             label: "Predictions", icon: BarChart2,  match: (p: string) => p.startsWith("/prediction") || p.startsWith("/updown") || p.startsWith("/pools") },
-  { href: "/dashboard/launchpad",    label: "My tokens",   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
-];
+// Section prédiction : marchés, Up/Down, pools et leur leaderboard
+const isPredictSection = (p: string) =>
+  p.startsWith("/prediction") || p.startsWith("/updown") || p.startsWith("/pools") || p.startsWith("/crypto") || p.startsWith("/leaderboard/predictions");
+
+function items(pathname: string) {
+  const predict = isPredictSection(pathname);
+  return [
+    { href: "/",                       label: "Tokens",      icon: LayoutGrid, match: (p: string) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
+    // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
+    predict
+      ? { href: "/leaderboard/predictions", label: "Prediction leaderboard", icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/predictions") }
+      : { href: "/leaderboard/launchpad",   label: "Creator leaderboard",    icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/launchpad") || p === "/leaderboard" },
+    { href: "/prediction",             label: "Predictions", icon: BarChart2,  match: (p: string) => isPredictSection(p) && !p.startsWith("/leaderboard") },
+    { href: "/dashboard/launchpad",    label: "My tokens",   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
+  ];
+}
 
 const EXTRA = [
-  { href: "/archive",                    label: "Archive",          icon: Archive,     external: false },
-  { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", icon: Coins, external: true },
-  { href: "https://t.me/Omdotfun",       label: "Support",          icon: Headset,     external: true  },
-  { href: "/faq",                        label: "FAQ",              icon: HelpCircle,  external: false },
-  { href: "https://t.me/OmdotfunTuto",   label: "Tutorial",         icon: BookOpen,    external: true  },
-  { href: "/policy",                     label: "ŌM Policy",        icon: ShieldCheck, external: false },
-  { href: "/privacy",                    label: "Privacy Policy",   icon: Lock,        external: false },
+  { href: "/archive",                    label: "Archive",        description: "Past markets and tokens",       icon: Archive,     external: false },
+  { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", description: "Our partner token on Solana", icon: Coins, external: true },
+  { href: "https://t.me/Omdotfun",       label: "Support",        description: "Get help from the team",        icon: Headset,     external: true  },
+  { href: "/faq",                        label: "FAQ",            description: "Frequently asked questions",    icon: HelpCircle,  external: false },
+  { href: "https://t.me/OmdotfunTuto",   label: "Tutorial",       description: "Learn how to use OMdotfun",     icon: BookOpen,    external: true  },
+  { href: "/policy",                     label: "ŌM Policy",      description: "Rules, prohibitions, removals", icon: ShieldCheck, external: false },
+  { href: "/privacy",                    label: "Privacy Policy", description: "How we handle your data",       icon: Lock,        external: false },
 ];
+
+// Menu ⋯ : panneau ouvert à côté de la barre latérale
+function MoreMenu({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const down = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", down);
+    window.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", down); window.removeEventListener("keydown", key); };
+  }, [onClose]);
+  return createPortal(
+    <div ref={ref} className="fixed bottom-4 left-[84px] z-[100] w-80 rounded-3xl border border-border bg-card p-2 shadow-2xl">
+      <p className="px-3 pb-1 pt-2 text-[15px] font-bold tracking-tight text-foreground">More</p>
+      <ul className="space-y-0.5">
+        {EXTRA.map(({ href, label, description, icon: Icon, external }) => (
+          <li key={href}>
+            <Link
+              href={href}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
+              onClick={onClose}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-muted"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+                <Icon className="size-[18px]" strokeWidth={1.75} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-semibold text-foreground">{label}</span>
+                <span className="block text-xs text-muted-foreground">{description}</span>
+              </span>
+              {external && <ExternalLink className="size-3.5 shrink-0 text-muted-foreground/50" />}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>,
+    document.body,
+  );
+}
 
 export function DesktopSidebar() {
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => { setMoreOpen(false); }, [pathname]);
   if (pathname.startsWith("/admin")) return null;
 
   return (
@@ -36,7 +90,7 @@ export function DesktopSidebar() {
         <Image src="/omdot-icon.png" alt="OMdotfun" width={40} height={40} className="logo-bounce" />
       </Link>
 
-      {ITEMS.filter((i) => !i.auth || isAuthenticated).map(({ href, label, icon: Icon, match }) => {
+      {items(pathname).filter((i) => !i.auth || isAuthenticated).map(({ href, label, icon: Icon, match }) => {
         const active = match(pathname);
         return (
           <Link
@@ -70,32 +124,30 @@ export function DesktopSidebar() {
         </button>
       )}
 
-      {/* Tout le menu ⋯ en icônes, dans l'angle bas */}
-      <div className="mt-auto flex flex-col items-center gap-1">
+      {/* Bas : wallet puis menu ⋯ */}
+      <div className="mt-auto flex flex-col items-center gap-2">
         <button
           type="button"
           title={isAuthenticated ? "My wallet" : "Connect wallet"}
           aria-label={isAuthenticated ? "My wallet" : "Connect wallet"}
           onClick={() => window.dispatchEvent(new CustomEvent(isAuthenticated ? "open-wallet-profile" : "open-wallet-connect"))}
-          className="mb-1 flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/70"
+          className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/70"
         >
           <Wallet className="size-[20px]" />
         </button>
-        {EXTRA.map(({ href, label, icon: Icon, external }) => {
-          const cls = `flex size-9 items-center justify-center rounded-xl transition-colors ${
-            !external && pathname.startsWith(href) ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          }`;
-          return external ? (
-            <a key={href} href={href} target="_blank" rel="noopener noreferrer" title={label} aria-label={label} className={cls}>
-              <Icon className="size-[18px]" strokeWidth={1.75} />
-            </a>
-          ) : (
-            <Link key={href} href={href} title={label} aria-label={label} className={cls}>
-              <Icon className="size-[18px]" strokeWidth={1.75} />
-            </Link>
-          );
-        })}
+        <button
+          type="button"
+          title="More"
+          aria-label="More"
+          aria-expanded={moreOpen}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => setMoreOpen((v) => !v)}
+          className={`flex size-11 items-center justify-center rounded-2xl transition-colors ${moreOpen ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+        >
+          <MoreHorizontal className="size-[22px]" strokeWidth={1.75} />
+        </button>
       </div>
+      {moreOpen && <MoreMenu onClose={() => setMoreOpen(false)} />}
     </aside>
   );
 }

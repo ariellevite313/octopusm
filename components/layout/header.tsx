@@ -32,6 +32,9 @@ export function Header() {
   }, []);
   const pathname = usePathname();
   const { isAuthenticated, walletAddress } = useAuth();
+  const inLaunchpad = pathname === "/" || pathname.startsWith("/launchpad") || pathname.startsWith("/dashboard") || pathname.startsWith("/leaderboard/launchpad");
+  type NavLink = { href: string; label: string; badge?: string; disabled: boolean; external?: boolean };
+  const links: NavLink[] = (NAV_LINKS as NavLink[]).map((l) => (l.label === "Leaderboard" && inLaunchpad ? { ...l, href: "/leaderboard/launchpad" } : l));
 
   return (
     <>
@@ -43,7 +46,7 @@ export function Header() {
           </Link>
 
           <nav className="hidden items-center gap-1 rounded-2xl bg-muted/70 p-1 text-sm md:flex lg:hidden">
-            {NAV_LINKS.map(({ href, label, badge, disabled, external }) =>
+            {links.map(({ href, label, badge, disabled, external }) =>
               disabled ? (
                 <span
                   key={label}
@@ -133,7 +136,7 @@ export function Header() {
               )}
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {NAV_LINKS.map(({ href, label, badge, disabled, external }) =>
+              {links.map(({ href, label, badge, disabled, external }) =>
                 disabled ? (
                   <span
                     key={label}
