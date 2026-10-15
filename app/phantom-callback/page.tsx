@@ -56,7 +56,7 @@ function Inner() {
         if (fnError || !data?.access_token || !data?.refresh_token) throw new Error(fnError?.message ?? "Authentication failed.");
         const { error: sErr } = await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
         if (sErr) throw new Error(sErr.message);
-        try { localStorage.setItem(LS_WALLET_TYPE_KEY, "phantom"); } catch { /* ignore */ }
+        try { localStorage.setItem(LS_WALLET_TYPE_KEY, r.wallet); } catch { /* ignore */ }
         clearPhantomDeeplink();
         window.location.replace("/");
       } catch (e) {
