@@ -68,10 +68,8 @@ export default function HomePage() {
         <h1 className="sr-only">Launchpad</h1>
         <PlatformStats />
       </div>
-      <div className="lg:hidden">
-        <TrendingStrip />
-      </div>
       <LaunchpadBoard />
+      <TrendingStrip />
       <Suspense fallback={<LaunchpadSkeleton />}>
         <LaunchpadContent />
       </Suspense>
