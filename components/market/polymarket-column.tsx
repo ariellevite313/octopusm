@@ -54,21 +54,34 @@ export function PmCard({ m, className = "" }: { m: PmMarket; className?: string 
 function PmMarquee({ markets }: { markets: PmMarket[] }) {
   const scroller = useRef<HTMLDivElement>(null);
   const paused = useRef(false);
+  // Ordinateur : colonne verticale qui remplit la hauteur ; mobile : bande horizontale
+  const [vertical, setVertical] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setVertical(mq.matches);
+    on(); mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
   useEffect(() => {
     const el = scroller.current;
     if (!el || markets.length < 3) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0, pos = el.scrollLeft, last = performance.now(), resume: ReturnType<typeof setTimeout> | undefined;
-    const SPEED = 38;
+    const read = () => (vertical ? el.scrollTop : el.scrollLeft);
+    const write = (v: number) => { if (vertical) el.scrollTop = v; else el.scrollLeft = v; };
+    const size = () => (vertical ? el.clientHeight : el.clientWidth);
+    let raf = 0, pos = read(), last = performance.now(), resume: ReturnType<typeof setTimeout> | undefined;
+    const SPEED = 30;
     const tick = (now: number) => {
       const dt = Math.min(now - last, 64); last = now;
       const dup = el.children[markets.length] as HTMLElement | undefined;
-      const half = dup ? dup.offsetLeft - (el.children[0] as HTMLElement).offsetLeft : 0;
-      if (!paused.current && half > el.clientWidth) {
+      const first = el.children[0] as HTMLElement;
+      const half = dup ? (vertical ? dup.offsetTop - first.offsetTop : dup.offsetLeft - first.offsetLeft) : 0;
+      if (!paused.current && half > size()) {
         pos += (SPEED * dt) / 1000;
         if (pos >= half) pos -= half;
-        el.scrollLeft = pos;
-      } else pos = el.scrollLeft;
+        write(pos);
+      } else pos = read();
       raf = requestAnimationFrame(tick);
     };
     const hold = () => { paused.current = true; if (resume) clearTimeout(resume); };
@@ -84,12 +97,18 @@ function PmMarquee({ markets }: { markets: PmMarket[] }) {
       el.removeEventListener("pointerleave", release); el.removeEventListener("pointerup", release);
       el.removeEventListener("touchend", release); el.removeEventListener("wheel", wheel);
     };
-  }, [markets]);
+  }, [markets, vertical]);
 
   return (
-    <div ref={scroller} className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-      {markets.map((m) => <PmCard key={m.id} m={m} className="w-[270px] shrink-0" />)}
-      {markets.map((m) => <PmCard key={`dup-${m.id}`} m={m} className="w-[270px] shrink-0" />)}
+    <div
+      ref={scroller}
+      className={vertical
+        ? "flex h-[calc(100vh-15rem)] flex-col gap-2.5 overflow-y-auto pr-0.5"
+        : "flex gap-2.5 overflow-x-auto pb-1"}
+      style={{ scrollbarWidth: "none" }}
+    >
+      {markets.map((m) => <PmCard key={m.id} m={m} className={vertical ? "shrink-0" : "w-[270px] shrink-0"} />)}
+      {markets.map((m) => <PmCard key={`dup-${m.id}`} m={m} className={vertical ? "shrink-0" : "w-[270px] shrink-0"} />)}
     </div>
   );
 }
