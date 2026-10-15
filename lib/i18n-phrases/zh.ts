@@ -1001,5 +1001,6 @@ const p: Record<string, string> = {
   "Launch a Token": "发行代币",
   "Coming Soon": "即将推出",
   "Profile": "个人资料",
+  "Return to the app": "返回应用",
 };
 export default p;
