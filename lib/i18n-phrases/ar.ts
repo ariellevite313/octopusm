@@ -1023,5 +1023,7 @@ const p: Record<string, string> = {
   "Open on Polymarket": "افتح على Polymarket",
   "Trending topics": "المواضيع الرائجة",
   "Explore all on Polymarket": "استكشف كل شيء على Polymarket",
+  "Democrats": "الديمقراطيون",
+  "Republicans": "الجمهوريون",
 };
 export default p;

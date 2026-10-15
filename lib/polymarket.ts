@@ -126,10 +126,11 @@ async function gamma(q: URLSearchParams): Promise<any[]> {
   return Array.isArray(data) ? data : [];
 }
 
-export async function fetchPolymarketHome(tag?: string): Promise<{ featured: PmEvent[]; topics: PmTopic[]; categories: PmTag[]; markets: PmEvent[] }> {
+export async function fetchPolymarketHome(tag?: string): Promise<{ featured: PmEvent[]; topics: PmTopic[]; categories: PmTag[]; markets: PmEvent[]; usMap: Record<string, PmStateLean> }> {
   const base = () => new URLSearchParams({ active: "true", closed: "false", archived: "false", order: "volume24hr", ascending: "false" });
   const topQ = base(); topQ.set("limit", "100");
-  const top = (await gamma(topQ)).map(mapEventRich).filter((m): m is PmEvent => m !== null);
+  const [rawTop, usMap] = await Promise.all([gamma(topQ), fetchMidtermMap()]);
+  const top = rawTop.map(mapEventRich).filter((m): m is PmEvent => m !== null);
 
   let featured = top.filter((e) => e.featured && e.items.length >= 2).slice(0, 8);
   if (featured.length < 3) featured = top.filter((e) => e.items.length >= 2).slice(0, 8);
@@ -150,5 +151,57 @@ export async function fetchPolymarketHome(tag?: string): Promise<{ featured: PmE
     const q = base(); q.set("limit", "60"); q.set("tag_slug", tag);
     markets = (await gamma(q)).map(mapEventRich).filter((m): m is PmEvent => m !== null);
   }
-  return { featured, topics, categories, markets: markets.slice(0, 60) };
+  return { featured, topics, categories, markets: markets.slice(0, 60), usMap };
+}
+
+// ── Carte des midterms (états → favori) ──────────────────────────────────────
+
+export type PmStateLean = { dem: number; rep: number; title: string; url: string };
+
+const STATE_NAMES: Record<string, string> = {
+  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA", Colorado: "CO", Connecticut: "CT", Delaware: "DE",
+  Florida: "FL", Georgia: "GA", Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS", Kentucky: "KY",
+  Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO",
+  Montana: "MT", Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
+  "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI",
+  "South Carolina": "SC", "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA",
+  Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY",
+};
+const STATE_RE = new RegExp(`\\b(${Object.keys(STATE_NAMES).sort((a, b) => b.length - a.length).join("|")})\\b`);
+
+export function mapStateLeans(events: any[]): Record<string, PmStateLean> {
+  const best: Record<string, { vol: number; v: PmStateLean }> = {};
+  for (const e of events) {
+    const m = STATE_RE.exec(String(e?.title ?? ""));
+    if (!m) continue;
+    const code = STATE_NAMES[m[1]];
+    const markets: any[] = (Array.isArray(e.markets) ? e.markets : []).filter((x: any) => x && !x.closed);
+    let dem: number | null = null, rep: number | null = null;
+    const price = (mk: any, idx = 0) => num(arr(mk.outcomePrices)[idx]);
+    for (const mk of markets) {
+      const labels = arr(mk.outcomes).map((x) => x.toLowerCase());
+      const di = labels.findIndex((x) => x.startsWith("democrat")), ri = labels.findIndex((x) => x.startsWith("republican"));
+      if (di >= 0) dem = price(mk, di);
+      if (ri >= 0) rep = price(mk, ri);
+      const name = `${mk.groupItemTitle ?? ""} ${mk.question ?? ""}`.toLowerCase();
+      if (di < 0 && ri < 0) {
+        if (/democrat/.test(name) && !/republican/.test(name)) dem = price(mk);
+        else if (/republican/.test(name) && !/democrat/.test(name)) rep = price(mk);
+      }
+    }
+    if (dem === null && rep === null) continue;
+    const d = dem ?? 1 - (rep as number), r = rep ?? 1 - (dem as number);
+    const vol = num(e.volume);
+    if (!best[code] || vol > best[code].vol) {
+      best[code] = { vol, v: { dem: d, rep: r, title: String(e.title), url: `https://polymarket.com/event/${encodeURIComponent(String(e.slug))}` } };
+    }
+  }
+  return Object.fromEntries(Object.entries(best).map(([k, v]) => [k, v.v]));
+}
+
+export async function fetchMidtermMap(): Promise<Record<string, PmStateLean>> {
+  try {
+    const q = new URLSearchParams({ active: "true", closed: "false", archived: "false", order: "volume", ascending: "false", limit: "300", tag_slug: "midterms" });
+    return mapStateLeans(await gamma(q));
+  } catch { return {}; }
 }
