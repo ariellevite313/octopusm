@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Featured } from "@/components/market/polymarket-home";
+import { Featured } from "@/components/market/featured";
 import type { PmEvent, PmStateLean } from "@/lib/polymarket";
 
 type Data = { featured: PmEvent[]; usMap: Record<string, PmStateLean> };
@@ -27,7 +27,7 @@ export function FeaturedHome() {
   if (!data || data.featured.length === 0) return null;
   return (
     <div className="mt-4">
-      <Featured events={data.featured} usMap={data.usMap} neutral />
+      <Featured events={data.featured} usMap={data.usMap} />
     </div>
   );
 }
