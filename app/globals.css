@@ -330,51 +330,42 @@
   animation: fire-dance 0.9s ease-in-out infinite;
 }
 
-/* Carte qui brûle par le bas (Trending ordinateur) */
+/* Carte "chaude" (Trending ordinateur) : les flammes restent derrière la carte,
+   sous son bord bas — le contenu reste parfaitement lisible. */
 .card-burn { position: relative; isolation: isolate; border-radius: 22px; }
 .card-burn > * { position: relative; z-index: 1; }
 .card-burn::before,
 .card-burn::after {
-  content: ""; position: absolute; z-index: 2; pointer-events: none;
-  left: -6%; right: -6%; bottom: -10px; height: 46%;
-  transform-origin: 50% 100%;
-  mix-blend-mode: screen;
-  filter: blur(5px);
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  left: 6%; right: 6%; bottom: -18px; height: 48px;
+  transform-origin: 50% 0%;
+  filter: blur(10px);
+  border-radius: 50%;
 }
-:root:not(.dark) .card-burn::before,
-:root:not(.dark) .card-burn::after { mix-blend-mode: normal; }
 .card-burn::before {
-  background:
-    radial-gradient(18% 70% at 12% 100%, rgb(255 210 80 / 0.95), transparent 70%),
-    radial-gradient(16% 85% at 32% 100%, rgb(255 140 20 / 0.95), transparent 70%),
-    radial-gradient(20% 95% at 52% 100%, rgb(255 90 0 / 0.95), transparent 70%),
-    radial-gradient(16% 80% at 72% 100%, rgb(255 150 30 / 0.95), transparent 70%),
-    radial-gradient(18% 70% at 90% 100%, rgb(255 200 70 / 0.95), transparent 70%);
-  animation: burn-a 1.1s ease-in-out infinite alternate;
-  opacity: 0.85;
+  background: radial-gradient(60% 100% at 50% 0%, rgb(255 110 0 / 0.9), rgb(255 60 0 / 0.45) 55%, transparent 80%);
+  animation: burn-a 1.6s ease-in-out infinite alternate;
 }
 .card-burn::after {
-  height: 30%;
-  background:
-    radial-gradient(14% 90% at 22% 100%, rgb(255 60 0 / 0.9), transparent 70%),
-    radial-gradient(14% 100% at 44% 100%, rgb(255 230 120 / 0.85), transparent 70%),
-    radial-gradient(14% 90% at 64% 100%, rgb(255 70 0 / 0.9), transparent 70%),
-    radial-gradient(14% 100% at 84% 100%, rgb(255 180 40 / 0.85), transparent 70%);
-  animation: burn-b 0.8s ease-in-out infinite alternate;
+  left: 22%; right: 22%; bottom: -8px; height: 26px;
+  background: radial-gradient(60% 100% at 50% 0%, rgb(255 200 80 / 0.7), transparent 75%);
+  animation: burn-b 1.1s ease-in-out infinite alternate;
 }
-.card-burn > :first-child { box-shadow: 0 10px 40px -12px rgb(255 100 0 / 0.65); animation: burn-glow 1.6s ease-in-out infinite alternate; }
+.card-burn > :first-child {
+  border-color: rgb(255 120 30 / 0.35) !important;
+  animation: burn-glow 1.8s ease-in-out infinite alternate;
+}
 @keyframes burn-a {
-  0%   { transform: scaleY(0.82) translateX(0);    opacity: 0.7; }
-  50%  { transform: scaleY(1.08) translateX(-2%);  opacity: 0.95; }
-  100% { transform: scaleY(0.92) translateX(2%);   opacity: 0.8; }
+  0%   { transform: scale(0.92, 0.85); opacity: 0.65; }
+  100% { transform: scale(1.04, 1.15); opacity: 1; }
 }
 @keyframes burn-b {
-  0%   { transform: scaleY(1.1) translateX(1%);   opacity: 0.9; }
-  100% { transform: scaleY(0.75) translateX(-2%); opacity: 0.6; }
+  0%   { transform: translateX(-6%) scaleY(0.9); opacity: 0.6; }
+  100% { transform: translateX(6%) scaleY(1.2);  opacity: 0.95; }
 }
 @keyframes burn-glow {
-  0%   { box-shadow: 0 10px 34px -14px rgb(255 100 0 / 0.5); }
-  100% { box-shadow: 0 14px 48px -10px rgb(255 120 0 / 0.85); }
+  0%   { box-shadow: 0 8px 24px -14px rgb(255 100 0 / 0.45); }
+  100% { box-shadow: 0 12px 34px -12px rgb(255 110 0 / 0.75); }
 }
 
 /* Bandeau défilant (ordinateur) */
