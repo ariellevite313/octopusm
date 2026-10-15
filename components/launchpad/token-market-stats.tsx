@@ -66,9 +66,9 @@ async function fetchStats(address: string, chain: "solana" | "arc", isV4 = false
 
 function StatItem({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) {
   return (
-    <div className="flex flex-col gap-0.5 shrink-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={`num text-lg font-bold ${accent ? "text-up" : "text-foreground"}`}>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-[10px] text-muted-foreground md:text-xs">{label}</span>
+      <span className={`num whitespace-nowrap text-[13px] font-bold md:text-lg ${accent ? "text-up" : "text-foreground"}`}>
         {value}
       </span>
     </div>
@@ -81,15 +81,15 @@ function StatBar({ stats, chain = "solana" }: { stats: Stats; chain?: "solana" |
     stats.priceChange > 0 ? "text-up" : "text-down";
 
   return (
-    <div className="flex items-center gap-7 overflow-x-auto py-4 px-4 md:px-6 border-y border-border scrollbar-none">
+    <div className="flex flex-wrap items-start gap-x-5 gap-y-2 border-y border-border px-4 py-3 md:gap-x-7 md:px-6 md:py-4">
       <StatItem
         label="Price"
         accent
         value={
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1">
             {fmtPrice(stats.priceUsd)}
             {stats.priceChange !== null && (
-              <span className={`num text-xs font-semibold ${changeColor}`}>
+              <span className={`num text-[10px] font-semibold md:text-xs ${changeColor}`}>
                 {stats.priceChange > 0 ? "+" : ""}{stats.priceChange.toFixed(2)}%
               </span>
             )}
