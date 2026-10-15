@@ -67,9 +67,9 @@ export default async function OgImage() {
         <div style={{ display: "flex", marginTop: 26, fontSize: 30, fontWeight: 600, color: "#a1a1aa" }}>
           Bet on real-world events and launch tokens in minutes.
         </div>
-        <div style={{ display: "flex", gap: 12, marginTop: 34 }}>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 12, marginTop: 34 }}>
           {CHIPS.map((c) => (
-            <div key={c} style={{ display: "flex", padding: "10px 20px", borderRadius: 999, border: "2px solid rgba(249,115,22,0.55)", fontSize: 24, fontWeight: 600, color: "#fdba74" }}>{c}</div>
+            <div key={c} style={{ display: "flex", flexShrink: 0, whiteSpace: "nowrap", alignItems: "center", padding: "10px 20px", borderRadius: 999, border: "2px solid rgba(249,115,22,0.55)", fontSize: 24, fontWeight: 600, color: "#fdba74" }}>{c}</div>
           ))}
         </div>
       </div>
