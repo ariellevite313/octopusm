@@ -166,7 +166,7 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
                 <p className="mt-1 flex min-w-0 items-center gap-1 truncate whitespace-nowrap text-xs text-muted-foreground">
                   <span className="num">{fmt(market.volume)}</span>
                   <TokenLabel token={market.bet_token} />
-                  <span>· {market.bet_count} {market.bet_count === 1 ? tr("bet") : tr("bets")} · {fmtDate(market.created_at)}</span>
+                  <span>· {market.bet_count} {market.bet_count === 1 ? tr("prediction") : tr("predictions")} · {fmtDate(market.created_at)}</span>
                 </p>
               </div>
 

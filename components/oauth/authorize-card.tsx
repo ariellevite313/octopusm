@@ -12,7 +12,7 @@ import { shortAddress } from "@/lib/format";
 const PERMS = [
   { id: "read", label: T("Read markets, tokens, profiles and the feed"), locked: true },
   { id: "social", label: T("Post, reply, like, follow and edit your profile"), locked: false },
-  { id: "approvals", label: T("Suggest bets and trades that you confirm yourself"), locked: false },
+  { id: "approvals", label: T("Suggest predictions and trades that you confirm yourself"), locked: false },
 ] as const;
 
 export function AuthorizeCard() {

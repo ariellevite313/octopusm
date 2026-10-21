@@ -314,6 +314,18 @@ const SECTIONS: Section[] = [
         a: [T("Yes. You earn 1% of your referrals' creation revenue. We also regularly run invite campaigns with Omero bonuses.")],
       },
       {
+        q: T("How does the feed work?"),
+        a: [T("The feed is where the community posts text and images, shares markets and tokens, replies, likes and follows. Type $TICKER to attach a token, @name to mention someone and #tag to join a topic. Each post has its own link you can share.")],
+      },
+      {
+        q: T("What do I earn when I share a market on the feed?"),
+        a: [T("On markets created by the team, you receive 200 OMERO for each new person who predicts from your post. On pools, you receive 20% of the platform's commission, split by the stakes that came from your posts.")],
+      },
+      {
+        q: T("Can I see live scores and prices?"),
+        a: [T("Yes. The Live page shows match scores updated every few minutes, and price markets show the live price and chart. Data comes from several providers, with automatic backup if one stops.")],
+      },
+      {
         q: T("Do I earn when people buy tokens through me?"),
         a: [T("Yes, paid from what the platform earns on the trade, never more. When someone you referred buys a token, you receive 10% of the platform fee on that buy. When someone taps Trade on your post and buys, you receive 1% of the platform fee. Earnings appear in your balance and are withdrawn like your other gains. Self-referrals and repeated claims on the same trade are blocked.")],
       },
