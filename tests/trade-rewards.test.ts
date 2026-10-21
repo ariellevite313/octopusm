@@ -4,9 +4,9 @@ import { computeTradeRewards, PLATFORM_FEE_RATE, REFERRER_SHARE_OF_FEE, POST_SHA
 describe("computeTradeRewards", () => {
   it("paie un pourcentage des frais de la plateforme", () => {
     const r = computeTradeRewards("arc", 1000, { hasReferrer: true, hasPost: true });
-    expect(r.fee).toBeCloseTo(10);
-    expect(r.referral).toBeCloseTo(1);
-    expect(r.post).toBeCloseTo(0.1);
+    expect(r.fee).toBeCloseTo(2.5);
+    expect(r.referral).toBeCloseTo(0.25);
+    expect(r.post).toBeCloseTo(0.025);
   });
   it("ne paie rien sans parrain ni post, ni sous le minimum", () => {
     expect(computeTradeRewards("solana", 1000, { hasReferrer: false, hasPost: false })).toMatchObject({ referral: 0, post: 0 });
