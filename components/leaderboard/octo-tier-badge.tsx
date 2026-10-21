@@ -17,32 +17,37 @@ export function getOctoTier(totalOcto: number): OctoTier | null {
   return OCTO_TIERS.find((t) => totalOcto >= t.min && totalOcto <= t.max) ?? null;
 }
 
-function FilledBadgeCheck({ color, size }: { color: string; size: number }) {
+/* eslint-disable @next/next/no-img-element */
+const BADGE_IMG: Record<string, string> = {
+  Blue: "/badges/omero-blue.png",
+  Green: "/badges/omero-green.png",
+  Yellow: "/badges/omero-yellow.png",
+  Orange: "/badges/omero-orange.png",
+  Red: "/badges/omero-red.png",
+};
+
+function BadgeImg({ src, size, title }: { src: string; size: number; title: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"
-        fill={color}
-      />
-      <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <img
+      src={src}
+      alt=""
+      title={title}
+      width={size}
+      height={size}
+      draggable={false}
+      className="inline-block shrink-0 select-none object-contain"
+      style={{ width: size, height: size }}
+    />
   );
 }
 
+/** Puce de vérification du niveau OMERO (une couleur par niveau). */
 export function OctoBadge({ totalOcto, size = 14 }: { totalOcto: number; size?: number }) {
   const tier = getOctoTier(totalOcto);
   if (!tier) return null;
-  return (
-    <span title={`${tier.label} — ${totalOcto.toLocaleString()} OMERO`} className="inline-flex shrink-0 items-center text-white dark:text-zinc-950">
-      <FilledBadgeCheck color={tier.color} size={size} />
-    </span>
-  );
+  return <BadgeImg src={BADGE_IMG[tier.label]} size={size} title={`${tier.label} — ${totalOcto.toLocaleString()} OMERO`} />;
 }
 
 export function AdminBadge({ size = 14 }: { size?: number }) {
-  return (
-    <span title="Admin" className="inline-flex shrink-0 items-center text-white dark:text-zinc-950">
-      <FilledBadgeCheck color="#6B7280" size={size} />
-    </span>
-  );
+  return <BadgeImg src="/badges/omero-admin.png" size={size} title="Admin" />;
 }
