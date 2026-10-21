@@ -387,6 +387,7 @@ const p: Record<string, string> = {
   "{n} live": "{n} en vivo",
   "No matches today.": "No hay partidos hoy.",
   "+1 more option": "+1 opción más",
+  "Predict on a pool": "Predecir en un pool",
   "Total earned": "Total ganado",
   "Profit/Loss · {token}": "Ganancias/Pérdidas · {token}",
   "Volume : {amount} {unit}": "Volumen: {amount} {unit}",

@@ -16,7 +16,7 @@ export type Approval = {
   target: { title: string; image: string | null; href: string; option: string | null } | null;
 };
 
-const KIND = { bet_pool: "Bet on a pool", buy_token: "Buy a token", sell_token: "Sell a token" } as const;
+const KIND = { bet_pool: "Predict on a pool", buy_token: "Buy a token", sell_token: "Sell a token" } as const;
 
 export function ApprovalCard({ a }: { a: Approval }) {
   const { tr } = useT();

@@ -387,6 +387,7 @@ const p: Record<string, string> = {
   "{n} live": "{n} 场进行中",
   "No matches today.": "今天没有比赛。",
   "+1 more option": "还有 1 个选项",
+  "Predict on a pool": "在预测池中预测",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",
