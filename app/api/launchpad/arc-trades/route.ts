@@ -1,136 +1,29 @@
 /**
  * GET /api/launchpad/arc-trades?curveAddress=0x...&limit=500
  *
- * Récupère les événements Trade de BondingCurveArcV2 via eth_getLogs sur le RPC Arc.
- * (Ne dépend plus de l'API ArcScan/Blockscout qui filtre mal topic0.)
- *
- * Event V2 :
- *   Trade(address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount,
- *         uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens)
- *
- * USDC Arc = natif 18 decimals.
+ * Trades d'une bonding curve Arc V2 (graphique, carte du fil, positions).
+ * Les trades sont lus sur la blockchain par tranches de 2 000 blocs et mémorisés en base (table arc_trades) :
+ * chaque appel ne lit que les nouveaux blocs. Le cron /api/cron/update-arc-trades garde tous les tokens à jour.
  */
-
-import { NextResponse }            from "next/server";
-import { createPublicClient, http, parseAbi } from "viem";
-import { arc }                     from "@/lib/arc-chain";
-import { createAdminClient }       from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { readCurveTrades, syncCurveTrades } from "@/lib/arc-trades";
 
 export const maxDuration = 60;
-
-const ARC_RPC = "https://rpc.mainnet.arc.io";
-
-// Nombre max de blocs à scanner quand creationBlock est inconnu (~7 jours à 2s/block)
-const MAX_BLOCK_RANGE = 300_000n;
-
-const TRADE_EVENT_ABI = parseAbi([
-  "event Trade(address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens)",
-]);
-
-type Trade = {
-  timestamp: number;
-  isBuy:     boolean;
-  trader:    string;
-  usdcAmt:   number;
-  tokenAmt:  number;
-  price:     number;
-  txHash:    string;
-};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const curveAddress = searchParams.get("curveAddress");
-  const limit        = Math.min(parseInt(searchParams.get("limit") ?? "500") || 500, 1000);
-
+  const limit = Math.min(parseInt(searchParams.get("limit") ?? "500") || 500, 1000);
   if (!curveAddress || !/^0x[0-9a-fA-F]{40}$/.test(curveAddress)) {
     return NextResponse.json({ error: "curveAddress required (0x…)" }, { status: 400 });
   }
-
   try {
-    const client = createPublicClient({ chain: arc, transport: http(ARC_RPC) });
-
-    // ── 1. Bloc de création depuis la DB (pour limiter le scan) ──────────────
-    let fromBlock: bigint | undefined;
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const admin = createAdminClient() as any;
-      const { data: tokenRow } = await admin
-        .from("launchpad_tokens")
-        .select("arc_creation_block")
-        .ilike("arc_launch_id", curveAddress)
-        .maybeSingle();
-
-      if (tokenRow?.arc_creation_block) {
-        fromBlock = BigInt(tokenRow.arc_creation_block);
-      }
-    } catch { /* ignore — on scannera depuis MAX_BLOCK_RANGE */ }
-
-    // Si pas de bloc connu, on scanne les derniers MAX_BLOCK_RANGE blocs
-    if (fromBlock === undefined) {
-      const latest = await client.getBlockNumber();
-      fromBlock = latest > MAX_BLOCK_RANGE ? latest - MAX_BLOCK_RANGE : 0n;
-    }
-
-    // ── 2. eth_getLogs directement sur le RPC ─────────────────────────────────
-    const logs = await client.getLogs({
-      address:  curveAddress as `0x${string}`,
-      event:    TRADE_EVENT_ABI[0],
-      fromBlock,
-      toBlock:  "latest",
-    });
-
-    if (!logs.length) {
-      return NextResponse.json({ trades: [] });
-    }
-
-    // ── 3. Timestamp de référence (1 seul appel RPC) ──────────────────────────
-    // Au lieu de fetcher chaque bloc (N appels), on récupère le bloc latest et
-    // on interpole : timestamp ≈ latestTs - (latestBlock - blockN) * AVG_BLOCK_TIME
-    // Arc block time ≈ 2s — assez précis pour un graphique de prix.
-    const latestBlock = await client.getBlock({ blockTag: "latest" });
-    const latestBlockNum  = latestBlock.number;
-    const latestTimestamp = Number(latestBlock.timestamp);
-    const ARC_BLOCK_TIME  = 2; // secondes
-
-    // ── 4. Assembler les trades ───────────────────────────────────────────────
-    const trades: Trade[] = logs
-      .flatMap((l): Trade[] => {
-        try {
-          const { trader, isBuy, usdcAmount, tokenAmount } = l.args as {
-            trader:      string;
-            isBuy:       boolean;
-            usdcAmount:  bigint;
-            tokenAmount: bigint;
-          };
-          const usdcAmt  = Number(usdcAmount)  / 1e18;
-          const tokenAmt = Number(tokenAmount) / 1e18;
-          const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
-          if (price <= 0) return [];
-          const blockNum  = l.blockNumber ?? latestBlockNum;
-          const blockDiff = Number(latestBlockNum - blockNum);
-          const timestamp = latestTimestamp - blockDiff * ARC_BLOCK_TIME;
-          return [{
-            timestamp: Math.max(0, Math.floor(timestamp)),
-            isBuy:    Boolean(isBuy),
-            trader:   String(trader ?? "").toLowerCase(),
-            usdcAmt,
-            tokenAmt,
-            price,
-            txHash: String(l.transactionHash ?? ""),
-          }];
-        } catch { return []; }
-      })
-      .filter(t => t.price > 0)
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .slice(-limit);
-
-    return NextResponse.json({ trades }, {
-      headers: { "Cache-Control": "no-store" },
-    });
-
+    // Lit les nouveaux blocs (borné), puis renvoie ce qui est en base — même si la lecture RPC échoue
+    await syncCurveTrades(curveAddress, 40).catch((e) => console.error("[arc-trades] sync:", e instanceof Error ? e.message : e));
+    const trades = await readCurveTrades(curveAddress, limit);
+    return NextResponse.json({ trades }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[arc-trades]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Could not load trades" }, { status: 500 });
   }
 }
