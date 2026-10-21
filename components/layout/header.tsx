@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 import { MobileSettings } from "@/components/shared/theme-switch";
-import { AppIcon } from "@/components/shared/app-icon";
 import { MORE_ITEMS } from "@/lib/nav/more-items";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -194,10 +193,9 @@ export function Header() {
                     target={item.external ? "_blank" : undefined}
                     rel={item.external ? "noopener noreferrer" : undefined}
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl px-4 py-2.5 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="block truncate rounded-2xl px-4 py-2.5 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
-                    <AppIcon name={item.icon} className="size-[18px] shrink-0" />
-                    <span className="truncate">{tr(item.label)}</span>
+                    {tr(item.label)}
                   </Link>
                 </li>
               ))}
