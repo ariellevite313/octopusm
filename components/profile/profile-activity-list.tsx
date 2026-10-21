@@ -78,17 +78,43 @@ function TokenDisplay({ token }: { token: "usdc" | "clt" }) {
   );
 }
 
-export function ProfileActivityList({ items }: { items: ActivityItem[] }) {
+export function ProfileActivityList({ items: allItems, volume }: { items: ActivityItem[]; volume: { usdc: number; clt: number } }) {
   const { tr, lang } = useT();
   const [page, setPage] = useState(0);
+  const [tokenFilter, setTokenFilter] = useState<"usdc" | "clt" | null>(null);
+  const items = tokenFilter ? allItems.filter(i => i.token === tokenFilter) : allItems;
   const totalPages = Math.ceil(items.length / PAGE_SIZE);
   const slice = items.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
-  if (items.length === 0) return null;
+  if (allItems.length === 0) return null;
 
   return (
     <section>
-      <h2 className="mb-1 text-lg font-bold tracking-tight text-foreground">{tr("Recent activity")}</h2>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-bold tracking-tight text-foreground">{tr("Recent activity")}</h2>
+        <div className="flex gap-1.5">
+          {([["usdc", "USDC", "/usdc-coin.png"], ["clt", "ClawdTrust", "/clawdtrust-coin.png"]] as const).map(([k, label, logo]) => (
+            <button
+              key={k}
+              onClick={() => { setTokenFilter(tokenFilter === k ? null : k); setPage(0); }}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold transition-colors ${
+                tokenFilter === k ? "border-transparent bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Image src={logo} alt="" width={13} height={13} className="rounded-full" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tokenFilter && (
+        <p className="num mb-1 text-[13px] text-muted-foreground">
+          {tr("Volume : {amount} {unit}", {
+            amount: fmt(tokenFilter === "usdc" ? volume.usdc : volume.clt),
+            unit: tokenFilter === "usdc" ? "USDC" : "CLT",
+          })}
+        </p>
+      )}
 
       <div>
         {slice.map((item) => (

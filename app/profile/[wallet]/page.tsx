@@ -103,10 +103,6 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   const joinedAt    = data.wallet?.created_at ?? null;
 
 
-  const totalVolume = data.volume.usdc + data.volume.clt;
-  const usdcPct = totalVolume > 0 ? Math.round((data.volume.usdc / totalVolume) * 100) : 0;
-  const cltPct  = totalVolume > 0 ? 100 - usdcPct : 0;
-
   return (
     <>
       {/* ── 1. Identity card ─────────────────────────────────────────── */}
@@ -176,55 +172,14 @@ async function ProfileContent({ wallet }: { wallet: string }) {
               <MemberSince iso={joinedAt} />
             </p>
           )}
-
-        {/* Volume bars */}
-        {totalVolume > 0 && (
-          <div className="mt-5 space-y-2.5 border-t border-border pt-4">
-            <p className="text-[13px] font-semibold text-muted-foreground">
-              <Tr>Volume by token</Tr>
-            </p>
-            {data.volume.usdc > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 font-medium text-foreground">
-                    <Image src="/usdc-coin.png" alt="USDC" width={13} height={13} className="rounded-full" />
-                    USDC
-                  </span>
-                  <span className="text-muted-foreground">
-                    ${fmt(data.volume.usdc)} <span className="text-[10px]">{usdcPct}%</span>
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-sky-500" style={{ width: `${usdcPct}%` }} />
-                </div>
-              </div>
-            )}
-            {data.volume.clt > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 font-medium text-foreground">
-                    <Image src="/clawdtrust-coin.png" alt="ClawdTrust" width={13} height={13} className="rounded-full" />
-                    ClawdTrust
-                  </span>
-                  <span className="text-muted-foreground">
-                    {fmt(data.volume.clt)} CLT <span className="text-[10px]">{cltPct}%</span>
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-violet-500" style={{ width: `${cltPct}%` }} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         </div>
       </div>
 
-      {/* ── 3. Recent activity ─────────────────────────────────────── */}
-      <ProfileActivityList items={data.activity} />
-
-      {/* ── Total earned (before tokens and markets) ─────────────── */}
+      {/* ── Total earned (before recent activity) ─────────────── */}
       <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
+
+      {/* ── 3. Recent activity ─────────────────────────────────────── */}
+      <ProfileActivityList items={data.activity} volume={data.volume} />
 
       {/* ── 4. Tokens launched (Solana + Arc) ─────────────────────── */}
       <ProfileTokensList tokens={data.created_tokens} />
