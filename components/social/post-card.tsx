@@ -277,9 +277,9 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
             {/* Barre : encoche en bas à gauche, avatars + likes en bas à droite */}
             <div className="relative flex h-[54px] items-stretch">
               <div className="relative flex w-[58%] min-w-[210px] items-center gap-5 rounded-tr-[24px] bg-background pl-3">
-                <span aria-hidden className="absolute -top-[26px] left-0 size-[26px] bg-[radial-gradient(circle_at_100%_0,transparent_25.5px,var(--background)_26px)]" />
+                <span aria-hidden className="absolute -top-[24px] left-0 size-[24px] bg-[radial-gradient(circle_at_100%_0,transparent_23.5px,var(--background)_24px)]" />
                 {actions}
-                <span aria-hidden className="absolute -right-[26px] bottom-0 size-[26px] bg-[radial-gradient(circle_at_0%_0,transparent_25.5px,var(--background)_26px)]" />
+                <span aria-hidden className="absolute -right-[24px] bottom-0 size-[24px] bg-[radial-gradient(circle_at_100%_0,transparent_23.5px,var(--background)_24px)]" />
               </div>
               <div className="relative flex flex-1 items-center justify-end pr-3 text-white [text-shadow:0_1px_4px_rgba(0,0,0,.6)]">{likers}</div>
             </div>
