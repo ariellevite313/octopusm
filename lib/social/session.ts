@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { NextResponse } from "next/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
+import { isBanned } from "@/lib/moderation";
 
 /**
  * Wallet vérifié par signature (outils MCP). N'est défini que par le serveur MCP après vérification
@@ -13,5 +14,6 @@ export const runAsAgent = <T,>(wallet: string, fn: () => Promise<T>): Promise<T>
 export async function requireWallet(): Promise<{ wallet: string } | { error: NextResponse }> {
   const w = agentWallet.getStore() ?? (await getWalletAddress());
   if (!w) return { error: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
+  if (await isBanned(w)) return { error: NextResponse.json({ error: "This account has been suspended" }, { status: 403 }) };
   return { wallet: /^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w };
 }

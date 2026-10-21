@@ -12,6 +12,7 @@
  *  - le gain est toujours plus petit que les frais payés par le trader : faire tourner de faux trades coûte plus qu'il ne rapporte.
  */
 import { createAdminClient } from "@/lib/supabase/server";
+import { isBanned } from "@/lib/moderation";
 
 export const REFERRER_SHARE_OF_FEE = 0.1;
 export const POST_SHARE_OF_FEE = 0.01;
@@ -72,6 +73,7 @@ export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: n
     const r = computeTradeRewards(buy.chain, buy.volumeUsd, { hasReferrer: !!referrer, hasPost: postOk });
     const pay = async (kind: "referral" | "post", who: string, amount: number) => {
       if (amount <= 0) return 0;
+      if (await isBanned(who) || await isBanned(trader)) return 0; // comptes bannis : pas de gains
       const { data, error } = await db.rpc("award_trade_reward", {
         p_kind: kind, p_tx: buy.txId, p_beneficiary: who, p_trader: trader, p_token: buy.tokenId,
         p_chain: buy.chain, p_volume: buy.volumeUsd, p_fee: r.fee, p_amount: amount,

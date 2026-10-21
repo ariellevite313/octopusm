@@ -21,6 +21,14 @@ export function AdminReportsClient({ items: initial }: { items: ReportedPost[] }
     if (res.ok) setItems((l) => l.filter((p) => p.id !== id));
   }
 
+  async function ban(wallet: string, postId: string) {
+    if (!window.confirm("Ban this wallet? Its posts are hidden and connected apps are cut.")) return;
+    setBusy(postId);
+    const res = await fetch("/api/admin/moderation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ban", wallet, reason: "Reported posts" }) });
+    setBusy(null);
+    if (res.ok) setItems((l) => l.filter((x) => x.author !== wallet));
+  }
+
   if (items.length === 0) return <p className="text-sm text-muted-foreground">Nothing to review.</p>;
   return (
     <div className="space-y-3">
@@ -43,6 +51,7 @@ export function AdminReportsClient({ items: initial }: { items: ReportedPost[] }
           <div className="mt-3 flex gap-2">
             <button disabled={busy === p.id} onClick={() => act(p.id, "hide")} className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted"><EyeOff className="size-3.5" />Hide</button>
             <button disabled={busy === p.id} onClick={() => act(p.id, "delete")} className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-down hover:bg-muted"><Trash2 className="size-3.5" />Delete</button>
+            <button disabled={busy === p.id} onClick={() => ban(p.author, p.id)} className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-down hover:bg-muted">Ban author</button>
             <button disabled={busy === p.id} onClick={() => act(p.id, "dismiss")} className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted"><Check className="size-3.5" />Dismiss</button>
           </div>
         </div>

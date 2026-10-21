@@ -14,7 +14,8 @@
  */
 import { POST as createToken } from "@/app/api/launchpad/create/route";
 import { POST as prepareTx } from "@/app/api/launchpad/[id]/prepare-tx/route";
-import { BASE58_RE, callJson, getIp, hit, lErr, lJson, lOk } from "@/lib/v1/launch";
+import { BASE58_RE, callJson, getIp, lErr, lJson, lOk } from "@/lib/v1/launch";
+import { rateHit } from "@/lib/rate-limit";
 
 export async function OPTIONS() { return lOk(); }
 export const dynamic = "force-dynamic";
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
   if ((b.description ?? "").length > 1000) return lErr("description too long (max 1000)", 400);
 
   const ip = getIp(req);
-  if (!hit(`launch:w:${wallet}`, 3, 3_600_000) || !hit(`launch:ip:${ip}`, 6, 3_600_000)) {
+  if (!(await rateHit(`launch:w:${wallet}`, 3, 3_600_000)) || !(await rateHit(`launch:ip:${ip}`, 6, 3_600_000))) {
     return lErr("Rate limit reached — try again later", 429);
   }
 

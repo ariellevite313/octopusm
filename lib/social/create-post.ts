@@ -3,6 +3,7 @@
  * Valide le contenu, applique la limite horaire, détecte le $TICKER et envoie les images.
  */
 import { createAdminClient } from "@/lib/supabase/server";
+import { moderateImage, moderateText, sniffImage } from "@/lib/moderation";
 import { extractMarketRef, extractMentions, extractTags } from "@/lib/social/rich";
 import { enrichPosts, POST_COLUMNS, MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES, TICKER_RE } from "@/lib/social/posts";
 
@@ -62,16 +63,25 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     if (m) { market_kind = ref.kind; market_id = m.id; }
   }
 
+  // Contrôle du texte, puis des images (octets réels, type réel)
+  if ((await moderateText(body)) === "blocked") return err(400, "This post goes against our rules");
+  let allChecked = files.length > 0;
   const urls: string[] = [];
   for (const f of files) {
-    const ext = f.type.split("/")[1].replace("jpeg", "jpg");
+    const bytes = await f.bytes();
+    const real = sniffImage(new Uint8Array(bytes));
+    if (!real) return err(400, "This file is not a valid image (JPG, PNG, WEBP, GIF)");
+    const verdict = await moderateImage(bytes, real);
+    if (verdict === "blocked") return err(400, "This image goes against our rules");
+    if (verdict !== "ok") allChecked = false;
+    const ext = real.split("/")[1].replace("jpeg", "jpg");
     const path = `${wallet}/${crypto.randomUUID()}.${ext}`;
-    const { error: upErr } = await admin.storage.from("post-images").upload(path, await f.bytes(), { contentType: f.type });
+    const { error: upErr } = await admin.storage.from("post-images").upload(path, bytes, { contentType: real });
     if (upErr) return err(500, upErr.message);
     urls.push(admin.storage.from("post-images").getPublicUrl(path).data.publicUrl);
   }
 
-  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id }).select(POST_COLUMNS).single();
+  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
   if (error) return err(500, error.message);
   const [post] = await enrichPosts(admin, [row], wallet);
   return { status: 201, data: { post } };
