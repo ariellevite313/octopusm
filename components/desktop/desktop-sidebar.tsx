@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
@@ -132,6 +133,7 @@ export function DesktopSidebar() {
 
       {/* Bas : wallet puis menu ⋯ */}
       <div className="mt-auto flex flex-col items-center gap-2">
+        <NotificationBell className="size-11 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground" />
         <button
           type="button"
           title={isAuthenticated ? tr("My wallet") : tr("Connect wallet")}
