@@ -16,8 +16,12 @@ import { isBanned } from "@/lib/moderation";
 
 export const REFERRER_SHARE_OF_FEE = 0.1;
 export const POST_SHARE_OF_FEE = 0.01;
-/** Part du volume que la plateforme encaisse réellement (Arc : 1 % ; Solana : estimation prudente). */
-export const PLATFORM_FEE_RATE = { arc: 0.01, solana: 0.005 } as const;
+/**
+ * Part du volume que la plateforme encaisse réellement.
+ *  - Arc    : 0,25 % = part plateforme du niveau Standard (la plus basse des 4 niveaux : 0,25 / 0,30 / 0,40 / 0,50 %), donc jamais trop haut.
+ *  - Solana : 0,5 % ≈ 1 % de frais stable − 20 % Meteora − 33 % créateur (0,47 à 0,54 % selon la base de calcul).
+ */
+export const PLATFORM_FEE_RATE = { arc: 0.0025, solana: 0.005 } as const;
 export const MIN_VOLUME_USD = 1;
 export const ATTRIBUTION_DAYS = 7;
 
