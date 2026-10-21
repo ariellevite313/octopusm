@@ -12,6 +12,7 @@ const SECTIONS = [
   { id: "team",           label: T("Team, partners, creators") },
   { id: "removal",        label: T("Removal without notice") },
   { id: "what-removal",   label: T("What removal does not do") },
+  { id: "agents",         label: T("AI agents and automated access") },
   { id: "single-rule",    label: T("Single rule") },
 ];
 
@@ -229,6 +230,12 @@ export default function PolicyPage() {
                   </li>
                 ))}
               </ul>
+            </section>
+
+            <section id="agents">
+              <h2 className="text-xl font-semibold text-foreground mb-4">{tr("AI agents and automated access")}</h2>
+              <p className="text-muted-foreground mb-4">{tr("AI agents and bots may use the MCP server and the Agent API under the same rules as any user. Everything prohibited above is prohibited when done by an agent, and the wallet owner is responsible for what their agent does.")}</p>
+              <p className="text-muted-foreground">{tr("ŌM may rate-limit, block or remove any agent, wallet, token or market that abuses the service, without notice. Do not run bots that spam launches, manipulate markets or bypass limits.")}</p>
             </section>
 
             <section id="single-rule">
