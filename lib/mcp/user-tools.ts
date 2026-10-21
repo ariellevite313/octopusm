@@ -8,7 +8,7 @@ import { ACTIONS, ActionError } from "@/lib/mcp/agent-actions";
 import { createPost, type PostFile } from "@/lib/social/create-post";
 import { getPublicProfile } from "@/services/profile-service";
 
-const SIGNED_ONLY = new Set(["create_post_prepare", "create_post", "agent_action_prepare", "agent_action", "launch_token_prepare", "launch_token_submit", "launch_token_confirm"]);
+const SIGNED_ONLY = new Set(["trade_prepare", "trade_submit", "create_post_prepare", "create_post", "agent_action_prepare", "agent_action", "launch_token_prepare", "launch_token_submit", "launch_token_confirm"]);
 
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
 const ID = { type: "string", description: "Post uuid" };
