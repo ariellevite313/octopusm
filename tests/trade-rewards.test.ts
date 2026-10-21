@@ -8,6 +8,11 @@ describe("computeTradeRewards", () => {
     expect(r.referral).toBeCloseTo(0.25);
     expect(r.post).toBeCloseTo(0.025);
   });
+  it("utilise le taux réel du token quand il est fourni, et ignore une valeur absurde", () => {
+    expect(computeTradeRewards("arc", 1000, { hasReferrer: true, hasPost: false }, 0.005).fee).toBeCloseTo(5);
+    expect(computeTradeRewards("arc", 1000, { hasReferrer: true, hasPost: false }, 0.5).fee).toBeCloseTo(2.5);
+    expect(computeTradeRewards("arc", 1000, { hasReferrer: true, hasPost: false }, NaN).fee).toBeCloseTo(2.5);
+  });
   it("ne paie rien sans parrain ni post, ni sous le minimum", () => {
     expect(computeTradeRewards("solana", 1000, { hasReferrer: false, hasPost: false })).toMatchObject({ referral: 0, post: 0 });
     expect(computeTradeRewards("arc", 0.5, { hasReferrer: true, hasPost: true })).toEqual({ fee: 0, referral: 0, post: 0 });

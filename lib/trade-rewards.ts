@@ -18,7 +18,7 @@ export const REFERRER_SHARE_OF_FEE = 0.1;
 export const POST_SHARE_OF_FEE = 0.01;
 /**
  * Part du volume que la plateforme encaisse réellement.
- *  - Arc    : 0,25 % = part plateforme du niveau Standard (la plus basse des 4 niveaux : 0,25 / 0,30 / 0,40 / 0,50 %), donc jamais trop haut.
+ *  - Arc    : lu sur la courbe du token (platformBps de son niveau : 0,25 / 0,30 / 0,40 / 0,50 %). 0,25 % (Standard, le plus bas) si la lecture échoue.
  *  - Solana : 0,5 % ≈ 1 % de frais stable − 20 % Meteora − 33 % créateur (0,47 à 0,54 % selon la base de calcul).
  */
 export const PLATFORM_FEE_RATE = { arc: 0.0025, solana: 0.005 } as const;
@@ -33,9 +33,11 @@ export const normWallet = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLo
 const round6 = (n: number) => Math.floor(n * 1_000_000) / 1_000_000;
 
 /** Calcul pur des montants (en USDC) pour un achat. */
-export function computeTradeRewards(chain: Chain, volumeUsd: number, opts: { hasReferrer: boolean; hasPost: boolean }) {
+export function computeTradeRewards(chain: Chain, volumeUsd: number, opts: { hasReferrer: boolean; hasPost: boolean }, feeRate?: number) {
   if (!Number.isFinite(volumeUsd) || volumeUsd < MIN_VOLUME_USD) return { fee: 0, referral: 0, post: 0 };
-  const fee = volumeUsd * PLATFORM_FEE_RATE[chain];
+  // Taux réel du token si connu (jamais au-dessus de 1 % du volume), sinon le taux prudent de la chaîne
+  const rate = feeRate !== undefined && Number.isFinite(feeRate) && feeRate > 0 && feeRate <= 0.01 ? feeRate : PLATFORM_FEE_RATE[chain];
+  const fee = volumeUsd * rate;
   return {
     fee,
     referral: opts.hasReferrer ? round6(fee * REFERRER_SHARE_OF_FEE) : 0,
@@ -60,7 +62,7 @@ export async function registerTradeAttribution(db: Db, postId: unknown, traderRa
   } catch (e) { console.error("[trade-rewards] attribution:", e); return false; }
 }
 
-export type Buy = { chain: Chain; tokenId: string; txId: string; trader: string; volumeUsd: number; tsMs: number };
+export type Buy = { chain: Chain; tokenId: string; txId: string; trader: string; volumeUsd: number; tsMs: number; feeRate?: number };
 
 /** Verse les gains d'un achat vérifié. Idempotent. Ne lève jamais d'erreur. Retourne les montants versés. */
 export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: number; post: number }> {
@@ -74,7 +76,7 @@ export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: n
     const referrer: string | null = ref?.referrer_wallet && normWallet(ref.referrer_wallet) !== trader ? ref.referrer_wallet : null;
     const attAt = att ? new Date(att.created_at).getTime() : 0;
     const postOk = !!att && att.sharer !== trader && buy.tsMs >= attAt && buy.tsMs - attAt <= ATTRIBUTION_DAYS * 86_400_000;
-    const r = computeTradeRewards(buy.chain, buy.volumeUsd, { hasReferrer: !!referrer, hasPost: postOk });
+    const r = computeTradeRewards(buy.chain, buy.volumeUsd, { hasReferrer: !!referrer, hasPost: postOk }, buy.feeRate);
     const pay = async (kind: "referral" | "post", who: string, amount: number) => {
       if (amount <= 0) return 0;
       if (await isBanned(who) || await isBanned(trader)) return 0; // comptes bannis : pas de gains
@@ -91,6 +93,24 @@ export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: n
   return out;
 }
 
+const arcRateCache = new Map<string, number>();
+/** Part de la plateforme (platformBps du niveau du token) lue sur la courbe Arc ; null si illisible. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function arcPlatformRate(pc: any, curve: string): Promise<number | null> {
+  const k = curve.toLowerCase();
+  const hit = arcRateCache.get(k);
+  if (hit !== undefined) return hit;
+  try {
+    const { BONDING_CURVE_V2_ABI } = await import("@/lib/arc-launchpad");
+    const r = (await pc.readContract({ address: curve as `0x${string}`, abi: BONDING_CURVE_V2_ABI, functionName: "tierBps" })) as readonly bigint[];
+    const total = Number(r[0]), platform = Number(r[2]);
+    if (!(platform > 0) || platform > total || total > 500) return null; // valeur incohérente : on garde le taux prudent
+    const rate = platform / 10_000;
+    arcRateCache.set(k, rate);
+    return rate;
+  } catch { return null; }
+}
+
 /** Arc : repère dans les trades déjà lus (arc_trades) les achats récents qui donnent droit à un gain. */
 export async function processArcRewards(db: Db = createAdminClient(), sinceHours = 72): Promise<number> {
   let paid = 0;
@@ -104,6 +124,9 @@ export async function processArcRewards(db: Db = createAdminClient(), sinceHours
       .filter((b) => byCurve.has(b.curve.toLowerCase()) && b.usdc_amt >= MIN_VOLUME_USD);
     if (!rows.length) return 0;
 
+    const { createPublicClient, http } = await import("viem");
+    const { arc } = await import("@/lib/arc-chain");
+    const pc = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io", { timeout: 15_000, retryCount: 2 }) });
     const traders = [...new Set(rows.map((b) => b.trader))];
     const [{ data: atts }, refs] = await Promise.all([
       db.from("trade_attributions").select("trader, token_id, created_at").in("trader", traders),
@@ -122,13 +145,11 @@ export async function processArcRewards(db: Db = createAdminClient(), sinceHours
       let tsMs = b.ts * 1000;
       if (attKey.has(`${b.trader}|${tokenId}`)) {
         try {
-          const { createPublicClient, http } = await import("viem");
-          const { arc } = await import("@/lib/arc-chain");
-          const pc = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io", { timeout: 15_000, retryCount: 2 }) });
           tsMs = Number((await pc.getBlock({ blockNumber: BigInt(b.block) })).timestamp) * 1000;
         } catch { continue; } // pas d'heure exacte : on réessaiera au prochain passage
       }
-      const r = await awardTradeRewards(db, { chain: "arc", tokenId, txId: `${b.tx_hash}:${b.log_index}`, trader: b.trader, volumeUsd: b.usdc_amt, tsMs });
+      const feeRate = (await arcPlatformRate(pc, b.curve)) ?? undefined;
+      const r = await awardTradeRewards(db, { chain: "arc", tokenId, txId: `${b.tx_hash}:${b.log_index}`, trader: b.trader, volumeUsd: b.usdc_amt, tsMs, feeRate });
       paid += r.referral + r.post;
     }
   } catch (e) { console.error("[trade-rewards] arc:", e); }
