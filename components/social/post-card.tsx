@@ -319,7 +319,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
       </div>
 
       {post.ticker ? (
-        <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} /></div>
+        <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} postId={post.id} /></div>
       ) : cashtag && !post.market?.price_ticker ? (
         <div className="px-1"><LivePrice symbol={cashtag} /></div>
       ) : null}

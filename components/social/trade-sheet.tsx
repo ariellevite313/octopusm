@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { useAuth } from "@/providers/auth-provider";
 import { getXStockMint } from "@/lib/solana/xstocks";
 import type { TokenCard } from "@/lib/social/token-card";
 
@@ -12,8 +13,9 @@ const TokenSwapDBC = dynamic(() => import("@/components/launchpad/token-swap-dbc
 const TokenSwapArc = dynamic(() => import("@/components/launchpad/token-swap-arc").then((m) => m.TokenSwapArc), { ssr: false });
 
 /** Fenêtre d'achat / vente d'un token OMdotfun depuis le fil (même widget que la page du token). */
-export function TradeSheet({ token, onClose }: { token: TokenCard["token"]; onClose: () => void }) {
+export function TradeSheet({ token, onClose, postId }: { token: TokenCard["token"]; onClose: () => void; postId?: string }) {
   const { tr } = useT();
+  const { walletAddress } = useAuth();
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -21,6 +23,11 @@ export function TradeSheet({ token, onClose }: { token: TokenCard["token"]; onCl
     window.addEventListener("keydown", k);
     return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", k); };
   }, [onClose]);
+
+  // Le trade vient d'un post : on retient ce post pour l'auteur (gain sur les achats qui suivent)
+  useEffect(() => {
+    if (postId && walletAddress) void fetch("/api/social/trade-attribution", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId }) }).catch(() => {});
+  }, [postId, walletAddress]);
 
   const href = `/launchpad/${token.mint_address ?? token.id}`;
   const graduated = token.status === "graduated";

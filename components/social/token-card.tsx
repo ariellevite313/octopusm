@@ -42,7 +42,7 @@ export function Chart({ points, up }: { points: number[]; up: boolean }) {
 }
 
 /** Carte token d'une publication : graphe, market cap, montant détenu et bénéfice de l'auteur. */
-export function TokenCardView({ ticker, author }: { ticker: string; author: string }) {
+export function TokenCardView({ ticker, author, postId }: { ticker: string; author: string; postId?: string }) {
   const { tr } = useT();
   const [card, setCard] = useState<Card | null>(null);
   const [failed, setFailed] = useState(false);
@@ -132,7 +132,7 @@ export function TokenCardView({ ticker, author }: { ticker: string; author: stri
       >
         {tr("Trade")} ${t.ticker}
       </button>
-      {trade && <TradeSheet token={t} onClose={() => setTrade(false)} />}
+      {trade && <TradeSheet token={t} postId={postId} onClose={() => setTrade(false)} />}
     </div>
   );
 }

@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { syncCurveTrades } from "@/lib/arc-trades";
+import { processArcRewards } from "@/lib/trade-rewards";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -29,5 +30,6 @@ export async function GET(req: Request) {
     if (Date.now() - started > 50_000) { pending++; continue; }
     try { (await syncCurveTrades(c, 150, db)) ? synced++ : pending++; } catch { failed++; }
   }
-  return NextResponse.json({ curves: curves.length, synced, pending, failed });
+  const rewards = await processArcRewards(db);
+  return NextResponse.json({ curves: curves.length, synced, pending, failed, rewards });
 }
