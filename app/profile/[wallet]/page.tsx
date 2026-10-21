@@ -11,6 +11,8 @@ import { Tr } from "@/lib/i18n";
 import { MemberSince } from "@/components/profile/member-since";
 import { FollowButton, FollowCounts, BannerCamera, ProfileMenu } from "@/components/profile/profile-social";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getFeaturedTokens } from "@/lib/social/featured-token";
+import { FeaturedTokenControl } from "@/components/profile/featured-token";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -109,6 +111,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
     const { data: b } = await (createAdminClient() as any).from("wallets").select("banner_src").eq("address", wallet).maybeSingle();
     bannerSrc = b?.banner_src ?? null;
   } catch { /* colonne absente avant migration */ }
+  const featured = (await getFeaturedTokens(createAdminClient(), [wallet])).get(wallet) ?? null;
 
 
   return (
@@ -120,7 +123,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
           className="profile-banner relative h-36 bg-cover bg-center sm:h-48"
           style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
         >
-          <ProfileMenu wallet={wallet} />
+          <ProfileMenu wallet={wallet} hasFeatured={!!featured} />
           <BannerCamera wallet={wallet} />
         </div>
 
@@ -149,6 +152,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
               {displayName}
             </h1>
             <OctoBadge totalOcto={data.stats.octo_balance} size={20} />
+            <FeaturedTokenControl wallet={wallet} token={featured} />
           </div>
 
           {/* Handle + pills */}

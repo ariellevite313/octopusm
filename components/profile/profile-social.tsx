@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Copy, Link2, Loader2, MoreHorizontal } from "lucide-react";
+import { Camera, Coins, Copy, Link2, Loader2, MoreHorizontal } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -116,8 +116,9 @@ export function BannerCamera({ wallet }: { wallet: string }) {
 }
 
 /** Bouton « … » rond en haut à droite de la bannière : copier l'adresse ou le lien du profil. */
-export function ProfileMenu({ wallet }: { wallet: string }) {
+export function ProfileMenu({ wallet, hasFeatured = false }: { wallet: string; hasFeatured?: boolean }) {
   const { tr } = useT();
+  const mine = useIsMine(wallet);
   const [open, setOpen] = useState(false);
 
   async function copy(text: string, done: string) {
@@ -144,6 +145,11 @@ export function ProfileMenu({ wallet }: { wallet: string }) {
             <button onClick={() => copy(`${window.location.origin}/profile/${wallet}`, "Link copied")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">
               <Link2 className="size-4 text-muted-foreground" />{tr("Copy profile link")}
             </button>
+            {mine && (
+              <button onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-featured-token-picker")); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">
+                <Coins className="size-4 text-muted-foreground" />{tr(hasFeatured ? "Change featured token" : "Add a featured token")}
+              </button>
+            )}
           </div>
         </>
       )}

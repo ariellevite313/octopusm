@@ -1,5 +1,8 @@
 "use client";
 
+import { TokenPill } from "./token-pill";
+import type { FeaturedToken } from "@/lib/social/featured-token";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Send } from "lucide-react";
@@ -8,7 +11,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 
-type Reply = { id: string; author: string; author_name: string | null; author_avatar: string | null; body: string; created_at: string };
+type Reply = { id: string; author: string; author_name: string | null; author_avatar: string | null; author_token?: FeaturedToken | null; body: string; created_at: string };
 
 export function PostReplies({ postId, onCount }: { postId: string; onCount: (n: number) => void }) {
   const { tr } = useT();
@@ -43,7 +46,10 @@ export function PostReplies({ postId, onCount }: { postId: string; onCount: (n: 
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">{(r.author_name ?? r.author)[0]?.toUpperCase()}</div>
           )}
           <div className="min-w-0">
-            <Link href={`/profile/${r.author}`} className="text-[13px] font-bold text-foreground">{r.author_name ?? shortAddress(r.author)}</Link>
+            <div className="flex items-center gap-1.5">
+              <Link href={`/profile/${r.author}`} className="text-[13px] font-bold text-foreground">{r.author_name ?? shortAddress(r.author)}</Link>
+              <TokenPill token={r.author_token} size={13} />
+            </div>
             <p className="whitespace-pre-wrap break-words text-sm text-foreground">{r.body}</p>
           </div>
         </div>

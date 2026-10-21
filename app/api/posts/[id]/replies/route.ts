@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { getProfiles } from "@/lib/profiles";
 import { UUID_RE } from "@/lib/social/posts";
+import { getFeaturedTokens } from "@/lib/social/featured-token";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,9 +13,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const admin = createAdminClient() as any;
   const { data } = await admin.from("post_replies").select("id, author, body, created_at").eq("post_id", id).order("created_at", { ascending: true }).limit(200);
   const rows = (data ?? []) as { id: string; author: string; body: string; created_at: string }[];
-  const profiles = await getProfiles(admin, rows.map((r) => r.author));
+  const [profiles, featured] = await Promise.all([getProfiles(admin, rows.map((r) => r.author)), getFeaturedTokens(admin, rows.map((r) => r.author))]);
   return NextResponse.json({
-    replies: rows.map((r) => ({ ...r, author_name: profiles.get(r.author)?.name ?? null, author_avatar: profiles.get(r.author)?.avatar_src ?? null })),
+    replies: rows.map((r) => ({ ...r, author_name: profiles.get(r.author)?.name ?? null, author_avatar: profiles.get(r.author)?.avatar_src ?? null, author_token: featured.get(r.author) ?? null })),
   });
 }
 
