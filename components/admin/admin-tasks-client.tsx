@@ -23,7 +23,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
   const [externalLink, setExternalLink] = useState("");
   const [rewardOcto, setRewardOcto] = useState("100");
   const [taskType, setTaskType] = useState("social");
-  const [icon, setIcon] = useState("⭐");
+  const [icon, setIcon] = useState("");
   const [sortOrder, setSortOrder] = useState("0");
   const [formError, setFormError] = useState("");
   const [creating, setCreating] = useState(false);
@@ -77,7 +77,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
       setExternalLink("");
       setRewardOcto("100");
       setTaskType("social");
-      setIcon("⭐");
+      setIcon("");
       setSortOrder("0");
       setShowForm(false);
       router.refresh();
@@ -156,7 +156,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
             <Input
               value={icon}
               onChange={(e) => setIcon(e.target.value)}
-              placeholder="Emoji icon (e.g. ⭐)"
+              placeholder="Icon name (optional)"
               className="border-orange-200 bg-white dark:border-white/10 dark:bg-zinc-950"
             />
             <Input

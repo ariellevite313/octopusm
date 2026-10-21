@@ -30,6 +30,7 @@ const TRADE_EVENT_ABI = parseAbi([
 type Trade = {
   timestamp: number;
   isBuy:     boolean;
+  trader:    string;
   usdcAmt:   number;
   tokenAmt:  number;
   price:     number;
@@ -96,7 +97,8 @@ export async function GET(req: Request) {
     const trades: Trade[] = logs
       .flatMap((l): Trade[] => {
         try {
-          const { isBuy, usdcAmount, tokenAmount } = l.args as {
+          const { trader, isBuy, usdcAmount, tokenAmount } = l.args as {
+            trader:      string;
             isBuy:       boolean;
             usdcAmount:  bigint;
             tokenAmount: bigint;
@@ -111,6 +113,7 @@ export async function GET(req: Request) {
           return [{
             timestamp: Math.max(0, Math.floor(timestamp)),
             isBuy:    Boolean(isBuy),
+            trader:   String(trader ?? "").toLowerCase(),
             usdcAmt,
             tokenAmt,
             price,

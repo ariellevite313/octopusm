@@ -242,7 +242,7 @@ export function ClaimFeesButton({
   if (phase === "done") {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-up">
-        ✓ {t.feeClaimed}
+        {t.feeClaimed}
       </span>
     );
   }

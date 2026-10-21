@@ -54,7 +54,7 @@ type SolanaWallet = {
 type WalletConfig = {
   id: string;
   name: string;
-  icon: string;        // emoji fallback
+  icon: string;        // optional fallback
   iconUrl?: string;    // logo URL
   recommended?: boolean;
   get: () => SolanaWallet | null;
@@ -68,7 +68,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
   {
     id: "solflare",
     name: "Solflare",
-    icon: "🌟",
+    icon: "",
     iconUrl: "https://solflare.com/favicon.ico",
     recommended: true,
     get: () => w()?.solflare?.isSolflare ? w()?.solflare : null,
@@ -77,7 +77,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
   {
     id: "phantom",
     name: "Phantom",
-    icon: "👻",
+    icon: "",
     iconUrl: "https://phantom.app/favicon.ico",
     get: () => w()?.phantom?.solana ?? (w()?.solana?.isPhantom ? w()?.solana : null),
     installUrl: "https://phantom.app",
@@ -85,7 +85,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
   {
     id: "backpack",
     name: "Backpack",
-    icon: "🎒",
+    icon: "",
     iconUrl: "https://backpack.app/favicon.ico",
     get: () => w()?.backpack?.solana ?? w()?.xnft?.solana ?? null,
     installUrl: "https://backpack.app",
@@ -93,7 +93,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
   {
     id: "okx",
     name: "OKX Wallet",
-    icon: "⭕",
+    icon: "",
     iconUrl: "https://www.okx.com/favicon.ico",
     get: () => w()?.okxwallet?.solana ?? null,
     installUrl: "https://www.okx.com/web3",
@@ -101,7 +101,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
   {
     id: "coinbase",
     name: "Coinbase Wallet",
-    icon: "🔵",
+    icon: "",
     iconUrl: "https://www.coinbase.com/favicon.ico",
     get: () => w()?.coinbaseSolana ?? null,
     installUrl: "https://www.coinbase.com/wallet",
@@ -109,7 +109,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
   {
     id: "trust",
     name: "Trust Wallet",
-    icon: "🛡️",
+    icon: "",
     iconUrl: "https://trustwallet.com/favicon.ico",
     get: () => w()?.trustwallet?.solana ?? (w()?.solana?.isTrust ? w()?.solana : null),
     installUrl: "https://trustwallet.com",

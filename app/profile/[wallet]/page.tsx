@@ -9,6 +9,8 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { fmt, shortAddress } from "@/lib/format";
 import { Tr } from "@/lib/i18n";
 import { MemberSince } from "@/components/profile/member-since";
+import { FollowButton, FollowCounts, BannerCamera } from "@/components/profile/profile-social";
+import { createAdminClient } from "@/lib/supabase/server";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -100,15 +102,27 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   const avatarSrc   = data.wallet?.avatar_src ?? null;
   const joinedAt    = data.wallet?.created_at ?? null;
 
+  // Bannière lue hors cache (le profil public est mis en cache 60 s)
+  let bannerSrc: string | null = null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: b } = await (createAdminClient() as any).from("wallets").select("banner_src").eq("address", wallet).maybeSingle();
+    bannerSrc = b?.banner_src ?? null;
+  } catch { /* colonne absente avant migration */ }
+
 
   return (
     <>
       {/* ── 1. Identity card ─────────────────────────────────────────── */}
       <div className="-mx-4 overflow-hidden border-b border-border bg-card sm:mx-0 sm:rounded-[24px] sm:border">
         {/* Banner */}
-        <div className="profile-banner relative h-32 sm:h-44">
+        <div
+          className="profile-banner relative h-32 bg-cover bg-center sm:h-44"
+          style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
+        >
+          <BannerCamera wallet={wallet} />
           {data.stats.rank && (
-            <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-3.5 py-2 text-white backdrop-blur-md">
+            <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-3.5 py-2 text-white backdrop-blur-md">
               <span className="text-[13px] font-medium text-white/75"><Tr>Rank</Tr></span>
               <span className="num text-[15px] font-bold">#{data.stats.rank}</span>
             </div>
@@ -117,7 +131,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
         <div className="px-5 pb-5">
           {/* Avatar — overlaps the banner */}
-          <div className="relative z-10 -mt-12 mb-3 w-fit">
+          <div className="relative z-10 -mt-12 mb-3 flex items-end justify-between">
+            <div className="w-fit">
             {avatarSrc ? (
               <Image
                 src={avatarSrc}
@@ -131,6 +146,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                 {displayName[0].toUpperCase()}
               </div>
             )}
+            </div>
+            <FollowButton wallet={wallet} />
           </div>
 
           {/* Name + badges */}
@@ -163,6 +180,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
             <span><span className="font-bold text-foreground">{data.stats.total_rounds}</span> <span className="text-muted-foreground"><Tr>Rounds</Tr></span></span>
             <span><span className="font-bold text-up">{data.stats.win_rate}%</span> <span className="text-muted-foreground"><Tr>Win rate</Tr></span></span>
             <span><span className="font-bold text-foreground">{fmt(data.stats.octo_balance, 0)}</span> <span className="text-muted-foreground">OMERO</span></span>
+            <FollowCounts wallet={wallet} />
           </div>
 
           {joinedAt && (
@@ -189,10 +207,11 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         volume={data.volume}
         tokens={data.created_tokens}
         markets={data.created_markets}
+        wallet={wallet}
       />
 
       {/* Empty state */}
-      {data.stats.total_rounds === 0 && data.created_markets.length === 0 && data.created_tokens.length === 0 && (
+      {false && data.stats.total_rounds === 0 && data.created_markets.length === 0 && data.created_tokens.length === 0 && (
         <div className="rounded-[22px] border border-border bg-card px-6 py-16 text-center">
           <p className="text-muted-foreground"><Tr>No activity yet for this address.</Tr></p>
         </div>

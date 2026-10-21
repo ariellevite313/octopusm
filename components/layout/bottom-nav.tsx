@@ -3,16 +3,19 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User, Trophy } from "lucide-react";
+import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User, Trophy, MessageSquare } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getWalletProfile } from "@/services/wallet-service";
 import { useAuth } from "@/providers/auth-provider";
 import { AppIcon } from "@/components/shared/app-icon";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
 const PREDICT_NAV = [
-  { label: T("Markets"),     href: "/prediction",              icon: BarChart2,  exact: true  },
-  { label: T("Tokens"),      href: "/launchpad",               icon: LayoutGrid, exact: false },
-  { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy,     exact: true  },
+  { label: T("Markets"),     href: "/prediction",              icon: BarChart2,     exact: true  },
+  { label: T("Feed"),        href: "/feed",                    icon: MessageSquare, exact: true  },
+  { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy,        exact: true  },
+  { label: T("Tokens"),      href: "/launchpad",               icon: LayoutGrid,    exact: false },
 ];
 
 const LAUNCHPAD_NAV = [
@@ -20,6 +23,7 @@ const LAUNCHPAD_NAV = [
   { label: T("Leaderboard"), href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
   { label: T("Launch"),      href: "/launchpad/create",        icon: Rocket,     exact: true  },
   { label: T("Portfolio"),    href: "/dashboard/launchpad",     icon: User,       exact: false },
+  { label: T("Markets"),     href: "/prediction",              icon: BarChart2,  exact: true  },
 ];
 
 const CLT_DEXSCREENER = "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc";
@@ -150,9 +154,15 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 export function BottomNav() {
   const [mounted, setMounted]       = useState(false);
   const [sheetOpen, setSheetOpen]   = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, walletAddress } = useAuth();
   const { tr } = useT();
   const pathname = usePathname();
+  const { data: me } = useQuery({
+    queryKey: ["wallet-profile", walletAddress],
+    queryFn: () => getWalletProfile(walletAddress ?? ""),
+    staleTime: 60_000,
+    enabled: !!walletAddress,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -187,6 +197,31 @@ export function BottomNav() {
             </Link>
           );
         })}
+
+        {!isLaunchpad && (
+          isAuthenticated && walletAddress ? (
+            <Link
+              href={`/profile/${walletAddress}`}
+              className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${pathname.startsWith("/profile/") ? "nav-pill-active" : ""}`}
+            >
+              {me?.avatar_src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.avatar_src} alt="" className="size-8 rounded-full object-cover" />
+              ) : (
+                <User className="size-[26px]" strokeWidth={1.75} />
+              )}
+              <span className="sr-only">{tr("Profile")}</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
+              className="flex h-14 flex-1 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <User className="size-[26px]" strokeWidth={1.75} />
+              <span className="sr-only">{tr("Profile")}</span>
+            </button>
+          )
+        )}
 
         <button
           onClick={() => setSheetOpen(true)}

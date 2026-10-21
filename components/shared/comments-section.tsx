@@ -24,25 +24,7 @@ function shortAddr(addr: string) {
   return `${addr.slice(0, 5)}...${addr.slice(-4)}`;
 }
 
-const EMOJI_LIST = [
-  "😀","😂","🤣","😍","🥳","🤔","😮","😎","🙏","💪",
-  "🔥","💯","🚀","🎉","💰","📈","📉","⚡","🎯","✅",
-  "❌","⚠️","👀","👍","👎","🤝","💡","🏆","🥇","😱",
-  "🤯","💸","🐙","🌊","🦾","🧠","👻","❤️","💎","🎱",
-];
 
-function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
-  return (
-    <div onMouseDown={(e) => e.preventDefault()} className="absolute bottom-full left-0 z-50 mb-1 flex w-56 flex-wrap gap-0.5 rounded-xl border border-border bg-card p-2 shadow-xl">
-      {EMOJI_LIST.map((e) => (
-        <button key={e} type="button" onClick={() => onSelect(e)}
-          className="rounded p-1 text-lg leading-none transition-colors hover:bg-muted">
-          {e}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function CommentAvatar({ user, size = "md" }: {
   user: { avatar_src: string | null; username: string | null; wallet_address: string };
@@ -71,19 +53,9 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText]         = useState("");
   const [replyPosting, setReplyPosting]   = useState(false);
-  const [showEmoji, setShowEmoji]         = useState(false);
-  const emojiRef = useRef<HTMLDivElement>(null);
 
   void marketId;
 
-  useEffect(() => {
-    if (!showEmoji) return;
-    function h(e: MouseEvent) {
-      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
-    }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [showEmoji]);
 
   async function submitReply() {
     const trimmed = replyText.trim();
@@ -159,12 +131,7 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
             <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void submitReply(); }}
               placeholder={tr("Write a reply...")} rows={2} maxLength={1000} disabled={replyPosting}
-              className="w-full resize-none rounded-2xl bg-muted px-4 py-2.5 pb-8 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50" />
-            <div className="absolute bottom-2 left-3" ref={emojiRef}>
-              <button type="button" onClick={() => setShowEmoji(v => !v)}
-                className="text-base leading-none opacity-50 hover:opacity-100 transition-opacity" aria-label={tr("Add emoji")}>😊</button>
-              {showEmoji && <EmojiPicker onSelect={e => { setReplyText(t => t + e); setShowEmoji(false); }} />}
-            </div>
+              className="w-full resize-none rounded-2xl bg-muted px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50" />
           </div>
           <div className="self-end flex flex-col gap-1.5">
             <button onClick={() => void submitReply()} disabled={!replyText.trim() || replyPosting}
@@ -196,19 +163,9 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
   const [comments, setComments] = useState<MarketCommentEnriched[]>(initialComments);
   const [text, setText]         = useState("");
   const [posting, setPosting]   = useState(false);
-  const [showEmoji, setShowEmoji] = useState(false);
-  const emojiRef = useRef<HTMLDivElement>(null);
 
   const totalCount = comments.reduce((n, c) => n + 1 + c.replies.length, 0);
 
-  useEffect(() => {
-    if (!showEmoji) return;
-    function h(e: MouseEvent) {
-      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
-    }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [showEmoji]);
 
   async function postComment() {
     const trimmed = text.trim();
@@ -305,14 +262,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
               onBlur={() => setFocused(false)}
               onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void postComment(); }}
               placeholder={tr("Join discussion")} disabled={posting} rows={open ? 3 : 1} maxLength={1000}
-              className={`w-full resize-none bg-muted px-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 ${open ? "rounded-2xl py-3 pb-9" : "rounded-full py-3"}`} />
-            {open && (
-              <div className="absolute bottom-2.5 left-3" ref={emojiRef}>
-                <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowEmoji(v => !v)}
-                  className="text-base leading-none opacity-60 transition-opacity hover:opacity-100" aria-label={tr("Add emoji")}>😊</button>
-                {showEmoji && <EmojiPicker onSelect={e => { setText(t => t + e); setShowEmoji(false); }} />}
-              </div>
-            )}
+              className={`w-full resize-none bg-muted px-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 ${open ? "rounded-2xl py-3" : "rounded-full py-3"}`} />
             {text.length > 800 && (
               <span className="absolute bottom-2.5 right-3 text-xs text-muted-foreground">{text.length}/1000</span>
             )}
