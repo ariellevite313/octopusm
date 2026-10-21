@@ -181,6 +181,15 @@ export function Header() {
                   {tr("My tokens")}
                 </Link>
               )}
+              {isAuthenticated && (
+                <Link
+                  href="/settings/apps"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${isActive("/settings/apps", pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+                >
+                  {tr("Connected apps")}
+                </Link>
+              )}
               {MORE_ITEMS.map((item) => (
                 <Link
                   key={item.label}

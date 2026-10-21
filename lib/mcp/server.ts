@@ -3,7 +3,7 @@
  * l'agent envoie du JSON-RPC 2.0 en POST et reçoit la réponse en JSON.
  * Méthodes : initialize, ping, tools/list, tools/call (+ notifications ignorées).
  */
-import { TOOLS, ToolError, type ToolCtx } from "@/lib/mcp/tools";
+import { TOOLS, ToolError, type McpTool, type ToolCtx } from "@/lib/mcp/tools";
 
 const SERVER_INFO = { name: "omdotfun", title: "OMdotfun", version: "1.0.0" };
 const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -21,7 +21,16 @@ function textResult(data: unknown, isError = false) {
   return { content: [{ type: "text", text }], isError };
 }
 
-async function handleOne(msg: RpcReq, ctx: ToolCtx): Promise<RpcRes | null> {
+type Surface = { tools: McpTool[]; instructions: string };
+
+const PUBLIC: Surface = {
+  tools: TOOLS,
+  instructions:
+    "OMdotfun: token launchpad (Solana + Arc) and prediction markets. Read tools are free and public. " +
+    "To launch a token: launch_token_prepare → sign tx_a and tx_b with your own wallet key → launch_token_submit (a, then b) → launch_token_confirm. The server never holds keys.",
+};
+
+async function handleOne(msg: RpcReq, ctx: ToolCtx, surface: Surface): Promise<RpcRes | null> {
   const isNotification = msg.id === undefined;
   if (msg.jsonrpc !== "2.0" || typeof msg.method !== "string") {
     return isNotification ? null : rpcError(msg.id, -32600, "Invalid Request");
@@ -37,9 +46,7 @@ async function handleOne(msg: RpcReq, ctx: ToolCtx): Promise<RpcRes | null> {
           protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0],
           capabilities: { tools: { listChanged: false } },
           serverInfo: SERVER_INFO,
-          instructions:
-            "OMdotfun: token launchpad (Solana + Arc) and prediction markets. Read tools are free and public. " +
-            "To launch a token: launch_token_prepare → sign tx_a and tx_b with your own wallet key → launch_token_submit (a, then b) → launch_token_confirm. The server never holds keys.",
+          instructions: surface.instructions,
         },
       };
     }
@@ -50,7 +57,7 @@ async function handleOne(msg: RpcReq, ctx: ToolCtx): Promise<RpcRes | null> {
         jsonrpc: "2.0",
         id: msg.id ?? null,
         result: {
-          tools: TOOLS.map((t) => ({
+          tools: surface.tools.map((t) => ({
             name: t.name,
             description: t.description,
             inputSchema: t.inputSchema,
@@ -60,7 +67,7 @@ async function handleOne(msg: RpcReq, ctx: ToolCtx): Promise<RpcRes | null> {
       };
     case "tools/call": {
       const name = String(msg.params?.name ?? "");
-      const tool = TOOLS.find((t) => t.name === name);
+      const tool = surface.tools.find((t) => t.name === name);
       if (!tool) return rpcError(msg.id, -32602, `Unknown tool: ${name}`);
       const args = (msg.params?.arguments && typeof msg.params.arguments === "object" ? msg.params.arguments : {}) as Record<string, unknown>;
       try {
@@ -80,15 +87,17 @@ async function handleOne(msg: RpcReq, ctx: ToolCtx): Promise<RpcRes | null> {
 }
 
 /** Traite un corps JSON-RPC (message unique ou lot). null = rien à renvoyer (notifications seules). */
-export async function handleRpc(body: unknown, ctx: ToolCtx): Promise<RpcRes | RpcRes[] | null> {
+export async function handleRpc(body: unknown, ctx: ToolCtx, surface: Surface = PUBLIC): Promise<RpcRes | RpcRes[] | null> {
   if (Array.isArray(body)) {
     if (body.length === 0 || body.length > 20) return rpcError(null, -32600, "Invalid batch");
-    const out = (await Promise.all(body.map((m) => handleOne(m as RpcReq, ctx)))).filter((r): r is RpcRes => r !== null);
+    const out = (await Promise.all(body.map((m) => handleOne(m as RpcReq, ctx, surface)))).filter((r): r is RpcRes => r !== null);
     return out.length ? out : null;
   }
   if (!body || typeof body !== "object") return rpcError(null, -32600, "Invalid Request");
-  return handleOne(body as RpcReq, ctx);
+  return handleOne(body as RpcReq, ctx, surface);
 }
+
+export type { Surface };
 
 export const MCP_INFO = {
   ...SERVER_INFO,
