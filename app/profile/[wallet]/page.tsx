@@ -143,7 +143,21 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                 {displayName[0].toUpperCase()}
               </div>
             )}
-            <div className="pb-1"><FollowButton wallet={wallet} /></div>
+            <div className="flex items-center gap-2 pb-1">
+              {data.wallet?.twitter_handle && (
+                <a
+                  href={`https://twitter.com/${data.wallet.twitter_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`@${data.wallet.twitter_handle}`}
+                  title={`@${data.wallet.twitter_handle}`}
+                  className="flex size-10 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+                >
+                  <XLogo size={18} />
+                </a>
+              )}
+              <FollowButton wallet={wallet} />
+            </div>
           </div>
 
           {/* Name + badge */}
@@ -151,26 +165,12 @@ async function ProfileContent({ wallet }: { wallet: string }) {
             <h1 className="truncate text-[30px] font-extrabold leading-tight tracking-tight text-foreground">
               {displayName}
             </h1>
-            <OctoBadge totalOcto={data.stats.octo_balance} size={20} />
+            <OctoBadge totalOcto={data.stats.octo_balance} size={24} />
             <FeaturedTokenControl wallet={wallet} token={featured} />
           </div>
 
           {/* Handle + X */}
-          <div className="mt-1.5 flex items-center gap-3">
-            <span className="font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</span>
-            {data.wallet?.twitter_handle && (
-              <a
-                href={`https://twitter.com/${data.wallet.twitter_handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`@${data.wallet.twitter_handle}`}
-                title={`@${data.wallet.twitter_handle}`}
-                className="text-foreground transition-opacity hover:opacity-70"
-              >
-                <XLogo size={16} />
-              </a>
-            )}
-          </div>
+          <p className="mt-1.5 font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</p>
 
           {/* Stats — inline, like followers / following */}
           <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">

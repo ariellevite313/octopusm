@@ -28,15 +28,15 @@ export function FeaturedTokenControl({ wallet, token }: { wallet: string; token:
   return (
     <>
       {token ? (
-        <TokenPill token={token} size={24} />
+        <TokenPill token={token} size={26} />
       ) : mine ? (
         <button
           onClick={() => setOpen(true)}
           aria-label={tr("Add a featured token")}
           title={tr("Add a featured token")}
-          className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] border border-dashed border-muted-foreground/50 text-muted-foreground hover:border-foreground hover:text-foreground"
+          className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] border border-dashed border-muted-foreground/50 text-muted-foreground hover:border-foreground hover:text-foreground"
         >
-          <Plus className="size-4" />
+          <Plus className="size-3.5" />
         </button>
       ) : null}
       {open && mine && <Picker hasToken={!!token} onClose={() => setOpen(false)} />}
