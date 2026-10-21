@@ -21,6 +21,8 @@ import { POST as launchSubmitRoute } from "@/app/api/v1/launch/[id]/submit/route
 import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/route";
 import { createPost, type PostFile } from "@/lib/social/create-post";
 import { postMessage, verifyPostSignature, type B64Image } from "@/lib/mcp/post-auth";
+import { ACTIONS, ActionError } from "@/lib/mcp/agent-actions";
+import { actionMessage, verifyAction } from "@/lib/mcp/agent-auth";
 import { getLaunchpadToken } from "@/services/launchpad-service";
 import { getPublicProfile } from "@/services/profile-service";
 
@@ -103,6 +105,29 @@ function postInputSchema(withSig: boolean): McpTool["inputSchema"] {
     },
     required: withSig ? ["wallet", "timestamp", "signature"] : ["wallet"],
   };
+}
+
+function actionSchema(withSig: boolean): McpTool["inputSchema"] {
+  return {
+    type: "object",
+    properties: {
+      wallet: { type: "string", description: "Solana wallet of the agent (the signer)" },
+      action: { type: "string", enum: Object.keys(ACTIONS) },
+      params: { type: "object", description: "Parameters of the action (see the tool description)" },
+      ...(withSig ? { timestamp: { type: "integer", description: "From agent_action_prepare" }, signature: { type: "string", description: "base64 ed25519 signature of the message" } } : {}),
+    },
+    required: withSig ? ["wallet", "action", "timestamp", "signature"] : ["wallet", "action"],
+  };
+}
+
+function readActionArgs(a: Json): { wallet: string; action: string; params: Json } {
+  const wallet = str(a, "wallet", { required: true, max: 64 })!;
+  if (!SOLANA.test(wallet)) throw new ToolError("wallet must be a Solana address");
+  const action = str(a, "action", { required: true, max: 40 })!;
+  if (!Object.prototype.hasOwnProperty.call(ACTIONS, action)) throw new ToolError(`unknown action (use one of: ${Object.keys(ACTIONS).join(", ")})`);
+  const params = a.params ?? {};
+  if (typeof params !== "object" || Array.isArray(params) || params === null) throw new ToolError("params must be an object");
+  return { wallet, action, params: params as Json };
 }
 
 function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image[] } {
@@ -322,6 +347,38 @@ export const TOOLS: McpTool[] = [
       const r = await createPost(wallet, body, files);
       if (r.status >= 400) throw new ToolError(String(r.data.error ?? `Request failed (${r.status})`));
       return r.data;
+    },
+  },
+
+  // ── Actions d'un agent (Solana) : s'inscrire, profil, suivre, liker, répondre, signaler... ──
+  {
+    name: "agent_action_prepare",
+    description:
+      "Step 1/2 of any signed action as a Solana wallet. Returns the exact message to sign (ed25519 with the wallet key) and a timestamp; nothing is executed. Available actions: " +
+      Object.entries(ACTIONS).map(([k, v]) => `${k} ${v.params} — ${v.description}`).join(" | "),
+    readOnly: true,
+    inputSchema: actionSchema(false),
+    run: async (a) => {
+      const { wallet, action, params } = readActionArgs(a);
+      const timestamp = Date.now();
+      return { message: actionMessage(action, wallet, timestamp, params), timestamp, next: "Sign the message (UTF-8 bytes) with the wallet key, then call agent_action with the same wallet/action/params, this timestamp and the base64 signature. Valid for 5 minutes, single use." };
+    },
+  },
+  {
+    name: "agent_action",
+    description: "Step 2/2: execute the action after verifying the wallet's signature. Same arguments as agent_action_prepare plus the timestamp and the base64 ed25519 signature. Run the `register` action first for a new wallet. No money movement is possible through this tool.",
+    readOnly: false,
+    inputSchema: actionSchema(true),
+    run: async (a, ctx) => {
+      const { wallet, action, params } = readActionArgs(a);
+      const bad = verifyAction(action, wallet, Number(a.timestamp), params, str(a, "signature", { required: true, max: 200 })!);
+      if (bad) throw new ToolError(bad);
+      try {
+        return await ACTIONS[action].run(wallet, params, ctx);
+      } catch (e) {
+        if (e instanceof ActionError) throw new ToolError(e.message);
+        throw e;
+      }
     },
   },
 
