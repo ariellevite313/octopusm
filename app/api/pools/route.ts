@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { CATEGORY_SLUGS } from "@/lib/categories";
 import { Connection } from "@solana/web3.js";
+import { verifyArcTransfer } from "@/lib/arc-verify";
 
 export const revalidate = 0;
 
@@ -89,7 +90,13 @@ export async function POST(req: Request) {
   }
 
   // Verify tx on-chain (memo must contain kind=pool_creation&wallet=xxx)
-  const txValid = await verifyCreationTx(creation_tx, wallet);
+  const isEvmWallet = /^0x[0-9a-fA-F]{40}$/.test(wallet);
+  if (isEvmWallet && creation_fee_token !== "usdc") {
+    return NextResponse.json({ error: "Arc wallets pay the creation fee in USDC" }, { status: 400 });
+  }
+  const txValid = isEvmWallet
+    ? (await verifyArcTransfer({ hash: creation_tx, from: wallet, minUsdc: 2, memoIncludes: ["kind=pool_creation", `wallet=${wallet}`] })) === "ok"
+    : await verifyCreationTx(creation_tx, wallet);
   if (!txValid) {
     return NextResponse.json({ error: "Creation fee transaction could not be verified." }, { status: 402 });
   }

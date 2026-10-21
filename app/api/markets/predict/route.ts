@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { createPublicClient, http, parseUnits } from "viem";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { arc } from "@/lib/arc-chain";
 import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
+import { verifyArcTransfer } from "@/lib/arc-verify";
 
 /**
  * POST /api/markets/predict
@@ -67,21 +66,11 @@ export async function POST(req: Request) {
     if (!body.tx_signature || !/^0x[0-9a-fA-F]{64}$/.test(body.tx_signature)) {
       return NextResponse.json({ error: "Invalid Arc transaction hash" }, { status: 400 });
     }
-    try {
-      const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
-      const tx = await client.getTransaction({ hash: body.tx_signature as `0x${string}` });
-      const expected = parseUnits(Number(body.total_paid_usdc).toFixed(6), 18);
-      const ok =
-        tx.from.toLowerCase() === body.wallet_address.toLowerCase() &&
-        (tx.to ?? "").toLowerCase() === ARC_BETS_ADDRESS.toLowerCase() &&
-        tx.value >= expected;
-      if (!ok) {
-        return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
-      }
-    } catch (e) {
-      // RPC indisponible / transaction pas encore visible : on enregistre en attente, l'admin vérifie à la validation
-      console.warn("[markets/predict] Arc tx check skipped:", e);
+    const v = await verifyArcTransfer({ hash: body.tx_signature, from: body.wallet_address, minUsdc: Number(body.total_paid_usdc) });
+    if (v === "mismatch") {
+      return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     }
+    // "unverified" (RPC indisponible) : enregistré en attente, l'admin vérifie à la validation
   }
 
   const admin = createAdminClient() as any;

@@ -380,7 +380,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               {tr("Prediction token")}
             </label>
             <div className="flex gap-2">
-              {(["usdc", "clawdtrust"] as const).map(token => (
+              {((walletType === "metamask" ? ["usdc"] : ["usdc", "clawdtrust"]) as ("usdc" | "clawdtrust")[]).map(token => (
                 <button
                   key={token}
                   type="button"
@@ -407,7 +407,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               {tr("Pay creation fee with")}
             </label>
             <div className="flex gap-2">
-              {(["usdc", "clawdtrust"] as const).map(token => (
+              {((walletType === "metamask" ? ["usdc"] : ["usdc", "clawdtrust"]) as ("usdc" | "clawdtrust")[]).map(token => (
                 <button
                   key={token}
                   type="button"
