@@ -1033,5 +1033,7 @@ const p: Record<string, string> = {
   "Theme": "主题",
   "Light": "浅色",
   "Dark": "深色",
+  "My profile": "我的主页",
+  "Market cap": "市值",
 };
 export default p;

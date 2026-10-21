@@ -57,6 +57,18 @@ export interface CreatedMarket {
   options: { id: string; label: string }[];
 }
 
+export interface CreatedToken {
+  id: string;
+  name: string;
+  ticker: string;
+  logo_url: string | null;
+  status: string;
+  chain: "solana" | "arc";
+  mint_address: string | null;
+  market_cap_usd: number | null;
+  created_at: string;
+}
+
 export interface PublicProfileData {
   wallet: PublicProfileWallet | null;
   stats: PublicProfileStats;
@@ -64,6 +76,7 @@ export interface PublicProfileData {
   pnl_series: PnlPoint[];   // all time, daily
   activity: ActivityItem[];  // last 200
   created_markets: CreatedMarket[];
+  created_tokens: CreatedToken[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -414,6 +427,28 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
     };
   });
 
+  // Tokens lancés sur le launchpad (Solana et Arc), hors tokens cachés / jamais confirmés
+  const { data: tokenRows } = await admin
+    .from("launchpad_tokens")
+    .select("id, name, ticker, logo_url, status, chain, mint_address, market_cap_usd, created_at")
+    .eq("creator_wallet", walletAddress)
+    .neq("status", "pending")
+    .not("is_hidden", "is", true)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const created_tokens: CreatedToken[] = (tokenRows ?? []).map((t: any) => ({
+    id:             t.id,
+    name:           t.name ?? "",
+    ticker:         t.ticker ?? "",
+    logo_url:       t.logo_url ?? null,
+    status:         t.status ?? "active",
+    chain:          t.chain === "arc" ? "arc" : "solana",
+    mint_address:   t.mint_address ?? null,
+    market_cap_usd: t.market_cap_usd != null ? Number(t.market_cap_usd) : null,
+    created_at:     t.created_at,
+  }));
+
   return {
     wallet,
     stats: {
@@ -430,6 +465,7 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
     pnl_series,
     activity,
     created_markets,
+    created_tokens,
   };
 }
 

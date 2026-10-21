@@ -394,6 +394,15 @@ function ProfileDrawer({
             <span>{t.createMarket}</span>
           </Link>
 
+          <Link
+            href={`/profile/${walletAddress}`}
+            onClick={onClose}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <User className="size-4 text-muted-foreground" />
+            <span>{tr("My profile")}</span>
+          </Link>
+
           {!isAdmin && (
             <Link
               href="/dashboard"
