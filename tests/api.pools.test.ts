@@ -6,6 +6,22 @@ const mockCreateClient    = vi.fn();
 const mockCreateAdminClient = vi.fn();
 const mockAwardOcto       = vi.fn().mockResolvedValue(undefined);
 
+vi.mock("@/lib/solana/verify-transfer", () => ({
+  checkSolanaTransfer: vi.fn().mockResolvedValue("ok"),
+  verifyTokenTransfer: vi.fn().mockResolvedValue(null),
+}));
+// Création : le mémo de la tx de frais est lu via Connection.getParsedTransaction
+vi.mock("@solana/web3.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@solana/web3.js")>();
+  return {
+    ...real,
+    Connection: class {
+      async getParsedTransaction() {
+        return { transaction: { message: { instructions: [{ parsed: "om?v=1&kind=pool_creation&wallet=wallet123" }] } } };
+      }
+    },
+  };
+});
 vi.mock("@/lib/supabase/server", () => ({
   createClient:      mockCreateClient,
   createAdminClient: mockCreateAdminClient,
@@ -28,6 +44,8 @@ const VALID_BODY = {
   category:          "crypto",
   bet_token:         "usdc",
   betting_closes_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // +2h
+  creation_tx:        "tx-creation-1",
+  creation_fee_token: "usdc",
 };
 
 function setupMocks(wallet: string | null, insertError: { message: string } | null = null) {

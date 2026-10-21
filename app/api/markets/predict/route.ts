@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
 import { verifyArcTransfer } from "@/lib/arc-verify";
+import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
 
 /**
  * POST /api/markets/predict
@@ -71,6 +72,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     }
     // "unverified" (RPC indisponible) : enregistré en attente, l'admin vérifie à la validation
+  } else if (body.tx_signature && (body.token === "usdc" || body.token === "clawdtrust")) {
+    // Solana : refus si la tx est confirmée mais ne correspond pas à la mise ; sinon en attente (l'admin valide)
+    const v = await checkSolanaTransfer(body.tx_signature, body.token, Number(body.total_paid_usdc));
+    if (v === "mismatch") {
+      return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
+    }
   }
 
   const admin = createAdminClient() as any;

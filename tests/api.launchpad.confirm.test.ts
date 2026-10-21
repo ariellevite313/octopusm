@@ -140,7 +140,7 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
   afterEach(() => vi.useRealTimers());
 
   it("clears vanity_secret_key when TX is confirmed on first check", async () => {
-    mockVerifyTransaction.mockResolvedValue(true);
+    mockVerifyTransaction.mockResolvedValue({ state: "confirmed" });
 
     const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
@@ -158,10 +158,9 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
     expect(updateArg).toHaveProperty("status", "active");
   });
 
-  it("does NOT clear vanity_secret_key when TX is not confirmed after retry", async () => {
+  it("returns 202 and does NOT touch the token when TX is still pending after retry", async () => {
     vi.useFakeTimers();
-    // Both checks return false
-    mockVerifyTransaction.mockResolvedValue(false);
+    mockVerifyTransaction.mockResolvedValue({ state: "pending" });
 
     const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
@@ -170,24 +169,19 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
       makeRequest({ txSignature: "unconfirmedSig", walletAddress: "CreatorWallet111" }),
       ROUTE_PARAMS
     );
-
-    // Advance past the 4s retry delay
     await vi.runAllTimersAsync();
     const res = await responsePromise;
 
-    expect(res.status).toBe(200);
-    const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
-    // vanity_secret_key must NOT be cleared (key preserved for retry)
-    expect(updateArg).not.toHaveProperty("vanity_secret_key");
-    expect(updateArg).toHaveProperty("status", "active");
+    expect(res.status).toBe(202);
+    // Token stays pending, secret key preserved for retry
+    expect(updateFn).not.toHaveBeenCalled();
   });
 
   it("clears vanity_secret_key when TX is confirmed on retry (second check)", async () => {
     vi.useFakeTimers();
-    // First call not confirmed, second call confirmed
     mockVerifyTransaction
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce({ state: "pending" })
+      .mockResolvedValueOnce({ state: "confirmed" });
 
     const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
@@ -196,7 +190,6 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
       makeRequest({ txSignature: "lateSig", walletAddress: "CreatorWallet111" }),
       ROUTE_PARAMS
     );
-
     await vi.runAllTimersAsync();
     const res = await responsePromise;
 
@@ -205,24 +198,19 @@ describe("POST /api/launchpad/[id]/confirm — key clearing", () => {
     expect(updateArg).toHaveProperty("vanity_secret_key", null);
   });
 
-  it("treats a TX with err field as unconfirmed", async () => {
-    vi.useFakeTimers();
-    // verifyTransaction already handles err internally and returns false
-    mockVerifyTransaction.mockResolvedValue(false);
+  it("returns 422 and keeps the token pending when the TX reverted on-chain", async () => {
+    mockVerifyTransaction.mockResolvedValue({ state: "failed", reason: "InstructionError" });
 
     const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
 
-    const responsePromise = postConfirm(
+    const res = await postConfirm(
       makeRequest({ txSignature: "failedSig", walletAddress: "CreatorWallet111" }),
       ROUTE_PARAMS
     );
-    await vi.runAllTimersAsync();
-    await responsePromise;
 
-    const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
-    // Key must be preserved because tx has an on-chain error
-    expect(updateArg).not.toHaveProperty("vanity_secret_key");
+    expect(res.status).toBe(422);
+    expect(updateFn).not.toHaveBeenCalled();
   });
 });
 
@@ -234,7 +222,7 @@ describe("POST /api/launchpad/[id]/confirm — scheduled tokens", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("sets is_tradeable=false for scheduled tokens", async () => {
-    mockVerifyTransaction.mockResolvedValue(true);
+    mockVerifyTransaction.mockResolvedValue({ state: "confirmed" });
 
     const scheduledToken = {
       ...PENDING_TOKEN,
@@ -259,7 +247,7 @@ describe("POST /api/launchpad/[id]/confirm — scheduled tokens", () => {
   });
 
   it("sets is_tradeable=true for immediate (non-scheduled) tokens", async () => {
-    mockVerifyTransaction.mockResolvedValue(true);
+    mockVerifyTransaction.mockResolvedValue({ state: "confirmed" });
 
     const { client, updateFn } = buildAdminMock(PENDING_TOKEN);
     mockCreateAdminClient.mockReturnValue(client);

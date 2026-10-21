@@ -19,6 +19,10 @@ const mockCreateAdminClient = vi.fn();
 const mockAwardOcto         = vi.fn().mockResolvedValue(undefined);
 const mockAwardReferralCommission = vi.fn().mockResolvedValue(undefined);
 
+vi.mock("@/lib/solana/verify-transfer", () => ({
+  checkSolanaTransfer: vi.fn().mockResolvedValue("ok"),
+  verifyTokenTransfer: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient:      mockCreateClient,
   createAdminClient: mockCreateAdminClient,

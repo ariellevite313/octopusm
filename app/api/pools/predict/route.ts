@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
 import { verifyArcTransfer } from "@/lib/arc-verify";
+import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
 
 /**
  * POST /api/pools/predict
@@ -52,6 +53,10 @@ export async function POST(req: Request) {
     const v = await verifyArcTransfer({ hash: body.tx_signature, from: body.wallet_address, minUsdc: Number(body.amount_usdc) });
     if (v === "mismatch") return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     // "unverified" : enregistré en attente, l'admin vérifie à la validation
+  } else if (body.token === "usdc" || body.token === "clawdtrust") {
+    // Solana : refus si la tx est confirmée mais ne correspond pas à la mise ; sinon en attente (l'admin valide)
+    const v = await checkSolanaTransfer(body.tx_signature, body.token, Number(body.amount_usdc));
+    if (v === "mismatch") return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
   }
 
   const minAmt = body.token === "usdc" ? 2 : 500_000;
