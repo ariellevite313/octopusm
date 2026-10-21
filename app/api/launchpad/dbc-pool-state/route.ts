@@ -17,6 +17,8 @@
 import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
 
+const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
+
 function tryPublicKey(s: string): PublicKey | null {
   try { return new PublicKey(s); } catch { return null; }
 }

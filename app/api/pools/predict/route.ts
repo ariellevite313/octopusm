@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
+import { verifyArcTransfer } from "@/lib/arc-verify";
 
 /**
  * POST /api/pools/predict
@@ -28,6 +30,7 @@ export async function POST(req: Request) {
     token:              string;
     tx_signature:       string;
     wallet_address:     string;
+    chain?:             string;
   };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -37,8 +40,18 @@ export async function POST(req: Request) {
   }
 
   // BUG-03 fix: wallet in body must match authenticated session
-  if (body.wallet_address !== sessionWallet) {
+  const isArc = body.chain === "arc";
+  const sameWallet = isArc
+    ? body.wallet_address.toLowerCase() === sessionWallet.toLowerCase()
+    : body.wallet_address === sessionWallet;
+  if (!sameWallet) {
     return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
+  }
+  if (isArc) {
+    if (body.token !== "usdc") return NextResponse.json({ error: "Arc bets use USDC only" }, { status: 400 });
+    const v = await verifyArcTransfer({ hash: body.tx_signature, from: body.wallet_address, minUsdc: Number(body.amount_usdc) });
+    if (v === "mismatch") return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
+    // "unverified" : enregistré en attente, l'admin vérifie à la validation
   }
 
   const minAmt = body.token === "usdc" ? 2 : 500_000;
@@ -82,7 +95,7 @@ export async function POST(req: Request) {
     selection_id:       body.selection_id,
     selection_label:    body.selection_label,
     user_wallet:        body.wallet_address,
-    recipient_wallet:   process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ",
+    recipient_wallet:   isArc ? ARC_BETS_ADDRESS : (process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ"),
     amount_usdc:        body.amount_usdc,
     reserve_fee_usdc:   0,
     total_paid_usdc:    body.amount_usdc,

@@ -127,6 +127,39 @@ async function loadWeb3(): Promise<Web3> {
 export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResult> {
   const { marketId, marketTitle, optionId, optionLabel, amount, token, walletAddress, walletType } = params;
 
+  // Wallet EVM (MetaMask) → mise en USDC sur Arc
+  if (walletType === "metamask") {
+    if (token !== "usdc") return { success: false, error: "ClawdTrust markets need a Solana wallet." };
+    const { sendArcUsdc } = await import("@/lib/arc-payments");
+    const ref = `POOL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const memo = ["om?v=1", "kind=pool_prediction", `ref=${ref}`, `marketId=${marketId}`, `optionId=${optionId}`, "token=usdc", `wallet=${walletAddress}`].join("&");
+    const sent = await sendArcUsdc({ from: walletAddress, amount, memo });
+    if (!sent.success) return { success: false, error: sent.error };
+    const r = await fetch("/api/pools/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        payment_request_id: `pool-req-${Date.now().toString(36)}`,
+        payment_reference:  ref,
+        title:              marketTitle,
+        subtitle:           optionLabel,
+        market_id:          marketId,
+        selection_id:       optionId,
+        selection_label:    optionLabel,
+        amount_usdc:        amount,
+        token:              "usdc",
+        chain:              "arc",
+        tx_signature:       sent.hash,
+        wallet_address:     walletAddress,
+      }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({})) as { error?: string };
+      return { success: false, error: `On-chain OK but registration failed: ${err.error ?? r.status}. Contact support with TX: ${sent.hash.slice(0, 16)}` };
+    }
+    return { success: true, reference: ref, signature: sent.hash };
+  }
+
   // 1. Get wallet provider
   const { getProviderByType } = await import("@/lib/wallet/adapters");
   const provider = getProviderByType(walletType);
@@ -261,6 +294,15 @@ export type PoolCreationResult =
  */
 export async function submitPoolCreation(params: PoolCreationParams): Promise<PoolCreationResult> {
   const { feeToken, walletAddress, walletType, title } = params;
+
+  // Wallet EVM (MetaMask) → frais de création de 2 USDC sur Arc
+  if (walletType === "metamask") {
+    if (feeToken !== "usdc") return { success: false, error: "Pay the creation fee in USDC on Arc." };
+    const { sendArcUsdc } = await import("@/lib/arc-payments");
+    const memo = ["om?v=1", "kind=pool_creation", `wallet=${walletAddress}`, `title=${encodeURIComponent(title.slice(0, 80))}`].join("&");
+    const sent = await sendArcUsdc({ from: walletAddress, amount: 2, memo });
+    return sent.success ? { success: true, signature: sent.hash } : { success: false, error: sent.error };
+  }
 
   const { getProviderByType } = await import("@/lib/wallet/adapters");
   const provider = getProviderByType(walletType);
