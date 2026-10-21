@@ -19,6 +19,6 @@ describe("computeTradeRewards", () => {
       expect(r.referral + r.post).toBeLessThan(r.fee);
     }
     expect(REFERRER_SHARE_OF_FEE + POST_SHARE_OF_FEE).toBeLessThan(1);
-    expect(PLATFORM_FEE_RATE.arc).toBeLessThanOrEqual(0.01);
+    expect(PLATFORM_FEE_RATE.arc).toBeLessThanOrEqual(0.0025);
   });
 });
