@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getPublicProfile } from "@/services/profile-service";
 import { ProfilePnlChart } from "@/components/profile/profile-pnl-chart";
 import { ProfileActivityList } from "@/components/profile/profile-activity-list";
+import { ProfileTokensList } from "@/components/profile/profile-tokens-list";
 import { ProfileMarketsList } from "@/components/profile/profile-markets-list";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { fmt, shortAddress } from "@/lib/format";
@@ -233,11 +234,14 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       {/* ── 3. Recent activity ─────────────────────────────────────── */}
       <ProfileActivityList items={data.activity} />
 
-      {/* ── 4. Markets created ──────────────────────────────────────── */}
+      {/* ── 4. Tokens launched (Solana + Arc) ─────────────────────── */}
+      <ProfileTokensList tokens={data.created_tokens} />
+
+      {/* ── 5. Markets created ──────────────────────────────────────── */}
       <ProfileMarketsList markets={data.created_markets} />
 
       {/* Empty state */}
-      {data.stats.total_rounds === 0 && data.created_markets.length === 0 && (
+      {data.stats.total_rounds === 0 && data.created_markets.length === 0 && data.created_tokens.length === 0 && (
         <div className="rounded-[22px] border border-border bg-card px-6 py-16 text-center">
           <p className="text-muted-foreground"><Tr>No activity yet for this address.</Tr></p>
         </div>
@@ -253,11 +257,15 @@ export default async function PublicProfilePage({
 }: {
   params: Promise<{ wallet: string }>;
 }) {
-  const { wallet } = await params;
+  const { wallet: rawWallet } = await params;
 
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) {
+  // Adresse Solana (base58) ou Arc / EVM (0x + 40 hex, stockée en minuscules)
+  const isSolana = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(rawWallet);
+  const isEvm    = /^0x[0-9a-fA-F]{40}$/.test(rawWallet);
+  if (!isSolana && !isEvm) {
     notFound();
   }
+  const wallet = isEvm ? rawWallet.toLowerCase() : rawWallet;
 
   return (
     <div className="min-h-screen bg-background">

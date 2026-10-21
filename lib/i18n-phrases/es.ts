@@ -1033,5 +1033,7 @@ const p: Record<string, string> = {
   "Theme": "Tema",
   "Light": "Claro",
   "Dark": "Oscuro",
+  "My profile": "Mi perfil",
+  "Market cap": "Cap. de mercado",
 };
 export default p;
