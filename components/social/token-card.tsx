@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { fmt } from "@/lib/format";
 import type { TokenCard as Card, Range } from "@/lib/social/token-card";
+import { TradeSheet } from "./trade-sheet";
 
 const RANGES: Range[] = ["1H", "1D", "1W", "ALL"];
 
-function Chart({ points, up }: { points: number[]; up: boolean }) {
+export function Chart({ points, up }: { points: number[]; up: boolean }) {
   const w = 300, h = 72;
   const d = useMemo(() => {
     if (points.length < 2) return null;
@@ -46,6 +47,7 @@ export function TokenCardView({ ticker, author }: { ticker: string; author: stri
   const [card, setCard] = useState<Card | null>(null);
   const [failed, setFailed] = useState(false);
   const [range, setRange] = useState<Range>("1D");
+  const [trade, setTrade] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -123,6 +125,14 @@ export function TokenCardView({ ticker, author }: { ticker: string; author: stri
           )}
         </div>
       )}
+
+      <button
+        onClick={() => setTrade(true)}
+        className="mt-3 h-11 w-full rounded-full bg-primary text-[15px] font-bold text-white transition-opacity hover:opacity-90"
+      >
+        {tr("Trade")} ${t.ticker}
+      </button>
+      {trade && <TradeSheet token={t} onClose={() => setTrade(false)} />}
     </div>
   );
 }

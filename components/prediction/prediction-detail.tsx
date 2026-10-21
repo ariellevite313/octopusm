@@ -276,6 +276,12 @@ export function PredictionDetail({
   const [successRef,    setSuccessRef]    = useState("");
   const [showWallet,    setShowWallet]    = useState(false);
   const [betOpen,       setBetOpen]       = useState(false);
+  // Option choisie depuis un post du fil (?option=…) : ouvre directement la mise
+  useEffect(() => {
+    const o = new URLSearchParams(window.location.search).get("option");
+    if (o && options.some((x) => x.id === o)) { setSelectedId(o); setBetOpen(true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => { if (submitState === "success") setBetOpen(false); }, [submitState]);
   useEffect(() => {
     if (!betOpen) return;
