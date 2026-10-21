@@ -6,7 +6,6 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 import { MobileSettings } from "@/components/shared/theme-switch";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -98,7 +97,6 @@ export function LaunchpadHeader() {
 
           {/* Right */}
           <div className="flex items-center gap-2">
-            <NotificationBell className="size-10 text-foreground lg:hidden" />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}
