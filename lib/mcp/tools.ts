@@ -23,6 +23,7 @@ import { createPost, type PostFile } from "@/lib/social/create-post";
 import { postMessage, verifyPostSignature, type B64Image } from "@/lib/mcp/post-auth";
 import { ACTIONS, ActionError } from "@/lib/mcp/agent-actions";
 import { actionMessage, verifyAction, isEvm, isSolana, normAgentWallet } from "@/lib/mcp/agent-auth";
+import { prepareTrade, submitTrade, TradeError, MAX_BUY_SOL, MAX_BUY_USDC } from "@/lib/mcp/trade";
 import { getLaunchpadToken } from "@/services/launchpad-service";
 import { getPublicProfile } from "@/services/profile-service";
 
@@ -379,6 +380,50 @@ export const TOOLS: McpTool[] = [
         if (e instanceof ActionError) throw new ToolError(e.message);
         throw e;
       }
+    },
+  },
+
+  // ── Trading de tokens OMdotfun (non custodial : l'agent signe avec sa propre clé) ──
+  {
+    name: "trade_prepare",
+    description:
+      `Buy or sell a token launched on OMdotfun with your own wallet. Returns the transaction(s) to sign plus the price estimate. ` +
+      `Solana tokens on the bonding curve (pay in SOL, max ${MAX_BUY_SOL} SOL per buy) and Arc V2 tokens on the bonding curve (pay in USDC, max ${MAX_BUY_USDC} USDC per buy). ` +
+      `amount = SOL/USDC to spend for a buy, number of tokens for a sell. Default slippage 1% (max 10%). Graduated tokens trade on DEXs. 30 trades per hour per wallet.`,
+    readOnly: false,
+    inputSchema: {
+      type: "object",
+      properties: {
+        wallet: { type: "string", description: "Your wallet (Solana for Solana tokens, 0x for Arc tokens), the signer" },
+        token_id: { type: "string", description: "Token uuid (see list_tokens / get_token)" },
+        side: { type: "string", enum: ["buy", "sell"] },
+        amount: { type: "number" },
+        slippage_bps: { type: "integer", minimum: 10, maximum: 1000 },
+      },
+      required: ["wallet", "token_id", "side", "amount"],
+    },
+    run: async (a) => {
+      const id = str(a, "token_id", { required: true, max: 64 })!;
+      if (!UUID.test(id)) throw new ToolError("token_id must be a token uuid");
+      const wallet = str(a, "wallet", { required: true, max: 64 })!;
+      try {
+        return await prepareTrade({ wallet, token_id: id, side: str(a, "side", { required: true, max: 4 }) as "buy" | "sell", amount: Number(a.amount), slippage_bps: a.slippage_bps === undefined ? undefined : Number(a.slippage_bps) });
+      } catch (e) { if (e instanceof TradeError) throw new ToolError(e.message); throw e; }
+    },
+  },
+  {
+    name: "trade_submit",
+    description: "Broadcast a trade you signed (from trade_prepare). Solana: { chain: \"solana\", signed_tx_base64 }. Arc: { chain: \"arc\", signed_tx } (0x serialized), one call per transaction, in order. Only OMdotfun bonding-curve trades are accepted.",
+    readOnly: false,
+    inputSchema: {
+      type: "object",
+      properties: { chain: { type: "string", enum: ["solana", "arc"] }, signed_tx_base64: { type: "string" }, signed_tx: { type: "string" } },
+      required: ["chain"],
+    },
+    run: async (a) => {
+      try {
+        return await submitTrade({ chain: str(a, "chain", { required: true, max: 10 })!, signed_tx_base64: str(a, "signed_tx_base64", { max: 20_000 }), signed_tx: str(a, "signed_tx", { max: 40_000 }) });
+      } catch (e) { if (e instanceof TradeError) throw new ToolError(e.message); throw e; }
     },
   },
 

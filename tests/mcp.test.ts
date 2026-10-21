@@ -156,3 +156,21 @@ describe("MCP request_approval", () => {
     expect(prep.description).toMatch(/nothing is executed/i);
   });
 });
+
+describe("MCP trading tools", () => {
+  const call = async (name: string, args: unknown) => {
+    const r = await rpc({ jsonrpc: "2.0", id: 30, method: "tools/call", params: { name, arguments: args } });
+    const res = r.result as { isError: boolean; content: { text: string }[] };
+    return { isError: res.isError, text: res.content[0].text };
+  };
+  it("trade_prepare validates its inputs before touching anything", async () => {
+    expect((await call("trade_prepare", { wallet: "W", token_id: "nope", side: "buy", amount: 1 })).text).toMatch(/uuid/);
+    expect((await call("trade_prepare", { wallet: "W", token_id: "00000000-0000-4000-8000-000000000001", side: "hold", amount: 1 })).text).toMatch(/buy or sell/);
+    expect((await call("trade_prepare", { wallet: "W", token_id: "00000000-0000-4000-8000-000000000001", side: "buy", amount: -2 })).text).toMatch(/positive/);
+  });
+  it("trade_submit refuses an unknown chain and garbage transactions", async () => {
+    expect((await call("trade_submit", { chain: "eth" })).text).toMatch(/solana or arc/);
+    expect((await call("trade_submit", { chain: "solana", signed_tx_base64: "AAAA" })).isError).toBe(true);
+    expect((await call("trade_submit", { chain: "arc", signed_tx: "0x00" })).isError).toBe(true);
+  });
+});
