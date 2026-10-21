@@ -341,6 +341,8 @@ const p: Record<string, string> = {
   "Decline": "رفض",
   "Review and confirm": "مراجعة وتأكيد",
   "Agent wallet": "محفظة الوكيل",
+  "Address copied": "تم نسخ العنوان",
+  "Copy profile link": "نسخ رابط الملف الشخصي",
   "Total earned": "إجمالي الأرباح",
   "Profit/Loss · {token}": "الربح/الخسارة · {token}",
   "Volume : {amount} {unit}": "الحجم: {amount} {unit}",

@@ -44,7 +44,15 @@ type ClaimResult = {
   signature?: string;
   claimedSol?: number;
   error?: string;
+  reason?: string;
 };
+
+/** Message lisible à partir d'une erreur Solana (sans les logs bruts). */
+function shortError(msg: string): string {
+  const m = msg.match(/Error Message: ([^."]+)/) ?? msg.match(/custom program error: (0x[0-9a-f]+)/i);
+  if (m) return m[1].trim();
+  return msg.length > 160 ? msg.slice(0, 160) + "…" : msg;
+}
 
 async function claimForPool(
   client: unknown,
@@ -77,6 +85,22 @@ async function claimForPool(
 
     if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
       return { tokenId: token.id, name: token.name, status: "skipped", claimedSol: 0 };
+    }
+
+    // Seul le « fee claimer » du config DBC du pool peut réclamer (sinon erreur 6053 Unauthorized).
+    // Certains pools (anciens configs, configs créés par token) ont un autre claimer : on les saute.
+    const configKey = inner?.config;
+    if (configKey) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cfg = await (client as any).state.getPoolConfig(configKey);
+      const claimer: string | undefined =
+        cfg?.feeClaimer?.toBase58?.() ?? cfg?.partnerAddress?.toBase58?.() ?? undefined;
+      if (claimer && claimer !== platformWallet.publicKey.toBase58()) {
+        return {
+          tokenId: token.id, name: token.name, status: "skipped", claimedSol: 0,
+          reason: `fee claimer of this pool is ${claimer.slice(0, 4)}…${claimer.slice(-4)}, not the platform wallet`,
+        };
+      }
     }
     // claimedSol = SOL (quote) portion
     claimedSol = maxQuoteAmount.toNumber() / 1e9;
@@ -137,7 +161,8 @@ async function claimForPool(
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Transaction failed";
-    return { tokenId: token.id, name: token.name, status: "error", error: msg };
+    console.error(`[claim-platform-fees] ${token.name}:`, msg);
+    return { tokenId: token.id, name: token.name, status: "error", error: shortError(msg) };
   }
 }
 
@@ -160,6 +185,7 @@ export async function POST(req: Request) {
     .from("launchpad_tokens")
     .select("id, name, ticker, pool_address")
     .not("pool_address", "is", null)
+    .eq("chain", "solana")
     .in("status", ["active", "graduating", "graduated"]);
 
   if (body.tokenId) {
@@ -201,11 +227,12 @@ export async function POST(req: Request) {
 
   const claimed  = results.filter(r => r.status === "ok").length;
   const skipped  = results.filter(r => r.status === "skipped").length;
+  const notOurs  = results.filter(r => r.status === "skipped" && r.reason).length;
   const errors   = results.filter(r => r.status === "error").length;
   const totalSol = results.reduce((s, r) => s + (r.claimedSol ?? 0), 0);
 
   return NextResponse.json({
     results,
-    summary: { claimed, skipped, errors, totalSol: Number(totalSol.toFixed(6)) },
+    summary: { claimed, skipped, notOurs, errors, totalSol: Number(totalSol.toFixed(6)) },
   });
 }

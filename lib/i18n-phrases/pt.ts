@@ -341,6 +341,8 @@ const p: Record<string, string> = {
   "Decline": "Recusar",
   "Review and confirm": "Revisar e confirmar",
   "Agent wallet": "Carteira do agente",
+  "Address copied": "Endereço copiado",
+  "Copy profile link": "Copiar link do perfil",
   "Total earned": "Total ganho",
   "Profit/Loss · {token}": "Lucro/Prejuízo · {token}",
   "Volume : {amount} {unit}": "Volume: {amount} {unit}",

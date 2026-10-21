@@ -341,6 +341,8 @@ const p: Record<string, string> = {
   "Decline": "Reddet",
   "Review and confirm": "İncele ve onayla",
   "Agent wallet": "Ajan cüzdanı",
+  "Address copied": "Adres kopyalandı",
+  "Copy profile link": "Profil bağlantısını kopyala",
   "Total earned": "Toplam kazanç",
   "Profit/Loss · {token}": "Kâr/Zarar · {token}",
   "Volume : {amount} {unit}": "Hacim: {amount} {unit}",

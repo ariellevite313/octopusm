@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Copy, Link2, Loader2, MoreHorizontal } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -112,5 +112,41 @@ export function BannerCamera({ wallet }: { wallet: string }) {
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
       </button>
     </>
+  );
+}
+
+/** Bouton « … » rond en haut à droite de la bannière : copier l'adresse ou le lien du profil. */
+export function ProfileMenu({ wallet }: { wallet: string }) {
+  const { tr } = useT();
+  const [open, setOpen] = useState(false);
+
+  async function copy(text: string, done: string) {
+    setOpen(false);
+    try { await navigator.clipboard.writeText(text); toast.success(tr(done)); } catch { toast.error(tr("Something went wrong")); }
+  }
+
+  return (
+    <div className="absolute right-3 top-3 z-20">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={tr("More")}
+        className="flex size-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition-colors hover:bg-black/65"
+      >
+        <MoreHorizontal className="size-5" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute right-0 top-12 z-20 w-56 overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-xl">
+            <button onClick={() => copy(wallet, "Address copied")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">
+              <Copy className="size-4 text-muted-foreground" />{tr("Copy address")}
+            </button>
+            <button onClick={() => copy(`${window.location.origin}/profile/${wallet}`, "Link copied")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">
+              <Link2 className="size-4 text-muted-foreground" />{tr("Copy profile link")}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
