@@ -11,6 +11,8 @@ vi.mock("@/lib/solana/verify-transfer", () => ({
   checkSolanaTransfer: vi.fn().mockResolvedValue("ok"),
   verifyTokenTransfer: vi.fn().mockResolvedValue(null),
 }));
+const mockVerifyArc = vi.fn();
+vi.mock("@/lib/arc-verify", () => ({ verifyArcTransfer: mockVerifyArc }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient:      mockCreateClient,
   createAdminClient: mockCreateAdminClient,
@@ -200,6 +202,40 @@ describe("POST /api/updown/bet", () => {
     const res = await postUpDown(makeRequest(UPDOWN_BODY));
     expect(res.status).toBe(409);
     expect((await json(res)).error).toMatch(/ended/i);
+  });
+
+  // ── Arc (MetaMask) ────────────────────────────────────────────────────────
+
+  const ARC_WALLET = "0xAbCdEf1111111111111111111111111111111111";
+  const ARC_BODY = { ...UPDOWN_BODY, chain: "arc", wallet_address: ARC_WALLET, tx_signature: "0x" + "ab".repeat(32) };
+
+  it("accepts an Arc bet when the transaction matches (wallet compared case-insensitively)", async () => {
+    mockVerifyArc.mockResolvedValue("ok");
+    setupUpDown(ARC_WALLET.toLowerCase());
+    const res = await postUpDown(makeRequest({ ...ARC_BODY, wallet_address: ARC_WALLET }));
+    expect(res.status).toBe(200);
+    expect(mockVerifyArc).toHaveBeenCalledWith(expect.objectContaining({ minUsdc: 10, memoIncludes: ["market=updown-market-001", "dir=up"] }));
+  });
+
+  it("rejects an Arc bet when the transaction does not match", async () => {
+    mockVerifyArc.mockResolvedValue("mismatch");
+    setupUpDown(ARC_WALLET);
+    const res = await postUpDown(makeRequest(ARC_BODY));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toMatch(/does not match/i);
+  });
+
+  it("keeps an Arc bet pending when the RPC cannot verify yet", async () => {
+    mockVerifyArc.mockResolvedValue("unverified");
+    setupUpDown(ARC_WALLET);
+    const res = await postUpDown(makeRequest(ARC_BODY));
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 403 when the Arc wallet differs from the session wallet", async () => {
+    setupUpDown("0x2222222222222222222222222222222222222222");
+    const res = await postUpDown(makeRequest(ARC_BODY));
+    expect(res.status).toBe(403);
   });
 
   // ── Duplicate transaction ─────────────────────────────────────────────────

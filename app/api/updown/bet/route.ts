@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { verifyArcTransfer } from "@/lib/arc-verify";
+import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
 
 
 /**
@@ -26,6 +28,7 @@ export async function POST(req: Request) {
     direction:      "up" | "down";
     amount:         number;
     tx_signature:   string;
+    chain?:         string;
   };
 
   const { market_id, wallet_address, direction, amount, tx_signature } = body;
@@ -42,8 +45,15 @@ export async function POST(req: Request) {
 
 
   // 2. Wallet dans le body doit correspondre à la session
-  if (wallet_address !== sessionWallet) {
+  const isArc = body.chain === "arc";
+  const sameWallet = isArc
+    ? wallet_address.toLowerCase() === sessionWallet.toLowerCase()
+    : wallet_address === sessionWallet;
+  if (!sameWallet) {
     return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
+  }
+  if (isArc && !/^0x[0-9a-fA-F]{40}$/.test(wallet_address)) {
+    return NextResponse.json({ error: "Invalid Arc wallet" }, { status: 400 });
   }
 
   const admin = createAdminClient() as any;
@@ -65,13 +75,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Betting phase has ended" }, { status: 409 });
   }
 
+  // 3b. Vérification on-chain : la tx doit réellement avoir payé la mise
+  if (isArc) {
+    const v = await verifyArcTransfer({
+      hash: tx_signature,
+      from: wallet_address,
+      minUsdc: Number(amount),
+      memoIncludes: [`market=${market_id}`, `dir=${direction}`],
+    });
+    if (v === "mismatch") {
+      return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
+    }
+    // "unverified" (RPC indisponible) : enregistré en attente, l'admin vérifie à l'approbation
+  } else {
+    const v = await checkSolanaTransfer(tx_signature, "usdc", Number(amount));
+    if (v === "mismatch") {
+      return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
+    }
+  }
+
   // 4. Insert bet (tx_signature unique prevents double-submit)
   // BUG-UD-4 FIX: insérer en "pending" — l'admin approuve via /api/admin/updown/bets.
   // Le pool est incrémenté à l'approbation (cohérent avec les autres marchés).
   const { error: betErr } = await admin.from("updown_bets").insert({
     id:             crypto.randomUUID(),
     market_id,
-    wallet_address,
+    wallet_address: isArc ? wallet_address.toLowerCase() : wallet_address,
     direction,
     amount,
     tx_signature,
