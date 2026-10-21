@@ -20,6 +20,7 @@ import {
   MAX_STAKE_USDC,
   MIN_STAKE_CLT,
 } from "@/lib/market/betting";
+import { submitBetArc } from "@/lib/market/betting-arc";
 import type { PredictionMarketRow, MarketCommentEnriched } from "@/lib/supabase/types";
 import type { WalletType } from "@/lib/wallet/adapters";
 import type { MarketVolumeDetail } from "@/services/prediction-service";
@@ -324,7 +325,9 @@ export function PredictionDetail({
 
     setSubmitState("signing");
 
-    const result = await submitBet({
+    // Wallet EVM (MetaMask) → paris en USDC sur Arc ; sinon Solana
+    const send = walletType === "metamask" ? submitBetArc : submitBet;
+    const result = await send({
       marketId:         market.id,
       marketTitle:      market.title,
       categoryId:       market.category_id,
@@ -494,7 +497,7 @@ export function PredictionDetail({
                 <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted md:hidden" />
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex gap-1 rounded-full bg-muted p-1">
-                    {(["usdc", "clawdtrust"] as BetToken[]).map((t) => (
+                    {((walletType === "metamask" ? ["usdc"] : ["usdc", "clawdtrust"]) as BetToken[]).map((t) => (
                       <button key={t} type="button" onClick={() => { setToken(t); setRawAmount(""); }}
                         className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors ${token === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                         {t === "usdc" ? "USDC" : "ClawdTrust"}
