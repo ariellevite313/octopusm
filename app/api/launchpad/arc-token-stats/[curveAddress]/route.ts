@@ -10,6 +10,8 @@
  * Holders = adresses uniques ayant émis l'event Trade V2 sur la curve.
  */
 
+import { createAdminClient } from "@/lib/supabase/server";
+import { arcBalances } from "@/lib/holders";
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { arc } from "@/lib/arc-chain";
@@ -47,6 +49,38 @@ async function fetchUniqueTraders(curveAddress: string): Promise<number | null> 
   }
 }
 
+/** Nombre exact de holders depuis notre base (arc_holdings) ; sinon, repli sur le nombre de traders. */
+async function holderCount(curve: string): Promise<number | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createAdminClient() as any;
+    const { data: tok } = await db.from("launchpad_tokens").select("mint_address").ilike("arc_launch_id", curve).maybeSingle();
+    if (tok?.mint_address) {
+      const bal = await arcBalances(db, tok.mint_address);
+      if (bal && bal.length) return bal.length;
+    }
+  } catch { /* repli */ }
+  return fetchUniqueTraders(curve);
+}
+
+/** Volume et variation sur 24 h à partir des trades mémorisés (table arc_trades). */
+async function tradeStats(curve: string): Promise<{ volume24h: number | null; priceChange: number | null }> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createAdminClient() as any;
+    const since = Math.floor(Date.now() / 1000) - 86_400;
+    const c = curve.toLowerCase();
+    const [{ data: day }, { data: before }, { data: last }] = await Promise.all([
+      db.from("arc_trades").select("usdc_amt").eq("curve", c).gte("ts", since).limit(10_000),
+      db.from("arc_trades").select("price").eq("curve", c).lt("ts", since).order("ts", { ascending: false }).limit(1),
+      db.from("arc_trades").select("price").eq("curve", c).order("ts", { ascending: false }).limit(1),
+    ]);
+    const volume24h = ((day ?? []) as { usdc_amt: number }[]).reduce((s, r) => s + Number(r.usdc_amt || 0), 0);
+    const p0 = Number(before?.[0]?.price ?? 0), p1 = Number(last?.[0]?.price ?? 0);
+    return { volume24h, priceChange: p0 > 0 && p1 > 0 ? ((p1 - p0) / p0) * 100 : null };
+  } catch { return { volume24h: null, priceChange: null }; }
+}
+
 type RouteParams = { params: Promise<{ curveAddress: string }> };
 
 export async function GET(req: Request, { params }: RouteParams) {
@@ -68,8 +102,9 @@ export async function GET(req: Request, { params }: RouteParams) {
         client.readContract({ address: curveAddr, abi: BONDING_CURVE_V2_ABI, functionName: "realUsdcRaised" }),
         client.readContract({ address: curveAddr, abi: BONDING_CURVE_V2_ABI, functionName: "progressBps" }),
       ]),
-      fetchUniqueTraders(curveAddress),
+      holderCount(curveAddress),
     ]);
+    const { volume24h, priceChange } = await tradeStats(curveAddress);
 
     // USDC Arc natif = 18 decimals EVM
     const reserveUsdc   = Number(reserveUsdcRaw   as bigint) / 1e18;
@@ -82,7 +117,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     return NextResponse.json(
       {
         priceUsd, marketCap, fdv: marketCap,
-        volume24h: null, priceChange: null,
+        volume24h, priceChange,
         holders,
         graduated: Boolean(graduated),
         reserveUsdc, reserveTokens,

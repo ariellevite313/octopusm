@@ -1,9 +1,11 @@
 /**
  * GET /api/launchpad/holders/[mint]
- * Top 25 holders d'un token SPL (regroupés par propriétaire).
+ * Top 100 holders d'un token SPL (regroupés par propriétaire), avec le nom OMdotfun quand le holder a un profil.
  */
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
+import { createAdminClient } from "@/lib/supabase/server";
+import { TOP_HOLDERS, withProfiles } from "@/lib/holders";
 
 export const revalidate = 60;
 
@@ -57,7 +59,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mint: s
 
     const top = [...byOwner.entries()]
       .sort((x, y) => (y[1] > x[1] ? 1 : y[1] < x[1] ? -1 : 0))
-      .slice(0, 25)
+      .slice(0, TOP_HOLDERS)
       .map(([owner, amt], i) => {
         let isProgram = false;
         try { isProgram = !PublicKey.isOnCurve(new PublicKey(owner).toBytes()); } catch { /* ignore */ }
@@ -70,7 +72,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mint: s
         };
       });
 
-    return NextResponse.json({ holders: top, total: byOwner.size }, {
+    const holders = await withProfiles(createAdminClient(), top);
+    return NextResponse.json({ holders, total: byOwner.size }, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
     });
   } catch {

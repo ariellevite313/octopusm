@@ -1,10 +1,12 @@
 /**
  * GET /api/launchpad/arc-holders/[token]?curve=0x…
- * Top 25 holders d'un token ERC-20 sur Arc.
- * 1) API ArcScan getTokenHolders (compatible Etherscan/Blockscout)
- * 2) repli : reconstruction des soldes depuis les events Transfer.
+ * Top 100 holders d'un token ERC-20 sur Arc, avec le nombre exact de holders et le nom OMdotfun des holders qui ont un profil.
+ * 1) notre base (table arc_holdings, tenue à jour par le cron update-arc-holdings) — liste et nombre exacts
+ * 2) repli : API ArcScan getTokenHolders, puis reconstruction depuis les events Transfer.
  */
 import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { arcBalances, TOP_HOLDERS, withProfiles } from "@/lib/holders";
 
 export const revalidate = 60;
 
@@ -56,13 +58,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   if (!ADDR_RE.test(token)) return NextResponse.json({ error: "invalid token" }, { status: 400 });
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createAdminClient() as any;
     let res: { rows: Row[]; total: number | null } | null = null;
-    try { res = await viaHolderApi(token); } catch { /* repli */ }
+    try {
+      const fromDb = await arcBalances(db, token);
+      if (fromDb && fromDb.length) res = { rows: fromDb, total: fromDb.length };
+    } catch { /* repli */ }
+    if (!res) { try { res = await viaHolderApi(token); } catch { /* repli */ } }
     if (!res) res = await viaTransfers(token);
     if (!res) return NextResponse.json({ error: "unavailable" }, { status: 502 });
 
     const rows = res.rows.filter((r) => r.raw > BigInt(0)).sort((a, b) => (b.raw > a.raw ? 1 : b.raw < a.raw ? -1 : 0));
-    const holders = rows.slice(0, 25).map((r, i) => {
+    const top = rows.slice(0, TOP_HOLDERS).map((r, i) => {
       const amount = Number(r.raw) / 1e18;
       return {
         rank: i + 1,
@@ -72,6 +80,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
         isProgram: !!curve && r.owner === curve,
       };
     });
+    const holders = await withProfiles(db, top);
     return NextResponse.json({ holders, total: res.total ?? rows.length }, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
     });
