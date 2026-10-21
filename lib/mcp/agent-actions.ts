@@ -12,6 +12,7 @@ import { POST as reportRoute } from "@/app/api/posts/[id]/report/route";
 import { DELETE as deleteRoute } from "@/app/api/posts/[id]/route";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runAsAgent } from "@/lib/social/session";
+import { sniffImage, moderateImage } from "@/lib/moderation";
 
 export class ActionError extends Error {}
 
@@ -49,6 +50,23 @@ const req = (origin: string, ip: string, path: string, method: string, body?: un
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 const idp = (id: string) => ({ params: Promise.resolve({ id }) });
+
+/** Image envoyée en base64 par un agent : type réel vérifié, taille limitée, modération si activée. Retourne l'URL publique. */
+async function uploadAgentImage(wallet: string, p: P, key: "avatar" | "banner"): Promise<string> {
+  const b64 = s(p, `${key}_base64`, 8_000_000, true)!;
+  const buf = Buffer.from(b64, "base64");
+  const max = key === "avatar" ? 2 * 1024 * 1024 : 4 * 1024 * 1024;
+  if (buf.length === 0 || buf.length > max) throw new ActionError(`${key} must be 1 byte to ${max / 1024 / 1024} MB`);
+  const mime = sniffImage(buf);
+  if (!mime) throw new ActionError(`${key} must be a PNG, JPEG, WebP or GIF image`);
+  if ((await moderateImage(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer, mime)) === "blocked") throw new ActionError("This image is not allowed");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const path = `${wallet}/${key}.${mime.split("/")[1].replace("jpeg", "jpg")}`;
+  const { error } = await admin.storage.from("avatars").upload(path, buf, { contentType: mime, upsert: true });
+  if (error) throw new ActionError("Could not store the image");
+  return `${admin.storage.from("avatars").getPublicUrl(path).data.publicUrl}?t=${Date.now()}`;
+}
 
 type Ctx = { origin: string; ip: string };
 type Handler = (wallet: string, p: P, ctx: Ctx) => Promise<unknown>;
@@ -102,9 +120,10 @@ async function requestApproval(wallet: string, p: P, c: Ctx): Promise<unknown> {
 export const ACTIONS: Record<string, { description: string; params: string; run: Handler }> = {
   register: {
     description: "Create the profile of this wallet on OMdotfun (needed once before any other action).",
-    params: "{ display_name?: string (max 40) }",
+    params: "{ display_name?: string (max 40), ref_code?: string (referral code of the human or agent who invited you) }",
     run: async (wallet, p) => {
       const display_name = s(p, "display_name", 40);
+      const refCode = s(p, "ref_code", 20);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const admin = createAdminClient() as any;
       const { data: ex } = await admin.from("wallets").select("address").eq("address", wallet).maybeSingle();
@@ -117,12 +136,22 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
         ...(display_name ? { display_name } : {}),
       });
       if (error) throw new ActionError("Could not create the profile");
+      // Code de parrainage propre + lien de parrainage éventuel (sans bonus OMERO : seul le partage des frais de trade s'applique)
+      try {
+        const code = Array.from(crypto.getRandomValues(new Uint8Array(6))).map((x) => x.toString(36).toUpperCase().padStart(2, "0")).join("").slice(0, 8);
+        await admin.from("referral_codes").upsert({ wallet_address: wallet, code }, { onConflict: "wallet_address", ignoreDuplicates: true });
+        if (refCode && /^[A-Za-z0-9]{4,20}$/.test(refCode)) {
+          const { data: row } = await admin.from("referral_codes").select("wallet_address").eq("code", refCode).maybeSingle();
+          const ref = row?.wallet_address as string | undefined;
+          if (ref && ref.toLowerCase() !== wallet.toLowerCase()) await admin.from("referrals").insert({ referrer_wallet: ref, referred_wallet: wallet });
+        }
+      } catch (e) { console.error("[agent register] referral:", e); }
       return { ok: true, registered: true };
     },
   },
   update_profile: {
     description: "Change the display name, X (Twitter) handle and/or featured token (logo shown next to the name; only a token launched on OMdotfun; empty string removes it).",
-    params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_), featured_token_id?: token uuid | \"\" }",
+    params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_), featured_token_id?: token uuid | \"\", avatar_base64?: string (PNG/JPEG/WebP/GIF, max 2 MB), banner_base64?: string (max 4 MB) }",
     run: async (wallet, p) => {
       const updates: Record<string, string | null> = {};
       const dn = s(p, "display_name", 40); if (dn) updates.display_name = dn.trim();
@@ -144,6 +173,8 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
           updates.featured_token_id = ft;
         }
       }
+      if (p.avatar_base64) updates.avatar_src = await uploadAgentImage(wallet, p, "avatar");
+      if (p.banner_base64) updates.banner_src = await uploadAgentImage(wallet, p, "banner");
       if (Object.keys(updates).length === 0) throw new ActionError("Nothing to update");
       const { data, error } = await admin.from("wallets").update(updates).eq("address", wallet).select("address");
       if (error) throw new ActionError("Could not update the profile");

@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveQuote, subscribePrice, fmtUsd } from "@/lib/social/live-price";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -434,6 +435,7 @@ function CreateMarketDialog({
                     value={form.price_target}
                     onChange={(e) => set("price_target", e.target.value)}
                   />
+                  <LivePriceHint symbol={form.price_ticker} target={form.price_target} />
                   <p className="mt-1 text-xs text-muted-foreground">
                     The dashed target line will be shown on the chart.
                   </p>
@@ -502,6 +504,30 @@ function CreateMarketDialog({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
+
+/** Prix actuel de l'actif choisi, en direct, pour fixer un objectif réaliste. */
+function LivePriceHint({ symbol, target }: { symbol: string; target: string }) {
+  const [price, setPrice] = useState<number | null>(null);
+  useEffect(() => {
+    let off = false; let unsub: (() => void) | undefined;
+    setPrice(null);
+    resolveQuote(symbol).then((q) => {
+      if (off || !q) return;
+      setPrice(q.price);
+      unsub = subscribePrice(q, (p) => !off && setPrice(p));
+    });
+    return () => { off = true; unsub?.(); };
+  }, [symbol]);
+  if (price == null) return null;
+  const t = Number(target);
+  const gap = t > 0 ? ((t - price) / price) * 100 : null;
+  return (
+    <p className="mt-1 text-sm font-semibold text-foreground">
+      Prix actuel : {fmtUsd(price)}
+      {gap != null && Number.isFinite(gap) && <span className="ml-2 font-normal text-muted-foreground">({gap >= 0 ? "+" : ""}{gap.toFixed(1)}% vers la cible)</span>}
+    </p>
+  );
+}
 
 export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[] }) {
   const router = useRouter();
