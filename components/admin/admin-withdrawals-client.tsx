@@ -12,10 +12,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { parseUnits, toHex } from "viem";
+import { getProviderByType } from "@/lib/wallet/adapters";
+import { ARC_BETS_ADDRESS, ARC_CHAIN_ID_HEX } from "@/lib/arc-bets";
 import type { WithdrawalRow, WithdrawalToken, WithdrawalStatus } from "@/lib/supabase/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function isEvmAddr(a: string) { return /^0x[0-9a-fA-F]{40}$/.test(a); }
 function shortAddr(addr: string) { return `${addr.slice(0, 4)}…${addr.slice(-4)}`; }
 
 function CopyAddr({ addr }: { addr: string }) {
@@ -129,6 +133,36 @@ function MarkPaidDialog({
   loading: boolean;
 }) {
   const [tx, setTx] = useState("");
+  const [sending, setSending] = useState(false);
+  const isArc = !!row && row.token === "usdc" && isEvmAddr(row.wallet_address);
+
+  // Paiement sur Arc : l'admin signe lui-même avec MetaMask (aucune clé privée sur le serveur)
+  async function payOnArc() {
+    if (!row) return;
+    const eth = getProviderByType("metamask") as unknown as { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> } | null;
+    if (!eth?.request) { toast.error("MetaMask not detected."); return; }
+    setSending(true);
+    try {
+      await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX }] });
+      const accounts = await eth.request({ method: "eth_requestAccounts" }) as string[];
+      const from = accounts[0];
+      if (from.toLowerCase() !== ARC_BETS_ADDRESS.toLowerCase()) {
+        toast.warning(`Sending from ${from.slice(0, 6)}…${from.slice(-4)}, not the Arc bets address.`);
+      }
+      const hash = await eth.request({
+        method: "eth_sendTransaction",
+        params: [{ from, to: row.wallet_address, value: toHex(parseUnits(netAmount("usdc", row.amount).toFixed(6), 18)) }],
+      }) as string;
+      setTx(hash);
+      toast.success("Payment sent. Confirm to mark it as paid.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e);
+      toast.error(/reject|denied|cancel/i.test(msg) ? "Cancelled." : msg);
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
       <DialogContent className="max-w-sm border-border">
@@ -154,6 +188,11 @@ function MarkPaidDialog({
             </div>
           </DialogDescription>
         </DialogHeader>
+        {isArc && (
+          <Button type="button" variant="outline" className="rounded-xl" disabled={sending || loading} onClick={payOnArc}>
+            {sending ? <LoaderCircle className="size-4 animate-spin" /> : "Pay on Arc with MetaMask"}
+          </Button>
+        )}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Transaction signature (optional)
@@ -161,7 +200,7 @@ function MarkPaidDialog({
           <input
             value={tx}
             onChange={(e) => setTx(e.target.value)}
-            placeholder="5Xk3… (Solana tx)"
+            placeholder={isArc ? "0x… (Arc tx)" : "5Xk3… (Solana tx)"}
             className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
