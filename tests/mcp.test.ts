@@ -146,3 +146,13 @@ describe("/mcp HTTP route", () => {
     expect(bad.status).toBe(400);
   });
 });
+
+describe("MCP request_approval", () => {
+  it("is listed as an agent action and its description says nothing is executed", async () => {
+    const r = await rpc({ jsonrpc: "2.0", id: 20, method: "tools/list" });
+    const tools = r.result?.tools as { name: string; description: string; inputSchema: { properties: { action?: { enum?: string[] } } } }[];
+    const prep = tools.find((t) => t.name === "agent_action_prepare")!;
+    expect(prep.inputSchema.properties.action?.enum).toContain("request_approval");
+    expect(prep.description).toMatch(/nothing is executed/i);
+  });
+});
