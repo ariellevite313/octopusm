@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { suggestOutcome } from "@/lib/sports/suggest";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ExternalLink, LoaderCircle, Lock, Trophy, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -221,6 +222,16 @@ function ResolveDialog({
 }) {
   const [selected, setSelected] = useState("");
   const options = (market?.options ?? []) as MutuelOption[];
+  const matchKey = market?.match_key ?? null;
+  const [match, setMatch] = useState<{ home: string; away: string; score_home: number | null; score_away: number | null; status: string } | null>(null);
+  useEffect(() => {
+    setMatch(null);
+    if (!open || !matchKey) return;
+    let off = false;
+    fetch(`/api/live-scores?key=${encodeURIComponent(matchKey)}`).then((r) => r.json()).then((j) => { if (!off) setMatch(j.match ?? null); }).catch(() => {});
+    return () => { off = true; };
+  }, [open, matchKey]);
+  const suggestion = suggestOutcome(match, options);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { onCancel(); setSelected(""); } }}>
@@ -231,6 +242,20 @@ function ResolveDialog({
         {market && (
           <>
             <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{market.title}</p>
+            {match && (
+              <div className="mb-2 rounded-xl bg-muted/40 p-3 text-sm">
+                <p className="font-semibold text-foreground">{match.home} {match.score_home ?? "–"} – {match.score_away ?? "–"} {match.away}</p>
+                {match.status !== "finished" ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Match not finished yet ({match.status}).</p>
+                ) : suggestion ? (
+                  <button type="button" onClick={() => setSelected(suggestion.optionId)} className="mt-1 text-xs font-semibold text-primary">
+                    Suggested result: {suggestion.label} — use it
+                  </button>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">No clear suggestion: pick the option yourself.</p>
+                )}
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               {options.map((opt) => (
                 <button

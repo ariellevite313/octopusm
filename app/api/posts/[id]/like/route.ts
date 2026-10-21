@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { UUID_RE } from "@/lib/social/posts";
+import { notify } from "@/lib/social/notify";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +17,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   else {
     const { error } = await admin.from("post_likes").insert({ post_id: id, wallet: s.wallet });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    const { data: p } = await admin.from("posts").select("author").eq("id", id).maybeSingle();
+    if (p) await notify([{ wallet: p.author, kind: "like", actor: s.wallet, postId: id }]);
   }
   const { count } = await admin.from("post_likes").select("post_id", { count: "exact", head: true }).eq("post_id", id);
   await admin.from("posts").update({ like_count: count ?? 0 }).eq("id", id);

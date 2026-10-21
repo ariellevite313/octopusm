@@ -1,11 +1,12 @@
 "use client";
 
+import { NotificationBell } from "@/components/social/notification-bell";
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LayoutGrid, Trophy, BarChart2, User, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
+import { LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
 import { ThemeSwitchRail } from "@/components/shared/theme-switch";
@@ -27,11 +28,15 @@ function items(pathname: string) {
       ? { href: "/leaderboard/predictions", label: T("Prediction leaderboard"), icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/predictions") }
       : { href: "/leaderboard/launchpad",   label: T("Creator leaderboard"),    icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/launchpad") || p === "/leaderboard" },
     { href: "/prediction",             label: T("Predictions"), icon: BarChart2,  match: (p: string) => isPredictSection(p) && !p.startsWith("/leaderboard") },
+    { href: "/feed",                   label: T("Feed"),        icon: MessageSquare, match: (p: string) => p.startsWith("/feed") || p.startsWith("/post/") || p.startsWith("/notifications") },
+    { href: "/live",                   label: T("Live scores"), icon: Radio,      match: (p: string) => p.startsWith("/live") },
     { href: "/dashboard/launchpad",    label: T("My tokens"),   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
   ];
 }
 
 const EXTRA = [
+  { href: "/settings/apps",              label: T("Connected apps"), description: T("AI assistants with access to your account"), icon: Plug, external: false },
+  { href: "/agents",                    label: T("AI agents"),      description: T("Connect Claude, ChatGPT or Grok"),            icon: Bot,  external: false },
   { href: "/archive",                    label: T("Archive"),        description: T("Past markets and tokens"),       icon: Archive,     external: false },
   { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", description: T("Our partner token on Solana"), icon: Coins, external: true },
   { href: "https://t.me/Omdotfun",       label: T("Support"),        description: T("Get help from the team"),        icon: Headset,     external: true  },
@@ -112,6 +117,8 @@ export function DesktopSidebar() {
           </Link>
         );
       })}
+
+      <NotificationBell className="size-11 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground" />
 
       {/* Launch */}
       {isAuthenticated ? (

@@ -8,7 +8,7 @@ function fakeSb(attrs: { bettor: string; sharer: string }[]) {
   const inserted: Record<string, unknown[]> = {};
   const sb = {
     from: (table: string) => ({
-      select: () => ({ eq: () => ({ eq: async () => ({ data: attrs }) }) }),
+      select: () => (table === "banned_wallets" ? { in: async () => ({ data: [] }) } : { eq: () => ({ eq: async () => ({ data: attrs }) }) }),
       insert: async (rows: unknown[]) => { inserted[table] = rows; return { error: null }; },
     }),
   };

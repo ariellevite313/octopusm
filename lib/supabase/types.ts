@@ -597,6 +597,7 @@ export interface MutuelMarketRow {
   creation_tx: string | null;
   bet_token: 'usdc' | 'clawdtrust';
   betting_closes_at: string;
+  match_key?: string | null;
   status: MutuelMarketStatus;
   admin_notes: string | null;
   fee_refunded_at: string | null;

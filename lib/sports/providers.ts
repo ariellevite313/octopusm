@@ -78,7 +78,7 @@ export const footballData = {
   async fetch(): Promise<LiveMatch[]> {
     const d = new Date();
     const from = new Date(d.getTime() - 86_400_000).toISOString().slice(0, 10);
-    const to = new Date(d.getTime() + 86_400_000).toISOString().slice(0, 10);
+    const to = new Date(d.getTime() + 9 * 86_400_000).toISOString().slice(0, 10); // jusqu'à 9 jours : sert au choix du match à la création d'un pool
     const j = (await getJson(`https://api.football-data.org/v4/matches?dateFrom=${from}&dateTo=${to}`, { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! })) as { matches?: FdMatch[] };
     return (j.matches ?? []).map((m) => ({
       key: matchKey(m.utcDate, m.homeTeam.name, m.awayTeam.name),

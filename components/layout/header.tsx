@@ -1,5 +1,6 @@
 "use client";
 
+import { NotificationBell } from "@/components/social/notification-bell";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
@@ -85,7 +86,8 @@ export function Header() {
             )}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <NotificationBell className="size-10 text-foreground hover:opacity-70" iconClass="size-6" />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}

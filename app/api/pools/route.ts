@@ -57,7 +57,7 @@ export async function GET() {
   const admin = createAdminClient() as any;
   const { data, error } = await admin
     .from("mutuel_markets")
-    .select("id, slug, title, description, cover_image_src, options, category, status, bet_token, creation_fee_token, creation_fee_amount, creator_wallet, betting_closes_at, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
+    .select("id, slug, title, description, cover_image_src, options, category, status, bet_token, creation_fee_token, creation_fee_amount, creator_wallet, betting_closes_at, match_key, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
     .in("status", ["pending", "active", "closed"])
     .order("created_at", { ascending: false })
     .limit(50);
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
   const {
     title, description, cover_image_src, options,
     category, bet_token, betting_closes_at,
-    creation_fee_token, creation_tx,
+    creation_fee_token, creation_tx, match_key,
   } = body;
 
   // ── Validate creation payment ─────────────────────────────────────────────
@@ -133,8 +133,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "All options must have a non-empty label" }, { status: 400 });
   }
 
-  const closesAtMs = new Date(betting_closes_at).getTime();
-  if (!betting_closes_at || isNaN(closesAtMs) || closesAtMs < Date.now() + 60 * 60 * 1000)
+  // Pool lié à un match : le match doit exister et ne pas avoir commencé ; les paris se ferment au coup d'envoi
+  let matchKey: string | null = null;
+  let closesAtIso: string = betting_closes_at;
+  if (match_key != null && match_key !== "") {
+    if (typeof match_key !== "string" || match_key.length > 200) return NextResponse.json({ error: "Invalid match" }, { status: 400 });
+    const { data: m } = await admin.from("live_matches").select("key, kickoff, status").eq("key", match_key).maybeSingle();
+    if (!m || m.status !== "scheduled" || new Date(m.kickoff).getTime() < Date.now() + 60 * 60 * 1000) {
+      return NextResponse.json({ error: "This match is not available (it must start in more than 1 hour)" }, { status: 400 });
+    }
+    matchKey = m.key;
+    closesAtIso = new Date(m.kickoff).toISOString();
+  }
+  const closesAtMs = new Date(closesAtIso).getTime();
+  if (!closesAtIso || isNaN(closesAtMs) || closesAtMs < Date.now() + 60 * 60 * 1000)
     return NextResponse.json({ error: "Betting close date must be at least 1 hour from now" }, { status: 400 });
 
   if (!["usdc", "clawdtrust"].includes(bet_token))
@@ -176,7 +188,8 @@ export async function POST(req: Request) {
       creation_fee_amount: creationFeeAmount,
       creation_tx,
       bet_token,
-      betting_closes_at,
+      betting_closes_at: closesAtIso,
+      match_key: matchKey,
       status: "pending",
     })
     .select()
