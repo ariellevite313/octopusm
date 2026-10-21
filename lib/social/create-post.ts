@@ -3,6 +3,7 @@
  * Valide le contenu, applique la limite horaire, détecte le $TICKER et envoie les images.
  */
 import { createAdminClient } from "@/lib/supabase/server";
+import { notify } from "@/lib/social/notify";
 import { moderateImage, moderateText, sniffImage } from "@/lib/moderation";
 import { extractMarketRef, extractMentions, extractTags } from "@/lib/social/rich";
 import { enrichPosts, POST_COLUMNS, MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES, TICKER_RE } from "@/lib/social/posts";
@@ -83,6 +84,7 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
 
   const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
   if (error) return err(500, error.message);
+  await notify(Object.values(mentions).map((w) => ({ wallet: w, kind: "mention" as const, actor: wallet, postId: row.id })));
   const [post] = await enrichPosts(admin, [row], wallet);
   return { status: 201, data: { post } };
 }

@@ -38,7 +38,7 @@ export function TeamLogo({ src, name, size = 26, flag = false }: { src: string |
   );
 }
 
-function Badge({ m }: { m: M }) {
+export function Badge({ m }: { m: M }) {
   const { tr } = useT();
   if (m.status === "live") {
     return (

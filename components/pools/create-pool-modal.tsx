@@ -9,6 +9,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import { submitPoolCreation } from "@/lib/market/pool-betting";
 import { useT } from "@/lib/i18n";
+import { MatchPicker } from "./match-picker";
+import type { ScoreRow } from "@/components/sports/live-scores";
 
 type Category = CategorySlug;
 
@@ -108,6 +110,19 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
   const [coverImage,     setCoverImage]     = useState("");
   const [options,        setOptions]        = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
   const [closesAt,       setClosesAt]       = useState("");
+  const [match,          setMatch]          = useState<ScoreRow | null>(null);
+
+  // Match choisi : titre, options (domicile / nul / extérieur), catégorie et clôture au coup d'envoi
+  function pickMatch(m: ScoreRow | null) {
+    setMatch(m);
+    if (!m) return;
+    const d = new Date(m.kickoff);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setTitle(`${m.home} vs ${m.away}`);
+    setOptions([{ label: m.home }, { label: tr("Draw") }, { label: m.away }]);
+    setCategory("sports" as Category);
+    setClosesAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+  }
   const [category,       setCategory]       = useState<Category>("mentions");
   const [betToken,       setBetToken]       = useState<"usdc" | "clawdtrust">("usdc");
   const [feeToken,       setFeeToken]       = useState<"usdc" | "clawdtrust">("usdc");
@@ -205,6 +220,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           bet_token:          betToken,
           creation_fee_token: feeToken,
           creation_tx:        payResult.signature,
+          match_key:          match?.key ?? null,
         }),
       });
       const data = await res.json();
@@ -241,6 +257,8 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+
+          <MatchPicker value={match} onPick={pickMatch} />
 
           {/* Title */}
           <div className="flex flex-col gap-1.5">
@@ -353,9 +371,10 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
               value={closesAt}
               min={new Date(Date.now() + 3_600_000).toISOString().slice(0, 16)}
               onChange={e => { resetError(); setClosesAt(e.target.value); }}
+              disabled={!!match}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            <p className="text-[10px] text-muted-foreground">{tr("Time is interpreted in your local timezone.")}</p>
+            <p className="text-[10px] text-muted-foreground">{match ? tr("Predictions close at kick-off of the linked match.") : tr("Time is interpreted in your local timezone.")}</p>
           </div>
 
           {/* Category */}

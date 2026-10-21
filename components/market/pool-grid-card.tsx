@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchStrip } from "@/components/sports/match-strip";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import type { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
@@ -70,6 +71,8 @@ export function PoolGridCard({ market }: { market: MutuelMarketRow }) {
             </p>
           </div>
         </div>
+
+        {market.match_key && <MatchStrip matchKey={market.match_key} compact />}
 
         {/* Options — max 3, spacer flex-1 pour hauteur uniforme */}
         <div className="flex flex-1 flex-col gap-1.5">

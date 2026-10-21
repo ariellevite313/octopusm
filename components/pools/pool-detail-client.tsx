@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchStrip } from "@/components/sports/match-strip";
 import { captureVia } from "@/lib/social/share-via";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
@@ -429,6 +430,8 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
         />
       </div>
       <h1 className="mb-3 text-[22px] font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-[26px]">{market.title}</h1>
+
+      {market.match_key && <div className="mb-4"><MatchStrip matchKey={market.match_key} /></div>}
 
       {market.description && (
         <p className="mb-5 whitespace-pre-line break-words text-[15px] leading-relaxed text-muted-foreground">{market.description}</p>

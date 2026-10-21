@@ -232,7 +232,7 @@ async function getActivePools(category?: string): Promise<MutuelMarketRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q = (supabase as any)
     .from("mutuel_markets")
-    .select("id, slug, creator_wallet, title, description, cover_image_src, options, category, bet_token, betting_closes_at, status, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
+    .select("id, slug, creator_wallet, title, description, cover_image_src, options, category, bet_token, betting_closes_at, match_key, status, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, created_at")
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(50);

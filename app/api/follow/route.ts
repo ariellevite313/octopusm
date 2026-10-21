@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { requireWallet } from "@/lib/social/session";
 import { normWallet } from "@/lib/social/posts";
+import { notify } from "@/lib/social/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
   if (!exists) return NextResponse.json({ error: "Unknown wallet" }, { status: 404 });
   const { data: cur } = await admin.from("follows").select("follower").eq("follower", s.wallet).eq("following", target).maybeSingle();
   if (cur) await admin.from("follows").delete().eq("follower", s.wallet).eq("following", target);
-  else await admin.from("follows").insert({ follower: s.wallet, following: target });
+  else { await admin.from("follows").insert({ follower: s.wallet, following: target }); await notify([{ wallet: target, kind: "follow", actor: s.wallet }]); }
   const { count } = await admin.from("follows").select("follower", { count: "exact", head: true }).eq("following", target);
   return NextResponse.json({ is_following: !cur, followers: count ?? 0 });
 }

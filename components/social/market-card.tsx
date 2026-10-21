@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchStrip } from "@/components/sports/match-strip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BarChart3, Clock } from "lucide-react";
@@ -40,6 +41,8 @@ export function MarketCard({ m, postId }: { m: SharedMarket; postId?: string }) 
           </p>
         </div>
       </Link>
+
+      {m.match_key && <div className="mt-3"><MatchStrip matchKey={m.match_key} compact /></div>}
 
       {m.price_ticker && <LivePrice symbol={m.price_ticker} target={m.price_target ?? null} targetLabel={tr("Market target")} />}
 
