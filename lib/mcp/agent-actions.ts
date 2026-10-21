@@ -2,7 +2,7 @@
  * Actions qu'un agent peut faire avec son wallet Solana (après vérification de la signature) :
  * s'inscrire, éditer son profil, suivre, liker, répondre, masquer, signaler, supprimer ses posts.
  * Chaque action réutilise la route existante (mêmes règles, mêmes limites que sur le site).
- * Aucune action d'argent (paris, transferts) : elles restent hors du MCP.
+ * Aucune action d'argent n'est exécutée : request_approval crée seulement un lien que l'humain confirme.
  */
 import { POST as followRoute } from "@/app/api/follow/route";
 import { POST as likeRoute } from "@/app/api/posts/[id]/like/route";
@@ -52,6 +52,52 @@ const idp = (id: string) => ({ params: Promise.resolve({ id }) });
 
 type Ctx = { origin: string; ip: string };
 type Handler = (wallet: string, p: P, ctx: Ctx) => Promise<unknown>;
+
+function amount(p: P): number {
+  const n = Number(p.amount);
+  if (!Number.isFinite(n) || n <= 0 || n > 1_000_000) throw new ActionError("params.amount must be a positive number");
+  return Math.round(n * 1e6) / 1e6;
+}
+
+/**
+ * Proposition d'action d'argent : n'exécute rien. Crée un lien que l'humain ouvre pour voir le détail,
+ * puis confirmer lui-même sur l'écran normal du site (pool ou token) avec son wallet.
+ */
+async function requestApproval(wallet: string, p: P, c: Ctx): Promise<unknown> {
+  const kind = s(p, "kind", 20, true)!;
+  const target = s(p, "target_id", 64, true)!;
+  if (!UUID.test(target)) throw new ActionError("params.target_id must be a uuid");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const { data: reg } = await admin.from("wallets").select("address").eq("address", wallet).maybeSingle();
+  if (!reg) throw new ActionError("Wallet not registered: run the register action first");
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const { count } = await admin.from("agent_intents").select("id", { count: "exact", head: true }).eq("agent_wallet", wallet).gte("created_at", since);
+  if ((count ?? 0) >= 20) throw new ActionError("Too many approval requests, try again later");
+
+  let params: Record<string, unknown>;
+  if (kind === "bet_pool") {
+    const { data: m } = await admin.from("mutuel_markets").select("id, options, status, bet_token").eq("id", target).maybeSingle();
+    if (!m || m.status !== "active") throw new ActionError("Pool market not found or not open");
+    const opts = (typeof m.options === "string" ? JSON.parse(m.options) : m.options) as { id: string }[];
+    const option = s(p, "option_id", 64, true)!;
+    if (!opts.some((o) => o.id === option)) throw new ActionError("params.option_id is not an option of this market");
+    params = { option_id: option, amount: amount(p), currency: m.bet_token ?? "usdc" };
+  } else if (kind === "buy_token" || kind === "sell_token") {
+    const { data: t } = await admin.from("launchpad_tokens").select("id, chain, status, is_hidden").eq("id", target).maybeSingle();
+    if (!t || t.is_hidden || !["active", "graduating", "graduated"].includes(t.status)) throw new ActionError("Token not found or not tradable");
+    params = { amount: amount(p), unit: kind === "buy_token" ? (t.chain === "arc" ? "USDC" : "SOL") : "tokens" };
+  } else {
+    throw new ActionError("params.kind must be bet_pool, buy_token or sell_token");
+  }
+  const { data: row, error } = await admin.from("agent_intents").insert({ agent_wallet: wallet, kind, target_id: target, params }).select("id, expires_at").single();
+  if (error) throw new ActionError("Could not create the request");
+  return {
+    approval_url: `${c.origin}/approve/${row.id}`,
+    expires_at: row.expires_at,
+    note: "Send this link to your human. Nothing happens until they confirm on the site with their own wallet.",
+  };
+}
 
 export const ACTIONS: Record<string, { description: string; params: string; run: Handler }> = {
   register: {
@@ -130,6 +176,11 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
       const reason = s(p, "reason", 300);
       return out(await runAsAgent(wallet, () => reportRoute(req(c.origin, c.ip, `/api/posts/${id}/report`, "POST", { reason }), idp(id))));
     },
+  },
+  request_approval: {
+    description: "Propose a money action to your human (nothing is executed): returns a link where they review it and confirm with their own wallet.",
+    params: "{ kind: 'bet_pool' | 'buy_token' | 'sell_token', target_id: pool or token uuid, amount: number, option_id?: string (bet_pool) }",
+    run: requestApproval,
   },
   delete_post: {
     description: "Delete one of your own posts.",

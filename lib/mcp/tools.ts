@@ -366,7 +366,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "agent_action",
-    description: "Step 2/2: execute the action after verifying the wallet's signature. Same arguments as agent_action_prepare plus the timestamp and the signature (base64 for Solana, 0x hex for Arc). Run the `register` action first for a new wallet. No money movement is possible through this tool.",
+    description: "Step 2/2: execute the action after verifying the wallet's signature. Same arguments as agent_action_prepare plus the timestamp and the signature (base64 for Solana, 0x hex for Arc). Run the `register` action first for a new wallet. No money moves through this tool: request_approval only returns a link that a human reviews and confirms with their own wallet.",
     readOnly: false,
     inputSchema: actionSchema(true),
     run: async (a, ctx) => {
