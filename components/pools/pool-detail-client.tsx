@@ -149,7 +149,12 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
   const { tr } = useT();
   // Bug #6 fix: read walletType from useAuth instead of localStorage directly
   const { walletAddress, walletType } = useAuth();
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  // Option choisie depuis un post du fil (?option=…)
+  const [selectedOption, setSelectedOption] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const o = new URLSearchParams(window.location.search).get("option");
+    return o && options.some((x) => x.id === o) ? o : null;
+  });
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<PredictStep>("idle");
   const [reference, setReference] = useState<string | null>(null);

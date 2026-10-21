@@ -44,6 +44,11 @@ export type SharedMarket = {
   pool: string | null;
   closes_at: string | null;
   status: string;
+  /** Marché sur le prix d'une crypto : ticker et objectif */
+  price_ticker?: string | null;
+  price_target?: number | null;
+  /** Identifiants des options (boutons Oui / Non) */
+  option_ids?: string[];
 };
 
 type Row = {
@@ -128,7 +133,7 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
   try {
     const [p, q] = await Promise.all([
       pools.length ? admin.from("mutuel_markets").select("id, slug, title, cover_image_src, options, status, bet_token, total_pool_usdc, total_pool_clt, betting_closes_at").in("id", pools) : { data: [] },
-      preds.length ? admin.from("prediction_markets").select("id, slug, title, single_image_src, left_competitor_image_src, options, is_resolved, is_active, event_start_at").in("id", preds) : { data: [] },
+      preds.length ? admin.from("prediction_markets").select("id, slug, title, single_image_src, left_competitor_image_src, options, is_resolved, is_active, event_start_at, price_ticker, price_target").in("id", preds) : { data: [] },
     ]);
     for (const m of (p.data ?? []) as Record<string, unknown>[]) {
       const opts = parse(m.options) ?? [];
@@ -138,6 +143,7 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
         options: opts.slice(0, 3).map((o) => o.label ?? o.name ?? o.id),
         pool: fmtPool(Number(clt ? m.total_pool_clt : m.total_pool_usdc) || 0, clt ? "CLT" : "USDC"),
         closes_at: (m.betting_closes_at as string) ?? null, status: String(m.status),
+        option_ids: opts.slice(0, 3).map((o) => o.id),
       });
     }
     for (const m of (q.data ?? []) as Record<string, unknown>[]) {
@@ -146,6 +152,8 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
         kind: "prediction", title: String(m.title), image: ((m.single_image_src ?? m.left_competitor_image_src) as string) ?? null, href: `/prediction/${m.slug ?? m.id}`,
         options: opts.slice(0, 3).map((o) => o.label ?? o.name ?? o.id), pool: null,
         closes_at: (m.event_start_at as string) ?? null, status: m.is_resolved ? "resolved" : m.is_active ? "active" : "closed",
+        price_ticker: (m.price_ticker as string) ?? null, price_target: m.price_target != null ? Number(m.price_target) : null,
+        option_ids: opts.slice(0, 3).map((o) => o.id),
       });
     }
   } catch { /* marché introuvable : pas de carte */ }

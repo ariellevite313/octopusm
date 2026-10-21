@@ -14,6 +14,7 @@ import { TokenCardView } from "./token-card";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { TokenPill } from "./token-pill";
 import { MarketCard } from "./market-card";
+import { LivePrice } from "./live-price";
 import { MARKET_URL_RE } from "@/lib/social/rich";
 import { PostReplies } from "./post-replies";
 
@@ -114,6 +115,8 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
   const viewed = useRef(false);
 
   const name = post.author_name ?? shortAddress(post.author);
+  // Crypto mentionnée ($BTC…) qui n'est pas un token OMdotfun : prix en temps réel
+  const cashtag = post.body.match(/\$([A-Za-z][A-Za-z0-9]{1,15})/)?.[1]?.toUpperCase() ?? null;
 
   // Une vue est comptée quand la publication est réellement affichée à l'écran
   useEffect(() => {
@@ -315,7 +318,11 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
         <span className="flex items-center gap-1"><Eye className="size-3.5" /><span className="num">{post.view_count}</span></span>
       </div>
 
-      {post.ticker && <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} /></div>}
+      {post.ticker ? (
+        <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} /></div>
+      ) : cashtag && !post.market?.price_ticker ? (
+        <div className="px-1"><LivePrice symbol={cashtag} /></div>
+      ) : null}
 
       {showReplies && <PostReplies postId={post.id} onCount={(n) => setPost((p) => ({ ...p, reply_count: n }))} />}
     </article>
