@@ -78,6 +78,17 @@ describe("MCP server — tool input validation (errors go back to the model, not
     expect(r.text).toMatch(/address/i);
   });
 
+  it("feed tools are read-only and validate their inputs", async () => {
+    const list = await rpc({ jsonrpc: "2.0", id: 3, method: "tools/list" });
+    const tools = list.result?.tools as { name: string; annotations: { readOnlyHint: boolean } }[];
+    for (const n of ["list_posts", "get_post_replies", "get_follow_stats"]) {
+      expect(tools.find((t) => t.name === n)?.annotations.readOnlyHint).toBe(true);
+    }
+    expect((await call("list_posts", { author: "nope" })).isError).toBe(true);
+    expect((await call("get_post_replies", { id: "x" })).text).toMatch(/uuid/i);
+    expect((await call("get_follow_stats", { wallet: "x" })).text).toMatch(/address/i);
+  });
+
   it("launch_token_prepare requires a valid Solana wallet (an Arc 0x address is refused)", async () => {
     const r = await call("launch_token_prepare", { wallet: "0x1111111111111111111111111111111111111111", name: "A", ticker: "AAA" });
     expect(r.isError).toBe(true);

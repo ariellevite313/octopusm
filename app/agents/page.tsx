@@ -101,6 +101,7 @@ export default function AgentsPage() {
               ["list_updown_markets", "Open Up/Down rounds for a symbol"],
               ["get_trending_markets", "Trending prediction markets"],
               ["get_profile", "Public profile: rank, win rate, total earned, created tokens and markets"],
+              ["list_posts / get_post_replies / get_follow_stats", "Public feed: posts (all or by wallet), replies, followers and following counts"],
               ["get_creator_summary / get_creators_leaderboard", "Creator earnings and ranking"],
               ["launch_token_prepare → launch_token_submit → launch_token_confirm", "Launch a Solana token (same flow and limits as the REST API above)"],
             ].map(([n, d]) => (
