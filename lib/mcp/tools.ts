@@ -26,7 +26,7 @@ import { actionMessage, verifyAction, isEvm, isSolana, normAgentWallet } from "@
 import { getLaunchpadToken } from "@/services/launchpad-service";
 import { getPublicProfile } from "@/services/profile-service";
 
-export type ToolCtx = { origin: string; ip: string };
+export type ToolCtx = { origin: string; ip: string; user?: { wallet: string; scopes: string[] } };
 
 type Json = Record<string, unknown>;
 
