@@ -768,6 +768,17 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
     setSubmitting(true);
     setActiveDir(dir);
     try {
+      // Wallet EVM (MetaMask) : mise en USDC natif sur Arc
+      if (walletType === "metamask") {
+        const { submitUpDownArc } = await import("@/lib/market/updown-arc");
+        const r = await submitUpDownArc({ marketId: market.id, direction: dir, amount, walletAddress });
+        if (!r.success) { toast.error(tr(r.error)); return; }
+        toast.success(dir === "up" ? tr("UP predict placed!") : tr("DOWN predict placed!"));
+        setSheetOpen(false);
+        void fetchMyBets();
+        void fetchMarket();
+        return;
+      }
       const web3 = await import("@solana/web3.js");
       const { Connection, PublicKey, Transaction, TransactionInstruction } = web3;
       const adapters = await import("@/lib/wallet/adapters");
