@@ -17,6 +17,7 @@ import { MarketCard } from "./market-card";
 import { LivePrice } from "./live-price";
 import { MARKET_URL_RE } from "@/lib/social/rich";
 import { PostReplies } from "./post-replies";
+import { ShareSheet, POST_PERKS } from "@/components/shared/share-sheet";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -111,6 +112,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const root = useRef<HTMLElement>(null);
   const viewed = useRef(false);
 
@@ -155,13 +157,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
     else toast.error(tr("Something went wrong"));
   }
 
-  async function share() {
-    const url = `${location.origin}/profile/${post.author}`;
-    try {
-      if (navigator.share) await navigator.share({ url });
-      else { await navigator.clipboard.writeText(url); toast.success(tr("Link copied")); }
-    } catch { /* annulé */ }
-  }
+  function share() { setSharing(true); }
 
   async function saveImages() {
     setMenu(false);
@@ -325,6 +321,15 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
       ) : null}
 
       {showReplies && <PostReplies postId={post.id} onCount={(n) => setPost((p) => ({ ...p, reply_count: n }))} />}
+      <ShareSheet
+        open={sharing}
+        onClose={() => setSharing(false)}
+        images={[`/post/${post.id}/opengraph-image`]}
+        url={`/post/${post.id}`}
+        text={(post.body || "").replace(/\s+/g, " ").trim().slice(0, 120) || tr("Post on OMdotfun")}
+        perks={POST_PERKS}
+        feed={false}
+      />
     </article>
   );
 }

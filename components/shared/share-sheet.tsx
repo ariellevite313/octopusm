@@ -19,12 +19,18 @@ import { T } from "@/lib/i18n-mark";
 type Perk = { icon: "users" | "coins"; text: string };
 
 export const MARKET_PERKS: Perk[] = [
-  { icon: "users", text: T("<b>1%</b> of every bet your invites place") },
+  { icon: "users", text: T("<b>1%</b> of every prediction your invites place") },
   { icon: "coins", text: T("<b>200 OMERO</b> for each friend who joins with your link") },
+  { icon: "coins", text: T("Post it on the feed: <b>200 OMERO</b> per friend who predicts, or a share of our fees on pools") },
+];
+export const POST_PERKS: Perk[] = [
+  { icon: "coins", text: T("<b>200 OMERO</b> for each friend who joins with your link") },
+  { icon: "users", text: T("<b>10%</b> of our fees on every buy your invites make") },
 ];
 export const TOKEN_PERKS: Perk[] = [
   { icon: "coins", text: T("<b>200 OMERO</b> for each friend who joins with your link") },
   { icon: "users", text: T("<b>50 OMERO</b> welcome bonus for your friend") },
+  { icon: "users", text: T("<b>10%</b> of our fees on every buy your invites make") },
 ];
 
 const XIcon = () => (
@@ -44,7 +50,7 @@ const DiscordIcon = () => (
 );
 
 export function ShareSheet({
-  open, onClose, images, text, perks = MARKET_PERKS, url,
+  open, onClose, images, text, perks = MARKET_PERKS, url, feed = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -55,6 +61,8 @@ export function ShareSheet({
   perks?: Perk[];
   /** Lien à partager (défaut : page courante). */
   url?: string;
+  /** Affiche le bouton « Publier sur le fil » (faux pour le partage d'un post). */
+  feed?: boolean;
 }) {
   const { tr } = useT();
   const [refCode, setRefCode] = useState<string | null>(null);
@@ -179,7 +187,7 @@ export function ShareSheet({
           <button onClick={copyLink} className="flex h-14 shrink-0 items-center gap-3 rounded-full bg-black px-7 text-[17px] font-bold text-white">
             <Link2 className="size-5" />{tr("Copy link")}
           </button>
-          <button onClick={postToFeed} className={circle} aria-label={tr("Post on the feed")} title={tr("Post on the feed")}><MessageSquare className="size-6" /></button>
+          {feed && <button onClick={postToFeed} className={circle} aria-label={tr("Post on the feed")} title={tr("Post on the feed")}><MessageSquare className="size-6" /></button>}
           <button onClick={shareX} className={circle} aria-label="X"><XIcon /></button>
           <button onClick={shareTg} className={circle} aria-label="Telegram"><TgIcon /></button>
           <button onClick={shareDiscord} className={circle} aria-label="Discord"><DiscordIcon /></button>

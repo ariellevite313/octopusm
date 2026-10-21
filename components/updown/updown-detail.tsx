@@ -1013,7 +1013,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           {submitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{tr("Confirming…")}</span>
             : !walletAddress ? tr("Connect wallet") : (selDir === "up" ? tr("Buy Up") : tr("Buy Down"))}
         </button>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">{tr("Min ${min} · USDC · Multiple bets allowed", { min: MIN_AMOUNT })}</p>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">{tr("Min ${min} · USDC · Multiple predictions allowed", { min: MIN_AMOUNT })}</p>
 
         {withKeypad && <div className="mt-2"><SwapKeypad value={rawAmt} onChange={setAmt} maxDecimals={2} /></div>}
       </div>
@@ -1101,7 +1101,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
           {/* Mes mises */}
           {currentRoundBets.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
-              <p className="mb-2 text-[15px] font-bold text-foreground">{tr("My bets")}</p>
+              <p className="mb-2 text-[15px] font-bold text-foreground">{tr("My predictions")}</p>
               {currentRoundBets.map(bet => (
                 <div key={bet.id} className="flex items-center justify-between border-b border-border py-2.5 text-sm last:border-0">
                   <span className="num font-semibold text-foreground">
@@ -1152,7 +1152,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         <aside className="hidden lg:block">
           <div className="sticky top-5 space-y-6">
             <div className="rounded-[24px] border border-border bg-card p-5">
-              <p className="mb-4 text-[17px] font-bold text-foreground">{tr("Place your bet")}</p>
+              <p className="mb-4 text-[17px] font-bold text-foreground">{tr("Place your prediction")}</p>
               {betPanel(false)}
             </div>
             <CommentsSection

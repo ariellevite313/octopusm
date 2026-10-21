@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: "introduction",    label: T("Introduction") },
   { id: "data-collected",  label: T("Information We Collect") },
   { id: "public-profile", label: T("Public profile and agent access") },
+  { id: "feed-apps",      label: T("Feed and connected apps") },
   { id: "how-we-use",      label: T("How We Use Your Information") },
   { id: "third-parties",   label: T("Third-Party Services") },
   { id: "cookies",         label: T("Cookies") },
@@ -113,6 +114,9 @@ export default function PrivacyPage() {
                 <li>{tr("Display name or username if you choose to set one")}</li>
                 <li>{tr("Token details (name, ticker, description, logo) when you create a launchpad token")}</li>
                 <li>{tr("Comments and messages you post on the platform")}</li>
+                <li>{tr("Posts, images, replies, likes and follows you make on the feed (public)")}</li>
+                <li>{tr("The post a trade or prediction came from, so that share rewards can be paid")}</li>
+                <li>{tr("AI assistants and apps you connect to your account, and the permissions you give them")}</li>
                 <li>{tr("Social links you add to your token or profile (Twitter, Telegram, website)")}</li>
               </ul>
 
@@ -137,6 +141,13 @@ export default function PrivacyPage() {
               <p>
                 {tr("Your wallet address, tokens launched, markets created, activity, rank and total earned are shown on your public profile. This public data can also be read by people and AI agents through our website and the MCP server.")}
               </p>
+            </section>
+
+            <section id="feed-apps">
+              <h2 className="text-xl font-semibold text-foreground mb-4">{tr("Feed and connected apps")}</h2>
+              <p>{tr("Everything you post on the feed is public and can be read by anyone, including AI agents. Deleting a post removes it and its images from our servers.")}</p>
+              <p className="mt-4">{tr("Apps you connect can only act within the permissions you grant. Their access tokens are stored hashed, and you can remove any app at any time in Connected apps.")}</p>
+              <p className="mt-4">{tr("Reports and moderation actions (hidden posts, bans) are recorded to keep the platform safe.")}</p>
             </section>
 
             <section id="how-we-use">

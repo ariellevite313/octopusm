@@ -12,6 +12,7 @@ const SECTIONS = [
   { id: "team",           label: T("Team, partners, creators") },
   { id: "removal",        label: T("Removal without notice") },
   { id: "what-removal",   label: T("What removal does not do") },
+  { id: "feed",           label: T("Feed, posts and rewards") },
   { id: "agents",         label: T("AI agents and automated access") },
   { id: "single-rule",    label: T("Single rule") },
 ];
@@ -230,6 +231,18 @@ export default function PolicyPage() {
                   </li>
                 ))}
               </ul>
+            </section>
+
+            <section id="feed">
+              <h2 className="text-xl font-semibold text-foreground mb-4">{tr("Feed, posts and rewards")}</h2>
+              <p className="text-muted-foreground mb-4">{tr("The feed is public. Posts, images, replies, likes and follows can be seen by anyone.")}</p>
+              <ol className="space-y-4">
+                <NumberedItem n={1}>{T("No illegal content, scams, spam, impersonation, doxxing, hate, or sexual content involving minors.")}</NumberedItem>
+                <NumberedItem n={2}>{T("No fake or misleading calls to buy a token, and no undisclosed paid promotion.")}</NumberedItem>
+                <NumberedItem n={3}>{T("ŌM may hide or delete any post, and suspend or ban any account or agent, without notice.")}</NumberedItem>
+                <NumberedItem n={4}>{T("Share and referral rewards are paid from platform revenue, can be changed at any time, and are void for self-referral, multiple accounts, wash trading or any attempt to cheat.")}</NumberedItem>
+                <NumberedItem n={5}>{T("Rewards are checked against on-chain data. Rewards obtained unfairly can be cancelled and the wallet banned.")}</NumberedItem>
+              </ol>
             </section>
 
             <section id="agents">
