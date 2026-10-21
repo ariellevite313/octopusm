@@ -195,8 +195,8 @@ function ProfileDrawer({
                 <Image src={avatarSrc} alt={tr("avatar")} width={44} height={44}
                   className="rounded-full object-cover" unoptimized />
               ) : (
-                <div className="flex size-11 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                  <User className="size-5 text-orange-500" />
+                <div className="flex size-11 items-center justify-center rounded-full bg-primary/12">
+                  <User className="size-5 text-primary" />
                 </div>
               )}
               <button
@@ -314,10 +314,10 @@ function ProfileDrawer({
 
           {/* Referral mini */}
           {!editing && (
-            <div className="rounded-2xl bg-up/12 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+            <div className="rounded-2xl bg-up/12 px-4 py-3 ">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">{t.referral}</p>
+                  <p className="text-xs font-semibold text-up">{t.referral}</p>
                   <p className="text-[11px] text-up mt-0.5">
                     {drawerStats?.referral_count ?? 0} {t.filleuls} · {(drawerStats?.referral_octo ?? 0).toLocaleString()} {t.octoEarned}
                   </p>
@@ -326,7 +326,7 @@ function ProfileDrawer({
                   type="button"
                   onClick={() => void copyReferralLink()}
                   disabled={!referralLink}
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-400 disabled:opacity-40 transition-colors"
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-up px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-up/90 disabled:opacity-40 transition-colors"
                 >
                   {copiedRef
                     ? <><Check className="size-3" />{t.copiedLink}</>
@@ -345,7 +345,7 @@ function ProfileDrawer({
               <div>
                 <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.username}</label>
                 <input
-                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="@username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -354,7 +354,7 @@ function ProfileDrawer({
               <div>
                 <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.displayName}</label>
                 <input
-                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder={tr("Display name")}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
@@ -363,7 +363,7 @@ function ProfileDrawer({
               <div>
                 <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.twitterHandle}</label>
                 <input
-                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="@yourhandle"
                   value={twitterHandle}
                   onChange={(e) => setTwitterHandle(e.target.value)}
@@ -388,7 +388,7 @@ function ProfileDrawer({
           <Link
             href="/dashboard/pools"
             onClick={onClose}
-            className="flex w-full items-center gap-3 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+            className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
           >
             <Plus className="size-4" />
             <span>{t.createMarket}</span>

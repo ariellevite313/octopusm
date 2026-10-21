@@ -6,6 +6,7 @@ import Image from "next/image";
 import { BurningFire } from "@/components/shared/burning-fire";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { useT } from "@/lib/i18n";
+import { useAutoMarquee } from "@/hooks/use-auto-marquee";
 
 type TrendingToken = {
   id:             string;
@@ -41,7 +42,12 @@ export function TrendingStrip() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loopable = tokens.length > 2;
+  const scroller = useAutoMarquee(tokens.length, loopable);
+
   if (!loading && tokens.length === 0) return null;
+  // Liste dupliquée → boucle sans à-coup
+  const list = loopable ? [...tokens, ...tokens] : tokens;
 
   return (
     <div className="mb-8">
@@ -53,7 +59,7 @@ export function TrendingStrip() {
       </div>
 
       {/* Horizontal scroll strip */}
-      <div className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4 pb-1">
+      <div ref={scroller} className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4 pb-1">
         {loading
           ? Array.from({ length: 6 }).map((_, i) => (
               <div
@@ -61,7 +67,7 @@ export function TrendingStrip() {
                 className="shrink-0 w-[208px] h-[118px] rounded-[20px] bg-card animate-pulse border border-border"
               />
             ))
-          : tokens.map((t, i) => {
+          : list.map((t, i) => {
               const isArc = t.chain === "arc";
               // Arc: prioritise mint_address (OMToken ERC-20), fallback to arc_launch_id (curve)
               const slug  = isArc
@@ -69,7 +75,7 @@ export function TrendingStrip() {
                 : (t.mint_address ?? t.id);
               return (
                 <Link
-                  key={t.id}
+                  key={`${t.id}-${i}`}
                   href={`/launchpad/${slug}`}
                   className="shrink-0 flex w-[208px] flex-col overflow-hidden rounded-[20px] border border-border bg-card transition-colors hover:border-primary/40"
                 >
@@ -85,7 +91,7 @@ export function TrendingStrip() {
                       </span>
                     )}
                     <span className="num ml-auto rounded-lg bg-muted px-2 py-0.5 text-[12px] font-bold text-muted-foreground shrink-0">
-                      #{i + 1}
+                      #{(i % tokens.length) + 1}
                     </span>
                   </div>
 
