@@ -16,6 +16,7 @@ import {
   TrendingUp,
   ArrowDownToLine,
   MoreHorizontal,
+  Flag,
   X,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const MORE_ITEMS = [
   { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowDownToLine },
   { href: "/admin/launches",    label: "Launches",    icon: Rocket },
   { href: "/admin/tasks",       label: "Tasks",       icon: CheckSquare },
+  { href: "/admin/reports",     label: "Reports",     icon: Flag },
   { href: "/admin/wallets",     label: "Wallets",     icon: Users },
   { href: "/admin/account",     label: "My account",  icon: User },
 ];

@@ -95,7 +95,7 @@ function VerifyTokenToggle({ tokenId, initial }: { tokenId: string; initial: boo
       });
       if (!res.ok) throw new Error("Failed");
       setVerified(v => !v);
-      toast.success(verified ? "Badge removed" : "Token verified ✓");
+      toast.success(verified ? "Badge removed" : "Token verified");
     } catch {
       toast.error("Error");
     } finally {
@@ -140,7 +140,7 @@ function HideTokenToggle({ tokenId, initial }: { tokenId: string; initial: boole
       });
       if (!res.ok) throw new Error("Failed");
       setHidden(h => !h);
-      toast.success(hidden ? "Token visible ✓" : "Token hidden");
+      toast.success(hidden ? "Token visible" : "Token hidden");
     } catch {
       toast.error("Error");
     } finally {
@@ -222,7 +222,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
       if (summary) {
         if (summary.claimed > 0) {
           toast.success(
-            `✅ ${summary.claimed} pool${summary.claimed > 1 ? "s" : ""} claimed — ${summary.totalSol} SOL` +
+            `${summary.claimed} pool${summary.claimed > 1 ? "s" : ""} claimed — ${summary.totalSol} SOL` +
             (summary.errors > 0 ? ` · ${summary.errors} error(s)` : "")
           );
         } else if (summary.skipped > 0 && summary.errors === 0) {

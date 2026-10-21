@@ -32,13 +32,13 @@ import { LaunchButton } from "@/components/launchpad/launch-button";
 
 // ─── xStock catalogue Arc (ERC-20 sur Arc Mainnet) ───────────────────────────
 const XSTOCK_CATALOG = [
-  { symbol: "xNVDA", name: "Nvidia",        ticker: "NVDA", emoji: "🟢" },
-  { symbol: "xTSLA", name: "Tesla",         ticker: "TSLA", emoji: "⚡" },
-  { symbol: "xMSTR", name: "MicroStrategy", ticker: "MSTR", emoji: "🟠" },
-  { symbol: "xAAPL", name: "Apple",         ticker: "AAPL", emoji: "🍎" },
-  { symbol: "xSPY",  name: "S&P 500 ETF",  ticker: "SPY",  emoji: "📈" },
-  { symbol: "xQQQ",  name: "Nasdaq 100",   ticker: "QQQ",  emoji: "📊" },
-  { symbol: "xGLD",  name: "Gold",          ticker: "GLD",  emoji: "🥇" },
+  { symbol: "xNVDA", name: "Nvidia",        ticker: "NVDA", emoji: "" },
+  { symbol: "xTSLA", name: "Tesla",         ticker: "TSLA", emoji: "" },
+  { symbol: "xMSTR", name: "MicroStrategy", ticker: "MSTR", emoji: "" },
+  { symbol: "xAAPL", name: "Apple",         ticker: "AAPL", emoji: "" },
+  { symbol: "xSPY",  name: "S&P 500 ETF",  ticker: "SPY",  emoji: "" },
+  { symbol: "xQQQ",  name: "Nasdaq 100",   ticker: "QQQ",  emoji: "" },
+  { symbol: "xGLD",  name: "Gold",          ticker: "GLD",  emoji: "" },
 ] as const;
 
 // ─── Types ─────────────────────────────────────────────────────────────────

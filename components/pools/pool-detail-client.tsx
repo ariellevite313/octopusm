@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock, Loader2, Share2, Trophy } from "lucide-react";
+import { ArrowLeft, Check, Clock, Loader2, Share2, Trophy } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { CommentsSection } from "@/components/shared/comments-section";
@@ -207,7 +207,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
     return (
       <div className="py-2">
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-xl">✅</span>
+          <Check className="size-5 text-up" />
           <p className="font-semibold text-up">
             {tr("Prediction submitted!")}
           </p>
