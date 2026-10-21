@@ -1164,7 +1164,7 @@ const p: Record<string, string> = {
   "No Polymarket markets right now.": "Сейчас нет рынков Polymarket.",
   "Data from Polymarket. Bets are placed on polymarket.com.": "Данные Polymarket. Ставки делаются на polymarket.com.",
   "Holders": "Холдеры",
-  "Top 25 of {count} holders": "Топ-25 из {count} холдеров",
+  "Top 100 of {count} holders": "Топ-100 из {count} холдеров",
   "Holders unavailable right now.": "Холдеры сейчас недоступны.",
   "No holders yet.": "Холдеров пока нет.",
   "Pool / program": "Пул / программа",
