@@ -32,6 +32,16 @@ const { signature } = await post(\`\${BASE}/\${token_id}/submit\`, { wallet, ste
 const done = await post(\`\${BASE}/\${token_id}/confirm\`, { wallet, tx_signature: signature });
 console.log(done.url, mint);`;
 
+const MCP_CONNECT = `# Claude Code
+claude mcp add --transport http omdotfun https://omdot.fun/mcp
+
+# Any client that takes a JSON config
+{
+  "mcpServers": {
+    "omdotfun": { "type": "http", "url": "https://omdot.fun/mcp" }
+  }
+}`;
+
 export default function AgentsPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -73,6 +83,38 @@ export default function AgentsPage() {
 
       <h2 className="mt-8 text-lg font-semibold text-foreground">Example (Node.js)</h2>
       <pre className="mt-2 overflow-x-auto rounded-xl border border-border bg-muted/40 p-4 text-xs leading-relaxed text-foreground">{FLOW}</pre>
+
+      <h2 className="mt-10 text-xl font-bold text-foreground">MCP server</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Connect any MCP-compatible AI agent (Claude, Cursor, custom agents…) to OMdotfun. Read tools are public and free.
+        The launch tools return transactions that your agent signs with its own key: the server never holds keys.
+      </p>
+      <pre className="mt-3 overflow-x-auto rounded-xl border border-border bg-muted/40 p-4 text-xs leading-relaxed text-foreground">{MCP_CONNECT}</pre>
+      <div className="mt-3 overflow-x-auto rounded-xl border border-border text-sm">
+        <table className="w-full">
+          <tbody className="divide-y divide-border">
+            {[
+              ["get_trending_tokens", "Top tokens by 24h volume"],
+              ["list_tokens", "Browse tokens (sort, chain, search, pagination)"],
+              ["get_token", "One token: price, market cap, volume, creator"],
+              ["list_pool_markets / get_pool_market", "Open prediction pools"],
+              ["list_updown_markets", "Open Up/Down rounds for a symbol"],
+              ["get_trending_markets", "Trending prediction markets"],
+              ["get_profile", "Public profile: rank, win rate, total earned, created tokens and markets"],
+              ["get_creator_summary / get_creators_leaderboard", "Creator earnings and ranking"],
+              ["launch_token_prepare → launch_token_submit → launch_token_confirm", "Launch a Solana token (same flow and limits as the REST API above)"],
+            ].map(([n, d]) => (
+              <tr key={n}>
+                <td className="px-3 py-2 font-mono text-xs font-semibold text-foreground">{n}</td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">{d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Endpoint: <code>https://omdot.fun/mcp</code> (Streamable HTTP, no authentication, 120 requests per minute per IP).
+      </p>
 
       <p className="mt-6 text-xs text-muted-foreground">
         Categories: Meme, Utility, AI, Gaming, DeFi, NFT, x402. Logo: PNG, JPEG, WebP or GIF, 5 MB max, sent as base64.
