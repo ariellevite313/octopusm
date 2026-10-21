@@ -223,14 +223,14 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       {/* ── 3. Recent activity ─────────────────────────────────────── */}
       <ProfileActivityList items={data.activity} />
 
+      {/* ── Total earned (before tokens and markets) ─────────────── */}
+      <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
+
       {/* ── 4. Tokens launched (Solana + Arc) ─────────────────────── */}
       <ProfileTokensList tokens={data.created_tokens} />
 
       {/* ── 5. Markets created ──────────────────────────────────────── */}
       <ProfileMarketsList markets={data.created_markets} />
-
-      {/* ── Total earned (bottom of profile, no card) ─────────────── */}
-      <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
 
       {/* Empty state */}
       {data.stats.total_rounds === 0 && data.created_markets.length === 0 && data.created_tokens.length === 0 && (
