@@ -141,6 +141,8 @@ export interface MarketCommentEnriched extends MarketCommentRow {
   like_count: number;
   liked_by_me: boolean;
   octo_balance: number;
+  /** Token recommandé de l'auteur (logo à côté du nom) */
+  featured_token?: import("@/lib/social/featured-token").FeaturedToken | null;
   replies: MarketCommentEnriched[];
 }
 

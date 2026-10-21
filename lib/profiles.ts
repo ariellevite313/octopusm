@@ -3,11 +3,15 @@
  * Source unique : évite d'afficher une copie figée au moment du post.
  */
 
+import { getFeaturedTokens, type FeaturedToken } from "@/lib/social/featured-token";
+
 export type PublicProfile = {
   /** Nom affiché : display_name, sinon username, sinon null */
   name: string | null;
   avatar_src: string | null;
   octo: number;
+  /** Token recommandé (logo à côté du nom) */
+  token?: FeaturedToken | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,9 +20,10 @@ export async function getProfiles(admin: any, addresses: string[]): Promise<Map<
   const addrs = [...new Set(addresses.filter(Boolean))];
   if (addrs.length === 0) return map;
 
-  const [walletsRes, octoRes] = await Promise.all([
+  const [walletsRes, octoRes, featured] = await Promise.all([
     admin.from("wallets").select("address, username, display_name, avatar_src").in("address", addrs),
     admin.from("leaderboard_octo").select("wallet_address, total_octo").in("wallet_address", addrs),
+    getFeaturedTokens(admin, addrs),
   ]);
 
   for (const w of (walletsRes.data ?? []) as { address: string; username: string | null; display_name: string | null; avatar_src: string | null }[]) {
@@ -33,6 +38,11 @@ export async function getProfiles(admin: any, addresses: string[]): Promise<Map<
     p.octo = Number(o.total_octo ?? 0);
     map.set(o.wallet_address, p);
   }
+  for (const [addr, t] of featured) {
+    const p = map.get(addr) ?? { name: null, avatar_src: null, octo: 0 };
+    p.token = t;
+    map.set(addr, p);
+  }
   return map;
 }
 
@@ -41,6 +51,7 @@ type CommentLike = {
   username: string | null;
   avatar_src: string | null;
   octo_balance: number;
+  featured_token?: FeaturedToken | null;
   replies?: CommentLike[];
 };
 
@@ -52,6 +63,7 @@ export function applyProfiles<T extends CommentLike>(list: T[], profiles: Map<st
       c.username = p.name ?? c.username;
       c.avatar_src = p.avatar_src ?? c.avatar_src;
       if (p.octo > 0) c.octo_balance = p.octo;
+      c.featured_token = p.token ?? null;
     }
     c.replies?.forEach(patch);
   };
