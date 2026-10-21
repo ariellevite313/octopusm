@@ -172,18 +172,20 @@ export async function buildStockPairedTransactions(
       leftover:             Math.round(params.totalSupply * 0.1),  // 10% buffer — absorbs curve-vs-supply precision gap
     },
     fee: {
+      // Frais fixe de 2 % (même niveau que la config Solana principale). Meteora prend 20 %, le reste est partagé 50 / 50
+      // entre la plateforme et le créateur. Un frais fixe exige numberOfPeriod = 0 et totalDuration = 0 (règle du SDK).
       baseFeeParams: {
         baseFeeMode:       BaseFeeMode.FeeSchedulerLinear,
         feeSchedulerParam: {
-          startingFeeBps: 300,    // 3% early — discourages launch snipers
-          endingFeeBps:   100,    // 1% steady-state
-          numberOfPeriod: 4,
-          totalDuration:  7200,   // 7200 slots ≈ 48 min, then stays at 1%
+          startingFeeBps: 200,
+          endingFeeBps:   200,
+          numberOfPeriod: 0,
+          totalDuration:  0,
         },
       },
       dynamicFeeEnabled:           true,
       collectFeeMode:              CollectFeeMode.QuoteToken,
-      creatorTradingFeePercentage: 33,
+      creatorTradingFeePercentage: 50,
       poolCreationFee:             0,   // platform fee collected in TX A (0.05 SOL)
       enableFirstSwapWithMinFee:   true,
     },
