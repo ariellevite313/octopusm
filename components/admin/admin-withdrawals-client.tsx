@@ -1,5 +1,6 @@
 "use client";
 
+import { TxLink } from "./tx-link";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, XCircle, Banknote, LoaderCircle, Clock, Check, Copy } from "lucide-react";
@@ -354,7 +355,7 @@ export function AdminWithdrawalsClient({ withdrawals: initialWithdrawals }: { wi
               <p className="text-xs text-red-500">Reason: {w.rejection_reason}</p>
             )}
             {w.paid_tx && (
-              <p className="text-xs text-muted-foreground font-mono truncate">TX: {w.paid_tx}</p>
+              <p className="text-xs"><TxLink tx={w.paid_tx} /></p>
             )}
           </div>
         ))}

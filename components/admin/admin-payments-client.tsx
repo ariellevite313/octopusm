@@ -1,5 +1,6 @@
 "use client";
 
+import { TxLink } from "./tx-link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -258,7 +259,7 @@ export function AdminPaymentsClient({
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{flowLabel(p.flow)}</span>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-mono">{shortAddr(p.user_wallet)}</span>
+              <span className="flex items-center gap-2"><span className="font-mono">{shortAddr(p.user_wallet)}</span><TxLink tx={p.tx_signature} /></span>
               <span>{formatDate(p.created_at)}</span>
             </div>
             {p.status === "pending" && (
@@ -307,7 +308,7 @@ export function AdminPaymentsClient({
                 <td className="px-4 py-3">
                   <p className="max-w-xs font-medium leading-5 line-clamp-2">{p.title}</p>
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{shortAddr(p.user_wallet)}</td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{shortAddr(p.user_wallet)}<span className="block"><TxLink tx={p.tx_signature} /></span></td>
                 <td className="px-4 py-3">
                   <span className="block font-semibold">{fmtAmount(p.total_paid_usdc, p.token)}</span>
                   {p.flow === "withdrawal" && (
