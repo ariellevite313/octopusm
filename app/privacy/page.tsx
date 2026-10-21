@@ -8,6 +8,7 @@ import { T } from "@/lib/i18n-mark";
 const SECTIONS = [
   { id: "introduction",    label: T("Introduction") },
   { id: "data-collected",  label: T("Information We Collect") },
+  { id: "public-profile", label: T("Public profile and agent access") },
   { id: "how-we-use",      label: T("How We Use Your Information") },
   { id: "third-parties",   label: T("Third-Party Services") },
   { id: "cookies",         label: T("Cookies") },
@@ -88,7 +89,7 @@ export default function PrivacyPage() {
         {/* Content */}
         <article className="flex-1 min-w-0">
           <h1 className="text-3xl font-bold text-foreground mb-1">{tr("Privacy Policy")}</h1>
-          <p className="text-sm text-muted-foreground mb-12">{tr("Last updated: September 1, 2026")}</p>
+          <p className="text-sm text-muted-foreground mb-12">{tr("Last updated: October 21, 2026")}</p>
 
           <div className="space-y-14 text-[15px] leading-7 text-muted-foreground">
 
@@ -108,6 +109,7 @@ export default function PrivacyPage() {
               <h3 className="text-base font-semibold text-foreground mb-2">{tr("Information you provide")}</h3>
               <ul className="list-disc list-outside ml-5 space-y-1.5">
                 <li>{tr("Wallet address when you connect your Solana wallet")}</li>
+                <li>{tr("EVM wallet address (MetaMask or other) when you connect on Arc")}</li>
                 <li>{tr("Display name or username if you choose to set one")}</li>
                 <li>{tr("Token details (name, ticker, description, logo) when you create a launchpad token")}</li>
                 <li>{tr("Comments and messages you post on the platform")}</li>
@@ -118,6 +120,7 @@ export default function PrivacyPage() {
               <ul className="list-disc list-outside ml-5 space-y-1.5">
                 <li>{tr("On-chain transaction data associated with your wallet (public blockchain data)")}</li>
                 <li>{tr("IP address and approximate geographic location")}</li>
+                <li>{tr("Requests made through the MCP server and Agent API (IP address and rate-limit counters)")}</li>
                 <li>{tr("Browser type, device type, and operating system")}</li>
                 <li>{tr("Pages visited and features used within the platform")}</li>
                 <li>{tr("Referral information if you arrived via a referral link")}</li>
@@ -126,6 +129,13 @@ export default function PrivacyPage() {
               <h3 className="text-base font-semibold text-foreground mt-7 mb-2">{tr("Blockchain data")}</h3>
               <p>
                 {tr("All transactions made on Solana are public by nature. We do not control what is visible on the blockchain. Wallet addresses, token creation events, trades, and bets are permanently recorded on-chain and are accessible to anyone.")}
+              </p>
+            </section>
+
+            <section id="public-profile">
+              <h2 className="text-xl font-semibold text-foreground mb-4">{tr("Public profile and agent access")}</h2>
+              <p>
+                {tr("Your wallet address, tokens launched, markets created, activity, rank and total earned are shown on your public profile. This public data can also be read by people and AI agents through our website and the MCP server.")}
               </p>
             </section>
 
@@ -153,6 +163,7 @@ export default function PrivacyPage() {
               <div className="rounded-xl border border-border overflow-hidden">
                 {[
                   { name: "Helius",                    desc: T("Solana RPC provider for on-chain data") },
+                  { name: "Arc",                       desc: T("EVM network RPC for Arc payments") },
                   { name: "Meteora",                   desc: T("DEX protocol for liquidity pools and token trading") },
                   { name: "GeckoTerminal / DexScreener", desc: T("Market data aggregators for token prices") },
                   { name: "Supabase",                  desc: T("Database and authentication infrastructure") },

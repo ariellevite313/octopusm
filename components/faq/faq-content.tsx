@@ -268,6 +268,27 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: T("AI agents (MCP)"),
+    items: [
+      {
+        q: T("Can an AI agent use OMdot.fun?"),
+        a: [T("Yes. OMdot.fun runs an MCP server at [omdot.fun/mcp](https://omdot.fun/mcp). Any MCP-compatible agent (Claude, Cursor, custom bots) can connect and read public data: tokens, prediction pools, Up/Down rounds, profiles and leaderboards. Details are on the [Agent API](/agents) page.")],
+      },
+      {
+        q: T("Can an agent launch a token?"),
+        a: [T("Yes, on Solana. The agent receives transactions to sign and signs them with its own key: OMdot.fun never holds your keys. The same fee (0.08 SOL), limits (3 launches per wallet and 6 per IP per hour) and rules as the website apply.")],
+      },
+      {
+        q: T("Is the MCP server free, and does it need an account?"),
+        a: [T("Reading is free and needs no account or API key, within a limit of 120 requests per minute per IP. Only public data is exposed; nothing private is ever returned.")],
+      },
+      {
+        q: T("Can an agent bet or move my funds?"),
+        a: [T("No. The MCP server cannot place bets or withdraw. An agent can only act with a wallet whose keys it controls, and every on-chain action must be signed by that wallet.")],
+      },
+    ],
+  },
+  {
     title: T("General"),
     items: [
       {
@@ -279,6 +300,14 @@ const SECTIONS: Section[] = [
         a: [
           T("<b>Solflare</b> (recommended) — [solflare.com](https://solflare.com)<br/><b>Phantom</b> (also supported) — [phantom.app](https://phantom.app)<br/>We also support Backpack, OKX Wallet, Coinbase Wallet, and Trust Wallet. Install the browser extension for your wallet, then click <b>Connect Wallet</b> on any page. You will need a small amount of SOL for network fees (~0.001 SOL per transaction)."),
         ],
+      },
+      {
+        q: T("Can I use MetaMask or Arc?"),
+        a: [T("Yes. Prediction pools, markets and Up/Down rounds also work on Arc with MetaMask or any EVM wallet. Bets on Arc are paid in USDC, which is also the network fee currency.")],
+      },
+      {
+        q: T("Where can I see what a user has earned?"),
+        a: [T("Every public profile shows Total earned in dollars: Launchpad creator fees and prediction market gains combined, plus open positions. Profiles are public.")],
       },
       {
         q: T("Is there a referral program?"),
