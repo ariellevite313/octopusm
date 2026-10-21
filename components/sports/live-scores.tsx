@@ -11,9 +11,20 @@ export type ScoreRow = {
 };
 type M = ScoreRow;
 
-function Logo({ src, name }: { src: string | null; name: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return src ? <img src={src} alt="" className="size-6 shrink-0 object-contain" /> : <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">{name[0]}</span>;
+/** Logo d'équipe dans le style de la plateforme : pastille ronde, logo centré ; initiales si le logo manque. */
+export function TeamLogo({ src, name, size = 28 }: { src: string | null; name: string; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  return (
+    <span className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border" style={{ width: size, height: size }}>
+      {src && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} className="object-contain" style={{ width: size * 0.72, height: size * 0.72 }} />
+      ) : (
+        <span className="font-bold text-foreground" style={{ fontSize: size * 0.36 }}>{initials}</span>
+      )}
+    </span>
+  );
 }
 
 function Badge({ m }: { m: M }) {
@@ -76,10 +87,7 @@ export function LiveScores({ initial = [] as M[], poll = true }: { initial?: M[]
           {groups.map(([league, g]) => (
             <section key={league}>
               <div className="mb-2 flex items-center gap-2">
-                {g.logo && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={g.logo} alt="" className="size-5 object-contain" />
-                )}
+                {g.logo && <TeamLogo src={g.logo} name={league} size={22} />}
                 <h2 className="text-sm font-bold text-muted-foreground">{league}</h2>
               </div>
               <ul className="divide-y divide-border">
@@ -88,13 +96,13 @@ export function LiveScores({ initial = [] as M[], poll = true }: { initial?: M[]
                   return (
                     <li key={m.key} className="flex items-center gap-3 py-3">
                       <div className="w-12 shrink-0"><Badge m={m} /></div>
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <div className="flex items-center gap-2"><Logo src={m.home_logo} name={m.home} /><span className="truncate text-[15px] font-semibold text-foreground">{m.home}</span></div>
-                        <div className="flex items-center gap-2"><Logo src={m.away_logo} name={m.away} /><span className="truncate text-[15px] font-semibold text-foreground">{m.away}</span></div>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex items-center gap-2"><TeamLogo src={m.home_logo} name={m.home} /><span className="truncate text-[15px] font-semibold text-foreground">{m.home}</span></div>
+                        <div className="flex items-center gap-2"><TeamLogo src={m.away_logo} name={m.away} /><span className="truncate text-[15px] font-semibold text-foreground">{m.away}</span></div>
                       </div>
-                      <div className={`num w-8 shrink-0 space-y-1.5 text-right text-[17px] font-bold ${m.status === "live" ? "text-foreground" : "text-muted-foreground"}`}>
-                        <p>{hasScore ? m.score_home : "–"}</p>
-                        <p>{hasScore ? m.score_away : "–"}</p>
+                      <div className={`num w-8 shrink-0 space-y-2 text-right text-[17px] font-bold ${m.status === "live" ? "text-foreground" : "text-muted-foreground"}`}>
+                        <p className="leading-7">{hasScore ? m.score_home : "–"}</p>
+                        <p className="leading-7">{hasScore ? m.score_away : "–"}</p>
                       </div>
                     </li>
                   );

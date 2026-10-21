@@ -5,7 +5,7 @@
  *  - worldcup       : WORLDCUP_API_TOKEN   — Coupe du monde 2026 (déjà utilisé par le site)
  */
 import { matchKey, type LiveMatch, type MatchStatus } from "./types";
-import { getAllMatchesWithTeams } from "@/lib/worldcup/client";
+import { getAllMatches, getTeams } from "@/lib/worldcup/client";
 
 export class ProviderError extends Error {
   constructor(message: string, public rateLimited = false) { super(message); }
@@ -97,21 +97,26 @@ export const worldCup = {
   dailyLimit: 5000,
   enabled: () => !!process.env.WORLDCUP_API_TOKEN,
   async fetch(): Promise<LiveMatch[]> {
-    const all = await getAllMatchesWithTeams();
-    if (!all.length) throw new ProviderError("no data");
+    const [games, teams] = await Promise.all([getAllMatches(), getTeams()]);
+    if (!games.length) throw new ProviderError("no data");
+    const byId = new Map(teams.map((t) => [t.id, t]));
     const now = Date.now();
     const out: LiveMatch[] = [];
-    for (const m of all) {
-      const t = Date.parse(m.local_date);
+    for (const g of games) {
+      const t = Date.parse(g.local_date);
       if (!Number.isFinite(t) || Math.abs(t - now) > 2 * 86_400_000) continue;
+      const h = byId.get(g.home_team_id), a2 = byId.get(g.away_team_id);
+      const home = h?.name_en ?? g.home_team_label, away = a2?.name_en ?? g.away_team_label;
+      if (!home || !away) continue;
+      const finished = g.finished === "TRUE";
       const kickoff = new Date(t).toISOString();
-      const live = !m.finished && now >= t && now <= t + 2.25 * 3_600_000;
+      const live = !finished && now >= t && now <= t + 2.25 * 3_600_000;
       out.push({
-        key: matchKey(kickoff, m.home_team_name, m.away_team_name),
+        key: matchKey(kickoff, home, away),
         league: "FIFA World Cup", league_logo: null,
-        home: m.home_team_name, home_logo: null, away: m.away_team_name, away_logo: null,
-        score_home: m.finished || live ? m.home_score : null, score_away: m.finished || live ? m.away_score : null,
-        status: m.finished ? "finished" : live ? "live" : "scheduled", minute: null, kickoff, source: "worldcup",
+        home, home_logo: h?.flag || null, away, away_logo: a2?.flag || null,
+        score_home: finished || live ? g.home_score ?? 0 : null, score_away: finished || live ? g.away_score ?? 0 : null,
+        status: finished ? "finished" : live ? "live" : "scheduled", minute: null, kickoff, source: "worldcup",
       });
     }
     return out;
