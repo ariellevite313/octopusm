@@ -10,6 +10,7 @@ import { ProfileMarketsList } from "@/components/profile/profile-markets-list";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { fmt, shortAddress } from "@/lib/format";
 import { Tr } from "@/lib/i18n";
+import { FollowSection } from "@/components/profile/follow-section";
 import { MemberSince } from "@/components/profile/member-since";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
@@ -159,6 +160,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
               {shortAddress(wallet)}
             </p>
           )}
+
+          <FollowSection wallet={wallet} />
 
           {/* Stats — inline, like followers / following */}
           <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">
