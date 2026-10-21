@@ -3,6 +3,7 @@ import { Providers } from "@/providers/providers";
 import { HeaderSwitch } from "@/components/layout/header-switch";
 import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
+import { AgeGate } from "@/components/layout/age-gate";
 import { RefCapture } from "@/components/layout/ref-capture";
 import { RootBottomNav } from "@/components/layout/root-bottom-nav";
 import { DesktopSidebar } from "@/components/desktop/desktop-sidebar";
@@ -65,6 +66,7 @@ export default async function RootLayout({
       <body suppressHydrationWarning>
         <Providers>
           <RefCapture />
+          <AgeGate />
           <div className="flex min-h-screen">
           <DesktopSidebar />
           <div className="flex min-h-screen min-w-0 flex-1 flex-col">
