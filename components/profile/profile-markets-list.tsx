@@ -90,7 +90,6 @@ export function ProfileMarketsList({ markets }: { markets: CreatedMarket[] }) {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">{tr("Markets created")}</h2>
 
       {/* Summary */}
       <div className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-4">

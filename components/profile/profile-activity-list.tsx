@@ -90,8 +90,7 @@ export function ProfileActivityList({ items: allItems, volume }: { items: Activi
 
   return (
     <section>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold tracking-tight text-foreground">{tr("Recent activity")}</h2>
+      <div className="mb-1 flex items-center justify-end gap-2">
         <div className="flex gap-1.5">
           {([["usdc", "USDC", "/usdc-coin.png"], ["clt", "ClawdTrust", "/clawdtrust-coin.png"]] as const).map(([k, label, logo]) => (
             <button

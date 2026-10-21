@@ -4,9 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getPublicProfile } from "@/services/profile-service";
 import { ProfilePnlChart } from "@/components/profile/profile-pnl-chart";
-import { ProfileActivityList } from "@/components/profile/profile-activity-list";
-import { ProfileTokensList } from "@/components/profile/profile-tokens-list";
-import { ProfileMarketsList } from "@/components/profile/profile-markets-list";
+import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { fmt, shortAddress } from "@/lib/format";
 import { Tr } from "@/lib/i18n";
@@ -185,14 +183,13 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         openStakeUsd={data.earnings.open_stake_usd}
       />
 
-      {/* ── 3. Recent activity ─────────────────────────────────────── */}
-      <ProfileActivityList items={data.activity} volume={data.volume} />
-
-      {/* ── 4. Tokens launched (Solana + Arc) ─────────────────────── */}
-      <ProfileTokensList tokens={data.created_tokens} />
-
-      {/* ── 5. Markets created ──────────────────────────────────────── */}
-      <ProfileMarketsList markets={data.created_markets} />
+      {/* ── Recent activity / Tokens launched / Markets created (tabs) ── */}
+      <ProfileTabs
+        activity={data.activity}
+        volume={data.volume}
+        tokens={data.created_tokens}
+        markets={data.created_markets}
+      />
 
       {/* Empty state */}
       {data.stats.total_rounds === 0 && data.created_markets.length === 0 && data.created_tokens.length === 0 && (
