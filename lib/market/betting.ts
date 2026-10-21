@@ -4,6 +4,7 @@
  */
 
 import type { WalletType, SolanaProvider } from "@/lib/wallet/adapters";
+import { readVia } from "@/lib/social/share-via";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -287,6 +288,7 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
         subtitle:           optionLabel,
         category_label:     categoryId,
         market_id:          marketId,
+        share_post_id:      readVia(marketId),
         selection_id:       optionId,
         selection_label:    optionLabel,
         // Store the actual stake regardless of token — "amount_usdc" is legacy naming.

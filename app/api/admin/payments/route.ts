@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { awardShareOmero } from "@/lib/social/share-rewards";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { FEE_RATE, RESERVE_FEE_RATE, computeReward } from "@/lib/market/betting";
@@ -132,6 +133,8 @@ export async function POST(req: Request) {
       } else {
         // Award OCTO after admin approval (not at placement — anti-fraud)
         awardOcto(payment.user_wallet, octoForBet(amount, payment.token ?? "usdc"), "bet", "Prediction approved").catch(() => {});
+        // Pari venu d'un post du fil : 200 OMERO à l'auteur du post
+        await awardShareOmero(payment.market_id, payment.user_wallet);
       }
     }
   }

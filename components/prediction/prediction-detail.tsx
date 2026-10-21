@@ -1,5 +1,6 @@
 "use client";
 
+import { captureVia } from "@/lib/social/share-via";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Check, Share2, X, Plus } from "lucide-react";
@@ -276,6 +277,8 @@ export function PredictionDetail({
   const [successRef,    setSuccessRef]    = useState("");
   const [showWallet,    setShowWallet]    = useState(false);
   const [betOpen,       setBetOpen]       = useState(false);
+  // Visiteur venu d'un post du fil (?via=…) : retenu pour la récompense de partage
+  useEffect(() => { captureVia(market.id); }, [market.id]);
   // Option choisie depuis un post du fil (?option=…) : ouvre directement la mise
   useEffect(() => {
     const o = new URLSearchParams(window.location.search).get("option");

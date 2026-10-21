@@ -378,6 +378,7 @@ const p: Record<string, string> = {
   "resolved": "已结算",
   "closed": "已关闭",
   "cancelled": "已取消",
+  "Bet": "下注",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",

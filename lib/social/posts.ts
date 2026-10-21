@@ -140,20 +140,20 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
       const clt = m.bet_token === "clawdtrust";
       out.set(String(m.id), {
         kind: "pool", title: String(m.title), image: (m.cover_image_src as string) ?? null, href: `/pools/${m.slug ?? m.id}`,
-        options: opts.slice(0, 3).map((o) => o.label ?? o.name ?? o.id),
+        options: opts.slice(0, 8).map((o) => o.label ?? o.name ?? o.id),
         pool: fmtPool(Number(clt ? m.total_pool_clt : m.total_pool_usdc) || 0, clt ? "CLT" : "USDC"),
         closes_at: (m.betting_closes_at as string) ?? null, status: String(m.status),
-        option_ids: opts.slice(0, 3).map((o) => o.id),
+        option_ids: opts.slice(0, 8).map((o) => o.id),
       });
     }
     for (const m of (q.data ?? []) as Record<string, unknown>[]) {
       const opts = parse(m.options) ?? [];
       out.set(String(m.id), {
         kind: "prediction", title: String(m.title), image: ((m.single_image_src ?? m.left_competitor_image_src) as string) ?? null, href: `/prediction/${m.slug ?? m.id}`,
-        options: opts.slice(0, 3).map((o) => o.label ?? o.name ?? o.id), pool: null,
+        options: opts.slice(0, 8).map((o) => o.label ?? o.name ?? o.id), pool: null,
         closes_at: (m.event_start_at as string) ?? null, status: m.is_resolved ? "resolved" : m.is_active ? "active" : "closed",
         price_ticker: (m.price_ticker as string) ?? null, price_target: m.price_target != null ? Number(m.price_target) : null,
-        option_ids: opts.slice(0, 3).map((o) => o.id),
+        option_ids: opts.slice(0, 8).map((o) => o.id),
       });
     }
   } catch { /* marché introuvable : pas de carte */ }
