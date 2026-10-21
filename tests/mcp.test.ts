@@ -89,6 +89,17 @@ describe("MCP server — tool input validation (errors go back to the model, not
     expect((await call("get_follow_stats", { wallet: "x" })).text).toMatch(/address/i);
   });
 
+  it("create_post tools refuse Arc wallets, empty posts and bad signatures", async () => {
+    const list = await rpc({ jsonrpc: "2.0", id: 4, method: "tools/list" });
+    const tools = list.result?.tools as { name: string; annotations: { readOnlyHint: boolean } }[];
+    expect(tools.find((t) => t.name === "create_post_prepare")?.annotations.readOnlyHint).toBe(true);
+    expect(tools.find((t) => t.name === "create_post")?.annotations.readOnlyHint).toBe(false);
+    expect((await call("create_post_prepare", { wallet: "0x1111111111111111111111111111111111111111", body: "hi" })).text).toMatch(/solana/i);
+    expect((await call("create_post_prepare", { wallet: "11111111111111111111111111111111", body: "  " })).text).toMatch(/empty/i);
+    const r = await call("create_post", { wallet: "11111111111111111111111111111111", body: "hi", timestamp: Date.now(), signature: "AA==" });
+    expect(r.isError).toBe(true);
+  });
+
   it("launch_token_prepare requires a valid Solana wallet (an Arc 0x address is refused)", async () => {
     const r = await call("launch_token_prepare", { wallet: "0x1111111111111111111111111111111111111111", name: "A", ticker: "AAA" });
     expect(r.isError).toBe(true);

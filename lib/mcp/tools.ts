@@ -19,6 +19,8 @@ import { GET as followRoute } from "@/app/api/follow/route";
 import { POST as launchRoute } from "@/app/api/v1/launch/route";
 import { POST as launchSubmitRoute } from "@/app/api/v1/launch/[id]/submit/route";
 import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/route";
+import { createPost, type PostFile } from "@/lib/social/create-post";
+import { postMessage, verifyPostSignature, type B64Image } from "@/lib/mcp/post-auth";
 import { getLaunchpadToken } from "@/services/launchpad-service";
 import { getPublicProfile } from "@/services/profile-service";
 
@@ -86,6 +88,38 @@ function post(ctx: ToolCtx, path: string, body: unknown): Request {
 }
 
 const idParams = (id: string) => ({ params: Promise.resolve({ id }) });
+
+function postInputSchema(withSig: boolean): McpTool["inputSchema"] {
+  return {
+    type: "object",
+    properties: {
+      wallet: { type: "string", description: "Solana wallet of the author (the signer)" },
+      body: { type: "string", maxLength: 2000, description: "Post text (may be empty if there is an image)" },
+      images: {
+        type: "array", maxItems: 2,
+        items: { type: "object", properties: { mime: { type: "string", enum: ["image/jpeg", "image/png", "image/webp", "image/gif"] }, data: { type: "string", description: "base64, max 5 MB" } }, required: ["mime", "data"] },
+      },
+      ...(withSig ? { timestamp: { type: "integer", description: "From create_post_prepare" }, signature: { type: "string", description: "base64 ed25519 signature of the message" } } : {}),
+    },
+    required: withSig ? ["wallet", "timestamp", "signature"] : ["wallet"],
+  };
+}
+
+function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image[] } {
+  const wallet = str(a, "wallet", { required: true, max: 64 })!;
+  if (!SOLANA.test(wallet)) throw new ToolError("wallet must be a Solana address");
+  const body = str(a, "body", { max: 2000 }) ?? "";
+  const raw = a.images ?? [];
+  if (!Array.isArray(raw) || raw.length > 2) throw new ToolError("images must be an array of at most 2");
+  const images: B64Image[] = raw.map((x) => {
+    const o = x as Json;
+    if (typeof o?.mime !== "string" || typeof o?.data !== "string") throw new ToolError("each image needs mime and data (base64)");
+    if (o.data.length > 7_200_000) throw new ToolError("Image too large (max 5 MB)");
+    return { mime: o.mime, data: o.data };
+  });
+  if (!body.trim() && images.length === 0) throw new ToolError("Empty post");
+  return { wallet, body, images };
+}
 
 // ── Outils ────────────────────────────────────────────────────────────────────
 
@@ -254,6 +288,40 @@ export const TOOLS: McpTool[] = [
     run: async (a, ctx) => {
       const period = str(a, "period", { max: 6 });
       return okJson(await creatorsLeaderboardRoute(get(ctx, `/api/leaderboard${period ? `?period=${encodeURIComponent(period)}` : ""}`)));
+    },
+  },
+
+  // ── Publier un post (Solana) — non custodial : l'agent signe un message avec son wallet ──
+  {
+    name: "create_post_prepare",
+    description:
+      "Step 1/2 of publishing a feed post as a Solana wallet: returns the exact message to sign (ed25519, with the wallet key) and the timestamp. Nothing is published yet. Text up to 2000 chars, optionally up to 2 images (JPG/PNG/WEBP/GIF, max 5 MB each, base64). Mention $TICKER of a platform token to attach its chart.",
+    readOnly: true,
+    inputSchema: postInputSchema(false),
+    run: async (a) => {
+      const { wallet, body, images } = readPostArgs(a);
+      const timestamp = Date.now();
+      return { message: postMessage(wallet, timestamp, body, images), timestamp, next: "Sign the message bytes (UTF-8) with the wallet key, then call create_post with the same wallet/body/images, this timestamp and the base64 signature. Valid for 5 minutes, single use." };
+    },
+  },
+  {
+    name: "create_post",
+    description: "Step 2/2: publish the post. Requires the same wallet/body/images as create_post_prepare, its timestamp, and the base64 ed25519 signature of the message. The wallet must already have a profile on OMdotfun. Limit: 10 posts per hour per wallet.",
+    readOnly: false,
+    inputSchema: postInputSchema(true),
+    run: async (a) => {
+      const { wallet, body, images } = readPostArgs(a);
+      const timestamp = Number(a.timestamp);
+      const signature = str(a, "signature", { required: true, max: 200 })!;
+      const bad = verifyPostSignature(wallet, timestamp, body, images, signature);
+      if (bad) throw new ToolError(bad);
+      const files: PostFile[] = images.map((im) => {
+        const buf = Buffer.from(im.data, "base64");
+        return { type: im.mime, size: buf.length, bytes: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer };
+      });
+      const r = await createPost(wallet, body, files);
+      if (r.status >= 400) throw new ToolError(String(r.data.error ?? `Request failed (${r.status})`));
+      return r.data;
     },
   },
 
