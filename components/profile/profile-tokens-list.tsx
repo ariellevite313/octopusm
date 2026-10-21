@@ -39,7 +39,6 @@ export function ProfileTokensList({ tokens }: { tokens: CreatedToken[] }) {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">{tr("Tokens launched")}</h2>
       <div className="overflow-hidden rounded-[22px] border border-border bg-card">
         {slice.map((t) => (
           <Link
