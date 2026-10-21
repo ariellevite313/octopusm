@@ -176,7 +176,14 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       </div>
 
       {/* ── Total earned (before recent activity) ─────────────── */}
-      <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
+      <ProfilePnlChart
+        series={data.pnl_series}
+        totalUsd={data.earnings.won_usd}
+        launchpadUsd={data.earnings.launchpad_usd}
+        marketFeesUsd={data.earnings.market_fees_usd}
+        openCount={data.earnings.open_count}
+        openStakeUsd={data.earnings.open_stake_usd}
+      />
 
       {/* ── 3. Recent activity ─────────────────────────────────────── */}
       <ProfileActivityList items={data.activity} volume={data.volume} />

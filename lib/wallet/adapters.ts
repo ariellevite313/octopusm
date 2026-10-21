@@ -4,6 +4,8 @@
  * évite la dépendance lourde @solana/wallet-adapter-wallets.
  */
 
+import { getEvmProvider } from "@/lib/wallet/evm-provider";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SolanaPublicKey = { toString(): string };
@@ -141,17 +143,9 @@ export function getProviderByType(type: WalletType): SolanaProvider | null {
       );
     case "robinhood":
       return w.robinhood?.solana ?? null;
-    case "metamask": {
-      const eth = w.ethereum;
-      if (!eth) return null;
-      // EIP-6963 multi-provider: pick MetaMask specifically
-      if (Array.isArray(eth.providers)) {
-        const mm = eth.providers.find((p) => p.isMetaMask && !p.isPhantom);
-        // Return a shim so `detected` check works; actual signing uses eth_requestAccounts
-        return mm ? (mm as unknown as SolanaProvider) : null;
-      }
-      return (eth.isMetaMask && !eth.isPhantom) ? (eth as unknown as SolanaProvider) : null;
-    }
+    case "metamask":
+      // EIP-6963 (MetaMask / Rabby / Coinbase) avec repli sur window.ethereum ; shim pour le test « detected »
+      return getEvmProvider() as unknown as SolanaProvider | null;
     default:
       return null;
   }

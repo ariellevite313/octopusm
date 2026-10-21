@@ -12,6 +12,11 @@ interface Props {
   series: PnlPoint[];
   /** Total gagné en dollars (prédictions + launchpad), un seul montant */
   totalUsd: number;
+  /** Détails sous le total (facultatifs) */
+  launchpadUsd?: number;
+  marketFeesUsd?: number;
+  openCount?: number;
+  openStakeUsd?: number;
 }
 
 type Range = "1W" | "1M" | "ALL";
@@ -45,7 +50,7 @@ function filterSeries(series: PnlPoint[], range: Range): PnlPoint[] {
   return filtered.length > 0 ? filtered : series.slice(-1);
 }
 
-export function ProfilePnlChart({ series, totalUsd }: Props) {
+export function ProfilePnlChart({ series, totalUsd, launchpadUsd = 0, marketFeesUsd = 0, openCount = 0, openStakeUsd = 0 }: Props) {
   const { tr, lang } = useT();
   const [range, setRange] = useState<Range>("ALL");
 
@@ -60,6 +65,11 @@ export function ProfilePnlChart({ series, totalUsd }: Props) {
           <p className="num text-[40px] leading-[1.05] font-bold tracking-[-0.035em]" style={{ color: COLOR }}>
             ${formatAmount(totalUsd)}
           </p>
+          <div className="num mt-1.5 space-y-0.5 text-[13px] text-muted-foreground">
+            {launchpadUsd > 0 && <p>{tr("Launchpad fees: ${amount}", { amount: formatAmount(launchpadUsd) })}</p>}
+            {marketFeesUsd > 0 && <p>{tr("Market creator fees: ${amount}", { amount: formatAmount(marketFeesUsd) })}</p>}
+            {openCount > 0 && <p>{tr("Open positions: {count} (${amount} staked)", { count: openCount, amount: formatAmount(openStakeUsd) })}</p>}
+          </div>
         </div>
         <div className="flex shrink-0 gap-0.5 rounded-full border border-border p-1">
           {RANGES.map(r => (
