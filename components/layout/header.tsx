@@ -140,7 +140,7 @@ export function Header() {
                 </button>
               )}
             </div>
-            <nav className="flex flex-col gap-1 p-3">
+            <nav className="flex flex-col gap-1 overflow-y-auto p-3">
               {links.map(({ href, label, badge, disabled, external }) =>
                 disabled ? (
                   <span
@@ -172,34 +172,28 @@ export function Header() {
                   </Link>
                 )
               )}
-            </nav>
-            {isAuthenticated && (
-              <div className="px-3">
+              {isAuthenticated && (
                 <Link
                   href="/dashboard/launchpad"
                   onClick={() => setOpen(false)}
-                  className={`flex items-center rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${isActive("/dashboard/launchpad", pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${isActive("/dashboard/launchpad", pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
                 >
                   {tr("My tokens")}
                 </Link>
-              </div>
-            )}
-            <div className="mx-6 my-2 h-px bg-border" />
-            <ul className="space-y-0.5 overflow-y-auto px-3 pb-3">
+              )}
               {MORE_ITEMS.map((item) => (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    target={item.external ? "_blank" : undefined}
-                    rel={item.external ? "noopener noreferrer" : undefined}
-                    onClick={() => setOpen(false)}
-                    className="block truncate rounded-2xl px-4 py-2.5 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    {tr(item.label)}
-                  </Link>
-                </li>
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  target={item.external ? "_blank" : undefined}
+                  rel={item.external ? "noopener noreferrer" : undefined}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${!item.external && isActive(item.href, pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+                >
+                  {tr(item.label)}
+                </Link>
               ))}
-            </ul>
+            </nav>
             <div className="mt-auto"><MobileSettings /></div>
           </div>
         </>
