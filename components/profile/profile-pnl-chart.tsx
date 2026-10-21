@@ -22,15 +22,27 @@ interface Props {
   totalClt:  number;
   volumeUsdc?: number;
   volumeClt?:  number;
+  totalUsd?:   number;
+  wonUsd?:     number;
 }
 
 type Range = "1W" | "1M" | "ALL";
-type Token = "usdc" | "clt";
+type Token = "usd" | "usdc" | "clt";
 
 const RANGES: Range[] = ["1W", "1M", "ALL"];
 const RANGE_LABELS: Record<Range, string> = { "1W": T("1W"), "1M": T("1M"), "ALL": T("ALL") };
 
 const TOKEN_CONFIG = {
+  usd: {
+    label:       "USD",
+    unit:        "$",
+    dataKey:     "usd" as const,
+    color:       "#22c55e",
+    activeBg:    "rgba(34, 197, 94, 0.14)",
+    activeText:  "#22c55e",
+    activeBorder:"transparent",
+    dotColor:    "#22c55e",
+  },
   usdc: {
     label:       "USDC",
     unit:        "USDC",
@@ -66,7 +78,7 @@ function CustomTooltip({ active, payload, label, unit, positiveColor }: any) {
     <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-medium text-muted-foreground">{label}</p>
       <p className="font-semibold" style={{ color: val >= 0 ? positiveColor : "#ef4444" }}>
-        {val >= 0 ? "+" : ""}{formatAmount(val)} {unit}
+        {unit === "$" ? `${val >= 0 ? "+" : "-"}$${formatAmount(Math.abs(val))}` : `${val >= 0 ? "+" : ""}${formatAmount(val)} ${unit}`}
       </p>
     </div>
   );
@@ -84,14 +96,14 @@ function filterSeries(series: PnlPoint[], range: Range): PnlPoint[] {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volumeClt }: Props) {
+export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volumeClt, totalUsd = 0, wonUsd = 0 }: Props) {
   const { tr, lang } = useT();
-  const [activeToken, setActiveToken] = useState<Token>("usdc");
+  const [activeToken, setActiveToken] = useState<Token>("usd");
   const [range, setRange] = useState<Range>("1W");
 
   const cfg   = TOKEN_CONFIG[activeToken];
-  const total = activeToken === "usdc" ? totalUsdc : totalClt;
-  const vol   = activeToken === "usdc" ? volumeUsdc : volumeClt;
+  const total = activeToken === "usd" ? totalUsd : activeToken === "usdc" ? totalUsdc : totalClt;
+  const vol   = activeToken === "usd" ? undefined : activeToken === "usdc" ? volumeUsdc : volumeClt;
 
   const filtered = useMemo(() => filterSeries(series, range), [series, range]);
 
@@ -114,7 +126,7 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
 
       {/* Token selector pills */}
       <div className="flex gap-2 mb-4">
-        {(["usdc", "clt"] as Token[]).map(token => {
+        {(["usd", "usdc", "clt"] as Token[]).map(token => {
           const c       = TOKEN_CONFIG[token];
           const isActive = activeToken === token;
           return (
@@ -147,9 +159,16 @@ export function ProfilePnlChart({ series, totalUsdc, totalClt, volumeUsdc, volum
         <div>
           <p className="text-sm text-muted-foreground mb-0.5">{tr("Profit/Loss · {token}", { token: cfg.label })}</p>
           <p className="num text-[40px] leading-[1.05] font-bold tracking-[-0.035em]" style={{ color: mainColor }}>
-            {isPositive ? "+" : ""}{formatAmount(total)}{" "}
-            <span className="text-lg font-semibold text-muted-foreground">{cfg.unit}</span>
+            {activeToken === "usd"
+              ? <>{isPositive ? "+" : "-"}${formatAmount(Math.abs(total))}</>
+              : <>{isPositive ? "+" : ""}{formatAmount(total)}{" "}
+                  <span className="text-lg font-semibold text-muted-foreground">{cfg.unit}</span></>}
           </p>
+          {activeToken === "usd" && wonUsd > 0 && (
+            <p className="num text-[13px] text-muted-foreground mt-1">
+              {tr("Total won: ${amount}", { amount: formatAmount(wonUsd) })}
+            </p>
+          )}
           {vol !== undefined && vol > 0 && (
             <p className="num text-[13px] text-muted-foreground mt-1">
               {tr("Volume : {amount} {unit}", { amount: formatAmount(vol), unit: cfg.unit })}

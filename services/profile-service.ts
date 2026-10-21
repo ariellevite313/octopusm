@@ -28,6 +28,7 @@ export interface PnlPoint {
   date: string; // "YYYY-MM-DD"
   usdc: number; // cumulative P&L USDC
   clt: number;  // cumulative P&L CLT
+  usd: number;  // cumulative P&L converted to USD (CLT at current price)
 }
 
 export interface ActivityItem {
@@ -69,7 +70,14 @@ export interface CreatedToken {
   created_at: string;
 }
 
+export interface PublicProfileEarnings {
+  net_usd: number;     // net profit/loss in USD
+  won_usd: number;     // total gains (winning bets' profit) in USD
+  clt_price_usd: number;
+}
+
 export interface PublicProfileData {
+  earnings: PublicProfileEarnings;
   wallet: PublicProfileWallet | null;
   stats: PublicProfileStats;
   volume: PublicProfileVolume;
@@ -83,6 +91,25 @@ export interface PublicProfileData {
 
 function toDate(iso: string): string {
   return iso.slice(0, 10);
+}
+
+const CLT_MINT = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
+
+/** Prix USD du ClawdTrust (DexScreener, mis en cache 5 min). 0 si indisponible. */
+async function getCltPriceUsd(): Promise<number> {
+  try {
+    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${CLT_MINT}`, {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return 0;
+    const json = await res.json() as { pairs?: { priceUsd?: string; liquidity?: { usd?: number } }[] };
+    const pairs = (json.pairs ?? []).filter(p => Number(p.priceUsd) > 0);
+    pairs.sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
+    return pairs[0] ? Number(pairs[0].priceUsd) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 // ─── Core function ────────────────────────────────────────────────────────────
@@ -305,6 +332,25 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
     addDelta(date, b.token ?? "usdc", pnl);
   }
 
+  const cltPrice = await getCltPriceUsd();
+
+  // Gains bruts (profits des paris gagnants) en USD
+  let wonUsd = 0;
+  function addWon(token: string, pnl: number) {
+    if (pnl > 0) wonUsd += token === "usdc" ? pnl : pnl * cltPrice;
+  }
+  for (const b of updownBets) {
+    const amt = Number(b.amount ?? 0), pay = Number(b.payout ?? 0);
+    if (["won", "claimed", "paid"].includes(b.status)) addWon("usdc", pay - amt);
+  }
+  for (const b of mutuelBets) {
+    const amt = Number(b.amount ?? 0), pay = Number(b.payout_amount ?? 0);
+    if (pay > 0) addWon(b.token ?? "usdc", pay - amt);
+  }
+  for (const b of predBets) {
+    if (["win", "claimed", "paid"].includes(b.result_status)) addWon(b.token ?? "usdc", Number(b.net_reward ?? 0));
+  }
+
   const allDates = Array.from(
     new Set([...Object.keys(dailyUsdc), ...Object.keys(dailyClt)])
   ).sort();
@@ -315,7 +361,7 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
   for (const date of allDates) {
     cumUsdc += dailyUsdc[date] ?? 0;
     cumClt  += dailyClt[date]  ?? 0;
-    pnl_series.push({ date, usdc: cumUsdc, clt: cumClt });
+    pnl_series.push({ date, usdc: cumUsdc, clt: cumClt, usd: cumUsdc + cumClt * cltPrice });
   }
 
   // ── Activity (last 200, sorted desc) ──────────────────────────────────────
@@ -449,7 +495,13 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
     created_at:     t.created_at,
   }));
 
+  const last = pnl_series.at(-1);
   return {
+    earnings: {
+      net_usd:       last?.usd ?? 0,
+      won_usd:       wonUsd,
+      clt_price_usd: cltPrice,
+    },
     wallet,
     stats: {
       rank,

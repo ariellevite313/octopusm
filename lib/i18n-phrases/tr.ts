@@ -241,6 +241,7 @@ const p: Record<string, string> = {
   "View profile": "Profili gör",
   "Previous page": "Önceki sayfa",
   "Next page": "Sonraki sayfa",
+  "Total won: ${amount}": "Toplam kazanç: ${amount}",
   "Profit/Loss · {token}": "Kâr/Zarar · {token}",
   "Volume : {amount} {unit}": "Hacim: {amount} {unit}",
   "No data": "Veri yok",

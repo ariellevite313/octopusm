@@ -241,6 +241,7 @@ const p: Record<string, string> = {
   "View profile": "查看个人资料",
   "Previous page": "上一页",
   "Next page": "下一页",
+  "Total won: ${amount}": "累计赢得：${amount}",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",
   "No data": "暂无数据",
