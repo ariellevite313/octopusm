@@ -155,23 +155,19 @@ async function ProfileContent({ wallet }: { wallet: string }) {
             <FeaturedTokenControl wallet={wallet} token={featured} />
           </div>
 
-          {/* Handle + pills */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="mr-1 font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</span>
-            {data.stats.rank && (
-              <span className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px]">
-                <span className="text-muted-foreground"><Tr>Rank</Tr></span>
-                <span className="num font-bold text-foreground">#{data.stats.rank}</span>
-              </span>
-            )}
+          {/* Handle + X */}
+          <div className="mt-1.5 flex items-center gap-3">
+            <span className="font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</span>
             {data.wallet?.twitter_handle && (
               <a
                 href={`https://twitter.com/${data.wallet.twitter_handle}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background"
+                aria-label={`@${data.wallet.twitter_handle}`}
+                title={`@${data.wallet.twitter_handle}`}
+                className="text-foreground transition-opacity hover:opacity-70"
               >
-                <XLogo size={12} />@{data.wallet.twitter_handle}
+                <XLogo size={16} />
               </a>
             )}
           </div>
@@ -181,6 +177,9 @@ async function ProfileContent({ wallet }: { wallet: string }) {
             <span><span className="font-bold text-foreground">{data.stats.total_rounds}</span> <span className="text-muted-foreground"><Tr>Rounds</Tr></span></span>
             <span><span className="font-bold text-up">{data.stats.win_rate}%</span> <span className="text-muted-foreground"><Tr>Win rate</Tr></span></span>
             <span><span className="font-bold text-foreground">{fmt(data.stats.octo_balance, 0)}</span> <span className="text-muted-foreground">OMERO</span></span>
+            {data.stats.rank && (
+              <span><span className="font-bold text-foreground">#{data.stats.rank}</span> <span className="text-muted-foreground"><Tr>Rank</Tr></span></span>
+            )}
             <FollowCounts wallet={wallet} />
           </div>
 
