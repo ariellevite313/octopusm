@@ -2,13 +2,14 @@
 import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import { validRedirect } from "@/lib/oauth/core";
-import { getIp, hit } from "@/lib/v1/launch";
+import { getIp } from "@/lib/v1/launch";
+import { rateHit } from "@/lib/rate-limit";
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization, MCP-Protocol-Version", "Cache-Control": "no-store" } as const;
 export const OPTIONS = () => new Response(null, { status: 204, headers: CORS });
 
 export async function POST(req: Request) {
-  if (!hit(`oauth-reg:${getIp(req)}`, 20, 3600_000)) return Response.json({ error: "slow_down" }, { status: 429, headers: CORS });
+  if (!(await rateHit(`oauth-reg:${getIp(req)}`, 20, 3600_000))) return Response.json({ error: "slow_down" }, { status: 429, headers: CORS });
   const body = (await req.json().catch(() => ({}))) as { redirect_uris?: unknown; client_name?: unknown };
   const uris = Array.isArray(body.redirect_uris) ? body.redirect_uris.filter((u): u is string => typeof u === "string") : [];
   if (uris.length === 0 || uris.length > 10 || !uris.every(validRedirect)) {

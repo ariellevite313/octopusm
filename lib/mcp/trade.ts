@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { arc } from "@/lib/arc-chain";
 import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
 import { POST as dbcSwapRoute } from "@/app/api/launchpad/dbc-swap/route";
-import { hit } from "@/lib/v1/launch";
+import { rateHit } from "@/lib/rate-limit";
 
 export class TradeError extends Error {}
 
@@ -52,7 +52,7 @@ export async function prepareTrade(a: PrepareArgs) {
   if (a.side !== "buy" && a.side !== "sell") throw new TradeError("side must be buy or sell");
   if (!Number.isFinite(a.amount) || a.amount <= 0) throw new TradeError("amount must be a positive number");
   const slip = Math.min(MAX_SLIPPAGE_BPS, Math.max(10, Math.round(a.slippage_bps ?? 100)));
-  if (!hit(`trade:${a.wallet.toLowerCase()}`, 30, 3600_000)) throw new TradeError("Too many trades, try again later (30 per hour)");
+  if (!(await rateHit(`trade:${a.wallet.toLowerCase()}`, 30, 3600_000))) throw new TradeError("Too many trades, try again later (30 per hour)");
   const t = await loadToken(a.token_id);
 
   if (t.chain === "solana") {

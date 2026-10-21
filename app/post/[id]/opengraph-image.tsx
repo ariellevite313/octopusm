@@ -38,8 +38,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
       if (p && !p.hidden) {
         text = String(p.body ?? "").replace(/\s+/g, " ").trim().slice(0, 240);
         image = p.images?.[0] ?? null;
-        const { data: w } = await admin.from("wallets").select("username, avatar_src").eq("wallet_address", p.author).maybeSingle();
-        name = w?.username ?? `${String(p.author).slice(0, 4)}…${String(p.author).slice(-4)}`;
+        const { data: w } = await admin.from("wallets").select("username, display_name, avatar_src").eq("address", p.author).maybeSingle();
+        name = w?.display_name ?? w?.username ?? `${String(p.author).slice(0, 4)}…${String(p.author).slice(-4)}`;
         avatar = w?.avatar_src ?? null;
       }
     }

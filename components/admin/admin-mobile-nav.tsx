@@ -17,6 +17,9 @@ import {
   ArrowDownToLine,
   MoreHorizontal,
   Flag,
+  Gift,
+  Plug,
+  ShieldAlert,
   X,
 } from "lucide-react";
 
@@ -35,6 +38,9 @@ const MORE_ITEMS = [
   { href: "/admin/launches",    label: "Launches",    icon: Rocket },
   { href: "/admin/tasks",       label: "Tasks",       icon: CheckSquare },
   { href: "/admin/reports",     label: "Reports",     icon: Flag },
+  { href: "/admin/rewards",     label: "Rewards",     icon: Gift },
+  { href: "/admin/moderation",  label: "Moderation",  icon: ShieldAlert },
+  { href: "/admin/apps",        label: "Connected apps", icon: Plug },
   { href: "/admin/wallets",     label: "Wallets",     icon: Users },
   { href: "/admin/account",     label: "My account",  icon: User },
 ];

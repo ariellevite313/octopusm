@@ -8,6 +8,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/server";
 import { awardOcto } from "@/lib/octo";
+import { isBanned } from "@/lib/moderation";
 
 export const SHARE_OMERO = 200;
 export const POOL_SHARE_OF_COMMISSION = 0.2;
@@ -37,7 +38,7 @@ export async function awardShareOmero(marketId: string, bettorRaw: string): Prom
     const admin = createAdminClient() as any;
     const bettor = norm(bettorRaw);
     const { data: a } = await admin.from("share_attributions").select("sharer, omero_paid").eq("market_kind", "prediction").eq("market_id", marketId).eq("bettor", bettor).maybeSingle();
-    if (!a || a.omero_paid) return;
+    if (!a || a.omero_paid || (await isBanned(a.sharer)) || (await isBanned(bettor))) return;
     // Plafond quotidien par partageur (anti-abus)
     const since = new Date(Date.now() - 86_400_000).toISOString();
     const { count } = await admin.from("share_rewards").select("id", { count: "exact", head: true }).eq("sharer", a.sharer).gt("omero", 0).gte("created_at", since);
@@ -61,11 +62,13 @@ export async function distributePoolShare(sb: any, marketId: string, bets: { wal
     const { data: attrs } = await sb.from("share_attributions").select("bettor, sharer").eq("market_kind", "pool").eq("market_id", marketId);
     if (!attrs?.length) return;
     const sharerOf = new Map<string, string>((attrs as { bettor: string; sharer: string }[]).map((x) => [x.bettor, x.sharer]));
+    const { data: bn } = await sb.from("banned_wallets").select("wallet").in("wallet", [...new Set([...sharerOf.values(), ...bets.map((b) => norm(b.wallet_address))])]);
+    const bannedSet = new Set<string>(((bn ?? []) as { wallet: string }[]).map((x) => x.wallet));
     const weight = new Map<string, number>();
     let total = 0;
     for (const b of bets) {
       const s = sharerOf.get(norm(b.wallet_address));
-      if (!s || s === norm(b.wallet_address)) continue;
+      if (!s || s === norm(b.wallet_address) || bannedSet.has(s) || bannedSet.has(norm(b.wallet_address))) continue;
       const amt = Number(b.amount) || 0;
       weight.set(s, (weight.get(s) ?? 0) + amt);
       total += amt;
