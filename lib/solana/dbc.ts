@@ -87,7 +87,7 @@ const BLOWFISH_SAFE_PROGRAMS = new Set([
 const COMPUTE_BUDGET_PROGRAM = "ComputeBudget111111111111111111111111111111";
 
 /** Strip ComputeBudget instructions from an SDK-built Transaction (we set our own). */
-function stripComputeBudget(ixs: { programId: PublicKey }[]): { programId: PublicKey }[] {
+function stripComputeBudget<T extends { programId: PublicKey }>(ixs: T[]): T[] {
   return ixs.filter(ix => ix.programId.toBase58() !== COMPUTE_BUDGET_PROGRAM);
 }
 
@@ -332,7 +332,7 @@ export async function buildStockPairedTransactions(
   // Strip ComputeBudget from SDK tx — replace with explicit budget for predictable size.
   // Pre-signed by platformWallet (payer) + configKeypair (new account).
   // feePayer = creator.
-  const configIxs = stripComputeBudget(createConfigTx.instructions);
+  const configIxs = stripComputeBudget(createConfigTx.instructions) as unknown as import("@solana/web3.js").TransactionInstruction[];
   const { blockhash: bhB } = await connection.getLatestBlockhash("confirmed");
   const txB = new Transaction({ recentBlockhash: bhB, feePayer: creator });
   txB.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }));
@@ -345,7 +345,7 @@ export async function buildStockPairedTransactions(
   // Creates baseMint (meme token) + Metaplex metadata + pool + vaults.
   // Pre-signed by mintKeypair (baseMint signer).
   // feePayer = creator (also covers the "payer" role in the instruction).
-  const poolIxs = stripComputeBudget(createPoolTx.instructions);
+  const poolIxs = stripComputeBudget(createPoolTx.instructions) as unknown as import("@solana/web3.js").TransactionInstruction[];
   const { blockhash: bhC } = await connection.getLatestBlockhash("confirmed");
   const txC = new Transaction({ recentBlockhash: bhC, feePayer: creator });
   txC.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }));

@@ -19,6 +19,9 @@ import { useT } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
 import { getProviderByType } from "@/lib/wallet/adapters";
+
+// Fournisseur EIP-1193 (MetaMask…) ; getProviderByType le renvoie typé Solana
+type EthProvider = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } & Record<string, unknown>;
 import { BONDING_CURVE_V2_ABI, OM_TOKEN_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 
@@ -217,7 +220,7 @@ export function ArcFeesTabs() {
   // ── 5. Claim creator fee ───────────────────────────────────────────────────
   async function handleClaimCreator(idx: number) {
     if (!walletAddress || !walletType) return;
-    const provider = getProviderByType(walletType);
+    const provider = getProviderByType(walletType) as unknown as EthProvider | null;
     if (!provider?.request) return;
 
     const token = creatorTokens[idx];
@@ -265,7 +268,7 @@ export function ArcFeesTabs() {
   // ── 6. Claim dividend ──────────────────────────────────────────────────────
   async function handleClaimDividend(tokenId: string) {
     if (!walletAddress || !walletType) return;
-    const provider = getProviderByType(walletType);
+    const provider = getProviderByType(walletType) as unknown as EthProvider | null;
     if (!provider?.request) return;
 
     setDivTokens(prev => prev.map(t => t.id === tokenId ? { ...t, claiming: true, error: null } : t));

@@ -26,7 +26,7 @@ const AUTH_NAV_LINKS = [
   { href: "/prediction",             label: T("Predictions")  },
 ];
 
-const MOBILE_EXTRA_LINKS: never[] = [];
+const MOBILE_EXTRA_LINKS: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [];
 
 function isActive(href: string, pathname: string) {
   if (href === "/launchpad") {

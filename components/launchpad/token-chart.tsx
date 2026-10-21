@@ -284,7 +284,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
     async function init() {
       try {
-        const pool = await resolveGeckoPool(mintAddress);
+        const pool = await resolveGeckoPool(mintAddress ?? "");
         if (cancelled) return;
         poolRef.current = pool;
 
@@ -312,7 +312,6 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
           crosshair: { mode: 1 },
           rightPriceScale: { borderColor: getChartTheme(isDark).border },
           timeScale:       { borderColor: getChartTheme(isDark).border, timeVisible: true, secondsVisible: false },
-          watermark:       { visible: false },
         });
 
         chartRef.current = chart;
@@ -367,7 +366,6 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
           crosshair: { mode: 1 },
           rightPriceScale: { borderColor: getChartTheme(isDark).border },
           timeScale:       { borderColor: getChartTheme(isDark).border, timeVisible: true, secondsVisible: false },
-          watermark:       { visible: false },
         });
 
         chartRef.current = chart;
