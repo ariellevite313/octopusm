@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { PaymentRow, PaymentFlow } from "@/lib/supabase/types";
 import type { UpdownBetAdmin } from "@/services/admin-service";
 import Image from "next/image";
+import { TxLink } from "./tx-link";
 
 function shortAddr(addr: string) { return `${addr.slice(0, 4)}...${addr.slice(-4)}`; }
 
@@ -132,6 +133,9 @@ export function AdminBetsClient({
                     <p className="text-xs text-muted-foreground">
                       Wallet: <span className="font-mono">{shortAddr(b.wallet_address)}</span>
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      <TxLink tx={b.tx_signature} />
+                    </p>
                   </div>
                   <TypeBadge flow="updown" />
                 </div>
@@ -163,6 +167,9 @@ export function AdminBetsClient({
                   )}
                   <p className="text-xs text-muted-foreground">
                     Wallet: <span className="font-mono">{shortAddr(p.user_wallet)}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <TxLink tx={p.tx_signature} />
                   </p>
                 </div>
                 <TypeBadge flow={p.flow} />

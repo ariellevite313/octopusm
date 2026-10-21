@@ -165,6 +165,7 @@ export interface PaymentRow {
   status: PaymentStatus;
   reviewed_at: string | null;
   reviewed_by_wallet: string | null;
+  tx_signature?: string | null;
   created_at: string;
   updated_at: string | null;
 }
