@@ -49,3 +49,24 @@ describe("MCP create_post — signature check", () => {
     expect(verifyPostSignature(wallet, ts, "x", [other], sig)).toMatch(/does not match/);
   });
 });
+
+import { actionMessage, verifyAction } from "@/lib/mcp/agent-auth";
+
+describe("MCP agent_action — signature check", () => {
+  it("accepts a valid signature once; params are bound regardless of key order", () => {
+    const { wallet, sign } = setup();
+    const ts = Date.now();
+    const sig = sign(actionMessage("reply_post", wallet, ts, { id: "a", body: "hi" }));
+    expect(verifyAction("reply_post", wallet, ts, { body: "hi", id: "a" }, sig)).toBeNull();
+    expect(verifyAction("reply_post", wallet, ts, { body: "hi", id: "a" }, sig)).toMatch(/already used/);
+  });
+
+  it("refuses other params, another action or another wallet", () => {
+    const a = setup(), b = setup();
+    const ts = Date.now();
+    const sig = a.sign(actionMessage("like_post", a.wallet, ts, { id: "x" }));
+    expect(verifyAction("like_post", a.wallet, ts, { id: "y" }, sig)).toMatch(/does not match/);
+    expect(verifyAction("delete_post", a.wallet, ts, { id: "x" }, sig)).toMatch(/does not match/);
+    expect(verifyAction("like_post", b.wallet, ts, { id: "x" }, sig)).toMatch(/does not match/);
+  });
+});

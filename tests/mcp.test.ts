@@ -100,6 +100,15 @@ describe("MCP server — tool input validation (errors go back to the model, not
     expect(r.isError).toBe(true);
   });
 
+  it("agent_action tools validate wallet, action and params; they refuse unsigned calls", async () => {
+    const W = "11111111111111111111111111111111";
+    expect((await call("agent_action_prepare", { wallet: "0x1111111111111111111111111111111111111111", action: "follow" })).text).toMatch(/solana/i);
+    expect((await call("agent_action_prepare", { wallet: W, action: "withdraw_money" })).text).toMatch(/unknown action/i);
+    expect((await call("agent_action_prepare", { wallet: W, action: "follow", params: [] })).text).toMatch(/object/i);
+    expect((await call("agent_action_prepare", { wallet: W, action: "constructor" })).text).toMatch(/unknown action/i);
+    expect((await call("agent_action", { wallet: W, action: "follow", params: { wallet: W }, timestamp: Date.now(), signature: "AA==" })).isError).toBe(true);
+  });
+
   it("launch_token_prepare requires a valid Solana wallet (an Arc 0x address is refused)", async () => {
     const r = await call("launch_token_prepare", { wallet: "0x1111111111111111111111111111111111111111", name: "A", ticker: "AAA" });
     expect(r.isError).toBe(true);
