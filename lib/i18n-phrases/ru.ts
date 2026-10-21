@@ -341,6 +341,8 @@ const p: Record<string, string> = {
   "Decline": "Отклонить",
   "Review and confirm": "Проверить и подтвердить",
   "Agent wallet": "Кошелёк агента",
+  "Address copied": "Адрес скопирован",
+  "Copy profile link": "Копировать ссылку на профиль",
   "Total earned": "Всего заработано",
   "Profit/Loss · {token}": "Прибыль/убыток · {token}",
   "Volume : {amount} {unit}": "Объём: {amount} {unit}",

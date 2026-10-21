@@ -208,7 +208,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
         body:    JSON.stringify(tokenId ? { tokenId } : {}),
       });
       const data = await res.json() as {
-        summary?: { claimed: number; skipped: number; errors: number; totalSol: number };
+        summary?: { claimed: number; skipped: number; notOurs?: number; errors: number; totalSol: number };
         results?: Array<{ status: string; name: string; signature?: string; error?: string }>;
         error?: string;
       };
@@ -220,17 +220,16 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
 
       const { summary, results } = data;
       if (summary) {
-        if (summary.claimed > 0) {
-          toast.success(
-            `${summary.claimed} pool${summary.claimed > 1 ? "s" : ""} claimed — ${summary.totalSol} SOL` +
-            (summary.errors > 0 ? ` · ${summary.errors} error(s)` : "")
-          );
-        } else if (summary.skipped > 0 && summary.errors === 0) {
-          toast.info("Nothing to claim (all pools at 0)");
-        } else if (summary.errors > 0) {
-          const firstErr = results?.find(r => r.status === "error")?.error;
-          toast.error(`Errors: ${firstErr ?? "see console"}`);
-        }
+        const errs = (results ?? []).filter(r => r.status === "error");
+        const parts: string[] = [];
+        if (summary.claimed > 0) parts.push(`${summary.claimed} pool${summary.claimed > 1 ? "s" : ""} claimed (${summary.totalSol} SOL)`);
+        if ((summary.notOurs ?? 0) > 0) parts.push(`${summary.notOurs} skipped: fees belong to another claimer`);
+        if (errs.length > 0) parts.push(`${errs.length} failed: ${errs.slice(0, 2).map(r => `${r.name} (${r.error})`).join(", ")}`);
+        if (parts.length === 0) toast.info("Nothing to claim (all pools at 0)");
+        else if (summary.claimed > 0 && errs.length === 0) toast.success(parts.join(" · "));
+        else if (errs.length > 0) toast.error(parts.join(" · "));
+        else toast.info(parts.join(" · "));
+        if (errs.length > 0) console.warn("[claim] errors", errs);
       }
     } catch {
       toast.error("Network error");

@@ -341,6 +341,8 @@ const p: Record<string, string> = {
   "Decline": "拒绝",
   "Review and confirm": "查看并确认",
   "Agent wallet": "代理钱包",
+  "Address copied": "地址已复制",
+  "Copy profile link": "复制个人主页链接",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",

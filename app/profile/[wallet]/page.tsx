@@ -9,7 +9,7 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { fmt, shortAddress } from "@/lib/format";
 import { Tr } from "@/lib/i18n";
 import { MemberSince } from "@/components/profile/member-since";
-import { FollowButton, FollowCounts, BannerCamera } from "@/components/profile/profile-social";
+import { FollowButton, FollowCounts, BannerCamera, ProfileMenu } from "@/components/profile/profile-social";
 import { createAdminClient } from "@/lib/supabase/server";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
@@ -117,63 +117,60 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       <div className="-mx-4 overflow-hidden border-b border-border bg-card sm:mx-0 sm:rounded-[24px] sm:border">
         {/* Banner */}
         <div
-          className="profile-banner relative h-32 bg-cover bg-center sm:h-44"
+          className="profile-banner relative h-36 bg-cover bg-center sm:h-48"
           style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
         >
+          <ProfileMenu wallet={wallet} />
           <BannerCamera wallet={wallet} />
-          {data.stats.rank && (
-            <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-3.5 py-2 text-white backdrop-blur-md">
-              <span className="text-[13px] font-medium text-white/75"><Tr>Rank</Tr></span>
-              <span className="num text-[15px] font-bold">#{data.stats.rank}</span>
-            </div>
-          )}
         </div>
 
         <div className="px-5 pb-5">
-          {/* Avatar — overlaps the banner */}
-          <div className="relative z-10 -mt-12 mb-3 flex items-end justify-between">
-            <div className="w-fit">
+          {/* Avatar — large, overlapping the banner */}
+          <div className="relative z-10 -mt-[60px] mb-3 flex items-end justify-between">
             {avatarSrc ? (
               <Image
                 src={avatarSrc}
                 alt={displayName}
-                width={96}
-                height={96}
-                className={`size-24 shrink-0 rounded-full object-cover ring-4 ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}
+                width={120}
+                height={120}
+                className={`size-[120px] shrink-0 rounded-full object-cover ring-[6px] ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}
               />
             ) : (
-              <div className={`flex size-24 shrink-0 items-center justify-center rounded-full bg-primary text-4xl font-bold text-white ring-4 ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}>
+              <div className={`flex size-[120px] shrink-0 items-center justify-center rounded-full bg-primary text-5xl font-bold text-white ring-[6px] ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}>
                 {displayName[0].toUpperCase()}
               </div>
             )}
-            </div>
-            <FollowButton wallet={wallet} />
+            <div className="pb-1"><FollowButton wallet={wallet} /></div>
           </div>
 
-          {/* Name + badges */}
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-[28px] font-bold leading-tight tracking-tight text-foreground">
+          {/* Name + badge */}
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-[30px] font-extrabold leading-tight tracking-tight text-foreground">
               {displayName}
             </h1>
-            <OctoBadge totalOcto={data.stats.octo_balance} size={18} />
+            <OctoBadge totalOcto={data.stats.octo_balance} size={20} />
+          </div>
+
+          {/* Handle + pills */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className="mr-1 font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</span>
+            {data.stats.rank && (
+              <span className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px]">
+                <span className="text-muted-foreground"><Tr>Rank</Tr></span>
+                <span className="num font-bold text-foreground">#{data.stats.rank}</span>
+              </span>
+            )}
             {data.wallet?.twitter_handle && (
               <a
                 href={`https://twitter.com/${data.wallet.twitter_handle}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                title={`@${data.wallet.twitter_handle}`}
-                className="flex size-8 items-center justify-center rounded-lg bg-muted text-foreground transition-colors hover:bg-foreground hover:text-background"
+                className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background"
               >
-                <XLogo size={14} />
+                <XLogo size={12} />@{data.wallet.twitter_handle}
               </a>
             )}
           </div>
-
-          {data.wallet?.display_name && (
-            <p className="mt-0.5 font-mono text-[15px] text-muted-foreground">
-              {shortAddress(wallet)}
-            </p>
-          )}
 
           {/* Stats — inline, like followers / following */}
           <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">
