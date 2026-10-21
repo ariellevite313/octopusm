@@ -229,6 +229,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         totalClt={totalClt}
         volumeUsdc={data.volume.usdc}
         volumeClt={data.volume.clt}
+        totalUsd={data.earnings.net_usd}
+        wonUsd={data.earnings.won_usd}
       />
 
       {/* ── 3. Recent activity ─────────────────────────────────────── */}
