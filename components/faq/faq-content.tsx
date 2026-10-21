@@ -314,6 +314,10 @@ const SECTIONS: Section[] = [
         a: [T("Yes. You earn 1% of your referrals' creation revenue. We also regularly run invite campaigns with Omero bonuses.")],
       },
       {
+        q: T("Do I earn when people buy tokens through me?"),
+        a: [T("Yes, paid from what the platform earns on the trade, never more. When someone you referred buys a token, you receive 10% of the platform fee on that buy. When someone taps Trade on your post and buys, you receive 1% of the platform fee. Earnings appear in your balance and are withdrawn like your other gains. Self-referrals and repeated claims on the same trade are blocked.")],
+      },
+      {
         q: T("Where can I follow OMdot.fun?"),
         a: [
           {

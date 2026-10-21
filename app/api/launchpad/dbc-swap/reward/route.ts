@@ -78,6 +78,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Transaction failed on-chain" }, { status: 400 });
     }
 
+    // Must be signed by the claimed wallet (otherwise anyone could claim OMERO with someone else's tx)
+    const payer = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta?.loadedAddresses }).get(0)?.toBase58();
+    if (payer !== walletAddress) {
+      return NextResponse.json({ error: "Not your transaction" }, { status: 403 });
+    }
+
     // Must be recent (anti-replay for old txs)
     if (tx.blockTime) {
       const ageMs = Date.now() - tx.blockTime * 1000;
