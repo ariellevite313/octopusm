@@ -183,14 +183,14 @@ describe("POST /api/admin/pools — action: resolve", () => {
     expect(rates.withdrawal_fee_pct).toBe(0.05);
   });
 
-  it("fee rates are correct for CLT pool (house 8%, creator 1%)", async () => {
+  it("fee rates are correct for CLT pool (house 10% of losers)", async () => {
     // Route derives token from bets[0].token, not from market.bet_token
     const BETS_MIXED_CLT = BETS_MIXED.map(b => ({ ...b, token: "clawdtrust" }));
     setupPoolResolve(adminAuthedMock(ADMIN_WALLET), { ...CLOSED_POOL, bet_token: "clawdtrust" }, BETS_MIXED_CLT);
     const res = await postPools(makeRequest({ action: "resolve", marketId: "pool-001", winning_option_id: "opt-yes" }));
     const body = await json(res) as Record<string, unknown>;
     const rates = (body.summary as Record<string, unknown>).rates as Record<string, unknown>;
-    expect(rates.house_on_losers_pct).toBe(0.08);
+    expect(rates.house_on_losers_pct).toBe(0.1);
   });
 
   // ── All-on-winner: refund case ─────────────────────────────────────────────

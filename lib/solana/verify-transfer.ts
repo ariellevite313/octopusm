@@ -149,3 +149,21 @@ export async function verifyTokenTransfer(
 
   return "Could not verify transaction — please try again in a few seconds";
 }
+
+/**
+ * Version à trois états, calquée sur verifyArcTransfer :
+ *  - "ok"         : la tx a bien viré ≥ `expectedAmount` à la trésorerie
+ *  - "mismatch"   : la tx est confirmée mais ne correspond pas (mauvais montant / destinataire / échec)
+ *  - "unverified" : impossible de conclure (RPC indisponible, tx pas encore visible)
+ */
+export async function checkSolanaTransfer(
+  txSignature: string,
+  token: string,
+  expectedAmount: number,
+): Promise<"ok" | "mismatch" | "unverified"> {
+  const t: TokenToVerify = token === "clawdtrust" || token === "clt" ? "clawdtrust" : "usdc";
+  const err = await verifyTokenTransfer(txSignature, t, expectedAmount);
+  if (err === null) return "ok";
+  if (err.startsWith("Could not verify transaction")) return "unverified";
+  return "mismatch";
+}

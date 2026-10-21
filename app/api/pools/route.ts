@@ -4,6 +4,7 @@ import { CATEGORY_SLUGS } from "@/lib/categories";
 import { Connection } from "@solana/web3.js";
 import { POOL_CREATION_FEE_USDC, POOL_CREATION_FEE_CLT } from "@/lib/market/pool-fee";
 import { verifyArcTransfer } from "@/lib/arc-verify";
+import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
 
 export const revalidate = 0;
 
@@ -100,6 +101,14 @@ export async function POST(req: Request) {
     : await verifyCreationTx(creation_tx, wallet);
   if (!txValid) {
     return NextResponse.json({ error: "Creation fee transaction could not be verified." }, { status: 402 });
+  }
+  // Solana : le mémo ne suffit pas, le montant et le destinataire doivent aussi être corrects
+  if (!isEvmWallet) {
+    const feeAmount = creation_fee_token === "clawdtrust" ? POOL_CREATION_FEE_CLT : POOL_CREATION_FEE_USDC;
+    const paid = await checkSolanaTransfer(creation_tx, creation_fee_token, feeAmount);
+    if (paid !== "ok") {
+      return NextResponse.json({ error: "Creation fee payment could not be verified." }, { status: 402 });
+    }
   }
 
   // Prevent replaying the same tx for multiple markets
