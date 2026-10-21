@@ -4,6 +4,7 @@
  */
 
 import type { WalletType } from "@/lib/wallet/adapters";
+import { readVia } from "@/lib/social/share-via";
 
 // ─── Constants (same treasury as prediction markets) ──────────────────────────
 export const TREASURY_ADDRESS = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ";
@@ -146,6 +147,7 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
         title:              marketTitle,
         subtitle:           optionLabel,
         market_id:          marketId,
+        share_post_id:      readVia(marketId),
         selection_id:       optionId,
         selection_label:    optionLabel,
         amount_usdc:        amount,
@@ -258,6 +260,7 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
       title:              marketTitle,
       subtitle:           optionLabel,
       market_id:          marketId,
+        share_post_id:      readVia(marketId),
       selection_id:       optionId,
       selection_label:    optionLabel,
       amount_usdc:        amount,

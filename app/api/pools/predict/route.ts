@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordAttribution } from "@/lib/social/share-rewards";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
 import { verifyArcTransfer } from "@/lib/arc-verify";
@@ -115,6 +116,9 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Pari venu d'un post du fil : attribué à son auteur (récompense de partage)
+  await recordAttribution((body as { share_post_id?: unknown }).share_post_id, body.wallet_address, "pool", body.market_id);
 
   return NextResponse.json({ ok: true });
 }

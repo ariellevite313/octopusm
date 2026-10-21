@@ -1,5 +1,6 @@
 "use client";
 
+import { captureVia } from "@/lib/social/share-via";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Clock, Loader2, Share2, Trophy } from "lucide-react";
@@ -328,6 +329,8 @@ export function PoolDetailClient({ market, initialBets, initialComments, isPrevi
   const { walletAddress, setWalletType } = useAuth();
   const [showWalletDialog, setShowWalletDialog] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // Visiteur venu d'un post du fil (?via=…) : retenu pour la récompense de partage
+  useEffect(() => { captureVia(market.id); }, [market.id]);
 
   async function handleSelectWallet(type: WalletType) {
     setShowWalletDialog(false);

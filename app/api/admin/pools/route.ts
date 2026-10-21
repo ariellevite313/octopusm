@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { distributePoolShare } from "@/lib/social/share-rewards";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -350,6 +351,9 @@ export async function POST(req: Request) {
         }
       }
     }
+
+    // ── Récompense de partage : 20 % de la commission plateforme aux auteurs des posts ──
+    await distributePoolShare(sb, market.id, bets as { wallet_address: string; amount: number }[], commission, token === "clawdtrust" || token === "clt");
 
     revalidatePath("/pools");
     return NextResponse.json({

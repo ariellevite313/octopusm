@@ -4,6 +4,7 @@
  * dans le champ data ; le pari est ensuite enregistré via /api/markets/predict (validation par l'admin).
  */
 import { sendArcUsdc } from "@/lib/arc-payments";
+import { readVia } from "@/lib/social/share-via";
 import { computeReward, buildBetReference } from "@/lib/market/betting";
 import type { BetParams, BetResult } from "@/lib/market/betting";
 
@@ -32,6 +33,7 @@ export async function submitBetArc(params: BetParams): Promise<BetResult> {
         subtitle:           optionLabel,
         category_label:     categoryId,
         market_id:          marketId,
+        share_post_id:      readVia(marketId),
         selection_id:       optionId,
         selection_label:    optionLabel,
         amount_usdc:        amount,

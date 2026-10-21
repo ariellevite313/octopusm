@@ -378,6 +378,7 @@ const p: Record<string, string> = {
   "resolved": "завершён",
   "closed": "закрыт",
   "cancelled": "отменён",
+  "Bet": "Ставка",
   "Total earned": "Всего заработано",
   "Profit/Loss · {token}": "Прибыль/убыток · {token}",
   "Volume : {amount} {unit}": "Объём: {amount} {unit}",

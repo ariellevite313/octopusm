@@ -283,7 +283,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
       </div>
 
       {post.body && <PostText body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
-      {post.market && <div className="px-1"><MarketCard m={post.market} /></div>}
+      {post.market && <div className="px-1"><MarketCard m={post.market} postId={post.id} /></div>}
 
       {/* Image (version « entière ») : l'image n'est jamais recouverte, la barre d'actions s'ajoute dessous */}
       {post.images.length > 0 && (

@@ -378,6 +378,7 @@ const p: Record<string, string> = {
   "resolved": "résolu",
   "closed": "fermé",
   "cancelled": "annulé",
+  "Bet": "Parier",
   "Total earned": "Total gagné",
   "Profit/Loss · {token}": "Profits/Pertes · {token}",
   "Volume : {amount} {unit}": "Volume : {amount} {unit}",

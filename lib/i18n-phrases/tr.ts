@@ -378,6 +378,7 @@ const p: Record<string, string> = {
   "resolved": "sonuçlandı",
   "closed": "kapandı",
   "cancelled": "iptal edildi",
+  "Bet": "Bahis",
   "Total earned": "Toplam kazanç",
   "Profit/Loss · {token}": "Kâr/Zarar · {token}",
   "Volume : {amount} {unit}": "Hacim: {amount} {unit}",

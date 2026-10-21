@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { awardShareOmero } from "@/lib/social/share-rewards";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { FEE_RATE, RESERVE_FEE_RATE, computeReward } from "@/lib/market/betting";
@@ -111,6 +112,8 @@ export async function POST(req: Request) {
         admin_decision_status: "approved",
       });
       if (histErr) console.error("[bets] prediction_history insert:", histErr.message);
+      // Pari venu d'un post du fil : 200 OMERO à l'auteur du post
+      else await awardShareOmero(payment.market_id, payment.user_wallet);
     }
     return NextResponse.json({ ok: true });
   }
