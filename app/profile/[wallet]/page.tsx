@@ -220,9 +220,6 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         </div>
       </div>
 
-      {/* ── 2. P&L Chart ────────────────────────────────────────────── */}
-      <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
-
       {/* ── 3. Recent activity ─────────────────────────────────────── */}
       <ProfileActivityList items={data.activity} />
 
@@ -231,6 +228,9 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
       {/* ── 5. Markets created ──────────────────────────────────────── */}
       <ProfileMarketsList markets={data.created_markets} />
+
+      {/* ── Total earned (bottom of profile, no card) ─────────────── */}
+      <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
 
       {/* Empty state */}
       {data.stats.total_rounds === 0 && data.created_markets.length === 0 && data.created_tokens.length === 0 && (
