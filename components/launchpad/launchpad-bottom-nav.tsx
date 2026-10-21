@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Rocket, User, Trophy } from "lucide-react";
+import { BarChart2, LayoutGrid, Rocket, User, Trophy } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
 const NAV_ITEMS = [
+  { label: T("Markets"),     href: "/prediction",            icon: BarChart2  },
   { label: T("Tokens"),      href: "/launchpad",             icon: LayoutGrid },
   { label: T("Leaderboard"), href: "/leaderboard/launchpad", icon: Trophy     },
   { label: T("+ Launch"),    href: "/launchpad/create",      icon: Rocket     },
