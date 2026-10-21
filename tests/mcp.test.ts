@@ -94,7 +94,8 @@ describe("MCP server — tool input validation (errors go back to the model, not
     const tools = list.result?.tools as { name: string; annotations: { readOnlyHint: boolean } }[];
     expect(tools.find((t) => t.name === "create_post_prepare")?.annotations.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === "create_post")?.annotations.readOnlyHint).toBe(false);
-    expect((await call("create_post_prepare", { wallet: "0x1111111111111111111111111111111111111111", body: "hi" })).text).toMatch(/solana/i);
+    expect((await call("create_post_prepare", { wallet: "not-a-wallet", body: "hi" })).text).toMatch(/solana or arc/i);
+    expect((await call("create_post_prepare", { wallet: "0x1111111111111111111111111111111111111111", body: "hi" })).isError).toBe(false);
     expect((await call("create_post_prepare", { wallet: "11111111111111111111111111111111", body: "  " })).text).toMatch(/empty/i);
     const r = await call("create_post", { wallet: "11111111111111111111111111111111", body: "hi", timestamp: Date.now(), signature: "AA==" });
     expect(r.isError).toBe(true);
@@ -102,7 +103,7 @@ describe("MCP server — tool input validation (errors go back to the model, not
 
   it("agent_action tools validate wallet, action and params; they refuse unsigned calls", async () => {
     const W = "11111111111111111111111111111111";
-    expect((await call("agent_action_prepare", { wallet: "0x1111111111111111111111111111111111111111", action: "follow" })).text).toMatch(/solana/i);
+    expect((await call("agent_action_prepare", { wallet: "nope", action: "follow" })).text).toMatch(/solana or arc/i);
     expect((await call("agent_action_prepare", { wallet: W, action: "withdraw_money" })).text).toMatch(/unknown action/i);
     expect((await call("agent_action_prepare", { wallet: W, action: "follow", params: [] })).text).toMatch(/object/i);
     expect((await call("agent_action_prepare", { wallet: W, action: "constructor" })).text).toMatch(/unknown action/i);

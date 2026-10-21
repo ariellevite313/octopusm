@@ -22,7 +22,7 @@ import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/rou
 import { createPost, type PostFile } from "@/lib/social/create-post";
 import { postMessage, verifyPostSignature, type B64Image } from "@/lib/mcp/post-auth";
 import { ACTIONS, ActionError } from "@/lib/mcp/agent-actions";
-import { actionMessage, verifyAction } from "@/lib/mcp/agent-auth";
+import { actionMessage, verifyAction, isEvm, isSolana, normAgentWallet } from "@/lib/mcp/agent-auth";
 import { getLaunchpadToken } from "@/services/launchpad-service";
 import { getPublicProfile } from "@/services/profile-service";
 
@@ -95,13 +95,13 @@ function postInputSchema(withSig: boolean): McpTool["inputSchema"] {
   return {
     type: "object",
     properties: {
-      wallet: { type: "string", description: "Solana wallet of the author (the signer)" },
+      wallet: { type: "string", description: "Wallet of the author (Solana or Arc 0x…), the signer" },
       body: { type: "string", maxLength: 2000, description: "Post text (may be empty if there is an image)" },
       images: {
         type: "array", maxItems: 2,
         items: { type: "object", properties: { mime: { type: "string", enum: ["image/jpeg", "image/png", "image/webp", "image/gif"] }, data: { type: "string", description: "base64, max 5 MB" } }, required: ["mime", "data"] },
       },
-      ...(withSig ? { timestamp: { type: "integer", description: "From create_post_prepare" }, signature: { type: "string", description: "base64 ed25519 signature of the message" } } : {}),
+      ...(withSig ? { timestamp: { type: "integer", description: "From create_post_prepare" }, signature: { type: "string", description: "signature of the message: base64 (Solana) or 0x hex personal_sign (Arc)" } } : {}),
     },
     required: withSig ? ["wallet", "timestamp", "signature"] : ["wallet"],
   };
@@ -111,10 +111,10 @@ function actionSchema(withSig: boolean): McpTool["inputSchema"] {
   return {
     type: "object",
     properties: {
-      wallet: { type: "string", description: "Solana wallet of the agent (the signer)" },
+      wallet: { type: "string", description: "Wallet of the agent (Solana or Arc 0x…), the signer" },
       action: { type: "string", enum: Object.keys(ACTIONS) },
       params: { type: "object", description: "Parameters of the action (see the tool description)" },
-      ...(withSig ? { timestamp: { type: "integer", description: "From agent_action_prepare" }, signature: { type: "string", description: "base64 ed25519 signature of the message" } } : {}),
+      ...(withSig ? { timestamp: { type: "integer", description: "From agent_action_prepare" }, signature: { type: "string", description: "signature of the message: base64 (Solana) or 0x hex personal_sign (Arc)" } } : {}),
     },
     required: withSig ? ["wallet", "action", "timestamp", "signature"] : ["wallet", "action"],
   };
@@ -122,17 +122,17 @@ function actionSchema(withSig: boolean): McpTool["inputSchema"] {
 
 function readActionArgs(a: Json): { wallet: string; action: string; params: Json } {
   const wallet = str(a, "wallet", { required: true, max: 64 })!;
-  if (!SOLANA.test(wallet)) throw new ToolError("wallet must be a Solana address");
+  if (!isSolana(wallet) && !isEvm(wallet)) throw new ToolError("wallet must be a Solana or Arc (0x) address");
   const action = str(a, "action", { required: true, max: 40 })!;
   if (!Object.prototype.hasOwnProperty.call(ACTIONS, action)) throw new ToolError(`unknown action (use one of: ${Object.keys(ACTIONS).join(", ")})`);
   const params = a.params ?? {};
   if (typeof params !== "object" || Array.isArray(params) || params === null) throw new ToolError("params must be an object");
-  return { wallet, action, params: params as Json };
+  return { wallet: normAgentWallet(wallet), action, params: params as Json };
 }
 
 function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image[] } {
   const wallet = str(a, "wallet", { required: true, max: 64 })!;
-  if (!SOLANA.test(wallet)) throw new ToolError("wallet must be a Solana address");
+  if (!isSolana(wallet) && !isEvm(wallet)) throw new ToolError("wallet must be a Solana or Arc (0x) address");
   const body = str(a, "body", { max: 2000 }) ?? "";
   const raw = a.images ?? [];
   if (!Array.isArray(raw) || raw.length > 2) throw new ToolError("images must be an array of at most 2");
@@ -143,7 +143,7 @@ function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image
     return { mime: o.mime, data: o.data };
   });
   if (!body.trim() && images.length === 0) throw new ToolError("Empty post");
-  return { wallet, body, images };
+  return { wallet: normAgentWallet(wallet), body, images };
 }
 
 // ── Outils ────────────────────────────────────────────────────────────────────
@@ -320,7 +320,7 @@ export const TOOLS: McpTool[] = [
   {
     name: "create_post_prepare",
     description:
-      "Step 1/2 of publishing a feed post as a Solana wallet: returns the exact message to sign (ed25519, with the wallet key) and the timestamp. Nothing is published yet. Text up to 2000 chars, optionally up to 2 images (JPG/PNG/WEBP/GIF, max 5 MB each, base64). Mention $TICKER of a platform token to attach its chart.",
+      "Step 1/2 of publishing a feed post as a Solana or Arc wallet: returns the exact message to sign (ed25519 for Solana, personal_sign / EIP-191 for Arc) and the timestamp. Nothing is published yet. Text up to 2000 chars, optionally up to 2 images (JPG/PNG/WEBP/GIF, max 5 MB each, base64). Mention $TICKER of a platform token to attach its chart.",
     readOnly: true,
     inputSchema: postInputSchema(false),
     run: async (a) => {
@@ -331,14 +331,14 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "create_post",
-    description: "Step 2/2: publish the post. Requires the same wallet/body/images as create_post_prepare, its timestamp, and the base64 ed25519 signature of the message. The wallet must already have a profile on OMdotfun. Limit: 10 posts per hour per wallet.",
+    description: "Step 2/2: publish the post. Requires the same wallet/body/images as create_post_prepare, its timestamp, and the signature of the message (base64 for Solana, 0x… hex for Arc). The wallet must already have a profile on OMdotfun. Limit: 10 posts per hour per wallet.",
     readOnly: false,
     inputSchema: postInputSchema(true),
     run: async (a) => {
       const { wallet, body, images } = readPostArgs(a);
       const timestamp = Number(a.timestamp);
       const signature = str(a, "signature", { required: true, max: 200 })!;
-      const bad = verifyPostSignature(wallet, timestamp, body, images, signature);
+      const bad = await verifyPostSignature(wallet, timestamp, body, images, signature);
       if (bad) throw new ToolError(bad);
       const files: PostFile[] = images.map((im) => {
         const buf = Buffer.from(im.data, "base64");
@@ -354,7 +354,7 @@ export const TOOLS: McpTool[] = [
   {
     name: "agent_action_prepare",
     description:
-      "Step 1/2 of any signed action as a Solana wallet. Returns the exact message to sign (ed25519 with the wallet key) and a timestamp; nothing is executed. Available actions: " +
+      "Step 1/2 of any signed action as a Solana or Arc wallet. Returns the exact message to sign (ed25519 for Solana, personal_sign / EIP-191 for Arc) and a timestamp; nothing is executed. Available actions: " +
       Object.entries(ACTIONS).map(([k, v]) => `${k} ${v.params} — ${v.description}`).join(" | "),
     readOnly: true,
     inputSchema: actionSchema(false),
@@ -366,12 +366,12 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "agent_action",
-    description: "Step 2/2: execute the action after verifying the wallet's signature. Same arguments as agent_action_prepare plus the timestamp and the base64 ed25519 signature. Run the `register` action first for a new wallet. No money movement is possible through this tool.",
+    description: "Step 2/2: execute the action after verifying the wallet's signature. Same arguments as agent_action_prepare plus the timestamp and the signature (base64 for Solana, 0x hex for Arc). Run the `register` action first for a new wallet. No money movement is possible through this tool.",
     readOnly: false,
     inputSchema: actionSchema(true),
     run: async (a, ctx) => {
       const { wallet, action, params } = readActionArgs(a);
-      const bad = verifyAction(action, wallet, Number(a.timestamp), params, str(a, "signature", { required: true, max: 200 })!);
+      const bad = await verifyAction(action, wallet, Number(a.timestamp), params, str(a, "signature", { required: true, max: 200 })!);
       if (bad) throw new ToolError(bad);
       try {
         return await ACTIONS[action].run(wallet, params, ctx);
