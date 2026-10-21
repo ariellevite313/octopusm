@@ -6,11 +6,15 @@
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { maybeRefreshArcStats } from "@/lib/arc-stats";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const limit = Math.min(Math.max(parseInt(new URL(req.url).searchParams.get("limit") ?? "10") || 10, 1), 20);
+  // Garde les stats Arc (volume 24 h) à jour même sans cron externe : non bloquant, au plus toutes les 5 min.
+  maybeRefreshArcStats(new URL(req.url).origin);
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
@@ -22,7 +26,7 @@ export async function GET(req: Request) {
       .not("mint_address", "is", null)
       .not("volume_24h_usd", "is", null)
       .gt("volume_24h_usd", 0)
-      .eq("is_hidden", false)
+      .not("is_hidden", "is", true)
       .order("volume_24h_usd", { ascending: false, nullsFirst: false })
       .limit(limit);
 

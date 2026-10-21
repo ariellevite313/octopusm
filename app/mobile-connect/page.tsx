@@ -173,84 +173,30 @@ function MobileConnectInner() {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        background: "#0a0a0a",
-        color: "#fff",
-        fontFamily: "'Inter', system-ui, sans-serif",
-        gap: 20,
-        padding: "0 32px",
-        textAlign: "center",
-      }}
-    >
-      {/* Logo */}
-      <Lock size={48} strokeWidth={1.75} style={{ marginBottom: 4 }} />
+    <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-background px-8 text-center text-foreground">
+      <Lock size={48} strokeWidth={1.75} />
+      <p className="text-xl font-bold">{status === "error" ? tr("Connection failed") : tr("Connecting…")}</p>
+      <p className="text-[15px] text-muted-foreground">{status === "error" ? tr(error ?? "") : tr(labels[status])}</p>
 
-      {/* Titre */}
-      <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-        {status === "error" ? tr("Connection failed") : tr("Connecting…")}
-      </p>
-
-      {/* Statut */}
-      <p style={{ fontSize: 15, color: "#aaa", margin: 0 }}>
-        {status === "error" ? tr(error ?? "") : tr(labels[status])}
-      </p>
-
-      {/* Spinner (sauf erreur) */}
       {status !== "error" && (
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            border: "3px solid #333",
-            borderTop: "3px solid #f97316",
-            borderRadius: "50%",
-            animation: "spin 0.8s linear infinite",
-          }}
-        />
+        <div className="size-9 animate-spin rounded-full border-[3px] border-border border-t-primary" />
       )}
 
       {/* Retour à l'app (geste utilisateur : certains navigateurs bloquent la redirection automatique) */}
       {appHref && status !== "error" && (
-        <a
-          href={appHref}
-          style={{
-            marginTop: 8, padding: "12px 28px", borderRadius: 12, background: "#f97316",
-            color: "#fff", fontWeight: 600, fontSize: 15, textDecoration: "none",
-          }}
-        >
+        <a href={appHref} className="mt-2 rounded-xl bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground">
           {tr("Return to the app")}
         </a>
       )}
 
-      {/* Bouton retour en cas d'erreur */}
       {status === "error" && (
         <button
           onClick={() => { window.location.href = searchParams.get("app") === "1" ? "omdot://session" : "https://omdot.fun/"; }}
-          style={{
-            marginTop: 8,
-            padding: "12px 28px",
-            borderRadius: 12,
-            background: "#f97316",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: 15,
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="mt-2 rounded-xl bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground"
         >
           {tr("Back")}
         </button>
       )}
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }
