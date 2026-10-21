@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { CATEGORY_SLUGS } from "@/lib/categories";
 import { Connection } from "@solana/web3.js";
+import { POOL_CREATION_FEE_USDC, POOL_CREATION_FEE_CLT } from "@/lib/market/pool-fee";
 import { verifyArcTransfer } from "@/lib/arc-verify";
 
 export const revalidate = 0;
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Arc wallets pay the creation fee in USDC" }, { status: 400 });
   }
   const txValid = isEvmWallet
-    ? (await verifyArcTransfer({ hash: creation_tx, from: wallet, minUsdc: 2, memoIncludes: ["kind=pool_creation", `wallet=${wallet}`] })) === "ok"
+    ? (await verifyArcTransfer({ hash: creation_tx, from: wallet, minUsdc: POOL_CREATION_FEE_USDC, memoIncludes: ["kind=pool_creation", `wallet=${wallet}`] })) === "ok"
     : await verifyCreationTx(creation_tx, wallet);
   if (!txValid) {
     return NextResponse.json({ error: "Creation fee transaction could not be verified." }, { status: 402 });
@@ -150,7 +151,7 @@ export async function POST(req: Request) {
     ...(opt.image_url ? { image_url: String(opt.image_url).slice(0, 500) } : {}),
   }));
 
-  const creationFeeAmount = creation_fee_token === "clawdtrust" ? 500_000 : 2;
+  const creationFeeAmount = creation_fee_token === "clawdtrust" ? POOL_CREATION_FEE_CLT : POOL_CREATION_FEE_USDC;
 
   const { data: inserted, error } = await admin
     .from("mutuel_markets")
