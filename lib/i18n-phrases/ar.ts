@@ -387,6 +387,7 @@ const p: Record<string, string> = {
   "{n} live": "{n} مباشر",
   "No matches today.": "لا مباريات اليوم.",
   "+1 more option": "+1 خيار آخر",
+  "Predict on a pool": "التوقع في مجمع",
   "Total earned": "إجمالي الأرباح",
   "Profit/Loss · {token}": "الربح/الخسارة · {token}",
   "Volume : {amount} {unit}": "الحجم: {amount} {unit}",

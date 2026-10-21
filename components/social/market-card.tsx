@@ -49,7 +49,7 @@ export function MarketCard({ m, postId }: { m: SharedMarket; postId?: string }) 
             {shown.map((o, i) => (
               <button key={o + i} onClick={() => go(i)} className={`flex h-11 w-full items-center justify-between rounded-full px-4 text-[15px] font-semibold ${btn}`}>
                 <span className="truncate">{o}</span>
-                <span className="ml-3 shrink-0 text-xs font-bold opacity-60">{tr("Bet")}</span>
+                <span className="ml-3 shrink-0 text-xs font-bold opacity-60">{tr("Predict")}</span>
               </button>
             ))}
             {rest > 0 && (
