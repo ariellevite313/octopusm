@@ -13,6 +13,9 @@ import { GET as updownMarketsRoute } from "@/app/api/updown/markets/route";
 import { GET as trendingMarketsRoute } from "@/app/api/markets/trending/route";
 import { GET as creatorsLeaderboardRoute } from "@/app/api/leaderboard/route";
 import { GET as creatorSummaryRoute } from "@/app/api/v1/creators/[address]/summary/route";
+import { GET as listPostsRoute } from "@/app/api/posts/route";
+import { GET as postRepliesRoute } from "@/app/api/posts/[id]/replies/route";
+import { GET as followRoute } from "@/app/api/follow/route";
 import { POST as launchRoute } from "@/app/api/v1/launch/route";
 import { POST as launchSubmitRoute } from "@/app/api/v1/launch/[id]/submit/route";
 import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/route";
@@ -183,6 +186,53 @@ export const TOOLS: McpTool[] = [
       if (!ADDR.test(w)) throw new ToolError("wallet must be a Solana or 0x address");
       const data = await getPublicProfile(w.startsWith("0x") ? w.toLowerCase() : w);
       return { ...data, activity: data.activity.slice(0, 20) };
+    },
+  },
+  {
+    name: "list_posts",
+    description: "Public feed posts (newest first): text, image URLs, author, likes, replies, views, and the token ticker if the post mentions one. Optionally only the posts of one wallet.",
+    readOnly: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        author: { type: "string", description: "Wallet address (Solana or 0x) to list only its posts" },
+        before: { type: "string", description: "ISO date: only posts older than this (pagination, use the last created_at)" },
+        limit: { type: "integer", minimum: 1, maximum: 30, description: "Default 10" },
+      },
+    },
+    run: async (a, ctx) => {
+      const q = new URLSearchParams({ tab: "foryou", limit: String(num(a, "limit", 10, 1, 30)) });
+      const author = str(a, "author", { max: 64 });
+      if (author) {
+        if (!ADDR.test(author)) throw new ToolError("author must be a Solana or 0x address");
+        q.set("author", author);
+      }
+      const before = str(a, "before", { max: 40 });
+      if (before) q.set("before", before);
+      return okJson(await listPostsRoute(get(ctx, `/api/posts?${q}`)));
+    },
+  },
+  {
+    name: "get_post_replies",
+    description: "Replies to one feed post (by post uuid), oldest first.",
+    readOnly: true,
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "Post uuid" } }, required: ["id"] },
+    run: async (a, ctx) => {
+      const id = str(a, "id", { required: true, max: 64 })!;
+      if (!UUID.test(id)) throw new ToolError("id must be a post uuid");
+      return okJson(await postRepliesRoute(get(ctx, `/api/posts/${id}/replies`), idParams(id)));
+    },
+  },
+  {
+    name: "get_follow_stats",
+    description: "Followers and following counts of a wallet.",
+    readOnly: true,
+    inputSchema: { type: "object", properties: { wallet: { type: "string" } }, required: ["wallet"] },
+    run: async (a, ctx) => {
+      const w = str(a, "wallet", { required: true, max: 64 })!;
+      if (!ADDR.test(w)) throw new ToolError("wallet must be a Solana or 0x address");
+      const d = (await okJson(await followRoute(get(ctx, `/api/follow?wallet=${encodeURIComponent(w)}`)))) as Json;
+      return { followers: d.followers, following: d.following };
     },
   },
   {
