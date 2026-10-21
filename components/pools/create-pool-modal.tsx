@@ -419,7 +419,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
                   }`}
                 >
                   <TokenLogo token={token} className="size-5" />
-                  {token === "usdc" ? "2 USDC" : "500K CLT"}
+                  {token === "usdc" ? "0.5 USDC" : "500K CLT"}
                 </button>
               ))}
             </div>
@@ -463,7 +463,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
              : step === "sending" ? tr("Submitting…")
              : step === "done"    ? tr("Market submitted!")
              : step === "error"   ? tr("Try again")
-             : tr("Pay {fee} & Submit", { fee: feeToken === "usdc" ? "2 USDC" : "500K CLT" })}
+             : tr("Pay {fee} & Submit", { fee: feeToken === "usdc" ? "0.5 USDC" : "500K CLT" })}
           </button>
         </form>
       </div>

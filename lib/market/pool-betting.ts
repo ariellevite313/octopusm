@@ -24,6 +24,8 @@ function getRpcUrls(): string[] {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+import { POOL_CREATION_FEE_USDC, POOL_CREATION_FEE_CLT } from "@/lib/market/pool-fee";
+
 export type PoolBetToken = "usdc" | "clawdtrust";
 
 export type PoolBetParams = {
@@ -60,8 +62,8 @@ function serializeU64(value: bigint): Uint8Array {
 function uiToBaseUnits(amount: number, decimals: number): bigint {
   // Multiply by 10^decimals safely using BigInt arithmetic.
   // We round to avoid floating point artifacts before converting.
-  const factor = BigInt(Math.pow(10, decimals));
-  return BigInt(Math.round(amount)) * factor;
+  // Gère les montants décimaux (ex. 0,5 USDC) : arrondi au plus petit sous-unité, sans dépasser 2^53.
+  return BigInt(Math.round(amount * Math.pow(10, decimals)));
 }
 
 function findATA(web3: Web3, owner: AnyPK, mint: AnyPK): AnyPK {
@@ -289,18 +291,18 @@ export type PoolCreationResult =
   | { success: false; error: string };
 
 /**
- * Sends the creation fee (2 USDC or 500K CLT) to treasury.
+ * Sends the creation fee (0.5 USDC or 500K CLT) to treasury.
  * Returns the tx signature on success.
  */
 export async function submitPoolCreation(params: PoolCreationParams): Promise<PoolCreationResult> {
   const { feeToken, walletAddress, walletType, title } = params;
 
-  // Wallet EVM (MetaMask) → frais de création de 2 USDC sur Arc
+  // Wallet EVM (MetaMask) → frais de création de 0,5 USDC sur Arc
   if (walletType === "metamask") {
     if (feeToken !== "usdc") return { success: false, error: "Pay the creation fee in USDC on Arc." };
     const { sendArcUsdc } = await import("@/lib/arc-payments");
     const memo = ["om?v=1", "kind=pool_creation", `wallet=${walletAddress}`, `title=${encodeURIComponent(title.slice(0, 80))}`].join("&");
-    const sent = await sendArcUsdc({ from: walletAddress, amount: 2, memo });
+    const sent = await sendArcUsdc({ from: walletAddress, amount: POOL_CREATION_FEE_USDC, memo });
     return sent.success ? { success: true, signature: sent.hash } : { success: false, error: sent.error };
   }
 
@@ -312,7 +314,7 @@ export async function submitPoolCreation(params: PoolCreationParams): Promise<Po
 
   const mint     = feeToken === "clawdtrust" ? CLT_MINT : USDC_MINT;
   const decimals = feeToken === "clawdtrust" ? 9 : 6;
-  const feeAmount = feeToken === "clawdtrust" ? 500_000 : 2;
+  const feeAmount = feeToken === "clawdtrust" ? POOL_CREATION_FEE_CLT : POOL_CREATION_FEE_USDC;
 
   const memo = [
     "om?v=1",

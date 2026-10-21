@@ -30,7 +30,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: T("How much does it cost to create a market?"),
-        a: [T("To create a market, you pay 2 USDC or 500,000 ClawdTrust.")],
+        a: [T("To create a market, you pay 0.5 USDC or 500,000 ClawdTrust.")],
       },
       {
         q: T("How much does the market creator earn?"),
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
               T("Go to [omdot.fun](https://omdot.fun)"),
               T("Connect your wallet (Solflare recommended, Phantom also works — see {faq} below)"),
               T("Click <b>+ Create a Market</b>"),
-              T("Pay 2 USDC or 500,000 ClawdTrust"),
+              T("Pay 0.5 USDC or 500,000 ClawdTrust"),
               T("Fill in a precise title, options, resolution date, and criteria"),
               T("Publish, then share the link on X, Discord, Telegram, and in your communities"),
             ],
