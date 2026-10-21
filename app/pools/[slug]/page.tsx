@@ -87,7 +87,7 @@ async function getInitialBets(marketId: string) {
     octoMap[r.wallet_address] = (octoMap[r.wallet_address] ?? 0) + (r.amount ?? 0);
   }
 
-  return (bets as { wallet_address: string }[]).map(b => ({
+  return (bets as { wallet_address: string; option_id: string; amount: number; token: string; created_at: string }[]).map(b => ({
     ...b,
     username: profileMap[b.wallet_address]?.username ?? null,
     avatar_src: profileMap[b.wallet_address]?.avatar_src ?? null,

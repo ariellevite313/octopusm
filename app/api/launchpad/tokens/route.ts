@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       : "new";
 
     // Map tab → status / excludeStatuses params
-    let status: Parameters<typeof getLaunchpadTokens>[0]["status"] | undefined;
+    let status: "pending" | "active" | "cancelled" | "graduating" | "graduated" | "coming_soon" | undefined;
     let excludeStatuses: ("pending" | "active" | "graduating" | "graduated" | "cancelled")[] = ["pending", "cancelled"];
 
     if (tab === "graduated") {

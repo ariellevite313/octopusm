@@ -155,7 +155,7 @@ export async function GET(req: Request) {
         avatar_src:     profile?.avatar_src   || undefined,
         win_count:      wins,
         total_gains:    Math.round(gains * 1000) / 1000,
-        octo_balance:   octoMap.get(wallet) ?? 0,
+        octo_balance:   Number(octoMap.get(wallet) ?? 0),
       };
     });
 

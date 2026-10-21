@@ -26,7 +26,7 @@ function buildAdminClient(isAdmin = true) {
   };
 }
 
-function setupMocks(isAdmin = true, tasksTableResult = { data: [{ id: "t1" }], error: null }) {
+function setupMocks(isAdmin = true, tasksTableResult: { data: { id: string }[] | null; error: { message: string } | null } = { data: [{ id: "t1" }], error: null }) {
   mockCreateClient.mockImplementation(() => Promise.resolve(buildAdminClient(isAdmin)));
 
   const adminMock = new SupaMockBuilder()

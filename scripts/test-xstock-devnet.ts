@@ -152,7 +152,7 @@ async function main() {
     const sigB = await sendAndConfirmTransaction(
       connection, createConfigTx,
       [platformWallet, configKeypair],
-      { commitment: "confirmed", lastValidBlockHeight: lvhB }
+      { commitment: "confirmed" }
     );
     console.log("✅ TX B confirmed:", sigB);
     console.log("   Config:", configKeypair.publicKey.toBase58());
@@ -180,7 +180,7 @@ async function main() {
     const sigC = await sendAndConfirmTransaction(
       connection, createPoolWithFirstBuyTx,
       [platformWallet, mintKeypair],
-      { commitment: "confirmed", lastValidBlockHeight: lvhC }
+      { commitment: "confirmed" }
     );
     console.log("✅ TX C confirmed:", sigC);
     console.log("\n🎉 COMPATIBLE — Token-2022 quoteMint fonctionne avec DBC.");

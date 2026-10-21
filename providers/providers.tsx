@@ -25,12 +25,12 @@ function GlobalModals() {
       return;
     }
     const supabase = createClient();
-    supabase
+    (supabase as any)
       .from("wallets")
       .select("username")
       .eq("address", walletAddress)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: { username?: string | null } | null }) => {
         setNeedsSetup(!data?.username);
       });
   }, [walletAddress]);

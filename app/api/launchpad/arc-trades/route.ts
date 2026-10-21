@@ -94,7 +94,7 @@ export async function GET(req: Request) {
 
     // ── 4. Assembler les trades ───────────────────────────────────────────────
     const trades: Trade[] = logs
-      .map(l => {
+      .flatMap((l): Trade[] => {
         try {
           const { isBuy, usdcAmount, tokenAmount } = l.args as {
             isBuy:       boolean;
@@ -104,21 +104,21 @@ export async function GET(req: Request) {
           const usdcAmt  = Number(usdcAmount)  / 1e18;
           const tokenAmt = Number(tokenAmount) / 1e18;
           const price    = tokenAmt > 0 ? usdcAmt / tokenAmt : 0;
-          if (price <= 0) return null;
+          if (price <= 0) return [];
           const blockNum  = l.blockNumber ?? latestBlockNum;
           const blockDiff = Number(latestBlockNum - blockNum);
           const timestamp = latestTimestamp - blockDiff * ARC_BLOCK_TIME;
-          return {
+          return [{
             timestamp: Math.max(0, Math.floor(timestamp)),
             isBuy:    Boolean(isBuy),
             usdcAmt,
             tokenAmt,
             price,
-            txHash: l.transactionHash ?? "",
-          };
-        } catch { return null; }
+            txHash: String(l.transactionHash ?? ""),
+          }];
+        } catch { return []; }
       })
-      .filter((t): t is Trade => t !== null && t.price > 0)
+      .filter(t => t.price > 0)
       .sort((a, b) => a.timestamp - b.timestamp)
       .slice(-limit);
 

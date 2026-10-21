@@ -109,6 +109,8 @@ export function ClaimFeesButton({
     try {
       const curveAddr = (arcCurveAddress ?? "") as `0x${string}`;
       const txHash = await walletClient.writeContract({
+        chain:        arc,
+        account:      walletAddress as `0x${string}`,
         address:      curveAddr,
         abi:          CLAIM_FEES_ABI,
         functionName: "claimFees",
