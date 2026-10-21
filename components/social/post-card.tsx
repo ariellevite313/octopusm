@@ -12,6 +12,7 @@ import { shortAddress } from "@/lib/format";
 import type { FeedPost } from "@/lib/social/posts";
 import { TokenCardView } from "./token-card";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { TokenPill } from "./token-pill";
 import { PostReplies } from "./post-replies";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
@@ -238,10 +239,13 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
       <div className="mb-3 flex items-center gap-3 px-1">
         <Link href={`/profile/${post.author}`}><Avatar src={post.author_avatar} name={name} ring /></Link>
         <div className="min-w-0 flex-1">
-          <Link href={`/profile/${post.author}`} className="flex items-center gap-1.5 text-[15px] font-bold text-foreground">
-            <span className="truncate">{name}</span>
-            <OctoBadge totalOcto={post.author_octo} size={16} />
-          </Link>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Link href={`/profile/${post.author}`} className="flex min-w-0 items-center gap-1.5 text-[15px] font-bold text-foreground">
+              <span className="truncate">{name}</span>
+              <OctoBadge totalOcto={post.author_octo} size={16} />
+            </Link>
+            <TokenPill token={post.author_token} size={16} />
+          </div>
           <p className="text-xs text-muted-foreground">{ago(post.created_at, tr)}</p>
         </div>
         {!post.mine && (

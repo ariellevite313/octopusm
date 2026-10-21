@@ -2,6 +2,7 @@
  * Helpers serveur du fil social : types, lecture enrichie (auteur, likes, token, états du viewer).
  */
 import { getProfiles } from "@/lib/profiles";
+import { getFeaturedTokens, type FeaturedToken } from "@/lib/social/featured-token";
 
 export const MAX_BODY = 2000;
 export const MAX_IMAGES = 2;
@@ -16,6 +17,7 @@ export type FeedPost = {
   author_name: string | null;
   author_avatar: string | null;
   author_octo: number;
+  author_token: FeaturedToken | null;
   body: string;
   images: string[];
   ticker: string | null;
@@ -42,7 +44,7 @@ export async function enrichPosts(admin: any, rows: Row[], viewer: string | null
   const ids = rows.map((r) => r.id);
   const tokenIds = [...new Set(rows.map((r) => r.token_id).filter(Boolean))] as string[];
 
-  const [profiles, tokensRes, mineLikes, recentLikes, followsRes] = await Promise.all([
+  const [profiles, tokensRes, mineLikes, recentLikes, followsRes, featured] = await Promise.all([
     getProfiles(admin, rows.map((r) => r.author)),
     tokenIds.length
       ? admin.from("launchpad_tokens").select("id, name, ticker, logo_url").in("id", tokenIds)
@@ -54,6 +56,7 @@ export async function enrichPosts(admin: any, rows: Row[], viewer: string | null
     viewer
       ? admin.from("follows").select("following").eq("follower", viewer).in("following", [...new Set(rows.map((r) => r.author))])
       : Promise.resolve({ data: [] }),
+    getFeaturedTokens(admin, rows.map((r) => r.author)),
   ]);
   const followed = new Set(((followsRes.data ?? []) as { following: string }[]).map((f) => f.following));
 
@@ -78,6 +81,7 @@ export async function enrichPosts(admin: any, rows: Row[], viewer: string | null
       author_name: p?.name ?? null,
       author_avatar: p?.avatar_src ?? null,
       author_octo: p?.octo ?? 0,
+      author_token: featured.get(r.author) ?? null,
       body: r.body,
       images: r.images ?? [],
       ticker: r.ticker,
