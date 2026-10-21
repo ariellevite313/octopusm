@@ -3,157 +3,40 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, LayoutGrid, MoreHorizontal, X, ExternalLink, Rocket, User, Trophy, MessageSquare } from "lucide-react";
+import { BarChart2, LayoutGrid, MessageSquare, Trophy, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getWalletProfile } from "@/services/wallet-service";
 import { useAuth } from "@/providers/auth-provider";
-import { AppIcon } from "@/components/shared/app-icon";
+import { getWalletProfile } from "@/services/wallet-service";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
-const PREDICT_NAV = [
-  { label: T("Markets"),     href: "/prediction",              icon: BarChart2,     exact: true  },
-  { label: T("Feed"),        href: "/feed",                    icon: MessageSquare, exact: true  },
-  { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy,        exact: true  },
-  { label: T("Tokens"),      href: "/launchpad",               icon: LayoutGrid,    exact: false },
-];
+/**
+ * Menu du bas, identique dans les deux sections (mêmes places) :
+ *   1. accueil de la section · 2. classement · 3. Feed · 4. autre section · 5. profil
+ */
+type Section = "launchpad" | "predict";
+type Item = { label: string; href: string; icon: typeof BarChart2; active: (p: string) => boolean };
 
-const LAUNCHPAD_NAV = [
-  { label: T("Tokens"),      href: "/launchpad",               icon: LayoutGrid, exact: false },
-  { label: T("Leaderboard"), href: "/leaderboard/launchpad",   icon: Trophy,     exact: true  },
-  { label: T("Launch"),      href: "/launchpad/create",        icon: Rocket,     exact: true  },
-  { label: T("Portfolio"),    href: "/dashboard/launchpad",     icon: User,       exact: false },
-  { label: T("Markets"),     href: "/prediction",              icon: BarChart2,  exact: true  },
-];
+const isLaunchpadPath = (p: string) =>
+  p === "/" || p === "/launchpad" || p.startsWith("/launchpad/") || p.startsWith("/dashboard/launchpad") || p === "/leaderboard/launchpad";
+const isPredictPath = (p: string) =>
+  p === "/prediction" || p.startsWith("/prediction/") || p.startsWith("/pools") || p.startsWith("/crypto") ||
+  p.startsWith("/updown") || p === "/leaderboard/predictions" || p.startsWith("/archive") || p.startsWith("/dashboard/predictions");
 
-const CLT_DEXSCREENER = "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc";
+const TOKENS: Item = { label: T("Tokens"), href: "/", icon: LayoutGrid, active: (p) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) };
+const MARKETS: Item = { label: T("Markets"), href: "/prediction", icon: BarChart2, active: (p) => p === "/prediction" };
+const FEED: Item = { label: T("Feed"), href: "/feed", icon: MessageSquare, active: (p) => p === "/feed" };
 
-const MORE_ITEMS = [
-  {
-    label: "$CLAWDTRUST",
-    description: T("Our partner token on Solana"),
-    href: CLT_DEXSCREENER,
-    icon: "ti-coin",
-    external: true,
-  },
-  {
-    label: T("Support"),
-    description: T("Get help from the team"),
-    href: "https://t.me/Omdotfun",
-    icon: "ti-headset",
-    external: true,
-  },
-  {
-    label: T("FAQ"),
-    description: T("Frequently asked questions"),
-    href: "/faq",
-    icon: "ti-help-circle",
-    external: false,
-  },
-  {
-    label: T("Tutorial"),
-    description: T("Learn how to use OMdotfun"),
-    href: "https://t.me/OmdotfunTuto",
-    icon: "ti-book",
-    external: true,
-  },
-  {
-    label: T("ŌM Policy"),
-    description: T("Rules, prohibitions, removals"),
-    href: "/policy",
-    icon: "ti-shield-check",
-    external: false,
-  },
-  {
-    label: T("Privacy Policy"),
-    description: T("How we handle your data"),
-    href: "/privacy",
-    icon: "ti-lock",
-    external: false,
-  },
-];
+const NAV: Record<Section, Item[]> = {
+  predict: [MARKETS, { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy, active: (p) => p === "/leaderboard/predictions" }, FEED, TOKENS],
+  launchpad: [TOKENS, { label: T("Leaderboard"), href: "/leaderboard/launchpad", icon: Trophy, active: (p) => p === "/leaderboard/launchpad" }, FEED, MARKETS],
+};
 
-function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { tr } = useT();
-  // Lock body scroll + close on Escape
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = "hidden";
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handler);
-    };
-  }, [open, onClose]);
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 z-50 bg-black/60 transition-opacity duration-200 md:hidden ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={onClose}
-        aria-hidden
-      />
-
-      {/* Sheet */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-50 rounded-t-[28px] bg-card border-t border-border md:hidden transition-transform duration-300 ease-out ${
-          open ? "translate-y-0" : "translate-y-full"
-        }`}
-      >
-        {/* Handle pill */}
-        <div className="flex justify-center pt-2.5 pb-1">
-          <div className="h-1.5 w-12 rounded-full bg-muted" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-2 pb-3">
-          <span className="text-lg font-bold tracking-tight text-foreground">{tr("More")}</span>
-          <button
-            onClick={onClose}
-            className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={tr("Close")}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        {/* Links */}
-        <ul className="px-4 py-3 space-y-2 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
-          {MORE_ITEMS.map((item) => (
-            <li key={item.label}>
-              <Link
-                href={item.href}
-                target={item.external ? "_blank" : undefined}
-                rel={item.external ? "noopener noreferrer" : undefined}
-                onClick={onClose}
-                className="flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors group"
-              >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-foreground">
-                  <AppIcon name={item.icon} className="size-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-foreground">{tr(item.label)}</p>
-                  <p className="text-xs text-muted-foreground">{tr(item.description)}</p>
-                </div>
-                {item.external && (
-                  <ExternalLink className="size-3.5 text-muted-foreground/50 shrink-0" />
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </>
-  );
-}
+const KEY = "om_nav_section";
 
 export function BottomNav() {
-  const [mounted, setMounted]       = useState(false);
-  const [sheetOpen, setSheetOpen]   = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [last, setLast] = useState<Section>("launchpad");
   const { isAuthenticated, walletAddress } = useAuth();
   const { tr } = useT();
   const pathname = usePathname();
@@ -166,71 +49,50 @@ export function BottomNav() {
 
   useEffect(() => {
     setMounted(true);
+    try { const v = localStorage.getItem(KEY); if (v === "launchpad" || v === "predict") setLast(v); } catch { /* stockage indisponible */ }
   }, []);
+
+  // Section courante ; sur les pages communes (Feed, profil, FAQ…) on garde la dernière section visitée
+  const section: Section = isLaunchpadPath(pathname) ? "launchpad" : isPredictPath(pathname) ? "predict" : last;
+  useEffect(() => {
+    if (section !== last) setLast(section);
+    try { localStorage.setItem(KEY, section); } catch { /* stockage indisponible */ }
+  }, [section, last]);
 
   if (!mounted) return null;
 
-  const isLaunchpad = pathname === "/" || pathname === "/launchpad" || pathname.startsWith("/launchpad/") || pathname.startsWith("/dashboard/launchpad") || pathname === "/leaderboard/launchpad";
-  const navItems = isLaunchpad ? LAUNCHPAD_NAV : PREDICT_NAV;
+  const cls = (active: boolean) =>
+    `flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${active ? "nav-pill-active text-foreground" : "text-muted-foreground hover:text-foreground"}`;
+  const profileActive = !!walletAddress && pathname.toLowerCase() === `/profile/${walletAddress.toLowerCase()}`;
 
   return (
-    <>
-      <MoreSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+    <nav className="fixed inset-x-4 bottom-4 z-40 flex gap-1 p-1.5 md:hidden nav-pill" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      {NAV[section].map(({ label, href, icon: Icon, active }) => {
+        const on = active(pathname);
+        return (
+          <Link key={href} href={href} className={cls(on)}>
+            <Icon className="size-[26px]" strokeWidth={on ? 2.25 : 1.75} />
+            <span className="sr-only">{tr(label)}</span>
+          </Link>
+        );
+      })}
 
-      <nav className="fixed inset-x-4 bottom-4 z-40 flex gap-1 p-1.5 md:hidden nav-pill" style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        {navItems.map(({ label, href, icon: Icon, exact }) => {
-          // Treat "/" as "/launchpad" for active-state purposes (homepage = launchpad)
-          const effectivePath = pathname === "/" ? "/launchpad" : pathname;
-          const active = exact
-            ? effectivePath === href
-            : effectivePath === href || effectivePath.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href === "/launchpad" ? "/" : href}
-              className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${
-                active ? "nav-pill-active text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="size-[26px]" strokeWidth={active ? 2.25 : 1.75} />
-              <span className="sr-only">{tr(label)}</span>
-            </Link>
-          );
-        })}
-
-        {!isLaunchpad && (
-          isAuthenticated && walletAddress ? (
-            <Link
-              href={`/profile/${walletAddress}`}
-              className={`flex h-14 flex-1 items-center justify-center rounded-full transition-colors ${pathname.startsWith("/profile/") ? "nav-pill-active" : ""}`}
-            >
-              {me?.avatar_src ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={me.avatar_src} alt="" className="size-8 rounded-full object-cover" />
-              ) : (
-                <User className="size-[26px]" strokeWidth={1.75} />
-              )}
-              <span className="sr-only">{tr("Profile")}</span>
-            </Link>
+      {isAuthenticated && walletAddress ? (
+        <Link href={`/profile/${walletAddress}`} className={cls(profileActive)}>
+          {me?.avatar_src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={me.avatar_src} alt="" className={`size-8 rounded-full object-cover ${profileActive ? "ring-2 ring-foreground" : ""}`} />
           ) : (
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-              className="flex h-14 flex-1 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <User className="size-[26px]" strokeWidth={1.75} />
-              <span className="sr-only">{tr("Profile")}</span>
-            </button>
-          )
-        )}
-
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="flex h-14 flex-1 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <MoreHorizontal className="size-[26px]" strokeWidth={1.75} />
-          <span className="sr-only">{tr("More")}</span>
+            <User className="size-[26px]" strokeWidth={profileActive ? 2.25 : 1.75} />
+          )}
+          <span className="sr-only">{tr("Profile")}</span>
+        </Link>
+      ) : (
+        <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className={cls(false)}>
+          <User className="size-[26px]" strokeWidth={1.75} />
+          <span className="sr-only">{tr("Profile")}</span>
         </button>
-      </nav>
-    </>
+      )}
+    </nav>
   );
 }
