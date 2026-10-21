@@ -16,6 +16,7 @@ export async function GET(req: Request) {
   const tab = url.searchParams.get("tab") === "following" ? "following" : "foryou";
   const authorParam = url.searchParams.get("author");
   const before = url.searchParams.get("before");
+  const tag = (url.searchParams.get("tag") ?? "").replace(/^#/, "").toLowerCase().slice(0, 30);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "10") || 10, 1), 30);
 
   const viewerRaw = await getWalletAddress();
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
 
   let q = admin.from("posts").select(POST_COLUMNS).eq("hidden", false).order("created_at", { ascending: false }).limit(limit);
   if (before && !Number.isNaN(Date.parse(before))) q = q.lt("created_at", before);
+  if (tag) q = q.contains("tags", [tag]);
 
   if (authorParam) {
     q = q.eq("author", normWallet(authorParam));
