@@ -28,7 +28,7 @@ export interface PnlPoint {
   date: string; // "YYYY-MM-DD"
   usdc: number; // cumulative P&L USDC
   clt: number;  // cumulative P&L CLT
-  usd: number;  // cumulative P&L converted to USD (CLT at current price)
+  usd: number;  // cumulative gains in USD (predictions + launchpad fees)
 }
 
 export interface ActivityItem {
@@ -74,6 +74,7 @@ export interface PublicProfileEarnings {
   net_usd: number;     // net profit/loss in USD
   won_usd: number;     // total gains (winning bets' profit) in USD
   clt_price_usd: number;
+  launchpad_usd: number; // creator fees claimed on the launchpad, in USD
 }
 
 export interface PublicProfileData {
@@ -94,6 +95,21 @@ function toDate(iso: string): string {
 }
 
 const CLT_MINT = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
+
+/** Prix USD du SOL (Coinbase, cache 5 min). 0 si indisponible. */
+async function getSolPriceUsd(): Promise<number> {
+  try {
+    const res = await fetch("https://api.coinbase.com/v2/prices/SOL-USD/spot", {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return 0;
+    const json = await res.json() as { data?: { amount?: string } };
+    return Number(json.data?.amount) || 0;
+  } catch {
+    return 0;
+  }
+}
 
 /** Prix USD du ClawdTrust (DexScreener, mis en cache 5 min). 0 si indisponible. */
 async function getCltPriceUsd(): Promise<number> {
@@ -332,36 +348,61 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
     addDelta(date, b.token ?? "usdc", pnl);
   }
 
-  const cltPrice = await getCltPriceUsd();
+  const [cltPrice, solPrice] = await Promise.all([getCltPriceUsd(), getSolPriceUsd()]);
+
+  // Gains du launchpad : frais créateur réclamés (SOL côté Solana, USDC côté Arc) → USD
+  const isArcWallet = walletAddress.startsWith("0x");
+  const { data: claimRows } = await admin
+    .from("creator_fee_claims")
+    .select(isArcWallet ? "amount_usdc, claimed_at" : "amount_sol, claimed_at")
+    .eq("chain", isArcWallet ? "arc" : "solana")
+    .ilike("wallet", walletAddress);
+  const dailyLaunch: Record<string, number> = {};
+  let launchUsd = 0;
+  for (const r of (claimRows ?? []) as Record<string, string>[]) {
+    if (!r.claimed_at) continue;
+    const usd = isArcWallet
+      ? parseFloat(r.amount_usdc ?? "0") || 0
+      : (parseFloat(r.amount_sol ?? "0") || 0) * solPrice;
+    const d = toDate(r.claimed_at);
+    dailyLaunch[d] = (dailyLaunch[d] ?? 0) + usd;
+    launchUsd += usd;
+  }
 
   // Gains bruts (profits des paris gagnants) en USD
   let wonUsd = 0;
-  function addWon(token: string, pnl: number) {
-    if (pnl > 0) wonUsd += token === "usdc" ? pnl : pnl * cltPrice;
+  const dailyGain: Record<string, number> = { ...dailyLaunch };
+  function addWon(date: string, token: string, pnl: number) {
+    if (pnl <= 0) return;
+    const usd = token === "usdc" ? pnl : pnl * cltPrice;
+    wonUsd += usd;
+    dailyGain[date] = (dailyGain[date] ?? 0) + usd;
   }
   for (const b of updownBets) {
     const amt = Number(b.amount ?? 0), pay = Number(b.payout ?? 0);
-    if (["won", "claimed", "paid"].includes(b.status)) addWon("usdc", pay - amt);
+    if (["won", "claimed", "paid"].includes(b.status)) addWon(toDate(b.created_at), "usdc", pay - amt);
   }
   for (const b of mutuelBets) {
     const amt = Number(b.amount ?? 0), pay = Number(b.payout_amount ?? 0);
-    if (pay > 0) addWon(b.token ?? "usdc", pay - amt);
+    if (pay > 0) addWon(toDate(b.created_at), b.token ?? "usdc", pay - amt);
   }
   for (const b of predBets) {
-    if (["win", "claimed", "paid"].includes(b.result_status)) addWon(b.token ?? "usdc", Number(b.net_reward ?? 0));
+    if (["win", "claimed", "paid"].includes(b.result_status)) addWon(toDate(b.created_at), b.token ?? "usdc", Number(b.net_reward ?? 0));
   }
 
   const allDates = Array.from(
-    new Set([...Object.keys(dailyUsdc), ...Object.keys(dailyClt)])
+    new Set([...Object.keys(dailyUsdc), ...Object.keys(dailyClt), ...Object.keys(dailyGain)])
   ).sort();
 
   const pnl_series: PnlPoint[] = [];
   let cumUsdc = 0;
   let cumClt  = 0;
+  let cumGain = 0;
   for (const date of allDates) {
+    cumGain += dailyGain[date] ?? 0;
     cumUsdc += dailyUsdc[date] ?? 0;
     cumClt  += dailyClt[date]  ?? 0;
-    pnl_series.push({ date, usdc: cumUsdc, clt: cumClt, usd: cumUsdc + cumClt * cltPrice });
+    pnl_series.push({ date, usdc: cumUsdc, clt: cumClt, usd: cumGain });
   }
 
   // ── Activity (last 200, sorted desc) ──────────────────────────────────────
@@ -498,8 +539,9 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
   const last = pnl_series.at(-1);
   return {
     earnings: {
-      net_usd:       last?.usd ?? 0,
+      net_usd:       wonUsd,
       won_usd:       wonUsd,
+      launchpad_usd: launchUsd,
       clt_price_usd: cltPrice,
     },
     wallet,

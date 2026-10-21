@@ -242,6 +242,8 @@ const p: Record<string, string> = {
   "Previous page": "上一页",
   "Next page": "下一页",
   "Total won: ${amount}": "累计赢得：${amount}",
+  "Launchpad: ${amount}": "发射台：${amount}",
+  "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",
   "No data": "暂无数据",

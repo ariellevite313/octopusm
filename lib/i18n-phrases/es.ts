@@ -242,6 +242,8 @@ const p: Record<string, string> = {
   "Previous page": "Página anterior",
   "Next page": "Página siguiente",
   "Total won: ${amount}": "Total ganado: ${amount}",
+  "Launchpad: ${amount}": "Launchpad: ${amount}",
+  "Total earned": "Total ganado",
   "Profit/Loss · {token}": "Ganancias/Pérdidas · {token}",
   "Volume : {amount} {unit}": "Volumen: {amount} {unit}",
   "No data": "Sin datos",

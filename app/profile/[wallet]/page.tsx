@@ -102,8 +102,6 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   const avatarSrc   = data.wallet?.avatar_src ?? null;
   const joinedAt    = data.wallet?.created_at ?? null;
 
-  const totalUsdc = data.pnl_series.at(-1)?.usdc ?? 0;
-  const totalClt  = data.pnl_series.at(-1)?.clt  ?? 0;
 
   const totalVolume = data.volume.usdc + data.volume.clt;
   const usdcPct = totalVolume > 0 ? Math.round((data.volume.usdc / totalVolume) * 100) : 0;
@@ -223,15 +221,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       </div>
 
       {/* ── 2. P&L Chart ────────────────────────────────────────────── */}
-      <ProfilePnlChart
-        series={data.pnl_series}
-        totalUsdc={totalUsdc}
-        totalClt={totalClt}
-        volumeUsdc={data.volume.usdc}
-        volumeClt={data.volume.clt}
-        totalUsd={data.earnings.net_usd}
-        wonUsd={data.earnings.won_usd}
-      />
+      <ProfilePnlChart series={data.pnl_series} totalUsd={data.earnings.won_usd} />
 
       {/* ── 3. Recent activity ─────────────────────────────────────── */}
       <ProfileActivityList items={data.activity} />
