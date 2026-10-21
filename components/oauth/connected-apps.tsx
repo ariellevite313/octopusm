@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Copy, Loader2 } from "lucide-react";
+import { Copy, Loader2 } from "lucide-react";
+import { AssistantLogo, ASSISTANTS } from "./assistant-logo";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -33,7 +34,13 @@ export function ConnectedApps() {
       <p className="mt-1 text-sm text-muted-foreground">{tr("AI assistants you allowed to use your OMdotfun account.")}</p>
 
       <div className="mt-5 rounded-2xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold text-foreground">{tr("Connect an assistant")}</p>
+        <div className="flex items-center gap-2">
+          {ASSISTANTS.map((x) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={x.label} src={x.src} alt={x.label} title={x.label} className="size-9 rounded-[22%] object-cover ring-1 ring-border" />
+          ))}
+        </div>
+        <p className="mt-3 text-sm font-semibold text-foreground">{tr("Connect an assistant")}</p>
         <p className="mt-1 text-sm text-muted-foreground">{tr("In Claude, ChatGPT or any assistant that supports connectors, add this address, then click Connect.")}</p>
         <button
           onClick={() => { navigator.clipboard.writeText(url).then(() => toast.success(tr("Link copied"))).catch(() => {}); }}
@@ -56,7 +63,7 @@ export function ConnectedApps() {
         <ul className="mt-6 space-y-2">
           {apps.map((a) => (
             <li key={a.client_id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-              <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary"><Bot className="size-5" /></span>
+              <AssistantLogo name={a.name} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-foreground">{a.name}</p>
                 <p className="text-xs text-muted-foreground">{a.scopes.join(" · ")}</p>

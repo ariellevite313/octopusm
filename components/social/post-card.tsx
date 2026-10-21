@@ -13,6 +13,8 @@ import type { FeedPost } from "@/lib/social/posts";
 import { TokenCardView } from "./token-card";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { TokenPill } from "./token-pill";
+import { MarketCard } from "./market-card";
+import { MARKET_URL_RE } from "@/lib/social/rich";
 import { PostReplies } from "./post-replies";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
@@ -41,20 +43,33 @@ function Avatar({ src, name, size = 44, ring = false }: { src: string | null; na
 }
 
 /** Texte : 4 lignes puis « more ». Les $TICKER sont en couleur. */
-function PostText({ body }: { body: string }) {
+const TOKEN_SPLIT = /(\$[A-Za-z][A-Za-z0-9]{1,15}|#[\p{L}\p{N}_]{2,30}|@[A-Za-z0-9_]{2,30})/gu;
+
+function PostText({ body, mentions, hideUrl }: { body: string; mentions: Record<string, string>; hideUrl: boolean }) {
   const { tr } = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [clamped, setClamped] = useState(false);
+  // Le lien du marché partagé est remplacé par sa carte
+  const text = hideUrl ? body.replace(MARKET_URL_RE, "").replace(/\n{3,}/g, "\n\n").trim() : body;
   useEffect(() => {
     const el = ref.current;
     if (el && !open) setClamped(el.scrollHeight > el.clientHeight + 1);
-  }, [body, open]);
-  const parts = body.split(/(\$[A-Za-z][A-Za-z0-9]{1,15})/g);
+  }, [text, open]);
+  if (!text) return null;
+  const parts = text.split(TOKEN_SPLIT);
   return (
     <div className="px-1">
       <div ref={ref} className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground ${open ? "" : "line-clamp-4"}`}>
-        {parts.map((p, i) => (p.startsWith("$") ? <span key={i} className="font-bold text-primary">{p}</span> : p))}
+        {parts.map((p, i) => {
+          if (p.startsWith("$") && p.length > 2) return <span key={i} className="font-bold text-primary">{p}</span>;
+          if (p.startsWith("#") && p.length > 2) return <Link key={i} href={`/feed?tag=${encodeURIComponent(p.slice(1).toLowerCase())}`} className="font-semibold text-primary hover:underline">{p}</Link>;
+          if (p.startsWith("@") && p.length > 2) {
+            const w = mentions[p.slice(1).toLowerCase()];
+            return w ? <Link key={i} href={`/profile/${w}`} className="font-semibold text-primary hover:underline">{p}</Link> : p;
+          }
+          return p;
+        })}
       </div>
       {clamped && !open && (
         <button onClick={() => setOpen(true)} className="mt-0.5 text-sm font-semibold text-muted-foreground hover:text-foreground">{tr("more")}</button>
@@ -264,7 +279,8 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
         )}
       </div>
 
-      {post.body && <PostText body={post.body} />}
+      {post.body && <PostText body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
+      {post.market && <div className="px-1"><MarketCard m={post.market} /></div>}
 
       {/* Image (version « entière ») : l'image n'est jamais recouverte, la barre d'actions s'ajoute dessous */}
       {post.images.length > 0 && (

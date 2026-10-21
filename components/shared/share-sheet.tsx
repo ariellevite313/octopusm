@@ -8,7 +8,9 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link2, Copy, Loader2, Users, Coins, Flame } from "lucide-react";
+import { Link2, Copy, Loader2, Users, Coins, Flame, MessageSquare } from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
+import { ComposeModal } from "@/components/social/compose-modal";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { Rich } from "@/lib/i18n";
@@ -59,6 +61,8 @@ export function ShareSheet({
   const [idx, setIdx] = useState(0);
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [compose, setCompose] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +78,12 @@ export function ShareSheet({
     return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
   }, [open, onClose]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (typeof document === "undefined") return null;
+  if (!open) {
+    return compose !== null
+      ? <ComposeModal initialBody={compose} onClose={() => setCompose(null)} onPosted={() => toast.success(tr("Posted to the feed"))} />
+      : null;
+  }
 
   const base = window.location.origin;
   const raw = new URL(url ?? window.location.href, base);
@@ -83,6 +92,14 @@ export function ShareSheet({
   const link = raw.toString();
   const abs = (p: string) => (p.startsWith("http") ? p : `${base}${p}`);
 
+  // Publier sur le fil OMdotfun : le lien (sans code de parrainage) devient une carte du marché
+  const postToFeed = () => {
+    if (!isAuthenticated) { onClose(); window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
+    const clean = new URL(url ?? window.location.href, base);
+    clean.hash = ""; clean.search = "";
+    setCompose(`${text}\n${clean.toString()}`);
+    onClose();
+  };
   const copyLink = () => navigator.clipboard.writeText(link).then(() => toast.success(tr("Link copied")));
   const shareX = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`, "_blank", "noopener,noreferrer");
   const shareTg = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
@@ -162,6 +179,7 @@ export function ShareSheet({
           <button onClick={copyLink} className="flex h-14 shrink-0 items-center gap-3 rounded-full bg-black px-7 text-[17px] font-bold text-white">
             <Link2 className="size-5" />{tr("Copy link")}
           </button>
+          <button onClick={postToFeed} className={circle} aria-label={tr("Post on the feed")} title={tr("Post on the feed")}><MessageSquare className="size-6" /></button>
           <button onClick={shareX} className={circle} aria-label="X"><XIcon /></button>
           <button onClick={shareTg} className={circle} aria-label="Telegram"><TgIcon /></button>
           <button onClick={shareDiscord} className={circle} aria-label="Discord"><DiscordIcon /></button>

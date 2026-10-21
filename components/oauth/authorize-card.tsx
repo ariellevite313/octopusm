@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bot, Check, Loader2, ShieldCheck } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
+import { AssistantLogo } from "./assistant-logo";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
@@ -55,7 +56,7 @@ export function AuthorizeCard() {
 
   return (
     <div className="rounded-[28px] border border-border bg-card p-6">
-      <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"><Bot className="size-7" /></span>
+      <div className="flex justify-center"><AssistantLogo name={app.name} size={64} /></div>
       <h1 className="mt-4 text-center text-2xl font-bold tracking-tight text-foreground">{tr("Connect {name}", { name: app.name })}</h1>
       <p className="mt-1 text-center text-sm text-muted-foreground">{tr("to your OMdotfun account")}</p>
 

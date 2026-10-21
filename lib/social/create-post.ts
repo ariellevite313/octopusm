@@ -3,6 +3,7 @@
  * Valide le contenu, applique la limite horaire, détecte le $TICKER et envoie les images.
  */
 import { createAdminClient } from "@/lib/supabase/server";
+import { extractMarketRef, extractMentions, extractTags } from "@/lib/social/rich";
 import { enrichPosts, POST_COLUMNS, MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES, TICKER_RE } from "@/lib/social/posts";
 
 export type PostFile = { type: string; size: number; bytes: () => Promise<ArrayBuffer> };
@@ -40,6 +41,27 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     if (t) { ticker = t.ticker; tokenId = t.id; }
   }
 
+  // #hashtags, @mentions (comptes existants uniquement), marché OMdotfun partagé par lien
+  const tags = extractTags(body);
+  const mentions: Record<string, string> = {};
+  const names = extractMentions(body);
+  if (names.length) {
+    const { data: ws } = await admin.from("wallets").select("address, username").in("username", [...new Set([...names, ...names.map((n) => n.toLowerCase())])]);
+    for (const w of (ws ?? []) as { address: string; username: string }[]) {
+      const hit = names.find((n) => n.toLowerCase() === w.username.toLowerCase());
+      if (hit) mentions[hit.toLowerCase()] = w.address;
+    }
+  }
+  let market_kind: "pool" | "prediction" | null = null;
+  let market_id: string | null = null;
+  const ref = extractMarketRef(body);
+  if (ref) {
+    const table = ref.kind === "pool" ? "mutuel_markets" : "prediction_markets";
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref.key);
+    const { data: m } = await admin.from(table).select("id").eq(isUuid ? "id" : "slug", ref.key).maybeSingle();
+    if (m) { market_kind = ref.kind; market_id = m.id; }
+  }
+
   const urls: string[] = [];
   for (const f of files) {
     const ext = f.type.split("/")[1].replace("jpeg", "jpg");
@@ -49,7 +71,7 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     urls.push(admin.storage.from("post-images").getPublicUrl(path).data.publicUrl);
   }
 
-  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId }).select(POST_COLUMNS).single();
+  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id }).select(POST_COLUMNS).single();
   if (error) return err(500, error.message);
   const [post] = await enrichPosts(admin, [row], wallet);
   return { status: 201, data: { post } };
