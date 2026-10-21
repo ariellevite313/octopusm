@@ -121,10 +121,10 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
     },
   },
   update_profile: {
-    description: "Change the display name and/or X (Twitter) handle of this wallet's profile.",
-    params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_) }",
+    description: "Change the display name, X (Twitter) handle and/or featured token (logo shown next to the name; only a token launched on OMdotfun; empty string removes it).",
+    params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_), featured_token_id?: token uuid | \"\" }",
     run: async (wallet, p) => {
-      const updates: Record<string, string> = {};
+      const updates: Record<string, string | null> = {};
       const dn = s(p, "display_name", 40); if (dn) updates.display_name = dn.trim();
       const tw = s(p, "twitter_handle", 16);
       if (tw) {
@@ -132,9 +132,20 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
         if (!/^[A-Za-z0-9_]{1,15}$/.test(h)) throw new ActionError("params.twitter_handle is invalid");
         updates.twitter_handle = h;
       }
-      if (Object.keys(updates).length === 0) throw new ActionError("Nothing to update");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (createAdminClient() as any).from("wallets").update(updates).eq("address", wallet).select("address");
+      const admin = createAdminClient() as any;
+      if ("featured_token_id" in p) {
+        const ft = p.featured_token_id;
+        if (ft === "" || ft === null) updates.featured_token_id = null;
+        else {
+          if (typeof ft !== "string" || !UUID.test(ft)) throw new ActionError("params.featured_token_id must be a token uuid or an empty string");
+          const { data: t } = await admin.from("launchpad_tokens").select("id, status, is_hidden").eq("id", ft).maybeSingle();
+          if (!t || t.is_hidden || !["active", "graduating", "graduated"].includes(t.status)) throw new ActionError("Only tokens launched on OMdotfun can be featured");
+          updates.featured_token_id = ft;
+        }
+      }
+      if (Object.keys(updates).length === 0) throw new ActionError("Nothing to update");
+      const { data, error } = await admin.from("wallets").update(updates).eq("address", wallet).select("address");
       if (error) throw new ActionError("Could not update the profile");
       if (!data?.length) throw new ActionError("Wallet not registered: run the register action first");
       return { ok: true };

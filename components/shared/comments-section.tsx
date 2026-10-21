@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Heart, MessageCircle } from "lucide-react";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { TokenPill } from "@/components/social/token-pill";
 import { useQuery } from "@tanstack/react-query";
 import { getWalletProfile } from "@/services/wallet-service";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -81,7 +82,8 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
             <span className="text-[15px] font-semibold text-foreground">
               {comment.username ?? shortAddr(comment.wallet_address)}
             </span>
-            {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={12} />}
+            {comment.octo_balance > 0 && <OctoBadge totalOcto={comment.octo_balance} size={14} />}
+            <TokenPill token={comment.featured_token} size={15} />
             <span className="text-sm text-muted-foreground">· {timeAgo(comment.created_at, tr)}</span>
           </div>
           <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground">{comment.content}</p>
@@ -110,7 +112,8 @@ function CommentItem({ comment, marketId, isAuthenticated, onLike, onReply, onRe
                   <span className="text-[15px] font-semibold text-foreground">
                     {reply.username ?? shortAddr(reply.wallet_address)}
                   </span>
-                  {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={12} />}
+                  {reply.octo_balance > 0 && <OctoBadge totalOcto={reply.octo_balance} size={14} />}
+                  <TokenPill token={reply.featured_token} size={15} />
                   <span className="text-sm text-muted-foreground">· {timeAgo(reply.created_at, tr)}</span>
                 </div>
                 <p className="mt-1 whitespace-pre-line break-words text-[15px] leading-relaxed text-foreground">{reply.content}</p>
