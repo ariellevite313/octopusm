@@ -61,7 +61,7 @@ function ProfileDrawer({
   onDisconnect: () => void;
 }) {
   const { isAdmin } = useAuth();
-  const { t, tr } = useT();
+  const { tr } = useT();
   const { theme, setTheme } = useTheme();
   const [isPhantom, setIsPhantom] = useState(false);
   useEffect(() => {
@@ -155,7 +155,7 @@ function ProfileDrawer({
     });
     setSaving(false);
     if (res.error) { toast.error(tr(res.error)); return; }
-    toast.success(t.profileUpdated);
+    toast.success(tr("Profile updated"));
     setEditing(false);
     qc.invalidateQueries({ queryKey: ["wallet-profile", walletAddress] });
   }
@@ -167,7 +167,7 @@ function ProfileDrawer({
     const res = await uploadAvatar(file, walletAddress);
     setUploading(false);
     if ("error" in res) { toast.error(tr(res.error)); return; }
-    toast.success(t.avatarUpdated);
+    toast.success(tr("Avatar updated"));
     qc.invalidateQueries({ queryKey: ["wallet-profile", walletAddress] });
   }
 
@@ -184,7 +184,7 @@ function ProfileDrawer({
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-80 sm:w-96 flex flex-col gap-0 p-0 h-[100dvh]">
         <SheetHeader className="border-b border-border px-5 py-4">
-          <SheetTitle className="text-base font-bold">{t.myWallet}</SheetTitle>
+          <SheetTitle className="text-base font-bold">{tr("My wallet")}</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
@@ -246,10 +246,10 @@ function ProfileDrawer({
                 <span className="text-xs font-semibold text-foreground">{octoBalance.toLocaleString()} OMERO</span>
                 <span className="text-xs text-muted-foreground">
                   {isMaxTier
-                    ? t.maxTier
+                    ? tr("Max tier reached")
                     : nextTierObj
-                      ? `${nextTierObj.label} ${t.nextTier} · ${nextTierObj.min.toLocaleString()}`
-                      : t.noTier}
+                      ? `${nextTierObj.label} ${tr("next tier")} · ${nextTierObj.min.toLocaleString()}`
+                      : tr("No tier yet")}
                 </span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -266,11 +266,11 @@ function ProfileDrawer({
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-border bg-muted/20 px-3 py-2.5 text-center">
                 <p className="text-base font-semibold text-foreground">{drawerStats?.bets_count ?? "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{t.betsPlaced}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{tr("Predicts")}</p>
               </div>
               <div className="rounded-2xl border border-border bg-muted/20 px-3 py-2.5 text-center">
                 <p className="text-base font-semibold text-foreground">{drawerStats ? `${drawerStats.win_rate}%` : "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{t.winRate}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{tr("Win rate")}</p>
               </div>
             </div>
           )}
@@ -278,7 +278,7 @@ function ProfileDrawer({
           {/* Balances */}
           {!editing && (
             <div className="space-y-1">
-              <p className="text-[13px] font-semibold text-muted-foreground">{t.overview}</p>
+              <p className="text-[13px] font-semibold text-muted-foreground">{tr("Balances")}</p>
               <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
                 <div className="flex items-center justify-between px-4 py-2.5">
                   <div className="flex items-center gap-2">
@@ -304,7 +304,7 @@ function ProfileDrawer({
                   <div className="flex items-center gap-2">
                     <Image src="/octo-coin.png" alt="OMERO" width={20} height={20}
                       className="size-5 rounded-full object-contain" unoptimized />
-                    <span className="text-xs text-muted-foreground">{t.octoBalance}</span>
+                    <span className="text-xs text-muted-foreground">{tr("OMERO")}</span>
                   </div>
                   <span className="text-sm font-semibold">{octoBalance.toLocaleString()}</span>
                 </div>
@@ -317,9 +317,9 @@ function ProfileDrawer({
             <div className="rounded-2xl bg-up/12 px-4 py-3 ">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-semibold text-up">{t.referral}</p>
+                  <p className="text-xs font-semibold text-up">{tr("Referral")}</p>
                   <p className="text-[11px] text-up mt-0.5">
-                    {drawerStats?.referral_count ?? 0} {t.filleuls} · {(drawerStats?.referral_octo ?? 0).toLocaleString()} {t.octoEarned}
+                    {drawerStats?.referral_count ?? 0} {tr("referrals")} · {(drawerStats?.referral_octo ?? 0).toLocaleString()} {tr("OMERO earned")}
                   </p>
                 </div>
                 <button
@@ -329,8 +329,8 @@ function ProfileDrawer({
                   className="flex shrink-0 items-center gap-1.5 rounded-xl bg-up px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-up/90 disabled:opacity-40 transition-colors"
                 >
                   {copiedRef
-                    ? <><Check className="size-3" />{t.copiedLink}</>
-                    : <><Copy className="size-3" />{t.copyLink}</>}
+                    ? <><Check className="size-3" />{tr("Copied!")}</>
+                    : <><Copy className="size-3" />{tr("Copy link")}</>}
                 </button>
               </div>
             </div>
@@ -340,10 +340,10 @@ function ProfileDrawer({
           {editing && (
             <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
               <p className="text-[13px] font-semibold text-muted-foreground">
-                {t.editProfile}
+                {tr("Edit profile")}
               </p>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.username}</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{tr("Username")}</label>
                 <input
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="@username"
@@ -352,7 +352,7 @@ function ProfileDrawer({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.displayName}</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{tr("Display name")}</label>
                 <input
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder={tr("Display name")}
@@ -361,7 +361,7 @@ function ProfileDrawer({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{t.twitterHandle}</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground">{tr("Twitter / X handle")}</label>
                 <input
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="@yourhandle"
@@ -372,11 +372,11 @@ function ProfileDrawer({
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => setEditing(false)}
                   className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold text-muted-foreground hover:bg-muted">
-                  {t.cancel}
+                  {tr("Cancel")}
                 </button>
                 <button type="button" onClick={saveProfile} disabled={saving}
                   className="flex-1 rounded-[14px] bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-60 btn-primary">
-                  {saving ? t.saving : t.save}
+                  {saving ? tr("Saving…") : tr("Save")}
                 </button>
               </div>
             </div>
@@ -391,7 +391,7 @@ function ProfileDrawer({
             className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
           >
             <Plus className="size-4" />
-            <span>{t.createMarket}</span>
+            <span>{tr("Create a market")}</span>
           </Link>
 
           <Link
@@ -421,7 +421,7 @@ function ProfileDrawer({
               className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
             >
               <Settings2 className="size-4 text-muted-foreground" />
-              <span>{t.adminPanel}</span>
+              <span>{tr("Admin Panel")}</span>
             </Link>
           )}
 
@@ -464,7 +464,7 @@ function ProfileDrawer({
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 transition-colors"
             >
               <LogOut className="size-4" />
-              {t.disconnect}
+              {tr("Disconnect")}
             </button>
           </div>
         </div>

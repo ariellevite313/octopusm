@@ -1,5 +1,6 @@
 "use client";
 
+import { getEvmProvider } from "@/lib/wallet/evm-provider";
 import { createClient } from "@/lib/supabase/client";
 import { getProviderByType, type WalletType } from "./adapters";
 
@@ -33,14 +34,7 @@ function generateNonce(): string {
 function getMetaMaskEthProvider(): {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 } | null {
-  if (typeof window === "undefined") return null;
-  const eth = (window as any).ethereum;
-  if (!eth) return null;
-  if (Array.isArray(eth.providers)) {
-    const mm = eth.providers.find((p: any) => p.isMetaMask && !p.isPhantom);
-    return mm ?? null;
-  }
-  return eth.isMetaMask && !eth.isPhantom ? eth : null;
+  return getEvmProvider();
 }
 
 async function connectMetaMaskAndAuth(refCode?: string): Promise<WalletAuthResult> {

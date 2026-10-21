@@ -67,6 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Type de wallet perdu (stockage vidé) : une adresse 0x ne peut venir que d'un wallet EVM
+  useEffect(() => {
+    if (walletAddress && !walletType && /^0x[0-9a-fA-F]{40}$/.test(walletAddress)) setWalletType("metamask");
+  }, [walletAddress, walletType, setWalletType]);
+
   const checkAdmin = useCallback(async () => {
     const admin = await isAdminWallet();
     setIsAdmin(admin);

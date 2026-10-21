@@ -75,6 +75,9 @@ export interface PublicProfileEarnings {
   won_usd: number;     // total gains (winning bets' profit) in USD
   clt_price_usd: number;
   launchpad_usd: number; // creator fees claimed on the launchpad, in USD
+  market_fees_usd: number; // 1% creator fees earned on markets created (USDC markets + CLT at current price)
+  open_count: number;      // positions still unresolved
+  open_stake_usd: number;  // amount staked in those positions, in USD
 }
 
 export interface PublicProfileData {
@@ -537,11 +540,18 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
   }));
 
   const last = pnl_series.at(-1);
+  const SETTLED = new Set(["won", "lost", "refunded", "win", "lose", "claimed", "paid", "rejected", "cancelled"]);
+  const openItems = activityRaw.filter(i => !SETTLED.has(i.status));
+
   return {
     earnings: {
       net_usd:       wonUsd,
       won_usd:       wonUsd,
       launchpad_usd: launchUsd,
+      market_fees_usd: created_markets.reduce(
+        (s, m) => s + (m.bet_token === "usdc" ? m.fee_earned : m.fee_earned * cltPrice), 0),
+      open_count:    openItems.length,
+      open_stake_usd: openItems.reduce((s, i) => s + (i.token === "usdc" ? i.amount : i.amount * cltPrice), 0),
       clt_price_usd: cltPrice,
     },
     wallet,
