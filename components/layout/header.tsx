@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
 import { MobileSettings } from "@/components/shared/theme-switch";
+import { AppIcon } from "@/components/shared/app-icon";
+import { MORE_ITEMS } from "@/lib/nav/more-items";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
@@ -76,7 +78,7 @@ export function Header() {
                   }`}
                 >
                   {tr(label)}
-                  {external && <span className="text-[10px] opacity-40">↗</span>}
+                  
                 </Link>
               )
             )}
@@ -167,11 +169,39 @@ export function Header() {
                     }`}
                   >
                     {tr(label)}
-                    {external && <span className="text-xs opacity-30">↗</span>}
+                    
                   </Link>
                 )
               )}
             </nav>
+            {isAuthenticated && (
+              <div className="px-3">
+                <Link
+                  href="/dashboard/launchpad"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${isActive("/dashboard/launchpad", pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+                >
+                  {tr("My tokens")}
+                </Link>
+              </div>
+            )}
+            <div className="mx-6 my-2 h-px bg-border" />
+            <ul className="space-y-0.5 overflow-y-auto px-3 pb-3">
+              {MORE_ITEMS.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    target={item.external ? "_blank" : undefined}
+                    rel={item.external ? "noopener noreferrer" : undefined}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 rounded-2xl px-4 py-2.5 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <AppIcon name={item.icon} className="size-[18px] shrink-0" />
+                    <span className="truncate">{tr(item.label)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
             <div className="mt-auto"><MobileSettings /></div>
           </div>
         </>
