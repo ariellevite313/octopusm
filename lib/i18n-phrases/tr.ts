@@ -525,6 +525,7 @@ const p: Record<string, string> = {
   "{name} reposted": "{name} yeniden paylaştı",
   "Add a comment": "Yorum ekleyin",
   "Too many reposts, try again later": "Çok fazla yeniden paylaşım, daha sonra deneyin",
+  "Predictions: ${amount}": "Tahminler: ${amount}",
   "Total earned": "Toplam kazanç",
   "Profit/Loss · {token}": "Kâr/Zarar · {token}",
   "Volume : {amount} {unit}": "Hacim: {amount} {unit}",

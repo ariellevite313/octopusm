@@ -525,6 +525,7 @@ const p: Record<string, string> = {
   "{name} reposted": "{name} 转发了",
   "Add a comment": "添加评论",
   "Too many reposts, try again later": "转发过多，请稍后再试",
+  "Predictions: ${amount}": "预测：${amount}",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",

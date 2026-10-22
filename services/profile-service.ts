@@ -99,19 +99,22 @@ function toDate(iso: string): string {
 
 const CLT_MINT = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 
-/** Prix USD du SOL (Coinbase, cache 5 min). 0 si indisponible. */
+/** Prix USD du SOL (Binance, puis Coinbase, puis CoinGecko ; cache 5 min). 0 si tous indisponibles. */
 async function getSolPriceUsd(): Promise<number> {
+  const opts = { next: { revalidate: 300 }, signal: AbortSignal.timeout(4000) };
   try {
-    const res = await fetch("https://api.coinbase.com/v2/prices/SOL-USD/spot", {
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(4000),
-    });
-    if (!res.ok) return 0;
-    const json = await res.json() as { data?: { amount?: string } };
-    return Number(json.data?.amount) || 0;
-  } catch {
-    return 0;
-  }
+    const r = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT", opts);
+    if (r.ok) { const v = Number(((await r.json()) as { price?: string }).price); if (v > 0) return v; }
+  } catch { /* source suivante */ }
+  try {
+    const r = await fetch("https://api.coinbase.com/v2/prices/SOL-USD/spot", opts);
+    if (r.ok) { const v = Number(((await r.json()) as { data?: { amount?: string } }).data?.amount); if (v > 0) return v; }
+  } catch { /* source suivante */ }
+  try {
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", opts);
+    if (r.ok) { const v = Number(((await r.json()) as { solana?: { usd?: number } }).solana?.usd); if (v > 0) return v; }
+  } catch { /* indisponible */ }
+  return 0;
 }
 
 /** Prix USD du ClawdTrust (DexScreener, mis en cache 5 min). 0 si indisponible. */
