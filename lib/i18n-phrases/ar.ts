@@ -481,6 +481,8 @@ const p: Record<string, string> = {
   "2.5% trading fee per trade. Split your creator fees with up to 4 wallets.": "رسوم 2.5% لكل صفقة. شارك رسوم المنشئ مع ما يصل إلى 4 محافظ.",
   "2.5% trading fee per trade. 100% of your creator fees go to your wallet.": "رسوم 2.5% لكل صفقة. 100% من رسوم المنشئ تذهب إلى محفظتك.",
   "You earn 0.8% of volume": "تكسب 0.8% من الحجم",
+  "1% trading fee per trade. Split your creator fees with up to 4 wallets.": "رسوم 1% لكل صفقة. شارك رسوم المنشئ مع ما يصل إلى 4 محافظ.",
+  "1% trading fee per trade. 100% of your creator fees go to your wallet.": "رسوم 1% لكل صفقة. 100% من رسوم المنشئ تذهب إلى محفظتك.",
   "Total earned": "إجمالي الأرباح",
   "Profit/Loss · {token}": "الربح/الخسارة · {token}",
   "Volume : {amount} {unit}": "الحجم: {amount} {unit}",

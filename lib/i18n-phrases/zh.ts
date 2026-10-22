@@ -481,6 +481,8 @@ const p: Record<string, string> = {
   "2.5% trading fee per trade. Split your creator fees with up to 4 wallets.": "每笔交易收取 2.5% 手续费。可与最多 4 个钱包分享创作者费用。",
   "2.5% trading fee per trade. 100% of your creator fees go to your wallet.": "每笔交易收取 2.5% 手续费。创作者费用 100% 归你的钱包。",
   "You earn 0.8% of volume": "你赚取交易量的 0.8%",
+  "1% trading fee per trade. Split your creator fees with up to 4 wallets.": "每笔交易收取 1% 手续费。可与最多 4 个钱包分享创作者费用。",
+  "1% trading fee per trade. 100% of your creator fees go to your wallet.": "每笔交易收取 1% 手续费。创作者费用 100% 归你的钱包。",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",
