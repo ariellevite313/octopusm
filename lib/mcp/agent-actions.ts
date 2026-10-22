@@ -14,6 +14,7 @@ import { POST as repostRoute } from "@/app/api/posts/[id]/repost/route";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runAsAgent } from "@/lib/social/session";
 import { sniffImage, moderateImage } from "@/lib/moderation";
+import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
 
 export class ActionError extends Error {}
 
@@ -152,8 +153,18 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
   },
   update_profile: {
     description: "Change the display name, X (Twitter) handle, profile picture, banner and/or featured token (logo shown next to the name; only a token launched on OMdotfun; empty string removes it).",
-    params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_), featured_token_id?: token uuid | \"\", avatar_base64?: string (PNG/JPEG/WebP/GIF, max 2 MB), banner_base64?: string (max 4 MB) }",
-    run: async (wallet, p) => {
+    params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_), featured_token_id?: token uuid | \"\", avatar_base64?: string (PNG/JPEG/WebP/GIF, max 2 MB), avatar_url?: https link, banner_base64?: string (max 4 MB), banner_url?: https link }",
+    run: async (wallet, pIn) => {
+      // Image donnée par lien : le serveur la télécharge (https seulement, pas d'adresse interne)
+      const p: P = { ...pIn };
+      for (const [key, max] of [["avatar", 2], ["banner", 4]] as const) {
+        const link = s(p, `${key}_url`, 2000);
+        delete p[`${key}_url`];
+        if (link && !p[`${key}_base64`]) {
+          try { p[`${key}_base64`] = (await fetchImage(link, max * 1024 * 1024)).buf.toString("base64"); }
+          catch (e) { if (e instanceof ImageUrlError) throw new ActionError(e.message); throw e; }
+        }
+      }
       const updates: Record<string, string | null> = {};
       const dn = s(p, "display_name", 40); if (dn) updates.display_name = dn.trim();
       const tw = s(p, "twitter_handle", 16);
