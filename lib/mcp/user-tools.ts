@@ -14,6 +14,9 @@ import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
 
 const SIGNED_ONLY = new Set(["trade_prepare", "trade_submit", "create_post_prepare", "create_post", "agent_action_prepare", "agent_action", "launch_token_prepare", "launch_token_submit", "launch_token_confirm"]);
 
+/** Puce de vérification : à partir du niveau Blue (1 000 OMERO). */
+const VERIFIED_MIN = 1000;
+
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
 const ID = { type: "string", description: "Post uuid" };
 
@@ -110,7 +113,7 @@ export const USER_TOOLS: McpTool[] = [
   },
   {
     name: "list_notifications",
-    description: "The connected user's latest notifications (up to 50): likes, replies, reposts, quotes, mentions and new followers, with who did it and an excerpt of the post. Set mark_read to true to mark them all as read.",
+    description: "The connected user's latest notifications (up to 50): likes, replies, reposts, quotes, mentions and new followers, with who did it (actor_verified = has an OMERO verification badge, 1,000+ OMERO) and an excerpt of the post. Set mark_read to true to mark them all as read.",
     readOnly: false,
     inputSchema: S({ unread_only: { type: "boolean" }, mark_read: { type: "boolean" } }),
     run: async (a, ctx) => {
@@ -132,7 +135,44 @@ export const USER_TOOLS: McpTool[] = [
         await admin.from("notifications").update({ read: true }).eq("wallet", ctx.user.wallet).eq("read", false);
       }
       return {
-        notifications: rows.map((r) => ({ ...r, actor_name: profiles.get(r.actor)?.name ?? null, excerpt: r.post_id ? body.get(r.post_id) ?? null : null })),
+        notifications: rows.map((r) => {
+          const omero = profiles.get(r.actor)?.octo ?? 0;
+          return { ...r, actor_name: profiles.get(r.actor)?.name ?? null, actor_omero: omero, actor_verified: omero >= VERIFIED_MIN, excerpt: r.post_id ? body.get(r.post_id) ?? null : null };
+        }),
+      };
+    },
+  },
+  {
+    name: "get_omero_earners",
+    description: "Who earned OMERO points recently (default: last 24 hours, max 7 days): wallet, name, username, OMERO earned in the period, total OMERO and whether they have the verification badge (1,000+ OMERO). Sorted by OMERO earned.",
+    readOnly: true,
+    inputSchema: S({ hours: { type: "integer", minimum: 1, maximum: 168 }, limit: { type: "integer", minimum: 1, maximum: 50 } }),
+    run: async (a) => {
+      const hours = Math.min(168, Math.max(1, Number(a.hours) || 24));
+      const limit = Math.min(50, Math.max(1, Number(a.limit) || 20));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = createAdminClient() as any;
+      const since = new Date(Date.now() - hours * 3600_000).toISOString();
+      const { data } = await admin.from("octo_transactions").select("wallet_address, amount, type").gt("amount", 0).gte("created_at", since).limit(5000);
+      const sum = new Map<string, { earned: number; by: Record<string, number> }>();
+      for (const r of (data ?? []) as { wallet_address: string; amount: number; type: string }[]) {
+        const e = sum.get(r.wallet_address) ?? { earned: 0, by: {} };
+        e.earned += Number(r.amount) || 0; e.by[r.type] = (e.by[r.type] ?? 0) + (Number(r.amount) || 0);
+        sum.set(r.wallet_address, e);
+      }
+      const top = [...sum.entries()].sort((x, y) => y[1].earned - x[1].earned).slice(0, limit);
+      const ids = top.map(([w]) => w);
+      const [profiles, users] = await Promise.all([
+        getProfiles(admin, ids),
+        ids.length ? admin.from("wallets").select("address, username").in("address", ids) : { data: [] },
+      ]);
+      const uname = new Map(((users.data ?? []) as { address: string; username: string | null }[]).map((u) => [u.address, u.username]));
+      return {
+        hours,
+        earners: top.map(([w, e]) => {
+          const total = profiles.get(w)?.octo ?? 0;
+          return { wallet: w, name: profiles.get(w)?.name ?? null, username: uname.get(w) ?? null, omero_earned: Math.round(e.earned), by_type: e.by, total_omero: total, verified: total >= VERIFIED_MIN };
+        }),
       };
     },
   },

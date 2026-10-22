@@ -256,7 +256,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "list_posts",
-    description: "Public feed posts (newest first): text, image URLs, author, likes, replies, views, and the token ticker if the post mentions one. Optionally only the posts of one wallet.",
+    description: "Public feed posts (newest first): text, image URLs, author, likes, replies, views, and the token ticker if the post mentions one (author_octo: OMERO total of the author, 1,000+ = verification badge). Optionally only the posts of one wallet.",
     readOnly: true,
     inputSchema: {
       type: "object",
@@ -280,7 +280,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "get_post_replies",
-    description: "Replies to one feed post (by post uuid), oldest first.",
+    description: "Replies to one feed post (by post uuid), oldest first. author_octo is the author's OMERO total: 1,000 or more means they have the verification badge.",
     readOnly: true,
     inputSchema: { type: "object", properties: { id: { type: "string", description: "Post uuid" } }, required: ["id"] },
     run: async (a, ctx) => {

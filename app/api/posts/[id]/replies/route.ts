@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const rows = (data ?? []) as { id: string; author: string; body: string; created_at: string }[];
   const profiles = await getProfiles(admin, rows.map((r) => r.author));
   return NextResponse.json({
-    replies: rows.map((r) => ({ ...r, author_name: profiles.get(r.author)?.name ?? null, author_avatar: profiles.get(r.author)?.avatar_src ?? null, author_token: profiles.get(r.author)?.token ?? null })),
+    replies: rows.map((r) => ({ ...r, author_name: profiles.get(r.author)?.name ?? null, author_avatar: profiles.get(r.author)?.avatar_src ?? null, author_token: profiles.get(r.author)?.token ?? null, author_octo: profiles.get(r.author)?.octo ?? 0 })),
   });
 }
 
