@@ -50,6 +50,8 @@ type CreatePayload = {
   // Stock-paired
   quote_asset?: string | null;
   stock_symbol?: string | null;
+  // Solana : niveau de frais ("standard" = config actuelle, "low" = frais 1,25 %, créateur 0,5 %)
+  sol_fee_tier?: "standard" | "low";
 };
 
 export async function POST(req: Request) {
@@ -86,6 +88,12 @@ export async function POST(req: Request) {
     }
     if (payload.supply < 10_000_000 || payload.supply > 1_000_000_000) {
       return NextResponse.json({ error: "Supply must be between 10M and 1B" }, { status: 400 });
+    }
+    if (payload.sol_fee_tier !== undefined && payload.sol_fee_tier !== "standard" && payload.sol_fee_tier !== "low") {
+      return NextResponse.json({ error: "Invalid fee level" }, { status: 400 });
+    }
+    if (payload.sol_fee_tier === "low" && (payload.chain === "arc" || !process.env.DBC_CONFIG_KEY_LOW)) {
+      return NextResponse.json({ error: "This fee level is not available" }, { status: 400 });
     }
     if (payload.creator_fee_pct !== 1) {
       return NextResponse.json({ error: "Creator fee must be 1%" }, { status: 400 });
@@ -215,6 +223,7 @@ export async function POST(req: Request) {
           stock_symbol:             payload.stock_symbol ?? null,
         } : {
           // Solana: store stock info if stock-paired
+          sol_fee_tier: payload.sol_fee_tier === "low" ? "low" : "standard",
           ...(payload.stock_symbol ? {
             stock_symbol: payload.stock_symbol,
             quote_asset:  payload.quote_asset ?? null,

@@ -46,7 +46,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       .select(
         "id,creator_wallet,status,name,ticker,description,logo_url,website,twitter,telegram," +
         "supply,first_buy_amount,is_scheduled,mint_address,vanity_secret_key,metadata_uri," +
-        "tx_base64,tx_prepared_at,stock_symbol,dbc_config_secret,dbc_config_address"
+        "tx_base64,tx_prepared_at,stock_symbol,dbc_config_secret,dbc_config_address,sol_fee_tier"
       )
       .eq("id", id)
       .maybeSingle();
@@ -96,6 +96,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       firstBuySol:   (token.first_buy_amount as number) ?? 0,
       isScheduled:   Boolean(token.is_scheduled),
       stockSymbol:   (token.stock_symbol as string | null) ?? null,
+      feeTier:       (token.sol_fee_tier === "low" ? "low" : "standard") as "low" | "standard",
     };
 
     // ── xStock: check if DBC config already on-chain (retry where TX B landed) ─

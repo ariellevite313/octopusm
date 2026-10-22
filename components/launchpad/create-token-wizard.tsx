@@ -77,6 +77,7 @@ type WizardData = {
   // Stock-paired (Solana)
   sol_token_type: "sol" | "stock";
   sol_stock_symbol: string;      // ex: "xNVDA"
+  sol_fee_tier: "standard" | "low";
 };
 
 const INITIAL: WizardData = {
@@ -94,6 +95,7 @@ const INITIAL: WizardData = {
   arc_fee_tier: 0,
   sol_token_type: "sol",
   sol_stock_symbol: "xNVDA",
+  sol_fee_tier: "standard",
 };
 
 const CATEGORIES = [T("Meme"), T("Utility"), T("AI"), T("Gaming"), T("DeFi"), T("NFT"), "x402"];
@@ -194,6 +196,13 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<{ name?: boolean; ticker?: boolean }>({});
   const [share, setShare] = useState(data.fee_recipients.length > 0);
+  const [lowFeeEnabled, setLowFeeEnabled] = useState(false);
+  useEffect(() => {
+    if (chain !== "solana") return;
+    let off = false;
+    fetch("/api/launchpad/fee-options").then((r) => r.json()).then((j) => { if (!off) setLowFeeEnabled(!!j.low); }).catch(() => {});
+    return () => { off = true; };
+  }, [chain]);
 
   const checkAvailability = useCallback(async () => {
     if (!data.name || !data.ticker) return;
@@ -421,8 +430,25 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
             ))}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            {share ? tr("2% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("2% trading fee per trade. 100% of your creator fees go to your wallet.")}
+            {data.sol_fee_tier === "low"
+              ? (share ? tr("1.25% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("1.25% trading fee per trade. 100% of your creator fees go to your wallet."))
+              : (share ? tr("2% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("2% trading fee per trade. 100% of your creator fees go to your wallet."))}
           </p>
+          {lowFeeEnabled && (
+            <div className="mt-4">
+              <Label>{tr("Trading fee")}</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+                {([["standard", "2%", tr("You earn 1% of volume")], ["low", "1.25%", tr("You earn 0.5% of volume")]] as const).map(([k, fee, earn]) => (
+                  <button key={k} type="button" onClick={() => set("sol_fee_tier", k)}
+                    className={`rounded-xl py-2.5 text-sm font-semibold transition-colors ${data.sol_fee_tier === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    {fee}
+                    <span className="block text-[11px] font-normal text-muted-foreground">{earn}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{tr("A lower fee attracts more traders; a higher fee pays you more per trade. This cannot be changed after launch.")}</p>
+            </div>
+          )}
 
           {share && (
             <div className="mt-3 space-y-2">
@@ -971,6 +997,7 @@ export function CreateTokenWizard({
       is_scheduled: data.is_scheduled,
       scheduled_at: data.is_scheduled ? data.scheduled_at : null,
       creator_wallet: walletAddress,
+      sol_fee_tier: data.sol_fee_tier,
       // Stock-Paired (Solana via Meteora DBC)
       ...(isStockPaired ? {
         stock_symbol: data.sol_stock_symbol,
