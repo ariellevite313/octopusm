@@ -16,7 +16,7 @@ describe("computeTradeRewards", () => {
   it("Solana : le taux dépend du niveau et les gains restent sous la part plateforme", () => {
     const std = computeTradeRewards("solana", 1000, { hasReferrer: true, hasPost: true }, SOL_PLATFORM_RATE.standard);
     const low = computeTradeRewards("solana", 1000, { hasReferrer: true, hasPost: true }, SOL_PLATFORM_RATE.low);
-    expect(std.fee).toBeCloseTo(12);
+    expect(std.fee).toBeCloseTo(6.8);
     expect(low.fee).toBeCloseTo(5);
     expect(std.referral + std.post).toBeLessThan(std.fee);
     expect(low.referral + low.post).toBeLessThan(low.fee);

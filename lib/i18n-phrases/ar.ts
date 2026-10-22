@@ -515,6 +515,7 @@ const p: Record<string, string> = {
   "Feed share reward": "مكافأة المشاركة",
   "{n} won": "{n} فوز",
   "{n} launched": "{n} تم إطلاقه",
+  "You earn 0.9% of volume": "تكسب 0.9% من الحجم",
   "Total earned": "إجمالي الأرباح",
   "Profit/Loss · {token}": "الربح/الخسارة · {token}",
   "Volume : {amount} {unit}": "الحجم: {amount} {unit}",

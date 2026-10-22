@@ -73,6 +73,8 @@ async function main() {
 
   // Partner address check
   const partnerAddr: string =
+    cfg?.feeClaimer?.toBase58?.() ??
+    cfg?.feeClaimer ??
     cfg?.partnerAddress?.toBase58?.() ??
     cfg?.partner_address?.toBase58?.() ??
     cfg?.partnerAddress ??
@@ -80,7 +82,7 @@ async function main() {
     "not found";
 
   console.log("\n─── Résultat ───\n");
-  console.log("partnerAddress dans le config :", partnerAddr);
+  console.log("feeClaimer (adresse qui encaisse) :", partnerAddr);
   console.log("PLATFORM_WALLET_SECRET pubkey :", platformWallet.publicKey.toBase58());
 
   if (partnerAddr === platformWallet.publicKey.toBase58()) {
