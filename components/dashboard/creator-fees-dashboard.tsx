@@ -349,7 +349,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
           {claimingAll ? <Loader2 className="size-6 animate-spin" /> : <HandCoins className="size-6" />}
         </ActionCircle>
         <ActionCircle label={T("Launch")} href="/launchpad/create"><Plus className="size-6" /></ActionCircle>
-        <ActionCircle label={T("Trade")} href="/"><ArrowLeftRight className="size-6" /></ActionCircle>
+        <ActionCircle label={T("Trade")} href="/launchpad"><ArrowLeftRight className="size-6" /></ActionCircle>
         <ActionCircle label={T("Share")} onClick={() => setShareOpen(true)}><Send className="size-6" /></ActionCircle>
       </div>
 

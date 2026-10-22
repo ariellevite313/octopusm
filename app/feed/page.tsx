@@ -1,18 +1,8 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
-import { FeedClient } from "@/components/social/feed-client";
-import { FeedRightRail } from "@/components/social/feed-right-rail";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Feed", description: "Posts from the OMdotfun community." };
-
-// Grand écran : fil au centre entre deux bordures, tendances et comptes à suivre à droite
-export default function FeedPage() {
-  return (
-    <div className="mx-auto flex w-full max-w-[1000px] justify-center">
-      <div className="min-h-screen w-full min-w-0 max-w-xl border-border lg:border-x xl:max-w-[600px]">
-        <Suspense fallback={null}><FeedClient /></Suspense>
-      </div>
-      <FeedRightRail />
-    </div>
-  );
+// Le fil est maintenant l'accueil ; on garde les anciens liens (/feed, /feed?tag=…)
+export default async function FeedRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const tag = typeof sp.tag === "string" ? sp.tag : "";
+  redirect(tag ? `/?tag=${encodeURIComponent(tag)}` : "/");
 }

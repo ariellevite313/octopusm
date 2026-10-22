@@ -12,24 +12,24 @@ import { T } from "@/lib/i18n-mark";
 
 /**
  * Menu du bas, identique dans les deux sections (mêmes places) :
- *   1. accueil de la section · 2. classement · 3. Feed · 4. autre section · 5. profil
+ *   1. Feed (accueil) · 2. accueil de la section · 3. classement · 4. autre section · 5. profil
  */
 type Section = "launchpad" | "predict";
 type Item = { label: string; href: string; icon: typeof BarChart2; active: (p: string) => boolean };
 
 const isLaunchpadPath = (p: string) =>
-  p === "/" || p === "/launchpad" || p.startsWith("/launchpad/") || p.startsWith("/dashboard/launchpad") || p === "/leaderboard/launchpad";
+  p === "/launchpad" || p.startsWith("/launchpad/") || p.startsWith("/dashboard/launchpad") || p === "/leaderboard/launchpad";
 const isPredictPath = (p: string) =>
   p === "/prediction" || p.startsWith("/prediction/") || p.startsWith("/pools") || p.startsWith("/crypto") ||
   p.startsWith("/updown") || p === "/leaderboard/predictions" || p.startsWith("/archive") || p.startsWith("/dashboard/predictions");
 
-const TOKENS: Item = { label: T("Tokens"), href: "/", icon: LayoutGrid, active: (p) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) };
+const TOKENS: Item = { label: T("Tokens"), href: "/launchpad", icon: LayoutGrid, active: (p) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) };
 const MARKETS: Item = { label: T("Markets"), href: "/prediction", icon: BarChart2, active: (p) => p === "/prediction" };
-const FEED: Item = { label: T("Feed"), href: "/feed", icon: MessageSquare, active: (p) => p === "/feed" };
+const FEED: Item = { label: T("Feed"), href: "/", icon: MessageSquare, active: (p) => p === "/" || p === "/feed" || p.startsWith("/post/") };
 
 const NAV: Record<Section, Item[]> = {
-  predict: [MARKETS, { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy, active: (p) => p === "/leaderboard/predictions" }, FEED, TOKENS],
-  launchpad: [TOKENS, { label: T("Leaderboard"), href: "/leaderboard/launchpad", icon: Trophy, active: (p) => p === "/leaderboard/launchpad" }, FEED, MARKETS],
+  predict: [FEED, MARKETS, { label: T("Leaderboard"), href: "/leaderboard/predictions", icon: Trophy, active: (p) => p === "/leaderboard/predictions" }, TOKENS],
+  launchpad: [FEED, TOKENS, { label: T("Leaderboard"), href: "/leaderboard/launchpad", icon: Trophy, active: (p) => p === "/leaderboard/launchpad" }, MARKETS],
 };
 
 const KEY = "om_nav_section";

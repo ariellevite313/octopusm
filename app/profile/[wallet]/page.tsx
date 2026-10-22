@@ -13,6 +13,7 @@ import { FollowButton, FollowCounts, BannerCamera, ProfileMenu } from "@/compone
 import { createAdminClient } from "@/lib/supabase/server";
 import { getFeaturedTokens } from "@/lib/social/featured-token";
 import { FeaturedTokenControl } from "@/components/profile/featured-token";
+import { AvatarZoom } from "@/components/profile/avatar-zoom";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -131,13 +132,15 @@ async function ProfileContent({ wallet }: { wallet: string }) {
           {/* Avatar — large, overlapping the banner */}
           <div className="relative z-10 -mt-[60px] mb-3 flex items-end justify-between">
             {avatarSrc ? (
-              <Image
-                src={avatarSrc}
-                alt={displayName}
-                width={120}
-                height={120}
-                className={`size-[120px] shrink-0 rounded-full object-cover ring-[6px] ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}
-              />
+              <AvatarZoom src={avatarSrc} alt={displayName}>
+                <Image
+                  src={avatarSrc}
+                  alt={displayName}
+                  width={120}
+                  height={120}
+                  className={`size-[120px] shrink-0 rounded-full object-cover ring-[6px] ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}
+                />
+              </AvatarZoom>
             ) : (
               <div className={`flex size-[120px] shrink-0 items-center justify-center rounded-full bg-primary text-5xl font-bold text-white ring-[6px] ring-card ${data.stats.rank && data.stats.rank <= 3 ? "avatar-glow" : ""}`}>
                 {displayName[0].toUpperCase()}

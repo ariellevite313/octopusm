@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Hash, Search } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
@@ -9,7 +9,6 @@ import { shortAddress } from "@/lib/format";
 
 type Trend = { kind: "tag" | "token"; label: string; count: number; href: string; logo: string | null; name: string | null };
 type Who = { wallet: string; username: string | null; name: string | null; avatar: string | null; followers: number };
-type Found = { wallet: string; username: string; name: string | null; avatar: string | null };
 
 function Pic({ src, name, size = 40 }: { src: string | null; name: string; size?: number }) {
   return src ? (
@@ -27,9 +26,6 @@ export function FeedRightRail() {
   const [trending, setTrending] = useState<Trend[] | null>(null);
   const [who, setWho] = useState<Who[] | null>(null);
   const [followed, setFollowed] = useState<Record<string, boolean>>({});
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<Found[]>([]);
-  const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let off = false;
@@ -39,21 +35,6 @@ export function FeedRightRail() {
     }).catch(() => { if (!off) { setTrending([]); setWho([]); } });
     return () => { off = true; };
   }, [isAuthenticated]);
-
-  useEffect(() => {
-    const s = q.replace(/^@/, "").trim();
-    if (!s) { setFound([]); return; }
-    const id = setTimeout(() => {
-      fetch(`/api/users/search?q=${encodeURIComponent(s)}`).then((r) => r.json()).then((j) => setFound(j.users ?? [])).catch(() => setFound([]));
-    }, 200);
-    return () => clearTimeout(id);
-  }, [q]);
-
-  useEffect(() => {
-    const down = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setFound([]); };
-    document.addEventListener("mousedown", down);
-    return () => document.removeEventListener("mousedown", down);
-  }, []);
 
   async function follow(w: string) {
     if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
@@ -65,26 +46,14 @@ export function FeedRightRail() {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[350px] shrink-0 space-y-4 overflow-y-auto scrollbar-none py-3 pl-6 xl:block">
-      {/* Recherche */}
-      <div ref={boxRef} className="relative">
-        <label className="flex items-center gap-3 rounded-full bg-muted px-4 py-2.5 focus-within:bg-background focus-within:ring-1 focus-within:ring-primary">
-          <Search className="size-[18px] text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search people")} className="w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground" />
-        </label>
-        {found.length > 0 && (
-          <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-            {found.map((u) => (
-              <Link key={u.wallet} href={`/profile/${u.wallet}`} onClick={() => { setQ(""); setFound([]); }} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted">
-                <Pic src={u.avatar} name={u.name ?? u.username} size={36} />
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-bold">{u.name ?? u.username}</span>
-                  <span className="block truncate text-sm text-muted-foreground">@{u.username}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Recherche : ouvre la recherche complète (tokens, posts, comptes) */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
+        className="glass-btn flex w-full items-center gap-3 rounded-full px-4 py-2.5 text-left text-[15px] text-muted-foreground"
+      >
+        <Search className="size-[18px]" />{tr("Search tokens, posts, people")}
+      </button>
 
       {/* Tendances */}
       <section className="overflow-hidden rounded-2xl border border-border">
@@ -148,5 +117,49 @@ export function FeedRightRail() {
         <Link href="/policy" className="hover:underline">{tr("ŌM Policy")}</Link> · <Link href="/privacy" className="hover:underline">{tr("Privacy Policy")}</Link> · <Link href="/faq" className="hover:underline">{tr("FAQ")}</Link> · © 2026 OMdotfun
       </p>
     </aside>
+  );
+}
+
+/** « Who to follow » glissé dans le fil (téléphone et écrans moyens ; sur grand écran il est à droite). */
+export function WhoToFollowInline() {
+  const { tr } = useT();
+  const { isAuthenticated } = useAuth();
+  const [who, setWho] = useState<Who[]>([]);
+  const [followed, setFollowed] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches) return;
+    let off = false;
+    fetch("/api/social/sidebar", { cache: "no-store" }).then((r) => r.json()).then((j) => { if (!off) setWho(j.who ?? []); }).catch(() => {});
+    return () => { off = true; };
+  }, [isAuthenticated]);
+  if (who.length === 0) return null;
+  async function follow(w: string) {
+    if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
+    setFollowed((m) => ({ ...m, [w]: !m[w] }));
+    const r = await fetch("/api/follow", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ wallet: w }) }).catch(() => null);
+    if (!r?.ok) setFollowed((m) => ({ ...m, [w]: !m[w] }));
+  }
+  return (
+    <section className="border-t border-border bg-card px-4 py-3 xl:hidden">
+      <h2 className="pb-1 text-lg font-extrabold tracking-tight">{tr("Who to follow")}</h2>
+      {who.map((u) => {
+        const name = u.name ?? u.username ?? shortAddress(u.wallet);
+        const on = !!followed[u.wallet];
+        return (
+          <div key={u.wallet} className="flex items-center gap-3 py-2">
+            <Link href={`/profile/${u.wallet}`} className="flex min-w-0 flex-1 items-center gap-3">
+              <Pic src={u.avatar} name={name} />
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-bold">{name}</span>
+                <span className="block truncate text-sm text-muted-foreground">{u.username ? `@${u.username}` : shortAddress(u.wallet)}</span>
+              </span>
+            </Link>
+            <button onClick={() => follow(u.wallet)} className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold ${on ? "border border-border text-foreground" : "bg-foreground text-background"}`}>
+              {on ? tr("Following") : tr("Follow")}
+            </button>
+          </div>
+        );
+      })}
+    </section>
   );
 }

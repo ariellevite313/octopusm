@@ -885,7 +885,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       <p className="text-center text-xs text-muted-foreground">
         {(() => { const n = tab !== "watchlist" ? total : visibleTokens.length; return n !== 1 ? tr("{n} tokens", { n }) : tr("{n} token", { n }); })()}
       </p>
-      <CreateMenu onPosted={() => router.push("/feed")} />
+      <CreateMenu onPosted={() => router.push("/")} />
     </div>
   );
 }

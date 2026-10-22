@@ -20,18 +20,18 @@ const isPredictSection = (p: string) =>
   p.startsWith("/prediction") || p.startsWith("/updown") || p.startsWith("/pools") || p.startsWith("/crypto") || p.startsWith("/leaderboard/predictions");
 
 // Section fil : barre élargie avec les libellés sur grand écran
-const isFeedSection = (p: string) => p.startsWith("/feed") || p.startsWith("/post/") || p.startsWith("/notifications");
+const isFeedSection = (p: string) => p === "/" || p.startsWith("/feed") || p.startsWith("/post/") || p.startsWith("/notifications");
 
 function items(pathname: string) {
   const predict = isPredictSection(pathname);
   return [
-    { href: "/",                       label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/" || p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
+    { href: "/",                       label: T("Feed"),        icon: MessageSquare, match: (p: string) => p === "/" || p.startsWith("/feed") || p.startsWith("/post/") },
+    { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
     predict
       ? { href: "/leaderboard/predictions", label: T("Prediction leaderboard"), icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/predictions") }
       : { href: "/leaderboard/launchpad",   label: T("Creator leaderboard"),    icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/launchpad") || p === "/leaderboard" },
     { href: "/prediction",             label: T("Predictions"), icon: BarChart2,  match: (p: string) => isPredictSection(p) && !p.startsWith("/leaderboard") },
-    { href: "/feed",                   label: T("Feed"),        icon: MessageSquare, match: (p: string) => p.startsWith("/feed") || p.startsWith("/post/") || p.startsWith("/notifications") },
     { href: "/live",                   label: T("Live scores"), icon: Radio,      match: (p: string) => p.startsWith("/live") },
     { href: "/dashboard/launchpad",    label: T("My tokens"),   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
   ];

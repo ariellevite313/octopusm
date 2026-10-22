@@ -2,6 +2,7 @@
 
 import { NotificationMenuLink, useUnreadNotifications } from "@/components/social/notification-bell";
 import { useEffect, useState } from "react";
+import { SearchButton } from "@/components/social/search-overlay";
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
@@ -14,17 +15,18 @@ import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
 const NAV_LINKS = [
+  { href: "/",                        label: T("Feed"),        badge: undefined, disabled: false },
   { href: "/prediction",              label: T("Markets"),     badge: undefined, disabled: false },
   { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
   { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },
-  { href: "/feed",                    label: T("Feed"),        badge: undefined, disabled: false },
   { href: "/live",                    label: T("Live scores"), badge: undefined, disabled: false },
   { href: "/archive",                 label: T("Archive"),     badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
 function isActive(href: string, pathname: string) {
-  // "/" is now the launchpad homepage
-  if (href === "/launchpad") return pathname === "/" || pathname === "/launchpad" || pathname.startsWith("/launchpad/");
+  // "/" est le fil
+  if (href === "/") return pathname === "/" || pathname.startsWith("/feed") || pathname.startsWith("/post/");
+  if (href === "/launchpad") return pathname === "/launchpad" || pathname.startsWith("/launchpad/");
   return pathname === href || pathname.startsWith(href + "/");
 }
 
@@ -41,7 +43,7 @@ export function Header() {
   const pathname = usePathname();
   const { isAuthenticated, walletAddress } = useAuth();
   const { tr } = useT();
-  const inLaunchpad = pathname === "/" || pathname.startsWith("/launchpad") || pathname.startsWith("/dashboard") || pathname.startsWith("/leaderboard/launchpad");
+  const inLaunchpad = pathname.startsWith("/launchpad") || pathname.startsWith("/dashboard") || pathname.startsWith("/leaderboard/launchpad");
   type NavLink = { href: string; label: string; badge?: string; disabled: boolean; external?: boolean };
   const links: NavLink[] = (NAV_LINKS as NavLink[]).map((l) => (l.label === T("Leaderboard") && inLaunchpad ? { ...l, href: "/leaderboard/launchpad" } : l));
 
@@ -71,7 +73,7 @@ export function Header() {
               ) : (
                 <Link
                   key={href}
-                  href={href === "/launchpad" ? "/" : href}
+                  href={href}
                   target={external ? "_blank" : undefined}
                   rel={external ? "noopener noreferrer" : undefined}
                   className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
@@ -87,7 +89,8 @@ export function Header() {
             )}
           </nav>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <SearchButton />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}
@@ -164,7 +167,7 @@ export function Header() {
                 ) : (
                   <Link
                     key={href}
-                    href={href === "/launchpad" ? "/" : href}
+                    href={href}
                     target={external ? "_blank" : undefined}
                     rel={external ? "noopener noreferrer" : undefined}
                     onClick={() => setOpen(false)}

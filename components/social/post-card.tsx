@@ -67,7 +67,7 @@ function PostText({ body, mentions, hideUrl }: { body: string; mentions: Record<
       <div ref={ref} className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground ${open ? "" : "line-clamp-4"}`}>
         {parts.map((p, i) => {
           if (p.startsWith("$") && p.length > 2) return <span key={i} className="font-bold text-primary">{p}</span>;
-          if (p.startsWith("#") && p.length > 2) return <Link key={i} href={`/feed?tag=${encodeURIComponent(p.slice(1).toLowerCase())}`} className="font-semibold text-primary hover:underline">{p}</Link>;
+          if (p.startsWith("#") && p.length > 2) return <Link key={i} href={`/?tag=${encodeURIComponent(p.slice(1).toLowerCase())}`} className="font-semibold text-primary hover:underline">{p}</Link>;
           if (p.startsWith("@") && p.length > 2) {
             const w = mentions[p.slice(1).toLowerCase()];
             return w ? <Link key={i} href={`/profile/${w}`} className="font-semibold text-primary hover:underline">{p}</Link> : p;
