@@ -39,7 +39,7 @@ async function findPoolOnChain(
   xStockSymbol?: string | null,          // stock_symbol (xStock only)
 ): Promise<string | null> {
   const baseMint  = new PublicKey(mintAddress);
-  const solConfig = process.env.DBC_CONFIG_KEY ? new PublicKey(process.env.DBC_CONFIG_KEY) : null;
+  const solConfigs = [process.env.DBC_CONFIG_KEY, process.env.DBC_CONFIG_KEY_LOW].filter(Boolean).map((k) => new PublicKey(k as string));
 
   const seedSets: Buffer[][] = [];
 
@@ -63,7 +63,7 @@ async function findPoolOnChain(
   }
 
   // ── SOL pool: ["pool", solConfig, sorted(SOL, baseMint)] and legacy variants ─
-  if (solConfig) {
+  for (const solConfig of solConfigs) {
     const wsol = new PublicKey("So11111111111111111111111111111111111111112");
     const isWsolBigger = wsol.toBuffer().compare(baseMint.toBuffer()) > 0;
     seedSets.push([

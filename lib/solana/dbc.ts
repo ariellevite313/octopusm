@@ -41,6 +41,8 @@ export type DbcPoolParams = {
    * per-pool activation points are not supported with the pre-created config flow.
    */
   isScheduled?: boolean;
+  /** Niveau de frais choisi à la création (config Meteora correspondante). Défaut : standard. */
+  feeTier?: SolFeeTier;
   /**
    * xStock symbol for Stock-Paired tokens (e.g. "xNVDA").
    * When set, `buildStockPairedSplitTransactions` is used instead of the standard SOL path.
@@ -63,9 +65,14 @@ export function getPlatformWallet(): Keypair {
   return Keypair.fromSecretKey(bs58.decode(secret));
 }
 
-function getSolConfigKey(): PublicKey {
-  const key = process.env.DBC_CONFIG_KEY ?? "";
-  if (!key) throw new Error("DBC_CONFIG_KEY is not set");
+export type SolFeeTier = "standard" | "low";
+/** Niveau "low" disponible seulement si DBC_CONFIG_KEY_LOW est défini. */
+export const lowFeeTierEnabled = () => !!process.env.DBC_CONFIG_KEY_LOW;
+
+function getSolConfigKey(tier: SolFeeTier = "standard"): PublicKey {
+  const name = tier === "low" ? "DBC_CONFIG_KEY_LOW" : "DBC_CONFIG_KEY";
+  const key = process.env[name] ?? "";
+  if (!key) throw new Error(`${name} is not set`);
   return new PublicKey(key);
 }
 
@@ -172,13 +179,13 @@ export async function buildStockPairedTransactions(
       leftover:             Math.round(params.totalSupply * 0.1),  // 10% buffer — absorbs curve-vs-supply precision gap
     },
     fee: {
-      // Frais fixe de 2 % (même niveau que la config Solana principale). Meteora prend 20 %, le reste est partagé 50 / 50
+      // Frais fixe, comme les configs Solana : 2 % (standard) ou 1,25 % (low). Meteora prend 20 %, le reste est partagé 50 / 50
       // entre la plateforme et le créateur. Un frais fixe exige numberOfPeriod = 0 et totalDuration = 0 (règle du SDK).
       baseFeeParams: {
         baseFeeMode:       BaseFeeMode.FeeSchedulerLinear,
         feeSchedulerParam: {
-          startingFeeBps: 200,
-          endingFeeBps:   200,
+          startingFeeBps: params.feeTier === "low" ? 125 : 200,
+          endingFeeBps:   params.feeTier === "low" ? 125 : 200,
           numberOfPeriod: 0,
           totalDuration:  0,
         },
@@ -414,7 +421,7 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
 
   const connection     = getConnection();
   const platformWallet = getPlatformWallet();
-  const configKey      = getSolConfigKey();
+  const configKey      = getSolConfigKey(params.feeTier);
   let creator: PublicKey;
   try { creator = new PublicKey(params.creatorWallet); }
   catch { throw new Error(`Creator wallet "${params.creatorWallet}" is not a valid Solana address. Connect Phantom, Solflare or Backpack.`); }
@@ -543,7 +550,7 @@ export async function buildPoolOnlyTransaction(params: DbcPoolParams): Promise<{
   }
 
   const connection      = getConnection();
-  const configKey       = getSolConfigKey();
+  const configKey       = getSolConfigKey(params.feeTier);
   const creator         = new PublicKey(params.creatorWallet);
   const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
   const client = new DynamicBondingCurveClient(connection, "confirmed");
@@ -617,7 +624,7 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
 
   const connection     = getConnection();
   const platformWallet = getPlatformWallet();
-  const configKey      = getSolConfigKey();
+  const configKey      = getSolConfigKey(params.feeTier);
   const creator        = new PublicKey(params.creatorWallet);
   console.log("[DBC] configKey:", configKey.toBase58(), "| firstBuySol:", params.firstBuySol);
   const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
