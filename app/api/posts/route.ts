@@ -63,6 +63,7 @@ export async function POST(req: Request) {
   const body = String(form.get("body") ?? "").trim();
   const files = (form.getAll("images") as unknown[]).filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f && (f as File).size > 0);
 
-  const r = await createPost(s.wallet, body, files.map((f) => ({ type: f.type, size: f.size, bytes: () => f.arrayBuffer() })));
+  const quoteOf = String(form.get("quote_of") ?? "").trim() || null;
+  const r = await createPost(s.wallet, body, files.map((f) => ({ type: f.type, size: f.size, bytes: () => f.arrayBuffer() })), { quoteOf });
   return NextResponse.json(r.data, { status: r.status });
 }

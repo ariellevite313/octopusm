@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
-import type { FeedPost } from "@/lib/social/posts";
+import type { FeedPost, QuotedPost } from "@/lib/social/posts";
+import { QuotedCard } from "./quoted-card";
 import { MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES } from "@/lib/social/posts";
 
 type Suggest = { wallet: string; username: string; name: string | null; avatar: string | null };
 
-export function ComposeModal({ onClose, onPosted, initialBody = "" }: { onClose: () => void; onPosted: (p: FeedPost) => void; initialBody?: string }) {
+export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null }: { onClose: () => void; onPosted: (p: FeedPost) => void; initialBody?: string; quote?: QuotedPost | null }) {
   const { tr } = useT();
   const [body, setBody] = useState(initialBody);
   const [sug, setSug] = useState<Suggest[]>([]);
@@ -65,6 +66,7 @@ export function ComposeModal({ onClose, onPosted, initialBody = "" }: { onClose:
     const fd = new FormData();
     fd.append("body", body.trim());
     files.forEach((f) => fd.append("images", f));
+    if (quote) fd.append("quote_of", quote.id);
     const r = await fetch("/api/posts", { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
     setSending(false);
@@ -79,7 +81,7 @@ export function ComposeModal({ onClose, onPosted, initialBody = "" }: { onClose:
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-t-[28px] border border-border bg-card p-5 sm:rounded-[28px]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">{tr("New post")}</h2>
+          <h2 className="text-lg font-bold text-foreground">{quote ? tr("Quote") : tr("New post")}</h2>
           <button onClick={onClose} aria-label={tr("Close")} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><X className="size-5" /></button>
         </div>
         <div className="relative">
@@ -87,9 +89,9 @@ export function ComposeModal({ onClose, onPosted, initialBody = "" }: { onClose:
           ref={area}
           value={body}
           onChange={(e) => onType(e.target.value)}
-          rows={5}
+          rows={quote ? 3 : 5}
           autoFocus
-          placeholder={tr("Share something. Use $TICKER, #hashtag, @name or paste a market link.")}
+          placeholder={quote ? tr("Add a comment") : tr("Share something. Use $TICKER, #hashtag, @name or paste a market link.")}
           className="w-full resize-none rounded-2xl border border-border bg-transparent p-3 text-[15px] outline-none focus:border-foreground/40"
         />
         {sug.length > 0 && (
@@ -111,6 +113,7 @@ export function ComposeModal({ onClose, onPosted, initialBody = "" }: { onClose:
           </ul>
         )}
         </div>
+        {quote && <div className="mt-3"><QuotedCard q={quote} link={false} /></div>}
         {previews.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             {previews.map((u, i) => (

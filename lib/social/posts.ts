@@ -33,6 +33,19 @@ export type FeedPost = {
   /** @username (minuscules) → wallet */
   mentions: Record<string, string>;
   market: SharedMarket | null;
+  repost_count: number;
+  reposted_by_me: boolean;
+  /** Clé unique dans le fil (un même post peut apparaître une fois en direct et une fois en repost) */
+  feed_key: string;
+  /** Présent quand cette entrée du fil est un repost : qui a republié */
+  reposted_by: { wallet: string; name: string | null } | null;
+  /** Post cité (citation) */
+  quoted: QuotedPost | null;
+};
+
+export type QuotedPost = {
+  id: string; author: string; author_name: string | null; author_avatar: string | null;
+  body: string; images: string[]; created_at: string;
 };
 
 export type SharedMarket = {
@@ -57,17 +70,32 @@ type Row = {
   id: string; author: string; body: string; images: string[] | null; ticker: string | null; token_id: string | null;
   mentions?: Record<string, string> | null; market_kind?: "pool" | "prediction" | null; market_id?: string | null;
   like_count: number; reply_count: number; view_count: number; created_at: string;
+  repost_of?: string | null; quote_of?: string | null; repost_count?: number | null;
 };
 
 /** Ajoute auteur, token, likes du viewer et derniers likers (photos) à des lignes `posts`. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function enrichPosts(admin: any, rows: Row[], viewer: string | null): Promise<FeedPost[]> {
+export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | null): Promise<FeedPost[]> {
+  if (rowsIn.length === 0) return [];
+  // Reposts : on affiche le post d'origine, avec « X a republié » au-dessus
+  const origIds = [...new Set(rowsIn.map((r) => r.repost_of).filter(Boolean))] as string[];
+  const quoteIds = [...new Set(rowsIn.map((r) => r.quote_of).filter(Boolean))] as string[];
+  const [origRes, quotedRes] = await Promise.all([
+    origIds.length ? admin.from("posts").select(POST_COLUMNS).in("id", origIds).eq("hidden", false) : Promise.resolve({ data: [] }),
+    quoteIds.length ? admin.from("posts").select("id, author, body, images, created_at").in("id", quoteIds).eq("hidden", false) : Promise.resolve({ data: [] }),
+  ]);
+  const originals = new Map<string, Row>(((origRes.data ?? []) as Row[]).map((r) => [r.id, r]));
+  const quotedRows = (quotedRes.data ?? []) as { id: string; author: string; body: string; images: string[] | null; created_at: string }[];
+  const entries = rowsIn
+    .map((r) => (r.repost_of ? { row: originals.get(r.repost_of), by: r } : { row: r, by: null }))
+    .filter((e): e is { row: Row; by: Row | null } => !!e.row);
+  const rows = entries.map((e) => e.row);
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const tokenIds = [...new Set(rows.map((r) => r.token_id).filter(Boolean))] as string[];
 
-  const [profiles, tokensRes, mineLikes, recentLikes, followsRes] = await Promise.all([
-    getProfiles(admin, rows.map((r) => r.author)),
+  const [profiles, tokensRes, mineLikes, recentLikes, followsRes, myReposts] = await Promise.all([
+    getProfiles(admin, [...rows.map((r) => r.author), ...entries.filter((e) => e.by).map((e) => e.by!.author), ...quotedRows.map((q) => q.author)]),
     tokenIds.length
       ? admin.from("launchpad_tokens").select("id, name, ticker, logo_url").in("id", tokenIds)
       : Promise.resolve({ data: [] }),
@@ -78,7 +106,15 @@ export async function enrichPosts(admin: any, rows: Row[], viewer: string | null
     viewer
       ? admin.from("follows").select("following").eq("follower", viewer).in("following", [...new Set(rows.map((r) => r.author))])
       : Promise.resolve({ data: [] }),
+    viewer
+      ? admin.from("posts").select("repost_of").eq("author", viewer).in("repost_of", ids)
+      : Promise.resolve({ data: [] }),
   ]);
+  const repostedSet = new Set(((myReposts.data ?? []) as { repost_of: string }[]).map((x) => x.repost_of));
+  const quoted = new Map<string, QuotedPost>(quotedRows.map((q) => {
+    const qp = profiles.get(q.author);
+    return [q.id, { id: q.id, author: q.author, author_name: qp?.name ?? null, author_avatar: qp?.avatar_src ?? null, body: q.body, images: q.images ?? [], created_at: q.created_at }];
+  }));
   const followed = new Set(((followsRes.data ?? []) as { following: string }[]).map((f) => f.following));
 
   const tokens = new Map<string, FeedPost["token"]>(
@@ -94,9 +130,14 @@ export async function enrichPosts(admin: any, rows: Row[], viewer: string | null
   }
   const [likerProfiles, markets] = await Promise.all([getProfiles(admin, [...byPost.values()].flat()), loadMarkets(admin, rows)]);
 
-  return rows.map((r) => {
+  return entries.map(({ row: r, by }) => {
     const p = profiles.get(r.author);
     return {
+      feed_key: by ? `repost:${by.id}` : r.id,
+      reposted_by: by ? { wallet: by.author, name: profiles.get(by.author)?.name ?? null } : null,
+      quoted: r.quote_of ? quoted.get(r.quote_of) ?? null : null,
+      repost_count: r.repost_count ?? 0,
+      reposted_by_me: repostedSet.has(r.id),
       id: r.id,
       author: r.author,
       author_name: p?.name ?? null,
@@ -122,7 +163,7 @@ export async function enrichPosts(admin: any, rows: Row[], viewer: string | null
 }
 
 export const POST_COLUMNS =
-  "id, author, body, images, ticker, token_id, like_count, reply_count, view_count, created_at, mentions, market_kind, market_id";
+  "id, author, body, images, ticker, token_id, like_count, reply_count, view_count, created_at, mentions, market_kind, market_id, repost_of, quote_of, repost_count";
 
 const fmtPool = (n: number, unit: string) => `${n >= 1000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n)} ${unit}`;
 

@@ -11,7 +11,7 @@ import { enrichPosts, POST_COLUMNS, MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE
 export type PostFile = { type: string; size: number; bytes: () => Promise<ArrayBuffer> };
 type Result = { status: number; data: Record<string, unknown> };
 
-export async function createPost(wallet: string, bodyIn: string, files: PostFile[]): Promise<Result> {
+export async function createPost(wallet: string, bodyIn: string, files: PostFile[], opts: { quoteOf?: string | null } = {}): Promise<Result> {
   const body = bodyIn.trim();
   const err = (status: number, error: string): Result => ({ status, data: { error } });
 
@@ -28,7 +28,7 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
 
   // Limite : 10 publications par heure et par wallet
   const since = new Date(Date.now() - 3600_000).toISOString();
-  const { count } = await admin.from("posts").select("id", { count: "exact", head: true }).eq("author", wallet).gte("created_at", since);
+  const { count } = await admin.from("posts").select("id", { count: "exact", head: true }).eq("author", wallet).is("repost_of", null).gte("created_at", since);
   if ((count ?? 0) >= 10) return err(429, "Too many posts, try again later");
 
   const { data: w } = await admin.from("wallets").select("address").eq("address", wallet).maybeSingle();
@@ -64,6 +64,20 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     if (m) { market_kind = ref.kind; market_id = m.id; }
   }
 
+  // Citation : le post cité doit exister ; si c'est un repost, on cite le post d'origine
+  let quote_of: string | null = null;
+  let quotedAuthor: string | null = null;
+  if (opts.quoteOf) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(opts.quoteOf)) return err(400, "Invalid quoted post");
+    const { data: q } = await admin.from("posts").select("id, author, repost_of, hidden").eq("id", opts.quoteOf).maybeSingle();
+    if (!q || q.hidden) return err(404, "Post not found");
+    if (q.repost_of) {
+      const { data: o } = await admin.from("posts").select("id, author, hidden").eq("id", q.repost_of).maybeSingle();
+      if (!o || o.hidden) return err(404, "Post not found");
+      quote_of = o.id; quotedAuthor = o.author;
+    } else { quote_of = q.id; quotedAuthor = q.author; }
+  }
+
   // Contrôle du texte, puis des images (octets réels, type réel)
   if ((await moderateText(body)) === "blocked") return err(400, "This post goes against our rules");
   let allChecked = files.length > 0;
@@ -82,9 +96,25 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     urls.push(admin.storage.from("post-images").getPublicUrl(path).data.publicUrl);
   }
 
-  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
+  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, quote_of, images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
   if (error) return err(500, error.message);
   await notify(Object.values(mentions).map((w) => ({ wallet: w, kind: "mention" as const, actor: wallet, postId: row.id })));
+  if (quote_of && quotedAuthor) {
+    await recountReposts(admin, quote_of);
+    await notify([{ wallet: quotedAuthor, kind: "quote", actor: wallet, postId: row.id }]);
+  }
   const [post] = await enrichPosts(admin, [row], wallet);
   return { status: 201, data: { post } };
+}
+
+/** Recalcule le compteur « reposts + citations » d'un post. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function recountReposts(admin: any, postId: string): Promise<number> {
+  const [a, b] = await Promise.all([
+    admin.from("posts").select("id", { count: "exact", head: true }).eq("repost_of", postId),
+    admin.from("posts").select("id", { count: "exact", head: true }).eq("quote_of", postId).eq("hidden", false),
+  ]);
+  const n = (a.count ?? 0) + (b.count ?? 0);
+  await admin.from("posts").update({ repost_count: n }).eq("id", postId);
+  return n;
 }
