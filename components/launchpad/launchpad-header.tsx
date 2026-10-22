@@ -1,6 +1,6 @@
 "use client";
 
-import { NotificationBell } from "@/components/social/notification-bell";
+import { NotificationMenuLink, useUnreadNotifications } from "@/components/social/notification-bell";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
@@ -43,6 +43,7 @@ function isActive(href: string, pathname: string) {
 export function LaunchpadHeader() {
   const { tr } = useT();
   const [open, setOpen] = useState(false);
+  const unread = useUnreadNotifications();
 
   // The desktop sidebar's "⋯" button opens this same menu
   useEffect(() => {
@@ -98,14 +99,15 @@ export function LaunchpadHeader() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            <NotificationBell className="size-10 text-foreground hover:opacity-70" iconClass="size-6" />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}
               aria-label={tr("Open navigation menu")}
               className="flex size-10 items-center justify-center text-foreground transition-opacity hover:opacity-70"
             >
-              <span aria-hidden className="flex w-6 flex-col gap-[6px]"><span className="h-[3px] w-full rounded-full bg-current" /><span className="h-[3px] w-full rounded-full bg-current" /></span>
+              <span aria-hidden className="relative flex w-6 flex-col gap-[6px]"><span className="h-[3px] w-full rounded-full bg-current" /><span className="h-[3px] w-full rounded-full bg-current" />
+                {unread > 0 && <span className="absolute -right-1.5 -top-1.5 size-2.5 rounded-full bg-down ring-2 ring-background" />}
+              </span>
             </button>
           </div>
         </div>
@@ -156,6 +158,7 @@ export function LaunchpadHeader() {
               )}
             </div>
             <nav className="flex flex-col gap-1 p-3">
+              <NotificationMenuLink active={pathname.startsWith("/notifications")} onClick={() => setOpen(false)} />
               {NAV_LINKS.map(({ href, label }) => {
                 const isLaunch = href === "/launchpad/create";
                 if (isLaunch && !isAuthenticated) {
