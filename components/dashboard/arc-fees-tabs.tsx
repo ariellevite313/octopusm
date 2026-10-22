@@ -416,7 +416,7 @@ export function ArcFeesTabs() {
                   <button
                     onClick={() => void handleClaimCreator(idx)}
                     disabled={token.claiming}
-                    className="rounded-full px-4 py-2 text-xs font-bold shrink-0 bg-orange-500 hover:bg-orange-400 text-white disabled:opacity-60 transition-colors btn-primary"
+                    className="rounded-full px-4 py-2 text-xs font-bold shrink-0 bg-foreground hover:opacity-90 text-background disabled:opacity-60 transition-colors btn-primary"
                   >
                     {token.claiming ? <Loader2 className="size-3.5 animate-spin" /> : t.claim}
                   </button>
@@ -495,7 +495,7 @@ export function ArcFeesTabs() {
                       disabled={token.claiming || !hasBalance}
                       className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
                         hasBalance && !token.claiming
-                          ? "bg-orange-500 hover:bg-orange-400 text-white"
+                          ? "bg-foreground hover:opacity-90 text-background"
                           : "cursor-not-allowed bg-muted text-muted-foreground"
                       }`}
                     >

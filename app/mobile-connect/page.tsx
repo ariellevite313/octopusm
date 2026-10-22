@@ -184,7 +184,7 @@ function MobileConnectInner() {
 
       {/* Retour à l'app (geste utilisateur : certains navigateurs bloquent la redirection automatique) */}
       {appHref && status !== "error" && (
-        <a href={appHref} className="mt-2 rounded-xl bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground">
+        <a href={appHref} className="mt-2 rounded-xl bg-foreground px-7 py-3 text-[15px] font-semibold text-background">
           {tr("Return to the app")}
         </a>
       )}
@@ -192,7 +192,7 @@ function MobileConnectInner() {
       {status === "error" && (
         <button
           onClick={() => { window.location.href = searchParams.get("app") === "1" ? "omdot://session" : "https://omdot.fun/"; }}
-          className="mt-2 rounded-xl bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground"
+          className="mt-2 rounded-xl bg-foreground px-7 py-3 text-[15px] font-semibold text-background"
         >
           {tr("Back")}
         </button>

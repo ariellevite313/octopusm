@@ -424,7 +424,7 @@ function ActionCircle({ label, href, onClick, disabled, highlight, children }: {
   const { tr } = useT();
   const circle = (
     <span className={`flex size-[60px] items-center justify-center rounded-full transition-colors ${
-      highlight ? "bg-primary text-white" : "bg-muted text-foreground group-hover:bg-muted/70"
+      highlight ? "bg-foreground text-background" : "bg-muted text-foreground group-hover:bg-muted/70"
     }`}>{children}</span>
   );
   const cls = "group flex flex-col items-center gap-2 disabled:opacity-50";

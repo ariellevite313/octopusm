@@ -358,7 +358,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Age")}</p>
         <p className="num text-[15px] font-bold text-foreground">{timeAgo(token.created_at).toLowerCase()}</p>
       </div>
-      <span className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white transition-opacity group-hover:opacity-90">{tr("Trade")}</span>
+      <span className="rounded-full bg-foreground px-5 py-2 text-sm font-bold text-background transition-opacity group-hover:opacity-90">{tr("Trade")}</span>
     </Link>
   );
 }

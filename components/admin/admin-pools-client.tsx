@@ -150,7 +150,7 @@ function CloseDialog({
                 Cancel
               </button>
               <button onClick={onConfirm} disabled={loading}
-                className="flex-1 rounded-md bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-60 flex items-center justify-center gap-2">
+                className="flex-1 rounded-md bg-foreground py-2 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2">
                 {loading ? <LoaderCircle className="size-4 animate-spin" /> : <><Lock className="size-3.5" />Close betting</>}
               </button>
             </div>
@@ -348,7 +348,7 @@ export function AdminPoolsClient({ pools }: { pools: MutuelMarketRow[] }) {
               onClick={() => setFilter(f)}
               className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
                 active
-                  ? "border-orange-400 bg-orange-500 text-white"
+                  ? "border-foreground bg-foreground text-background"
                   : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground"
               }`}
             >

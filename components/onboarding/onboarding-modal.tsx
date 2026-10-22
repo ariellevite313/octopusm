@@ -219,7 +219,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                       type="button"
                       disabled={claiming_}
                       onClick={() => void handleClaim(task)}
-                      className="flex min-w-[72px] items-center justify-center rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-white transition-all hover:brightness-105 disabled:opacity-60"
+                      className="flex min-w-[72px] items-center justify-center rounded-full bg-foreground px-4 py-2 text-[13px] font-bold text-background transition-all hover:brightness-105 disabled:opacity-60"
                     >
                       {claiming_ ? <Loader2 className="size-4 animate-spin" /> : tr("Claim")}
                     </button>
@@ -232,7 +232,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
           <button
             type="button"
             onClick={handleClose}
-            className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-primary text-[16px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(255,122,26,0.8)] transition-all hover:brightness-105"
+            className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-foreground text-[16px] font-bold text-background transition-all hover:brightness-105"
           >
             {doneCount === tasks.length && tasks.length > 0 ? tr("All done — let's go") : tr("Let's go")}
           </button>

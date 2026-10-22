@@ -297,7 +297,7 @@ export function AdminWithdrawalsClient({ withdrawals: initialWithdrawals }: { wi
               onClick={() => setFilter(f)}
               className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
                 filter === f
-                  ? "border-orange-400 bg-orange-500 text-white"
+                  ? "border-foreground bg-foreground text-background"
                   : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground"
               }`}
             >

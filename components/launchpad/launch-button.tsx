@@ -612,7 +612,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         type="button"
         disabled={busy}
         onClick={handleLaunch}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
         {labels[phase]}

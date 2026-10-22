@@ -476,7 +476,7 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
           <button
             type="submit"
             disabled={submitting || step === "done"}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-xl bg-foreground py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {step === "paying"  ? tr("Waiting for payment…")
              : step === "sending" ? tr("Submitting…")

@@ -80,7 +80,7 @@ export function ApprovalCard({ a }: { a: Approval }) {
           <button onClick={() => act("reject")} className="flex items-center justify-center gap-2 rounded-full border border-border py-3 text-sm font-bold text-foreground hover:bg-muted">
             <X className="size-4" />{tr("Decline")}
           </button>
-          <button onClick={() => act("open")} disabled={closed} className="flex items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-bold text-white disabled:opacity-40">
+          <button onClick={() => act("open")} disabled={closed} className="flex items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-bold text-background disabled:opacity-40">
             {tr("Review and confirm")}<ArrowUpRight className="size-4" />
           </button>
         </div>

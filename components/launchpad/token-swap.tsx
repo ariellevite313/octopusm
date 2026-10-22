@@ -279,7 +279,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
               }}
               className={`flex-1 py-2 rounded-full text-[12px] font-bold transition-colors border ${
                 activePct === pct
-                  ? "bg-orange-500 border-orange-500 text-white"
+                  ? "bg-foreground border-foreground text-background"
                   : "bg-white/5 border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"
               }`}
             >
@@ -312,7 +312,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
                 onClick={() => { setSlippageBps(opt.bps); setShowSlip(false); }}
                 className={`flex-1 py-1.5 rounded-full text-[12px] font-bold transition-colors border ${
                   slippageBps === opt.bps
-                    ? "bg-orange-500 border-orange-500 text-white"
+                    ? "bg-foreground border-foreground text-background"
                     : "bg-white/5 border-white/10 text-white/50"
                 }`}
               >
@@ -354,7 +354,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
 
         {/* ── CTA ── */}
         {!isAuthenticated ? (
-          <button className="w-full rounded-[14px] py-4 text-[15px] font-bold bg-orange-500 hover:bg-orange-400 text-white transition-colors mt-1 btn-primary">
+          <button className="w-full rounded-[14px] py-4 text-[15px] font-bold bg-foreground hover:opacity-90 text-background transition-colors mt-1 btn-primary">
             {t.connect}
           </button>
         ) : (
@@ -366,7 +366,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
                 ? "bg-white/10 text-white/30 cursor-not-allowed"
                 : highImpact
                 ? "bg-red-500 hover:bg-red-400 text-white"
-                : "bg-orange-500 hover:bg-orange-400 text-white"
+                : "bg-foreground hover:opacity-90 text-background"
             }`}
           >
             {swapping ? (

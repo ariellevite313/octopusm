@@ -128,7 +128,7 @@ export function TokenCardView({ ticker, author, postId }: { ticker: string; auth
 
       <button
         onClick={() => setTrade(true)}
-        className="mt-3 h-11 w-full rounded-full bg-primary text-[15px] font-bold text-white transition-opacity hover:opacity-90"
+        className="mt-3 h-11 w-full rounded-full bg-foreground text-[15px] font-bold text-background transition-opacity hover:opacity-90"
       >
         {tr("Trade")} ${t.ticker}
       </button>

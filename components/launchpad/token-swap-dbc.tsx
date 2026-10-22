@@ -578,7 +578,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                 onClick={() => { setSlippageBps(opt.bps); setShowSlip(false); }}
                 className={`flex-1 py-1.5 rounded-full text-[12px] font-bold transition-colors border ${
                   slippageBps === opt.bps
-                    ? "bg-orange-500 border-orange-500 text-white"
+                    ? "bg-foreground border-foreground text-background"
                     : "bg-muted/40 border-border text-muted-foreground"
                 }`}
               >
@@ -619,7 +619,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         {!isAuthenticated ? (
           <button
             onClick={openWalletModal}
-            className="mt-1 w-full rounded-2xl bg-primary py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
+            className="mt-1 w-full rounded-2xl bg-foreground py-4 text-[16px] font-bold text-background transition-opacity hover:opacity-90"
           >
             {tr("Connect wallet")}
           </button>
@@ -631,7 +631,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               !quoteReady || swapping || quoteLoading
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : isBuy
-                  ? "bg-primary text-white hover:opacity-90"
+                  ? "bg-foreground text-background hover:opacity-90"
                   : "bg-down text-white hover:opacity-90"
             }`}
           >

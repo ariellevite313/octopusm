@@ -13,12 +13,12 @@ export function ShareGainsView({ wallet, period, code, name }: { wallet: string;
         alt={name ? tr("{name} creator gains", { name }) : tr("Creator gains")}
         width={1200}
         height={630}
-        className="w-full rounded-[24px] shadow-[0_20px_60px_-20px_rgba(255,122,26,0.55)] ring-1 ring-border"
+        className="w-full rounded-[24px] ring-1 ring-border"
       />
       <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row">
         <Link
           href={code ? `/?ref=${encodeURIComponent(code)}` : "/"}
-          className="flex h-14 flex-1 items-center justify-center rounded-full bg-primary text-[16px] font-bold text-white"
+          className="flex h-14 flex-1 items-center justify-center rounded-full bg-foreground text-[16px] font-bold text-background"
         >
           {code ? tr("Join with code {code}", { code }) : tr("Open OMdot.fun")}
         </Link>
