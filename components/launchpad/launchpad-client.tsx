@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { LayoutGrid, List, Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Rocket } from "lucide-react";
+import { Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
@@ -18,6 +18,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { EmptyIcon } from "@/components/shared/empty-icon";
 import { CreateMenu } from "@/components/social/create-menu";
+import { TokenFolderCard } from "@/components/launchpad/token-folder-card";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -79,17 +80,14 @@ function CopyButton({ text, children }: { text: string; children?: React.ReactNo
 type TabId   = "all" | "graduated" | "scheduled" | "watchlist";
 type ChainId = "all" | "solana" | "arc";
 
-const TABS: { id: TabId; label: string; icon?: React.ReactNode }[] = [
-  { id: "all",       label: T("All") },
-  { id: "graduated", label: T("Graduated") },
-  { id: "scheduled", label: T("Scheduled") },
-  { id: "watchlist", label: T("Watchlist"), icon: <Bell className="size-3" /> },
-];
-
-const CHAINS: { id: ChainId; label: string; dot?: string }[] = [
-  { id: "all",    label: T("All") },
-  { id: "solana", label: "SOL", dot: "#14F195" },
-  { id: "arc",    label: "ARC", dot: "#6366f1" },
+// Une seule ligne de filtres : les chaînes et les onglets ensemble
+const FILTERS: { id: string; label: string; tab?: TabId; chain?: ChainId }[] = [
+  { id: "all",       label: T("All"),       tab: "all" },
+  { id: "solana",    label: "Solana",       chain: "solana" },
+  { id: "arc",       label: "Arc",          chain: "arc" },
+  { id: "graduated", label: T("Graduated"), tab: "graduated" },
+  { id: "scheduled", label: T("Scheduled"), tab: "scheduled" },
+  { id: "watchlist", label: T("Watchlist"), tab: "watchlist" },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -585,6 +583,9 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
   const [sort,     setSort]     = useState<SortOption>("new");
   const [page,     setPage]     = useState(0);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  // Choix cartes / lignes gardé sur l'appareil
+  useEffect(() => { try { const v = localStorage.getItem("om_tokens_view"); if (v === "grid" || v === "list") setViewMode(v); } catch { /* stockage indisponible */ } }, []);
+  const changeView = (v: "grid" | "list") => { setViewMode(v); try { localStorage.setItem("om_tokens_view", v); } catch { /* stockage indisponible */ } };
   const [search,   setSearch]   = useState("");
 
   // Data state
@@ -719,70 +720,35 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
     <div className="space-y-4">
       {/* Top bar */}
       <div className="space-y-3">
-        {/* Row 1: Tabs + chain filter + view toggle */}
-        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border">
-          <div className="-mb-px flex items-center gap-1 overflow-x-auto scrollbar-none">
-            {TABS.map(t => (
+        {/* Ligne 1 : All · Solana · Arc · Graduated · Scheduled · Watchlist | Cards · Rows — sans icônes, défile sur téléphone */}
+        <div className="-mb-px flex items-end overflow-x-auto scrollbar-none border-b border-border">
+          {FILTERS.map(f => {
+            const on = f.chain ? (tab === "all" && chain === f.chain) : (tab === f.tab && (f.tab !== "all" || chain === "all"));
+            return (
               <button
-                key={t.id}
-                onClick={() => handleTabChange(t.id)}
-                className={`shrink-0 flex items-center gap-1.5 border-b-2 px-3 pb-3 pt-1 text-[15px] font-bold transition-colors ${
-                  tab === t.id
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                key={f.id}
+                onClick={() => { if (f.chain) { handleTabChange("all"); handleChainChange(f.chain); } else { handleTabChange(f.tab!); handleChainChange("all"); } }}
+                className={`shrink-0 whitespace-nowrap border-b-2 px-3 pb-3 pt-1 text-[15px] font-bold transition-colors ${
+                  on ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t.icon}
-                {tr(t.label)}
+                {tr(f.label)}
               </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 pb-2">
-            {/* Chain filter — segmented tabs (Option B) */}
-            <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
-              {CHAINS.map((c, i) => (
-                <button
-                  key={c.id}
-                  onClick={() => handleChainChange(c.id)}
-                  className={`flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-bold transition-colors ${
-                    i < CHAINS.length - 1 ? "" : ""
-                  } ${
-                    chain === c.id
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {c.id === "arc" ? (
-                    <ArcMark className="shrink-0 size-[14px]" />
-                  ) : c.id === "solana" ? (
-                    <SolanaMark className="shrink-0 size-[14px]" />
-                  ) : null}
-                  {tr(c.label)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0 pb-2 lg:hidden">
-            {/* Grid / List toggle */}
-            <div className="flex items-center gap-0.5 rounded-xl bg-muted p-0.5">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`rounded-[10px] p-1.5 transition-colors ${viewMode === "grid" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label={tr("Grid view")}
-              >
-                <LayoutGrid className="size-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`rounded-[10px] p-1.5 transition-colors ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                aria-label={tr("List view")}
-              >
-                <List className="size-3.5" />
-              </button>
-            </div>
-          </div>
+            );
+          })}
+          <span aria-hidden className="mx-2 mb-3.5 h-[18px] w-px shrink-0 bg-border" />
+          {([["grid", T("Cards")], ["list", T("Rows")]] as const).map(([m, label]) => (
+            <button
+              key={m}
+              onClick={() => changeView(m)}
+              aria-pressed={viewMode === m}
+              className={`shrink-0 whitespace-nowrap border-b-2 px-3 pb-3 pt-1 text-[15px] font-bold transition-colors ${
+                viewMode === m ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tr(label)}
+            </button>
+          ))}
         </div>
 
         {/* Row 2: Search + Sort */}
@@ -858,22 +824,23 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
         </div>
       ) : (
         <>
-          {/* Ordinateur : une colonne, lignes aérées */}
-          <div className="hidden lg:block">
-            {visibleTokens.map(token => <TokenDeskRow key={token.id} token={token} />)}
-          </div>
-          {/* Téléphone : cartes ou liste (inchangé) */}
-          <div className="lg:hidden">
-            {viewMode === "grid" ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {visibleTokens.map(token => <TokenCard key={token.id} token={token} />)}
+          {viewMode === "grid" ? (
+            /* Cartes « dossier » : 2 par ligne sur téléphone, 6 sur grand écran */
+            <div className="grid grid-cols-2 gap-3 pt-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
+              {visibleTokens.map(token => <TokenFolderCard key={token.id} token={token} />)}
+            </div>
+          ) : (
+            <>
+              {/* Ordinateur : une colonne, lignes aérées */}
+              <div className="hidden lg:block">
+                {visibleTokens.map(token => <TokenDeskRow key={token.id} token={token} />)}
               </div>
-            ) : (
-              <div className="-mx-4 flex flex-col gap-px">
+              {/* Téléphone : lignes */}
+              <div className="-mx-4 flex flex-col gap-px lg:hidden">
                 {visibleTokens.map(token => <TokenPulseRow key={token.id} token={token} />)}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </>
       )}
 

@@ -9,14 +9,9 @@ import { useEffect, useId, useRef, useState } from "react";
  */
 export type Trend = "up" | "down" | "flat";
 
-export function MiniPriceChart({ chain, pool, mint, curve, className = "", onTrend }: {
-  chain: string; pool?: string | null; mint?: string | null; curve?: string | null; className?: string;
-  onTrend?: (t: Trend) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const uid = useId();
+/** Série de prix d'un token, chargée quand l'élément devient visible (même source que les lignes). */
+export function useSparkline(ref: React.RefObject<HTMLElement | null>, { chain, pool, mint, curve }: { chain: string; pool?: string | null; mint?: string | null; curve?: string | null }): number[] | null {
   const [points, setPoints] = useState<number[] | null>(null);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -35,7 +30,17 @@ export function MiniPriceChart({ chain, pool, mint, curve, className = "", onTre
     }, { rootMargin: "200px" });
     io.observe(el);
     return () => { cancelled = true; io.disconnect(); };
-  }, [chain, pool, mint, curve]);
+  }, [ref, chain, pool, mint, curve]);
+  return points;
+}
+
+export function MiniPriceChart({ chain, pool, mint, curve, className = "", onTrend }: {
+  chain: string; pool?: string | null; mint?: string | null; curve?: string | null; className?: string;
+  onTrend?: (t: Trend) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  const points = useSparkline(ref, { chain, pool, mint, curve });
 
   const W = 100, H = 32;
   const pts = points && points.length >= 2 ? points : null;

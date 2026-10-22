@@ -451,8 +451,8 @@ export const TOOLS: McpTool[] = [
       type: "object",
       properties: {
         wallet: { type: "string", description: "Creator Solana wallet (the signer)" },
-        name: { type: "string", maxLength: 32 },
-        ticker: { type: "string", description: "2-10 letters/digits" },
+        name: { type: "string", maxLength: 10, description: "Up to 10 characters" },
+        ticker: { type: "string", description: "2-8 letters/digits" },
         description: { type: "string", maxLength: 1000 },
         category: { type: "string", enum: ["Meme", "Utility", "AI", "Gaming", "DeFi", "NFT", "x402"] },
         logo_base64: { type: "string", description: "PNG/JPEG/WebP/GIF, max 5 MB" },

@@ -1,6 +1,7 @@
 "use client";
 
 import { SolanaMark } from "@/components/shared/solana-mark";
+import { NAME_MAX, TICKER_MAX } from "@/lib/launch/name-rules";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -297,7 +298,8 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
         <Label>{tr("Name")}</Label>
         <input
           value={data.name}
-          onChange={(e) => { set("name", e.target.value); setAvailability({}); }}
+          onChange={(e) => { set("name", [...e.target.value].slice(0, NAME_MAX).join("")); setAvailability({}); }}
+          maxLength={NAME_MAX * 2}
           onBlur={checkAvailability}
           placeholder={tr("Enter the coin name")}
           className={FIELD}
@@ -312,7 +314,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
         <Label>{tr("Ticker")}</Label>
         <input
           value={data.ticker}
-          onChange={(e) => { set("ticker", e.target.value.toUpperCase().slice(0, 10)); setAvailability({}); }}
+          onChange={(e) => { set("ticker", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, TICKER_MAX)); setAvailability({}); }}
           onBlur={checkAvailability}
           placeholder={tr("Add a ticker (e.g. DOGE)")}
           className={`${FIELD} uppercase placeholder:normal-case`}
@@ -879,7 +881,9 @@ function validate(step: number, data: WizardData): Record<string, string> {
   if (step === 0) {
     if (!data.logo_file) errors.logo = "Logo is required";
     if (!data.name.trim()) errors.name = "Name is required";
+    else if ([...data.name.trim()].length > NAME_MAX) errors.name = `Name must be ${NAME_MAX} characters or fewer`;
     if (!data.ticker.trim()) errors.ticker = "Ticker is required";
+    else if (data.ticker.trim().length < 2) errors.ticker = `Ticker must be 2 to ${TICKER_MAX} characters`;
     if (!data.description.trim()) errors.description = "Description is required";
   }
   if (step === 1) {

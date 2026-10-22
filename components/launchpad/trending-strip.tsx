@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import Link from "next/link";
 import Image from "next/image";
 import { BurningFire } from "@/components/shared/burning-fire";
@@ -85,11 +86,7 @@ export function TrendingStrip() {
                     {t.is_verified && (
                       <VerifiedTokenBadge className="size-4" />
                     )}
-                    {isArc && (
-                      <span className="text-[10px] font-bold text-sky-400 bg-sky-400/10 rounded-md px-1 py-0.5">
-                        ARC
-                      </span>
-                    )}
+                    {isArc ? <ArcMark className="size-[15px] shrink-0 text-foreground" /> : <SolanaMark className="size-[15px] shrink-0 text-foreground" />}
                     <span className="num ml-auto rounded-lg bg-muted px-2 py-0.5 text-[12px] font-bold text-muted-foreground shrink-0">
                       #{(i % tokens.length) + 1}
                     </span>

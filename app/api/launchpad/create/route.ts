@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { nameTickerError } from "@/lib/launch/name-rules";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
     // ── Validation ──────────────────────────────────────────────────────────
     if (!payload.name?.trim())        return NextResponse.json({ error: "Name is required" }, { status: 400 });
     if (!payload.ticker?.trim())      return NextResponse.json({ error: "Ticker is required" }, { status: 400 });
+    { const e = nameTickerError(payload.name, payload.ticker); if (e) return NextResponse.json({ error: e }, { status: 400 }); }
     if (!payload.creator_wallet)      return NextResponse.json({ error: "Wallet not provided" }, { status: 400 });
 
     if (isProtectedName(payload.name) || isProtectedName(payload.ticker)) {
