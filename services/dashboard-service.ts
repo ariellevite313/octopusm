@@ -84,6 +84,18 @@ function fmtAddr(addr: string): string {
 
 // ─── Main query ───────────────────────────────────────────────────────────────
 
+/** Libellé d'une ligne de referral_commissions : parrainage, achat de token (trade:…) ou partage (share:…). */
+function commLabel(ref: string | null): string {
+  if (ref?.startsWith("trade:post:")) return "Post trade reward";
+  if (ref?.startsWith("trade:")) return "Referral · token buy";
+  if (ref?.startsWith("share:")) return "Feed share reward";
+  return "Referral commission";
+}
+function commSub(ref: string | null): string {
+  if (!ref || ref.startsWith("trade:") || ref.startsWith("share:")) return "";
+  return fmtAddr(ref);
+}
+
 export async function getDashboardData(walletAddress: string): Promise<DashboardData> {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -360,8 +372,8 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .map((r: any, i: number) => ({
         id: r.id ?? `comm-usdc-${i}`,
         type: "commission" as const,
-        label: "Referral commission",
-        sub: r.referred_wallet ? fmtAddr(r.referred_wallet as string) : "",
+        label: commLabel(r.referred_wallet as string | null),
+        sub: commSub(r.referred_wallet as string | null),
         amount: r.amount_usdc as number,
         direction: "in" as const,
         created_at: r.created_at as string,
@@ -456,8 +468,8 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .map((r: any, i: number) => ({
         id: r.id ?? `comm-clt-${i}`,
         type: "commission" as const,
-        label: "Referral commission",
-        sub: r.referred_wallet ? fmtAddr(r.referred_wallet as string) : "",
+        label: commLabel(r.referred_wallet as string | null),
+        sub: commSub(r.referred_wallet as string | null),
         amount: r.amount_clt as number,
         direction: "in" as const,
         created_at: r.created_at as string,
@@ -526,9 +538,19 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
 
   // ── Referrals with per-referred commissions ───────────────────────────────
   const commByReferred = new Map<string, { usdc: number; clt: number }>();
+  // Gains sur les achats de tokens : la ligne porte « trade:referral:<tx> », on la rattache au filleul qui a acheté.
+  const tradeKeys = (commissions as { referred_wallet?: string }[])
+    .map((c) => c.referred_wallet ?? "").filter((k) => k.startsWith("trade:referral:")).map((k) => k.slice("trade:referral:".length));
+  const traderOfTx = new Map<string, string>();
+  if (tradeKeys.length) {
+    const { data: tr } = await adminDb.from("trade_rewards").select("tx_id, trader").eq("kind", "referral").in("tx_id", tradeKeys);
+    for (const t of (tr ?? []) as { tx_id: string; trader: string }[]) traderOfTx.set(t.tx_id, t.trader);
+  }
+  const lc = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const c of commissions as any[]) {
-    const key = (c.referred_wallet as unknown as string) ?? "";
+    const raw = (c.referred_wallet as unknown as string) ?? "";
+    const key = raw.startsWith("trade:referral:") ? lc(traderOfTx.get(raw.slice("trade:referral:".length)) ?? raw) : lc(raw);
     const cur = commByReferred.get(key) ?? { usdc: 0, clt: 0 };
     cur.usdc += (c.amount_usdc as number) ?? 0;
     cur.clt  += (c.amount_clt  as number) ?? 0;
@@ -540,8 +562,8 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       id:               r.id as string,
       referred_wallet:  r.referred_wallet as string,
       created_at:       r.created_at as string,
-      usdc_commission:  commByReferred.get(r.referred_wallet as string)?.usdc ?? 0,
-      clt_commission:   commByReferred.get(r.referred_wallet as string)?.clt  ?? 0,
+      usdc_commission:  commByReferred.get(lc(r.referred_wallet as string))?.usdc ?? 0,
+      clt_commission:   commByReferred.get(lc(r.referred_wallet as string))?.clt  ?? 0,
     })
   );
 

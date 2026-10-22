@@ -8,7 +8,9 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { Camera, Check, Copy, LayoutDashboard, LogOut, Moon, Pencil, Plus, Settings2, Sun, User } from "lucide-react";
+import { ArrowUpRight, Camera, Check, Copy, History, LayoutDashboard, LogOut, Moon, Pencil, Plus, Rocket, Settings2, Sun, Trophy, User, UserPlus } from "lucide-react";
+import { T } from "@/lib/i18n-mark";
+import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -47,9 +49,41 @@ function shortAddr(addr: string) {
   return addr.slice(0, 4) + "..." + addr.slice(-4);
 }
 
+function fmtUsd(n: number) {
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function fmtClt(n: number) {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n.toLocaleString();
+}
+
+function RowIcon({ icon: Icon }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }) {
+  return <span className="flex size-11 items-center justify-center rounded-full bg-muted"><Icon className="size-5 text-foreground" strokeWidth={1.8} /></span>;
+}
+
+/** Ligne de solde / gain : une carte par ligne, logo rond, valeur à droite. */
+function BalanceRow({ logo, name, sub, value, note, href, onNavigate }: {
+  logo: React.ReactNode; name: string; sub: string; value: string; note?: string; href?: string; onNavigate?: () => void;
+}) {
+  const body = (
+    <>
+      <span className="shrink-0">{logo}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-bold text-foreground">{name}</span>
+        <span className="block truncate text-[13px] text-muted-foreground">{sub}</span>
+      </span>
+      <span className="shrink-0 text-right">
+        <span className="block text-[15px] font-bold text-foreground">{value}</span>
+        {note && <span className="block text-[13px] text-muted-foreground">{note}</span>}
+      </span>
+    </>
+  );
+  const cls = "flex items-center gap-3 rounded-[20px] bg-muted/50 px-3.5 py-3";
+  return href ? <Link href={href} onClick={onNavigate} className={`${cls} transition-colors hover:bg-muted`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
 // Profile drawer
 
-function ProfileDrawer({
+export function ProfileDrawer({
   walletAddress,
   open,
   onClose,
@@ -138,6 +172,17 @@ function ProfileDrawer({
     return Math.min(100, Math.round(((octoBalance - currentTier.min) / range) * 100));
   })();
   const progressColor = currentTier?.color ?? "#f97316";
+  void progressColor;
+  void octoProgress;
+
+  const cltPrice    = balances.cltPriceUsd ?? 0;
+  const cltUsd      = balances.clt * cltPrice;
+  const totalUsd    = balances.usdc + cltUsd;
+  const change      = balances.change24hUsd ?? 0;
+  const changePct   = totalUsd - change > 0 ? (change / (totalUsd - change)) * 100 : 0;
+  const winningsUsd = (balances.winningsUsdc ?? 0) + (balances.winningsClt ?? 0) * cltPrice;
+  const referralUsd = (balances.referralUsdc ?? 0) + (balances.referralClt ?? 0) * cltPrice;
+  const [withdrawToken, setWithdrawToken] = useState<"usdc" | "clawdtrust" | null>(null);
 
   function startEdit() {
     setUsername(profile?.username ?? "");
@@ -182,7 +227,7 @@ function ProfileDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="w-80 sm:w-96 flex flex-col gap-0 p-0 h-[100dvh]">
+      <SheetContent side="right" className="w-[88vw] max-w-sm flex flex-col gap-0 p-0 h-[100dvh]">
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle className="text-base font-bold">{tr("My wallet")}</SheetTitle>
         </SheetHeader>
@@ -239,101 +284,117 @@ function ProfileDrawer({
             </button>
           </div>
 
-          {/* OCTO progress bar */}
+          {/* Solde total + variation sur 24 h */}
           {!editing && (
-            <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">{octoBalance.toLocaleString()} OMERO</span>
-                <span className="text-xs text-muted-foreground">
-                  {isMaxTier
-                    ? tr("Max tier reached")
-                    : nextTierObj
-                      ? `${nextTierObj.label} ${tr("next tier")} · ${nextTierObj.min.toLocaleString()}`
-                      : tr("No tier yet")}
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${octoProgress}%`, backgroundColor: progressColor }}
-                />
+            <div>
+              <p className="text-[44px] font-extrabold leading-none tracking-tight text-foreground">{fmtUsd(totalUsd)}</p>
+              <div className="mt-2 flex items-center gap-2 text-[15px] font-bold">
+                <span className={change >= 0 ? "text-up" : "text-down"}>{change >= 0 ? "+" : "-"}{fmtUsd(Math.abs(change))}</span>
+                <span className={`rounded-lg px-1.5 py-0.5 text-[13px] text-white ${change >= 0 ? "bg-up" : "bg-down"}`}>{change >= 0 ? "+" : "-"}{changePct.toFixed(2)}%</span>
+                <span className="text-xs font-medium text-muted-foreground">{tr("24h")}</span>
               </div>
             </div>
           )}
 
-          {/* Stats */}
+          {/* Actions — boutons en verre */}
           {!editing && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-border bg-muted/20 px-3 py-2.5 text-center">
-                <p className="text-base font-semibold text-foreground">{drawerStats?.bets_count ?? "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{tr("Predicts")}</p>
-              </div>
-              <div className="rounded-2xl border border-border bg-muted/20 px-3 py-2.5 text-center">
-                <p className="text-base font-semibold text-foreground">{drawerStats ? `${drawerStats.win_rate}%` : "—"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{tr("Win rate")}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: T("Withdraw"), icon: ArrowUpRight, onClick: () => setWithdrawToken(balances.usdc > 0 || balances.clt <= 0 ? "usdc" : "clawdtrust") },
+                { label: copiedRef ? T("Copied!") : T("Invite"), icon: copiedRef ? Check : UserPlus, onClick: () => void copyReferralLink(), disabled: !referralLink },
+                { label: T("History"), icon: History, href: isAdmin ? "/admin/account" : "/dashboard" },
+              ].map((b) => {
+                const inner = (
+                  <>
+                    <span className="flex size-10 items-center justify-center rounded-full border border-foreground/10 bg-background/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] dark:border-white/15 dark:bg-white/10">
+                      <b.icon className="size-[18px] text-foreground" strokeWidth={2} />
+                    </span>
+                    <span className="text-[13px] font-semibold text-foreground">{tr(b.label)}</span>
+                  </>
+                );
+                const cls = "flex flex-col items-center gap-1.5 rounded-[20px] border border-foreground/10 bg-foreground/[0.04] py-3 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:bg-foreground/[0.08] disabled:opacity-40 dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]";
+                return b.href
+                  ? <Link key={b.label} href={b.href} onClick={onClose} className={cls}>{inner}</Link>
+                  : <button key={b.label} type="button" onClick={b.onClick} disabled={b.disabled} className={cls}>{inner}</button>;
+              })}
+            </div>
+          )}
+
+          {/* Soldes */}
+          {!editing && (
+            <div>
+              <p className="mb-2 flex items-center gap-1 text-lg font-extrabold text-foreground">{tr("Balances")}</p>
+              <div className="space-y-2">
+                <BalanceRow logo={<TokenLogo token="usdc" className="size-11" />} name="USDC" sub={`${balances.usdc.toFixed(2)} USDC`} value={fmtUsd(balances.usdc)} note={tr("Available")} />
+                <BalanceRow logo={<TokenLogo token="clawdtrust" className="size-11" />} name="ClawdTrust" sub={`${fmtClt(balances.clt)} CLT`}
+                  value={cltPrice > 0 ? fmtUsd(cltUsd) : fmtClt(balances.clt)} note={tr("Available")} />
+                <BalanceRow logo={<Image src="/octo-coin.png" alt="OMERO" width={44} height={44} className="size-11 rounded-full object-cover" unoptimized />}
+                  name="OMERO" sub={`${octoBalance.toLocaleString()} ${tr("points")}`}
+                  value={currentTier ? currentTier.label : "—"}
+                  note={isMaxTier ? tr("Max tier reached") : nextTierObj ? `${nextTierObj.label} · ${nextTierObj.min.toLocaleString()}` : tr("No tier yet")} />
               </div>
             </div>
           )}
 
-          {/* Balances */}
+          {/* Gains */}
           {!editing && (
-            <div className="space-y-1">
-              <p className="text-[13px] font-semibold text-muted-foreground">{tr("Balances")}</p>
-              <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
-                <div className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <TokenLogo token="usdc" className="size-5" />
-                    <span className="text-xs text-muted-foreground">USDC</span>
-                  </div>
-                  <span className="text-sm font-semibold">{balances.usdc.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <TokenLogo token="clawdtrust" className="size-5" />
-                    <span className="text-xs text-muted-foreground">ClawdTrust</span>
-                  </div>
-                  <span className="text-sm font-semibold">
-                    {balances.clt >= 1_000_000
-                      ? `${(balances.clt / 1_000_000).toFixed(2)}M`
-                      : balances.clt >= 1_000
-                        ? `${(balances.clt / 1_000).toFixed(1)}K`
-                        : balances.clt.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Image src="/octo-coin.png" alt="OMERO" width={20} height={20}
-                      className="size-5 rounded-full object-contain" unoptimized />
-                    <span className="text-xs text-muted-foreground">{tr("OMERO")}</span>
-                  </div>
-                  <span className="text-sm font-semibold">{octoBalance.toLocaleString()}</span>
-                </div>
+            <div>
+              <p className="mb-2 text-lg font-extrabold text-foreground">{tr("Earnings")}</p>
+              <div className="space-y-2">
+                <BalanceRow logo={<RowIcon icon={Trophy} />} name={tr("Winnings")} sub={`${tr("{n} won", { n: drawerStats?.win_count ?? 0 })} · ${drawerStats?.win_rate ?? 0}%`}
+                  value={fmtUsd(winningsUsd)} />
+                <BalanceRow logo={<RowIcon icon={UserPlus} />} name={tr("Referral")} sub={tr("{n} friends", { n: drawerStats?.referral_count ?? 0 })}
+                  value={fmtUsd(referralUsd)} note={`${(drawerStats?.referral_octo ?? 0).toLocaleString()} OMERO`} href={isAdmin ? "/admin/account" : "/dashboard/referrals"} onNavigate={onClose} />
+                <BalanceRow logo={<RowIcon icon={Rocket} />} name={tr("Creator fees")} sub={tr("{n} launched", { n: drawerStats?.tokens_launched ?? 0 })}
+                  value={tr("Claim")} href="/dashboard/launchpad" onNavigate={onClose} />
               </div>
             </div>
           )}
 
-          {/* Referral mini */}
+          {/* Liens */}
           {!editing && (
-            <div className="rounded-2xl bg-up/12 px-4 py-3 ">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold text-up">{tr("Referral")}</p>
-                  <p className="text-[11px] text-up mt-0.5">
-                    {drawerStats?.referral_count ?? 0} {tr("referrals")} · {(drawerStats?.referral_octo ?? 0).toLocaleString()} {tr("OMERO earned")}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void copyReferralLink()}
-                  disabled={!referralLink}
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-up px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-up/90 disabled:opacity-40 transition-colors"
-                >
-                  {copiedRef
-                    ? <><Check className="size-3" />{tr("Copied!")}</>
-                    : <><Copy className="size-3" />{tr("Copy link")}</>}
-                </button>
-              </div>
-            </div>
+        <div className="space-y-2 pt-1">
+          <Link
+            href="/dashboard/pools"
+            onClick={onClose}
+            className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+          >
+            <Plus className="size-4" />
+            <span>{tr("Create a market")}</span>
+          </Link>
+
+          <Link
+            href={`/profile/${walletAddress}`}
+            onClick={onClose}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <User className="size-4 text-muted-foreground" />
+            <span>{tr("My profile")}</span>
+          </Link>
+
+          {!isAdmin && (
+            <Link
+              href="/dashboard"
+              onClick={onClose}
+              className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              <LayoutDashboard className="size-4 text-muted-foreground" />
+              <span>{tr("Dashboard")}</span>
+            </Link>
+          )}
+
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              <Settings2 className="size-4 text-muted-foreground" />
+              <span>{tr("Admin Panel")}</span>
+            </Link>
+          )}
+
+        </div>
           )}
 
           {/* Edit form */}
@@ -383,50 +444,6 @@ function ProfileDrawer({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-border px-5 py-4 space-y-2">
-          <Link
-            href="/dashboard/pools"
-            onClick={onClose}
-            className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
-          >
-            <Plus className="size-4" />
-            <span>{tr("Create a market")}</span>
-          </Link>
-
-          <Link
-            href={`/profile/${walletAddress}`}
-            onClick={onClose}
-            className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            <User className="size-4 text-muted-foreground" />
-            <span>{tr("My profile")}</span>
-          </Link>
-
-          {!isAdmin && (
-            <Link
-              href="/dashboard"
-              onClick={onClose}
-              className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              <LayoutDashboard className="size-4 text-muted-foreground" />
-              <span>{tr("Dashboard")}</span>
-            </Link>
-          )}
-
-          {isAdmin && (
-            <Link
-              href="/admin"
-              onClick={onClose}
-              className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              <Settings2 className="size-4 text-muted-foreground" />
-              <span>{tr("Admin Panel")}</span>
-            </Link>
-          )}
-
-        </div>
-
         {/* ── Fixed bottom bar — always visible, never scrolled away ── */}
         <div className="shrink-0 border-t border-border px-5 pt-4 pb-4" style={{ paddingBottom: isPhantom ? '90px' : 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex items-center gap-2">
@@ -468,6 +485,10 @@ function ProfileDrawer({
             </button>
           </div>
         </div>
+        {withdrawToken && (
+          <WithdrawModal token={withdrawToken} balance={withdrawToken === "usdc" ? balances.usdc : balances.clt}
+            onClose={() => { setWithdrawToken(null); qc.invalidateQueries({ queryKey: ["platform-balances", walletAddress] }); }} />
+        )}
       </SheetContent>
     </Sheet>
   );
