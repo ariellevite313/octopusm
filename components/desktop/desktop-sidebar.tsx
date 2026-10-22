@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
+import { LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
 import { ThemeSwitchRail } from "@/components/shared/theme-switch";
@@ -18,6 +18,9 @@ import { T } from "@/lib/i18n-mark";
 // Section prédiction : marchés, Up/Down, pools et leur leaderboard
 const isPredictSection = (p: string) =>
   p.startsWith("/prediction") || p.startsWith("/updown") || p.startsWith("/pools") || p.startsWith("/crypto") || p.startsWith("/leaderboard/predictions");
+
+// Section fil : barre élargie avec les libellés sur grand écran
+const isFeedSection = (p: string) => p.startsWith("/feed") || p.startsWith("/post/") || p.startsWith("/notifications");
 
 function items(pathname: string) {
   const predict = isPredictSection(pathname);
@@ -47,7 +50,7 @@ const EXTRA = [
 ];
 
 // Menu ⋯ : panneau ouvert à côté de la barre latérale
-function MoreMenu({ onClose }: { onClose: () => void }) {
+function MoreMenu({ onClose, wide }: { onClose: () => void; wide: boolean }) {
   const { tr } = useT();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -58,7 +61,7 @@ function MoreMenu({ onClose }: { onClose: () => void }) {
     return () => { document.removeEventListener("mousedown", down); window.removeEventListener("keydown", key); };
   }, [onClose]);
   return createPortal(
-    <div ref={ref} className="fixed bottom-4 left-[84px] z-[100] w-80 rounded-3xl border border-border bg-card p-2 shadow-2xl">
+    <div ref={ref} className={`fixed bottom-4 z-[100] ${wide ? "left-[84px] xl:left-[262px]" : "left-[84px]"}`} >
       <p className="px-3 pb-1 pt-2 text-[15px] font-bold tracking-tight text-foreground">{tr("More")}</p>
       <ul className="space-y-0.5">
         {EXTRA.map(({ href, label, description, icon: Icon, external }) => (
@@ -94,10 +97,14 @@ export function DesktopSidebar() {
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => { setMoreOpen(false); }, [pathname]);
   if (pathname.startsWith("/admin")) return null;
+  const wide = isFeedSection(pathname);
+  // Bouton d'icône, qui devient une ligne avec libellé quand la barre est élargie
+  const row = wide ? "xl:h-12 xl:w-full xl:justify-start xl:gap-4 xl:rounded-full xl:px-3" : "";
+  const lab = (t: string) => wide ? <span className="hidden truncate text-[17px] xl:inline">{t}</span> : null;
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[72px] shrink-0 flex-col items-center gap-2 overflow-y-auto scrollbar-none border-r border-border/60 bg-background py-4 lg:flex">
-      <Link href="/" aria-label="OMdotfun" className="mb-3">
+    <aside className={`sticky top-0 hidden h-screen w-[72px] shrink-0 flex-col items-center gap-2 ${wide ? "xl:w-[250px] xl:items-stretch xl:px-3" : ""} overflow-y-auto scrollbar-none border-r border-border/60 bg-background py-4 lg:flex`}>
+      <Link href="/" aria-label="OMdotfun" className={`mb-3 ${wide ? "xl:px-1.5" : ""}`}>
         <BrandLogo size={40} />
       </Link>
 
@@ -109,21 +116,39 @@ export function DesktopSidebar() {
             href={href}
             title={tr(label)}
             aria-label={tr(label)}
-            className={`flex size-11 items-center justify-center rounded-2xl transition-colors ${
-              active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            className={`flex size-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${row} ${
+              active ? `bg-muted text-foreground ${wide ? "xl:bg-transparent xl:font-bold" : ""}` : `text-muted-foreground hover:bg-muted/60 hover:text-foreground ${wide ? "xl:text-foreground" : ""}`
             }`}
           >
-            <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+            <Icon className="size-[22px] shrink-0" strokeWidth={active ? 2.25 : 1.75} />
+            {lab(tr(label))}
           </Link>
         );
       })}
 
-      <NotificationBell className="size-11 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground" />
+      <NotificationBell className={`size-11 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground ${row} ${wide ? "xl:text-foreground" : ""}`}>
+        {lab(tr("Notifications"))}
+      </NotificationBell>
+
+      {/* Fil (grand écran) : grand bouton Publier */}
+      {wide && (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-compose"))}
+          title={tr("Post")}
+          aria-label={tr("Post")}
+          className="btn-primary mt-2 flex size-11 shrink-0 items-center justify-center rounded-2xl xl:h-12 xl:w-full xl:rounded-full"
+        >
+          <PenLine className="size-5 xl:hidden" strokeWidth={2.25} />
+          <span className="hidden text-[17px] font-bold xl:inline">{tr("Post")}</span>
+        </button>
+      )}
 
       {/* Launch */}
       {isAuthenticated ? (
-        <Link href="/launchpad/create" title={tr("Launch a token")} aria-label={tr("Launch a token")} className="btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl">
-          <Plus className="size-6" strokeWidth={2.5} />
+        <Link href="/launchpad/create" title={tr("Launch a token")} aria-label={tr("Launch a token")} className={wide ? `mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground xl:text-foreground ${row}` : "btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl"}>
+          {wide ? <Rocket className="size-[22px] shrink-0" strokeWidth={1.75} /> : <Plus className="size-6" strokeWidth={2.5} />}
+          {lab(tr("Launch a token"))}
         </Link>
       ) : (
         <button
@@ -131,22 +156,24 @@ export function DesktopSidebar() {
           title={tr("Launch a token")}
           aria-label={tr("Launch a token")}
           onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))}
-          className="btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl"
+          className={wide ? `mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground xl:text-foreground ${row}` : "btn-primary mt-2 flex size-11 items-center justify-center rounded-2xl"}
         >
-          <Plus className="size-6" strokeWidth={2.5} />
+          {wide ? <Rocket className="size-[22px] shrink-0" strokeWidth={1.75} /> : <Plus className="size-6" strokeWidth={2.5} />}
+          {lab(tr("Launch a token"))}
         </button>
       )}
 
       {/* Bas : wallet puis menu ⋯ */}
-      <div className="mt-auto flex flex-col items-center gap-2">
+      <div className={`mt-auto flex flex-col items-center gap-2 ${wide ? "xl:flex-row xl:flex-wrap xl:justify-between" : ""}`}>
         <button
           type="button"
           title={isAuthenticated ? tr("My wallet") : tr("Connect wallet")}
           aria-label={isAuthenticated ? tr("My wallet") : tr("Connect wallet")}
           onClick={() => window.dispatchEvent(new CustomEvent(isAuthenticated ? "open-wallet-profile" : "open-wallet-connect"))}
-          className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/70"
+          className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/70 ${wide ? "xl:mb-1 xl:h-12 xl:w-full xl:justify-start xl:gap-3 xl:rounded-full xl:px-4" : ""}`}
         >
-          <Wallet className="size-[20px]" />
+          <Wallet className="size-[20px] shrink-0" />
+          {wide && <span className="hidden text-[15px] font-semibold xl:inline">{isAuthenticated ? tr("My wallet") : tr("Connect wallet")}</span>}
         </button>
         <ThemeSwitchRail />
         <LanguageSelectRail />
@@ -162,7 +189,7 @@ export function DesktopSidebar() {
           <MoreHorizontal className="size-[22px]" strokeWidth={1.75} />
         </button>
       </div>
-      {moreOpen && <MoreMenu onClose={() => setMoreOpen(false)} />}
+      {moreOpen && <MoreMenu wide={wide} onClose={() => setMoreOpen(false)} />}
     </aside>
   );
 }

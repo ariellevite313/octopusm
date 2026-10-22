@@ -18,6 +18,13 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
   const [compose, setCompose] = useState(false);
   const [pool, setPool] = useState(false);
 
+  // Bouton « Publier » de la barre latérale (ordinateur)
+  useEffect(() => {
+    const h = () => { if (!isAuthenticated) window.dispatchEvent(new CustomEvent("open-wallet-connect")); else setCompose(true); };
+    window.addEventListener("open-compose", h);
+    return () => window.removeEventListener("open-compose", h);
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
