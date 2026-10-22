@@ -11,6 +11,8 @@ import { enrichPosts, POST_COLUMNS, MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE
 export type PostFile = { type: string; size: number; bytes: () => Promise<ArrayBuffer> };
 type Result = { status: number; data: Record<string, unknown> };
 
+const TICKER_ALIASES: Record<string, string> = { CLAWDTRUST: "CLT" };
+
 export async function createPost(wallet: string, bodyIn: string, files: PostFile[], opts: { quoteOf?: string | null } = {}): Promise<Result> {
   const body = bodyIn.trim();
   const err = (status: number, error: string): Result => ({ status, data: { error } });
@@ -39,7 +41,9 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
   let tokenId: string | null = null;
   const m = body.match(TICKER_RE);
   if (m) {
-    const { data: t } = await admin.from("launchpad_tokens").select("id, ticker").ilike("ticker", m[1]).in("status", ["active", "graduating", "graduated"]).maybeSingle();
+    // Noms courants d'un token dont le ticker est différent (ex. $CLAWDTRUST → CLT)
+    const sym = TICKER_ALIASES[m[1].toUpperCase()] ?? m[1];
+    const { data: t } = await admin.from("launchpad_tokens").select("id, ticker").ilike("ticker", sym).in("status", ["active", "graduating", "graduated"]).maybeSingle();
     if (t) { ticker = t.ticker; tokenId = t.id; }
   }
 
