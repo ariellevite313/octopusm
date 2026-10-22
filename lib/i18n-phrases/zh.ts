@@ -515,6 +515,7 @@ const p: Record<string, string> = {
   "Feed share reward": "分享奖励",
   "{n} won": "赢 {n} 次",
   "{n} launched": "已发行 {n}",
+  "You earn 0.9% of volume": "你赚取交易量的 0.9%",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",

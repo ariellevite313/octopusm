@@ -438,7 +438,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
             <div className="mt-4">
               <Label>{tr("Trading fee")}</Label>
               <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-                {([["standard", "2%", tr("You earn 0.8% of volume")], ["low", "1%", tr("You earn 0.5% of volume")]] as const).map(([k, fee, earn]) => (
+                {([["standard", "2%", tr("You earn 0.9% of volume")], ["low", "1%", tr("You earn 0.5% of volume")]] as const).map(([k, fee, earn]) => (
                   <button key={k} type="button" onClick={() => set("sol_fee_tier", k)}
                     className={`rounded-xl py-2.5 text-sm font-semibold transition-colors ${data.sol_fee_tier === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                     {fee}

@@ -19,11 +19,11 @@ export const POST_SHARE_OF_FEE = 0.01;
 /**
  * Part du volume que la plateforme encaisse réellement.
  *  - Arc    : lu sur la courbe du token (platformBps de son niveau : 0,25 / 0,30 / 0,40 / 0,50 %). 0,25 % (Standard, le plus bas) si la lecture échoue.
- *  - Solana : selon le niveau du token (SOL_PLATFORM_RATE) : low = frais 1,25 % (Meteora 0,25 / créateur 0,5 / plateforme 0,5) ; standard = frais 2,5 % (Meteora 0,5 / créateur 0,8 / plateforme 1,2).
+ *  - Solana : selon le niveau du token (SOL_PLATFORM_RATE) : low = frais 1,25 % (Meteora 0,25 / créateur 0,5 / plateforme 0,5) ; standard = frais 2 % (Meteora 0,4 / créateur 57 % du reste ≈ 0,91 / plateforme 43 % ≈ 0,688, arrondi à 0,68).
  */
 export const PLATFORM_FEE_RATE = { arc: 0.0025, solana: 0.005 } as const;
 /** Part plateforme par niveau de frais Solana, en part du volume (chiffres donnés par le propriétaire pour ses deux configs Meteora). */
-export const SOL_PLATFORM_RATE = { standard: 0.012, low: 0.005 } as const;
+export const SOL_PLATFORM_RATE = { standard: 0.0068, low: 0.005 } as const;
 export const MIN_VOLUME_USD = 1;
 export const ATTRIBUTION_DAYS = 7;
 

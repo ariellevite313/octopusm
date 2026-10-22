@@ -515,6 +515,7 @@ const p: Record<string, string> = {
   "Feed share reward": "Награда за репост",
   "{n} won": "Выиграно: {n}",
   "{n} launched": "Запущено: {n}",
+  "You earn 0.9% of volume": "Вы получаете 0,9% объёма",
   "Total earned": "Всего заработано",
   "Profit/Loss · {token}": "Прибыль/убыток · {token}",
   "Volume : {amount} {unit}": "Объём: {amount} {unit}",
