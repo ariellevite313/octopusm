@@ -2,6 +2,7 @@
 
 import { NotificationMenuLink, useUnreadNotifications } from "@/components/social/notification-bell";
 import { useEffect, useState } from "react";
+import { SearchButton } from "@/components/social/search-overlay";
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
@@ -13,6 +14,7 @@ import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
 const PUBLIC_NAV_LINKS = [
+  { href: "/",                       label: T("Feed")         },
   { href: "/launchpad",              label: T("Tokens")       },
   { href: "/launchpad/create",       label: T("+ Launch")     },
   { href: "/leaderboard/launchpad",  label: T("Leaderboard")  },
@@ -20,6 +22,7 @@ const PUBLIC_NAV_LINKS = [
 ];
 
 const AUTH_NAV_LINKS = [
+  { href: "/",                       label: T("Feed")         },
   { href: "/launchpad",              label: T("Tokens")       },
   { href: "/launchpad/create",       label: T("+ Launch")     },
   { href: "/dashboard/launchpad",    label: T("My tokens")    },
@@ -30,6 +33,7 @@ const AUTH_NAV_LINKS = [
 const MOBILE_EXTRA_LINKS: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [];
 
 function isActive(href: string, pathname: string) {
+  if (href === "/") return pathname === "/";
   if (href === "/launchpad") {
     // active sur /launchpad exactement et sur /launchpad/[id] — pas sur /launchpad/create
     return pathname === "/launchpad" ||
@@ -84,7 +88,7 @@ export function LaunchpadHeader() {
               return (
                 <Link
                   key={href}
-                  href={href === "/launchpad" ? "/" : href}
+                  href={href}
                   className={`rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
                     isActive(href, pathname)
                       ? "bg-card text-foreground shadow-sm"
@@ -98,7 +102,8 @@ export function LaunchpadHeader() {
           </nav>
 
           {/* Right */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <SearchButton />
             <WalletButton />
             <button
               onClick={() => setOpen(true)}
@@ -175,7 +180,7 @@ export function LaunchpadHeader() {
                 return (
                   <Link
                     key={href}
-                    href={href === "/launchpad" ? "/" : href}
+                    href={href}
                     onClick={() => setOpen(false)}
                     className={`flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted ${
                       isActive(href, pathname)
@@ -190,7 +195,7 @@ export function LaunchpadHeader() {
               {[...MOBILE_EXTRA_LINKS].map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
-                  href={href === "/launchpad" ? "/" : href}
+                  href={href}
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >

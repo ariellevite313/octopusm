@@ -58,7 +58,7 @@ export function Footer() {
             <ul className="space-y-1">
               {[
                 { href: "/prediction",    icon: "ti-chart-bar",    label: T("Markets"),     internal: true },
-                { href: "/",     icon: "ti-rocket",       label: T("Launchpad"),   internal: true },
+                { href: "/launchpad", icon: "ti-rocket",   label: T("Launchpad"),   internal: true },
                 { href: "/leaderboard",   icon: "ti-trophy",       label: T("Leaderboard"), internal: true },
                 { href: "/faq",           icon: "ti-help-circle",  label: T("FAQ"),         internal: true },
                 { href: "https://t.me/Omdotfun",     icon: "ti-brand-telegram", label: T("News & Updates"), internal: false },

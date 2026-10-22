@@ -6,6 +6,7 @@ import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
 import { AgeGate } from "@/components/layout/age-gate";
 import { RefCapture } from "@/components/layout/ref-capture";
 import { RootBottomNav } from "@/components/layout/root-bottom-nav";
+import { SearchOverlay } from "@/components/social/search-overlay";
 import { DesktopSidebar } from "@/components/desktop/desktop-sidebar";
 import { getDistinctCategories } from "@/services/prediction-service";
 import "./globals.css";
@@ -75,6 +76,7 @@ export default async function RootLayout({
             <main className="flex-1 pb-28 md:pb-0">{children}</main>
             <div className="hidden md:block"><Footer /></div>
             <RootBottomNav />
+            <SearchOverlay />
           </div>
           </div>
         </Providers>

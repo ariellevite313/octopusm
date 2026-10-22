@@ -39,7 +39,7 @@ export async function GET() {
       }
     }
     for (const [t, n] of [...tags.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
-      trending.push({ kind: "tag", label: `#${t}`, count: n, href: `/feed?tag=${encodeURIComponent(t)}`, logo: null, name: null });
+      trending.push({ kind: "tag", label: `#${t}`, count: n, href: `/?tag=${encodeURIComponent(t)}`, logo: null, name: null });
     }
     trending.sort((a, b) => b.count - a.count);
     trending.splice(5);
