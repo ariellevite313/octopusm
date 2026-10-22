@@ -90,7 +90,7 @@ export function LiveScores({ initial = [] as M[], poll = true }: { initial?: M[]
         {liveCount > 0 && <span className="text-sm font-semibold text-down">{tr("{n} live", { n: liveCount })}</span>}
       </div>
       {loading ? (
-        <div className="mt-6 space-y-3">{[0, 1, 2, 3].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted/30" />)}</div>
+        <div className="mt-6 space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted/30 lg:h-24" />)}</div>
       ) : groups.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">{tr("No matches today.")}</p>
       ) : (
@@ -101,11 +101,11 @@ export function LiveScores({ initial = [] as M[], poll = true }: { initial?: M[]
                 {g.logo && <TeamLogo src={g.logo} name={league} size={20} />}
                 <h2 className="text-sm font-bold text-muted-foreground">{league}</h2>
               </div>
-              <ul className="divide-y divide-border">
+              <ul className="divide-y divide-border lg:grid lg:grid-cols-2 lg:gap-3 lg:divide-y-0 xl:grid-cols-3">
                 {g.items.map((m) => {
                   const hasScore = m.score_home != null && m.score_away != null;
                   return (
-                    <li key={m.key} className="flex items-center gap-3 py-3">
+                    <li key={m.key} className="flex items-center gap-3 py-3 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:px-4 lg:py-3.5">
                       <div className="w-12 shrink-0"><Badge m={m} /></div>
                       <div className="min-w-0 flex-1 space-y-2">
                         <div className="flex items-center gap-2"><TeamLogo src={m.home_logo} name={m.home} flag={m.league === "FIFA World Cup"} /><span className="truncate text-[15px] font-semibold text-foreground">{m.home}</span></div>

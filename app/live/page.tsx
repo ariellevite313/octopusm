@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Live scores", description: "Live foo
 
 export default function LivePage() {
   return (
-    <div className="mx-auto max-w-xl px-4 pb-32 pt-6">
+    <div className="mx-auto max-w-xl px-4 pb-32 pt-6 lg:max-w-6xl lg:px-8">
       <LiveScores />
     </div>
   );
