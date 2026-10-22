@@ -481,6 +481,8 @@ const p: Record<string, string> = {
   "2.5% trading fee per trade. Split your creator fees with up to 4 wallets.": "İşlem başına %2,5 ücret. Yaratıcı ücretlerinizi en fazla 4 cüzdanla paylaşın.",
   "2.5% trading fee per trade. 100% of your creator fees go to your wallet.": "İşlem başına %2,5 ücret. Yaratıcı ücretlerinizin %100'ü cüzdanınıza gider.",
   "You earn 0.8% of volume": "Hacmin %0,8'ini kazanırsınız",
+  "1% trading fee per trade. Split your creator fees with up to 4 wallets.": "İşlem başına %1 ücret. Yaratıcı ücretlerinizi en fazla 4 cüzdanla paylaşın.",
+  "1% trading fee per trade. 100% of your creator fees go to your wallet.": "İşlem başına %1 ücret. Yaratıcı ücretlerinizin %100'ü cüzdanınıza gider.",
   "Total earned": "Toplam kazanç",
   "Profit/Loss · {token}": "Kâr/Zarar · {token}",
   "Volume : {amount} {unit}": "Hacim: {amount} {unit}",

@@ -481,6 +481,8 @@ const p: Record<string, string> = {
   "2.5% trading fee per trade. Split your creator fees with up to 4 wallets.": "Комиссия 2,5% за сделку. Делите комиссии создателя максимум между 4 кошельками.",
   "2.5% trading fee per trade. 100% of your creator fees go to your wallet.": "Комиссия 2,5% за сделку. 100% комиссий создателя идёт на ваш кошелёк.",
   "You earn 0.8% of volume": "Вы получаете 0,8% объёма",
+  "1% trading fee per trade. Split your creator fees with up to 4 wallets.": "Комиссия 1% за сделку. Делите комиссии создателя максимум между 4 кошельками.",
+  "1% trading fee per trade. 100% of your creator fees go to your wallet.": "Комиссия 1% за сделку. 100% комиссий создателя идёт на ваш кошелёк.",
   "Total earned": "Всего заработано",
   "Profit/Loss · {token}": "Прибыль/убыток · {token}",
   "Volume : {amount} {unit}": "Объём: {amount} {unit}",
