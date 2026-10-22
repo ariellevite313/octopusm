@@ -416,3 +416,28 @@
 @keyframes gains-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 .gains-dot { animation: gains-pulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .gains-frame, .gains-dot { animation: none; } }
+
+/* ── Carte « dossier » d'un token (liste des tokens) ─────────────────────── */
+.tok-fold{position:relative;display:block;border-radius:30px;background:#000;padding:7px;color:#fff;box-shadow:0 20px 44px -18px rgb(0 0 0 / .55);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.tok-fold-in{position:relative;width:100%;aspect-ratio:1/1.02;container-type:inline-size}
+.tok-fold-sheet{position:absolute;left:0;right:0;top:0;height:64%;border-radius:24px;overflow:hidden;background:#000;transform-origin:50% 100%;transition:transform .45s cubic-bezier(.2,.9,.25,1.15),box-shadow .45s}
+.tok-fold-art{position:absolute;inset:-30px;width:calc(100% + 60px);height:calc(100% + 60px);max-width:none;object-fit:cover;filter:blur(22px) saturate(1.9) brightness(1.05);transform:scale(1.25)}
+.tok-fold-dots{position:absolute;inset:0;background-image:radial-gradient(rgb(255 255 255 / .22) 1px,transparent 1.3px);background-size:7px 7px;mix-blend-mode:overlay;opacity:.8}
+.tok-fold-chart{position:absolute;left:0;top:11%;width:100%;height:66%;overflow:visible}
+.tok-fold-logo{position:absolute;left:6.5%;top:10%;width:26%;aspect-ratio:1;border-radius:28%;object-fit:cover;box-shadow:0 6px 16px rgb(0 0 0 / .45),0 0 0 2px rgb(255 255 255 / .18)}
+.tok-fold-chain{position:absolute;right:7%;top:12%;width:8.5%;height:8.5%;display:flex}
+.tok-fold-pocket{position:absolute;inset:0;width:100%;height:100%;fill:#18171d}
+.tok-fold-name{position:absolute;left:7%;top:46%;max-width:44%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;letter-spacing:-.02em;font-size:7.4cqw;line-height:1.2}
+.tok-fold-ticker{position:absolute;left:7%;top:56%;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a3a3ad;font-weight:500;font-size:5cqw}
+.tok-fold-change{position:absolute;right:7%;top:56%;font-weight:700;font-size:5cqw}
+.tok-fold-by{position:absolute;left:7%;right:7%;top:66.5%;display:flex;align-items:center;gap:1.8cqw;font-size:4.6cqw;color:#c9c9d1;white-space:nowrap}
+.tok-fold-by img{width:6.4cqw;height:6.4cqw;border-radius:50%;object-fit:cover;flex-shrink:0}
+.tok-fold-by b{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:600}
+.tok-fold-mc{position:absolute;left:7%;bottom:7%;font-weight:700;letter-spacing:-.04em;line-height:1;font-size:13.5cqw}
+.tok-fold-mc small{font-weight:500;color:#b9b9c2;font-size:5cqw;letter-spacing:0}
+.tok-fold-date{position:absolute;right:7%;bottom:7%;text-align:right;line-height:1.35;font-size:4.4cqw}
+.tok-fold-date span{display:block;color:#b9b9c2}.tok-fold-date b{font-weight:700}
+/* La feuille sort de la pochette : survol (souris) ou appui (téléphone) */
+@media (hover:hover){.tok-fold:hover{z-index:5;transform:translateY(-4px)}.tok-fold:hover .tok-fold-sheet{transform:translateY(-17%) rotate(-3deg);box-shadow:0 -10px 30px rgb(0 0 0 / .45)}}
+.tok-fold:active .tok-fold-sheet,.tok-fold:focus-visible .tok-fold-sheet{transform:translateY(-12%) rotate(-2deg)}
+@media (prefers-reduced-motion: reduce){.tok-fold,.tok-fold-sheet{transition:none}}

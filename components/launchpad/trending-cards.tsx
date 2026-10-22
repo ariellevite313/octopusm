@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { BurningFire } from "@/components/shared/burning-fire";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
+import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import { useT } from "@/lib/i18n";
 
 type TrendingToken = {
@@ -66,6 +67,7 @@ export function TrendingCards() {
                 {t.logo_url && <Image src={t.logo_url} alt="" fill className="object-cover" unoptimized />}
               </span>
               <span className="font-bold text-foreground">{t.ticker}</span>
+              {t.chain === "arc" ? <ArcMark className="size-3.5 shrink-0 text-foreground" /> : <SolanaMark className="size-3.5 shrink-0 text-foreground" />}
               {t.is_verified && <VerifiedTokenBadge className="size-3.5" />}
               <span className="num font-semibold text-up">{fmt(t.volume_24h_usd)}</span>
             </Link>

@@ -291,9 +291,18 @@ describe("POST /api/launchpad/create", () => {
   // ── Protected names (real isProtectedName, real protected values) ───────────
 
   it("returns 409 when name is protected (OCTO)", async () => {
-    const res = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, name: "OCTO", ticker: "SOMETHING" }));
+    const res = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, name: "OCTO", ticker: "SOMETH" }));
     expect(res.status).toBe(409);
     expect((await json(res)).error).toMatch(/reserved/i);
+  });
+
+  it("returns 400 when the name is longer than 10 characters or the ticker longer than 8", async () => {
+    const long = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, name: "Galaxy Shiba", ticker: "GSHIB" }));
+    expect(long.status).toBe(400);
+    expect((await json(long)).error).toMatch(/10 characters/);
+    const tick = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, name: "Galaxy", ticker: "GALAXYSHB" }));
+    expect(tick.status).toBe(400);
+    expect((await json(tick)).error).toMatch(/2 to 8/);
   });
 
   it("returns 409 when ticker is protected (OM)", async () => {

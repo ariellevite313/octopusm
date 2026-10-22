@@ -13,6 +13,7 @@
  * The server never holds the creator key: every transaction must be signed by the creator wallet.
  */
 import { POST as createToken } from "@/app/api/launchpad/create/route";
+import { nameTickerError } from "@/lib/launch/name-rules";
 import { POST as prepareTx } from "@/app/api/launchpad/[id]/prepare-tx/route";
 import { BASE58_RE, callJson, getIp, lErr, lJson, lOk } from "@/lib/v1/launch";
 import { rateHit } from "@/lib/rate-limit";
@@ -55,8 +56,7 @@ export async function POST(req: Request) {
   const wallet = (b.wallet ?? "").trim();
   if (!BASE58_RE.test(wallet)) return lErr("wallet must be a valid Solana address", 400);
   if (!b.name?.trim() || !b.ticker?.trim()) return lErr("name and ticker are required", 400);
-  if (!/^[A-Za-z0-9]{2,10}$/.test(b.ticker.trim())) return lErr("ticker must be 2-10 letters/digits", 400);
-  if (b.name.trim().length > 32) return lErr("name must be 32 characters or fewer", 400);
+  { const e = nameTickerError(b.name, b.ticker); if (e) return lErr(e, 400); }
   if ((b.description ?? "").length > 1000) return lErr("description too long (max 1000)", 400);
 
   const ip = getIp(req);
