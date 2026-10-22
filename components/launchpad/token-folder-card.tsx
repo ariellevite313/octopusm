@@ -6,6 +6,7 @@ import type { LaunchpadToken } from "@/services/launchpad-service";
 import { useSparkline } from "@/components/launchpad/mini-price-chart";
 import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { useT } from "@/lib/i18n";
 
 /**
@@ -15,7 +16,7 @@ import { useT } from "@/lib/i18n";
  */
 
 // Forme de la pochette (onglet à gauche), en coordonnées 300 × 306
-const W = 300, H = 306, Y1 = H * 0.42, Y2 = H * 0.52, TW = W * 0.46, SL = W * 0.08, R = 22;
+const W = 300, H = 306, Y1 = H * 0.42, Y2 = H * 0.52, TW = W * 0.56, SL = W * 0.08, R = 22;
 const POCKET = `M0,${Y1 + R} Q0,${Y1} ${R},${Y1} L${TW - 14},${Y1} Q${TW},${Y1} ${TW + 9},${Y1 + 9} L${TW + SL - 7},${Y2 - 7} Q${TW + SL + 2},${Y2} ${TW + SL + 16},${Y2} L${W - R},${Y2} Q${W},${Y2} ${W},${Y2 + R} L${W},${H - R} Q${W},${H} ${W - R},${H} L${R},${H} Q0,${H} 0,${H - R} Z`;
 
 function fmtMc(n: number | null): string {
@@ -79,7 +80,10 @@ export function TokenFolderCard({ token }: { token: LaunchpadToken }) {
 
         {/* Pochette */}
         <svg className="tok-fold-pocket" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden><path d={POCKET} /></svg>
-        <span className="tok-fold-name">{token.name}</span>
+        <span className="tok-fold-name">
+          <span className="truncate">{token.name}</span>
+          {token.is_verified && <VerifiedTokenBadge className="tok-fold-verified" />}
+        </span>
         <span className="tok-fold-ticker">${token.ticker}</span>
         {change !== null && <span className={`tok-fold-change ${up ? "text-[#4ade80]" : "text-[#f87171]"}`}>{up ? "+" : ""}{change.toFixed(1)}%</span>}
         <span className="tok-fold-by">
