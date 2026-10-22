@@ -10,6 +10,7 @@ import { getPublicProfile } from "@/services/profile-service";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getProfiles } from "@/lib/profiles";
 import { UUID_RE } from "@/lib/social/posts";
+import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
 
 const SIGNED_ONLY = new Set(["trade_prepare", "trade_submit", "create_post_prepare", "create_post", "agent_action_prepare", "agent_action", "launch_token_prepare", "launch_token_submit", "launch_token_confirm"]);
 
@@ -29,7 +30,9 @@ const SCHEMAS: Record<string, McpTool["inputSchema"]> = {
     twitter_handle: { type: "string", maxLength: 16 },
     featured_token_id: { type: "string", description: "Token uuid launched on OMdotfun, or empty string to remove" },
     avatar_base64: { type: "string", description: "New profile picture, base64 (PNG/JPEG/WebP/GIF, max 2 MB)" },
+    avatar_url: { type: "string", description: "Or a public https link to the new profile picture" },
     banner_base64: { type: "string", description: "New profile banner, base64 (PNG/JPEG/WebP/GIF, max 4 MB)" },
+    banner_url: { type: "string", description: "Or a public https link to the new banner" },
   }),
   request_approval: S({
     kind: { type: "string", enum: ["bet_pool", "buy_token", "sell_token"] },
@@ -53,7 +56,17 @@ const actionTools: McpTool[] = Object.entries(ACTIONS)
     run: async (args, ctx) => {
       if (!ctx.user) throw new ToolError("Not connected");
       need(ctx.user.scopes, k === "request_approval" ? "approvals" : "social");
-      try { return await a.run(ctx.user.wallet, args, ctx); } catch (e) { if (e instanceof ActionError) throw new ToolError(e.message); throw e; }
+      try {
+        const p = { ...args };
+        if (k === "update_profile") {
+          for (const [key, max] of [["avatar", 2], ["banner", 4]] as const) {
+            const link = p[`${key}_url`];
+            delete p[`${key}_url`];
+            if (typeof link === "string" && link && !p[`${key}_base64`]) p[`${key}_base64`] = (await fetchImage(link, max * 1024 * 1024)).buf.toString("base64");
+          }
+        }
+        return await a.run(ctx.user.wallet, p, ctx);
+      } catch (e) { if (e instanceof ActionError || e instanceof ImageUrlError) throw new ToolError(e.message); throw e; }
     },
   }));
 
@@ -71,11 +84,12 @@ export const USER_TOOLS: McpTool[] = [
   },
   {
     name: "create_post",
-    description: "Publish a post on the OMdotfun feed as the connected user: text up to 2000 characters and up to 2 images (JPG/PNG/WEBP/GIF, 5 MB max, base64). Mention $TICKER of a platform token to attach its chart, #tag for hashtags, @username to mention someone. Set quote_of to a post uuid to quote that post.",
+    description: "Publish a post on the OMdotfun feed as the connected user: text up to 2000 characters and up to 2 images (JPG/PNG/WEBP/GIF, 5 MB max, base64). Mention $TICKER of a platform token to attach its chart, #tag for hashtags, @username to mention someone. Images can be given as base64 (images) or as public https links (image_urls). Set quote_of to a post uuid to quote that post.",
     readOnly: false,
     inputSchema: S({
       body: { type: "string", maxLength: 2000 },
       images: { type: "array", maxItems: 2, items: { type: "object", properties: { mime: { type: "string" }, data: { type: "string", description: "base64" } }, required: ["mime", "data"] } },
+      image_urls: { type: "array", maxItems: 2, items: { type: "string" }, description: "Public https links to images (alternative to images)" },
       quote_of: { type: "string", description: "Post uuid to quote (optional)" },
     }),
     run: async (a, ctx) => {
@@ -83,13 +97,20 @@ export const USER_TOOLS: McpTool[] = [
       need(ctx.user.scopes, "social");
       const body = typeof a.body === "string" ? a.body : "";
       const raw = Array.isArray(a.images) ? a.images : [];
-      if (raw.length > 2) throw new ToolError("Max 2 images");
+      const links = Array.isArray(a.image_urls) ? a.image_urls.filter((x): x is string => typeof x === "string" && !!x) : [];
+      if (raw.length + links.length > 2) throw new ToolError("Max 2 images");
       const files: PostFile[] = raw.map((x) => {
         const o = x as { mime?: unknown; data?: unknown };
         if (typeof o?.mime !== "string" || typeof o?.data !== "string") throw new ToolError("each image needs mime and data (base64)");
         const buf = Buffer.from(o.data, "base64");
         return { type: o.mime, size: buf.length, bytes: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer };
       });
+      for (const link of links) {
+        try {
+          const { buf, mime } = await fetchImage(link, 5 * 1024 * 1024);
+          files.push({ type: mime, size: buf.length, bytes: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer });
+        } catch (e) { if (e instanceof ImageUrlError) throw new ToolError(e.message); throw e; }
+      }
       const q = typeof a.quote_of === "string" && a.quote_of ? a.quote_of : null;
       if (q && !UUID_RE.test(q)) throw new ToolError("quote_of must be a post uuid");
       const r = await createPost(ctx.user.wallet, body, files, { quoteOf: q });
