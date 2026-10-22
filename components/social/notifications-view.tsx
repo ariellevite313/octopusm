@@ -7,7 +7,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 
-type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote"; actor: string; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
+type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply"; actor: string; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -43,6 +43,8 @@ export function NotificationsView() {
     : n.kind === "reply" ? tr("replied to your post")
     : n.kind === "repost" ? tr("reposted your post")
     : n.kind === "quote" ? tr("quoted your post")
+    : n.kind === "reply_reply" ? tr("replied to your reply")
+    : n.kind === "reply_like" ? tr("liked your reply")
     : tr("liked your post");
 
   return (
