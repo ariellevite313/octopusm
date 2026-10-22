@@ -254,7 +254,7 @@ export default async function ArchivePage({
               href={href}
               className={`rounded-full border px-3 py-1 text-xs font-bold capitalize transition-colors ${
                 active
-                  ? "border-orange-400 bg-orange-500 text-white"
+                  ? "border-foreground bg-foreground text-background"
                   : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
               }`}
             >
@@ -271,7 +271,7 @@ export default async function ArchivePage({
             href={type && type !== "all" ? `/archive?type=${type}` : "/archive"}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
               !category || category === "all"
-                ? "border-orange-400 bg-orange-500 text-white"
+                ? "border-foreground bg-foreground text-background"
                 : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
             }`}
           >
@@ -287,7 +287,7 @@ export default async function ArchivePage({
                 href={href}
                 className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
                   active
-                    ? "border-orange-400 bg-orange-500 text-white"
+                    ? "border-foreground bg-foreground text-background"
                     : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
                 }`}
               >

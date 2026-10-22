@@ -194,7 +194,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
                   <User className="size-10 text-muted-foreground" />
                 )}
               </span>
-              <span className="absolute bottom-0.5 right-0.5 flex size-9 items-center justify-center rounded-full bg-primary text-white shadow-lg ring-4 ring-background transition-transform group-hover:scale-105">
+              <span className="absolute bottom-0.5 right-0.5 flex size-9 items-center justify-center rounded-full bg-foreground text-background shadow-lg ring-4 ring-background transition-transform group-hover:scale-105">
                 <Camera className="size-4" />
               </span>
             </button>
@@ -241,7 +241,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
           <button
             type="submit"
             disabled={isLoading || !canSubmit}
-            className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-bold text-white shadow-[0_10px_30px_-10px_rgba(255,122,26,0.8)] transition-all hover:brightness-105 disabled:opacity-40 disabled:shadow-none"
+            className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-all hover:brightness-105 disabled:opacity-40 disabled:shadow-none"
           >
             {isLoading
               ? <><Loader2 className="size-5 animate-spin" />{uploading ? tr("Uploading photo…") : tr("Saving…")}</>

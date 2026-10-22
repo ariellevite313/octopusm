@@ -116,7 +116,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
         <button
           type="button"
           onClick={onWithdraw}
-          className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-orange-500 py-3 text-sm font-bold text-white hover:bg-orange-400 transition-colors btn-primary"
+          className="flex w-full items-center justify-center gap-1.5 rounded-[14px] bg-foreground py-3 text-sm font-bold text-background hover:opacity-90 transition-colors btn-primary"
         >
           <ArrowUpRight className="size-4" />
           {tr("Withdraw USDC")}

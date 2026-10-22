@@ -94,7 +94,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
       <div className="flex justify-end">
         <Button
           onClick={() => setShowForm((v) => !v)}
-          className="rounded-full bg-orange-500 text-white hover:bg-orange-400"
+          className="rounded-full bg-foreground text-background hover:opacity-90"
           size="sm"
         >
           <Plus className="mr-1 size-4" />
@@ -145,7 +145,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
                   onClick={() => setTaskType(t)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
                     taskType === t
-                      ? "border-orange-400 bg-orange-500 text-white"
+                      ? "border-foreground bg-foreground text-background"
                       : "border-border text-muted-foreground hover:border-orange-300"
                   }`}
                 >
@@ -180,7 +180,7 @@ export function AdminTasksClient({ tasks }: { tasks: TaskRow[] }) {
             </Button>
             <Button
               size="sm"
-              className="rounded-full bg-orange-500 text-white hover:bg-orange-400"
+              className="rounded-full bg-foreground text-background hover:opacity-90"
               disabled={creating}
               onClick={handleCreate}
             >

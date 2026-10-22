@@ -601,7 +601,7 @@ export function PredictionDetail({
                   onClick={() => { if (!isAuthenticated) { setBetOpen(false); setShowWallet(true); } else { void handleSubmit(); } }}
                   disabled={isAuthenticated && !canSubmit}
                   className={`mt-5 h-14 w-full rounded-2xl px-5 text-base font-bold transition-colors ${
-                    isAuthenticated && !canSubmit ? "cursor-not-allowed bg-muted text-muted-foreground" : "bg-primary text-white hover:opacity-90"
+                    isAuthenticated && !canSubmit ? "cursor-not-allowed bg-muted text-muted-foreground" : "bg-foreground text-background hover:opacity-90"
                   }`}
                 >
                   {submitState === "signing" ? tr("Waiting for signature…")

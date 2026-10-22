@@ -51,7 +51,7 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={tr(open ? "Close" : "Create")}
-        className="fixed bottom-28 right-4 z-[55] flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_24px_-6px_rgba(247,107,16,.6)] transition-transform active:scale-95 md:bottom-8 md:right-8"
+        className="fixed bottom-28 right-4 z-[55] flex size-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform active:scale-95 md:bottom-8 md:right-8"
       >
         {open ? <X className="size-7" strokeWidth={2.4} /> : <Plus className="size-8" strokeWidth={2.4} />}
       </button>

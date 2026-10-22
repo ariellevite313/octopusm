@@ -209,7 +209,7 @@ export function AdminPaymentsClient({
               <Link key={f} href={buildHref(f, currentFlow)} onClick={changeFilter}
                 className={"rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors " + (
                   (f === "all" && !currentFilter) || currentFilter === f
-                    ? "border-orange-400 bg-orange-500 text-white"
+                    ? "border-foreground bg-foreground text-background"
                     : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground"
                 )}>
                 {f === "all" ? "All" : f}
@@ -231,7 +231,7 @@ export function AdminPaymentsClient({
           </div>
         </div>
         <Button size="sm" onClick={() => { setShowManual(true); setManualError(""); }}
-          className="rounded-full bg-orange-500 text-white hover:bg-orange-400">
+          className="rounded-full bg-foreground text-background hover:opacity-90">
           <Plus className="mr-1 size-3" /> Manual Payment
         </Button>
       </div>
@@ -439,7 +439,7 @@ export function AdminPaymentsClient({
             </div>
             {manualError && <p className="text-sm text-red-500">{manualError}</p>}
             <Button
-              className="w-full rounded-xl bg-orange-500 text-white hover:bg-orange-400"
+              className="w-full rounded-xl bg-foreground text-background hover:opacity-90"
               disabled={manualLoading}
               onClick={submitManual}
             >

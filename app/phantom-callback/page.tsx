@@ -71,7 +71,7 @@ function Inner() {
       {error ? (
         <>
           <p className="text-sm text-muted-foreground">{tr(error)}</p>
-          <button onClick={() => { window.location.href = "/"; }} className="rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground">{tr("Back")}</button>
+          <button onClick={() => { window.location.href = "/"; }} className="rounded-xl bg-foreground px-6 py-3 font-semibold text-background">{tr("Back")}</button>
         </>
       ) : (
         <div className="size-9 animate-spin rounded-full border-[3px] border-border border-t-primary" />

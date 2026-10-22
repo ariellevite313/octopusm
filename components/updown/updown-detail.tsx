@@ -1009,7 +1009,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
         )}
 
         <button type="button" onClick={() => void handleBet(selDir)} disabled={submitting}
-          className="mt-4 h-[52px] w-full rounded-2xl bg-primary text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
+          className="mt-4 h-[52px] w-full rounded-2xl bg-foreground text-base font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60">
           {submitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{tr("Confirming…")}</span>
             : !walletAddress ? tr("Connect wallet") : (selDir === "up" ? tr("Buy Up") : tr("Buy Down"))}
         </button>

@@ -90,7 +90,7 @@ async function ComingSoonContent() {
         </p>
         <Link
           href="/launchpad/create"
-          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          className="rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 transition-opacity"
         >
           Schedule a launch
         </Link>
@@ -122,7 +122,7 @@ export default function ComingSoonPage() {
         </div>
         <Link
           href="/launchpad/create"
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          className="rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background hover:opacity-90 transition-opacity"
         >
           + Schedule launch
         </Link>

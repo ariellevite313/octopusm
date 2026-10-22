@@ -125,7 +125,7 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
                     type="button"
                     disabled={claiming_}
                     onClick={() => void handleClaim(task)}
-                    className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
+                    className="rounded-xl bg-foreground px-3 py-1.5 text-xs font-bold text-background hover:opacity-90 disabled:opacity-50 transition-colors btn-primary"
                   >
                     {claiming_ ? tr("Claiming...") : tr("Claim")}
                   </button>

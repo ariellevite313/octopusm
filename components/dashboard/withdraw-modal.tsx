@@ -131,7 +131,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
 
   const btnClass =
     accent === "orange"
-      ? "bg-orange-500 hover:bg-orange-400 disabled:opacity-50"
+      ? "bg-foreground !text-background hover:opacity-90 disabled:opacity-50"
       : "bg-purple-600 hover:bg-purple-500 disabled:opacity-50";
 
   const ringClass =

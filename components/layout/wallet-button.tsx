@@ -436,7 +436,7 @@ export function ProfileDrawer({
                   {tr("Cancel")}
                 </button>
                 <button type="button" onClick={saveProfile} disabled={saving}
-                  className="flex-1 rounded-[14px] bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-400 disabled:opacity-60 btn-primary">
+                  className="flex-1 rounded-[14px] bg-foreground py-2 text-sm font-bold text-background hover:opacity-90 disabled:opacity-60 btn-primary">
                   {saving ? tr("Saving…") : tr("Save")}
                 </button>
               </div>
@@ -584,7 +584,7 @@ function WalletButtonInner() {
         type="button"
         onClick={() => setShowDialog(true)}
         disabled={isConnecting}
-        className="hidden rounded-[14px] bg-orange-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-400 disabled:opacity-60 btn-primary"
+        className="hidden rounded-[14px] bg-foreground px-4 py-2 text-sm font-bold text-background transition-colors hover:opacity-90 disabled:opacity-60 btn-primary"
       >
         {isConnecting ? tr("Connecting...") : tr("Connect Wallet")}
       </button>

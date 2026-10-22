@@ -587,7 +587,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         {!isAuthenticated && !mmAddress ? (
           <button
             onClick={openWalletModal}
-            className="mt-1 w-full rounded-2xl bg-primary py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
+            className="mt-1 w-full rounded-2xl bg-foreground py-4 text-[16px] font-bold text-background transition-opacity hover:opacity-90"
           >
             {tr("Connect wallet")}
           </button>
@@ -600,7 +600,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : direction === "sell"
                   ? "bg-red-500 hover:bg-red-400 text-white"
-                  : "bg-orange-500 hover:bg-orange-400 text-white"
+                  : "bg-foreground hover:opacity-90 text-background"
             }`}
           >
             {swapping ? (

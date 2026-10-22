@@ -69,7 +69,7 @@ export function AuthorizeCard() {
               onClick={() => setOn((o) => ({ ...o, [p.id]: !o[p.id] }))}
               className="flex w-full items-center gap-3 rounded-2xl bg-muted/50 px-4 py-3 text-left text-sm text-foreground disabled:cursor-default"
             >
-              <span className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${on[p.id] ? "border-primary bg-primary text-white" : "border-border"}`}>
+              <span className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${on[p.id] ? "border-foreground bg-foreground text-background" : "border-border"}`}>
                 {on[p.id] && <Check className="size-3.5" strokeWidth={3} />}
               </span>
               {tr(p.label)}
@@ -92,7 +92,7 @@ export function AuthorizeCard() {
             <button onClick={() => decide(false)} disabled={!!busy} className="rounded-full border border-border py-3 text-sm font-bold text-foreground hover:bg-muted">
               {busy === "deny" ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Cancel")}
             </button>
-            <button onClick={() => decide(true)} disabled={!!busy} className="rounded-full bg-primary py-3 text-sm font-bold text-white">
+            <button onClick={() => decide(true)} disabled={!!busy} className="rounded-full bg-foreground py-3 text-sm font-bold text-background">
               {busy === "allow" ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Allow")}
             </button>
           </div>

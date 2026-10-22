@@ -326,7 +326,7 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
             onClick={() => setFilter(key)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               filter === key
-                ? "bg-primary text-primary-foreground"
+                ? "bg-foreground text-background"
                 : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
           >

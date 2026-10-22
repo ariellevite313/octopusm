@@ -488,7 +488,7 @@ function CreateMarketDialog({
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
             <Button
-              className="flex-1 rounded-xl bg-orange-500 text-white hover:bg-orange-400"
+              className="flex-1 rounded-xl bg-foreground text-background hover:opacity-90"
               disabled={loading}
               onClick={handleCreate}
             >
@@ -616,7 +616,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
               variant="outline"
               size="sm"
               onClick={() => changeFilter(f)}
-              className={`rounded-full text-xs ${filter === f ? "border-orange-400 bg-orange-500 text-white hover:bg-orange-400" : "border-border"}`}
+              className={`rounded-full text-xs ${filter === f ? "border-foreground bg-foreground text-background hover:opacity-90" : "border-border"}`}
             >
               {label}
             </Button>
@@ -625,7 +625,7 @@ export function AdminMarketsClient({ markets }: { markets: PredictionMarketRow[]
         <Button
           size="sm"
           onClick={() => setShowCreate(true)}
-          className="rounded-full bg-orange-500 text-white hover:bg-orange-400"
+          className="rounded-full bg-foreground text-background hover:opacity-90"
         >
           <Plus className="mr-1 size-3" /> New Market
         </Button>

@@ -225,7 +225,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
         className={`w-full rounded-full py-3 text-[14px] font-bold transition-colors ${
           claiming || loading || !accrued || accrued === 0n
             ? "bg-muted text-muted-foreground cursor-not-allowed"
-            : "bg-orange-500 hover:bg-orange-400 text-white"
+            : "bg-foreground hover:opacity-90 text-background"
         }`}
       >
         {claiming ? (
