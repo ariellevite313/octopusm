@@ -42,6 +42,8 @@ language plpgsql security definer set search_path = public as $$
 declare ok boolean;
 begin
   if p_amount is null or p_amount <= 0 or p_beneficiary = p_trader then return false; end if;
+  -- Garde-fou : un gain ne dépasse jamais 20 % des frais de la plateforme sur ce trade (taux réels : 10 % et 1 %)
+  if p_fee is null or p_fee <= 0 or p_amount > p_fee * 0.2 then return false; end if;
   insert into trade_rewards (kind, tx_id, beneficiary, trader, token_id, chain, volume_usd, platform_fee_usd, amount_usdc)
   values (p_kind, p_tx, p_beneficiary, p_trader, p_token, p_chain, p_volume, p_fee, p_amount)
   on conflict (kind, tx_id) do nothing;
