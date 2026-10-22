@@ -28,8 +28,9 @@ function extractStoragePath(publicUrl: string): string | null {
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
+  const params = await ctx.params;
   try {
     const walletAddress = await getWalletAddress();
     if (!walletAddress) {
