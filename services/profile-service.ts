@@ -115,7 +115,7 @@ async function getSolPriceUsd(): Promise<number> {
 }
 
 /** Prix USD du ClawdTrust (DexScreener, mis en cache 5 min). 0 si indisponible. */
-async function getCltPriceUsd(): Promise<number> {
+export async function getCltPriceUsd(): Promise<number> {
   try {
     const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${CLT_MINT}`, {
       next: { revalidate: 300 },

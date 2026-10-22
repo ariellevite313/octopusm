@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, UserPlus, TrendingUp, CircleDollarSign, MessageSquare, Users } from "lucide-react";
 import type { ReferralRow } from "@/services/dashboard-service";
-import { useT, Rich } from "@/lib/i18n";
-import { LOCALES } from "@/lib/i18n-mark";
+import { useT } from "@/lib/i18n";
+import { LOCALES, T } from "@/lib/i18n-mark";
 import type { Lang } from "@/lib/i18n";
 
 function fmtUsdc(n: number, lang: Lang) {
@@ -47,117 +47,94 @@ export function ReferralSection({
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const usdcTotal = referrals.reduce((s, r) => s + r.usdc_commission, 0);
+  const cltTotal  = referrals.reduce((s, r) => s + r.clt_commission, 0);
+  const WAYS: { icon: typeof UserPlus; title: string; text: string }[] = [
+    { icon: UserPlus,      title: T("A friend joins"),        text: T("You get 200 OMERO, they get 50 OMERO.") },
+    { icon: TrendingUp,    title: T("They buy tokens"),       text: T("10% of our fee on every buy, for life. Paid in USDC.") },
+    { icon: CircleDollarSign, title: T("They predict"),       text: T("1% of every bet they place, in the bet's currency.") },
+    { icon: MessageSquare, title: T("You share on the feed"), text: T("1% of our fee when someone buys from your post's Trade button.") },
+  ];
+
   return (
-    <section>
-      <h2 className="mb-3 text-base font-bold text-foreground">{tr("Referral program")}</h2>
-
-      <div className="rounded-[22px] border border-border bg-card overflow-hidden divide-y divide-border">
-
-        {/* Link row */}
-        <div className="px-4 py-4 space-y-2">
-          <p className="text-[13px] font-semibold text-muted-foreground">
-            {tr("Your referral link")}
-          </p>
+    <section className="space-y-5">
+      <div>
+        <h2 className="mb-3 text-lg font-extrabold text-foreground">{tr("Referral")}</h2>
+        <div className="rounded-3xl border border-border bg-card p-4">
+          <p className="mb-2 text-[13px] font-semibold text-muted-foreground">{tr("Your link")}</p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 truncate rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs font-mono text-foreground">
-              {referralLink ?? tr("Generating your link...")}
+            <code className="flex h-12 min-w-0 flex-1 items-center truncate rounded-2xl bg-muted px-3.5 font-mono text-[13px] text-foreground">
+              {referralLink ? referralLink.replace(/^https?:\/\//, "") : tr("Generating your link...")}
             </code>
-            <button
-              type="button"
-              disabled={!referralLink}
-              onClick={() => void handleCopy()}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-400 disabled:opacity-50 transition-colors btn-primary"
-            >
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+            <button type="button" disabled={!referralLink} onClick={() => void handleCopy()}
+              className="flex h-12 shrink-0 items-center gap-2 rounded-2xl bg-foreground px-4 text-sm font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-40">
+              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               {copied ? tr("Copied!") : tr("Copy")}
             </button>
           </div>
-          <p className="text-xs text-muted-foreground [&_strong]:font-semibold [&_strong]:text-orange-500">
-            <Rich>{tr("Earn <b>200 OMERO</b> for each friend who connects their wallet via your link — they get <b>50 OMERO</b> too.")}</Rich>
-          </p>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-4 divide-x divide-border">
-          <div className="px-3 py-3 text-center">
-            <p className="text-lg font-bold text-foreground">{referralCount}</p>
-            <p className="text-[13px] font-semibold text-muted-foreground">
-              {tr("Friends")}
-            </p>
-          </div>
-          <div className="px-3 py-3 text-center">
-            <p className="text-lg font-bold text-orange-500">{octoEarned.toLocaleString(LOCALES[lang])}</p>
-            <p className="text-[13px] font-semibold text-muted-foreground">
-              {tr("OMERO earned")}
-            </p>
-          </div>
-          <div className="px-3 py-3 text-center">
-            <p className="text-lg font-bold text-foreground">
-              {referrals.length > 0
-                ? `$${fmtUsdc(referrals.reduce((s, r) => s + r.usdc_commission, 0), lang)}`
-                : "—"}
-            </p>
-            <p className="text-[13px] font-semibold text-muted-foreground">
-              USDC
-            </p>
-          </div>
-          <div className="px-3 py-3 text-center">
-            <p className="text-lg font-bold text-foreground">
-              {referrals.length > 0
-                ? fmtClt(referrals.reduce((s, r) => s + r.clt_commission, 0), lang)
-                : "—"}
-            </p>
-            <p className="text-[13px] font-semibold text-muted-foreground">
-              CLT
-            </p>
-          </div>
-        </div>
-
-        {/* Referral list */}
-        {referrals.length > 0 && (
-          <div>
-            <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-muted/30">
-              <p className="text-[13px] font-semibold text-muted-foreground col-span-2">{tr("User")}</p>
-              <p className="text-[13px] font-semibold text-muted-foreground text-right">USDC</p>
-              <p className="text-[13px] font-semibold text-muted-foreground text-right">CLT</p>
-            </div>
-            {referrals.map((r) => (
-              <div
-                key={r.id}
-                className="grid grid-cols-4 gap-2 items-center px-4 py-2.5 border-t border-border"
-              >
-                <div className="col-span-2 min-w-0">
-                  <p className="text-xs font-mono text-foreground truncate">{fmtAddr(r.referred_wallet)}</p>
-                  <p className="text-[10px] text-muted-foreground">{fmtDate(r.created_at, lang)}</p>
-                </div>
-                <p className="text-xs font-medium text-right text-foreground">
-                  {r.usdc_commission > 0 ? (
-                    <span className="text-up">
-                      +${fmtUsdc(r.usdc_commission, lang)}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </p>
-                <p className="text-xs font-medium text-right text-foreground">
-                  {r.clt_commission > 0 ? (
-                    <span className="text-purple-600 dark:text-purple-400">
-                      +{fmtClt(r.clt_commission, lang)}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[
+              { v: String(referralCount), l: T("Friends") },
+              { v: `$${fmtUsdc(usdcTotal, lang)}`, l: T("USDC earned") },
+              { v: octoEarned.toLocaleString(LOCALES[lang]), l: "OMERO" },
+            ].map((x) => (
+              <div key={x.l} className="rounded-2xl bg-muted px-2 py-3 text-center">
+                <p className="text-lg font-extrabold text-foreground">{x.v}</p>
+                <p className="text-xs text-muted-foreground">{tr(x.l)}</p>
               </div>
             ))}
           </div>
-        )}
+          {cltTotal > 0 && <p className="mt-2 text-center text-xs text-muted-foreground">+ {fmtClt(cltTotal, lang)} CLT</p>}
+        </div>
+      </div>
 
-        {referralCount === 0 && (
-          <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-            {tr("No referrals yet — share your link to start earning OMERO.")}
-          </div>
-        )}
+      <div>
+        <h3 className="mb-3 text-lg font-extrabold text-foreground">{tr("How you earn")}</h3>
+        <div className="divide-y divide-border rounded-3xl border border-border bg-card px-4">
+          {WAYS.map((w) => (
+            <div key={w.title} className="flex gap-3 py-3.5">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                <w.icon className="size-[18px] text-foreground" strokeWidth={1.8} />
+              </span>
+              <div>
+                <p className="text-[15px] font-bold text-foreground">{tr(w.title)}</p>
+                <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{tr(w.text)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-lg font-extrabold text-foreground">{tr("Your friends")}</h3>
+        <div className="rounded-3xl border border-border bg-card">
+          {referrals.length === 0 ? (
+            <div className="px-6 py-8 text-center">
+              <span className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-muted">
+                <Users className="size-[18px] text-foreground" strokeWidth={1.8} />
+              </span>
+              <p className="text-[15px] font-bold text-foreground">{tr("No friends yet")}</p>
+              <p className="mt-1 text-[13px] text-muted-foreground">{tr("Share your link. Each friend shows here with what you earned from them.")}</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {referrals.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-[13px] font-semibold text-foreground">{fmtAddr(r.referred_wallet)}</p>
+                    <p className="text-xs text-muted-foreground">{fmtDate(r.created_at, lang)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold ${r.usdc_commission > 0 ? "text-up" : "text-muted-foreground"}`}>
+                      {r.usdc_commission > 0 ? `+$${fmtUsdc(r.usdc_commission, lang)}` : "$0.00"}
+                    </p>
+                    {r.clt_commission > 0 && <p className="text-xs text-muted-foreground">+{fmtClt(r.clt_commission, lang)} CLT</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

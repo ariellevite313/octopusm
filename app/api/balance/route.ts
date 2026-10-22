@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getCltPriceUsd } from "@/services/profile-service";
 
 const isClt  = (t: string) => t === "clawdtrust" || t === "clt";
 const isUsdc = (t: string) => t === "usdc";
@@ -107,7 +108,32 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const octoBalance = (octoRes.data ?? []).reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
-  return NextResponse.json({ usdcBalance, cltBalance, octoBalance });
+  // ── Détail pour le portefeuille : gains, parrainage, valeur du CLT, variation sur 24 h ──
+  const winningsUsdc = predUsdc + updownUsdc + mutuelUsdc;
+  const winningsClt  = predClt + updownClt + mutuelClt;
+  const cltPriceUsd  = await getCltPriceUsd().catch(() => 0);
+  let change24hUsd = 0;
+  try {
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    const [c24, m24, u24] = await Promise.all([
+      admin.from("referral_commissions").select("amount_usdc, amount_clt").eq("referrer_wallet", wallet).gte("created_at", since),
+      admin.from("mutuel_bets").select("token, payout_amount").eq("wallet_address", wallet).not("payout_amount", "is", null).gte("paid_at", since),
+      admin.from("updown_bets").select("token, payout").eq("wallet_address", wallet).in("status", ["won", "claimed", "paid"]).gte("paid_at", since),
+    ]);
+    const usd = (amt: number, tok: string) => (isClt(tok) ? amt * cltPriceUsd : isUsdc(tok) ? amt : 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const r of (c24.data ?? []) as any[]) change24hUsd += Number(r.amount_usdc ?? 0) + Number(r.amount_clt ?? 0) * cltPriceUsd;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const b of (m24.data ?? []) as any[]) change24hUsd += usd(Number(b.payout_amount ?? 0), b.token ?? "usdc");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const b of (u24.data ?? []) as any[]) change24hUsd += usd(Number(b.payout ?? 0), b.token ?? "usdc");
+  } catch { change24hUsd = 0; }
+
+  return NextResponse.json({
+    usdcBalance, cltBalance, octoBalance,
+    winningsUsdc, winningsClt, referralUsdc: commUsdc, referralClt: commClt,
+    cltPriceUsd, change24hUsd: Math.round(change24hUsd * 100) / 100,
+  });
   } catch (err) {
     console.error("[balance] unexpected error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

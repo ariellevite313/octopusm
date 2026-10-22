@@ -11,6 +11,12 @@ export interface PlatformBalances {
   usdc: number;   // gains paris + commissions USDC
   clt: number;    // gains paris + commissions CLT (raw units)
   octo: number;   // points OCTO
+  winningsUsdc?: number;
+  winningsClt?: number;
+  referralUsdc?: number;
+  referralClt?: number;
+  cltPriceUsd?: number;
+  change24hUsd?: number;
 }
 
 export async function getWalletProfile(address: string): Promise<WalletProfile | null> {
@@ -90,6 +96,7 @@ export interface DrawerStats {
   referral_count: number;
   referral_octo: number;
   referral_code: string | null;
+  tokens_launched?: number;
 }
 
 export async function getDrawerStats(): Promise<DrawerStats> {
@@ -107,12 +114,15 @@ export async function getPlatformBalances(_walletAddress: string): Promise<Platf
   try {
     const res = await fetch("/api/balance");
     if (!res.ok) return { usdc: 0, clt: 0, octo: 0 };
-    const { usdcBalance, cltBalance, octoBalance } = await res.json() as {
-      usdcBalance: number;
-      cltBalance: number;
-      octoBalance: number;
+    const j = await res.json() as {
+      usdcBalance: number; cltBalance: number; octoBalance: number;
+      winningsUsdc?: number; winningsClt?: number; referralUsdc?: number; referralClt?: number; cltPriceUsd?: number; change24hUsd?: number;
     };
-    return { usdc: usdcBalance, clt: cltBalance, octo: octoBalance ?? 0 };
+    return {
+      usdc: j.usdcBalance, clt: j.cltBalance, octo: j.octoBalance ?? 0,
+      winningsUsdc: j.winningsUsdc, winningsClt: j.winningsClt, referralUsdc: j.referralUsdc, referralClt: j.referralClt,
+      cltPriceUsd: j.cltPriceUsd, change24hUsd: j.change24hUsd,
+    };
   } catch {
     return { usdc: 0, clt: 0, octo: 0 };
   }

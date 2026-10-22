@@ -15,7 +15,7 @@ export async function GET() {
 
   const admin = createAdminClient() as any;
 
-  const [updownRes, mutuelRes, predRes, referralsRes, refOctoRes, refCodeRes] = await Promise.all([
+  const [updownRes, mutuelRes, predRes, referralsRes, refOctoRes, refCodeRes, tokensRes] = await Promise.all([
     admin.from("updown_bets").select("status").eq("wallet_address", wallet),
     admin.from("mutuel_bets").select("payout_amount").eq("wallet_address", wallet),
     admin.from("prediction_history_with_status").select("result_status").eq("wallet_address", wallet),
@@ -23,6 +23,7 @@ export async function GET() {
     admin.from("octo_transactions").select("amount").eq("wallet_address", wallet).eq("type", "referral"),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from("referral_codes").select("code").eq("wallet_address", wallet).maybeSingle(),
+    admin.from("launchpad_tokens").select("id", { count: "exact", head: true }).ilike("creator_wallet", wallet).neq("status", "pending"),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,7 +46,9 @@ export async function GET() {
   const referral_octo  = (refOctoRes.data ?? []).reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
   const referral_code: string | null = refCodeRes.data?.code ?? null;
 
-  return NextResponse.json({ bets_count, win_count, win_rate, referral_count, referral_octo, referral_code });
+  const tokens_launched = tokensRes.count ?? 0;
+
+  return NextResponse.json({ bets_count, win_count, win_rate, referral_count, referral_octo, referral_code, tokens_launched });
   } catch (err) {
     console.error("[drawer-stats] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
