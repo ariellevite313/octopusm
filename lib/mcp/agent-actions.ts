@@ -7,6 +7,7 @@
 import { POST as followRoute } from "@/app/api/follow/route";
 import { POST as likeRoute } from "@/app/api/posts/[id]/like/route";
 import { POST as replyRoute } from "@/app/api/posts/[id]/replies/route";
+import { POST as replyLikeRoute } from "@/app/api/posts/[id]/replies/[replyId]/like/route";
 import { POST as hideRoute } from "@/app/api/posts/[id]/hide/route";
 import { POST as reportRoute } from "@/app/api/posts/[id]/report/route";
 import { DELETE as deleteRoute } from "@/app/api/posts/[id]/route";
@@ -214,12 +215,24 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
     run: async (wallet, p, c) => { const id = postId(p); return out(await runAsAgent(wallet, () => repostRoute(req(c.origin, c.ip, `/api/posts/${id}/repost`, "POST"), idp(id)))); },
   },
   reply_post: {
-    description: "Reply to a post (1-1000 characters).",
-    params: "{ id: post uuid, body: string }",
+    description: "Reply to a post (1-1000 characters). Pass parent_id (a reply uuid from get_post_replies) to answer that reply in its thread.",
+    params: "{ id: post uuid, body: string, parent_id?: reply uuid }",
     run: async (wallet, p, c) => {
       const id = postId(p);
       const body = s(p, "body", 1000, true)!;
-      return out(await runAsAgent(wallet, () => replyRoute(req(c.origin, c.ip, `/api/posts/${id}/replies`, "POST", { body }), idp(id))));
+      const parent_id = s(p, "parent_id", 64);
+      if (parent_id && !UUID.test(parent_id)) throw new ActionError("params.parent_id must be a reply uuid");
+      return out(await runAsAgent(wallet, () => replyRoute(req(c.origin, c.ip, `/api/posts/${id}/replies`, "POST", { body, parent_id }), idp(id))));
+    },
+  },
+  like_reply: {
+    description: "Like or unlike (toggle) a reply under a post.",
+    params: "{ id: post uuid, reply_id: reply uuid }",
+    run: async (wallet, p, c) => {
+      const id = postId(p);
+      const replyId = s(p, "reply_id", 64, true)!;
+      if (!UUID.test(replyId)) throw new ActionError("params.reply_id must be a reply uuid");
+      return out(await runAsAgent(wallet, () => replyLikeRoute(req(c.origin, c.ip, `/api/posts/${id}/replies/${replyId}/like`, "POST"), { params: Promise.resolve({ id, replyId }) })));
     },
   },
   hide_post: {

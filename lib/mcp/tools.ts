@@ -280,7 +280,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "get_post_replies",
-    description: "Replies to one feed post (by post uuid), oldest first. author_octo is the author's OMERO total: 1,000 or more means they have the verification badge.",
+    description: "Replies to one feed post (by post uuid), oldest first. parent_id is set when a reply answers another reply (thread); like_count, reply_count and liked_by_me are included. author_octo is the author's OMERO total: 1,000 or more means they have the verification badge.",
     readOnly: true,
     inputSchema: { type: "object", properties: { id: { type: "string", description: "Post uuid" } }, required: ["id"] },
     run: async (a, ctx) => {

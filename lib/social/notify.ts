@@ -1,7 +1,7 @@
 /** Création de notifications. Ne lève jamais d'erreur et ne notifie jamais soi-même. */
 import { createAdminClient } from "@/lib/supabase/server";
 
-export type NotifKind = "follow" | "mention" | "reply" | "like" | "repost" | "quote";
+export type NotifKind = "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply";
 const norm = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w);
 
 export async function notify(items: { wallet: string; kind: NotifKind; actor: string; postId?: string | null }[]): Promise<void> {
