@@ -35,7 +35,7 @@ export function TokenHolders({ mint, chain = "solana", curve }: { mint: string; 
 
   return (
     <div>
-      <p className="mb-2 text-[13px] text-muted-foreground">{tr("Top 100 of {count} holders", { count: total })}</p>
+      <p className="mb-2 text-[13px] text-muted-foreground">{total > 100 ? tr("Top 100 of {count} holders", { count: total }) : tr("{count} holders", { count: total })}</p>
       <div className="divide-y divide-border/60">
         {rows.map((h) => {
           const named = !!h.name;
