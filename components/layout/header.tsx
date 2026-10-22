@@ -8,8 +8,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "./wallet-button";
-import { MobileSettings } from "@/components/shared/theme-switch";
-import { MORE_ITEMS } from "@/lib/nav/more-items";
+import { MenuFooter, MenuSettingsPanel } from "@/components/layout/menu-settings";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
@@ -20,7 +19,6 @@ const NAV_LINKS = [
   { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
   { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },
   { href: "/live",                    label: T("Live scores"), badge: undefined, disabled: false },
-  { href: "/archive",                 label: T("Archive"),     badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
 function isActive(href: string, pathname: string) {
@@ -31,7 +29,9 @@ function isActive(href: string, pathname: string) {
 }
 
 export function Header() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenRaw] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const setOpen = (v: boolean) => { setOpenRaw(v); if (!v) setSettings(false); };
   const unread = useUnreadNotifications();
 
   // The desktop sidebar's "⋯" button opens this same menu
@@ -109,10 +109,11 @@ export function Header() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
+          <div className="fixed inset-y-0 right-0 z-[60] w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
+            {settings ? <MenuSettingsPanel onBack={() => setSettings(false)} onClose={() => setOpen(false)} /> : (<>
             <div className="flex h-16 items-center justify-between px-5">
               <span className="text-lg font-bold tracking-tight text-foreground">{tr("Menu")}</span>
               <button
@@ -149,7 +150,7 @@ export function Header() {
                 </button>
               )}
             </div>
-            <nav className="flex flex-col gap-1 overflow-y-auto p-3">
+            <nav className="flex min-h-0 flex-col gap-1 overflow-y-auto p-3">
               <NotificationMenuLink active={pathname.startsWith("/notifications")} onClick={() => setOpen(false)} />
               {links.map(({ href, label, badge, disabled, external }) =>
                 disabled ? (
@@ -191,29 +192,9 @@ export function Header() {
                   {tr("My tokens")}
                 </Link>
               )}
-              {isAuthenticated && (
-                <Link
-                  href="/settings/apps"
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${isActive("/settings/apps", pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
-                >
-                  {tr("Connected apps")}
-                </Link>
-              )}
-              {MORE_ITEMS.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  target={item.external ? "_blank" : undefined}
-                  rel={item.external ? "noopener noreferrer" : undefined}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground ${!item.external && isActive(item.href, pathname) ? "bg-muted text-foreground" : "text-muted-foreground"}`}
-                >
-                  {tr(item.label)}
-                </Link>
-              ))}
             </nav>
-            <div className="mt-auto"><MobileSettings /></div>
+            <div className="mt-auto"><MenuFooter onSettings={() => setSettings(true)} /></div>
+            </>)}
           </div>
         </>
       )}

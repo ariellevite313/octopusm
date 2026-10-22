@@ -8,7 +8,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { WalletButton } from "@/components/layout/wallet-button";
-import { MobileSettings } from "@/components/shared/theme-switch";
+import { MenuFooter, MenuSettingsPanel } from "@/components/layout/menu-settings";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
@@ -46,7 +46,9 @@ function isActive(href: string, pathname: string) {
 
 export function LaunchpadHeader() {
   const { tr } = useT();
-  const [open, setOpen] = useState(false);
+  const [open, setOpenRaw] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const setOpen = (v: boolean) => { setOpenRaw(v); if (!v) setSettings(false); };
   const unread = useUnreadNotifications();
 
   // The desktop sidebar's "⋯" button opens this same menu
@@ -122,10 +124,11 @@ export function LaunchpadHeader() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
+          <div className="fixed inset-y-0 right-0 z-[60] w-72 rounded-l-3xl border-l border-border bg-card shadow-xl flex flex-col">
+            {settings ? <MenuSettingsPanel onBack={() => setSettings(false)} onClose={() => setOpen(false)} /> : (<>
             <div className="flex h-16 items-center justify-between px-5">
               <span className="text-lg font-bold tracking-tight text-foreground">{tr("Launchpad")}</span>
               <button
@@ -204,7 +207,8 @@ export function LaunchpadHeader() {
                 </Link>
               ))}
             </nav>
-            <div className="mt-auto"><MobileSettings /></div>
+            <div className="mt-auto"><MenuFooter onSettings={() => setSettings(true)} /></div>
+            </>)}
           </div>
         </>
       )}

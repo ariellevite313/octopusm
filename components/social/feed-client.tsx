@@ -77,7 +77,7 @@ export function FeedClient() {
 
   return (
     <div className="mx-auto max-w-xl pb-40">
-      <div className="sticky top-0 z-10 flex gap-6 border-b border-border bg-background/90 px-4 pt-3 backdrop-blur">
+      <div className="sticky top-16 z-10 lg:top-0 flex gap-6 border-b border-border bg-background/90 px-4 pt-3 backdrop-blur">
         {([["foryou", tr("For you")], ["following", tr("Following")]] as const).map(([k, label]) => (
           <button
             key={k}

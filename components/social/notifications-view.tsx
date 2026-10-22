@@ -49,7 +49,7 @@ export function NotificationsView() {
 
   return (
     <div className="mx-auto max-w-xl pb-32">
-      <div className="sticky top-0 z-10 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
+      <div className="sticky top-16 z-10 lg:top-0 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
         <h1 className="text-base font-bold">{tr("Notifications")}</h1>
       </div>
       {!isAuthenticated ? (
