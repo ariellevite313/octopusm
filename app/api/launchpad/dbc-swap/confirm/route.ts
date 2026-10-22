@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
-import { awardTradeRewards } from "@/lib/trade-rewards";
+import { awardTradeRewards, SOL_PLATFORM_RATE } from "@/lib/trade-rewards";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const WSOL = "So11111111111111111111111111111111111111112";
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = createAdminClient() as any;
-    const { data: token } = await db.from("launchpad_tokens").select("id").eq("pool_address", poolAddress).maybeSingle();
+    const { data: token } = await db.from("launchpad_tokens").select("id, sol_fee_tier").eq("pool_address", poolAddress).maybeSingle();
     if (!token) return NextResponse.json({ error: "Unknown token" }, { status: 404 });
 
     const conn = new Connection(RPC_URL, "confirmed");
@@ -71,6 +71,7 @@ export async function POST(req: Request) {
     if (!(price > 0)) return NextResponse.json({ error: "Price unavailable, retry" }, { status: 503 });
     const r = await awardTradeRewards(db, {
       chain: "solana", tokenId: token.id, txId: txSignature, trader: who.wallet, volumeUsd: delta * price, tsMs: tx.blockTime * 1000,
+      feeRate: token.sol_fee_tier === "low" ? SOL_PLATFORM_RATE.low : SOL_PLATFORM_RATE.standard,
     });
     return NextResponse.json({ rewarded: r.referral + r.post > 0 });
   } catch (e) {

@@ -19,9 +19,11 @@ export const POST_SHARE_OF_FEE = 0.01;
 /**
  * Part du volume que la plateforme encaisse réellement.
  *  - Arc    : lu sur la courbe du token (platformBps de son niveau : 0,25 / 0,30 / 0,40 / 0,50 %). 0,25 % (Standard, le plus bas) si la lecture échoue.
- *  - Solana : 0,5 % pour les deux niveaux : frais 1,25 % → 20 % Meteora, reste 50/50 = 0,5 % ; frais 2 % → 0,8 % (donc 0,5 % reste prudent).
+ *  - Solana : selon le niveau du token (SOL_PLATFORM_RATE) : low = frais 1,25 % (Meteora 0,25 / créateur 0,5 / plateforme 0,5) ; standard = frais 2,5 % (Meteora 0,5 / créateur 0,8 / plateforme 1,2).
  */
 export const PLATFORM_FEE_RATE = { arc: 0.0025, solana: 0.005 } as const;
+/** Part plateforme par niveau de frais Solana, en part du volume (chiffres donnés par le propriétaire pour ses deux configs Meteora). */
+export const SOL_PLATFORM_RATE = { standard: 0.012, low: 0.005 } as const;
 export const MIN_VOLUME_USD = 1;
 export const ATTRIBUTION_DAYS = 7;
 
@@ -35,8 +37,8 @@ const round6 = (n: number) => Math.floor(n * 1_000_000) / 1_000_000;
 /** Calcul pur des montants (en USDC) pour un achat. */
 export function computeTradeRewards(chain: Chain, volumeUsd: number, opts: { hasReferrer: boolean; hasPost: boolean }, feeRate?: number) {
   if (!Number.isFinite(volumeUsd) || volumeUsd < MIN_VOLUME_USD) return { fee: 0, referral: 0, post: 0 };
-  // Taux réel du token si connu (jamais au-dessus de 1 % du volume), sinon le taux prudent de la chaîne
-  const rate = feeRate !== undefined && Number.isFinite(feeRate) && feeRate > 0 && feeRate <= 0.01 ? feeRate : PLATFORM_FEE_RATE[chain];
+  // Taux réel du token si connu (jamais au-dessus de 1,5 % du volume), sinon le taux prudent de la chaîne
+  const rate = feeRate !== undefined && Number.isFinite(feeRate) && feeRate > 0 && feeRate <= 0.015 ? feeRate : PLATFORM_FEE_RATE[chain];
   const fee = volumeUsd * rate;
   return {
     fee,
