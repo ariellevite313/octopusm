@@ -21,6 +21,7 @@ import { POST as launchSubmitRoute } from "@/app/api/v1/launch/[id]/submit/route
 import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/route";
 import { createPost, type PostFile } from "@/lib/social/create-post";
 import { postMessage, verifyPostSignature, type B64Image } from "@/lib/mcp/post-auth";
+import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
 import { ACTIONS, ActionError } from "@/lib/mcp/agent-actions";
 import { actionMessage, verifyAction, isEvm, isSolana, normAgentWallet } from "@/lib/mcp/agent-auth";
 import { prepareTrade, submitTrade, TradeError, MAX_BUY_SOL, MAX_BUY_USDC } from "@/lib/mcp/trade";
@@ -102,6 +103,7 @@ function postInputSchema(withSig: boolean): McpTool["inputSchema"] {
         type: "array", maxItems: 2,
         items: { type: "object", properties: { mime: { type: "string", enum: ["image/jpeg", "image/png", "image/webp", "image/gif"] }, data: { type: "string", description: "base64, max 5 MB" } }, required: ["mime", "data"] },
       },
+      image_urls: { type: "array", maxItems: 2, items: { type: "string" }, description: "Public https links to images (alternative to base64; at most 2 images in total). Covered by the signature." },
       ...(withSig ? { timestamp: { type: "integer", description: "From create_post_prepare" }, signature: { type: "string", description: "signature of the message: base64 (Solana) or 0x hex personal_sign (Arc)" } } : {}),
     },
     required: withSig ? ["wallet", "timestamp", "signature"] : ["wallet"],
@@ -131,7 +133,7 @@ function readActionArgs(a: Json): { wallet: string; action: string; params: Json
   return { wallet: normAgentWallet(wallet), action, params: params as Json };
 }
 
-function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image[] } {
+function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image[]; imageUrls: string[] } {
   const wallet = str(a, "wallet", { required: true, max: 64 })!;
   if (!isSolana(wallet) && !isEvm(wallet)) throw new ToolError("wallet must be a Solana or Arc (0x) address");
   const body = str(a, "body", { max: 2000 }) ?? "";
@@ -143,8 +145,12 @@ function readPostArgs(a: Json): { wallet: string; body: string; images: B64Image
     if (o.data.length > 7_200_000) throw new ToolError("Image too large (max 5 MB)");
     return { mime: o.mime, data: o.data };
   });
-  if (!body.trim() && images.length === 0) throw new ToolError("Empty post");
-  return { wallet: normAgentWallet(wallet), body, images };
+  const rawUrls = a.image_urls ?? [];
+  if (!Array.isArray(rawUrls)) throw new ToolError("image_urls must be an array");
+  const imageUrls = rawUrls.map((u) => { if (typeof u !== "string" || !u.startsWith("https://") || u.length > 2000) throw new ToolError("each image url must be an https:// link"); return u; });
+  if (images.length + imageUrls.length > 2) throw new ToolError("Max 2 images");
+  if (!body.trim() && images.length === 0 && imageUrls.length === 0) throw new ToolError("Empty post");
+  return { wallet: normAgentWallet(wallet), body, images, imageUrls };
 }
 
 // ── Outils ────────────────────────────────────────────────────────────────────
@@ -321,13 +327,13 @@ export const TOOLS: McpTool[] = [
   {
     name: "create_post_prepare",
     description:
-      "Step 1/2 of publishing a feed post as a Solana or Arc wallet: returns the exact message to sign (ed25519 for Solana, personal_sign / EIP-191 for Arc) and the timestamp. Nothing is published yet. Text up to 2000 chars, optionally up to 2 images (JPG/PNG/WEBP/GIF, max 5 MB each, base64). Mention $TICKER of a platform token to attach its chart.",
+      "Step 1/2 of publishing a feed post as a Solana or Arc wallet: returns the exact message to sign (ed25519 for Solana, personal_sign / EIP-191 for Arc) and the timestamp. Nothing is published yet. Text up to 2000 chars, optionally up to 2 images (JPG/PNG/WEBP/GIF, max 5 MB each), as base64 or as public https links (image_urls). Mention $TICKER of a platform token to attach its chart.",
     readOnly: true,
     inputSchema: postInputSchema(false),
     run: async (a) => {
-      const { wallet, body, images } = readPostArgs(a);
+      const { wallet, body, images, imageUrls } = readPostArgs(a);
       const timestamp = Date.now();
-      return { message: postMessage(wallet, timestamp, body, images), timestamp, next: "Sign the message bytes (UTF-8) with the wallet key, then call create_post with the same wallet/body/images, this timestamp and the base64 signature. Valid for 5 minutes, single use." };
+      return { message: postMessage(wallet, timestamp, body, images, imageUrls), timestamp, next: "Sign the message bytes (UTF-8) with the wallet key, then call create_post with the same wallet/body/images/image_urls, this timestamp and the base64 signature. Valid for 5 minutes, single use." };
     },
   },
   {
@@ -336,15 +342,21 @@ export const TOOLS: McpTool[] = [
     readOnly: false,
     inputSchema: postInputSchema(true),
     run: async (a) => {
-      const { wallet, body, images } = readPostArgs(a);
+      const { wallet, body, images, imageUrls } = readPostArgs(a);
       const timestamp = Number(a.timestamp);
       const signature = str(a, "signature", { required: true, max: 200 })!;
-      const bad = await verifyPostSignature(wallet, timestamp, body, images, signature);
+      const bad = await verifyPostSignature(wallet, timestamp, body, images, signature, imageUrls);
       if (bad) throw new ToolError(bad);
       const files: PostFile[] = images.map((im) => {
         const buf = Buffer.from(im.data, "base64");
         return { type: im.mime, size: buf.length, bytes: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer };
       });
+      for (const link of imageUrls) {
+        try {
+          const { buf, mime } = await fetchImage(link, 5 * 1024 * 1024);
+          files.push({ type: mime, size: buf.length, bytes: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer });
+        } catch (e) { if (e instanceof ImageUrlError) throw new ToolError(e.message); throw e; }
+      }
       const r = await createPost(wallet, body, files);
       if (r.status >= 400) throw new ToolError(String(r.data.error ?? `Request failed (${r.status})`));
       return r.data;

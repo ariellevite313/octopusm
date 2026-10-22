@@ -49,6 +49,15 @@ describe("MCP create_post — signature check", () => {
     const other = { mime: "image/png", data: Buffer.from("zzz").toString("base64") };
     expect(await verifyPostSignature(wallet, ts, "x", [other], sig)).toMatch(/does not match/);
   });
+
+  it("binds the image links to the signature, and stays compatible without links", async () => {
+    const { wallet, sign } = setup();
+    const ts = Date.now();
+    const sig = sign(postMessage(wallet, ts, "x", [], ["https://a.example/1.png"]));
+    expect(await verifyPostSignature(wallet, ts, "x", [], sig, ["https://evil.example/1.png"])).toMatch(/does not match/);
+    expect(await verifyPostSignature(wallet, ts, "x", [], sig, ["https://a.example/1.png"])).toBeNull();
+    expect(postMessage(wallet, ts, "x", [])).toBe(postMessage(wallet, ts, "x", [], []));
+  });
 });
 
 import { actionMessage, verifyAction } from "@/lib/mcp/agent-auth";

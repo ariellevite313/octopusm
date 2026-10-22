@@ -56,17 +56,7 @@ const actionTools: McpTool[] = Object.entries(ACTIONS)
     run: async (args, ctx) => {
       if (!ctx.user) throw new ToolError("Not connected");
       need(ctx.user.scopes, k === "request_approval" ? "approvals" : "social");
-      try {
-        const p = { ...args };
-        if (k === "update_profile") {
-          for (const [key, max] of [["avatar", 2], ["banner", 4]] as const) {
-            const link = p[`${key}_url`];
-            delete p[`${key}_url`];
-            if (typeof link === "string" && link && !p[`${key}_base64`]) p[`${key}_base64`] = (await fetchImage(link, max * 1024 * 1024)).buf.toString("base64");
-          }
-        }
-        return await a.run(ctx.user.wallet, p, ctx);
-      } catch (e) { if (e instanceof ActionError || e instanceof ImageUrlError) throw new ToolError(e.message); throw e; }
+      try { return await a.run(ctx.user.wallet, args, ctx); } catch (e) { if (e instanceof ActionError) throw new ToolError(e.message); throw e; }
     },
   }));
 
