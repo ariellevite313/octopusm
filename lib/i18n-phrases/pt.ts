@@ -525,6 +525,7 @@ const p: Record<string, string> = {
   "{name} reposted": "{name} repostou",
   "Add a comment": "Adicione um comentário",
   "Too many reposts, try again later": "Muitos reposts, tente mais tarde",
+  "Predictions: ${amount}": "Previsões: ${amount}",
   "Total earned": "Total ganho",
   "Profit/Loss · {token}": "Lucro/Prejuízo · {token}",
   "Volume : {amount} {unit}": "Volume: {amount} {unit}",

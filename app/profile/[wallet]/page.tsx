@@ -194,7 +194,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       {/* ── Total earned (before recent activity) ─────────────── */}
       <ProfilePnlChart
         series={data.pnl_series}
-        totalUsd={data.earnings.won_usd}
+        totalUsd={data.earnings.won_usd + data.earnings.launchpad_usd + data.earnings.market_fees_usd}
+        predictionUsd={data.earnings.won_usd}
         launchpadUsd={data.earnings.launchpad_usd}
         marketFeesUsd={data.earnings.market_fees_usd}
         openCount={data.earnings.open_count}

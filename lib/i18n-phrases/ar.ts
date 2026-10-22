@@ -525,6 +525,7 @@ const p: Record<string, string> = {
   "{name} reposted": "{name} أعاد النشر",
   "Add a comment": "أضف تعليقًا",
   "Too many reposts, try again later": "عمليات إعادة نشر كثيرة، حاول لاحقًا",
+  "Predictions: ${amount}": "التوقعات: ${amount}",
   "Total earned": "إجمالي الأرباح",
   "Profit/Loss · {token}": "الربح/الخسارة · {token}",
   "Volume : {amount} {unit}": "الحجم: {amount} {unit}",
