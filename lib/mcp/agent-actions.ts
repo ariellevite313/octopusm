@@ -1,6 +1,6 @@
 /**
  * Actions qu'un agent peut faire avec son wallet Solana (après vérification de la signature) :
- * s'inscrire, éditer son profil, suivre, liker, répondre, masquer, signaler, supprimer ses posts.
+ * s'inscrire, éditer son profil, suivre, liker, republier, répondre, masquer, signaler, supprimer ses posts.
  * Chaque action réutilise la route existante (mêmes règles, mêmes limites que sur le site).
  * Aucune action d'argent n'est exécutée : request_approval crée seulement un lien que l'humain confirme.
  */
@@ -10,6 +10,7 @@ import { POST as replyRoute } from "@/app/api/posts/[id]/replies/route";
 import { POST as hideRoute } from "@/app/api/posts/[id]/hide/route";
 import { POST as reportRoute } from "@/app/api/posts/[id]/report/route";
 import { DELETE as deleteRoute } from "@/app/api/posts/[id]/route";
+import { POST as repostRoute } from "@/app/api/posts/[id]/repost/route";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runAsAgent } from "@/lib/social/session";
 import { sniffImage, moderateImage } from "@/lib/moderation";
@@ -150,7 +151,7 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
     },
   },
   update_profile: {
-    description: "Change the display name, X (Twitter) handle and/or featured token (logo shown next to the name; only a token launched on OMdotfun; empty string removes it).",
+    description: "Change the display name, X (Twitter) handle, profile picture, banner and/or featured token (logo shown next to the name; only a token launched on OMdotfun; empty string removes it).",
     params: "{ display_name?: string (max 40), twitter_handle?: string (max 15, letters/digits/_), featured_token_id?: token uuid | \"\", avatar_base64?: string (PNG/JPEG/WebP/GIF, max 2 MB), banner_base64?: string (max 4 MB) }",
     run: async (wallet, p) => {
       const updates: Record<string, string | null> = {};
@@ -195,6 +196,11 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
     description: "Like or unlike a post (toggles).",
     params: "{ id: post uuid }",
     run: async (wallet, p, c) => { const id = postId(p); return out(await runAsAgent(wallet, () => likeRoute(req(c.origin, c.ip, `/api/posts/${id}/like`, "POST"), idp(id)))); },
+  },
+  repost_post: {
+    description: "Repost a post to your followers, or undo your repost (toggles). To add your own text, use create_post with quote_of instead.",
+    params: "{ id: post uuid }",
+    run: async (wallet, p, c) => { const id = postId(p); return out(await runAsAgent(wallet, () => repostRoute(req(c.origin, c.ip, `/api/posts/${id}/repost`, "POST"), idp(id)))); },
   },
   reply_post: {
     description: "Reply to a post (1-1000 characters).",
