@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Download, EyeOff, Flag, Heart, Loader2, MessageCircle, MoreVertical, Eye, Send, Trash2,
+  Download, EyeOff, Flag, Heart, Loader2, MessageCircle, MoreVertical, Eye, Send, Trash2, Repeat2, Quote,
 } from "lucide-react";
+import { ComposeModal } from "./compose-modal";
+import { QuotedCard } from "./quoted-card";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -113,6 +115,8 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
   const [busy, setBusy] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [repostMenu, setRepostMenu] = useState(false);
+  const [quoting, setQuoting] = useState(false);
   const root = useRef<HTMLElement>(null);
   const viewed = useRef(false);
 
@@ -158,6 +162,28 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
   }
 
   function share() { setSharing(true); }
+
+  async function repost() {
+    setRepostMenu(false);
+    if (needAuth()) return;
+    const was = post.reposted_by_me;
+    setPost((p) => ({ ...p, reposted_by_me: !was, repost_count: Math.max(0, p.repost_count + (was ? -1 : 1)) }));
+    const r = await fetch(`/api/posts/${post.id}/repost`, { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      setPost((p) => ({ ...p, reposted_by_me: j.reposted, repost_count: j.repost_count }));
+      if (j.reposted) toast.success(tr("Reposted"));
+    } else {
+      setPost((p) => ({ ...p, reposted_by_me: was, repost_count: Math.max(0, p.repost_count + (was ? 1 : -1)) }));
+      toast.error(tr(j.error ?? "Something went wrong"));
+    }
+  }
+
+  function quote() {
+    setRepostMenu(false);
+    if (needAuth()) return;
+    setQuoting(true);
+  }
 
   async function saveImages() {
     setMenu(false);
@@ -229,6 +255,22 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
         <MessageCircle className="size-6" strokeWidth={1.9} />
         {post.reply_count > 0 && <span className="num text-sm font-semibold">{post.reply_count}</span>}
       </button>
+      <div className="relative">
+        <button onClick={() => setRepostMenu((v) => !v)} aria-label={tr("Repost")} className={`flex items-center gap-1.5 ${post.reposted_by_me ? "text-up" : "text-foreground"}`}>
+          <Repeat2 className="size-[25px]" strokeWidth={post.reposted_by_me ? 2.4 : 1.9} />
+          {post.repost_count > 0 && <span className="num text-sm font-semibold">{post.repost_count}</span>}
+        </button>
+        {repostMenu && (
+          <div onMouseLeave={() => setRepostMenu(false)} className="absolute bottom-9 left-0 z-30 w-48 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-xl">
+            <button onClick={repost} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted">
+              <Repeat2 className="size-[18px]" />{post.reposted_by_me ? tr("Undo repost") : tr("Repost")}
+            </button>
+            <button onClick={quote} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted">
+              <Quote className="size-[18px]" />{tr("Quote")}
+            </button>
+          </div>
+        )}
+      </div>
       <button onClick={share} aria-label={tr("Share")} className="text-foreground"><Send className="size-[23px]" strokeWidth={1.9} /></button>
     </>
   );
@@ -249,6 +291,12 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
 
   return (
     <article ref={root} className="px-4 py-5">
+      {post.reposted_by && (
+        <Link href={`/profile/${post.reposted_by.wallet}`} className="mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground">
+          <Repeat2 className="size-4" />
+          {tr("{name} reposted", { name: post.reposted_by.name ?? shortAddress(post.reposted_by.wallet) })}
+        </Link>
+      )}
       {/* Auteur */}
       <div className="mb-3 flex items-center gap-3 px-1">
         <Link href={`/profile/${post.author}`}><Avatar src={post.author_avatar} name={name} ring /></Link>
@@ -280,6 +328,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
 
       {post.body && <PostText body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
       {post.market && <div className="px-1"><MarketCard m={post.market} postId={post.id} /></div>}
+      {post.quoted && <div className="mt-3 px-1"><QuotedCard q={post.quoted} /></div>}
 
       {/* Image (version « entière ») : l'image n'est jamais recouverte, la barre d'actions s'ajoute dessous */}
       {post.images.length > 0 && (
@@ -321,6 +370,17 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
       ) : null}
 
       {showReplies && <PostReplies postId={post.id} onCount={(n) => setPost((p) => ({ ...p, reply_count: n }))} />}
+      {quoting && (
+        <ComposeModal
+          quote={{ id: post.id, author: post.author, author_name: post.author_name, author_avatar: post.author_avatar, body: post.body, images: post.images, created_at: post.created_at }}
+          onClose={() => setQuoting(false)}
+          onPosted={(p) => {
+            setPost((x) => ({ ...x, repost_count: x.repost_count + 1 }));
+            window.dispatchEvent(new CustomEvent("feed-post-created", { detail: p }));
+            toast.success(tr("Posted to the feed"));
+          }}
+        />
+      )}
       <ShareSheet
         open={sharing}
         onClose={() => setSharing(false)}

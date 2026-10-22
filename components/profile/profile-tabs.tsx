@@ -25,7 +25,7 @@ function ProfilePosts({ wallet }: { wallet: string }) {
   return (
     <div className="divide-y divide-border">
       {posts.map((p) => (
-        <PostCard key={p.id} post={p} onRemoved={(id) => setPosts((l) => (l ?? []).filter((x) => x.id !== id))} />
+        <PostCard key={p.feed_key ?? p.id} post={p} onRemoved={(id) => setPosts((l) => (l ?? []).filter((x) => x.id !== id))} />
       ))}
     </div>
   );

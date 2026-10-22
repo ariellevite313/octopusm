@@ -23,6 +23,13 @@ export function FeedClient() {
   const tag = (useSearchParams().get("tag") ?? "").toLowerCase();
   const tq = tag ? `&tag=${encodeURIComponent(tag)}` : "";
 
+  // Une citation publiée depuis un post s'ajoute en haut du fil « Pour toi »
+  useEffect(() => {
+    const on = (e: Event) => { const p = (e as CustomEvent<FeedPost>).detail; if (p && tab === "foryou") setPosts((l) => [p, ...l]); };
+    window.addEventListener("feed-post-created", on);
+    return () => window.removeEventListener("feed-post-created", on);
+  }, [tab]);
+
   const load = useCallback(async (t: Tab) => {
     setLoading(true);
     try {
@@ -78,7 +85,7 @@ export function FeedClient() {
       ) : (
         <div className="divide-y divide-border">
           {posts.map((p) => (
-            <PostCard key={p.id} post={p} onRemoved={(id) => setPosts((l) => l.filter((x) => x.id !== id))} />
+            <PostCard key={p.feed_key ?? p.id} post={p} onRemoved={(id) => setPosts((l) => l.filter((x) => x.id !== id))} />
           ))}
         </div>
       )}
