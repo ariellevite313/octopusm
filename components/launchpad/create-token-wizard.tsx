@@ -449,7 +449,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
             <div className="mt-4">
               <Label>{tr("Creator fee")}</Label>
               <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-                {([["standard", "2%"], ["low", "1.25%"]] as const).map(([k, fee]) => (
+                {([["standard", "0.9%"], ["low", "0.5%"]] as const).map(([k, fee]) => (
                   <button key={k} type="button" onClick={() => set("sol_fee_tier", k)}
                     className={`rounded-xl py-2.5 text-sm font-semibold transition-colors ${data.sol_fee_tier === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                     {fee}
@@ -757,7 +757,7 @@ function ArcLaunchOptions({
       <div>
         <Label>{tr("Creator fee")}</Label>
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
-          {([[0, "1.5%"], [1, "2%"], [2, "2% + holders"]] as const).map(([k, fee]) => (
+          {([[0, "0.5%"], [1, "1%"], [2, "0.5% + holders"]] as const).map(([k, fee]) => (
             <button key={k} type="button" onClick={() => setTier(k)} className={seg(tier === k)}>
               {fee}
             </button>
