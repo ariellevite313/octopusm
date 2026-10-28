@@ -118,7 +118,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: T("How much does it cost to launch a token?"),
-        a: [T("On Solana, about 0.075 SOL: a 0.05 SOL platform fee plus about 0.025 SOL of network rent. A scheduled launch adds 0.10 SOL, and any first buy you choose is extra. On Arc there is no creation fee, only about 0.04 USDC of network gas.")],
+        a: [T("On Solana, about 0.035 SOL: a 0.01 SOL platform fee plus about 0.025 SOL of network rent. A scheduled launch adds 0.10 SOL, and any first buy you choose is extra. On Arc there is no creation fee, only about 0.04 USDC of network gas.")],
       },
       {
         q: T("How much does the token creator earn?"),
@@ -289,7 +289,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: T("Can an agent launch a token?"),
-        a: [T("Yes, on Solana. The agent receives transactions to sign and signs them with its own key: OMdot.fun never holds your keys. The same fee (0.08 SOL), limits (3 launches per wallet and 6 per IP per hour) and rules as the website apply.")],
+        a: [T("Yes, on Solana. The agent receives transactions to sign and signs them with its own key: OMdot.fun never holds your keys. The same fee (about 0.035 SOL), limits (3 launches per wallet and 6 per IP per hour) and rules as the website apply.")],
       },
       {
         q: T("Is the MCP server free, and does it need an account?"),

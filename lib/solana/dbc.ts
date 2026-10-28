@@ -7,6 +7,7 @@
  *   DBC_CONFIG_KEY          — pre-created Meteora partner config key (public key)
  */
 
+import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 import {
   Connection,
   Keypair,
@@ -32,7 +33,7 @@ export type DbcPoolParams = {
   firstBuySol: number;
   /**
    * Whether this is a scheduled launch. When true, an additional 0.1 SOL is
-   * collected on-chain (creator → platform wallet) on top of the standard 0.05 SOL
+   * collected on-chain (creator → platform wallet) on top of the standard platform fee
    * creation fee. Scheduling itself is enforced at the app level (is_tradeable=false
    * until the cron job fires at scheduled_at).
    *
@@ -104,7 +105,7 @@ function stripComputeBudget<T extends { programId: PublicKey }>(ixs: T[]): T[] {
  * TX B (createConfig) alone can be ~600 bytes; merged with TX C (createPool) it
  * would exceed Solana's 1232-byte legacy tx limit. Three separate TXs are required.
  *
- *  TX A — platform fee (0.05 SOL) — Blowfish-safe, no Phantom warning
+ *  TX A — platform fee (PLATFORM_FEE_SOL) — Blowfish-safe, no Phantom warning
  *  TX B — DBC createConfig (fresh keypair, quoteMint = xStock)
  *          Pre-signed by platformWallet + configKeypair (server-side)
  *          feePayer = creator (user signs last)
@@ -192,7 +193,7 @@ export async function buildStockPairedTransactions(
       dynamicFeeEnabled:           true,
       collectFeeMode:              CollectFeeMode.QuoteToken,
       creatorTradingFeePercentage: params.feeTier === "low" ? 50 : 57,
-      poolCreationFee:             0,   // platform fee collected in TX A (0.05 SOL)
+      poolCreationFee:             0,   // platform fee collected in TX A (PLATFORM_FEE_SOL)
       enableFirstSwapWithMinFee:   true,
     },
     migration: {
@@ -324,8 +325,8 @@ export async function buildStockPairedTransactions(
   const { Transaction } = await import("@solana/web3.js");
 
   // ── TX A: platform creation fee ───────────────────────────────────────────────
-  const CREATION_FEE_LAMPORTS  = Math.floor(0.05 * LAMPORTS_PER_SOL);
-  const SCHEDULED_FEE_LAMPORTS = Math.floor(0.10 * LAMPORTS_PER_SOL);
+  const CREATION_FEE_LAMPORTS  = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL);
+  const SCHEDULED_FEE_LAMPORTS = Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL);
   const totalFeeLamports = CREATION_FEE_LAMPORTS + (params.isScheduled ? SCHEDULED_FEE_LAMPORTS : 0);
 
   const { blockhash: bhA } = await connection.getLatestBlockhash("confirmed");
@@ -380,12 +381,12 @@ export async function buildStockPairedTransactions(
  * Build split transactions.
  *
  * SOL meme token path (params.stockSymbol = null):
- *   TX A — platform fee (0.05 SOL) — Blowfish-safe
+ *   TX A — platform fee (PLATFORM_FEE_SOL) — Blowfish-safe
  *   TX B — DBC create_virtual_pool (+ optional first buy) using pre-created DBC_CONFIG_KEY
  *   Returns { txABase64, txBBase64, mintAddress }
  *
  * xStock-paired path (params.stockSymbol set, e.g. "xNVDA"):
- *   TX A — platform fee (0.05 SOL) — Blowfish-safe
+ *   TX A — platform fee (PLATFORM_FEE_SOL) — Blowfish-safe
  *   TX B — DBC createConfig (fresh keypair, quoteMint = xStock) — pre-signed server-side
  *   TX C — DBC createPool (creates meme mint + metadata + pool + vaults) — pre-signed server-side
  *   Returns { txABase64, txBBase64, txCBase64, mintAddress, configAddress, configKeypairSecret }
@@ -471,8 +472,8 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
 
   // Add platform fee to TX A — alongside standard mint ops, Blowfish sees a
   // short tx with an explicit "send X SOL" rather than a drainer pattern.
-  const CREATION_FEE_LAMPORTS  = Math.floor(0.05 * LAMPORTS_PER_SOL);
-  const SCHEDULED_FEE_LAMPORTS = Math.floor(0.10 * LAMPORTS_PER_SOL);
+  const CREATION_FEE_LAMPORTS  = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL);
+  const SCHEDULED_FEE_LAMPORTS = Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL);
   const totalFeeLamports = CREATION_FEE_LAMPORTS + (params.isScheduled ? SCHEDULED_FEE_LAMPORTS : 0);
 
   ixA.push(
@@ -672,11 +673,11 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
   }
 
   // ── Platform fee: SOL transfer to platform wallet ───────────────────────────
-  // 0.05 SOL base fee + 0.10 SOL if scheduled.
+  // base platform fee + scheduled supplement.
   // NOTE: once omdot.fun is verified by Blowfish (review@phantom.com),
   // Phantom will no longer show a warning for this instruction.
-  const CREATION_FEE_LAMPORTS  = Math.floor(0.05 * LAMPORTS_PER_SOL);
-  const SCHEDULED_FEE_LAMPORTS = Math.floor(0.10 * LAMPORTS_PER_SOL);
+  const CREATION_FEE_LAMPORTS  = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL);
+  const SCHEDULED_FEE_LAMPORTS = Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL);
   const totalFeeLamports = CREATION_FEE_LAMPORTS + (params.isScheduled ? SCHEDULED_FEE_LAMPORTS : 0);
 
   poolTx.add(
