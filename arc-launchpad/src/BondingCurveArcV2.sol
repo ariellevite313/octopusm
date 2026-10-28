@@ -67,7 +67,7 @@ contract BondingCurveArcV2 is ReentrancyGuard {
     uint256 public creatorAccrued;
     uint256 public lockedLpAccrued;  // LP bonus accumulé (ajouté au vault à la graduation)
 
-    uint8   public feeTier;          // 0 = plan 1,5 % · 1 = plan 2 % avec holders
+    uint8   public feeTier;          // 0 = plan 1,5 % · 1 = plan 2 % (1 % créateur)
     bool    public graduated;
     bool    private _initialized;
 
@@ -92,7 +92,7 @@ contract BondingCurveArcV2 is ReentrancyGuard {
 
     /**
      * @notice Initialise le clone (appelé une seule fois par la factory).
-     * @param feeTier_  0 = plan 1,5 % · 1 = plan 2 % avec holders
+     * @param feeTier_  0 = plan 1,5 % · 1 = plan 2 % (1 % créateur)
      */
     function initialize(
         address token_,
@@ -139,7 +139,7 @@ contract BondingCurveArcV2 is ReentrancyGuard {
         // Valeurs identiques à BondingCurveHook V1 (pré-graduation)
         // Deux plans, les mêmes que sur le lancement direct et le pool après graduation :
         if (feeTier == 0) return (150, 50, 50, 50,  0);  // Plan 1,5 % : 0,5 % créateur · 0,5 % plateforme · 0,5 % liquidité
-        /* tier 1 */      return (200, 50, 50, 50, 50);  // Plan 2 %   : + 0,5 % holders
+        /* tier 1 */      return (200, 100, 50, 50,  0);  // Plan 2 %   : 1 % créateur · 0,5 % plateforme · 0,5 % liquidité
     }
 
     // ─── Quotes (view) ────────────────────────────────────────────────────────

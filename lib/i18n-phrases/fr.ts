@@ -1580,5 +1580,6 @@ const p: Record<string, string> = {
   "1.5% trading fee per trade: 0.5% to you, 0.5% to the platform and 0.5% added to the liquidity.": "1,5 % de frais par échange : 0,5 % pour toi, 0,5 % pour la plateforme et 0,5 % ajoutés à la liquidité.",
   "A sell pays its fee in tokens, which are burned.": "Une vente paie son frais en tokens, qui sont brûlés.",
   "This cannot be changed after launch.": "Impossible de changer après le lancement.",
+  "2% trading fee per trade: 1% to you, 0.5% to the platform and 0.5% added to the liquidity.": "2 % de frais par échange : 1 % pour toi, 0,5 % pour la plateforme et 0,5 % ajoutés à la liquidité.",
 };
 export default p;

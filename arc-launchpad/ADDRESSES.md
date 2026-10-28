@@ -6,7 +6,7 @@
 Affiche : DirectV4Vault (impl), Factory, Router. Puis dans `.env` du site :
 `NEXT_PUBLIC_ARC_FACTORY_DIRECT=<factory>` et `NEXT_PUBLIC_ARC_DIRECT_ROUTER=<router>`, et rebuild.
 Le routeur sert aussi à trader les anciens tokens déjà gradués (pool à 0,50 %).
-Plans (les mêmes sur la courbe, le lancement direct et le pool après graduation) : 0 = 1,5 % (0,5 % créateur, 0,5 % plateforme, 0,5 % liquidité) · 1 = 2 % (idem + 0,5 % holders).
+Plans (les mêmes sur la courbe, le lancement direct et le pool après graduation) : 0 = 1,5 % (0,5 % créateur, 0,5 % plateforme, 0,5 % liquidité) · 1 = 2 % (1 % créateur, 0,5 % plateforme, 0,5 % liquidité).
 Pour que les futures courbes aient ces plans : redéployer BondingCurveArcV2 + GraduationVaultV4 + LaunchpadFactoryArcV2 (`DeployArcV2.s.sol`).
 
 ## Arc Mainnet — V2 Launchpad (OMToken fix — à redéployer)

@@ -31,7 +31,7 @@ interface IOMTokenVaultDividend {
  *
  * Deux plans, les mêmes partout (courbe, direct, pool après graduation) :
  *   Plan 0 : 1,5 % par échange = 0,5 % créateur · 0,5 % plateforme · 0,5 % liquidité
- *   Plan 1 : 2,0 % par échange = 0,5 % créateur · 0,5 % plateforme · 0,5 % liquidité · 0,5 % holders
+ *   Plan 1 : 2,0 % par échange = 1 % créateur · 0,5 % plateforme · 0,5 % liquidité
  */
 abstract contract V4FeeEngine {
     using StateLibrary for IPoolManager;
@@ -44,7 +44,7 @@ abstract contract V4FeeEngine {
     address public token;
     address public creator;
     address public treasury;
-    uint8   public feeTier;          // 0 = plan 1,5 % · 1 = plan 2 % avec holders
+    uint8   public feeTier;          // 0 = plan 1,5 % · 1 = plan 2 % (1 % créateur)
     /// @notice Frais du pool : plan 0 = 1,5 % · plan 1 = 2 %
     uint24  public poolFee;
     uint24  public constant FEE_PLAN_0 = 15_000;
@@ -180,10 +180,10 @@ abstract contract V4FeeEngine {
 
     /// @dev Parts (bps de 10 000 des frais USDC) : créateur, plateforme, holders. Le reste = liquidité.
     ///      Plan 0 (1,5 %) : 0,5 % chacun pour créateur, plateforme, liquidité.
-    ///      Plan 1 (2 %)   : 0,5 % chacun pour créateur, plateforme, liquidité, holders.
+    ///      Plan 1 (2 %)   : 1 % créateur, 0,5 % plateforme, 0,5 % liquidité.
     function _bps() internal view returns (uint256 creatorBps, uint256 platformBps, uint256 holdersBps) {
         if (feeTier == 0) return (3333, 3333, 0);
-        return (2500, 2500, 2500);
+        return (5000, 2500, 0);
     }
 
     function _send(address to, uint256 amount) internal {

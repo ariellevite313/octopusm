@@ -65,15 +65,15 @@ contract CurveFlowTest is Test {
         assertEq(c.lockedLpAccrued(), 5 ether, "0,5 % liquidite");
     }
 
-    function test_plan1_curve_pays_holders() public {
-        (BondingCurveArcV2 c, OMTokenDirect t,) = _launch(1);
-        (uint256 total,,,, uint256 ho) = c.tierBps();
-        assertEq(total, 200); assertEq(ho, 50);
-        vm.prank(alice); c.buy{value: 500 ether}(0);
-        vm.prank(bob); c.buy{value: 500 ether}(0);
-        // alice detient des tokens quand bob achete : elle recoit une part des 0,5 % de bob
-        assertGt(t.pendingDividend(alice), 0);
-        assertEq(t.pendingDividend(address(c)), 0, "la courbe n'est pas un holder");
+    function test_plan1_curve_creator_earns_1pct() public {
+        (BondingCurveArcV2 c,,) = _launch(1);
+        (uint256 total, uint256 cr, uint256 pl, uint256 lp, uint256 ho) = c.tierBps();
+        assertEq(total, 200); assertEq(cr, 100); assertEq(pl, 50); assertEq(lp, 50); assertEq(ho, 0);
+        uint256 t0 = treasury.balance;
+        vm.prank(alice); c.buy{value: 1_000 ether}(0);
+        assertEq(c.creatorAccrued(), 10 ether, "1 % createur");
+        assertEq(treasury.balance - t0, 5 ether, "0,5 % plateforme");
+        assertEq(c.lockedLpAccrued(), 5 ether, "0,5 % liquidite");
     }
 
     function test_graduation_creates_pool_and_trades() public {
@@ -97,23 +97,19 @@ contract CurveFlowTest is Test {
         assertGt(back, 50 ether * 94 / 100);
     }
 
-    function test_graduated_fees_split_holders_and_compound() public {
+    function test_graduated_fees_split_and_compound() public {
         (BondingCurveArcV2 c, OMTokenDirect t, GraduationVaultV4 v) = _launch(1);
         _graduate(c, alice);
         uint24 fee = v.poolFee();
-        // du volume dans le pool
         vm.prank(bob);
         uint256 got = router.buy{value: 1_000 ether}(address(t), fee, 0, bob);
         vm.startPrank(bob); t.approve(address(router), got); router.sell(address(t), fee, got / 2, 0, bob); vm.stopPrank();
 
         uint256 c0 = creator.balance; uint256 t0 = treasury.balance;
-        uint256 pend0 = t.pendingDividend(alice) + t.pendingDividend(bob);
         v.collectFees();
-        // 1 000 USDC achetes a 2 % = ~20 USDC de frais : 5 createur, 5 plateforme, 5 holders, 5 liquidite
-        assertApproxEqRel(creator.balance - c0, 5 ether, 0.1e18);
+        // 1 000 USDC achetes a 2 % = ~20 USDC de frais : 10 createur, 5 plateforme, 5 liquidite
+        assertApproxEqRel(creator.balance - c0, 10 ether, 0.1e18);
         assertApproxEqRel(treasury.balance - t0, 5 ether, 0.1e18);
-        uint256 pend1 = t.pendingDividend(alice) + t.pendingDividend(bob);
-        assertApproxEqRel(pend1 - pend0, 5 ether, 0.1e18, "dividendes aux vrais holders (pas au pool)");
         assertEq(v.positionCount(), 2, "la part liquidite est ajoutee au pool");
         assertLt(address(v).balance, 0.01 ether);
     }

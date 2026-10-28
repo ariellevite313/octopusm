@@ -758,7 +758,7 @@ function ArcLaunchOptions({
       <div>
         <Label>{tr("Trading fee")}</Label>
         <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-          {([[0, "1.5%", tr("You earn 0.5% of volume")], [1, "2%", tr("You earn 0.5% + holders 0.5%")]] as const).map(([k, fee, earn]) => (
+          {([[0, "1.5%", tr("You earn 0.5% of volume")], [1, "2%", tr("You earn 1% of volume")]] as const).map(([k, fee, earn]) => (
             <button key={k} type="button" onClick={() => setTier(k)} className={seg(tier === k)}>
               {fee}
               <span className="block text-[11px] font-normal text-muted-foreground">{earn}</span>
@@ -767,7 +767,7 @@ function ArcLaunchOptions({
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {tier === 1
-            ? tr("2% trading fee per trade: 0.5% to you, 0.5% to the platform, 0.5% added to the liquidity and 0.5% to holders as dividends.")
+            ? tr("2% trading fee per trade: 1% to you, 0.5% to the platform and 0.5% added to the liquidity.")
             : tr("1.5% trading fee per trade: 0.5% to you, 0.5% to the platform and 0.5% added to the liquidity.")}
           {" "}{direct ? tr("A sell pays its fee in tokens, which are burned.") : tr("Same plan before and after it moves to Uniswap V4.")}
           {" "}{tr("This cannot be changed after launch.")}

@@ -34,7 +34,7 @@ export const BC_K              = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
 // [totalBps, creatorBps, platformBps, lpBps, holdersBps]
 export const ARC_FEE_TIERS = [
   { name: "1.5%", totalBps: 150, creatorBps: 50, platformBps: 50, lpBps: 50, holdersBps:  0 },
-  { name: "2%",   totalBps: 200, creatorBps: 50, platformBps: 50, lpBps: 50, holdersBps: 50 },
+  { name: "2%",   totalBps: 200, creatorBps: 100, platformBps: 50, lpBps: 50, holdersBps: 0 },
 ] as const;
 
 export type ArcFeeTierIndex = 0 | 1;
@@ -343,7 +343,7 @@ export const ARC_DIRECT_ROUTER_ABI = parseAbi([
   "function quoteSell(address token, uint24 fee, uint256 tokensIn) returns (uint256 out)",
 ]);
 
-/** Frais du pool V4 : plan 0 = 1,5 % (15000), plan 1 = 2 % (20000). Anciens tokens de courbe déjà gradués : 0,50 % (5000). */
+/** Frais du pool V4 : plan 0 = 1,5 % (15000), plan 1 = 2 % (20000, dont 1 % pour le créateur). Anciens tokens de courbe déjà gradués : 0,50 % (5000). */
 export const ARC_POOL_FEE_LEGACY = 5000;
 
 /**
