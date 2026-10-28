@@ -158,24 +158,18 @@ contract DirectV4Test is Test {
         assertEq(posm.ownerOf(v.positionIds(1)), address(v), "le NFT reste dans le vault : verrouille");
     }
 
-    function test_plan1_pays_holders_dividends_and_excludes_the_pool() public {
+    function test_plan1_creator_earns_1pct_of_2pct() public {
         (DirectV4Vault v, OMTokenDirect t) = _launch(0, 1);
         assertEq(v.poolFee(), 20_000, "2 %");
         uint256 got = _buy(v, 1_000 ether);
         _sellBack(v, t, got / 2);
         uint256 c0 = creator.balance; uint256 t0 = treasury.balance;
         v.collectFees();
-        // ~20 USDC de frais : 25 % chacun (~5)
-        assertApproxEqRel(creator.balance - c0, 5 ether, 0.1e18);
+        // ~20 USDC de frais : 1 % createur (~10), 0,5 % plateforme (~5), 0,5 % liquidite (~5)
+        assertApproxEqRel(creator.balance - c0, 10 ether, 0.1e18);
         assertApproxEqRel(treasury.balance - t0, 5 ether, 0.1e18);
-        // le seul holder reel (buyer) recoit toute la part holders (~5 USDC), pas le PoolManager
-        uint256 pending = t.pendingDividend(buyer);
-        assertApproxEqRel(pending, 5 ether, 0.1e18, "les dividendes vont aux vrais holders");
-        assertEq(t.pendingDividend(address(pm)), 0);
-        uint256 b0 = buyer.balance;
-        vm.prank(buyer);
-        t.claimDividend();
-        assertEq(buyer.balance - b0, pending);
+        assertEq(v.positionCount(), 2, "la part liquidite est ajoutee au pool");
+        assertEq(t.pendingDividend(buyer), 0, "pas de dividendes dans ce plan");
     }
 
     function test_unsupported_tier_reverts() public {

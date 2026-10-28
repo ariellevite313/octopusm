@@ -85,7 +85,7 @@ contract LaunchpadFactoryArcV2 {
      * @param description Description courte
      * @param firstBuyUsdc USDC natif pour le premier achat (0 = pas de premier achat).
      *                    Doit être inclus dans msg.value en plus de la CREATION_FEE.
-     * @param feeTier_    0 = plan 1,5 % · 1 = plan 2 % avec holders
+     * @param feeTier_    0 = plan 1,5 % · 1 = plan 2 % (1 % créateur)
      */
     function createToken(
         string calldata name,
