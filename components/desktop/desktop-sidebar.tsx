@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket } from "lucide-react";
+import { LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
 import { ThemeSwitchRail } from "@/components/shared/theme-switch";
@@ -25,6 +25,7 @@ const isFeedSection = (p: string) => p === "/" || p.startsWith("/feed") || p.sta
 function items(pathname: string) {
   const predict = isPredictSection(pathname);
   return [
+    { href: "/hackathon",              label: T("Hackathon"),   icon: Award,      match: (p: string) => p.startsWith("/hackathon") },
     { href: "/",                       label: T("Feed"),        icon: MessageSquare, match: (p: string) => p === "/" || p.startsWith("/feed") || p.startsWith("/post/") },
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)

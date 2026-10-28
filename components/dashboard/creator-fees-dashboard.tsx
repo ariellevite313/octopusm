@@ -25,6 +25,7 @@ import { ArcHolderHoldings } from "@/components/dashboard/arc-holder-holdings";
 import { useT }              from "@/lib/i18n";
 import { T }                from "@/lib/i18n-mark";
 import { GainsShareSheet }   from "@/components/dashboard/gains-share-sheet";
+import { TradeGainsPanel }  from "@/components/dashboard/trade-gains-panel";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   const [claimingId,  setClaimingId]  = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
   const [shareOpen,   setShareOpen]   = useState(false);
+  const [section,     setSection]     = useState<"tokens" | "gains">("tokens");
 
   const refresh = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
@@ -368,8 +370,28 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       {isArc && <div id="arc-fees"><ArcFeesTabs /></div>}
       {isArc && <ArcHolderHoldings />}
 
+      {/* ── Sections : boutons, rien d'autre n'est affiché tant qu'on n'en touche pas un ── */}
+      <div className="-mt-2 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+        {([["tokens", T("Tokens launched")], ["gains", T("Gains")]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setSection(id)}
+            className={`shrink-0 rounded-2xl px-5 py-3 text-[15px] font-bold transition-colors ${
+              section === id ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted/70"
+            }`}
+          >
+            {tr(label)}
+          </button>
+        ))}
+        <Link href="/hackathon" className="shrink-0 rounded-2xl bg-muted px-5 py-3 text-[15px] font-bold text-foreground transition-colors hover:bg-muted/70">
+          {tr("Hackathon")}
+        </Link>
+      </div>
+
+      {section === "gains" && <TradeGainsPanel />}
+
       {/* ── Tokens lancés ────────────────────────────────────────────────── */}
-      {!isArc && (
+      {section === "tokens" && !isArc && (
         <section>
           <Link href={`/profile/${walletAddress}`} className="group inline-flex items-center gap-1">
             <h2 className="text-[28px] font-bold tracking-tight text-foreground">{tr("Tokens launched")}</h2>
