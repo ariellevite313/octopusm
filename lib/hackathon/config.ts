@@ -16,3 +16,6 @@ export function hackathonPhase(now: number = Date.now()): HackathonPhase {
   if (now <= Date.parse(HACKATHON.endsAt)) return "live";
   return "ended";
 }
+
+/** Taille maximale d'une équipe (client et serveur). */
+export const MAX_TEAM = 4;
