@@ -19,7 +19,7 @@
  *   Returns { txABase64: null, txBBase64: null, txCBase64, mintAddress, configAddress }
  *   The caller skips TX A+B and only presents TX C to the user.
  */
-import { claimVanityKeypair } from "@/lib/solana/vanity-pool";
+import { generateOmKeypair } from "@/lib/solana/vanity-mint";
 import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -76,8 +76,12 @@ export async function POST(req: Request, { params }: RouteParams) {
       }
       mintKeypair = Keypair.fromSecretKey(secretBytes);
     } else {
-      // Adresse en « om » prise dans le stock ; sinon adresse normale
-      mintKeypair = (await claimVanityKeypair(admin, id)) ?? Keypair.generate();
+      // L'adresse du token se termine toujours par « om » (générée à la volée)
+      try {
+        mintKeypair = await generateOmKeypair();
+      } catch {
+        return NextResponse.json({ error: "Génération de l'adresse trop longue, réessaie." }, { status: 503 });
+      }
       const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
       const mintAddress = mintKeypair.publicKey.toBase58();
       await admin.from("launchpad_tokens")

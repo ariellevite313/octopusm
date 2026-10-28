@@ -178,11 +178,6 @@ export async function POST(req: Request, { params }: RouteParams) {
       })
       .eq("id", id);
 
-    // La clé du stock « …om » n'est plus utile une fois le pool confirmé : on l'efface
-    if (isConfirmed) {
-      await admin.from("vanity_keypair_pool").update({ secret_key: null }).eq("assigned_token_id", id);
-    }
-
     // Award 500 Omero to the creator — fire-and-forget, never blocks the response
     awardOcto(body.walletAddress, OMERO_PER_LAUNCH, "launch").catch((e) =>
       console.warn("[confirm] awardOcto failed (non-fatal):", e),
