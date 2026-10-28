@@ -16,7 +16,12 @@ type Ann = { id: string; series: string; template: string; vars: Record<string, 
 async function currentAnnouncements(admin: any, me: string): Promise<(Ann & { read: boolean })[]> {
   const { data } = await admin.from("announcements").select("id, series, template, vars, href, publish_at").lte("publish_at", new Date().toISOString()).order("publish_at", { ascending: false }).limit(60);
   const latest = new Map<string, Ann>();
-  for (const a of (data ?? []) as Ann[]) if (a.series === "hackathon-milestone" || !latest.has(a.series)) latest.set(a.series === "hackathon-milestone" ? a.id : a.series, a);
+  for (const a of (data ?? []) as Ann[]) {
+    const each = a.series === "hackathon-milestone" || a.series === "omero-post";
+    // Posts d'Omero : seulement ceux des 3 derniers jours
+    if (a.series === "omero-post" && Date.now() - new Date(a.publish_at).getTime() > 3 * 86400_000) continue;
+    if (each || !latest.has(a.series)) latest.set(each ? a.id : a.series, a);
+  }
   const list = [...latest.values()];
   if (list.length === 0) return [];
   const { data: reads } = await admin.from("announcement_reads").select("announcement_id").eq("wallet", me).in("announcement_id", list.map((a) => a.id));
