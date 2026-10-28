@@ -50,3 +50,11 @@ describe("Arc trades sync", () => {
     expect(st.last_block).toBe(5000);
   });
 });
+
+import { arcPoolId } from "@/lib/arc-trades";
+describe("arcPoolId", () => {
+  it("donne le même identifiant que Uniswap V4 (keccak du PoolKey)", () => {
+    // valeur calculée par Solidity : keccak256(abi.encode(PoolKey(0, 0xab, 5000, 60, 0)))
+    expect(arcPoolId("0x00000000000000000000000000000000000000ab")).toBe("0x9eafe0b40602a9a9f65355188755701e2dfb039391d17064d08747d8927a6484");
+  });
+});
