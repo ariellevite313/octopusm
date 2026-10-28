@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const now = new Date().toISOString();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const adminWallet = user?.user_metadata?.wallet_address ?? null;
+  const adminWallet = user?.app_metadata?.wallet_address ?? null;
 
   // ── REJECT ─────────────────────────────────────────────────────────────────
   if (action === "reject") {

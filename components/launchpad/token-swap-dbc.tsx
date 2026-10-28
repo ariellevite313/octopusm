@@ -371,7 +371,6 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           body:    JSON.stringify({
             txSignature:   signature,
             walletAddress,
-            amountLamports: amountIn,
           }),
         })
           .then(r => r.ok ? r.json() : null)

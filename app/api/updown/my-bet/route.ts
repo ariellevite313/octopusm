@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   // C-02 fix: verify authenticated session
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ bets: [] });
 
   const { searchParams } = new URL(req.url);

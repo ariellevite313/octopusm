@@ -224,7 +224,7 @@ export async function POST(req: Request) {
 
     const userClient = await (await import("@/lib/supabase/server")).createClient();
     const { data: { user: adminUser } } = await userClient.auth.getUser();
-    const adminWallet: string | null = (adminUser as { user_metadata?: { wallet_address?: string } } | null)?.user_metadata?.wallet_address ?? null;
+    const adminWallet: string | null = (adminUser as { app_metadata?: { wallet_address?: string } } | null)?.app_metadata?.wallet_address ?? null;
 
     // Store applied rates on the market for frontend transparency (BUG-23 fix)
     const ratesNote = allBetOnWinner

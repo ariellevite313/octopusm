@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-  const sessionWallet = user.user_metadata?.wallet_address as string | undefined;
+  const sessionWallet = user.app_metadata?.wallet_address as string | undefined;
   if (!sessionWallet) {
     return NextResponse.json({ error: "No wallet in session" }, { status: 401 });
   }

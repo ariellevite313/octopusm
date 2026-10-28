@@ -27,7 +27,7 @@ import { Lock } from "lucide-react";
 
 function buildSignMessage(address: string, nonce: string): Uint8Array {
   const timestamp = new Date().toISOString();
-  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
+  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}\nDomain: ${typeof window !== "undefined" ? window.location.hostname : ""}`;
   return new TextEncoder().encode(message);
 }
 

@@ -10,7 +10,7 @@ export async function GET() {
   try {
   const userClient = await createClient() as any;
   const { data: { user } } = await userClient.auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const admin = createAdminClient() as any;

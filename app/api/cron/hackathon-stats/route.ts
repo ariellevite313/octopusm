@@ -9,6 +9,7 @@ import { HACKATHON, hackathonPhase } from "@/lib/hackathon/config";
 import { RULES, PLATFORM_RATE } from "@/lib/hackathon/rules";
 import { loadTrades, summarize } from "@/lib/hackathon/ledger";
 import { arcBalances } from "@/lib/holders";
+import { cronDenied } from "@/lib/auth/cron";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -17,10 +18,8 @@ const HOLDER_BATCH = 12;
 const norm = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w);
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   if (hackathonPhase() === "soon") return NextResponse.json({ skipped: "not started" });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

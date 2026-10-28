@@ -7,15 +7,11 @@
 
 import { NextResponse } from "next/server";
 import { refreshArcStats } from "@/lib/arc-stats";
+import { cronDenied } from "@/lib/auth/cron";
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
 
   try {
     const r = await refreshArcStats(new URL(req.url).origin);

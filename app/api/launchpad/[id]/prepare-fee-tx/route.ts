@@ -20,6 +20,7 @@ import {
 } from "@solana/web3.js";
 import bs58 from "bs58";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireWallet } from "@/lib/social/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -39,8 +40,11 @@ export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
+    const sess = await requireWallet();
+    if ("error" in sess) return sess.error;
+
     const body = await req.json() as { walletAddress?: string };
-    if (!body.walletAddress) {
+    if (!body.walletAddress || body.walletAddress !== sess.wallet) {
       return NextResponse.json({ error: "walletAddress is required" }, { status: 400 });
     }
 

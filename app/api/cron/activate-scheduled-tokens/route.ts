@@ -13,16 +13,12 @@
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { cronDenied } from "@/lib/auth/cron";
 
 export async function GET(req: Request) {
   // Simple bearer-token auth to prevent public triggering
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

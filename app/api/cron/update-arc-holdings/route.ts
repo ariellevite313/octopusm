@@ -20,6 +20,7 @@ import { createPublicClient, http, parseAbiItem } from "viem";
 import { arc }                                    from "@/lib/arc-chain";
 import { OM_TOKEN_ABI }                           from "@/lib/arc-launchpad";
 import { createAdminClient }                      from "@/lib/supabase/server";
+import { cronDenied } from "@/lib/auth/cron";
 
 const RPC_URL    = "https://rpc.mainnet.arc.io";
 const CHUNK_SIZE = 2_000n;  // blocs par getLogs (évite les timeouts RPC)
@@ -35,13 +36,8 @@ type ArcToken = {
 };
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin  = createAdminClient() as any;

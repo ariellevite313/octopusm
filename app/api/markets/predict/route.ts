@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   // C-01 fix: verify authenticated session before accepting any body data
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const sessionWallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const sessionWallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!sessionWallet) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

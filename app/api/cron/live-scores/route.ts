@@ -5,15 +5,14 @@
  */
 import { NextResponse } from "next/server";
 import { refreshLiveScores } from "@/lib/sports/live";
+import { cronDenied } from "@/lib/auth/cron";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   try {
     return NextResponse.json(await refreshLiveScores());
   } catch (e) {

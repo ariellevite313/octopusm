@@ -128,7 +128,7 @@ export async function getDashboardData(walletAddress: string): Promise<Dashboard
       .order("created_at", { ascending: false })
       .limit(100),
 
-    // adminDb bypasses RLS — safer than relying on JWT user_metadata for wallet match
+    // adminDb bypasses RLS — safer than relying on JWT user-editable metadata for wallet match
     adminDb
       .from("referral_commissions")
       .select("id, amount_usdc, amount_clt, referred_wallet, created_at")

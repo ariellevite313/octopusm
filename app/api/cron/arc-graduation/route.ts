@@ -20,6 +20,7 @@ import { createPublicClient, http } from "viem";
 import { arc }               from "@/lib/arc-chain";
 import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
+import { cronDenied } from "@/lib/auth/cron";
 
 export const maxDuration = 60;
 
@@ -31,13 +32,8 @@ function withTimeout<T>(p: Promise<T>, ms = TIMEOUT_MS): Promise<T | null> {
 }
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

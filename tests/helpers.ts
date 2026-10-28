@@ -56,7 +56,7 @@ export class SupaMockBuilder {
         getUser: vi.fn().mockResolvedValue({
           data: {
             user: self._user
-              ? { user_metadata: self._user }
+              ? { app_metadata: self._user }
               : null,
           },
           error: null,
