@@ -19,3 +19,11 @@ describe("market link detection", () => {
     expect(extractMarketRef("https://omdot.fun/pools/x?via=1")?.key).toBe("x");
   });
 });
+
+describe("program (mandate) actions", () => {
+  it("are exposed and validate input before any database access", async () => {
+    for (const k of ["set_program", "get_program", "end_program"]) expect(ACTIONS[k]).toBeTruthy();
+    await expect(ACTIONS.set_program.run("11111111111111111111111111111112", { brief: "short" }, { origin: "http://x", ip: "1" })).rejects.toThrow(/brief/);
+    await expect(ACTIONS.set_program.run("11111111111111111111111111111112", { brief: "x".repeat(30), days: 90 }, { origin: "http://x", ip: "1" })).rejects.toThrow(/days/);
+  });
+});

@@ -13,6 +13,7 @@ import { createPoolMarket } from "@/lib/market/create-pool";
 import { sniffImage, moderateImage } from "@/lib/moderation";
 import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
 import { rateHit } from "@/lib/rate-limit";
+import { createUnderMandate } from "@/lib/mcp/mandate";
 
 export class PoolError extends Error {}
 
@@ -174,6 +175,9 @@ export async function requestPoolMarket(wallet: string, p: P, origin: string) {
   const bet = str(p, "bet_token", 12) ?? "usdc";
   if (bet !== "usdc" && bet !== "clawdtrust") throw new PoolError("params.bet_token must be usdc or clawdtrust");
   const params = { title: title.trim().slice(0, 200), description: str(p, "description", 1000) ?? "", cover_image: cover, options, category: str(p, "category", 30) ?? "mentions", betting_closes_at: new Date(ms).toISOString(), bet_token: bet };
+  // Programme actif avec marchés restants : création directe, sans validation humaine
+  const direct = await createUnderMandate(wallet, params, origin);
+  if (direct) return direct;
   const { data, error } = await admin.from("agent_intents").insert({ agent_wallet: wallet, kind: "create_pool", target_id: null, params }).select("id, expires_at").single();
   if (error) throw new PoolError("Could not create the draft");
   return {

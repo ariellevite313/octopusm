@@ -50,12 +50,16 @@ async function verifyCreationTx(txSig: string, wallet: string): Promise<boolean>
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createPoolMarket(wallet: string, body: any): Promise<NextResponse> {
+export async function createPoolMarket(wallet: string, body: any, opts: { mandateId?: string } = {}): Promise<NextResponse> {
   const {
     title, description, cover_image_src, options,
     category, bet_token, betting_closes_at,
-    creation_fee_token, creation_tx, match_key,
+    creation_fee_token, match_key,
   } = body;
+  // Programme IA validé par le propriétaire : frais pris en charge par la plateforme, pas de transaction à vérifier
+  const creation_tx: string = opts.mandateId ? `mandate:${opts.mandateId}:${crypto.randomUUID()}` : body.creation_tx;
+  const admin = createAdminClient() as any;
+  if (!opts.mandateId) {
 
   // ── Validate creation payment ─────────────────────────────────────────────
   if (!creation_tx || typeof creation_tx !== "string") {
@@ -86,13 +90,13 @@ export async function createPoolMarket(wallet: string, body: any): Promise<NextR
   }
 
   // Prevent replaying the same tx for multiple markets
-  const admin = createAdminClient() as any;
   const { count: txUsed } = await admin
     .from("mutuel_markets")
     .select("id", { count: "exact", head: true })
     .eq("creation_tx", creation_tx);
   if ((txUsed ?? 0) > 0) {
     return NextResponse.json({ error: "This transaction has already been used." }, { status: 409 });
+  }
   }
 
   // ── Validate fields ───────────────────────────────────────────────────────
@@ -158,13 +162,13 @@ export async function createPoolMarket(wallet: string, body: any): Promise<NextR
       cover_image_src:     cover_image_src ? String(cover_image_src).slice(0, 500) : null,
       options:             safeOptions,
       category:            safeCategory,
-      creation_fee_token,
-      creation_fee_amount: creationFeeAmount,
+      creation_fee_token: creation_fee_token ?? "usdc",
+      creation_fee_amount: opts.mandateId ? 0 : creationFeeAmount,
       creation_tx,
       bet_token,
       betting_closes_at: closesAtIso,
       match_key: matchKey,
-      status: "pending",
+      status: opts.mandateId ? "active" : "pending",
     })
     .select()
     .single();
