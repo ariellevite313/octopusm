@@ -1,5 +1,6 @@
 "use client";
 
+import { SOL_FEE_TIERS, feeTierOf } from "@/lib/launch/fee-tiers";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -279,7 +280,7 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="num text-[13px] font-bold text-up sm:text-sm">{timeAgo(token.created_at).toLowerCase()}</span>
-              <span className="whitespace-nowrap text-[12px] font-semibold text-muted-foreground sm:text-xs">{tr("Fee 2%")}</span>
+              <span className="whitespace-nowrap text-[12px] font-semibold text-muted-foreground sm:text-xs">{tr("Fee {pct}", { pct: isArc ? "2%" : SOL_FEE_TIERS[feeTierOf(token.sol_fee_tier)].total })}</span>
               <span className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground sm:px-2 sm:text-xs">
                 {token.stock_symbol && !isArc
                   ? <XStockIcon symbol={token.stock_symbol} size={12} />

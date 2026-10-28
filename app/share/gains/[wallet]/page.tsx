@@ -13,7 +13,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const period = periodOf(p);
   const g = await getCreatorGains(decodeURIComponent(wallet)).catch(() => null);
   const title = g ? `${g.name} earned ${fmtGain(g.total)} ${g.currency} as a creator - OMdotfun` : "Creator gains - OMdotfun";
-  const description = "Launch your token on OMdot.fun and earn 1% of every trade.";
+  const description = "Launch your token on OMdot.fun and earn up to 0.9% of every trade.";
   const image = `/api/og/gains/${encodeURIComponent(wallet)}?p=${period}`;
   return {
     title: { absolute: title },

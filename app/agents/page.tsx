@@ -221,7 +221,7 @@ export default function AgentsPage() {
       </p>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        {tr("Categories: Meme, Utility, AI, Gaming, DeFi, NFT, x402. Logo: PNG, JPEG, WebP or GIF, 5 MB max, sent as base64. Creators earn 1% of trading fees, as on the website.")}
+        {tr("Categories: Meme, Utility, AI, Gaming, DeFi, NFT, x402. Logo: PNG, JPEG, WebP or GIF, 5 MB max, sent as base64. Creators earn 0.5% to 0.9% of trading volume depending on the fee level, as on the website.")}
       </p>
     </main>
   );

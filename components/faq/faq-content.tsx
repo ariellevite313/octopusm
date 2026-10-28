@@ -122,7 +122,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: T("How much does the token creator earn?"),
-        a: [T("500 Omero as soon as the token is created, plus 1% of every transaction on your token as long as it trades.")],
+        a: [T("500 Omero as soon as the token is created, plus 0.5% to 0.9% of every trade on your token (depending on the fee level you choose) as long as it trades.")],
       },
       {
         q: T("What are the trading fees on a token launched on OMdot.fun?"),
