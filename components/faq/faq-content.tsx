@@ -114,29 +114,28 @@ const SECTIONS: Section[] = [
     items: [
       {
         q: T("What is the OMdot.fun Launchpad?"),
-        a: [T("The Launchpad is our dedicated phase for creating tokens on Solana. You can launch a memecoin, a startup, a tokenized asset, or a community project.")],
+        a: [T("The Launchpad is where you create tokens on Solana and on Arc. You can launch a memecoin, a startup, a tokenized asset, or a community project.")],
       },
       {
         q: T("How much does it cost to launch a token?"),
-        a: [T("0.08 SOL — one of the lowest thresholds on the network.")],
+        a: [T("On Solana, about 0.075 SOL: a 0.05 SOL platform fee plus about 0.025 SOL of network rent. A scheduled launch adds 0.10 SOL, and any first buy you choose is extra. On Arc there is no creation fee, only about 0.04 USDC of network gas.")],
       },
       {
         q: T("How much does the token creator earn?"),
-        a: [T("500 Omero as soon as the token is created, plus 0.5% to 0.9% of every trade on your token (depending on the fee level you choose) as long as it trades.")],
+        a: [T("500 Omero as soon as the token is created, plus a share of every trade on your token as long as it trades. On Solana you earn 0.9% of the volume at the standard level, or 0.5% at the reduced level. On Arc, your share depends on the fee tier you pick at creation.")],
       },
       {
         q: T("What are the trading fees on a token launched on OMdot.fun?"),
         a: [
-          T("We take 2.5% on each trade, split as follows:"),
+          T("On Solana you choose one of two fee levels when you create your token:"),
           {
             ul: [
-              T("1% → Creator"),
-              T("1% → Platform activity"),
-              T("0.5% → Meteora"),
+              T("Standard: 2% per trade, split 0.9% creator, about 0.7% platform, 0.4% Meteora"),
+              T("Reduced: 1.25% per trade, split 0.5% creator, 0.5% platform, 0.25% Meteora"),
             ],
             cls: "list-disc list-inside mt-1 space-y-0.5",
           },
-          T("In Meteora's program, 20% of the 2.5% goes to them — that is their standard model."),
+          T("Meteora's share (20% of the fee) is part of its standard model. On Arc, the fee is shown in the token's swap panel."),
         ],
       },
       {
@@ -146,9 +145,9 @@ const SECTIONS: Section[] = [
         ],
       },
       {
-        q: T("What are OMdot.fun's 1% used for?"),
+        q: T("What is the platform's share of the fee used for?"),
         a: [
-          T("OMdot.fun's 1% funds the real activity of the platform:"),
+          T("The platform's share funds the real activity of OMdot.fun:"),
           {
             ul: [
               T("Omero rewards (token creation, markets, invite campaigns)"),
@@ -164,8 +163,22 @@ const SECTIONS: Section[] = [
       {
         q: T("Is it more expensive than Pump.fun or Bags?"),
         a: [
-          T("The total 2.5% fee is higher than Pump.fun (~1.25% on the bonding curve) and often slightly higher than Bags (~2%). The difference is the split: the creator receives a fixed 1% on every transaction, Meteora receives 0.5%, and OMdot.fun receives 1% reinvested as described above. We do not claim to be the cheapest launchpad — we clearly show who gets what."),
+          T("We do not claim to be the cheapest launchpad. We show clearly who gets what on every trade, and you can pick the reduced 1.25% level when you create your token to keep trading costs lower for your holders."),
         ],
+      },
+      {
+        q: T("Why do token addresses on OMdot.fun end in om?"),
+        a: [T("Every token launched on Solana from now on gets an address that ends in om, so it is easy to recognize. Tokens launched before keep their original address.")],
+      },
+      {
+        q: T("What can I see about a token's holders?"),
+        a: [
+          T("The Holders tab shows the top holders with their share of the supply, the share held by the top 10, and the biggest holder, always without counting the pool and programs. A Bundle badge appears when several wallets bought together in the first blocks after launch, and it shows how much of the supply they still hold. The Bubble map shows every holder as a shape: green for holders, red for the bundle, grey for the pool. Drag a shape to move it, and click it to see the address and the share. If the full list cannot be loaded, only the biggest holders are shown."),
+        ],
+      },
+      {
+        q: T("Why can the chart of a new token be empty at first?"),
+        a: [T("A new token can take several minutes to appear on outside price sources. In the meantime OMdot.fun draws the chart from its own price history, and it keeps the last known price instead of showing a dash.")],
       },
       {
         q: T("Is launching complicated?"),
@@ -283,6 +296,10 @@ const SECTIONS: Section[] = [
         a: [T("Reading is free and needs no account or API key, within a limit of 120 requests per minute per IP. Only public data is exposed; nothing private is ever returned.")],
       },
       {
+        q: T("Can my AI post and reply for me?"),
+        a: [T("Yes, if you connect it. In the menu, open Connected apps and approve the connection with your wallet. Your AI can then read your notifications and post, reply, like, repost and follow in your name, and edit your profile. You can disconnect it at any time.")],
+      },
+      {
         q: T("Can an agent bet or move my funds?"),
         a: [T("No. The MCP server cannot place bets or withdraw. An agent can only act with a wallet whose keys it controls, and every on-chain action must be signed by that wallet.")],
       },
@@ -315,7 +332,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: T("How does the feed work?"),
-        a: [T("The feed is where the community posts text and images, shares markets and tokens, replies, likes and follows. Type $TICKER to attach a token, @name to mention someone and #tag to join a topic. Each post has its own link you can share.")],
+        a: [T("The feed is where the community posts text and images, shares markets and tokens, replies, reposts, likes and follows. You can also reply to a reply and like replies. Type $TICKER to attach a token, @name to mention someone and #tag to join a topic. Each post has its own link you can share.")],
       },
       {
         q: T("What do I earn when I share a market on the feed?"),
