@@ -13,9 +13,33 @@ import { json } from "./helpers";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-const { mockCreateAdminClient, mockVerifyTransaction } = vi.hoisted(() => ({
+const { mockCreateAdminClient, mockVerifyTransaction, mockVerifyTokenCreator } = vi.hoisted(() => ({
   mockCreateAdminClient: vi.fn(),
   mockVerifyTransaction:  vi.fn(),
+  mockVerifyTokenCreator: vi.fn(),
+}));
+
+// Creator check reads the DBC pool on-chain: replace it with a controllable verdict
+vi.mock("@/lib/launch/verify-creator", () => ({ verifyTokenCreator: mockVerifyTokenCreator }));
+
+// extractPoolAddress asks the RPC for the tx and probes the DBC SDK: give it a fake pool
+vi.mock("@solana/web3.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@solana/web3.js")>();
+  class FakeConnection {
+    async getTransaction() {
+      return {
+        meta: { preBalances: [5, 0], postBalances: [5, 1000] },
+        transaction: { message: { accountKeys: [
+          { toBase58: () => "CreatorWallet111" },
+          { toBase58: () => "11111111111111111111111111111111" },
+        ] } },
+      };
+    }
+  }
+  return { ...real, Connection: FakeConnection };
+});
+vi.mock("@meteora-ag/dynamic-bonding-curve-sdk", () => ({
+  DynamicBondingCurveClient: class { state = { getPool: async () => ({ ok: true }) }; },
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -263,5 +287,47 @@ describe("POST /api/launchpad/[id]/confirm — scheduled tokens", () => {
 
     const updateArg = updateFn.mock.calls[0][0] as Record<string, unknown>;
     expect(updateArg.is_tradeable).toBe(true);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 5. Creator verification on-chain
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("POST /api/launchpad/[id]/confirm — creator verification", () => {
+  const TOKEN = { ...PENDING_TOKEN, mint_address: "MintOm", stock_symbol: null };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SOLANA_RPC_URL = "https://rpc.test";
+    mockVerifyTransaction.mockResolvedValue({ state: "confirmed" });
+  });
+  afterEach(() => { delete process.env.SOLANA_RPC_URL; });
+
+  it("refuses with 403 and keeps the token pending when the pool creator is someone else", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("mismatch");
+    const { client, updateFn } = buildAdminMock(TOKEN);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postConfirm(makeRequest({ txSignature: "sig", walletAddress: "CreatorWallet111" }), ROUTE_PARAMS);
+    expect(res.status).toBe(403);
+    expect(updateFn).not.toHaveBeenCalled();
+  });
+
+  it("marks creator_verified=true when the pool creator matches", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("ok");
+    const { client, updateFn } = buildAdminMock(TOKEN);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postConfirm(makeRequest({ txSignature: "sig", walletAddress: "CreatorWallet111" }), ROUTE_PARAMS);
+    expect(res.status).toBe(200);
+    expect(updateFn.mock.calls[0][0]).toMatchObject({ creator_verified: true, status: "active" });
+    expect(mockVerifyTokenCreator).toHaveBeenCalledWith(expect.objectContaining({ chain: "solana", creator_wallet: "CreatorWallet111" }));
+  });
+
+  it("activates but leaves creator_verified=false when the chain cannot be read", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("unverified");
+    const { client, updateFn } = buildAdminMock(TOKEN);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postConfirm(makeRequest({ txSignature: "sig", walletAddress: "CreatorWallet111" }), ROUTE_PARAMS);
+    expect(res.status).toBe(200);
+    expect(updateFn.mock.calls[0][0]).toMatchObject({ creator_verified: false, creator_verified_at: null });
   });
 });

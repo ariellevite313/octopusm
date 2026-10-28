@@ -15,10 +15,14 @@ import { SupaMockBuilder, json } from "./helpers";
 // ── Shared mocks — vi.hoisted() so they exist when vi.mock factories run ──────
 
 // vi.hoisted() ensures these exist before vi.mock factories run
-const { mockCreateAdminClient, mockCheckNameAvailability } = vi.hoisted(() => ({
+const { mockCreateAdminClient, mockCheckNameAvailability, mockVerifyTokenCreator } = vi.hoisted(() => ({
   mockCreateAdminClient:     vi.fn(),
   mockCheckNameAvailability: vi.fn(),
+  mockVerifyTokenCreator:    vi.fn(),
 }));
+
+// The creator check reads the chain: replace it with a controllable verdict
+vi.mock("@/lib/launch/verify-creator", () => ({ verifyTokenCreator: mockVerifyTokenCreator }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient:      vi.fn(),
@@ -550,5 +554,80 @@ describe("POST /api/launchpad/create", () => {
       const res = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, supply }));
       expect(res.status).toBe(200);
     }
+  });
+});
+
+describe("POST /api/launchpad/create — Arc creator verification", () => {
+  const ARC_PAYLOAD = {
+    ...VALID_PAYLOAD,
+    chain:             "arc",
+    creator_wallet:    "0xAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaa",
+    arc_token_address: "0xBBbbBBbbBBbbBBbbBBbbBBbbBBbbBBbbBBbbBBbb",
+    arc_launch_id:     "0x1111111111111111111111111111111111111111",
+  };
+
+  /** Admin client: the duplicate lookup returns `dup`, the insert is spied */
+  function arcAdmin(dup: object | null) {
+    const insertSpy = vi.fn().mockReturnValue({
+      select: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: { id: "arc-id-1" }, error: null }) })),
+    });
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn(() => chain);
+    chain.ilike = vi.fn(() => chain);
+    chain.limit = vi.fn(() => chain);
+    chain.maybeSingle = vi.fn().mockResolvedValue({ data: dup, error: null });
+    chain.insert = insertSpy;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client: any = { from: vi.fn(() => chain), storage: { from: vi.fn() } };
+    return { client, insertSpy };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCheckNameAvailability.mockResolvedValue({ nameAvailable: true, tickerAvailable: true });
+  });
+
+  it("refuses with 403 when the on-chain creator is someone else", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("mismatch");
+    const { client, insertSpy } = arcAdmin(null);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postCreate(makeCreateRequest(ARC_PAYLOAD));
+    expect(res.status).toBe(403);
+    expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses with 409 when the same on-chain token is already registered", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("ok");
+    const { client, insertSpy } = arcAdmin({ id: "existing" });
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postCreate(makeCreateRequest(ARC_PAYLOAD));
+    expect(res.status).toBe(409);
+    expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  it("marks the token creator_verified when the chain agrees", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("ok");
+    const { client, insertSpy } = arcAdmin(null);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postCreate(makeCreateRequest(ARC_PAYLOAD));
+    expect(res.status).toBe(200);
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ creator_verified: true }));
+  });
+
+  it("still registers but leaves creator_verified=false when the chain cannot be read", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("unverified");
+    const { client, insertSpy } = arcAdmin(null);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postCreate(makeCreateRequest(ARC_PAYLOAD));
+    expect(res.status).toBe(200);
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ creator_verified: false, creator_verified_at: null }));
+  });
+
+  it("does not call the chain for Solana tokens at creation", async () => {
+    const adminMock = new SupaMockBuilder().returnFor("launchpad_tokens", { data: [{ id: "sol-1" }], error: null });
+    mockCreateAdminClient.mockReturnValue(adminMock.buildClient());
+    const res = await postCreate(makeCreateRequest(VALID_PAYLOAD));
+    expect(res.status).toBe(200);
+    expect(mockVerifyTokenCreator).not.toHaveBeenCalled();
   });
 });
