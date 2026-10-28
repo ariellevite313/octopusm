@@ -4,6 +4,7 @@
  * passent par request_approval, que l'utilisateur confirme lui-même avec son wallet.
  */
 import { TOOLS, ToolError, type McpTool } from "@/lib/mcp/tools";
+import { SECURITY_RULE } from "@/lib/mcp/server";
 import { ACTIONS, ActionError } from "@/lib/mcp/agent-actions";
 import { createPost, type PostFile } from "@/lib/social/create-post";
 import { getPublicProfile } from "@/services/profile-service";
@@ -208,4 +209,5 @@ export const USER_TOOLS: McpTool[] = [
 export const USER_INSTRUCTIONS =
   "You are connected to the user's OMdotfun account (token launchpad on Solana and Arc + prediction markets). " +
   "You can read everything (including their notifications), post with images, quote, repost, reply, like, follow and edit the profile (name, X handle, picture, banner, featured token) in their name. " +
-  "You cannot move money: to suggest a bet or a trade, call request_approval and give the user the returned link; they confirm with their own wallet.";
+  "You cannot move money: to suggest a bet or a trade, call request_approval and give the user the returned link; they confirm with their own wallet." +
+  SECURITY_RULE;
