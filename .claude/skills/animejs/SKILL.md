@@ -8,7 +8,7 @@ description: Write web animations with Anime.js v4 (animate, createTimeline, sta
 Source: https://github.com/juliangarnier/anime (MIT, v4.x). The repo has no skill file, so this one summarizes the v4 API as exported by `src/index.js`. Always import named functions, v4 has no default export.
 
 ```js
-import { animate, createTimeline, stagger, utils, svg, text, createDraggable, onScroll, createTimer, createAnimatable, createScope, waapi } from 'animejs';
+import { animate, createTimeline, stagger, utils, svg, text, createDraggable, onScroll, createTimer, createAnimatable, createScope, createLayout, splitText, waapi } from 'animejs';
 ```
 Install: `npm i animejs`. CDN ESM: `https://cdn.jsdelivr.net/npm/animejs/+esm`.
 
@@ -37,7 +37,7 @@ Labels: `tl.label('name', time)`. Sync other animations with `tl.sync(anim)`.
 - Motion path: `const { translateX, translateY, rotate } = svg.createMotionPath('path'); animate('.dot', { translateX, translateY, rotate })`.
 
 ## Text
-`const { chars, words, lines } = text.split('h1', { chars: true, words: true });` then `animate(chars, { y: [ '100%', 0 ], delay: stagger(30) })`. Call `.revert()` on the splitter to restore the DOM.
+`const { chars, words, lines } = splitText('h1', { chars: true, words: true });  // text.split() is deprecated` then `animate(chars, { y: [ '100%', 0 ], delay: stagger(30) })`. Call `.revert()` on the splitter to restore the DOM.
 
 ## Scroll, drag, others
 - Scroll: `animate('.el', { x: 300, autoplay: onScroll({ target: '.section', enter: 'bottom top', leave: 'top bottom', sync: true }) })`.
@@ -46,7 +46,7 @@ Labels: `tl.label('name', time)`. Sync other animations with `tl.sync(anim)`.
 - Timer: `createTimer({ duration: 1000, loop: true, onUpdate })`.
 - Scope for responsive and cleanup: `createScope({ mediaQueries: { sm: '(max-width: 640px)' } }).add(self => {...})`, `scope.revert()`.
 - WAAPI (hardware accelerated, lighter): `waapi.animate('.el', { transform: 'translateX(100px)', opacity: 0.5 })`.
-- Layout animations: `createLayout(root)` with `layout.record()` before a DOM change and `layout.animate(params)` after.
+- Layout animations: `createLayout(root)` then `layout.update(() => { /* change the DOM or classes */ }, { duration: 500 })`, or `layout.record()` before a change and `layout.animate(params)` after.
 
 ## Rules of thumb
 - v3 syntax (`anime({ targets })`, `anime.timeline`, `easing: 'easeOutQuad'`, `direction`) is removed in v4. Use `animate(targets, { ease })` and `alternate`/`reversed`.
