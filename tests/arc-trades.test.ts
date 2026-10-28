@@ -56,5 +56,7 @@ describe("arcPoolId", () => {
   it("donne le même identifiant que Uniswap V4 (keccak du PoolKey)", () => {
     // valeur calculée par Solidity : keccak256(abi.encode(PoolKey(0, 0xab, 5000, 60, 0)))
     expect(arcPoolId("0x00000000000000000000000000000000000000ab")).toBe("0x9eafe0b40602a9a9f65355188755701e2dfb039391d17064d08747d8927a6484");
+    // frais différents = pool différent
+    expect(arcPoolId("0x00000000000000000000000000000000000000ab", 25000)).not.toBe(arcPoolId("0x00000000000000000000000000000000000000ab", 20000));
   });
 });

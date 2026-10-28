@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "./OMToken.sol";
+import "./OMTokenDirect.sol";
 import "./DirectV4Vault.sol";
 
 /**
@@ -62,14 +62,14 @@ contract LaunchpadFactoryArcV4Direct {
         uint256 firstBuyUsdc,
         uint8 feeTier_
     ) external payable returns (address vault, address token_) {
-        require(feeTier_ == 0 || feeTier_ == 2, "Factory: tier not supported");
+        require(feeTier_ <= 1, "Factory: tier not supported");
         require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
         require(firstBuyUsdc <= MAX_FIRST_BUY, "Factory: first buy too large");
         require(msg.value >= firstBuyUsdc, "Factory: insufficient value");
 
         vault = vaultImplementation.clone();
         // hook = vault et vault = vault : tout le supply est minté vers le vault
-        token_ = address(new OMToken(name, symbol, imageUri, description, vault, vault, msg.sender, treasury));
+        token_ = address(new OMTokenDirect(name, symbol, imageUri, description, vault, vault, msg.sender, treasury, poolManager));
         DirectV4Vault(payable(vault)).initialize(token_, msg.sender, treasury, feeTier_, poolManager, positionManager, permit2);
         DirectV4Vault(payable(vault)).seedPool();
 
