@@ -27,6 +27,8 @@ import {
   BC_CURVE_SUPPLY,
   BC_K,
   ARC_FEE_TIERS,
+  ARC_DIRECT_FACTORY_ABI,
+  ARC_FACTORY_DIRECT_ADDRESS,
 } from "@/lib/arc-launchpad";
 import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
 import { XStockIcon } from "@/components/shared/xstock-icon";
@@ -967,7 +969,7 @@ export function CreateTokenWizard({
 }) {
   const router = useRouter();
   const { walletAddress, walletType, selectedChain } = useAuth();
-  const { t } = useT();
+  const { t, tr } = useT();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(() => ({ ...INITIAL, ...initialData }));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -1115,27 +1117,39 @@ export function CreateTokenWizard({
       transport: http("/api/arc-rpc"),
     });
 
+    // Lancement direct sur Uniswap V4 (si la factory est déployée) ou bonding curve V2
+    const direct = data.arc_launch_mode === "direct" && !!ARC_FACTORY_DIRECT_ADDRESS;
     // ── LaunchpadFactoryArcV2 ─────────────────────────────────────────────────
-      if (!ARC_FACTORY_V2_ADDRESS) throw new Error("Contrats V2 pas encore déployés. Lance d'abord forge script DeployArcV2.s.sol.");
+      if (!direct && !ARC_FACTORY_V2_ADDRESS) throw new Error("Contrats V2 pas encore déployés. Lance d'abord forge script DeployArcV2.s.sol.");
 
       const firstBuyUsdc = data.arc_first_buy_enabled ? BigInt(Math.round(data.arc_first_buy_usdc * 1e18)) : 0n;
       const totalValue   = firstBuyUsdc;
 
+      if (direct && firstBuyUsdc > 480n * 10n ** 18n) throw new Error(tr("First buy is limited to 480 USDC on a direct Uniswap V4 launch."));
+
       toast.info(t.deployingArcV2);
-      const txHash = await walletClient.writeContract({
-        address:      ARC_FACTORY_V2_ADDRESS,
-        abi:          LAUNCHPAD_FACTORY_V2_ABI,
-        functionName: "createToken",
-        args: [
-          data.name,
-          data.ticker,
-          "",               // imageUri (stocké off-chain)
-          data.description,
-          firstBuyUsdc,
-          data.arc_fee_tier,
-        ],
-        value: totalValue,
-      });
+      const txHash = direct
+        ? await walletClient.writeContract({
+            address:      ARC_FACTORY_DIRECT_ADDRESS as `0x${string}`,
+            abi:          ARC_DIRECT_FACTORY_ABI,
+            functionName: "createToken",
+            args: [data.name, data.ticker, "", data.description, firstBuyUsdc, data.arc_fee_tier === 1 ? 1 : 0],
+            value: totalValue,
+          })
+        : await walletClient.writeContract({
+            address:      ARC_FACTORY_V2_ADDRESS,
+            abi:          LAUNCHPAD_FACTORY_V2_ABI,
+            functionName: "createToken",
+            args: [
+              data.name,
+              data.ticker,
+              "",               // imageUri (stocké off-chain)
+              data.description,
+              firstBuyUsdc,
+              data.arc_fee_tier,
+            ],
+            value: totalValue,
+          });
 
       toast.success(t.txSent(txHash.slice(0, 10)), { duration: 10000 });
       toast.info(t.waitingConfirmation);
@@ -1151,18 +1165,29 @@ export function CreateTokenWizard({
         throw new Error("Transaction revertée — vérifie ArcScan : https://explorer.arc.io/tx/" + txHash);
       }
 
-      // Extraire curve, token, vault depuis l'event TokenLaunched
-      const logs = parseEventLogs({
-        abi:       LAUNCHPAD_FACTORY_V2_ABI,
-        eventName: "TokenLaunched",
-        logs:      receipt.logs,
-      });
-      if (!logs[0]?.args?.token || !logs[0]?.args?.curve) {
-        throw new Error("Factory V2 n'a pas émis TokenLaunched. Vérifie ARC_FACTORY_V2_ADDRESS.");
+      // Extraire curve (ou vault direct), token, vault depuis l'event de lancement
+      let arcTokenAddress: string;
+      let arcCurveAddress: string;
+      let arcVaultAddress: string | null;
+      if (direct) {
+        const dl = parseEventLogs({ abi: ARC_DIRECT_FACTORY_ABI, eventName: "TokenLaunchedDirect", logs: receipt.logs });
+        if (!dl[0]?.args?.token || !dl[0]?.args?.vault) throw new Error("La factory directe n'a pas émis TokenLaunchedDirect. Vérifie NEXT_PUBLIC_ARC_FACTORY_DIRECT.");
+        arcTokenAddress = dl[0].args.token as string;
+        arcCurveAddress = dl[0].args.vault as string; // lancement direct : arc_launch_id = adresse du vault
+        arcVaultAddress = null;
+      } else {
+        const logs = parseEventLogs({
+          abi:       LAUNCHPAD_FACTORY_V2_ABI,
+          eventName: "TokenLaunched",
+          logs:      receipt.logs,
+        });
+        if (!logs[0]?.args?.token || !logs[0]?.args?.curve) {
+          throw new Error("Factory V2 n'a pas émis TokenLaunched. Vérifie ARC_FACTORY_V2_ADDRESS.");
+        }
+        arcTokenAddress  = logs[0].args.token as string;
+        arcCurveAddress  = logs[0].args.curve as string;
+        arcVaultAddress  = (logs[0].args as Record<string, unknown>).vault as string | null ?? null;
       }
-      const arcTokenAddress  = logs[0].args.token as string;
-      const arcCurveAddress  = logs[0].args.curve as string;
-      const arcVaultAddress  = (logs[0].args as Record<string, unknown>).vault as string | null ?? null;
       const arcCreationBlock = receipt.blockNumber ? Number(receipt.blockNumber) : null;
 
       // Sauvegarder — V2 : arc_launch_id = curve address (≠ token)

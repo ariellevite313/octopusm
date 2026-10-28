@@ -23,6 +23,7 @@ import {
   GRADUATION_VAULT_V4_ABI,
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
+import { ARC_DIRECT_VAULT_ABI, ARC_FACTORY_DIRECT_ADDRESS } from "@/lib/arc-launchpad";
 
 type Props = {
   curveAddress:  string;  // arc_launch_id = adresse du BondingCurveArcV2
@@ -41,6 +42,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
   const { t, tr, lang } = useT();
 
   const [graduated,  setGraduated]  = useState<boolean | null>(null);
+  const [isDirect,   setIsDirect]   = useState(false); // lancement direct sur Uniswap V4 : frais versés au passage de collectFees()
   const [accrued,    setAccrued]    = useState<bigint | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [claiming,   setClaiming]   = useState(false);
@@ -70,6 +72,11 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
     try {
       const client = createPublicClient({ chain: arc, transport: http("/api/arc-rpc") });
       const curveAddr = curveAddress as `0x${string}`;
+
+      if (ARC_FACTORY_DIRECT_ADDRESS) {
+        const fee = await client.readContract({ address: curveAddr, abi: ARC_DIRECT_VAULT_ABI, functionName: "poolFee" }).catch(() => null);
+        if (fee) { setIsDirect(true); setAccrued(null); return; }
+      }
 
       const [grad, creatorAcc] = await Promise.all([
         client.readContract({ address: curveAddr, abi: BONDING_CURVE_V2_ABI, functionName: "graduated" }) as Promise<boolean>,
@@ -118,7 +125,16 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
       const [account] = await walletClient.getAddresses();
       let hash: `0x${string}`;
 
-      if (graduated && vaultAddress && vaultAddress !== "0x0000000000000000000000000000000000000000") {
+      if (isDirect) {
+        // Lancement direct : le vault est l'adresse du lancement ; collectFees() verse chaque part à son destinataire
+        hash = await walletClient.writeContract({
+          address: curveAddress as `0x${string}`,
+          abi: ARC_DIRECT_VAULT_ABI,
+          functionName: "collectFees",
+          args: [],
+          account, chain: arc,
+        });
+      } else if (graduated && vaultAddress && vaultAddress !== "0x0000000000000000000000000000000000000000") {
         // Post-graduation : GraduationVaultV4.collectFees()
         hash = await walletClient.writeContract({
           address: vaultAddress as `0x${string}`,
@@ -167,6 +183,36 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
           className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 text-xs font-semibold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
         >
           {t.switchWallet}
+        </button>
+      </div>
+    );
+  }
+
+  if (isDirect) {
+    return (
+      <div className="rounded-[22px] border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <CoinsIcon className="size-4 text-foreground shrink-0" />
+          <span className="text-sm font-semibold text-foreground">{tr("Creator fees (USDC)")}</span>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {tr("Trading fees are paid out on chain when someone collects them. Your share goes straight to your wallet.")}
+        </p>
+        {txHash && (
+          <a href={`https://explorer.arc.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] text-up hover:underline">
+            <CheckCircle2 className="size-3.5" />
+            {tr("Collected — View on ArcScan")}
+          </a>
+        )}
+        {error && <p className="text-[11px] text-red-400">{error}</p>}
+        <button
+          onClick={() => void handleClaim()}
+          disabled={claiming}
+          className={`w-full rounded-full py-3 text-[14px] font-bold transition-colors ${claiming ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-foreground hover:opacity-90 text-background"}`}
+        >
+          {claiming ? (
+            <span className="flex items-center justify-center gap-2"><Loader2 className="size-4 animate-spin" />{t.collecting}</span>
+          ) : tr("Collect fees now")}
         </button>
       </div>
     );

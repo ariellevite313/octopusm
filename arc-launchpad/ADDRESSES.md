@@ -1,5 +1,13 @@
 # Arc Launchpad — Adresses déployées
 
+## Lancement direct Uniswap V4 (à déployer)
+
+`forge script script/DeployDirectV4.s.sol --rpc-url https://rpc.mainnet.arc.io --private-key $DEPLOYER_PK --broadcast --legacy` (env : `DEPLOYER_PK`, `TREASURY_ADDR`).
+Affiche : DirectV4Vault (impl), Factory, Router. Puis dans `.env` du site :
+`NEXT_PUBLIC_ARC_FACTORY_DIRECT=<factory>` et `NEXT_PUBLIC_ARC_DIRECT_ROUTER=<router>`, et rebuild.
+Le routeur sert aussi à trader les anciens tokens déjà gradués (pool à 0,50 %).
+Plans : 0 = 2,5 % (1 % créateur, 0,5 % plateforme, 1 % liquidité) · 1 = 2 % (0,5 % créateur, plateforme, liquidité, holders).
+
 ## Arc Mainnet — V2 Launchpad (OMToken fix — à redéployer)
 
 | Contrat | Adresse |

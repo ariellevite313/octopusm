@@ -25,6 +25,11 @@ import {
   BC_FEE_BPS,
   quoteArcBuy,
   quoteArcSell,
+  ARC_DIRECT_VAULT_ABI,
+  ARC_DIRECT_ROUTER_ABI,
+  ARC_DIRECT_ROUTER_ADDRESS,
+  ARC_FACTORY_DIRECT_ADDRESS,
+  ARC_POOL_FEE_GRADUATED,
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
@@ -110,10 +115,16 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
   // State on-chain (BondingCurveArcV2)
   const [graduated,     setGraduated]     = useState(false);
+  // Lancement direct sur Uniswap V4 : frais du pool (poolFee du vault). null = bonding curve.
+  const [directFee,     setDirectFee]     = useState<number | null>(null);
   const [reserveUsdc,   setReserveUsdc]   = useState<bigint>(BC_VIRTUAL_USDC);
   const [reserveTokens, setReserveTokens] = useState<bigint>(BC_CURVE_SUPPLY);
   const [realRaised,    setRealRaised]    = useState<bigint>(0n);
   const [progressBps,   setProgressBps]   = useState<bigint>(0n);
+
+  // Pool V4 : lancement direct, ou token de courbe gradué (pool à 0,50 %)
+  const poolFee: number | null = directFee ?? (graduated && ARC_DIRECT_ROUTER_ADDRESS ? ARC_POOL_FEE_GRADUATED : null);
+  const viaPool = poolFee !== null;
 
   // Quote
   const [estimatedOut, setEstimatedOut] = useState<bigint | null>(null);
@@ -159,6 +170,11 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     try {
       const client = getPublicClient();
       const curveAddr = launchId as `0x${string}`;
+
+      if (ARC_FACTORY_DIRECT_ADDRESS) {
+        const fee = await client.readContract({ address: curveAddr, abi: ARC_DIRECT_VAULT_ABI, functionName: "poolFee" }).catch(() => null);
+        if (fee) { setDirectFee(Number(fee)); return; }
+      }
 
       const [grad, resU, resT, raised, pbps] = await Promise.all([
         client.readContract({ address: curveAddr, abi: BONDING_CURVE_V2_ABI, functionName: "graduated" }) as Promise<boolean>,
@@ -219,6 +235,24 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   useEffect(() => {
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { setEstimatedOut(null); return; }
+    // Pool Uniswap V4 (lancement direct ou token gradué) : devis par simulation du routeur
+    if (poolFee !== null) {
+      const routerAddr = ARC_DIRECT_ROUTER_ADDRESS;
+      if (!routerAddr) { setEstimatedOut(null); return; }
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        try {
+          const raw = parseDecimalToBigInt(amount, 18);
+          const { result } = await getPublicClient().simulateContract({
+            address: routerAddr, abi: ARC_DIRECT_ROUTER_ABI,
+            functionName: direction === "buy" ? "quoteBuy" : "quoteSell",
+            args: [tokenAddress as `0x${string}`, poolFee, raw],
+          });
+          if (!cancelled) setEstimatedOut(result > 0n ? result : null);
+        } catch { if (!cancelled) setEstimatedOut(null); }
+      }, 250);
+      return () => { cancelled = true; clearTimeout(timer); };
+    }
     try {
       if (direction === "buy") {
         const usdcGross = BigInt(Math.round(parsed * 1e18));
@@ -231,7 +265,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       }
     } catch { setEstimatedOut(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, direction, reserveUsdc, reserveTokens]);
+  }, [amount, direction, reserveUsdc, reserveTokens, poolFee]);
 
   // ── Arc chain switch ──────────────────────────────────────────────────────
 
@@ -289,7 +323,34 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
 
       const slipMul = BigInt(Math.round((100 - slippagePct) * 10));
 
-      if (direction === "buy") {
+      if (poolFee !== null) {
+        // ── Pool Uniswap V4 via le routeur ──
+        if (!ARC_DIRECT_ROUTER_ADDRESS) throw new Error(tr("Trading is not available yet"));
+        const router = ARC_DIRECT_ROUTER_ADDRESS;
+        const minOut = (estimatedOut * slipMul) / 1000n;
+        if (direction === "buy") {
+          const usdcIn = parseDecimalToBigInt(amount, 18);
+          if (quoteBalance !== null && usdcIn > quoteBalance) throw new Error(tr("Insufficient USDC balance"));
+          const data = encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "buy", args: [memeAddr, poolFee, minOut, activeAddr] });
+          const hash = await eth.request({ method: "eth_sendTransaction", params: [{ from: activeAddr, to: router, data, value: `0x${usdcIn.toString(16)}` }] }) as string;
+          setTxHash(hash);
+          await waitReceipt(hash);
+        } else {
+          const tokensIn = parseDecimalToBigInt(amount, 18);
+          if (tokenBalance !== null && tokensIn > tokenBalance) throw new Error(tr("Insufficient token balance"));
+          const client = getPublicClient();
+          const allowance = await client.readContract({ address: memeAddr, abi: ERC20_ABI, functionName: "allowance", args: [activeAddr, router] }) as bigint;
+          if (allowance < tokensIn) {
+            const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [router, tokensIn] });
+            const approveTx = await eth.request({ method: "eth_sendTransaction", params: [{ from: activeAddr, to: memeAddr, data: approveData }] }) as string;
+            await waitReceipt(approveTx);
+          }
+          const data = encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "sell", args: [memeAddr, poolFee, tokensIn, minOut, activeAddr] });
+          const hash = await eth.request({ method: "eth_sendTransaction", params: [{ from: activeAddr, to: router, data }] }) as string;
+          setTxHash(hash);
+          await waitReceipt(hash);
+        }
+      } else if (direction === "buy") {
         const usdcGross  = BigInt(Math.round(parsed * 1e18));
         const minTokens  = (estimatedOut * slipMul) / 1000n;
 
@@ -392,7 +453,9 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
     ? `~${direction === "buy" ? fmtTokens(estimatedOut, loc) : fmtUsdc(estimatedOut, loc)} ${outputSymbol}`
     : "";
 
-  const canSwap = !!amount && parseFloat(amount) > 0 && !swapping && !graduated && !!estimatedOut;
+  // Courbe terminée et pas de pool utilisable : plus de trading dans l'app
+  const locked = graduated && !viaPool;
+  const canSwap = !!amount && parseFloat(amount) > 0 && !swapping && !locked && !!estimatedOut;
 
   const progressPct = BC_GRAD_THRESHOLD > 0n
     ? Math.min(100, Number((realRaised * 10000n) / BC_GRAD_THRESHOLD) / 100)
@@ -434,14 +497,14 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       <div className="space-y-3">
 
         {/* Post-graduation */}
-        {graduated && (
+        {locked && (
           <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 text-center">
             <p className="text-xs font-semibold text-indigo-400">{tr("Graduated — trade on Uniswap V4")}</p>
           </div>
         )}
 
         {/* Buy / Sell tabs */}
-        {!graduated && (
+        {!locked && (
           <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
             {(["buy", "sell"] as Direction[]).map(d => (
               <button
@@ -460,7 +523,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         )}
 
         {/* Bonding curve progress */}
-        {!graduated && (
+        {!graduated && !viaPool && (
           <div className="space-y-1 px-0.5">
             <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>{tr("Bonding curve")}</span>
@@ -487,7 +550,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
               value={amount}
               onChange={e => setAmount(e.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}
               placeholder="0"
-              disabled={graduated || swapping}
+              disabled={locked || swapping}
               style={{ width: `${Math.max(1, (amount || "0").length) * 0.62 + 0.1}em` }}
               className="num min-w-0 max-w-[70%] bg-transparent text-center text-[52px] font-bold leading-none tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40 disabled:opacity-50"
             />
@@ -503,7 +566,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           <button
             type="button"
             onClick={() => { setDirection(direction === "buy" ? "sell" : "buy"); setAmount(""); setEstimatedOut(null); }}
-            disabled={graduated}
+            disabled={locked}
             className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title={tr("Switch buy / sell")}
           >
@@ -518,7 +581,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         </div>
 
         {/* % */}
-        {!graduated && (
+        {!locked && (
           <div className="grid grid-cols-4 gap-2">
             {[25, 50, 75, 100].map(pct => (
               <button
@@ -537,7 +600,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         )}
 
         {/* Pavé numérique */}
-        {!graduated && (
+        {!locked && (
           <SwapKeypad value={amount} onChange={setAmount} maxDecimals={direction === "buy" ? 2 : 4} />
         )}
 
@@ -610,7 +673,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                 <Loader2 className="size-4 animate-spin" />
                 {direction === "buy" ? tr("Buying…") : tr("Selling…")}
               </span>
-            ) : graduated
+            ) : locked
               ? tr("Graduated")
               : direction === "buy"
                 ? tr("Buy ${ticker}", { ticker })
@@ -619,7 +682,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         )}
 
         <p className="text-center text-[10px] text-muted-foreground/40 pb-1">
-          Arc Network · Bonding Curve V2
+          {viaPool ? "Arc Network · Uniswap V4" : "Arc Network · Bonding Curve V2"}
         </p>
       </div>
     </div>

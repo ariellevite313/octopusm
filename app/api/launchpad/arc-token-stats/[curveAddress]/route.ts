@@ -12,6 +12,7 @@
 
 import { createAdminClient } from "@/lib/supabase/server";
 import { arcBalances } from "@/lib/holders";
+import { directPoolFee, readPoolPrice } from "@/lib/arc-trades";
 import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { arc } from "@/lib/arc-chain";
@@ -94,6 +95,22 @@ export async function GET(req: Request, { params }: RouteParams) {
     const client    = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
     const curveAddr = curveAddress as `0x${string}`;
 
+    // Token de la ligne (pour lire le pool Uniswap V4)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: row } = await (createAdminClient() as any).from("launchpad_tokens").select("mint_address").ilike("arc_launch_id", curveAddress).maybeSingle();
+    const tokenAddr = row?.mint_address as string | undefined;
+
+    // Lancement direct sur Uniswap V4 : pas de courbe, le prix vient du pool
+    const dFee = tokenAddr ? await directPoolFee(curveAddress.toLowerCase()) : null;
+    if (dFee !== null && tokenAddr) {
+      const [priceUsd, holders, { volume24h, priceChange }] = await Promise.all([readPoolPrice(tokenAddr, dFee), holderCount(curveAddress), tradeStats(curveAddress)]);
+      const marketCap = priceUsd !== null ? priceUsd * TOTAL_SUPPLY : null;
+      return NextResponse.json(
+        { priceUsd, marketCap, fdv: marketCap, volume24h, priceChange, holders, graduated: true, reserveUsdc: 0, reserveTokens: 0, realUsdcRaised: 0, progressBps: 10_000, direct: true },
+        { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30" } },
+      );
+    }
+
     const [[reserveUsdcRaw, reserveTokensRaw, graduated, realRaised, pbps], holders] = await Promise.all([
       Promise.all([
         client.readContract({ address: curveAddr, abi: BONDING_CURVE_V2_ABI, functionName: "reserveUsdc" }),
@@ -109,7 +126,12 @@ export async function GET(req: Request, { params }: RouteParams) {
     // USDC Arc natif = 18 decimals EVM
     const reserveUsdc   = Number(reserveUsdcRaw   as bigint) / 1e18;
     const reserveTokens = Number(reserveTokensRaw as bigint) / 1e18;
-    const priceUsd      = reserveTokens > 0 ? reserveUsdc / reserveTokens : null;
+    let priceUsd: number | null = reserveTokens > 0 ? reserveUsdc / reserveTokens : null;
+    // Après la graduation la courbe ne bouge plus : le prix courant est celui du pool Uniswap V4
+    if (Boolean(graduated) && tokenAddr) {
+      const poolPrice = await readPoolPrice(tokenAddr, 5000);
+      if (poolPrice !== null) priceUsd = poolPrice;
+    }
     const marketCap     = priceUsd !== null ? priceUsd * TOTAL_SUPPLY : null;
     const realUsdcRaisedNum = Number(realRaised as bigint) / 1e18;
     const progressBps   = Number(pbps as bigint);
