@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = createAdminClient() as any;
-    const { data: token } = await db.from("launchpad_tokens").select("id, sol_fee_tier").eq("pool_address", poolAddress).maybeSingle();
+    const { data: token } = await db.from("launchpad_tokens").select("id, sol_fee_tier, mint_address").eq("pool_address", poolAddress).maybeSingle();
     if (!token) return NextResponse.json({ error: "Unknown token" }, { status: 404 });
 
     const conn = new Connection(RPC_URL, "confirmed");
@@ -65,10 +65,28 @@ export async function POST(req: Request) {
     const post = tx.meta.postTokenBalances?.find((b) => b.accountIndex === idx);
     if (!post || post.mint !== WSOL) return NextResponse.json({ rewarded: false }); // seuls les pools en SOL donnent des gains
     const delta = Number(BigInt(post.uiTokenAmount.amount) - BigInt(pre?.uiTokenAmount.amount ?? "0")) / 1e9;
-    if (!(delta > 0)) return NextResponse.json({ rewarded: false }); // vente : pas de gain
+    if (!(delta !== 0)) return NextResponse.json({ rewarded: false });
 
     const price = await solPriceUsd();
     if (!(price > 0)) return NextResponse.json({ error: "Price unavailable, retry" }, { status: 503 });
+
+    // Historique des achats et ventes (base des votes du hackathon) : montant payé lu sur la chaîne,
+    // tokens reçus ou vendus = variation du solde du wallet signataire.
+    const mint = token.mint_address as string | null;
+    if (mint) {
+      const bal = (list: typeof tx.meta.postTokenBalances) =>
+        (list ?? []).filter((b) => b.mint === mint && b.owner === who.wallet).reduce((n, b) => n + Number(b.uiTokenAmount.uiAmountString ?? 0), 0);
+      const tokenDelta = bal(tx.meta.postTokenBalances) - bal(tx.meta.preTokenBalances);
+      if (tokenDelta !== 0 && Math.sign(tokenDelta) === Math.sign(delta)) {
+        const { error: tradeErr } = await db.from("token_trades").upsert({
+          tx_id: txSignature, token_id: token.id, wallet: who.wallet,
+          side: delta > 0 ? "buy" : "sell", usd: Math.abs(delta) * price, token_amount: Math.abs(tokenDelta),
+          ts: new Date(tx.blockTime * 1000).toISOString(),
+        }, { onConflict: "tx_id,token_id", ignoreDuplicates: true });
+        if (tradeErr) console.error("[dbc-swap/confirm] token_trades:", tradeErr.message);
+      }
+    }
+    if (!(delta > 0)) return NextResponse.json({ rewarded: false }); // vente : pas de gain
     const r = await awardTradeRewards(db, {
       chain: "solana", tokenId: token.id, txId: txSignature, trader: who.wallet, volumeUsd: delta * price, tsMs: tx.blockTime * 1000,
       feeRate: token.sol_fee_tier === "low" ? SOL_PLATFORM_RATE.low : SOL_PLATFORM_RATE.standard,
