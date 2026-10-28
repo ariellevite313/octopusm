@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { snapshotsToBars } from "@/lib/launch/price-snapshots";
 import { useTheme } from "next-themes";
 import { Loader2, CandlestickChart, TrendingUp } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -136,6 +137,14 @@ async function fetchBars(poolAddress: string, tf: Timeframe): Promise<Bar[]> {
   const list = json?.data?.attributes?.ohlcv_list as RawList | undefined;
   if (!list?.length) throw new Error(T("No data"));
   return parseOHLCV(list);
+}
+
+/** Secours : bougies construites avec notre propre historique de prix (token pas encore indexé). */
+async function fetchSnapshotBars(mintAddress: string, bucketSec: number): Promise<Bar[]> {
+  const res = await fetch(`/api/launchpad/price-history?mint=${encodeURIComponent(mintAddress)}`);
+  if (!res.ok) return [];
+  const { points } = (await res.json()) as { points?: { t: number; p: number }[] };
+  return snapshotsToBars(points ?? [], bucketSec) as Bar[];
 }
 
 // ── Chart theme ───────────────────────────────────────────────────────────────
@@ -284,14 +293,19 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
     async function init() {
       try {
-        const pool = await resolveGeckoPool(mintAddress ?? "");
+        // GeckoTerminal d'abord ; sinon notre historique de prix (token tout neuf)
+        let bars: Bar[] = [];
+        try {
+          const pool = await resolveGeckoPool(mintAddress ?? "");
+          if (cancelled) return;
+          poolRef.current = pool;
+          bars = await fetchBars(pool, DEFAULT_TF);
+        } catch {
+          poolRef.current = null;
+        }
+        if (!bars.length) bars = await fetchSnapshotBars(mintAddress ?? "", 300);
         if (cancelled) return;
-        poolRef.current = pool;
-
-        const [lw, bars] = await Promise.all([
-          import("lightweight-charts"),
-          fetchBars(pool, DEFAULT_TF),
-        ]);
+        const lw = await import("lightweight-charts");
         if (cancelled || !wrapperRef.current) return;
         if (!bars.length) { setStatus("nodata"); return; }
 

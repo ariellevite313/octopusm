@@ -6,6 +6,9 @@
  * Mis en cache 5 min côté serveur pour ne pas surcharger les sources.
  */
 import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { fetchSnapshots } from "@/lib/launch/snapshot-store";
+import { snapshotsToPoints } from "@/lib/launch/price-snapshots";
 
 const TTL = 5 * 60_000;
 const cache = new Map<string, { at: number; points: number[] }>();
@@ -53,6 +56,12 @@ export async function GET(req: Request) {
     if (chain === "arc" && curve) points = await arcPoints(url.origin, curve);
     else if (pool || mint)        points = await solanaPoints(pool, mint);
   } catch { /* courbe plate côté client */ }
+
+  // Secours : notre propre historique de prix quand les sources externes n'ont rien
+  if (points.length < 2 && chain !== "arc" && mint) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    points = snapshotsToPoints(await fetchSnapshots(createAdminClient() as any, { mint }));
+  }
 
   cache.set(key, { at: Date.now(), points });
   return NextResponse.json({ points }, { headers: { "Cache-Control": "public, s-maxage=300" } });

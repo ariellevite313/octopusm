@@ -11,7 +11,10 @@
  * We process tokens in batches of 5 with 1s between batches.
  */
 import { NextResponse } from "next/server";
+import { Connection } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { keepLastKnown } from "@/lib/launch/price-snapshots";
+import { fetchSolUsd, onchainStats } from "@/lib/launch/onchain-price";
 
 const DS_BASE = "https://api.dexscreener.com/latest/dex/tokens";
 const GT_BASE = "https://api.geckoterminal.com/api/v2/networks/solana/tokens";
@@ -89,7 +92,7 @@ export async function GET(req: Request) {
     // Get all active tokens with a mint address (so GeckoTerminal can find them)
     const { data: tokens, error } = await admin
       .from("launchpad_tokens")
-      .select("id, mint_address, volume_total_usd, volume_24h_snapshot_usd")
+      .select("id, mint_address, pool_address, supply, stock_symbol, volume_total_usd, volume_24h_snapshot_usd")
       .not("status", "in", "(pending,cancelled)")
       .not("mint_address", "is", null)
       .limit(200);
@@ -97,6 +100,12 @@ export async function GET(req: Request) {
     if (error || !tokens || tokens.length === 0) {
       return NextResponse.json({ updated: 0, message: "No tokens to update" });
     }
+
+    // Prix du SOL + connexion RPC, pour lire le prix sur la courbe quand les sources externes n'ont rien
+    const solUsd = await fetchSolUsd();
+    const rpcUrl = process.env.SOLANA_RPC_URL;
+    const conn = rpcUrl ? new Connection(rpcUrl, "confirmed") : null;
+    const snapshots: { token_id: string; price_usd: number; market_cap_usd: number | null; volume_24h_usd: number | null }[] = [];
 
     const BATCH = 5;
     let updated = 0;
@@ -106,13 +115,21 @@ export async function GET(req: Request) {
       const batch = tokens.slice(i, i + BATCH) as {
         id: string;
         mint_address: string;
+        pool_address: string | null;
+        supply: number | null;
+        stock_symbol: string | null;
         volume_total_usd: number | null;
         volume_24h_snapshot_usd: number | null;
       }[];
 
       await Promise.all(
         batch.map(async (t) => {
-          const stats = await fetchStats(t.mint_address);
+          let stats = await fetchStats(t.mint_address);
+          // Aucun prix externe : on lit la courbe directement (hors xStock)
+          if ((!stats || stats.priceUsd === null) && conn && solUsd && t.pool_address && !t.stock_symbol) {
+            const chain = await onchainStats(conn, t.pool_address, t.supply ?? 0, solUsd);
+            if (chain) stats = { priceUsd: chain.priceUsd, marketCap: stats?.marketCap ?? chain.marketCap, volume24h: stats?.volume24h ?? null };
+          }
           if (!stats) {
             skipped++;
             // Still stamp stats_updated_at so we know the token was attempted
@@ -133,9 +150,8 @@ export async function GET(req: Request) {
           const { error: upErr } = await admin
             .from("launchpad_tokens")
             .update({
-              price_usd:               stats.priceUsd,
-              market_cap_usd:          stats.marketCap,
-              volume_24h_usd:          stats.volume24h,
+              // Une valeur vide n'écrase jamais la dernière valeur connue
+              ...keepLastKnown({ price_usd: stats.priceUsd, market_cap_usd: stats.marketCap, volume_24h_usd: stats.volume24h }),
               volume_total_usd:        newTotal,
               volume_24h_snapshot_usd: stats.volume24h ?? prevSnapshot,
               stats_updated_at:        new Date().toISOString(),
@@ -146,6 +162,9 @@ export async function GET(req: Request) {
             console.warn("[update-token-stats] update failed for", t.id, upErr.message);
           } else {
             updated++;
+            if (stats.priceUsd !== null && stats.priceUsd > 0) {
+              snapshots.push({ token_id: t.id, price_usd: stats.priceUsd, market_cap_usd: stats.marketCap, volume_24h_usd: stats.volume24h });
+            }
           }
         }),
       );
@@ -153,6 +172,13 @@ export async function GET(req: Request) {
       // 1s between batches to respect GeckoTerminal rate limit (~30 req/min)
       if (i + BATCH < tokens.length) await sleep(1000);
     }
+
+    // Historique de prix (secours du graphique) + nettoyage au-delà de 30 jours
+    if (snapshots.length) {
+      const { error: snapErr } = await admin.from("token_price_snapshots").insert(snapshots);
+      if (snapErr) console.warn("[update-token-stats] snapshots failed:", snapErr.message);
+    }
+    await admin.from("token_price_snapshots").delete().lt("created_at", new Date(Date.now() - 30 * 86_400_000).toISOString());
 
     console.log(`[update-token-stats] updated=${updated} skipped=${skipped} total=${tokens.length}`);
     return NextResponse.json({ updated, skipped, total: tokens.length });
