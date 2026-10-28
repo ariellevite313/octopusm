@@ -225,11 +225,11 @@ describe("POST /api/updown/bet", () => {
     expect((await json(res)).error).toMatch(/does not match/i);
   });
 
-  it("keeps an Arc bet pending when the RPC cannot verify yet", async () => {
+  it("returns 503 (retry) when the RPC cannot verify yet, nothing is stored", async () => {
     mockVerifyArc.mockResolvedValue("unverified");
     setupUpDown(ARC_WALLET);
     const res = await postUpDown(makeRequest(ARC_BODY));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
   });
 
   it("returns 403 when the Arc wallet differs from the session wallet", async () => {

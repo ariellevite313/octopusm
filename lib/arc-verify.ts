@@ -9,6 +9,7 @@ export async function verifyArcTransfer(p: {
   hash: string; from: string; minUsdc: number; memoIncludes?: string[]; retries?: number;
 }): Promise<ArcVerifyResult> {
   if (!/^0x[0-9a-fA-F]{64}$/.test(p.hash)) return "mismatch";
+  if (!Number.isFinite(p.minUsdc) || p.minUsdc <= 0 || p.minUsdc > 1e9) return "mismatch";
   const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
   for (let i = 0; i < (p.retries ?? 3); i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, 1500));

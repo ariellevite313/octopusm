@@ -32,7 +32,9 @@ export async function POST(req: Request) {
     chain?:         string;
   };
 
-  const { market_id, wallet_address, direction, amount, tx_signature } = body;
+  const { market_id, wallet_address, direction, amount } = body;
+  // Hash Arc en minuscules : un même hash ne s'enregistre qu'une fois, quelle que soit la casse
+  const tx_signature = body.chain === "arc" && typeof body.tx_signature === "string" ? body.tx_signature.toLowerCase() : body.tx_signature;
 
   if (!market_id || !wallet_address || !direction || !amount || !tx_signature) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
   if (!["up", "down"].includes(direction)) {
     return NextResponse.json({ error: "Invalid direction" }, { status: 400 });
   }
-  if (amount <= 0) {
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 || amount > 1e9) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
@@ -90,12 +92,13 @@ export async function POST(req: Request) {
     if (v === "mismatch") {
       return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     }
-    // "unverified" (RPC indisponible) : enregistré en attente, l'admin vérifie à l'approbation
+    if (v === "unverified") return NextResponse.json({ error: "Could not confirm the transaction yet, retry in a few seconds" }, { status: 503 });
   } else {
-    const v = await checkSolanaTransfer(tx_signature, "usdc", Number(amount));
+    const v = await checkSolanaTransfer(tx_signature, "usdc", Number(amount), sessionWallet);
     if (v === "mismatch") {
       return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     }
+    if (v === "unverified") return NextResponse.json({ error: "Could not confirm the transaction yet, retry in a few seconds" }, { status: 503 });
   }
 
   // 4. Insert bet (tx_signature unique prevents double-submit)

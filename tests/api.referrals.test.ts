@@ -81,6 +81,7 @@ const PREDICT_BODY = {
   reserve_fee_usdc:   2.5,
   total_paid_usdc:    52.5,
   token:              "usdc",
+  tx_signature:       "txPRED111",
   wallet_address:     WALLET,
 };
 

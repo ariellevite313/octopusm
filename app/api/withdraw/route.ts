@@ -195,6 +195,12 @@ export async function POST(req: Request) {
     status: "pending",
   });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Index unique (wallet, token) sur les demandes ouvertes : une requête parallèle a gagné la course
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "A withdrawal request already exists for this token. The admin must mark it as paid before submitting a new one." }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
