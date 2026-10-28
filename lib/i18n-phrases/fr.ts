@@ -1566,5 +1566,10 @@ const p: Record<string, string> = {
   "First buy is limited to 480 USDC on a direct Uniswap V4 launch.": "Le premier achat est limité à 480 USDC sur un lancement direct Uniswap V4.",
   "Trading fees are paid out on chain when someone collects them. Your share goes straight to your wallet.": "Les frais sont versés sur la chaîne quand quelqu'un les collecte. Ta part va directement dans ton wallet.",
   "Collect fees now": "Collecter les frais maintenant",
+  "1.5%": "1,5 %",
+  "2% with holders": "2 % avec holders",
+  "Simple. You, the platform and the liquidity each get 0.5%.": "Simple. Toi, la plateforme et la liquidité touchez chacun 0,5 %.",
+  "Same, plus 0.5% paid as dividends to holders.": "Pareil, plus 0,5 % versé en dividendes aux holders.",
+  "Same plan before and after it moves to Uniswap V4.": "Le même plan avant et après le passage sur Uniswap V4.",
 };
 export default p;

@@ -25,11 +25,10 @@ import {
   BC_FEE_BPS,
   quoteArcBuy,
   quoteArcSell,
-  ARC_DIRECT_VAULT_ABI,
   ARC_DIRECT_ROUTER_ABI,
   ARC_DIRECT_ROUTER_ADDRESS,
   ARC_FACTORY_DIRECT_ADDRESS,
-  ARC_POOL_FEE_GRADUATED,
+  resolveArcPoolFee,
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
@@ -116,14 +115,14 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
   // State on-chain (BondingCurveArcV2)
   const [graduated,     setGraduated]     = useState(false);
   // Lancement direct sur Uniswap V4 : frais du pool (poolFee du vault). null = bonding curve.
-  const [directFee,     setDirectFee]     = useState<number | null>(null);
+  const [poolFeeState,  setPoolFeeState]  = useState<number | null>(null);
   const [reserveUsdc,   setReserveUsdc]   = useState<bigint>(BC_VIRTUAL_USDC);
   const [reserveTokens, setReserveTokens] = useState<bigint>(BC_CURVE_SUPPLY);
   const [realRaised,    setRealRaised]    = useState<bigint>(0n);
   const [progressBps,   setProgressBps]   = useState<bigint>(0n);
 
   // Pool V4 : lancement direct, ou token de courbe gradué (pool à 0,50 %)
-  const poolFee: number | null = directFee ?? (graduated && ARC_DIRECT_ROUTER_ADDRESS ? ARC_POOL_FEE_GRADUATED : null);
+  const poolFee: number | null = ARC_DIRECT_ROUTER_ADDRESS ? poolFeeState : null;
   const viaPool = poolFee !== null;
 
   // Quote
@@ -172,8 +171,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       const curveAddr = launchId as `0x${string}`;
 
       if (ARC_FACTORY_DIRECT_ADDRESS) {
-        const fee = await client.readContract({ address: curveAddr, abi: ARC_DIRECT_VAULT_ABI, functionName: "poolFee" }).catch(() => null);
-        if (fee) { setDirectFee(Number(fee)); return; }
+        const directFee = await resolveArcPoolFee(client, launchId, false);
+        if (directFee) { setPoolFeeState(directFee); setGraduated(true); return; }
       }
 
       const [grad, resU, resT, raised, pbps] = await Promise.all([
@@ -185,6 +184,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
       ]);
 
       setGraduated(grad);
+      setPoolFeeState(grad ? await resolveArcPoolFee(client, launchId, true) : null);
       setReserveUsdc(resU || BC_VIRTUAL_USDC);
       setReserveTokens(resT || BC_CURVE_SUPPLY);
       setRealRaised(raised);

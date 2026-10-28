@@ -19,6 +19,7 @@ import { arc } from "@/lib/arc-chain";
 import {
   BONDING_CURVE_V2_ABI,
   TRADE_EVENT_TOPIC,
+  resolveArcPoolFee,
 } from "@/lib/arc-launchpad";
 
 const TOTAL_SUPPLY = 1_000_000_000;
@@ -129,7 +130,8 @@ export async function GET(req: Request, { params }: RouteParams) {
     let priceUsd: number | null = reserveTokens > 0 ? reserveUsdc / reserveTokens : null;
     // Après la graduation la courbe ne bouge plus : le prix courant est celui du pool Uniswap V4
     if (Boolean(graduated) && tokenAddr) {
-      const poolPrice = await readPoolPrice(tokenAddr, 5000);
+      const gFee = await resolveArcPoolFee(client, curveAddress, true);
+      const poolPrice = gFee !== null ? await readPoolPrice(tokenAddr, gFee) : null;
       if (poolPrice !== null) priceUsd = poolPrice;
     }
     const marketCap     = priceUsd !== null ? priceUsd * TOTAL_SUPPLY : null;

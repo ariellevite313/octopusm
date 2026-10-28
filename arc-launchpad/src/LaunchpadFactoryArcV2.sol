@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "./OMToken.sol";
+import "./OMTokenDirect.sol";
 import "./BondingCurveArcV2.sol";
 import "./GraduationVaultV4.sol";
 
@@ -85,7 +85,7 @@ contract LaunchpadFactoryArcV2 {
      * @param description Description courte
      * @param firstBuyUsdc USDC natif pour le premier achat (0 = pas de premier achat).
      *                    Doit être inclus dans msg.value en plus de la CREATION_FEE.
-     * @param feeTier_    0=Standard(1%) · 1=Community(1.25%) · 2=Creator(1.5%) · 3=Max(2%)
+     * @param feeTier_    0 = plan 1,5 % · 1 = plan 2 % avec holders
      */
     function createToken(
         string calldata name,
@@ -95,7 +95,7 @@ contract LaunchpadFactoryArcV2 {
         uint256         firstBuyUsdc,
         uint8           feeTier_
     ) external payable returns (address curve, address token_, address vault) {
-        require(feeTier_ <= 3, "Factory: invalid tier");
+        require(feeTier_ <= 1, "Factory: invalid tier");
         require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
         require(msg.value >= firstBuyUsdc, "Factory: insufficient value");
 
@@ -106,7 +106,7 @@ contract LaunchpadFactoryArcV2 {
         curve = curveImplementation.clone();
 
         // ── 3. Deploy OMToken (1B supply → tout à la curve) ──────────────────
-        token_ = address(new OMToken(
+        token_ = address(new OMTokenDirect(
             name,
             symbol,
             imageUri,
@@ -114,7 +114,8 @@ contract LaunchpadFactoryArcV2 {
             curve,        // hook = curve (addDividend pré-graduation)
             vault,        // vault (addDividend post-graduation)
             msg.sender,   // creator
-            treasury      // platform
+            treasury,     // platform
+            0x8366a39CC670B4001A1121B8F6A443A643e40951 // PoolManager Uniswap V4 : exclu des dividendes (détient la liquidité)
         ));
 
         // ── 4. Initialize vault ───────────────────────────────────────────────

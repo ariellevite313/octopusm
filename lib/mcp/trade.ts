@@ -9,7 +9,7 @@ import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solan
 import { createPublicClient, encodeFunctionData, http, parseAbi, parseTransaction } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
 import { arc } from "@/lib/arc-chain";
-import { BONDING_CURVE_V2_ABI, ARC_DIRECT_ROUTER_ABI } from "@/lib/arc-launchpad";
+import { BONDING_CURVE_V2_ABI, ARC_DIRECT_ROUTER_ABI, resolveArcPoolFee } from "@/lib/arc-launchpad";
 import { directPoolFee } from "@/lib/arc-trades";
 import { POST as dbcSwapRoute } from "@/app/api/launchpad/dbc-swap/route";
 import { rateHit } from "@/lib/rate-limit";
@@ -101,7 +101,7 @@ export async function prepareTrade(a: PrepareArgs) {
   const router = (process.env.NEXT_PUBLIC_ARC_DIRECT_ROUTER || "") as `0x${string}` | "";
   const dFee = await directPoolFee(curve.toLowerCase());
   const isGraduated = dFee === null && Boolean(await pc.readContract({ address: curve, abi: BONDING_CURVE_V2_ABI, functionName: "graduated" }));
-  const poolFee = dFee ?? (isGraduated ? 5000 : null);
+  const poolFee = dFee ?? (isGraduated ? await resolveArcPoolFee(pc, curve, true) : null);
   if (poolFee !== null) {
     if (!router) throw new TradeError("This token trades on Uniswap V4 and the in-app router is not configured yet");
     if (a.side === "buy") {
