@@ -36,7 +36,7 @@ export function TrendingSection() {
   return (
     <section className="mt-6 mb-8">
       <h2 className="mb-3 flex items-center gap-1.5 text-lg font-bold tracking-tight text-foreground">
-        <Flame className="size-5 fill-orange-500 text-orange-500" />{tr("Trending")}
+        <Flame className="size-5 fill-foreground text-foreground" />{tr("Trending")}
       </h2>
       <div
         ref={scroller}

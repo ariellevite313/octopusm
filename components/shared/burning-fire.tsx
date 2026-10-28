@@ -4,7 +4,7 @@ import { Flame } from "lucide-react";
 export function BurningFire({ className = "" }: { className?: string }) {
   return (
     <span className={`fire-emoji inline-block select-none leading-none ${className}`} aria-hidden="true">
-      <Flame className="size-[1em] fill-orange-500 text-orange-500" />
+      <Flame className="size-[1em] fill-foreground text-foreground" />
     </span>
   );
 }

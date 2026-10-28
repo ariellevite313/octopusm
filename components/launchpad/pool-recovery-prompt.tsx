@@ -50,7 +50,7 @@ export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-dashed border-orange-500/40 bg-orange-500/5 px-5 py-6 text-center space-y-3">
+    <div className="rounded-2xl border border-dashed border-border bg-muted px-5 py-6 text-center space-y-3">
       <p className="text-sm font-semibold text-foreground">{tr("Pool address not found")}</p>
       <p className="text-xs text-muted-foreground leading-relaxed">
         {tr("Your token is active but the pool address wasn't saved. Click below to search for it on-chain.")}

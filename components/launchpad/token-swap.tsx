@@ -256,7 +256,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
           </p>
           <div className="flex items-center justify-between mt-1">
             <div className="flex items-center gap-2 bg-white/10 rounded-full px-3 py-1.5">
-              <div className="size-5 rounded-full bg-orange-500/80 flex items-center justify-center text-[8px] font-bold text-white">
+              <div className="size-5 rounded-full bg-foreground/70 flex items-center justify-center text-[8px] font-bold text-white">
                 {ticker.slice(0, 1)}
               </div>
               <span className="text-[13px] font-semibold text-white">{ticker}</span>

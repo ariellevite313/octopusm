@@ -95,7 +95,7 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
   }, [containerId, mintAddress]);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-orange-500/20 bg-[#111111]">
+    <div className="rounded-2xl overflow-hidden border border-border bg-[#111111]">
       {/* Loading overlay — shown until Jupiter signals it's ready */}
       {!ready && (
         <div className="flex items-center justify-center gap-2 py-12 text-white/30">

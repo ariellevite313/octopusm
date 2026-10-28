@@ -342,7 +342,7 @@ export function ArcFeesTabs() {
         >
           {t.creatorFees}
           {totalCreator > 0n && (
-            <span className="ml-2 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-500">
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-foreground">
               {fmtUsdc(totalCreator, lang)}
             </span>
           )}

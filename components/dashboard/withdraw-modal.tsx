@@ -136,7 +136,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
 
   const ringClass =
     accent === "orange"
-      ? "focus:ring-orange-400/50"
+      ? "focus:ring-foreground/30"
       : "focus:ring-purple-400/50";
 
   return (

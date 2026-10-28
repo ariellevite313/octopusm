@@ -51,7 +51,7 @@ function TypeBadge({ kind }: { kind: "market" | "pool" | "pool_pending" | "updow
     return <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">{tr("Pool")}</span>;
   if (kind === "updown")
     return <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300">{tr("Up/Down")}</span>;
-  return <span className="inline-flex items-center rounded-full border border-border bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-950/20 dark:text-orange-300">{tr("Market")}</span>;
+  return <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground dark:bg-muted dark:text-foreground">{tr("Market")}</span>;
 }
 
 const MARKET_STATUS_LABEL: Record<PredictionResultStatus, string> = {
