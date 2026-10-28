@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/providers/auth-provider";
-import { HACKATHON, hackathonPhase } from "@/lib/hackathon/config";
-import { MAX_TEAM } from "@/lib/hackathon/apply";
+import { HACKATHON, hackathonPhase, MAX_TEAM } from "@/lib/hackathon/config";
 import { CATEGORY_LABEL } from "./use-hackathon";
 import { signAction } from "./sign";
 
