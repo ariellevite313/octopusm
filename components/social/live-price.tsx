@@ -9,8 +9,9 @@ const RANGES: Range[] = ["1H", "1D", "1W", "ALL"];
 /**
  * Prix en temps réel d'une crypto (logo, nom, prix, variation 24 h, graphique).
  * `target` : objectif de prix d'un marché de prédiction (affiche l'écart restant).
+ * `anyDex` : pour un marché créé par un admin sur un token précis ; les cashtags des posts restent limités aux symboles connus.
  */
-export function LivePrice({ symbol, target, targetLabel }: { symbol: string; target?: number | null; targetLabel?: string }) {
+export function LivePrice({ symbol, target, targetLabel, anyDex = false }: { symbol: string; target?: number | null; targetLabel?: string; anyDex?: boolean }) {
   const [q, setQ] = useState<LiveQuote | null | undefined>(undefined);
   const [price, setPrice] = useState(0);
   const [change, setChange] = useState(0);
@@ -30,9 +31,9 @@ export function LivePrice({ symbol, target, targetLabel }: { symbol: string; tar
 
   useEffect(() => {
     let live = true;
-    resolveQuote(symbol).then((r) => { if (!live) return; setQ(r); if (r) { setPrice(r.price); setChange(r.change24h); } });
+    resolveQuote(symbol, { anyDex }).then((r) => { if (!live) return; setQ(r); if (r) { setPrice(r.price); setChange(r.change24h); } });
     return () => { live = false; };
-  }, [symbol]);
+  }, [symbol, anyDex]);
 
   useEffect(() => {
     if (!q || !visible) return;

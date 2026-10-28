@@ -44,7 +44,7 @@ export function MarketCard({ m, postId }: { m: SharedMarket; postId?: string }) 
 
       {m.match_key && <div className="mt-3"><MatchStrip matchKey={m.match_key} compact /></div>}
 
-      {m.price_ticker && <LivePrice symbol={m.price_ticker} target={m.price_target ?? null} targetLabel={tr("Market target")} />}
+      {m.price_ticker && <LivePrice anyDex symbol={m.price_ticker} target={m.price_target ?? null} targetLabel={tr("Market target")} />}
 
       {open && m.options.length > 0 && (
         many ? (
