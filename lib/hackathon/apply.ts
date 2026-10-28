@@ -4,7 +4,8 @@ import net from "node:net";
 
 export const CATEGORIES = ["ai_agents", "defi", "gaming", "payments", "social", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];
-export const MAX_TEAM = 4;
+import { MAX_TEAM } from "./config";
+export { MAX_TEAM };
 
 export type ApplicationInput = {
   name?: unknown; description?: unknown; siteUrl?: unknown; githubUrl?: unknown;
