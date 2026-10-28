@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireSessionWallet } from "@/lib/social/session";
+import { rateHit } from "@/lib/rate-limit";
 
 /**
  * POST /api/markets/[id]/comments/like
- * Body: { comment_id: string; wallet_address: string }
+ * Body: { comment_id: string } — le wallet vient de la session
  * Toggles like on a market comment. Returns { liked: boolean, like_count: number }
  */
 export async function POST(
@@ -12,14 +14,17 @@ export async function POST(
 ) {
   const { id: marketId } = await params;
 
-  let body: { comment_id?: string; wallet_address?: string };
+  const s = await requireSessionWallet();
+  if ("error" in s) return s.error;
+  if (!(await rateHit(`cmt-like:${s.wallet}`, 30, 60_000))) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+  let body: { comment_id?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const commentId = body.comment_id;
-  const wallet    = body.wallet_address ?? null;
+  const wallet    = s.wallet;
 
   if (!commentId) return NextResponse.json({ error: "comment_id required" }, { status: 400 });
-  if (!wallet)    return NextResponse.json({ error: "wallet_address required" }, { status: 400 });
 
   const admin = createAdminClient() as any;
 

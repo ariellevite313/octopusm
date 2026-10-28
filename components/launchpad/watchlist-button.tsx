@@ -30,7 +30,7 @@ export function WatchlistButton({ tokenId }: Props) {
       const res = await fetch(`/api/launchpad/${tokenId}/watchlist`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ wallet: walletAddress }),
+        body:    "{}",
       });
       const d = await res.json() as { watching?: boolean };
       setWatching(d.watching ?? !watching);

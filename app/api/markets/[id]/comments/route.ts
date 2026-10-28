@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireSessionWallet } from "@/lib/social/session";
+import { rateHit } from "@/lib/rate-limit";
 
 export async function POST(
   req: Request,
@@ -12,15 +14,16 @@ export async function POST(
 
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  let body: { content?: string; parent_id?: string; wallet_address?: string };
+  const s = await requireSessionWallet();
+  if ("error" in s) return s.error;
+  if (!(await rateHit(`cmt:${s.wallet}`, 8, 60_000))) return NextResponse.json({ error: "Too many comments, slow down" }, { status: 429 });
+
+  let body: { content?: string; parent_id?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
   const content       = (body.content ?? "").trim();
   const parent_id     = body.parent_id ?? null;
-  const walletAddress = body.wallet_address ?? null;
-
-  if (!walletAddress)
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const walletAddress = s.wallet;
 
   if (!content || content.length < 1 || content.length > 1000)
     return NextResponse.json({ error: "Content must be 1-1000 characters" }, { status: 400 });

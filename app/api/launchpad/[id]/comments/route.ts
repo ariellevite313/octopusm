@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireSessionWallet } from "@/lib/social/session";
+import { rateHit } from "@/lib/rate-limit";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 
@@ -102,16 +104,18 @@ export async function POST(req: Request, { params }: RouteParams) {
   if (!UUID_RE.test(tokenId))
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-  let body: { content?: string; parent_id?: string; wallet_address?: string };
+  const s = await requireSessionWallet();
+  if ("error" in s) return s.error;
+  if (!(await rateHit(`cmt:${s.wallet}`, 8, 60_000))) return NextResponse.json({ error: "Too many comments, slow down" }, { status: 429 });
+
+  let body: { content?: string; parent_id?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
   const content       = (body.content ?? "").trim();
   const parent_id     = body.parent_id ?? null;
-  const walletAddress = body.wallet_address ?? null;
+  const walletAddress = s.wallet;
 
-  if (!walletAddress)
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!content || content.length > 1000)
     return NextResponse.json({ error: "Content must be 1-1000 characters" }, { status: 400 });
 
