@@ -4,17 +4,18 @@
  * Awards OMERO to a wallet after a confirmed buy swap.
  * Verifies the tx on-chain before crediting — prevents fake claims.
  *
- * Body: { txSignature, walletAddress } (le montant est lu dans la transaction)
+ * Body: { txSignature, walletAddress, poolAddress } (le montant est lu dans la transaction)
  * Response: { omeroAwarded } | { error }
  */
 
 import { NextResponse } from "next/server";
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { omeroForSwap } from "@/lib/octo";
 import { requireWallet } from "@/lib/social/session";
 
 const SIG = /^[1-9A-HJ-NP-Za-km-z]{64,90}$/;
+const WSOL = "So11111111111111111111111111111111111111112";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 
@@ -27,10 +28,10 @@ export async function POST(req: Request) {
     const sess = await requireWallet();
     if ("error" in sess) return sess.error;
 
-    const body = await req.json() as { txSignature?: string; walletAddress?: string };
-    const { txSignature, walletAddress } = body;
+    const body = await req.json() as { txSignature?: string; walletAddress?: string; poolAddress?: string };
+    const { txSignature, walletAddress, poolAddress } = body;
 
-    if (!txSignature || !walletAddress || !SIG.test(txSignature)) {
+    if (!txSignature || !walletAddress || !poolAddress || !SIG.test(txSignature)) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
     if (walletAddress !== sess.wallet) {
@@ -81,11 +82,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Transaction too old" }, { status: 400 });
     }
 
-    // Montant = SOL réellement dépensé par le payeur (hors frais de réseau), lu dans la tx.
-    // Le client n'envoie plus de montant : il ne peut pas l'inflater.
-    const spent = tx.meta.preBalances[0] - tx.meta.postBalances[0] - tx.meta.fee;
+    // La tx doit être un swap sur ce pool (même contrôle que dbc-swap/confirm) : programme propriétaire du pool + pool touché.
+    let poolPk: PublicKey;
+    try { poolPk = new PublicKey(poolAddress); } catch { return NextResponse.json({ error: "Invalid pool" }, { status: 400 }); }
+    const { data: known } = await admin.from("launchpad_tokens").select("id").eq("pool_address", poolAddress).maybeSingle();
+    if (!known) return NextResponse.json({ error: "Unknown token" }, { status: 404 });
+    const poolInfo = await conn.getAccountInfo(poolPk);
+    if (!poolInfo) return NextResponse.json({ error: "Pool not found" }, { status: 404 });
+    const keys = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta.loadedAddresses });
+    const callsProgram = tx.transaction.message.compiledInstructions.some((ix) => keys.get(ix.programIdIndex)?.equals(poolInfo.owner));
+    const touchesPool = Array.from({ length: keys.length }, (_, i) => keys.get(i)).some((k) => k?.equals(poolPk));
+    if (!callsProgram || !touchesPool) return NextResponse.json({ error: "Not a swap on this pool" }, { status: 400 });
+
+    // Montant = variation du coffre « quote » du pool en SOL, lue dans la tx (le client n'envoie aucun montant).
+    const { DynamicBondingCurveClient } = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+    const pool = await new DynamicBondingCurveClient(conn, "confirmed").state.getPool(poolPk);
+    if (!pool) return NextResponse.json({ error: "Pool not found" }, { status: 404 });
+    const vault = (pool.poolState.quoteVault as PublicKey).toBase58();
+    let vIdx = -1;
+    for (let i = 0; i < keys.length; i++) if (keys.get(i)?.toBase58() === vault) { vIdx = i; break; }
+    if (vIdx < 0) return NextResponse.json({ omeroAwarded: 0 });
+    const preB = tx.meta.preTokenBalances?.find((x) => x.accountIndex === vIdx);
+    const postB = tx.meta.postTokenBalances?.find((x) => x.accountIndex === vIdx);
+    if (!postB || postB.mint !== WSOL) return NextResponse.json({ omeroAwarded: 0 });
+    const spent = Number(BigInt(postB.uiTokenAmount.amount) - BigInt(preB?.uiTokenAmount.amount ?? "0"));
     if (!Number.isInteger(spent) || spent < 1_000_000) {
-      // Minimum 0.001 SOL pour éviter la poussière
+      // Achat seulement (delta positif), minimum 0.001 SOL pour éviter la poussière
       return NextResponse.json({ error: "Amount too small" }, { status: 400 });
     }
 

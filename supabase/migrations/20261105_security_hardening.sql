@@ -78,3 +78,35 @@ ALTER TABLE public.launchpad_tokens ADD COLUMN IF NOT EXISTS fee_paid_at timesta
 ALTER TABLE public.launchpad_tokens ADD COLUMN IF NOT EXISTS fee_tx_sig text;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_launchpad_fee_tx_sig ON public.launchpad_tokens (fee_tx_sig) WHERE fee_tx_sig IS NOT NULL;
 -- (Les colonnes ajoutées ci-dessus après le GRANT du point 4 restent illisibles pour anon : voulu.)
+
+-- 7. Fonctions d'identité : is_admin() et get_wallet_address() lisaient user_metadata (modifiable par l'utilisateur).
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_wallet TEXT;
+BEGIN
+  v_wallet := (auth.jwt() -> 'app_metadata' ->> 'wallet_address');
+  IF v_wallet IS NULL THEN
+    RETURN false;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.wallets
+    WHERE address = v_wallet
+      AND role = 'admin'
+  );
+END;
+$$;
+
+DO $$
+BEGIN
+  CREATE OR REPLACE FUNCTION public.get_wallet_address()
+  RETURNS text LANGUAGE sql STABLE AS $f$
+    SELECT (auth.jwt() -> 'app_metadata' ->> 'wallet_address')
+  $f$;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'get_wallet_address() not replaced (%): update it by hand to read app_metadata.', SQLERRM;
+END $$;

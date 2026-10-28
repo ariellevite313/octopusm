@@ -50,7 +50,7 @@ serve(async (req: Request) => {
       return json({ error: "Invalid or expired token" }, 401);
     }
 
-    const walletAddress: string = user.user_metadata?.wallet_address ?? "";
+    const walletAddress: string = user.app_metadata?.wallet_address ?? "";
     if (!walletAddress) {
       return json({ error: "No wallet linked to this account" }, 400);
     }
