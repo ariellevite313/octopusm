@@ -358,7 +358,10 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ txSignature: signature, poolAddress }),
           }).catch(() => null);
-          if (r && r.status !== 404 && r.status !== 503) break;
+          if (r && r.status !== 404 && r.status !== 503) {
+            if (r.ok) window.dispatchEvent(new CustomEvent("om-trade-recorded", { detail: { mint: mintAddress } }));
+            break;
+          }
         }
       })();
       if (isBuy) {

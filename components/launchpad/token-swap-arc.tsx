@@ -342,6 +342,8 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
         await waitReceipt(hash);
       }
 
+      // Arc : le trade est lu sur la chaîne par le cron ; on prévient l'écran de vote tout de suite
+      window.dispatchEvent(new CustomEvent("om-trade-recorded", { detail: { mint: tokenAddress } }));
       setAmount("");
       setEstimatedOut(null);
       [1500, 3000, 6000].forEach(ms => setTimeout(() => void loadBalances(), ms));

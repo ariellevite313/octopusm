@@ -442,3 +442,8 @@
 @media (hover:hover){.tok-fold:hover{z-index:5;transform:translateY(-4px)}.tok-fold:hover .tok-fold-sheet{transform:translateY(-17%) rotate(-3deg);box-shadow:0 -10px 30px rgb(0 0 0 / .45)}}
 .tok-fold:active .tok-fold-sheet,.tok-fold:focus-visible .tok-fold-sheet{transform:translateY(-12%) rotate(-2deg)}
 @media (prefers-reduced-motion: reduce){.tok-fold,.tok-fold-sheet{transition:none}}
+
+@keyframes hackathon-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.hackathon-marquee { animation: hackathon-marquee 60s linear infinite; }
+.hackathon-marquee:hover { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .hackathon-marquee { animation: none; } }

@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   // Preuve de contrôle du wallet : signature du message d'action
   const sig = await verifyWalletSignature({
     chain: who.wallet.startsWith("0x") ? "evm" : "solana",
-    action: "hackathon-apply", targetId: token.mint_address as string, wallet: who.wallet,
+    action: "hackathon-apply", targetId: body.mintAddress.trim(), wallet: who.wallet,
     issuedAt: body.issuedAt, signature: body.signature,
   });
   if (!sig.ok) return NextResponse.json({ error: "Invalid or expired signature" }, { status: 403 });

@@ -26,6 +26,7 @@ import { useT }              from "@/lib/i18n";
 import { T }                from "@/lib/i18n-mark";
 import { GainsShareSheet }   from "@/components/dashboard/gains-share-sheet";
 import { TradeGainsPanel }  from "@/components/dashboard/trade-gains-panel";
+import { MyVotesView }      from "@/components/hackathon/my-votes-view";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   const [claimingId,  setClaimingId]  = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
   const [shareOpen,   setShareOpen]   = useState(false);
-  const [section,     setSection]     = useState<"tokens" | "gains">("tokens");
+  const [section,     setSection]     = useState<"tokens" | "gains" | "votes">("tokens");
 
   const refresh = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
@@ -372,7 +373,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
 
       {/* ── Sections : boutons, rien d'autre n'est affiché tant qu'on n'en touche pas un ── */}
       <div className="-mt-2 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {([["tokens", T("Tokens launched")], ["gains", T("Gains")]] as const).map(([id, label]) => (
+        {([["tokens", T("Tokens launched")], ["gains", T("Gains")], ["votes", T("My votes")]] as const).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setSection(id)}
@@ -389,6 +390,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       </div>
 
       {section === "gains" && <TradeGainsPanel />}
+      {section === "votes" && <MyVotesView />}
 
       {/* ── Tokens lancés ────────────────────────────────────────────────── */}
       {section === "tokens" && !isArc && (
