@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "paymentId and status required" }, { status: 400 });
 
   const { data: { user } } = await supabase.auth.getUser();
-  const adminWallet = user?.user_metadata?.wallet_address ?? null;
+  const adminWallet = user?.app_metadata?.wallet_address ?? null;
 
   const admin = createAdminClient() as any;
 

@@ -13,7 +13,7 @@ export interface WalletAuthResult {
 function buildSignMessage(address: string, nonce: string): Uint8Array {
   // Timestamp is included so the Edge Function can enforce a 5-minute expiry (REF-C fix)
   const timestamp = new Date().toISOString();
-  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
+  const message = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}\nDomain: ${typeof window !== "undefined" ? window.location.hostname : ""}`;
   return new TextEncoder().encode(message);
 }
 
@@ -50,13 +50,13 @@ async function connectMetaMaskAndAuth(refCode?: string): Promise<WalletAuthResul
 
     const supabase = createClient();
     const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session?.user?.user_metadata?.wallet_address?.toLowerCase() === address.toLowerCase()) {
+    if (sessionData.session?.user?.app_metadata?.wallet_address?.toLowerCase() === address.toLowerCase()) {
       return { success: true, walletAddress: address };
     }
 
     const nonce = generateNonce();
     const timestamp = new Date().toISOString();
-    const messageText = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
+    const messageText = `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}\nDomain: ${typeof window !== "undefined" ? window.location.hostname : ""}`;
 
     // personal_sign expects hex-encoded message
     const msgBytes = new TextEncoder().encode(messageText);
@@ -151,7 +151,7 @@ export async function connectWalletAndAuth(
 
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session) {
-      const meta = sessionData.session.user?.user_metadata;
+      const meta = sessionData.session.user?.app_metadata;
       if (meta?.wallet_address === address) {
         return { success: true, walletAddress: address };
       }

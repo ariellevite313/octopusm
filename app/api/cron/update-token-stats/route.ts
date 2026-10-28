@@ -15,6 +15,7 @@ import { Connection } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { keepLastKnown } from "@/lib/launch/price-snapshots";
 import { fetchSolUsd, onchainStats } from "@/lib/launch/onchain-price";
+import { cronDenied } from "@/lib/auth/cron";
 
 const DS_BASE = "https://api.dexscreener.com/latest/dex/tokens";
 const GT_BASE = "https://api.geckoterminal.com/api/v2/networks/solana/tokens";
@@ -77,13 +78,8 @@ function sleep(ms: number) {
 }
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization") ?? "";
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

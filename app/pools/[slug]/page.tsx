@@ -155,7 +155,7 @@ export default async function PoolDetailPage(
   // Auth — get wallet for liked_by_me
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
 
   const [market, isAdmin] = await Promise.all([
     getPoolBySlug(slug),

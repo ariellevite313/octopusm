@@ -96,7 +96,7 @@ export async function POST(
   // BUG-16 fix: verify session server-side — wallet_address from body alone is not trustworthy
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const sessionWallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const sessionWallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!sessionWallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   let body: { content?: string; parent_id?: string; wallet_address?: string };

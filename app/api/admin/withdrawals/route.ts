@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const adminWallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const adminWallet: string | null = user?.app_metadata?.wallet_address ?? null;
 
   const admin = createAdminClient() as any;
   const now = new Date().toISOString();

@@ -11,7 +11,7 @@ export async function GET() {
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const admin = createAdminClient() as any;

@@ -7,7 +7,7 @@ const MIN: Record<string, number> = { usdc: 2, clawdtrust: 500_000 };
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ withdrawals: [] });
 
   const admin = createAdminClient() as any;
@@ -26,7 +26,7 @@ export async function GET() {
 export async function DELETE(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   let body: { id: string };
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   // Auth
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const wallet: string | null = user?.user_metadata?.wallet_address ?? null;
+  const wallet: string | null = user?.app_metadata?.wallet_address ?? null;
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   // Parse body

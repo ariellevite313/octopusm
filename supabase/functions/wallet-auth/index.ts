@@ -91,17 +91,24 @@ serve(async (req: Request) => {
       decoded = new TextDecoder().decode(messageBytes);
     }
 
-    // ── Anti-replay < 5 min ───────────────────────────────────────────────
-    const timeMatch = decoded.match(/Timestamp:\s+(\S+)/);
-    if (timeMatch) {
-      const msgTime = new Date(timeMatch[1]).getTime();
-      if (isNaN(msgTime) || Date.now() - msgTime > 5 * 60 * 1000) {
-        return new Response(
-          JSON.stringify({ error: "Message expired. Please sign in again." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    // ── Message strict : lié au site, frais, à usage unique ───────────────
+    // Format exact : "Sign in to OMdotfun\nAddress: <w>\nNonce: <32 hex>\nTimestamp: <ISO>\nDomain: <host>"
+    const m = decoded.match(/^Sign in to OMdotfun\nAddress: (\S+)\nNonce: ([0-9a-f]{32})\nTimestamp: (\S+)\nDomain: (\S+)$/);
+    const fail = (error: string) =>
+      new Response(JSON.stringify({ error }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!m) return fail("Invalid sign-in message.");
+    const [, msgAddress, msgNonce, msgTimestamp, msgDomain] = m;
+    const sameAddress = isEvm ? msgAddress.toLowerCase() === walletAddress.toLowerCase() : msgAddress === walletAddress;
+    if (!sameAddress) return fail("Message address does not match.");
+    if (msgNonce !== nonce) return fail("Nonce does not match.");
+    const msgTime = new Date(msgTimestamp).getTime();
+    const skew = Date.now() - msgTime;
+    if (isNaN(msgTime) || skew > 5 * 60 * 1000 || skew < -60 * 1000) {
+      return fail("Message expired. Please sign in again.");
     }
+    const allowedHosts = (Deno.env.get("WALLET_AUTH_HOSTS") ?? "omdot.fun,www.omdot.fun,localhost")
+      .split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+    if (!allowedHosts.includes(msgDomain.toLowerCase().replace(/:\d+$/, ""))) return fail("Unknown sign-in domain.");
 
     // ── Clients Supabase ──────────────────────────────────────────────────
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -114,6 +121,13 @@ serve(async (req: Request) => {
     const anon = createClient(supabaseUrl, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Nonce à usage unique : un message signé ne peut ouvrir qu'une session
+    const { error: nonceErr } = await admin.from("wallet_auth_nonces").insert({ nonce: msgNonce, wallet_address: walletAddress });
+    if (nonceErr) {
+      return fail(nonceErr.code === "23505" ? "This sign-in message was already used." : "Could not record the sign-in nonce.");
+    }
+    await admin.from("wallet_auth_nonces").delete().lt("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
 
     const fakeEmail = `${walletAddress.toLowerCase()}@octopus-market.wallet`;
     const password  = await derivePassword(walletAddress, serviceKey);
@@ -128,6 +142,8 @@ serve(async (req: Request) => {
         password,
         email_confirm: true,
         user_metadata: { wallet_address: walletAddress },
+        // app_metadata n'est modifiable que côté serveur : c'est l'identité de confiance
+        app_metadata: { wallet_address: walletAddress },
       });
 
       if (created?.user?.id) {
@@ -146,6 +162,13 @@ serve(async (req: Request) => {
         if (!r.data?.session) throw new Error(`Sign in failed after update: ${r.error?.message}`);
         session = r.data;
       }
+    }
+
+    // Identité de confiance (app_metadata) : posée ou corrigée à chaque connexion
+    if (session.session!.user?.app_metadata?.wallet_address !== walletAddress) {
+      await admin.auth.admin.updateUserById(session.session!.user.id, { app_metadata: { wallet_address: walletAddress } });
+      const again = await anon.auth.signInWithPassword({ email: fakeEmail, password });
+      if (again.data?.session) session = again.data;
     }
 
     const { access_token, refresh_token } = session.session!;

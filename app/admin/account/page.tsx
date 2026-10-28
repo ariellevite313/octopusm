@@ -19,7 +19,7 @@ export default async function AdminAccountPage() {
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const wallet = user?.user_metadata?.wallet_address as string | undefined;
+  const wallet = user?.app_metadata?.wallet_address as string | undefined;
   if (!wallet) redirect("/");
 
   const data = await getDashboardData(wallet);

@@ -9,5 +9,5 @@ import { createClient } from "@/lib/supabase/server";
 export const getWalletAddress = cache(async (): Promise<string | null> => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  return (user?.user_metadata?.wallet_address as string | undefined) ?? null;
+  return (user?.app_metadata?.wallet_address as string | undefined) ?? null;
 });

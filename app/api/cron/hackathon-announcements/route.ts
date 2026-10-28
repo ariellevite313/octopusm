@@ -7,14 +7,13 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { loadBoard } from "@/lib/hackathon/leaderboard";
 import { plannedAnnouncements } from "@/lib/hackathon/announcements";
+import { cronDenied } from "@/lib/auth/cron";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   let pool = 0; let top: string | null = null;

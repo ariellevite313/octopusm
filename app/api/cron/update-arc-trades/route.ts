@@ -7,15 +7,14 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { syncCurveTrades } from "@/lib/arc-trades";
 import { processArcRewards } from "@/lib/trade-rewards";
+import { cronDenied } from "@/lib/auth/cron";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = cronDenied(req);
+  if (denied) return denied;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   const { data: tokens } = await db

@@ -38,7 +38,7 @@ function Inner() {
           crypto.getRandomValues(nonceBytes);
           const nonce = Array.from(nonceBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
           handleConnectResponse(params, (address, n) => new TextEncoder().encode(
-            `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${n}\nTimestamp: ${new Date().toISOString()}`,
+            `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${n}\nTimestamp: ${new Date().toISOString()}\nDomain: ${window.location.hostname}`,
           ), nonce);
           return; // redirection vers Phantom pour la signature
         }

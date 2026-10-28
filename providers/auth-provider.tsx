@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ────────────────────────────────────────────────────────────────────────
 
     supabase.auth.getSession().then(({ data }) => {
-      const address = data.session?.user?.user_metadata?.wallet_address;
+      const address = data.session?.user?.app_metadata?.wallet_address;
       if (address) {
         setWalletAddress(address);
         void checkAdmin();
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        const address = session?.user?.user_metadata?.wallet_address;
+        const address = session?.user?.app_metadata?.wallet_address;
         if (address) {
           setWalletAddress(address);
           void checkAdmin();

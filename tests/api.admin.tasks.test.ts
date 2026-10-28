@@ -18,7 +18,7 @@ function buildAdminClient(isAdmin = true) {
   return {
     auth: {
       getUser: vi.fn().mockResolvedValue({
-        data: { user: { user_metadata: { wallet_address: "adminWallet" } } },
+        data: { user: { app_metadata: { wallet_address: "adminWallet" } } },
         error: null,
       }),
     },
