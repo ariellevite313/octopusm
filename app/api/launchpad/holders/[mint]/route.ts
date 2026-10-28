@@ -35,26 +35,38 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mint: s
   if (!BASE58_RE.test(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
 
   try {
-    const [accounts, supplyRes] = await Promise.all([
-      rpc("getProgramAccounts", [TOKEN_PROGRAM, {
-        encoding: "base64",
-        dataSlice: { offset: 32, length: 40 }, // owner (32) + amount (8)
-        filters: [{ dataSize: 165 }, { memcmp: { offset: 0, bytes: mint } }],
-      }]),
-      rpc("getTokenSupply", [mint]),
-    ]);
-
+    const supplyRes = await rpc("getTokenSupply", [mint]);
     const decimals: number = supplyRes?.value?.decimals ?? 0;
     const supply = Number(supplyRes?.value?.amount ?? 0);
 
     const byOwner = new Map<string, bigint>();
-    for (const a of accounts as { account: { data: [string, string] } }[]) {
-      const buf = Buffer.from(a.account.data[0], "base64");
-      if (buf.length < 40) continue;
-      const owner = new PublicKey(buf.subarray(0, 32)).toBase58();
-      const amount = buf.readBigUInt64LE(32);
-      if (amount === BigInt(0)) continue;
-      byOwner.set(owner, (byOwner.get(owner) ?? BigInt(0)) + amount);
+    let partial = false;
+    try {
+      // Liste complète (beaucoup de RPC gratuits refusent cette requête)
+      const accounts = await rpc("getProgramAccounts", [TOKEN_PROGRAM, {
+        encoding: "base64",
+        dataSlice: { offset: 32, length: 40 }, // owner (32) + amount (8)
+        filters: [{ dataSize: 165 }, { memcmp: { offset: 0, bytes: mint } }],
+      }]);
+      for (const a of accounts as { account: { data: [string, string] } }[]) {
+        const buf = Buffer.from(a.account.data[0], "base64");
+        if (buf.length < 40) continue;
+        const owner = new PublicKey(buf.subarray(0, 32)).toBase58();
+        const amount = buf.readBigUInt64LE(32);
+        if (amount === BigInt(0)) continue;
+        byOwner.set(owner, (byOwner.get(owner) ?? BigInt(0)) + amount);
+      }
+    } catch {
+      // Secours léger : les 20 plus gros comptes, puis leur propriétaire
+      partial = true;
+      const largest = (await rpc("getTokenLargestAccounts", [mint]))?.value as { address: string; amount: string }[] ?? [];
+      const infos = (await rpc("getMultipleAccounts", [largest.map((l) => l.address), { encoding: "jsonParsed" }]))?.value as
+        ({ data?: { parsed?: { info?: { owner?: string } } } } | null)[] ?? [];
+      largest.forEach((l, i) => {
+        const owner = infos[i]?.data?.parsed?.info?.owner;
+        const amount = BigInt(l.amount);
+        if (owner && amount > BigInt(0)) byOwner.set(owner, (byOwner.get(owner) ?? BigInt(0)) + amount);
+      });
     }
 
     const top = [...byOwner.entries()]
@@ -73,7 +85,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mint: s
       });
 
     const holders = await withProfiles(createAdminClient(), top);
-    return NextResponse.json({ holders, total: byOwner.size }, {
+    return NextResponse.json({ holders, total: byOwner.size, partial }, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
     });
   } catch {
