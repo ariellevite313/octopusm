@@ -4,10 +4,10 @@ import { rankProjects, prizePool, tierReached, prizeTable, assignPrizes, splitVo
 const P = (id: string, o: Partial<ProjectMetrics> = {}): ProjectMetrics => ({ id, holders: 0, volumeUsd: 0, votes: 0, graduated: true, healthy: true, excluded: false, ...o });
 
 describe("rankProjects", () => {
-  it("weights 40% holders, 30% volume, 30% votes against the leader", () => {
+  it("weights 10% holders, 60% volume, 30% votes against the leader", () => {
     const r = rankProjects([P("a", { holders: 100, volumeUsd: 100, votes: 100 }), P("b", { holders: 50, volumeUsd: 0, votes: 0 })]);
     expect(r[0].id).toBe("a"); expect(r[0].score).toBe(100);
-    expect(r[1].score).toBe(20);
+    expect(r[1].score).toBe(5);
   });
   it("excluded projects are left out", () => {
     expect(rankProjects([P("a", { excluded: true, holders: 9 }), P("b")]).map((x) => x.id)).toEqual(["b"]);
