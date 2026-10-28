@@ -76,6 +76,29 @@ contract CurveFlowTest is Test {
         assertEq(c.lockedLpAccrued(), 5 ether, "0,5 % liquidite");
     }
 
+    function test_plan2_curve_pays_holders() public {
+        (BondingCurveArcV2 c, OMTokenDirect t,) = _launch(2);
+        (uint256 total,,,, uint256 ho) = c.tierBps();
+        assertEq(total, 200); assertEq(ho, 50);
+        vm.prank(alice); c.buy{value: 500 ether}(0);
+        vm.prank(bob); c.buy{value: 500 ether}(0);
+        assertGt(t.pendingDividend(alice), 0);
+        assertEq(t.pendingDividend(address(c)), 0, "la courbe n'est pas un holder");
+    }
+
+    function test_plan2_graduated_pool_pays_holders() public {
+        (BondingCurveArcV2 c, OMTokenDirect t, GraduationVaultV4 v) = _launch(2);
+        _graduate(c, alice);
+        uint24 fee = v.poolFee();
+        vm.prank(bob);
+        uint256 got = router.buy{value: 1_000 ether}(address(t), fee, 0, bob);
+        vm.startPrank(bob); t.approve(address(router), got); router.sell(address(t), fee, got / 2, 0, bob); vm.stopPrank();
+        uint256 pend0 = t.pendingDividend(alice) + t.pendingDividend(bob);
+        v.collectFees();
+        uint256 pend1 = t.pendingDividend(alice) + t.pendingDividend(bob);
+        assertApproxEqRel(pend1 - pend0, 5 ether, 0.1e18, "dividendes aux vrais holders (pas au pool)");
+    }
+
     function test_graduation_creates_pool_and_trades() public {
         (BondingCurveArcV2 c, OMTokenDirect t, GraduationVaultV4 v) = _launch(1);
         _graduate(c, alice);

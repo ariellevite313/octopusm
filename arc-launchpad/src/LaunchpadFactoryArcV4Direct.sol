@@ -62,7 +62,7 @@ contract LaunchpadFactoryArcV4Direct {
         uint256 firstBuyUsdc,
         uint8 feeTier_
     ) external payable returns (address vault, address token_) {
-        require(feeTier_ <= 1, "Factory: tier not supported");
+        require(feeTier_ <= 2, "Factory: tier not supported");
         require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
         require(firstBuyUsdc <= MAX_FIRST_BUY, "Factory: first buy too large");
         require(msg.value >= firstBuyUsdc, "Factory: insufficient value");

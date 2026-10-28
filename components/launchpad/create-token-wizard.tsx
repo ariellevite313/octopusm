@@ -77,7 +77,7 @@ type WizardData = {
   arc_supply: number;
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
-  arc_fee_tier: 0 | 1;
+  arc_fee_tier: 0 | 1 | 2;
   arc_launch_mode: "curve" | "direct";
   // Stock-paired (Solana)
   sol_token_type: "sol" | "stock";
@@ -592,7 +592,7 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
   let tokensEst = "";
   if (isArc && amount > 0) {
     try {
-      const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier === 1 ? 1 : 0].totalBps);
+      const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
       const usdcWei = BigInt(Math.round(amount * 1e15)) * 1000n;
       const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
       const tok = Number(tokensOut / 10n ** 12n) / 1e6;
@@ -723,8 +723,8 @@ function ArcLaunchOptions({
 }: {
   mode: "curve" | "direct";
   setMode: (m: "curve" | "direct") => void;
-  tier: 0 | 1;
-  setTier: (t: 0 | 1) => void;
+  tier: 0 | 1 | 2;
+  setTier: (t: 0 | 1 | 2) => void;
 }) {
   const { tr } = useT();
   const directAvailable = Boolean(process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT);
@@ -757,8 +757,8 @@ function ArcLaunchOptions({
 
       <div>
         <Label>{tr("Trading fee")}</Label>
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-          {([[0, "1.5%", tr("You earn 0.5% of volume")], [1, "2%", tr("You earn 1% of volume")]] as const).map(([k, fee, earn]) => (
+        <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
+          {([[0, "1.5%", tr("You earn 0.5% of volume")], [1, "2%", tr("You earn 1% of volume")], [2, "2%", tr("Holders earn too")]] as const).map(([k, fee, earn]) => (
             <button key={k} type="button" onClick={() => setTier(k)} className={seg(tier === k)}>
               {fee}
               <span className="block text-[11px] font-normal text-muted-foreground">{earn}</span>
@@ -766,7 +766,9 @@ function ArcLaunchOptions({
           ))}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          {tier === 1
+          {tier === 2
+            ? tr("2% trading fee per trade: 0.5% to you, 0.5% to the platform, 0.5% added to the liquidity and 0.5% shared between holders.")
+            : tier === 1
             ? tr("2% trading fee per trade: 1% to you, 0.5% to the platform and 0.5% added to the liquidity.")
             : tr("1.5% trading fee per trade: 0.5% to you, 0.5% to the platform and 0.5% added to the liquidity.")}
           {" "}{direct ? tr("A sell pays its fee in tokens, which are burned.") : tr("Same plan before and after it moves to Uniswap V4.")}

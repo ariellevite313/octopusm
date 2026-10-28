@@ -85,7 +85,7 @@ contract LaunchpadFactoryArcV2 {
      * @param description Description courte
      * @param firstBuyUsdc USDC natif pour le premier achat (0 = pas de premier achat).
      *                    Doit être inclus dans msg.value en plus de la CREATION_FEE.
-     * @param feeTier_    0 = plan 1,5 % · 1 = plan 2 % (1 % créateur)
+     * @param feeTier_    0 = plan 1,5 % · 1 = plan 2 % (1 % créateur) · 2 = plan 2 % avec holders
      */
     function createToken(
         string calldata name,
@@ -95,7 +95,7 @@ contract LaunchpadFactoryArcV2 {
         uint256         firstBuyUsdc,
         uint8           feeTier_
     ) external payable returns (address curve, address token_, address vault) {
-        require(feeTier_ <= 1, "Factory: invalid tier");
+        require(feeTier_ <= 2, "Factory: invalid tier");
         require(bytes(name).length > 0 && bytes(symbol).length > 0, "Factory: empty name/symbol");
         require(msg.value >= firstBuyUsdc, "Factory: insufficient value");
 
