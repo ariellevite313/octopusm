@@ -26,10 +26,19 @@ const GT_NETWORK: Record<string, string> = { solana: "solana", ethereum: "eth", 
 const BINANCE = "https://api.binance.com/api/v3";
 const cache = new Map<string, { at: number; q: LiveQuote | null }>();
 
-export async function resolveQuote(raw: string): Promise<LiveQuote | null> {
+/** Symboles connus : seuls ceux-ci peuvent être cherchés sur un DEX (un symbole inconnu peut cacher un token sans rapport). */
+export const dexAllowed = (symbol: string): boolean => Object.prototype.hasOwnProperty.call(NAMES, symbol.toUpperCase());
+
+/**
+ * Prix d'une crypto. Binance d'abord ; la recherche sur DEX est limitée aux symboles connus (liste NAMES),
+ * sauf `anyDex` (outil admin qui crée un marché sur un token précis).
+ */
+export async function resolveQuote(raw: string, opts: { anyDex?: boolean } = {}): Promise<LiveQuote | null> {
   const symbol = raw.replace(/^\$/, "").replace(/USDT$/i, "").toUpperCase();
   if (!symbol || STABLES.has(symbol)) return null;
-  const hit = cache.get(symbol);
+  const useDex = opts.anyDex === true || dexAllowed(symbol);
+  const cacheKey = useDex ? symbol : `${symbol}:cex`;
+  const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < 15_000) return hit.q;
   let q: LiveQuote | null = null;
   try {
@@ -40,7 +49,7 @@ export async function resolveQuote(raw: string): Promise<LiveQuote | null> {
       if (Number.isFinite(price) && price > 0) q = { symbol, name: NAMES[symbol] ?? symbol, logo: LOCAL_LOGO[symbol] ?? null, price, change24h: Number(j.priceChangePercent) || 0, kind: "cex" };
     }
   } catch { /* indisponible : on tente la paire DEX */ }
-  if (!q) {
+  if (!q && useDex) {
     try {
       const r = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(symbol)}`);
       const j = (await r.json()) as { pairs?: { chainId: string; pairAddress: string; baseToken: { symbol: string; name: string }; priceUsd?: string; priceChange?: { h24?: number }; liquidity?: { usd?: number }; info?: { imageUrl?: string } }[] };
@@ -55,7 +64,7 @@ export async function resolveQuote(raw: string): Promise<LiveQuote | null> {
       }
     } catch { /* rien */ }
   }
-  cache.set(symbol, { at: Date.now(), q });
+  cache.set(cacheKey, { at: Date.now(), q });
   return q;
 }
 
@@ -95,8 +104,8 @@ export function subscribePrice(q: LiveQuote, onPrice: (price: number, change24h:
     return () => { try { ws?.close(); } catch { /* déjà fermé */ } };
   }
   const t = setInterval(async () => {
-    cache.delete(q.symbol);
-    const n = await resolveQuote(q.symbol);
+    cache.delete(q.symbol); cache.delete(`${q.symbol}:cex`);
+    const n = await resolveQuote(q.symbol, { anyDex: q.kind === "dex" });
     if (n) onPrice(n.price, n.change24h);
   }, 20_000);
   return () => clearInterval(t);
