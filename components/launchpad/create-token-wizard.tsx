@@ -76,6 +76,7 @@ type WizardData = {
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
   arc_fee_tier: 0 | 1 | 2 | 3;
+  arc_launch_mode: "curve" | "direct";
   // Stock-paired (Solana)
   sol_token_type: "sol" | "stock";
   sol_stock_symbol: string;      // ex: "xNVDA"
@@ -95,6 +96,7 @@ const INITIAL: WizardData = {
   arc_first_buy_enabled: false,
   arc_first_buy_usdc: 10,
   arc_fee_tier: 0,
+  arc_launch_mode: "curve",
   sol_token_type: "sol",
   sol_stock_symbol: "xNVDA",
   sol_fee_tier: "standard",
@@ -413,8 +415,13 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       {/* Récompenses créateur */}
       {chain === "arc" ? (
         <div>
-          <Label>{tr("Fees & rewards")}</Label>
-          <FeeTierCard tier={data.arc_fee_tier} setTier={(tier) => set("arc_fee_tier", tier)} />
+          <Label>{tr("Launch & fees")}</Label>
+          <ArcLaunchOptions
+            mode={data.arc_launch_mode}
+            setMode={(m) => { set("arc_launch_mode", m); if (m === "direct" && (data.arc_fee_tier === 1 || data.arc_fee_tier === 3)) set("arc_fee_tier", 0); }}
+            tier={data.arc_fee_tier}
+            setTier={(tier) => set("arc_fee_tier", tier)}
+          />
         </div>
       ) : (
         <div>
@@ -784,84 +791,105 @@ const ARC_TIER_DEFS = [
   },
 ];
 
-function FeeTierCard({
-  tier,
-  setTier,
+/** Lancement direct sur Uniswap V4 : frais du pool 0,50 % par échange, répartis (en % de chaque échange). */
+const DIRECT_TIERS = [
+  { index: 0 as const, name: "Standard", creator: 0.267, platform: 0.1, locked: 0.133, desc: "Simple. The creator earns on every trade." },
+  { index: 2 as const, name: "Creator",  creator: 0.291, platform: 0.1, locked: 0.109, desc: "Highest creator share." },
+];
+
+function Radio({ on }: { on: boolean }) {
+  return (
+    <span className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border ${on ? "border-foreground" : "border-muted-foreground/50"}`}>
+      {on && <span className="size-2 rounded-full bg-foreground" />}
+    </span>
+  );
+}
+
+function OptionRow({ on, onClick, title, right, desc }: { on: boolean; onClick: () => void; title: string; right?: string; desc: string }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on}
+      className="flex w-full items-start gap-3 border-b border-border py-3.5 text-left last:border-b-0">
+      <Radio on={on} />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className={`text-[15px] ${on ? "font-semibold text-foreground" : "font-medium text-foreground/80"}`}>{title}</span>
+          {right && <span className={`text-sm tabular-nums ${on ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{right}</span>}
+        </span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
+function FeeLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between border-b border-border py-2 text-sm last:border-b-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function ArcLaunchOptions({
+  mode, setMode, tier, setTier,
 }: {
+  mode: "curve" | "direct";
+  setMode: (m: "curve" | "direct") => void;
   tier: 0 | 1 | 2 | 3;
   setTier: (t: 0 | 1 | 2 | 3) => void;
 }) {
-  const def = ARC_TIER_DEFS[tier];
-  const maxPct = Math.max(...def.rows.map((r) => r.pct));
+  const { tr } = useT();
+  const directAvailable = Boolean(process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT);
+  const direct = mode === "direct" && directAvailable;
+  const curveDef = ARC_TIER_DEFS[tier];
+  const directDef = DIRECT_TIERS.find((t) => t.index === tier) ?? DIRECT_TIERS[0];
 
   return (
-    <div className="space-y-4 rounded-2xl bg-muted p-4">
-      {/* Tabs */}
-      <div className="grid grid-cols-4 gap-1.5">
-        {ARC_TIER_DEFS.map((t) => (
-          <button
-            key={t.index}
-            type="button"
-            onClick={() => setTier(t.index)}
-            className={`rounded-lg border py-1.5 text-[11px] font-medium transition-colors ${
-              tier === t.index ? "border-foreground bg-background text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span className="block">{t.name}</span>
-            <span className="block font-semibold">{t.totalPct}%</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Description */}
-      <p className="text-xs text-muted-foreground">{def.desc}</p>
-
-      {/* Barres */}
-      <div className="space-y-2.5">
-        <p className="text-[13px] text-muted-foreground">During bonding curve</p>
-        {def.rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground w-16 shrink-0">{r.label}</span>
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${(r.pct / maxPct) * 100}%`, background: r.color }}
-              />
-            </div>
-            <span className="text-xs font-medium text-foreground w-10 text-right">{r.pct.toFixed(2)}%</span>
+    <div className="space-y-5">
+      {directAvailable && (
+        <div>
+          <p className="mb-1 text-[13px] text-muted-foreground">{tr("Where it trades")}</p>
+          <div className="border-t border-border">
+            <OptionRow on={!direct} onClick={() => setMode("curve")} title={tr("Bonding curve")}
+              desc={tr("Starts on a curve, moves to Uniswap V4 once it reaches about 25,000 USDC market cap.")} />
+            <OptionRow on={direct} onClick={() => setMode("direct")} title={tr("Uniswap V4 right away")}
+              desc={tr("Trades on Uniswap V4 from the first second. Liquidity is locked for life, and the token stays visible here.")} />
           </div>
-        ))}
+        </div>
+      )}
+
+      <div>
+        <p className="mb-1 text-[13px] text-muted-foreground">{tr("Fee plan")}</p>
+        <div className="border-t border-border">
+          {direct
+            ? DIRECT_TIERS.map((t) => (
+                <OptionRow key={t.index} on={tier === t.index} onClick={() => setTier(t.index)} title={t.name} right={`${t.creator.toFixed(2)}% ${tr("to you")}`} desc={tr(t.desc)} />
+              ))
+            : ARC_TIER_DEFS.map((t) => (
+                <OptionRow key={t.index} on={tier === t.index} onClick={() => setTier(t.index)} title={t.name} right={`${t.totalPct}%`} desc={tr(t.desc)} />
+              ))}
+        </div>
       </div>
 
-      {/* Post-graduation */}
-      <div className="pt-3 border-t border-border space-y-2.5">
-        <p className="text-[13px] text-muted-foreground">
-          After graduation — 0.50% V4 pool fee split
+      <div>
+        <p className="mb-1 text-[13px] text-muted-foreground">
+          {direct ? tr("Each trade pays 0.50%, split like this") : tr("Each trade on the curve pays")}
         </p>
-        {/* Barres post-grad */}
-        {(() => {
-          const maxPostPct = Math.max(...def.postGrad.map((r) => r.pct));
-          return (
-            <div className="space-y-2">
-              {def.postGrad.map((r) => (
-                <div key={r.label} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-20 shrink-0">{r.label}</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${(r.pct / maxPostPct) * 100}%`, background: r.color }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-foreground w-12 text-right">
-                    {r.pct % 1 === 0 ? r.pct.toFixed(0) : r.pct.toFixed(2)}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-        <p className="text-[11px] text-muted-foreground">
-          Graduation at ~2 000 USDC raised → Uniswap V4 pool · indexed on DexScreener
+        <div className="border-t border-border">
+          {direct ? (
+            <>
+              <FeeLine label={tr("You, the creator")} value={`${directDef.creator.toFixed(3)}%`} />
+              <FeeLine label={tr("Platform")} value={`${directDef.platform.toFixed(3)}%`} />
+              <FeeLine label={tr("Liquidity share, kept by the platform")} value={`${directDef.locked.toFixed(3)}%`} />
+            </>
+          ) : (
+            curveDef.rows.map((r) => <FeeLine key={r.label} label={tr(r.label === "Creator" ? "You, the creator" : r.label === "LP Bonus" ? "Liquidity bonus" : r.label)} value={`${r.pct.toFixed(2)}%`} />)
+          )}
+        </div>
+        <p className="mt-2 text-xs leading-snug text-muted-foreground">
+          {direct
+            ? tr("Fees are collected by anyone and paid out on chain. No holder dividends in this mode.")
+            : tr("After it moves to Uniswap V4, each trade pays 0.50%, split between you, the platform and the liquidity.")}
         </p>
       </div>
     </div>
