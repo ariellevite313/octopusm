@@ -4,7 +4,8 @@
  *
  * Usage (run from project root):
  *   node scripts/generate-vanity-pool.mjs
- *   node scripts/generate-vanity-pool.mjs --count 200 --suffix OCTO
+ *   node scripts/generate-vanity-pool.mjs --count 1000            (addresses ending in "om")
+ *   node scripts/generate-vanity-pool.mjs --count 5 --dry-run      (no DB, public keys only)
  *
  * Reads credentials from .env.local:
  *   NEXT_PUBLIC_SUPABASE_URL
@@ -33,19 +34,27 @@ const getArg = (flag, def) => {
 };
 
 const COUNT  = parseInt(getArg("--count",  "100"), 10);
-const SUFFIX = getArg("--suffix", "OCTO").toUpperCase();
+// Default: addresses ENDING in "om" (case-sensitive; base58 has no capital O).
+// ~3,400 tries per address. --prefix X (starts with) costs ~25x more: first chars are skewed.
+const PREFIX = getArg("--prefix", "");
+const SUFFIX = PREFIX ? "" : getArg("--suffix", "om");
+const DRY    = args.includes("--dry-run");
+const B58    = /^[1-9A-HJ-NP-Za-km-z]+$/;
+if (!B58.test(SUFFIX || PREFIX)) { console.error("❌  Pattern is not valid base58 (no 0, O, I, l)"); process.exit(1); }
+const LABEL  = SUFFIX || PREFIX;
+const matches = (addr) => (SUFFIX ? addr.endsWith(SUFFIX) : addr.startsWith(PREFIX));
 const BATCH  = 10; // insert every N keypairs
 
 // ── Load .env.local ───────────────────────────────────────────────────────────
 const root    = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const envFile = resolve(root, ".env.local");
 
-if (!existsSync(envFile)) {
+if (!DRY && !existsSync(envFile)) {
   console.error("❌  .env.local not found at", envFile);
   process.exit(1);
 }
 
-const env = Object.fromEntries(
+const env = DRY ? {} : Object.fromEntries(
   readFileSync(envFile, "utf8")
     .split("\n")
     .filter(l => l.trim() && !l.startsWith("#") && l.includes("="))
@@ -58,22 +67,22 @@ const env = Object.fromEntries(
 const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY  = env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SERVICE_KEY) {
+if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
   console.error("❌  Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
+const supabase = DRY ? null : createClient(SUPABASE_URL, SERVICE_KEY, {
   ...(ws ? { global: { WebSocket: ws } } : {}),
 });
 
 // ── Check existing pool ───────────────────────────────────────────────────────
-const { count: existing } = await supabase
+const { count: existing } = DRY ? { count: 0 } : await supabase
   .from("vanity_keypair_pool")
   .select("id", { count: "exact", head: true })
   .is("assigned_token_id", null);
 
-console.log(`\n🔑  Generating ${COUNT} keypairs with suffix "${SUFFIX}"`);
+console.log(`\n🔑  Generating ${COUNT} keypairs ${SUFFIX ? "ending with" : "starting with"} "${LABEL}"${DRY ? " (dry run)" : ""}`);
 console.log(`    Pool currently has ${existing ?? 0} available keypairs\n`);
 
 // ── Generate loop ─────────────────────────────────────────────────────────────
@@ -95,18 +104,18 @@ while (found < COUNT) {
 
   if (attemptsForCurrentKey > MAX_ATTEMPTS_PER_KEY) {
     console.error(
-      `\n❌  Exceeded ${MAX_ATTEMPTS_PER_KEY.toLocaleString()} attempts looking for suffix "${SUFFIX}".` +
+      `\n❌  Exceeded ${MAX_ATTEMPTS_PER_KEY.toLocaleString()} attempts looking for "${LABEL}".` +
       `\n    Check the suffix is valid base58 and not too long.`
     );
     process.exit(1);
   }
 
-  if (addr.toUpperCase().endsWith(SUFFIX)) {
+  if (matches(addr)) {
     attemptsForCurrentKey = 0; // reset for next keypair
     batch.push({
       public_key: addr,
       secret_key: bs58.encode(kp.secretKey),
-      suffix:     SUFFIX,
+      suffix:     LABEL,
     });
     found++;
 
@@ -117,6 +126,7 @@ while (found < COUNT) {
     );
 
     // Flush batch
+    if (DRY) { batch.length = 0; continue; }
     if (batch.length >= BATCH || found === COUNT) {
       const { error } = await supabase.from("vanity_keypair_pool").insert(batch);
       if (error) {
@@ -132,6 +142,6 @@ while (found < COUNT) {
 }
 
 const totalSec = ((Date.now() - startMs) / 1000).toFixed(1);
-console.log(`\n\n✅  Done! ${COUNT} keypairs inserted in ${totalSec}s`);
+console.log(`\n\n✅  Done! ${COUNT} keypairs ${DRY ? "generated (dry run, nothing saved)" : "inserted"} in ${totalSec}s`);
 console.log(`    Average: ${Math.round(attempts / COUNT).toLocaleString()} attempts per keypair`);
-console.log(`    Pool now has ${(existing ?? 0) + COUNT} available keypairs\n`);
+if (!DRY) console.log(`    Pool now has ${(existing ?? 0) + COUNT} available keypairs\n`);

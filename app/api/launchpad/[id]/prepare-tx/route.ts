@@ -19,6 +19,7 @@
  *   Returns { txABase64: null, txBBase64: null, txCBase64, mintAddress, configAddress }
  *   The caller skips TX A+B and only presents TX C to the user.
  */
+import { claimVanityKeypair } from "@/lib/solana/vanity-pool";
 import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -75,7 +76,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       }
       mintKeypair = Keypair.fromSecretKey(secretBytes);
     } else {
-      mintKeypair = Keypair.generate();
+      // Adresse en « om » prise dans le stock ; sinon adresse normale
+      mintKeypair = (await claimVanityKeypair(admin, id)) ?? Keypair.generate();
       const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
       const mintAddress = mintKeypair.publicKey.toBase58();
       await admin.from("launchpad_tokens")
