@@ -417,7 +417,6 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       {/* Récompenses créateur */}
       {chain === "arc" ? (
         <div>
-          <Label>{tr("Launch & fees")}</Label>
           <ArcLaunchOptions
             mode={data.arc_launch_mode}
             setMode={(m) => { set("arc_launch_mode", m); set("arc_fee_tier", 0); }}
@@ -719,47 +718,6 @@ const TIER_ACCENT: Record<number, { tabSel: string; badge: string; card: string;
   },
 };
 
-// ─── Plans de frais Arc : les mêmes partout (courbe, lancement direct, pool après graduation) ─────────────────
-const ARC_PLANS = [
-  { index: 0 as const, name: "1.5%", total: 1.5, desc: "Simple. You, the platform and the liquidity each get 0.5%.",
-    rows: [["You, the creator", 0.5], ["Platform", 0.5], ["Liquidity, added to the pool", 0.5]] as [string, number][] },
-  { index: 1 as const, name: "2% with holders", total: 2, desc: "Same, plus 0.5% paid as dividends to holders.",
-    rows: [["You, the creator", 0.5], ["Platform", 0.5], ["Liquidity, added to the pool", 0.5], ["Holders, as dividends", 0.5]] as [string, number][] },
-];
-
-function Radio({ on }: { on: boolean }) {
-  return (
-    <span className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border ${on ? "border-foreground" : "border-muted-foreground/50"}`}>
-      {on && <span className="size-2 rounded-full bg-foreground" />}
-    </span>
-  );
-}
-
-function OptionRow({ on, onClick, title, right, desc }: { on: boolean; onClick: () => void; title: string; right?: string; desc: string }) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={on}
-      className="flex w-full items-start gap-3 border-b border-border py-3.5 text-left last:border-b-0">
-      <Radio on={on} />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-3">
-          <span className={`text-[15px] ${on ? "font-semibold text-foreground" : "font-medium text-foreground/80"}`}>{title}</span>
-          {right && <span className={`text-sm tabular-nums ${on ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{right}</span>}
-        </span>
-        <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{desc}</span>
-      </span>
-    </button>
-  );
-}
-
-function FeeLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between border-b border-border py-2 text-sm last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium tabular-nums text-foreground">{value}</span>
-    </div>
-  );
-}
-
 function ArcLaunchOptions({
   mode, setMode, tier, setTier,
 }: {
@@ -771,40 +729,48 @@ function ArcLaunchOptions({
   const { tr } = useT();
   const directAvailable = Boolean(process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT);
   const direct = mode === "direct" && directAvailable;
-  const plan = ARC_PLANS[tier] ?? ARC_PLANS[0];
+
+  // Même présentation que les frais Solana : contrôle à deux choix + une phrase d'explication
+  const seg = (on: boolean) =>
+    `rounded-xl py-2.5 text-sm font-semibold transition-colors ${on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {directAvailable && (
         <div>
-          <p className="mb-1 text-[13px] text-muted-foreground">{tr("Where it trades")}</p>
-          <div className="border-t border-border">
-            <OptionRow on={direct} onClick={() => setMode("direct")} title={tr("Uniswap V4 right away")}
-              desc={tr("Trades on Uniswap V4 from the first second. Liquidity is locked for life, and the token stays visible here.")} />
-            <OptionRow on={!direct} onClick={() => setMode("curve")} title={tr("Bonding curve")}
-              desc={tr("Starts on a curve, moves to Uniswap V4 once it reaches about 25,000 USDC market cap.")} />
+          <Label>{tr("Where it trades")}</Label>
+          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+            {([["direct", tr("Uniswap V4"), tr("Live from the first second")], ["curve", tr("Bonding curve"), tr("Moves to Uniswap V4 later")]] as const).map(([k, title, sub]) => (
+              <button key={k} type="button" onClick={() => setMode(k)} className={seg(direct ? k === "direct" : k === "curve")}>
+                {title}
+                <span className="block text-[11px] font-normal text-muted-foreground">{sub}</span>
+              </button>
+            ))}
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {direct
+              ? tr("Trades on Uniswap V4 from the first second. Liquidity is locked for life, and the token stays visible here.")
+              : tr("Starts on a curve and moves to Uniswap V4 at about 25,000 USDC market cap.")}
+          </p>
         </div>
       )}
 
       <div>
-        <p className="mb-1 text-[13px] text-muted-foreground">{tr("Fee plan")}</p>
-        <div className="border-t border-border">
-          {ARC_PLANS.map((p) => (
-            <OptionRow key={p.index} on={tier === p.index} onClick={() => setTier(p.index)} title={tr(p.name)} right={`${p.total}%`} desc={tr(p.desc)} />
+        <Label>{tr("Trading fee")}</Label>
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+          {([[0, "1.5%", tr("You earn 0.5% of volume")], [1, "2%", tr("You earn 0.5% + holders 0.5%")]] as const).map(([k, fee, earn]) => (
+            <button key={k} type="button" onClick={() => setTier(k)} className={seg(tier === k)}>
+              {fee}
+              <span className="block text-[11px] font-normal text-muted-foreground">{earn}</span>
+            </button>
           ))}
         </div>
-      </div>
-
-      <div>
-        <p className="mb-1 text-[13px] text-muted-foreground">{tr("Each trade pays %s%, split like this").replace("%s", String(plan.total))}</p>
-        <div className="border-t border-border">
-          {plan.rows.map(([label, pct]) => <FeeLine key={label} label={tr(label)} value={`${pct}%`} />)}
-        </div>
-        <p className="mt-2 text-xs leading-snug text-muted-foreground">
-          {direct
-            ? tr("Fees are collected by anyone and paid out on chain. A sell pays its fee in tokens, which are burned.")
-            : tr("Same plan before and after it moves to Uniswap V4.")}
+        <p className="mt-2 text-xs text-muted-foreground">
+          {tier === 1
+            ? tr("2% trading fee per trade: 0.5% to you, 0.5% to the platform, 0.5% added to the liquidity and 0.5% to holders as dividends.")
+            : tr("1.5% trading fee per trade: 0.5% to you, 0.5% to the platform and 0.5% added to the liquidity.")}
+          {" "}{direct ? tr("A sell pays its fee in tokens, which are burned.") : tr("Same plan before and after it moves to Uniswap V4.")}
+          {" "}{tr("This cannot be changed after launch.")}
         </p>
       </div>
     </div>
