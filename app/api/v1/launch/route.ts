@@ -17,6 +17,7 @@ import { nameTickerError } from "@/lib/launch/name-rules";
 import { POST as prepareTx } from "@/app/api/launchpad/[id]/prepare-tx/route";
 import { BASE58_RE, callJson, getIp, lErr, lJson, lOk } from "@/lib/v1/launch";
 import { rateHit } from "@/lib/rate-limit";
+import { runAsAgent } from "@/lib/social/session";
 
 export async function OPTIONS() { return lOk(); }
 export const dynamic = "force-dynamic";
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
     form.set("logo", new Blob([new Uint8Array(buf)], { type: mime }), `logo.${mime.split("/")[1]}`);
   }
 
-  const created = await createToken(new Request("http://internal/", { method: "POST", body: form }));
+  const created = await runAsAgent(wallet, () => createToken(new Request("http://internal/", { method: "POST", body: form })));
   const cd = (await created.json().catch(() => ({}))) as { id?: string; error?: string };
   if (!created.ok || !cd.id) return lErr(cd.error ?? "Could not create token", created.status || 500);
 

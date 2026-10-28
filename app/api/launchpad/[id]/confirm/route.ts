@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireWallet } from "@/lib/social/session";
 import { verifyTransaction } from "@/lib/solana/verify-tx";
 import { awardOcto, OMERO_PER_LAUNCH } from "@/lib/octo";
 import { verifyTokenCreator } from "@/lib/launch/verify-creator";
@@ -94,6 +95,8 @@ export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
+    const sess = await requireWallet();
+    if ("error" in sess) return sess.error;
     const body = await req.json() as { txSignature?: string; walletAddress?: string };
     if (!body.txSignature)   return NextResponse.json({ error: "txSignature is required" }, { status: 400 });
     if (!body.walletAddress) return NextResponse.json({ error: "walletAddress is required" }, { status: 400 });
@@ -109,7 +112,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (!token) {
       return NextResponse.json({ error: "Token not found" }, { status: 404 });
     }
-    if ((token.creator_wallet as string) !== body.walletAddress) {
+    if ((token.creator_wallet as string) !== body.walletAddress || body.walletAddress !== sess.wallet) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     if ((token.status as string) !== "pending") {
@@ -176,8 +179,16 @@ export async function POST(req: Request, { params }: RouteParams) {
       console.error(`[confirm] creator mismatch for token ${id}`);
       return NextResponse.json({ error: "Creator does not match the on-chain pool" }, { status: 403 });
     }
+    // Rien n'est activé ni récompensé sans preuve : la transaction doit avoir créé le pool de CE token,
+    // et le créateur lu sur la chaîne doit être le wallet de la session.
+    if (!poolAddress || verdict !== "ok") {
+      return NextResponse.json(
+        { error: "Could not find this token's pool in the transaction yet. Wait a few seconds and retry." },
+        { status: 202 },
+      );
+    }
 
-    await admin
+    const { data: flipped } = await admin
       .from("launchpad_tokens")
       .update({
         creator_verified:    verdict === "ok",
@@ -194,7 +205,10 @@ export async function POST(req: Request, { params }: RouteParams) {
         // Store pool_address if we could extract it from the tx
         ...(poolAddress ? { pool_address: poolAddress } : {}),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("status", "pending") // une seule confirmation gagne (pas de double récompense en parallèle)
+      .select("id");
+    if (!flipped?.length) return NextResponse.json({ error: "Already confirmed" }, { status: 409 });
 
     // Award 500 Omero to the creator — fire-and-forget, never blocks the response
     awardOcto(body.walletAddress, OMERO_PER_LAUNCH, "launch").catch((e) =>

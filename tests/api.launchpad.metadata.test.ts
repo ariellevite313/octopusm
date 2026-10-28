@@ -28,6 +28,12 @@ const { mockCreateAdminClient } = vi.hoisted(() => ({
   mockCreateAdminClient: vi.fn(),
 }));
 
+// Session : le wallet connecté est celui du créateur de test
+vi.mock("@/lib/social/session", () => ({
+  requireWallet: async () => ({ wallet: "TxCreatorWallet" }),
+  runAsAgent: <T,>(_w: string, fn: () => Promise<T>) => fn(),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient:      vi.fn(),
   createAdminClient: mockCreateAdminClient,
@@ -229,10 +235,10 @@ describe("POST /api/launchpad/[id]/prepare-tx — validation", () => {
   });
 
   it("returns 403 when walletAddress does not match creator_wallet", async () => {
-    mockCreateAdminClient.mockReturnValue(buildPrepareTxClient(PENDING_TX_TOKEN));
+    mockCreateAdminClient.mockReturnValue(buildPrepareTxClient({ ...PENDING_TX_TOKEN, creator_wallet: "SomeoneElse" }));
 
     const res = await postPrepareTx(
-      makeRequest({ walletAddress: "WrongWallet" }),
+      makeRequest({ walletAddress: "TxCreatorWallet" }),
       PREPARE_PARAMS
     );
     expect(res.status).toBe(403);
