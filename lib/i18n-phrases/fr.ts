@@ -1571,5 +1571,14 @@ const p: Record<string, string> = {
   "Simple. You, the platform and the liquidity each get 0.5%.": "Simple. Toi, la plateforme et la liquidité touchez chacun 0,5 %.",
   "Same, plus 0.5% paid as dividends to holders.": "Pareil, plus 0,5 % versé en dividendes aux holders.",
   "Same plan before and after it moves to Uniswap V4.": "Le même plan avant et après le passage sur Uniswap V4.",
+  "Uniswap V4": "Uniswap V4",
+  "Live from the first second": "Actif dès la première seconde",
+  "Moves to Uniswap V4 later": "Passe sur Uniswap V4 plus tard",
+  "Starts on a curve and moves to Uniswap V4 at about 25,000 USDC market cap.": "Démarre sur une courbe et passe sur Uniswap V4 vers 25 000 USDC de capitalisation.",
+  "You earn 0.5% + holders 0.5%": "Tu gagnes 0,5 % + holders 0,5 %",
+  "2% trading fee per trade: 0.5% to you, 0.5% to the platform, 0.5% added to the liquidity and 0.5% to holders as dividends.": "2 % de frais par échange : 0,5 % pour toi, 0,5 % pour la plateforme, 0,5 % ajoutés à la liquidité et 0,5 % aux holders en dividendes.",
+  "1.5% trading fee per trade: 0.5% to you, 0.5% to the platform and 0.5% added to the liquidity.": "1,5 % de frais par échange : 0,5 % pour toi, 0,5 % pour la plateforme et 0,5 % ajoutés à la liquidité.",
+  "A sell pays its fee in tokens, which are burned.": "Une vente paie son frais en tokens, qui sont brûlés.",
+  "This cannot be changed after launch.": "Impossible de changer après le lancement.",
 };
 export default p;
