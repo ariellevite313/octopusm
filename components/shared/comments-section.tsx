@@ -178,7 +178,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
     try {
       const res = await fetch(`${apiBase}/${marketId}/comments`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed, wallet_address: walletAddress }),
+        body: JSON.stringify({ content: trimmed }),
       });
       const data = await res.json() as MarketCommentEnriched & { error?: string };
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -207,7 +207,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
     // Sync with server — use actual like_count from DB
     fetch(`${apiBase}/${marketId}/comments/like`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment_id: commentId, wallet_address: walletAddress }),
+      body: JSON.stringify({ comment_id: commentId }),
     })
       .then(async res => {
         if (!res.ok) { setComments(prev => prev.map(toggle)); return; }
@@ -229,7 +229,7 @@ export function CommentsSection({ marketId, initialComments, isAuthenticated, wa
   async function handleReply(parentId: string, content: string) {
     const res = await fetch(`${apiBase}/${marketId}/comments`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, parent_id: parentId, wallet_address: walletAddress }),
+      body: JSON.stringify({ content, parent_id: parentId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Error");

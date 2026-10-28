@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireSessionWallet } from "@/lib/social/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -27,11 +28,12 @@ export async function GET(req: Request, { params }: RouteParams) {
 }
 
 // POST — toggle watchlist
-export async function POST(req: Request, { params }: RouteParams) {
+export async function POST(_req: Request, { params }: RouteParams) {
   try {
   const { id } = await params;
-  const { wallet } = await req.json() as { wallet?: string };
-  if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
+  const s = await requireSessionWallet();
+  if ("error" in s) return s.error;
+  const wallet = s.wallet;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;

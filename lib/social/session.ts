@@ -17,3 +17,14 @@ export async function requireWallet(): Promise<{ wallet: string } | { error: Nex
   if (await isBanned(w)) return { error: NextResponse.json({ error: "This account has been suspended" }, { status: 403 }) };
   return { wallet: /^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w };
 }
+
+/**
+ * Wallet de la session, tel qu'il est enregistré (sans mise en minuscules) : pour les tables de commentaires
+ * et de suivi qui stockent déjà l'adresse sous cette forme. Ne jamais lire le wallet dans le corps de la requête.
+ */
+export async function requireSessionWallet(): Promise<{ wallet: string } | { error: NextResponse }> {
+  const w = agentWallet.getStore() ?? (await getWalletAddress());
+  if (!w) return { error: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
+  if (await isBanned(w)) return { error: NextResponse.json({ error: "This account has been suspended" }, { status: 403 }) };
+  return { wallet: w };
+}
