@@ -327,6 +327,7 @@ export const ARC_DIRECT_ROUTER_ADDRESS  = (process.env.NEXT_PUBLIC_ARC_DIRECT_RO
 
 export const ARC_DIRECT_FACTORY_ABI = parseAbi([
   "function createToken(string name, string symbol, string imageUri, string description, uint256 firstBuyUsdc, uint8 feeTier) payable returns (address vault, address token)",
+  "function vaultRecord(address vault) view returns (address token, address vault, address creator)",
   "event TokenLaunchedDirect(address indexed vault, address indexed token, address indexed creator, string name, string symbol, string imageUri, string description, uint256 firstBuyUsdc, uint8 feeTier)",
 ]);
 
