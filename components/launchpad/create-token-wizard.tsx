@@ -1,5 +1,6 @@
 "use client";
 
+import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 import { SolanaMark } from "@/components/shared/solana-mark";
 import { NAME_MAX, TICKER_MAX } from "@/lib/launch/name-rules";
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -593,16 +594,16 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
 
   // Coûts (mêmes montants qu'avant)
   const NETWORK_RENT = data.sol_token_type === "stock" ? 0.038 : 0.02449768;
-  const mintCost = 0.05 + NETWORK_RENT + (data.is_scheduled ? 0.1 : 0);
+  const mintCost = PLATFORM_FEE_SOL + NETWORK_RENT + (data.is_scheduled ? SCHEDULED_FEE_SOL : 0);
   const total = isArc
     ? `~${(amount + 0.04).toFixed(2)} USDC`
     : `~${(mintCost + (isStock ? 0 : amount)).toFixed(3)} SOL`;
   const feeRows: [string, string][] = isArc
     ? [["Creation fee", "Free"], ["Network gas", "~0.04 USDC"], ...(amount > 0 ? [["First buy", `${amount} USDC`] as [string, string]] : [])]
     : [
-        ["Platform fee", "0.05 SOL"],
+        ["Platform fee", `${PLATFORM_FEE_SOL} SOL`],
         ["Network rent", `~${NETWORK_RENT.toFixed(4)} SOL`],
-        ...(data.is_scheduled ? [["Scheduled launch", "0.10 SOL"] as [string, string]] : []),
+        ...(data.is_scheduled ? [["Scheduled launch", `${SCHEDULED_FEE_SOL.toFixed(2)} SOL`] as [string, string]] : []),
         ...(!isStock && amount > 0 ? [["First buy", `${amount} SOL`] as [string, string]] : []),
         ...(isStock ? [["Signatures", "3 (fee + config + pool)"] as [string, string]] : []),
       ];

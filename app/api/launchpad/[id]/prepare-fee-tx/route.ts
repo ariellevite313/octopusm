@@ -3,11 +3,12 @@
  *
  * Builds a simple SOL transfer transaction:
  *   creator → platform wallet
- *   amount  = 0.05 SOL (+ 0.10 SOL if scheduled)
+ *   amount  = platform fee (+ scheduled supplement if scheduled)
  *
  * This is sent as a separate tx before pool creation so Phantom
  * doesn't flag the pool tx as suspicious (drainer pattern).
  */
+import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 import { NextResponse } from "next/server";
 import {
   Connection,
@@ -85,8 +86,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     const platformWallet = getPlatformWallet();
     const creator        = new PublicKey(body.walletAddress);
 
-    const CREATION_FEE_LAMPORTS  = Math.floor(0.05 * LAMPORTS_PER_SOL);
-    const SCHEDULED_FEE_LAMPORTS = Math.floor(0.10 * LAMPORTS_PER_SOL);
+    const CREATION_FEE_LAMPORTS  = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL);
+    const SCHEDULED_FEE_LAMPORTS = Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL);
     const totalLamports = CREATION_FEE_LAMPORTS + (token.is_scheduled ? SCHEDULED_FEE_LAMPORTS : 0);
 
     const { blockhash } = await connection.getLatestBlockhash("confirmed");

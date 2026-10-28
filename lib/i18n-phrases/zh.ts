@@ -595,6 +595,8 @@ const p: Record<string, string> = {
   "Can my AI post and reply for me?": "我的 AI 可以代我发帖和回复吗？",
   "Yes, if you connect it. In the menu, open Connected apps and approve the connection with your wallet. Your AI can then read your notifications and post, reply, like, repost and follow in your name, and edit your profile. You can disconnect it at any time.": "可以，只要你连接它。在菜单中打开“已连接的应用”，并用钱包批准连接。之后你的 AI 可以读取你的通知，并以你的名义发帖、回复、点赞、转发和关注，也可以编辑你的资料。你随时可以断开连接。",
   "The feed is where the community posts text and images, shares markets and tokens, replies, reposts, likes and follows. You can also reply to a reply and like replies. Type $TICKER to attach a token, @name to mention someone and #tag to join a topic. Each post has its own link you can share.": "动态是社区发布文字和图片、分享市场和代币、回复、转发、点赞和关注的地方。你也可以回复某条回复并为回复点赞。输入 $TICKER 附加代币，输入 @名称 提及某人，输入 #标签 加入话题。每条帖子都有可分享的专属链接。",
+  "Yes, on Solana. The agent receives transactions to sign and signs them with its own key: OMdot.fun never holds your keys. The same fee (约 0.035 SOL), limits (3 launches per wallet and 6 per IP per hour) and rules as the website apply.": "可以，在 Solana 上。智能体收到待签名的交易，并用自己的密钥签名：OMdot.fun 从不保管你的密钥。费用（约 0.035 SOL）、限制（每个钱包每小时 3 次、每个 IP 每小时 6 次发行）和规则与网站相同。",
+  "On Solana, 约 0.035 SOL: a 0.01 SOL platform fee plus about 0.025 SOL of network rent. A scheduled launch adds 0.10 SOL, and any first buy you choose is extra. On Arc there is no creation fee, only about 0.04 USDC of network gas.": "在 Solana 上约 0.035 SOL：0.01 SOL 平台费加约 0.025 SOL 网络租金。定时发行另加 0.10 SOL，你选择的首次购买另计。在 Arc 上没有创建费，只有约 0.04 USDC 的网络 gas。",
   "Total earned": "累计收益",
   "Profit/Loss · {token}": "盈亏 · {token}",
   "Volume : {amount} {unit}": "交易量：{amount} {unit}",
