@@ -42,6 +42,23 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
             displayMode:          "integrated",
             integratedTargetId:   containerId,
             defaultExplorer:      "Solscan",
+            onSuccess: ({ txid }: { txid?: string }) => {
+              // Mémorise le trade (votes du hackathon) : le serveur relit la transaction
+              if (!txid) return;
+              void (async () => {
+                for (let i = 0; i < 5; i++) {
+                  await new Promise((r) => setTimeout(r, 3000));
+                  const r = await fetch("/api/hackathon/record-trade", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ txSignature: txid, mint: mintAddress }),
+                  }).catch(() => null);
+                  if (r && r.status !== 404 && r.status !== 503) {
+                    if (r.ok) window.dispatchEvent(new CustomEvent("om-trade-recorded", { detail: { mint: mintAddress } }));
+                    break;
+                  }
+                }
+              })();
+            },
             formProps: {
               fixedOutputMint:    true,
               initialOutputMint:  mintAddress,
