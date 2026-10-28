@@ -53,7 +53,8 @@ const SCHEMAS: Record<string, McpTool["inputSchema"]> = {
     cover_image_base64: { type: "string", description: "Or the cover image in base64 (max 2 MB)" },
     betting_closes_at: { type: "string", description: "ISO date, at least 1 hour from now" },
     bet_token: { type: "string", enum: ["usdc", "clawdtrust"] },
-  }, ["title", "options", "betting_closes_at"]),
+    match_key: { type: "string", description: "Football: key of a match from list_upcoming_matches. Title, options (home / draw / away), competition logo and team crests are filled automatically; then title, options and betting_closes_at are not needed" },
+  }, []),
   request_approval: S({
     kind: { type: "string", enum: ["bet_pool", "buy_token", "sell_token"] },
     target_id: { type: "string", description: "Pool market uuid or token uuid" },

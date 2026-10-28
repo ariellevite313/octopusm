@@ -51,7 +51,8 @@ async function verifyCreationTx(txSig: string, wallet: string): Promise<boolean>
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createPoolMarket(wallet: string, body: any, opts: { mandateId?: string } = {}): Promise<NextResponse> {
-  const {
+  // eslint-disable-next-line prefer-const
+  let {
     title, description, cover_image_src, options,
     category, bet_token, betting_closes_at,
     creation_fee_token, match_key,
@@ -116,12 +117,17 @@ export async function createPoolMarket(wallet: string, body: any, opts: { mandat
   let closesAtIso: string = betting_closes_at;
   if (match_key != null && match_key !== "") {
     if (typeof match_key !== "string" || match_key.length > 200) return NextResponse.json({ error: "Invalid match" }, { status: 400 });
-    const { data: m } = await admin.from("live_matches").select("key, kickoff, status").eq("key", match_key).maybeSingle();
+    const { data: m } = await admin.from("live_matches").select("key, kickoff, status, league, league_logo, home, home_logo, away, away_logo").eq("key", match_key).maybeSingle();
     if (!m || m.status !== "scheduled" || new Date(m.kickoff).getTime() < Date.now() + 60 * 60 * 1000) {
       return NextResponse.json({ error: "This match is not available (it must start in more than 1 hour)" }, { status: 400 });
     }
     matchKey = m.key;
     closesAtIso = new Date(m.kickoff).toISOString();
+    // Football : titre, options et images automatiques (logo de la compétition en couverture, écusson de chaque équipe)
+    title = `${m.home} vs ${m.away}`;
+    options = [{ label: m.home, image_url: m.home_logo ?? null }, { label: "Draw" }, { label: m.away, image_url: m.away_logo ?? null }];
+    cover_image_src = m.league_logo ?? cover_image_src ?? null;
+    category = "sports";
   }
   const closesAtMs = new Date(closesAtIso).getTime();
   if (!closesAtIso || isNaN(closesAtMs) || closesAtMs < Date.now() + 60 * 60 * 1000)

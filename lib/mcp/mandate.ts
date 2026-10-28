@@ -57,14 +57,17 @@ export async function endProgram(wallet: string) {
 }
 
 /** Création directe d'un marché sous programme actif : frais offerts, publié tout de suite, textes et images modérés. Retourne null si non éligible. */
-export async function createUnderMandate(wallet: string, draft: Awaited<ReturnType<typeof requestPoolMarket>> extends never ? never : P & { title: string; options: { label: string; image_url: string | null }[]; cover_image: string | null; description: string; category: string; betting_closes_at: string; bet_token: string }, origin: string) {
+export async function createUnderMandate(wallet: string, draft: Awaited<ReturnType<typeof requestPoolMarket>> extends never ? never : P & { title: string; options: { label: string; image_url: string | null }[]; cover_image: string | null; description: string; category: string; betting_closes_at: string; bet_token: string; match_key?: string | null }, origin: string) {
+  // Frais offerts seulement pour les comptes de la maison (OMERO_WALLETS) : sinon n'importe qui inonderait le site de marchés gratuits
+  const free = (process.env.OMERO_WALLETS ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (!free.includes(wallet.toLowerCase())) return null;
   const m = await activeMandate(wallet);
   if (!m || (await marketsUsed(m)) >= m.max_markets) return null;
   const text = [draft.title, draft.description, ...draft.options.map((o) => o.label)].join("\n");
   if ((await moderateText(text)) === "blocked") throw new MandateError("This market goes against our rules");
   const res = await createPoolMarket(wallet, {
     title: draft.title, description: draft.description || null, cover_image_src: draft.cover_image, options: draft.options,
-    category: draft.category, betting_closes_at: draft.betting_closes_at, bet_token: draft.bet_token,
+    category: draft.category, betting_closes_at: draft.betting_closes_at, bet_token: draft.bet_token, match_key: draft.match_key ?? null,
   }, { mandateId: m.id });
   const j = (await res.json().catch(() => ({}))) as { id?: string; slug?: string; error?: string };
   if (res.status >= 400) throw new MandateError(j.error ?? `Request failed (${res.status})`);

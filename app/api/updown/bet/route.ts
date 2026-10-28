@@ -1,3 +1,4 @@
+import { isPausedDuration } from "@/lib/updown-pause";
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { verifyArcTransfer } from "@/lib/arc-verify";
@@ -61,12 +62,15 @@ export async function POST(req: Request) {
   // 3. Verify market is still open for betting
   const { data: market, error: mErr } = await admin
     .from("updown_markets")
-    .select("id, status, closes_at")
+    .select("id, status, closes_at, duration_min")
     .eq("id", market_id)
     .single();
 
   if (mErr || !market) {
     return NextResponse.json({ error: "Market not found" }, { status: 404 });
+  }
+  if (isPausedDuration(Number(market.duration_min))) {
+    return NextResponse.json({ error: "Coming soon: this round length is paused for now." }, { status: 403 });
   }
   if (market.status !== "open") {
     return NextResponse.json({ error: "Market is closed" }, { status: 409 });

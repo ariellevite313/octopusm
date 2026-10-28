@@ -1,5 +1,6 @@
 "use client";
 
+import { isPausedDuration } from "@/lib/updown-pause";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -247,7 +248,12 @@ export function UpDownSection() {
         ))}
       </div>
 
-      {visible.length === 0 ? (
+      {isPausedDuration(activeDuration) ? (
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <p className="text-base font-bold text-foreground">{tr("Coming soon")}</p>
+          <p className="text-sm text-muted-foreground">{tr("This round length is paused for now.")}</p>
+        </div>
+      ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="text-sm text-muted-foreground">{tr("No active {n} min round.", { n: activeDuration })}</p>
         </div>

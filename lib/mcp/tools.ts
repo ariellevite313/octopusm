@@ -19,6 +19,7 @@ import { GET as followRoute } from "@/app/api/follow/route";
 import { POST as launchRoute } from "@/app/api/v1/launch/route";
 import { POST as launchSubmitRoute } from "@/app/api/v1/launch/[id]/submit/route";
 import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/route";
+import { createAdminClient } from "@/lib/supabase/server";
 import { createPost, type PostFile } from "@/lib/social/create-post";
 import { postMessage, verifyPostSignature, type B64Image } from "@/lib/mcp/post-auth";
 import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
@@ -233,6 +234,19 @@ export const TOOLS: McpTool[] = [
     run: async (a, ctx) => {
       const symbol = str(a, "symbol", { required: true, max: 12 })!;
       return okJson(await updownMarketsRoute(get(ctx, `/api/updown/markets?symbol=${encodeURIComponent(symbol)}`)));
+    },
+  },
+  {
+    name: "list_upcoming_matches",
+    description: "Football matches that start in more than 1 hour (competition, teams, kickoff, key). Use a key with request_pool_market / create_pool_market to create a match pool: the title, the Home / Draw / Away options, the competition logo and the team crests are filled in automatically.",
+    readOnly: true,
+    inputSchema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 50, description: "Default 20" } } },
+    run: async (a) => {
+      const limit = Math.min(50, Math.max(1, Math.round(Number(a.limit) || 20)));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (createAdminClient() as any).from("live_matches").select("key, league, home, away, kickoff").eq("status", "scheduled")
+        .gt("kickoff", new Date(Date.now() + 3600_000).toISOString()).order("kickoff", { ascending: true }).limit(limit);
+      return { matches: data ?? [] };
     },
   },
   {

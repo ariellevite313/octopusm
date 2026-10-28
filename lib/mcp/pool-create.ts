@@ -128,9 +128,10 @@ async function storeImage(wallet: string, link: string | undefined, b64: string 
 /** Étape 3 : crée le marché (statut pending, revue par un admin). */
 export async function createPoolAction(wallet: string, p: P, origin: string) {
   if (!SOL_ADDR.test(wallet)) throw new PoolError("Agent market creation supports Solana wallets for now (Arc wallets: use the website)");
-  const title = str(p, "title", 200, true)!;
+  const mk = str(p, "match_key", 200);
+  const title = mk ? "Football match" : str(p, "title", 200, true)!;
   const creation_tx = str(p, "creation_tx", 200, true)!;
-  const rawOpts = p.options;
+  const rawOpts = mk ? [{ label: "Home" }, { label: "Draw" }, { label: "Away" }] : p.options;
   if (!Array.isArray(rawOpts) || rawOpts.length < 2 || rawOpts.length > 8) throw new PoolError("params.options must have 2 to 8 items");
   if (!(await rateHit(`poolcreate:${wallet}`, 10, 3600_000))) throw new PoolError("Too many markets created, try again later");
   const options: { label: string; image_url: string | null }[] = [];
@@ -141,8 +142,9 @@ export async function createPoolAction(wallet: string, p: P, origin: string) {
   const cover = await storeImage(wallet, str(p, "cover_image_url", 2000), str(p, "cover_image_base64", 3_000_000));
   const res = await createPoolMarket(wallet, {
     title, description: str(p, "description", 1000) ?? null, cover_image_src: cover, options,
-    category: str(p, "category", 30), betting_closes_at: str(p, "betting_closes_at", 40, true),
+    category: str(p, "category", 30), betting_closes_at: mk ? new Date(Date.now() + 2 * 3600_000).toISOString() : str(p, "betting_closes_at", 40, true),
     bet_token: str(p, "bet_token", 12) ?? "usdc", creation_fee_token: feeToken(p), creation_tx,
+    match_key: str(p, "match_key", 200) ?? null,
   });
   const j = (await res.json().catch(() => ({}))) as { id?: string; slug?: string; error?: string };
   if (res.status >= 400) throw new PoolError(j.error ?? `Request failed (${res.status})`);
@@ -154,6 +156,8 @@ export async function createPoolAction(wallet: string, p: P, origin: string) {
 
 /** Brouillon pour un humain : images stockées, rien n'est payé. L'humain ouvre le lien, relit, paie les frais et crée le marché lui-même. */
 export async function requestPoolMarket(wallet: string, p: P, origin: string) {
+  const matchKey = str(p, "match_key", 200);
+  if (matchKey) return requestMatchPool(wallet, matchKey, str(p, "bet_token", 12) ?? "usdc", origin);
   const title = str(p, "title", 200, true)!;
   if (title.trim().length < 5) throw new PoolError("params.title must be at least 5 characters");
   const rawOpts = p.options;
@@ -184,4 +188,24 @@ export async function requestPoolMarket(wallet: string, p: P, origin: string) {
     review_url: `${origin}/pools/new/${data.id}`, expires_at: data.expires_at,
     note: "Nothing is created or paid yet. Send this link to your human: they review the market, pay the 0.5 USDC creation fee with their own wallet and create it. It then goes to admin review.",
   };
+}
+
+/** Pool de football : titre « A vs B », options Domicile / Nul / Extérieur, logo de la compétition et écussons des équipes, clôture au coup d'envoi. */
+async function requestMatchPool(wallet: string, key: string, bet: string, origin: string) {
+  if (bet !== "usdc" && bet !== "clawdtrust") throw new PoolError("params.bet_token must be usdc or clawdtrust");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const { data: m } = await admin.from("live_matches").select("key, kickoff, status, league_logo, home, home_logo, away, away_logo").eq("key", key).maybeSingle();
+  if (!m || m.status !== "scheduled" || new Date(m.kickoff).getTime() < Date.now() + 60 * 60 * 1000) throw new PoolError("This match is not available (it must start in more than 1 hour). See list_upcoming_matches.");
+  if (!(await rateHit(`pooldraft:${wallet}`, 10, 3600_000))) throw new PoolError("Too many requests, try again later");
+  const params = {
+    title: `${m.home} vs ${m.away}`, description: "", cover_image: m.league_logo ?? null, category: "sports", bet_token: bet, match_key: m.key,
+    options: [{ label: m.home, image_url: m.home_logo ?? null }, { label: "Draw", image_url: null }, { label: m.away, image_url: m.away_logo ?? null }],
+    betting_closes_at: new Date(m.kickoff).toISOString(),
+  };
+  const direct = await createUnderMandate(wallet, params, origin);
+  if (direct) return direct;
+  const { data, error } = await admin.from("agent_intents").insert({ agent_wallet: wallet, kind: "create_pool", target_id: null, params }).select("id, expires_at").single();
+  if (error) throw new PoolError("Could not create the draft");
+  return { review_url: `${origin}/pools/new/${data.id}`, expires_at: data.expires_at, note: "Nothing is created or paid yet. Send this link to your human: they pay the creation fee with their own wallet." };
 }

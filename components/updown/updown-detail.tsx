@@ -1,5 +1,6 @@
 "use client";
 
+import { isPausedDuration } from "@/lib/updown-pause";
 import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -931,8 +932,14 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
   }
 
   // Panneau de mise (ordinateur : colonne de droite · téléphone : fenêtre du bas)
+  const paused = isPausedDuration(market.duration_min);
   const betPanel = (withKeypad: boolean) => (
-    isOpen && bettingClosed ? (
+    paused ? (
+      <div className="py-8 text-center">
+        <p className="text-base font-bold text-foreground">{tr("Coming soon")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{tr("This round length is paused for now.")}</p>
+      </div>
+    ) : isOpen && bettingClosed ? (
       <div className="py-8 text-center">
         <Loader2 className="mx-auto mb-2 size-5 animate-spin text-primary" />
         <p className="text-sm font-semibold text-foreground">{tr("Resolving…")}</p>

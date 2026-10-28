@@ -23,7 +23,7 @@ export function NewPoolFromDraft({ id }: { id: string }) {
         const dt = new Date(d.betting_closes_at);
         const pad = (n: number) => String(n).padStart(2, "0");
         setDraft({
-          title: d.title, description: d.description, coverImage: d.cover_image, options: d.options, category: d.category, betToken: d.bet_token,
+          title: d.title, description: d.description, coverImage: d.cover_image, options: d.options, category: d.category, betToken: d.bet_token, matchKey: d.match_key ?? null,
           closesAt: `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`,
         });
       })
