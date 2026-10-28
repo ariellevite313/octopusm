@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardRpc, SOLANA_METHODS } from "@/lib/rpc-guard";
 
 /**
  * POST /api/solana/rpc
@@ -24,12 +25,10 @@ function getRpcUrls(): string[] {
 }
 
 export async function POST(req: Request) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  // Origine, taille, méthodes autorisées et limite par IP (voir lib/rpc-guard.ts)
+  const g = await guardRpc(req, { name: "solana", methods: SOLANA_METHODS, perMinute: 240 });
+  if (!g.ok) return g.response;
+  const body = g.body;
 
   const rpcUrls = getRpcUrls();
   const errors: string[] = [];
@@ -71,7 +70,6 @@ export async function POST(req: Request) {
       error: {
         code: -32603,
         message: "All Solana RPC endpoints are unavailable. Try again in a moment.",
-        data: errors,
       },
     },
     { status: 503 }
