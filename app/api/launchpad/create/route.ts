@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nameTickerError } from "@/lib/launch/name-rules";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
+import { verifyTokenCreator, type CreatorVerdict } from "@/lib/launch/verify-creator";
 
 // Max file sizes
 const MAX_LOGO_BYTES       = 5  * 1024 * 1024; // 5 MB
@@ -122,6 +123,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "arc_token_address is required for Arc tokens" }, { status: 400 });
     }
 
+    // Arc: the token goes live immediately, so the creator must match the factory contract.
+    // We never trust the wallet sent by the client: read it from the chain.
+    let creatorVerdict: CreatorVerdict = "unverified";
+    if (payload.chain === "arc") {
+      creatorVerdict = await verifyTokenCreator({
+        chain:          "arc",
+        mint_address:   payload.arc_token_address,
+        arc_launch_id:  payload.arc_launch_id,
+        creator_wallet: payload.creator_wallet,
+      });
+      if (creatorVerdict === "mismatch") {
+        return NextResponse.json({ error: "Creator wallet does not match the on-chain token creator" }, { status: 403 });
+      }
+      // The same on-chain token cannot be registered twice
+      const adminCheck = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const { data: dup } = await adminCheck
+        .from("launchpad_tokens")
+        .select("id")
+        .ilike("mint_address", payload.arc_token_address!)
+        .limit(1)
+        .maybeSingle();
+      if (dup) {
+        return NextResponse.json({ error: "This token is already registered" }, { status: 409 });
+      }
+    }
+
 
     // Validate social URLs server-side — reject javascript: and other non-http(s) schemes
     const socialFields = ["website", "twitter", "telegram", "discord", "other_social"] as const;
@@ -209,6 +236,8 @@ export async function POST(req: Request) {
         scheduled_at:        payload.is_scheduled ? payload.scheduled_at : null,
         scheduled_paid_sol:  payload.is_scheduled ? 0.1 : null,
         creator_wallet:      payload.creator_wallet,
+        creator_verified:    creatorVerdict === "ok",
+        creator_verified_at: creatorVerdict === "ok" ? new Date().toISOString() : null,
         status:           payload.chain === "arc" ? "active" : "pending",
         is_tradeable:     payload.chain === "arc",
         chain:            payload.chain ?? "solana",

@@ -16,6 +16,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { verifyTransaction } from "@/lib/solana/verify-tx";
 import { awardOcto, OMERO_PER_LAUNCH } from "@/lib/octo";
+import { verifyTokenCreator } from "@/lib/launch/verify-creator";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -161,9 +162,26 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
+    // Read the creator from the DBC pool on-chain (never from the client).
+    // "mismatch" = the pool was created by someone else: refuse to activate.
+    const verdict = poolAddress
+      ? await verifyTokenCreator({
+          chain:          "solana",
+          mint_address:   token.mint_address as string,
+          pool_address:   poolAddress,
+          creator_wallet: token.creator_wallet as string,
+        })
+      : "unverified";
+    if (verdict === "mismatch") {
+      console.error(`[confirm] creator mismatch for token ${id}`);
+      return NextResponse.json({ error: "Creator does not match the on-chain pool" }, { status: 403 });
+    }
+
     await admin
       .from("launchpad_tokens")
       .update({
+        creator_verified:    verdict === "ok",
+        creator_verified_at: verdict === "ok" ? new Date().toISOString() : null,
         status:       newStatus,
         is_tradeable: isTradeable,
         // Clear cached transaction so prepare-tx builds a fresh one if user re-launches
