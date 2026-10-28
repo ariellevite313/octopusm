@@ -8,20 +8,27 @@
  *  4. POST /api/launchpad/create — HTTP endpoint, all validation paths + success
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { isProtectedName } from "@/services/launchpad-service";
 import { SupaMockBuilder, json } from "./helpers";
 
 // ── Shared mocks — vi.hoisted() so they exist when vi.mock factories run ──────
 
 // vi.hoisted() ensures these exist before vi.mock factories run
-const { mockCreateAdminClient, mockCheckNameAvailability, mockVerifyTokenCreator } = vi.hoisted(() => ({
+const { mockCreateAdminClient, mockCheckNameAvailability, mockVerifyTokenCreator, sess } = vi.hoisted(() => ({
+  sess: { wallet: "SolanaWallet111" },
   mockCreateAdminClient:     vi.fn(),
   mockCheckNameAvailability: vi.fn(),
   mockVerifyTokenCreator:    vi.fn(),
 }));
 
 // The creator check reads the chain: replace it with a controllable verdict
+// Session : le wallet connecté est celui du créateur de test
+vi.mock("@/lib/social/session", () => ({
+  requireWallet: async () => ({ wallet: sess.wallet }),
+  runAsAgent: <T,>(_w: string, fn: () => Promise<T>) => fn(),
+}));
+
 vi.mock("@/lib/launch/verify-creator", () => ({ verifyTokenCreator: mockVerifyTokenCreator }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -584,8 +591,10 @@ describe("POST /api/launchpad/create — Arc creator verification", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sess.wallet = ARC_PAYLOAD.creator_wallet.toLowerCase();
     mockCheckNameAvailability.mockResolvedValue({ nameAvailable: true, tickerAvailable: true });
   });
+  afterEach(() => { sess.wallet = "SolanaWallet111"; });
 
   it("refuses with 403 when the on-chain creator is someone else", async () => {
     mockVerifyTokenCreator.mockResolvedValue("mismatch");
@@ -614,16 +623,17 @@ describe("POST /api/launchpad/create — Arc creator verification", () => {
     expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ creator_verified: true }));
   });
 
-  it("still registers but leaves creator_verified=false when the chain cannot be read", async () => {
+  it("refuses with 503 when the chain cannot be read", async () => {
     mockVerifyTokenCreator.mockResolvedValue("unverified");
     const { client, insertSpy } = arcAdmin(null);
     mockCreateAdminClient.mockReturnValue(client);
     const res = await postCreate(makeCreateRequest(ARC_PAYLOAD));
-    expect(res.status).toBe(200);
-    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ creator_verified: false, creator_verified_at: null }));
+    expect(res.status).toBe(503);
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it("does not call the chain for Solana tokens at creation", async () => {
+    sess.wallet = "SolanaWallet111";
     const adminMock = new SupaMockBuilder().returnFor("launchpad_tokens", { data: [{ id: "sol-1" }], error: null });
     mockCreateAdminClient.mockReturnValue(adminMock.buildClient());
     const res = await postCreate(makeCreateRequest(VALID_PAYLOAD));

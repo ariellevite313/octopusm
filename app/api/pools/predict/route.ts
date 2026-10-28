@@ -40,6 +40,11 @@ export async function POST(req: Request) {
   if (!body.market_id || !body.selection_id || !body.amount_usdc || !body.tx_signature || !body.wallet_address) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+  if (typeof body.amount_usdc !== "number" || !Number.isFinite(body.amount_usdc) || body.amount_usdc <= 0 || body.amount_usdc > 1e12) {
+    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  }
+  if (body.token !== "usdc" && body.token !== "clawdtrust") return NextResponse.json({ error: "Unsupported token" }, { status: 400 });
+  if (body.chain === "arc") body.tx_signature = body.tx_signature.toLowerCase();
 
   // BUG-03 fix: wallet in body must match authenticated session
   const isArc = body.chain === "arc";
@@ -53,11 +58,11 @@ export async function POST(req: Request) {
     if (body.token !== "usdc") return NextResponse.json({ error: "Arc bets use USDC only" }, { status: 400 });
     const v = await verifyArcTransfer({ hash: body.tx_signature, from: body.wallet_address, minUsdc: Number(body.amount_usdc) });
     if (v === "mismatch") return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
-    // "unverified" : enregistré en attente, l'admin vérifie à la validation
-  } else if (body.token === "usdc" || body.token === "clawdtrust") {
-    // Solana : refus si la tx est confirmée mais ne correspond pas à la mise ; sinon en attente (l'admin valide)
-    const v = await checkSolanaTransfer(body.tx_signature, body.token, Number(body.amount_usdc));
+    if (v === "unverified") return NextResponse.json({ error: "Could not confirm the transaction yet, retry in a few seconds" }, { status: 503 });
+  } else {
+    const v = await checkSolanaTransfer(body.tx_signature, body.token, Number(body.amount_usdc), sessionWallet);
     if (v === "mismatch") return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
+    if (v === "unverified") return NextResponse.json({ error: "Could not confirm the transaction yet, retry in a few seconds" }, { status: 503 });
   }
 
   const minAmt = body.token === "usdc" ? 2 : 500_000;

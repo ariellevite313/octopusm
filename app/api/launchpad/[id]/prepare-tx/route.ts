@@ -23,6 +23,7 @@ import { generateOmKeypair } from "@/lib/solana/vanity-mint";
 import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireWallet } from "@/lib/social/session";
 import {
   buildSplitPoolTransactions,
   buildStockPairedTransactions,
@@ -35,8 +36,10 @@ export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
+    const sess = await requireWallet();
+    if ("error" in sess) return sess.error;
     const body = await req.json() as { walletAddress?: string };
-    if (!body.walletAddress) {
+    if (!body.walletAddress || body.walletAddress !== sess.wallet) {
       return NextResponse.json({ error: "walletAddress is required" }, { status: 400 });
     }
 

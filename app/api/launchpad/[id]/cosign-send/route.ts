@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireWallet } from "@/lib/social/session";
 import { getPlatformWallet } from "@/lib/solana/dbc";
 
 // Programmes que certains wallets (Phantom : Lighthouse) ajoutent eux-mêmes comme garde-fous.
@@ -41,6 +42,8 @@ type RouteParams = { params: Promise<{ id: string }> };
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
+    const sess = await requireWallet();
+    if ("error" in sess) return sess.error;
     const body = await req.json() as { signedTransactionBase64?: string; walletAddress?: string };
     if (!body.signedTransactionBase64 || !body.walletAddress) {
       return NextResponse.json({ error: "signedTransactionBase64 and walletAddress are required" }, { status: 400 });
@@ -55,7 +58,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       .maybeSingle();
 
     if (!token) return NextResponse.json({ error: "Token not found" }, { status: 404 });
-    if (token.creator_wallet !== body.walletAddress) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (token.creator_wallet !== body.walletAddress || body.walletAddress !== sess.wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     if (token.status !== "pending") return NextResponse.json({ error: "Token is not pending" }, { status: 409 });
     if (!token.vanity_secret_key) return NextResponse.json({ error: "Mint key missing — click Retry" }, { status: 409 });
 
@@ -96,8 +99,15 @@ export async function POST(req: Request, { params }: RouteParams) {
       } else {
         return NextResponse.json({ error: "Transaction does not match the prepared one — click Retry" }, { status: 400 });
       }
-    } else if (tx.signatures.some((s) => s.publicKey.equals(mintKeypair.publicKey))) {
-      tx.partialSign(mintKeypair);
+    } else {
+      // Token classique : la clé de la mint ne signe que la transaction B préparée par le serveur.
+      let cached: { b?: string | null } = {};
+      try { cached = JSON.parse((token.tx_base64 as string) ?? "{}"); } catch { /* ignore */ }
+      const prepB = cached.b ? Transaction.from(Buffer.from(cached.b, "base64")) : null;
+      if (!prepB || !sameInstructions(tx, prepB)) {
+        return NextResponse.json({ error: "Transaction does not match the prepared one — click Retry" }, { status: 400 });
+      }
+      if (tx.signatures.some((s) => s.publicKey.equals(mintKeypair.publicKey))) tx.partialSign(mintKeypair);
     }
 
     // 3. Broadcast — serialize() verifies every required signature is present & valid.

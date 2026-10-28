@@ -20,6 +20,12 @@ const { mockCreateAdminClient, mockVerifyTransaction, mockVerifyTokenCreator } =
 }));
 
 // Creator check reads the DBC pool on-chain: replace it with a controllable verdict
+// Session : le wallet connecté est celui du créateur de test
+vi.mock("@/lib/social/session", () => ({
+  requireWallet: async () => ({ wallet: "CreatorWallet111" }),
+  runAsAgent: <T,>(_w: string, fn: () => Promise<T>) => fn(),
+}));
+
 vi.mock("@/lib/launch/verify-creator", () => ({ verifyTokenCreator: mockVerifyTokenCreator }));
 
 // extractPoolAddress asks the RPC for the tx and probes the DBC SDK: give it a fake pool
@@ -59,6 +65,9 @@ const { POST: postConfirm } = await import("../app/api/launchpad/[id]/confirm/ro
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+process.env.SOLANA_RPC_URL = "https://rpc.test";
+mockVerifyTokenCreator.mockResolvedValue("ok");
+
 const ROUTE_PARAMS = { params: Promise.resolve({ id: "token-uuid-123" }) };
 
 function makeRequest(body: object): Request {
@@ -70,7 +79,7 @@ function makeRequest(body: object): Request {
 }
 
 /** Build an admin client mock where launchpad_tokens returns the given token */
-function buildAdminMock(token: object | null, updateFn = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) })) {
+function buildAdminMock(token: object | null, updateFn = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ data: [{ id: "token-uuid-123" }], error: null }) }) }) })) {
   const maybeSingleResult = { data: token, error: null };
   const client = {
     from: vi.fn(() => ({
@@ -88,6 +97,7 @@ function buildAdminMock(token: object | null, updateFn = vi.fn().mockReturnValue
 const PENDING_TOKEN = {
   status:         "pending",
   creator_wallet: "CreatorWallet111",
+  mint_address:   "MintOm",
   is_scheduled:   false,
   scheduled_at:   null,
 };
@@ -322,12 +332,12 @@ describe("POST /api/launchpad/[id]/confirm — creator verification", () => {
     expect(mockVerifyTokenCreator).toHaveBeenCalledWith(expect.objectContaining({ chain: "solana", creator_wallet: "CreatorWallet111" }));
   });
 
-  it("activates but leaves creator_verified=false when the chain cannot be read", async () => {
+  it("returns 202 and keeps the token pending when the chain cannot confirm the pool", async () => {
     mockVerifyTokenCreator.mockResolvedValue("unverified");
     const { client, updateFn } = buildAdminMock(TOKEN);
     mockCreateAdminClient.mockReturnValue(client);
     const res = await postConfirm(makeRequest({ txSignature: "sig", walletAddress: "CreatorWallet111" }), ROUTE_PARAMS);
-    expect(res.status).toBe(200);
-    expect(updateFn.mock.calls[0][0]).toMatchObject({ creator_verified: false, creator_verified_at: null });
+    expect(res.status).toBe(202);
+    expect(updateFn).not.toHaveBeenCalled();
   });
 });
