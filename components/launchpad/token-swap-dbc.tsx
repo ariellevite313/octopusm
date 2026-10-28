@@ -349,18 +349,19 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
       setTimeout(() => fetchBalances(), 2000);
 
       // Reward OMERO for buy swaps (fire-and-forget — errors don't affect UX)
+      // Achats ET ventes : le serveur relit la transaction (quelques essais, le temps qu'elle soit visible),
+      // mémorise le trade (votes du hackathon) et verse les gains du parrain / du post sur les achats.
+      void (async () => {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const r = await fetch("/api/launchpad/dbc-swap/confirm", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txSignature: signature, poolAddress }),
+          }).catch(() => null);
+          if (r && r.status !== 404 && r.status !== 503) break;
+        }
+      })();
       if (isBuy) {
-        // Gains du parrain / du post : le serveur relit la transaction (quelques essais, le temps qu'elle soit visible)
-        void (async () => {
-          for (let i = 0; i < 5; i++) {
-            await new Promise((r) => setTimeout(r, 3000));
-            const r = await fetch("/api/launchpad/dbc-swap/confirm", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ txSignature: signature, poolAddress }),
-            }).catch(() => null);
-            if (r && r.status !== 404 && r.status !== 503) break;
-          }
-        })();
         void fetch("/api/launchpad/dbc-swap/reward", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
