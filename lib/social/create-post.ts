@@ -103,6 +103,11 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
   const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, quote_of, images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
   if (error) return err(500, error.message);
   await notify(Object.values(mentions).map((w) => ({ wallet: w, kind: "mention" as const, actor: wallet, postId: row.id })));
+  // Post d'Omero : une annonce pour tous les utilisateurs (une ligne, pas une par utilisateur)
+  const omero = (process.env.OMERO_WALLETS ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (!quote_of && omero.includes(wallet.toLowerCase())) {
+    await admin.from("announcements").insert({ series: "omero-post", key: row.id, template: "omero_post", vars: { excerpt: body.slice(0, 140) }, href: `/post/${row.id}` }).then(() => {}, (e: unknown) => console.error("[omero-announce]", e));
+  }
   if (quote_of && quotedAuthor) {
     await recountReposts(admin, quote_of);
     await notify([{ wallet: quotedAuthor, kind: "quote", actor: wallet, postId: row.id }]);

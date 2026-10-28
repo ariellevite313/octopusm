@@ -1539,5 +1539,6 @@ const p: Record<string, string> = {
   "{pct}% of a winning project's prize goes to its voters, shared in proportion to their votes. The team keeps the rest.": "{pct} % du prix d'un projet gagnant va à ses voteurs, partagé au prorata de leurs votes. L'équipe garde le reste.",
   "{total} votes in total · estimated gain {gain}": "{total} votes au total · gain estimé {gain}",
   "{votes} votes · rank {rank}": "{votes} votes · rang {rank}",
+  "See the post": "Voir le post",
 };
 export default p;

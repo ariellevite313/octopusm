@@ -51,6 +51,7 @@ export function renderAnnouncement(template: string, vars: Record<string, string
   const title = tr("OM Builders Hackathon");
   const cta = tr("See the hackathon");
   const fmt = (n: unknown) => `${Number(n).toLocaleString("fr-FR").replace(/ /g, " ")} $`;
+  if (template === "omero_post") return { title: "Omero", cta: tr("See the post"), body: String(vars.excerpt ?? "") };
   switch (template) {
     case "announce": return { title, cta, body: tr("The hackathon opens tomorrow. Up to 100,000 USDC to win. Launch your token on OM and apply, or back a project by buying its token: $1 invested = 1 vote, and your votes earn you a share of the prize if the project wins.") };
     case "opened": return { title, cta, body: tr("The hackathon is open. Apply, or vote for a project by buying its token.") };
