@@ -1540,5 +1540,7 @@ const p: Record<string, string> = {
   "{total} votes in total · estimated gain {gain}": "{total} votes au total · gain estimé {gain}",
   "{votes} votes · rank {rank}": "{votes} votes · rang {rank}",
   "See the post": "Voir le post",
+  "Could not load the draft": "Impossible de charger le brouillon",
+  "This draft does not exist or has expired": "Ce brouillon n'existe pas ou a expiré",
 };
 export default p;

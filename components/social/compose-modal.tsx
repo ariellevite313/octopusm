@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import type { FeedPost, QuotedPost } from "@/lib/social/posts";
 import { QuotedCard } from "./quoted-card";
+import { MarketCard } from "./market-card";
+import type { SharedMarket } from "@/lib/social/posts";
+import { extractMarketRef } from "@/lib/social/rich";
 import { MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES } from "@/lib/social/posts";
 
 type Suggest = { wallet: string; username: string; name: string | null; avatar: string | null };
@@ -33,6 +36,18 @@ export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null
     setSug([]);
     requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(before.length, before.length); });
   }
+  // Lien de marché collé : la carte (titre, options) apparaît tout de suite, avant de publier
+  const [market, setMarket] = useState<SharedMarket | null>(null);
+  const refKey = (() => { const r = extractMarketRef(body); return r ? `${r.kind}:${r.key}` : ""; })();
+  useEffect(() => {
+    if (!refKey) { setMarket(null); return; }
+    let off = false;
+    const t = setTimeout(() => {
+      fetch(`/api/markets/preview?text=${encodeURIComponent(body)}`).then((r) => r.json()).then((j) => { if (!off) setMarket(j.market ?? null); }).catch(() => { if (!off) setMarket(null); });
+    }, 350);
+    return () => { off = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refKey]);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
@@ -113,6 +128,7 @@ export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null
           </ul>
         )}
         </div>
+        {market && !quote && <div className="pointer-events-none px-1"><MarketCard m={market} /></div>}
         {quote && <div className="mt-3"><QuotedCard q={quote} link={false} /></div>}
         {previews.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-2">
