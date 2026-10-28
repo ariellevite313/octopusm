@@ -1542,5 +1542,7 @@ const p: Record<string, string> = {
   "See the post": "Voir le post",
   "Could not load the draft": "Impossible de charger le brouillon",
   "This draft does not exist or has expired": "Ce brouillon n'existe pas ou a expiré",
+  "Coming soon": "Bientôt disponible",
+  "This round length is paused for now.": "Cette durée est en pause pour le moment.",
 };
 export default p;

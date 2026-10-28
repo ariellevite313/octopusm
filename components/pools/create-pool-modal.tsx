@@ -16,7 +16,7 @@ type Category = CategorySlug;
 
 export interface PoolDraft {
   title: string; description?: string; coverImage?: string | null; options: { label: string; image_url?: string | null }[];
-  closesAt?: string; category?: string; betToken?: "usdc" | "clawdtrust";
+  closesAt?: string; category?: string; matchKey?: string | null; betToken?: "usdc" | "clawdtrust";
 }
 
 interface Props {
@@ -226,7 +226,7 @@ export function CreatePoolModal({ onClose, onCreated, initial }: Props) {
           bet_token:          betToken,
           creation_fee_token: feeToken,
           creation_tx:        payResult.signature,
-          match_key:          match?.key ?? null,
+          match_key:          match?.key ?? initial?.matchKey ?? null,
         }),
       });
       const data = await res.json();
