@@ -447,17 +447,16 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           </p>
           {lowFeeEnabled && (
             <div className="mt-4">
-              <Label>{tr("Trading fee")}</Label>
+              <Label>{tr("Creator fee")}</Label>
               <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-                {([["standard", "2%", tr("You earn 0.9% of volume")], ["low", "1.25%", tr("You earn 0.5% of volume")]] as const).map(([k, fee, earn]) => (
+                {([["standard", "2%"], ["low", "1.25%"]] as const).map(([k, fee]) => (
                   <button key={k} type="button" onClick={() => set("sol_fee_tier", k)}
                     className={`rounded-xl py-2.5 text-sm font-semibold transition-colors ${data.sol_fee_tier === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                     {fee}
-                    <span className="block text-[11px] font-normal text-muted-foreground">{earn}</span>
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">{tr("A lower fee attracts more traders; a higher fee pays you more per trade. This cannot be changed after launch.")}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{data.sol_fee_tier === "low" ? tr("You earn 0.5% of volume.") : tr("You earn 0.9% of volume.")} {tr("A lower fee attracts more traders; a higher fee pays you more per trade. This cannot be changed after launch.")}</p>
             </div>
           )}
 
@@ -756,12 +755,11 @@ function ArcLaunchOptions({
       )}
 
       <div>
-        <Label>{tr("Trading fee")}</Label>
+        <Label>{tr("Creator fee")}</Label>
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
-          {([[0, "1.5%", tr("You earn 0.5% of volume")], [1, "2%", tr("You earn 1% of volume")], [2, "2%", tr("Holders earn too")]] as const).map(([k, fee, earn]) => (
+          {([[0, "1.5%"], [1, "2%"], [2, "2% + holders"]] as const).map(([k, fee]) => (
             <button key={k} type="button" onClick={() => setTier(k)} className={seg(tier === k)}>
               {fee}
-              <span className="block text-[11px] font-normal text-muted-foreground">{earn}</span>
             </button>
           ))}
         </div>
