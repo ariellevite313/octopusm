@@ -85,7 +85,7 @@ function Picker({ hasToken, onClose }: { hasToken: boolean; onClose: () => void 
         <p className="mb-3 text-sm text-muted-foreground">{tr("Show the logo of a token launched on OMdotfun next to your name.")}</p>
         <div className="mb-3 flex items-center gap-2 rounded-full bg-muted px-4">
           <Search className="size-4 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder={tr("Search...")} className="h-11 flex-1 bg-transparent text-[15px] outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder={tr("Search…")} className="h-11 flex-1 bg-transparent text-[15px] outline-none" />
         </div>
         <div className="-mx-2 min-h-[120px] flex-1 overflow-y-auto">
           {loading && hits.length === 0 ? (

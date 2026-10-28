@@ -60,7 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: tokens } = await admin
     .from("launchpad_tokens")
     .select("mint_address, updated_at")
-    .eq("status", "active")
+    .in("status", ["active", "graduated"])
     .not("mint_address", "is", null)
     .limit(500);
 
@@ -73,5 +73,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
-  return [...staticRoutes, ...marketRoutes, ...poolRoutes, ...tokenRoutes];
+  // Posts récents et profils publics
+  const { data: posts } = await admin
+    .from("posts")
+    .select("id, created_at")
+    .eq("hidden", false)
+    .is("repost_of", null)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const postRoutes: MetadataRoute.Sitemap = (posts ?? []).map(
+    (p: { id: string; created_at: string }) => ({
+      url: `${siteUrl}/post/${p.id}`,
+      lastModified: new Date(p.created_at),
+      changeFrequency: "daily" as const,
+      priority: 0.5,
+    }),
+  );
+  const { data: profiles } = await admin
+    .from("wallets")
+    .select("address")
+    .not("username", "is", null)
+    .limit(200);
+  const profileRoutes: MetadataRoute.Sitemap = (profiles ?? []).map(
+    (w: { address: string }) => ({
+      url: `${siteUrl}/profile/${w.address}`,
+      lastModified: new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.4,
+    }),
+  );
+
+  return [...staticRoutes, ...marketRoutes, ...poolRoutes, ...tokenRoutes, ...postRoutes, ...profileRoutes];
 }

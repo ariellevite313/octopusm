@@ -52,7 +52,7 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
   const mentions: Record<string, string> = {};
   const names = extractMentions(body);
   if (names.length) {
-    const { data: ws } = await admin.from("wallets").select("address, username").in("username", [...new Set([...names, ...names.map((n) => n.toLowerCase())])]);
+    const { data: ws } = await admin.from("wallets").select("address, username").or(names.map((n) => `username.ilike.${n}`).join(",")); // insensible à la casse (noms limités à A-Z, 0-9, _)
     for (const w of (ws ?? []) as { address: string; username: string }[]) {
       const hit = names.find((n) => n.toLowerCase() === w.username.toLowerCase());
       if (hit) mentions[hit.toLowerCase()] = w.address;
