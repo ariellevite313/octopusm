@@ -9,7 +9,8 @@ import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solan
 import { createPublicClient, encodeFunctionData, http, parseAbi, parseTransaction } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
 import { arc } from "@/lib/arc-chain";
-import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
+import { BONDING_CURVE_V2_ABI, ARC_DIRECT_ROUTER_ABI } from "@/lib/arc-launchpad";
+import { directPoolFee } from "@/lib/arc-trades";
 import { POST as dbcSwapRoute } from "@/app/api/launchpad/dbc-swap/route";
 import { rateHit } from "@/lib/rate-limit";
 
@@ -96,7 +97,47 @@ export async function prepareTrade(a: PrepareArgs) {
   const token = t.mint_address as `0x${string}`;
   const from = a.wallet.toLowerCase() as `0x${string}`;
   const pc = arcClient();
-  if (await pc.readContract({ address: curve, abi: BONDING_CURVE_V2_ABI, functionName: "graduated" })) throw new TradeError("This token has graduated: trade it on Uniswap");
+  // Pool Uniswap V4 : lancement direct, ou token de courbe gradué (pool à 0,50 %)
+  const router = (process.env.NEXT_PUBLIC_ARC_DIRECT_ROUTER || "") as `0x${string}` | "";
+  const dFee = await directPoolFee(curve.toLowerCase());
+  const isGraduated = dFee === null && Boolean(await pc.readContract({ address: curve, abi: BONDING_CURVE_V2_ABI, functionName: "graduated" }));
+  const poolFee = dFee ?? (isGraduated ? 5000 : null);
+  if (poolFee !== null) {
+    if (!router) throw new TradeError("This token trades on Uniswap V4 and the in-app router is not configured yet");
+    if (a.side === "buy") {
+      if (a.amount > MAX_BUY_USDC) throw new TradeError(`Max ${MAX_BUY_USDC} USDC per trade`);
+      const value = toUnits(a.amount, 18);
+      const { result: out } = await pc.simulateContract({ address: router, abi: ARC_DIRECT_ROUTER_ABI, functionName: "quoteBuy", args: [token, poolFee, value] });
+      if (out <= 0n) throw new TradeError("No price quote available right now, try again");
+      const minOut = (out * BigInt(10_000 - slip)) / 10_000n;
+      return {
+        chain: "arc", chain_id: 5042, rpc: ARC_RPC,
+        token: { id: t.id, name: t.name, ticker: t.ticker },
+        side: "buy", amount_in: a.amount, amount_in_unit: "USDC",
+        estimated_out: fromUnits(out, 18), estimated_out_unit: t.ticker, slippage_bps: slip,
+        transactions: [{ from, to: router, value: `0x${value.toString(16)}`, data: encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "buy", args: [token, poolFee, minOut, from] }) }],
+        next: "Sign and send the transaction with the wallet key (chain 5042), or sign it and call trade_submit { chain: \"arc\", signed_tx }.",
+      };
+    }
+    const tokensIn = toUnits(a.amount, 18);
+    const bal = (await pc.readContract({ address: token, abi: ERC20, functionName: "balanceOf", args: [from] })) as bigint;
+    if (bal < tokensIn) throw new TradeError("Not enough tokens in this wallet");
+    const { result: out } = await pc.simulateContract({ address: router, abi: ARC_DIRECT_ROUTER_ABI, functionName: "quoteSell", args: [token, poolFee, tokensIn] });
+    if (out <= 0n) throw new TradeError("No price quote available right now, try again");
+    const minOut = (out * BigInt(10_000 - slip)) / 10_000n;
+    const allowance = (await pc.readContract({ address: token, abi: ERC20, functionName: "allowance", args: [from, router] })) as bigint;
+    const txs = [];
+    if (allowance < tokensIn) txs.push({ from, to: token, value: "0x0", data: encodeFunctionData({ abi: ERC20, functionName: "approve", args: [router, tokensIn] }) });
+    txs.push({ from, to: router, value: "0x0", data: encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "sell", args: [token, poolFee, tokensIn, minOut, from] }) });
+    return {
+      chain: "arc", chain_id: 5042, rpc: ARC_RPC,
+      token: { id: t.id, name: t.name, ticker: t.ticker },
+      side: "sell", amount_in: a.amount, amount_in_unit: t.ticker,
+      estimated_out: fromUnits(out, 18), estimated_out_unit: "USDC", slippage_bps: slip,
+      transactions: txs,
+      next: "Sign and send each transaction in order (approve first if present), or call trade_submit { chain: \"arc\", signed_tx } for each.",
+    };
+  }
 
   if (a.side === "buy") {
     if (a.amount > MAX_BUY_USDC) throw new TradeError(`Max ${MAX_BUY_USDC} USDC per trade`);

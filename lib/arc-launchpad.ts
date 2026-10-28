@@ -1,3 +1,4 @@
+import { parseAbi } from "viem";
 /**
  * arc-launchpad.ts — V2 (coupure propre)
  *
@@ -319,3 +320,30 @@ export const TRADE_EVENT_TOPIC =
 // keccak256("Graduated(uint256,uint256)")
 export const GRADUATED_EVENT_TOPIC =
   "0xacfdce92da76539f5af2efc3aa76d42a7a92af4d723a23d144f58fdf1472921e" as const;
+
+// ─── Lancement direct sur Uniswap V4 (voir arc-launchpad/src/LaunchpadFactoryArcV4Direct.sol) ──────────────────
+// À définir après déploiement (forge script DeployDirectV4.s.sol) : NEXT_PUBLIC_ARC_FACTORY_DIRECT et NEXT_PUBLIC_ARC_DIRECT_ROUTER.
+export const ARC_FACTORY_DIRECT_ADDRESS = (process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT || "") as `0x${string}` | "";
+export const ARC_DIRECT_ROUTER_ADDRESS  = (process.env.NEXT_PUBLIC_ARC_DIRECT_ROUTER || "") as `0x${string}` | "";
+
+export const ARC_DIRECT_FACTORY_ABI = parseAbi([
+  "function createToken(string name, string symbol, string imageUri, string description, uint256 firstBuyUsdc, uint8 feeTier) payable returns (address vault, address token)",
+  "event TokenLaunchedDirect(address indexed vault, address indexed token, address indexed creator, string name, string symbol, string imageUri, string description, uint256 firstBuyUsdc, uint8 feeTier)",
+]);
+
+export const ARC_DIRECT_VAULT_ABI = parseAbi([
+  "function poolFee() view returns (uint24)",
+  "function collectFees()",
+  "function compound()",
+  "function positionCount() view returns (uint256)",
+]);
+
+export const ARC_DIRECT_ROUTER_ABI = parseAbi([
+  "function buy(address token, uint24 fee, uint256 minOut, address to) payable returns (uint256 out)",
+  "function sell(address token, uint24 fee, uint256 amountIn, uint256 minOut, address to) returns (uint256 out)",
+  "function quoteBuy(address token, uint24 fee, uint256 usdcIn) returns (uint256 out)",
+  "function quoteSell(address token, uint24 fee, uint256 tokensIn) returns (uint256 out)",
+]);
+
+/** Frais du pool V4 par plan, en lancement direct : plan 0 = 2,5 %, plan 1 (avec holders) = 2 %. Après graduation d'une courbe : 0,5 %. */
+export const ARC_POOL_FEE_GRADUATED = 5000;

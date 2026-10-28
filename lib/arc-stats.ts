@@ -7,6 +7,7 @@ import { createPublicClient, http } from "viem";
 import { arc } from "@/lib/arc-chain";
 import { BONDING_CURVE_V2_ABI } from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
+import { directPoolFee, readPoolPrice } from "@/lib/arc-trades";
 
 
 const TOTAL_SUPPLY = 1_000_000_000;
@@ -61,7 +62,7 @@ export async function refreshArcStats(origin: string): Promise<{ updated: number
 
   const { data: tokens, error } = await admin
     .from("launchpad_tokens")
-    .select("id, arc_launch_id")
+    .select("id, arc_launch_id, mint_address, status")
     .eq("chain", "arc")
     .in("status", ["active", "graduating", "graduated"])
     .not("arc_launch_id", "is", null);
@@ -71,15 +72,21 @@ export async function refreshArcStats(origin: string): Promise<{ updated: number
 
   const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
 
-  type TokenRow = { id: string; arc_launch_id: string };
+  type TokenRow = { id: string; arc_launch_id: string; mint_address: string | null; status: string };
 
   const results = await Promise.allSettled(
     (tokens as TokenRow[]).map(async (t) => {
       const curveAddr = t.arc_launch_id as `0x${string}`;
-      const [reserves, volume24h] = await Promise.all([
-        withTimeout(getReservesV2(client, curveAddr)),
+      // Pool Uniswap V4 : lancement direct, ou token gradué (la courbe ne bouge plus) — le prix vient du pool
+      const mint = t.mint_address && /^0x[0-9a-fA-F]{40}$/.test(t.mint_address) ? t.mint_address : null;
+      const dFee = mint ? await directPoolFee(t.arc_launch_id.toLowerCase()) : null;
+      const poolFee = dFee ?? (mint && t.status === "graduated" ? 5000 : null);
+      const poolPrice = mint && poolFee !== null ? await withTimeout(readPoolPrice(mint, poolFee)) : null;
+      const [curveReserves, volume24h] = await Promise.all([
+        dFee !== null ? Promise.resolve(null) : withTimeout(getReservesV2(client, curveAddr)),
         withTimeout(getVolume24h(t.arc_launch_id, origin)),
       ]);
+      const reserves = poolPrice ? { priceUsd: poolPrice, marketCap: poolPrice * TOTAL_SUPPLY } : curveReserves;
       if (!reserves) return { skipped: true };
       const { error: upErr } = await admin
         .from("launchpad_tokens")

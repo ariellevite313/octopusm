@@ -5,7 +5,7 @@
  * Event : Trade(address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee,
  *               uint256 realUsdcRaised, uint256 reserveUsdc, uint256 reserveTokens) — USDC Arc natif 18 décimales.
  */
-import { createPublicClient, http, parseAbi, encodeAbiParameters, keccak256, zeroAddress } from "viem";
+import { createPublicClient, http, parseAbi, encodeAbiParameters, keccak256, zeroAddress, concat, pad, toHex } from "viem";
 import { arc } from "@/lib/arc-chain";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -115,7 +115,7 @@ async function syncBondingCurveTrades(curveRaw: string, maxChunks = 40, db: Db =
 
 const directCache = new Map<string, number | null>();
 /** Frais du pool d'un vault de lancement direct (poolFee), ou null si l'adresse n'en est pas un. Actif seulement si NEXT_PUBLIC_ARC_FACTORY_DIRECT est défini. */
-async function directPoolFee(curve: string): Promise<number | null> {
+export async function directPoolFee(curve: string): Promise<number | null> {
   if (!process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT) return null;
   if (directCache.has(curve)) return directCache.get(curve)!;
   try {
@@ -161,8 +161,17 @@ export async function syncPoolSwaps(curveRaw: string, tokenRaw: string, fee = 50
       if (!logs.length) return [] as Record<string, unknown>[];
       const [ta, tb] = await Promise.all([blockTs(a), blockTs(b)]);
       const span = Number(b - a) || 1;
+      // « sender » de l'événement = le routeur, pas la personne : on prend l'auteur réel de la transaction
+      const hashes = [...new Set(logs.map((l) => String(l.transactionHash)))];
+      const fromOf = new Map<string, string>();
+      for (let k = 0; k < hashes.length; k += 10) {
+        await Promise.all(hashes.slice(k, k + 10).map(async (h) => {
+          try { fromOf.set(h, String((await pc.getTransaction({ hash: h as `0x${string}` })).from).toLowerCase()); } catch { /* repli : sender */ }
+        }));
+      }
       return logs.flatMap((l) => {
-        const { sender, amount0, amount1 } = l.args as { sender: string; amount0: bigint; amount1: bigint };
+        const { sender: evSender, amount0, amount1 } = l.args as { sender: string; amount0: bigint; amount1: bigint };
+        const sender = fromOf.get(String(l.transactionHash)) ?? evSender;
         const usdc = Math.abs(Number(amount0)) / 1e18, tok = Math.abs(Number(amount1)) / 1e18;
         const price = tok > 0 ? usdc / tok : 0;
         if (!(price > 0) || l.blockNumber == null) return [];
@@ -188,4 +197,22 @@ export async function readCurveTrades(curveRaw: string, limit = 1000, db: Db = c
   return ((data ?? []) as { ts: number; is_buy: boolean; trader: string; usdc_amt: number; token_amt: number; price: number; tx_hash: string }[])
     .map((r) => ({ timestamp: Number(r.ts), isBuy: r.is_buy, trader: r.trader, usdcAmt: r.usdc_amt, tokenAmt: r.token_amt, price: r.price, txHash: r.tx_hash }))
     .reverse();
+}
+
+const EXTSLOAD_ABI = parseAbi(["function extsload(bytes32 slot) view returns (bytes32)"]);
+
+/**
+ * Prix actuel (USDC par token) du pool Uniswap V4 d'un token, lu dans le PoolManager (slot0 du pool).
+ * Sert au lancement direct et aux tokens de courbe déjà gradués (la courbe ne bouge plus après la graduation).
+ */
+export async function readPoolPrice(token: string, fee = 5000): Promise<number | null> {
+  try {
+    const poolId = arcPoolId(token.toLowerCase(), fee);
+    const slot = keccak256(concat([poolId, pad(toHex(6), { size: 32 })])); // pools[poolId] : POOLS_SLOT = 6
+    const data = await client().readContract({ address: ARC_V4_POOL_MANAGER, abi: EXTSLOAD_ABI, functionName: "extsload", args: [slot] });
+    const sqrt = BigInt(data) & ((1n << 160n) - 1n);
+    if (sqrt === 0n) return null;
+    const ratio = Number(sqrt) / 2 ** 96; // tokens par USDC (racine)
+    return 1 / (ratio * ratio);
+  } catch { return null; }
 }
