@@ -49,7 +49,7 @@ export type QuotedPost = {
 };
 
 export type SharedMarket = {
-  kind: "pool" | "prediction";
+  kind: "pool" | "prediction" | "updown";
   title: string;
   image: string | null;
   href: string;
@@ -68,7 +68,7 @@ export type SharedMarket = {
 
 type Row = {
   id: string; author: string; body: string; images: string[] | null; ticker: string | null; token_id: string | null;
-  mentions?: Record<string, string> | null; market_kind?: "pool" | "prediction" | null; market_id?: string | null;
+  mentions?: Record<string, string> | null; market_kind?: "pool" | "prediction" | "updown" | null; market_id?: string | null;
   like_count: number; reply_count: number; view_count: number; created_at: string;
   repost_of?: string | null; quote_of?: string | null; repost_count?: number | null;
 };
@@ -172,12 +172,24 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
   const out = new Map<string, SharedMarket>();
   const pools = rows.filter((r) => r.market_kind === "pool" && r.market_id).map((r) => r.market_id!) ;
   const preds = rows.filter((r) => r.market_kind === "prediction" && r.market_id).map((r) => r.market_id!);
+  const ups = rows.filter((r) => r.market_kind === "updown" && r.market_id).map((r) => r.market_id!);
   const parse = (o: unknown) => (typeof o === "string" ? JSON.parse(o) : o) as { id: string; label?: string; name?: string }[] | null;
   try {
     const [p, q] = await Promise.all([
       pools.length ? admin.from("mutuel_markets").select("id, slug, title, cover_image_src, options, status, bet_token, total_pool_usdc, total_pool_clt, betting_closes_at, match_key").in("id", pools) : { data: [] },
       preds.length ? admin.from("prediction_markets").select("id, slug, title, single_image_src, left_competitor_image_src, options, is_resolved, is_active, event_start_at, price_ticker, price_target").in("id", preds) : { data: [] },
     ]);
+    if (ups.length) {
+      const { data: u } = await admin.from("updown_markets").select("id, symbol, duration_min, status, resolve_at").in("id", ups);
+      for (const m of (u ?? []) as Record<string, unknown>[]) {
+        const sym = String(m.symbol ?? "").replace("USDT", "");
+        out.set(String(m.id), {
+          kind: "updown", title: `${sym} Up or Down · ${m.duration_min} min`, image: null, href: `/updown/${m.id}`,
+          options: ["Up", "Down"], option_ids: ["up", "down"], pool: null,
+          closes_at: (m.resolve_at as string) ?? null, status: m.status === "open" && new Date(String(m.resolve_at)).getTime() > Date.now() ? "active" : "closed",
+        });
+      }
+    }
     for (const m of (p.data ?? []) as Record<string, unknown>[]) {
       const opts = parse(m.options) ?? [];
       const clt = m.bet_token === "clawdtrust";
@@ -206,9 +218,9 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
 
 /** Aperçu d'un marché à partir d'un lien collé (slug ou uuid) : même carte que dans le post publié. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function previewMarket(admin: any, ref: { kind: "pool" | "prediction"; key: string }): Promise<SharedMarket | null> {
+export async function previewMarket(admin: any, ref: { kind: "pool" | "prediction" | "updown"; key: string }): Promise<SharedMarket | null> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref.key);
-  const { data: m } = await admin.from(ref.kind === "pool" ? "mutuel_markets" : "prediction_markets").select("id").eq(isUuid ? "id" : "slug", ref.key).maybeSingle();
+  const { data: m } = await admin.from(ref.kind === "pool" ? "mutuel_markets" : ref.kind === "updown" ? "updown_markets" : "prediction_markets").select("id").eq(isUuid || ref.kind === "updown" ? "id" : "slug", ref.key).maybeSingle();
   if (!m) return null;
   const map = await loadMarkets(admin, [{ market_kind: ref.kind, market_id: m.id } as Row]);
   return map.get(String(m.id)) ?? null;

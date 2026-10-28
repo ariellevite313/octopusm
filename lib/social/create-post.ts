@@ -58,13 +58,13 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
       if (hit) mentions[hit.toLowerCase()] = w.address;
     }
   }
-  let market_kind: "pool" | "prediction" | null = null;
+  let market_kind: "pool" | "prediction" | "updown" | null = null;
   let market_id: string | null = null;
   const ref = extractMarketRef(body);
   if (ref) {
-    const table = ref.kind === "pool" ? "mutuel_markets" : "prediction_markets";
+    const table = ref.kind === "pool" ? "mutuel_markets" : ref.kind === "updown" ? "updown_markets" : "prediction_markets";
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref.key);
-    const { data: m } = await admin.from(table).select("id").eq(isUuid ? "id" : "slug", ref.key).maybeSingle();
+    const { data: m } = await admin.from(table).select("id").eq(isUuid || ref.kind === "updown" ? "id" : "slug", ref.key).maybeSingle();
     if (m) { market_kind = ref.kind; market_id = m.id; }
   }
 
