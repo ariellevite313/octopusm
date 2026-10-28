@@ -133,15 +133,15 @@ contract DirectV4Test is Test {
         vm.stopPrank();
     }
 
-    function test_plan0_fees_1pct_creator_05_platform_1_liquidity() public {
+    function test_plan0_fees_1_5pct_third_each() public {
         (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
-        assertEq(v.poolFee(), 25_000, "2,5 %");
+        assertEq(v.poolFee(), 15_000, "1,5 %");
         uint256 got = _buy(v, 1_000 ether);
         _sellBack(v, t, got / 2);
         uint256 c0 = creator.balance; uint256 t0 = treasury.balance;
         v.collectFees();
-        // 1 000 USDC achetés a 2,5 % = ~25 USDC de frais : 40 % createur (~10), 20 % plateforme (~5), 40 % liquidite (~10)
-        assertApproxEqRel(creator.balance - c0, 10 ether, 0.1e18);
+        // 1 000 USDC achetes a 1,5 % = ~15 USDC de frais : 0,5 % createur (~5), 0,5 % plateforme (~5), 0,5 % liquidite (~5)
+        assertApproxEqRel(creator.balance - c0, 5 ether, 0.1e18);
         assertApproxEqRel(treasury.balance - t0, 5 ether, 0.1e18);
         assertEq(v.positionCount(), 2, "la part liquidite est ajoutee au pool");
         assertLt(address(v).balance, 0.01 ether, "presque rien ne reste dans le vault");
@@ -160,7 +160,7 @@ contract DirectV4Test is Test {
 
     function test_plan1_pays_holders_dividends_and_excludes_the_pool() public {
         (DirectV4Vault v, OMTokenDirect t) = _launch(0, 1);
-        assertEq(v.poolFee(), 20_000, "2,0 %");
+        assertEq(v.poolFee(), 20_000, "2 %");
         uint256 got = _buy(v, 1_000 ether);
         _sellBack(v, t, got / 2);
         uint256 c0 = creator.balance; uint256 t0 = treasury.balance;

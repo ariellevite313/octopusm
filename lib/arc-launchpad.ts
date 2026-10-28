@@ -30,23 +30,21 @@ export const BC_CURVE_SUPPLY   = 800_000_000n * 10n ** 18n;   // 800 M tokens al
 export const BC_GRAD_THRESHOLD = 2_000n * 10n ** 18n;         // 2 000 USDC levés → graduation
 export const BC_K              = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
 
-// ─── Fee tiers (doivent correspondre à BondingCurveArcV2.tierBps() — valeurs V1) ─
+// ─── Plans de frais : les mêmes partout (courbe, lancement direct, pool après graduation) ─
 // [totalBps, creatorBps, platformBps, lpBps, holdersBps]
 export const ARC_FEE_TIERS = [
-  { name: "Standard",  totalBps: 100, creatorBps:  50, platformBps: 25, lpBps: 25, holdersBps:  0 },
-  { name: "Community", totalBps: 125, creatorBps:  40, platformBps: 30, lpBps: 30, holdersBps: 25 },
-  { name: "Creator",   totalBps: 150, creatorBps:  80, platformBps: 40, lpBps: 30, holdersBps:  0 },
-  { name: "Max",       totalBps: 200, creatorBps: 100, platformBps: 50, lpBps: 30, holdersBps: 20 },
+  { name: "1.5%", totalBps: 150, creatorBps: 50, platformBps: 50, lpBps: 50, holdersBps:  0 },
+  { name: "2%",   totalBps: 200, creatorBps: 50, platformBps: 50, lpBps: 50, holdersBps: 50 },
 ] as const;
 
-export type ArcFeeTierIndex = 0 | 1 | 2 | 3;
+export type ArcFeeTierIndex = 0 | 1;
 
-/** Fee bps du tier sélectionné (pour les quotes client-side) */
+/** Fee bps du plan sélectionné (pour les quotes client-side) */
 export function arcTierFeeBps(tier: ArcFeeTierIndex): bigint {
   return BigInt(ARC_FEE_TIERS[tier].totalBps);
 }
 
-// Rétro-compatibilité — fee par défaut = tier 0 (Standard 1%)
+// Rétro-compatibilité — fee par défaut = plan 0 (1,5 %)
 export const BC_FEE_BPS = BigInt(ARC_FEE_TIERS[0].totalBps);
 
 export const ARC_DEFAULT_SUPPLY = BigInt("1000000000000000000000000000"); // 1e27
@@ -345,5 +343,26 @@ export const ARC_DIRECT_ROUTER_ABI = parseAbi([
   "function quoteSell(address token, uint24 fee, uint256 tokensIn) returns (uint256 out)",
 ]);
 
-/** Frais du pool V4 par plan, en lancement direct : plan 0 = 2,5 %, plan 1 (avec holders) = 2 %. Après graduation d'une courbe : 0,5 %. */
-export const ARC_POOL_FEE_GRADUATED = 5000;
+/** Frais du pool V4 : plan 0 = 1,5 % (15000), plan 1 = 2 % (20000). Anciens tokens de courbe déjà gradués : 0,50 % (5000). */
+export const ARC_POOL_FEE_LEGACY = 5000;
+
+/**
+ * Frais du pool Uniswap V4 d'un token Arc, ou null s'il n'a pas (encore) de pool.
+ *  - lancement direct : `launchId` est le vault, qui expose poolFee()
+ *  - courbe graduée : on lit poolFee() sur le vault de graduation (repli : 0,50 % pour les anciens vaults)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function resolveArcPoolFee(client: any, launchId: string, graduated: boolean): Promise<number | null> {
+  if (ARC_FACTORY_DIRECT_ADDRESS) {
+    try {
+      const fee = await client.readContract({ address: launchId as `0x${string}`, abi: ARC_DIRECT_VAULT_ABI, functionName: "poolFee" });
+      if (fee) return Number(fee);
+    } catch { /* pas un vault direct */ }
+  }
+  if (!graduated) return null;
+  try {
+    const vault = await client.readContract({ address: launchId as `0x${string}`, abi: BONDING_CURVE_V2_ABI, functionName: "graduationVault" }) as `0x${string}`;
+    const fee = await client.readContract({ address: vault, abi: ARC_DIRECT_VAULT_ABI, functionName: "poolFee" });
+    return fee ? Number(fee) : ARC_POOL_FEE_LEGACY;
+  } catch { return ARC_POOL_FEE_LEGACY; }
+}

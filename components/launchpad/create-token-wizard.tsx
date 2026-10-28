@@ -77,7 +77,7 @@ type WizardData = {
   arc_supply: number;
   arc_first_buy_enabled: boolean;
   arc_first_buy_usdc: number;
-  arc_fee_tier: 0 | 1 | 2 | 3;
+  arc_fee_tier: 0 | 1;
   arc_launch_mode: "curve" | "direct";
   // Stock-paired (Solana)
   sol_token_type: "sol" | "stock";
@@ -593,7 +593,7 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
   let tokensEst = "";
   if (isArc && amount > 0) {
     try {
-      const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier].totalBps);
+      const feeBps = BigInt(ARC_FEE_TIERS[data.arc_fee_tier === 1 ? 1 : 0].totalBps);
       const usdcWei = BigInt(Math.round(amount * 1e15)) * 1000n;
       const { tokensOut } = quoteArcBuy(BC_VIRTUAL_USDC, BC_CURVE_SUPPLY, usdcWei, feeBps, BC_K);
       const tok = Number(tokensOut / 10n ** 12n) / 1e6;
@@ -719,85 +719,11 @@ const TIER_ACCENT: Record<number, { tabSel: string; badge: string; card: string;
   },
 };
 
-// ─── Fee Tier Card — Arc V2 ──────────────────────────────────────────────────
-
-const ARC_TIER_DEFS = [
-  {
-    index: 0 as const,
-    name: "Standard",
-    totalPct: 1.0,
-    rows: [
-      { label: "Creator",  pct: 0.50, color: "#378ADD" },
-      { label: "Platform", pct: 0.25, color: "#1D9E75" },
-      { label: "LP Bonus", pct: 0.25, color: "#F59E0B" },
-    ],
-    // Post-graduation splits of the 0.50% V4 pool fee
-    postGrad: [
-      { label: "Creator",    pct: 53.33, color: "#378ADD" },
-      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 26.67, color: "#F59E0B" },
-    ],
-    desc: "Simple. LP bonus boosts graduation liquidity.",
-  },
-  {
-    index: 1 as const,
-    name: "Community",
-    totalPct: 1.25,
-    rows: [
-      { label: "Creator",  pct: 0.40, color: "#378ADD" },
-      { label: "Platform", pct: 0.30, color: "#1D9E75" },
-      { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
-      { label: "Holders",  pct: 0.25, color: "#8B5CF6" },
-    ],
-    postGrad: [
-      { label: "Creator",    pct: 33.69, color: "#378ADD" },
-      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 25.27, color: "#F59E0B" },
-      { label: "Holders",    pct: 21.04, color: "#8B5CF6" },
-    ],
-    desc: "Holders earn dividends + LP bonus on every swap.",
-  },
-  {
-    index: 2 as const,
-    name: "Creator",
-    totalPct: 1.50,
-    rows: [
-      { label: "Creator",  pct: 0.80, color: "#378ADD" },
-      { label: "Platform", pct: 0.40, color: "#1D9E75" },
-      { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
-    ],
-    postGrad: [
-      { label: "Creator",    pct: 58.17, color: "#378ADD" },
-      { label: "Platform",   pct: 20.00, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 21.83, color: "#F59E0B" },
-    ],
-    desc: "Max creator yield. LP bonus boosts graduation liquidity.",
-  },
-  {
-    index: 3 as const,
-    name: "Max",
-    totalPct: 2.0,
-    rows: [
-      { label: "Creator",  pct: 1.00, color: "#378ADD" },
-      { label: "Platform", pct: 0.50, color: "#1D9E75" },
-      { label: "LP Bonus", pct: 0.30, color: "#F59E0B" },
-      { label: "Holders",  pct: 0.20, color: "#8B5CF6" },
-    ],
-    postGrad: [
-      { label: "Creator",    pct: 46.66, color: "#378ADD" },
-      { label: "Platform",   pct: 30.00, color: "#1D9E75" },
-      { label: "LP Reserve", pct: 14.00, color: "#F59E0B" },
-      { label: "Holders",    pct:  9.34, color: "#8B5CF6" },
-    ],
-    desc: "Max fees. Holders earn dividends + extra LP at graduation.",
-  },
-];
-
-/** Lancement direct sur Uniswap V4 : deux plans de frais (% de chaque achat). Les frais d'une vente sont payés en tokens et brûlés. */
-const DIRECT_TIERS = [
-  { index: 0 as const, name: "Creator 1%", total: 2.5, desc: "You earn 1% on every buy. Another 1% grows the liquidity.",
-    rows: [["You, the creator", 1], ["Platform", 0.5], ["Liquidity, added to the pool", 1]] as [string, number][] },
-  { index: 1 as const, name: "Holders 0.5%", total: 2, desc: "Holders earn dividends on every buy, plus liquidity growth.",
+// ─── Plans de frais Arc : les mêmes partout (courbe, lancement direct, pool après graduation) ─────────────────
+const ARC_PLANS = [
+  { index: 0 as const, name: "1.5%", total: 1.5, desc: "Simple. You, the platform and the liquidity each get 0.5%.",
+    rows: [["You, the creator", 0.5], ["Platform", 0.5], ["Liquidity, added to the pool", 0.5]] as [string, number][] },
+  { index: 1 as const, name: "2% with holders", total: 2, desc: "Same, plus 0.5% paid as dividends to holders.",
     rows: [["You, the creator", 0.5], ["Platform", 0.5], ["Liquidity, added to the pool", 0.5], ["Holders, as dividends", 0.5]] as [string, number][] },
 ];
 
@@ -839,15 +765,13 @@ function ArcLaunchOptions({
 }: {
   mode: "curve" | "direct";
   setMode: (m: "curve" | "direct") => void;
-  tier: 0 | 1 | 2 | 3;
-  setTier: (t: 0 | 1 | 2 | 3) => void;
+  tier: 0 | 1;
+  setTier: (t: 0 | 1) => void;
 }) {
   const { tr } = useT();
   const directAvailable = Boolean(process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT);
   const direct = mode === "direct" && directAvailable;
-  const curveDef = ARC_TIER_DEFS[tier];
-  const directDef = DIRECT_TIERS.find((t) => t.index === tier) ?? DIRECT_TIERS[0];
-  const directTier = (tier === 1 ? 1 : 0) as 0 | 1;
+  const plan = ARC_PLANS[tier] ?? ARC_PLANS[0];
 
   return (
     <div className="space-y-5">
@@ -866,33 +790,21 @@ function ArcLaunchOptions({
       <div>
         <p className="mb-1 text-[13px] text-muted-foreground">{tr("Fee plan")}</p>
         <div className="border-t border-border">
-          {direct
-            ? DIRECT_TIERS.map((t) => (
-                <OptionRow key={t.index} on={directTier === t.index} onClick={() => setTier(t.index)} title={tr(t.name)} right={`${t.total}%`} desc={tr(t.desc)} />
-              ))
-            : ARC_TIER_DEFS.map((t) => (
-                <OptionRow key={t.index} on={tier === t.index} onClick={() => setTier(t.index)} title={t.name} right={`${t.totalPct}%`} desc={tr(t.desc)} />
-              ))}
+          {ARC_PLANS.map((p) => (
+            <OptionRow key={p.index} on={tier === p.index} onClick={() => setTier(p.index)} title={tr(p.name)} right={`${p.total}%`} desc={tr(p.desc)} />
+          ))}
         </div>
       </div>
 
       <div>
-        <p className="mb-1 text-[13px] text-muted-foreground">
-          {direct ? tr("Each buy pays %s%, split like this").replace("%s", String(directDef.total)) : tr("Each trade on the curve pays")}
-        </p>
+        <p className="mb-1 text-[13px] text-muted-foreground">{tr("Each trade pays %s%, split like this").replace("%s", String(plan.total))}</p>
         <div className="border-t border-border">
-          {direct ? (
-            <>
-              {directDef.rows.map(([label, pct]) => <FeeLine key={label} label={tr(label)} value={`${pct}%`} />)}
-            </>
-          ) : (
-            curveDef.rows.map((r) => <FeeLine key={r.label} label={tr(r.label === "Creator" ? "You, the creator" : r.label === "LP Bonus" ? "Liquidity bonus" : r.label)} value={`${r.pct.toFixed(2)}%`} />)
-          )}
+          {plan.rows.map(([label, pct]) => <FeeLine key={label} label={tr(label)} value={`${pct}%`} />)}
         </div>
         <p className="mt-2 text-xs leading-snug text-muted-foreground">
           {direct
             ? tr("Fees are collected by anyone and paid out on chain. A sell pays its fee in tokens, which are burned.")
-            : tr("After it moves to Uniswap V4, each trade pays 0.50%, split between you, the platform and the liquidity.")}
+            : tr("Same plan before and after it moves to Uniswap V4.")}
         </p>
       </div>
     </div>
@@ -1133,7 +1045,7 @@ export function CreateTokenWizard({
             address:      ARC_FACTORY_DIRECT_ADDRESS as `0x${string}`,
             abi:          ARC_DIRECT_FACTORY_ABI,
             functionName: "createToken",
-            args: [data.name, data.ticker, "", data.description, firstBuyUsdc, data.arc_fee_tier === 1 ? 1 : 0],
+            args: [data.name, data.ticker, "", data.description, firstBuyUsdc, data.arc_fee_tier],
             value: totalValue,
           })
         : await walletClient.writeContract({

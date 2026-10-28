@@ -7,6 +7,7 @@
  */
 import { createPublicClient, http, parseAbi, encodeAbiParameters, keccak256, zeroAddress, concat, pad, toHex } from "viem";
 import { arc } from "@/lib/arc-chain";
+import { resolveArcPoolFee } from "@/lib/arc-launchpad";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const ARC_RPC = "https://rpc.mainnet.arc.io";
@@ -48,10 +49,12 @@ export async function syncCurveTrades(curveRaw: string, maxChunks = 40, db: Db =
   const token = tok?.mint_address as string | undefined;
   const validToken = Boolean(token) && /^0x[0-9a-fA-F]{40}$/.test(token!);
   const directFee = validToken ? await directPoolFee(curve) : null;
-  const hasPool = validToken && (directFee !== null || tok?.status === "graduated");
-  // Lancement direct : aucun événement Trade de courbe, seulement le pool V4. Token gradué : on lit aussi le pool (frais 0,50 %).
+  const gradFee = directFee === null && validToken && tok?.status === "graduated" ? await resolveArcPoolFee(client(), curve, true) : null;
+  const poolFee = directFee ?? gradFee;
+  const hasPool = validToken && poolFee !== null;
+  // Lancement direct : aucun événement Trade de courbe, seulement le pool V4. Token gradué : on lit aussi le pool.
   let poolDone = true;
-  if (hasPool) poolDone = await syncPoolSwaps(curve, token!, directFee ?? 5000, maxChunks, db).catch((e) => { console.error("[arc-trades] pool:", e instanceof Error ? e.message : e); return false; });
+  if (hasPool) poolDone = await syncPoolSwaps(curve, token!, poolFee!, maxChunks, db).catch((e) => { console.error("[arc-trades] pool:", e instanceof Error ? e.message : e); return false; });
   if (directFee !== null) return poolDone;
   const curveDone = await syncBondingCurveTrades(curveRaw, maxChunks, db);
   return curveDone && poolDone;
