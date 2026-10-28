@@ -3,6 +3,7 @@ import { nameTickerError } from "@/lib/launch/name-rules";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 import { verifyTokenCreator, type CreatorVerdict } from "@/lib/launch/verify-creator";
+import { requireWallet } from "@/lib/social/session";
 
 // Max file sizes
 const MAX_LOGO_BYTES       = 5  * 1024 * 1024; // 5 MB
@@ -57,6 +58,8 @@ type CreatePayload = {
 };
 
 export async function POST(req: Request) {
+  const sess = await requireWallet();
+  if ("error" in sess) return sess.error;
   try {
     const form = await req.formData();
     const rawPayload = form.get("payload");
@@ -71,6 +74,10 @@ export async function POST(req: Request) {
     if (!payload.ticker?.trim())      return NextResponse.json({ error: "Ticker is required" }, { status: 400 });
     { const e = nameTickerError(payload.name, payload.ticker); if (e) return NextResponse.json({ error: e }, { status: 400 }); }
     if (!payload.creator_wallet)      return NextResponse.json({ error: "Wallet not provided" }, { status: 400 });
+    // Le créateur est toujours le wallet de la session, jamais une valeur du client.
+    if (payload.creator_wallet.toLowerCase() !== sess.wallet.toLowerCase()) {
+      return NextResponse.json({ error: "Not your wallet" }, { status: 403 });
+    }
 
     if (isProtectedName(payload.name) || isProtectedName(payload.ticker)) {
       return NextResponse.json({ error: "This name or ticker is reserved" }, { status: 409 });
@@ -133,8 +140,8 @@ export async function POST(req: Request) {
         arc_launch_id:  payload.arc_launch_id,
         creator_wallet: payload.creator_wallet,
       });
-      if (creatorVerdict === "mismatch") {
-        return NextResponse.json({ error: "Creator wallet does not match the on-chain token creator" }, { status: 403 });
+      if (creatorVerdict !== "ok" || !payload.arc_launch_id) {
+        return NextResponse.json({ error: creatorVerdict === "mismatch" ? "Creator wallet does not match the on-chain token creator" : "Could not verify the token on-chain, retry in a moment" }, { status: creatorVerdict === "mismatch" ? 403 : 503 });
       }
       // The same on-chain token cannot be registered twice
       const adminCheck = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any

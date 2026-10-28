@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { Connection, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireWallet } from "@/lib/social/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,8 @@ export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
+    const sess = await requireWallet();
+    if ("error" in sess) return sess.error;
     const body = await req.json() as { signedTransactionBase64?: string; walletAddress?: string };
     if (!body.signedTransactionBase64) {
       return NextResponse.json({ error: "signedTransactionBase64 is required" }, { status: 400 });
@@ -43,7 +46,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (!token) {
       return NextResponse.json({ error: "Token not found" }, { status: 404 });
     }
-    if (token.creator_wallet !== body.walletAddress) {
+    if (token.creator_wallet !== body.walletAddress || body.walletAddress !== sess.wallet) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     if (token.status !== "pending") {
