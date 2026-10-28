@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { Connection } from "@solana/web3.js";
 import { getIp } from "@/lib/v1/helpers";
+import { runAsAgent } from "@/lib/social/session";
 
 export const LAUNCH_CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -39,10 +40,14 @@ export async function callJson(
   id: string,
   body: unknown,
 ): Promise<{ status: number; data: Record<string, unknown> }> {
-  const res = await handler(
+  // L'API agent n'a pas de session : le wallet annoncé sert d'identité aux gestionnaires partagés.
+  // La preuve réelle de contrôle reste la signature du créateur dans les transactions et la lecture de la chaîne.
+  const w = (body as { walletAddress?: string }).walletAddress;
+  const run = () => handler(
     new Request("http://internal/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     { params: Promise.resolve({ id }) },
   );
+  const res = await (w ? runAsAgent(w, run) : run());
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   return { status: res.status, data };
 }

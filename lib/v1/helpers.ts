@@ -149,9 +149,8 @@ export function checkRateLimit(ip: string): boolean {
 }
 
 export function getIp(req: Request): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
+  // « x-real-ip » est posé par le serveur web. Sinon on prend le DERNIER saut de « x-forwarded-for »
+  // (ajouté par notre proxy), jamais le premier, que le client peut falsifier.
+  const xff = req.headers.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean);
+  return req.headers.get("x-real-ip") ?? xff?.[xff.length - 1] ?? "unknown";
 }

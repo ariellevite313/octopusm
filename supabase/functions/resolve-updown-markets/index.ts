@@ -248,7 +248,7 @@ Deno.serve(async (_req) => {
       .from("updown_bets")
       .select("*")
       .eq("market_id", market.id)
-      .in("status", ["pending", "approved"]);
+      .eq("status", "approved"); // seules les mises approuvées (donc dans le pool) peuvent gagner
 
     if (!bets || bets.length === 0) {
       resolved.push(`${market.symbol} ${market.duration_min}m → ${outcome} (no bets)`);
