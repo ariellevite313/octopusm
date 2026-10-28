@@ -204,6 +204,16 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
   return out;
 }
 
+/** Aperçu d'un marché à partir d'un lien collé (slug ou uuid) : même carte que dans le post publié. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function previewMarket(admin: any, ref: { kind: "pool" | "prediction"; key: string }): Promise<SharedMarket | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref.key);
+  const { data: m } = await admin.from(ref.kind === "pool" ? "mutuel_markets" : "prediction_markets").select("id").eq(isUuid ? "id" : "slug", ref.key).maybeSingle();
+  if (!m) return null;
+  const map = await loadMarkets(admin, [{ market_kind: ref.kind, market_id: m.id } as Row]);
+  return map.get(String(m.id)) ?? null;
+}
+
 /** Normalise une adresse : EVM en minuscules, Solana inchangée. */
 export function normWallet(w: string): string {
   return /^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w;

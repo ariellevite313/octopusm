@@ -14,9 +14,15 @@ import type { ScoreRow } from "@/components/sports/live-scores";
 
 type Category = CategorySlug;
 
+export interface PoolDraft {
+  title: string; description?: string; coverImage?: string | null; options: { label: string; image_url?: string | null }[];
+  closesAt?: string; category?: string; betToken?: "usdc" | "clawdtrust";
+}
+
 interface Props {
   onClose:   () => void;
   onCreated: (market: MutuelMarketRow) => void;
+  initial?:  PoolDraft;
 }
 
 interface OptionDraft {
@@ -101,15 +107,15 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export function CreatePoolModal({ onClose, onCreated }: Props) {
+export function CreatePoolModal({ onClose, onCreated, initial }: Props) {
   const { tr } = useT();
   const { walletAddress, walletType } = useAuth();
 
-  const [title,          setTitle]          = useState("");
-  const [description,    setDescription]    = useState("");
-  const [coverImage,     setCoverImage]     = useState("");
-  const [options,        setOptions]        = useState<OptionDraft[]>([{ label: "" }, { label: "" }]);
-  const [closesAt,       setClosesAt]       = useState("");
+  const [title,          setTitle]          = useState(initial?.title ?? "");
+  const [description,    setDescription]    = useState(initial?.description ?? "");
+  const [coverImage,     setCoverImage]     = useState(initial?.coverImage ?? "");
+  const [options,        setOptions]        = useState<OptionDraft[]>(initial?.options?.length ? initial.options.map((o) => ({ label: o.label, image_url: o.image_url ?? undefined })) : [{ label: "" }, { label: "" }]);
+  const [closesAt,       setClosesAt]       = useState(initial?.closesAt ?? "");
   const [match,          setMatch]          = useState<ScoreRow | null>(null);
 
   // Match choisi : titre, options (domicile / nul / extérieur), catégorie et clôture au coup d'envoi
@@ -123,8 +129,8 @@ export function CreatePoolModal({ onClose, onCreated }: Props) {
     setCategory("sports" as Category);
     setClosesAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
   }
-  const [category,       setCategory]       = useState<Category>("mentions");
-  const [betToken,       setBetToken]       = useState<"usdc" | "clawdtrust">("usdc");
+  const [category,       setCategory]       = useState<Category>((initial?.category as Category) ?? "mentions");
+  const [betToken,       setBetToken]       = useState<"usdc" | "clawdtrust">(initial?.betToken ?? "usdc");
   const [feeToken,       setFeeToken]       = useState<"usdc" | "clawdtrust">("usdc");
   const [step,           setStep]           = useState<CreateStep>("idle");
   const [errorMsg,       setErrorMsg]       = useState<string | null>(null);

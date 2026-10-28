@@ -38,6 +38,16 @@ const SCHEMAS: Record<string, McpTool["inputSchema"]> = {
     banner_base64: { type: "string", description: "New profile banner, base64 (PNG/JPEG/WebP/GIF, max 4 MB)" },
     banner_url: { type: "string", description: "Or a public https link to the new banner" },
   }),
+  request_pool_market: S({
+    title: { type: "string", maxLength: 200 },
+    description: { type: "string", maxLength: 1000 },
+    category: { type: "string", description: "Category slug (sports, politics, crypto, tech, economy, elections, ...). Default mentions" },
+    options: { type: "array", minItems: 2, maxItems: 8, items: { type: "object", properties: { label: { type: "string", maxLength: 80 }, image_url: { type: "string", description: "Public https link to the option image" }, image_base64: { type: "string", description: "Or the option image in base64 (max 2 MB)" } }, required: ["label"] } },
+    cover_image_url: { type: "string", description: "Public https link to the market cover image" },
+    cover_image_base64: { type: "string", description: "Or the cover image in base64 (max 2 MB)" },
+    betting_closes_at: { type: "string", description: "ISO date, at least 1 hour from now" },
+    bet_token: { type: "string", enum: ["usdc", "clawdtrust"] },
+  }, ["title", "options", "betting_closes_at"]),
   request_approval: S({
     kind: { type: "string", enum: ["bet_pool", "buy_token", "sell_token"] },
     target_id: { type: "string", description: "Pool market uuid or token uuid" },
@@ -51,7 +61,7 @@ function need(scopes: string[], scope: string) {
 }
 
 const actionTools: McpTool[] = Object.entries(ACTIONS)
-  .filter(([k]) => k !== "register")
+  .filter(([k]) => k !== "register" && !["pool_fee_prepare", "pool_fee_submit", "create_pool_market"].includes(k))
   .map(([k, a]) => ({
     name: k,
     description: a.description + " Acts as the connected user.",
@@ -59,7 +69,7 @@ const actionTools: McpTool[] = Object.entries(ACTIONS)
     inputSchema: SCHEMAS[k] ?? S({}),
     run: async (args, ctx) => {
       if (!ctx.user) throw new ToolError("Not connected");
-      need(ctx.user.scopes, k === "request_approval" ? "approvals" : "social");
+      need(ctx.user.scopes, k === "request_approval" || k === "request_pool_market" ? "approvals" : "social");
       try { return await a.run(ctx.user.wallet, args, ctx); } catch (e) { if (e instanceof ActionError) throw new ToolError(e.message); throw e; }
     },
   }));
