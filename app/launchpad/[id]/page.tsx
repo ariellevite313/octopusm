@@ -29,6 +29,7 @@ import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { AppIcon } from "@/components/shared/app-icon";
 import { TokenHolders } from "@/components/launchpad/token-holders";
+import { creatorEarnLabel } from "@/lib/launch/fee-tiers";
 import { TokenDetailShell } from "@/components/launchpad/token-detail-shell";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
@@ -591,7 +592,7 @@ export default async function TokenDetailPage({ params }: Props) {
                     <span className="font-mono text-[11px] text-foreground break-all">{shortAddr(token.creator_wallet, 6, 6)}</span>
                   )}
                   </a>
-                  <span className="shrink-0 text-xs font-semibold text-up">1% fees</span>
+                  <span className="shrink-0 text-xs font-semibold text-up">{isArc ? "1%" : creatorEarnLabel(token.sol_fee_tier)} fees</span>
                 </div>
               </div>
             </div>

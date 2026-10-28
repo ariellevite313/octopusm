@@ -21,6 +21,8 @@ export type LaunchpadToken = {
   supply: number;
   creator_fee_pct: number;
   platform_fee_pct: number;
+  /** Niveau de frais Solana : « low » = 1,25 % (créateur 0,5 %), sinon standard = 2 % */
+  sol_fee_tier?: "standard" | "low" | null;
   fee_recipients: { address: string; share_pct: number }[] | null;
   share_top100: boolean;
   share_top100_pct: number | null;
@@ -78,7 +80,7 @@ const PUBLIC_COLUMNS = [
   "id","name","ticker","category","description","logo_url","banner_url","whitepaper_url",
   "website","twitter","telegram","discord","other_social",
   "mint_address","pool_address","creator_wallet","supply",
-  "creator_fee_pct","platform_fee_pct","fee_recipients",
+  "creator_fee_pct","platform_fee_pct","sol_fee_tier","fee_recipients",
   "share_top100","share_top100_pct","is_scheduled","scheduled_at",
   "first_buy_amount","status","is_verified","is_tradeable","metadata_uri",
   "created_at","updated_at",

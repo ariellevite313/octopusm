@@ -433,14 +433,14 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             {data.sol_fee_tier === "low"
-              ? (share ? tr("1% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("1% trading fee per trade. 100% of your creator fees go to your wallet."))
+              ? (share ? tr("1.25% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("1.25% trading fee per trade. 100% of your creator fees go to your wallet."))
               : (share ? tr("2% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("2% trading fee per trade. 100% of your creator fees go to your wallet."))}
           </p>
           {lowFeeEnabled && (
             <div className="mt-4">
               <Label>{tr("Trading fee")}</Label>
               <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-                {([["standard", "2%", tr("You earn 0.9% of volume")], ["low", "1%", tr("You earn 0.5% of volume")]] as const).map(([k, fee, earn]) => (
+                {([["standard", "2%", tr("You earn 0.9% of volume")], ["low", "1.25%", tr("You earn 0.5% of volume")]] as const).map(([k, fee, earn]) => (
                   <button key={k} type="button" onClick={() => set("sol_fee_tier", k)}
                     className={`rounded-xl py-2.5 text-sm font-semibold transition-colors ${data.sol_fee_tier === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                     {fee}
