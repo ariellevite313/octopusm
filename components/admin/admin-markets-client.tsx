@@ -511,7 +511,7 @@ function LivePriceHint({ symbol, target }: { symbol: string; target: string }) {
   useEffect(() => {
     let off = false; let unsub: (() => void) | undefined;
     setPrice(null);
-    resolveQuote(symbol).then((q) => {
+    resolveQuote(symbol, { anyDex: true }).then((q) => {
       if (off || !q) return;
       setPrice(q.price);
       unsub = subscribePrice(q, (p) => !off && setPrice(p));
