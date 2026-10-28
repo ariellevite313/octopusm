@@ -35,9 +35,10 @@ export const BC_K              = BC_VIRTUAL_USDC * BC_CURVE_SUPPLY;
 export const ARC_FEE_TIERS = [
   { name: "1.5%", totalBps: 150, creatorBps: 50, platformBps: 50, lpBps: 50, holdersBps:  0 },
   { name: "2%",   totalBps: 200, creatorBps: 100, platformBps: 50, lpBps: 50, holdersBps: 0 },
+  { name: "2% + holders", totalBps: 200, creatorBps: 50, platformBps: 50, lpBps: 50, holdersBps: 50 },
 ] as const;
 
-export type ArcFeeTierIndex = 0 | 1;
+export type ArcFeeTierIndex = 0 | 1 | 2;
 
 /** Fee bps du plan sélectionné (pour les quotes client-side) */
 export function arcTierFeeBps(tier: ArcFeeTierIndex): bigint {

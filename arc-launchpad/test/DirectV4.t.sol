@@ -172,10 +172,29 @@ contract DirectV4Test is Test {
         assertEq(t.pendingDividend(buyer), 0, "pas de dividendes dans ce plan");
     }
 
+    function test_plan2_pays_holders_dividends_and_excludes_the_pool() public {
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 2);
+        assertEq(v.poolFee(), 20_000, "2 %");
+        uint256 got = _buy(v, 1_000 ether);
+        _sellBack(v, t, got / 2);
+        uint256 c0 = creator.balance; uint256 t0 = treasury.balance;
+        v.collectFees();
+        // ~20 USDC de frais : 0,5 % chacun (~5)
+        assertApproxEqRel(creator.balance - c0, 5 ether, 0.1e18);
+        assertApproxEqRel(treasury.balance - t0, 5 ether, 0.1e18);
+        uint256 pending = t.pendingDividend(buyer);
+        assertApproxEqRel(pending, 5 ether, 0.1e18, "les dividendes vont aux vrais holders");
+        assertEq(t.pendingDividend(address(pm)), 0);
+        uint256 b0 = buyer.balance;
+        vm.prank(buyer);
+        t.claimDividend();
+        assertEq(buyer.balance - b0, pending);
+    }
+
     function test_unsupported_tier_reverts() public {
         vm.prank(creator);
         vm.expectRevert(bytes("Factory: tier not supported"));
-        factory.createToken("Meme", "MEME", "u", "d", 0, 2);
+        factory.createToken("Meme", "MEME", "u", "d", 0, 3);
     }
 
     function test_only_factory_can_seed_or_first_buy() public {
