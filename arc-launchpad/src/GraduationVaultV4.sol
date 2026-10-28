@@ -2,6 +2,14 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {LiquidityAmounts} from "v4-periphery/src/libraries/LiquidityAmounts.sol";
 
 /**
  * @title GraduationVaultV4
@@ -34,6 +42,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *   ACTION_SWEEP          = 19
  */
 contract GraduationVaultV4 {
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     // ─── Adresses V4 Arc ──────────────────────────────────────────────────────
 
@@ -126,13 +135,17 @@ contract GraduationVaultV4 {
         );
 
         // ── 3. Approve tokens pour le PositionManager ─────────────────────────
-        IERC20(token).approve(POSITION_MANAGER, tokenBalance);
+        // Le PositionManager tire les tokens via Permit2 (approve ERC20 -> Permit2, puis allowance Permit2 -> PositionManager)
+        IERC20(token).approve(PERMIT2, tokenBalance);
+        (bool okP,) = PERMIT2.call(abi.encodeWithSignature("approve(address,address,uint160,uint48)", token, POSITION_MANAGER, uint160(tokenBalance), uint48(block.timestamp + 600)));
+        require(okP, "GV4: permit2 approve failed");
 
         // ── 4. Mint position LP via PositionManager ───────────────────────────
         uint256 tokenId = _mintPosition(
             address(0), token,
             tickLower, tickUpper,
-            usdcForLP, tokenBalance
+            usdcForLP, tokenBalance,
+            sqrtPriceX96
         );
         positionId = tokenId;
 
@@ -265,11 +278,23 @@ contract GraduationVaultV4 {
         int24   tickLower,
         int24   tickUpper,
         uint256 usdcAmount,
-        uint256 tokenAmount
+        uint256 tokenAmount,
+        uint160 curSqrtPriceX96
     ) internal returns (uint256 tokenId) {
-        uint8 ACTION_MINT        = 0;
-        uint8 ACTION_SETTLE_PAIR = 15;
-        uint8 ACTION_SWEEP       = 19;
+        // Actions v4-periphery : MINT_POSITION 0x02, SETTLE_PAIR 0x0d, SWEEP 0x14
+        uint8 ACTION_MINT        = 0x02;
+        uint8 ACTION_SETTLE_PAIR = 0x0d;
+        uint8 ACTION_SWEEP       = 0x14;
+
+        // Liquidité réellement calculée depuis les montants (le PositionManager attend une liquidité, pas 0)
+        uint256 liq = LiquidityAmounts.getLiquidityForAmounts(
+            curSqrtPriceX96,
+            TickMath.getSqrtPriceAtTick(tickLower),
+            TickMath.getSqrtPriceAtTick(tickUpper),
+            usdcAmount,
+            tokenAmount
+        );
+        require(liq > 0 && liq <= type(uint128).max, "GV4: bad liquidity");
 
         bytes memory mintParams = abi.encode(
             currency0,
@@ -279,9 +304,9 @@ contract GraduationVaultV4 {
             address(0),    // hooks
             tickLower,
             tickUpper,
-            uint256(0),    // liquidity — 0 = PositionManager calcule depuis montants max
-            uint128(usdcAmount   + usdcAmount   / 100), // amount0Max (+1% slippage)
-            uint128(tokenAmount  + tokenAmount  / 100), // amount1Max
+            liq,
+            uint128(usdcAmount), // amount0Max
+            uint128(tokenAmount), // amount1Max
             address(this), // recipient — nous gardons le NFT
             bytes("")      // hookData
         );
@@ -301,14 +326,13 @@ contract GraduationVaultV4 {
             params
         );
 
-        (bool ok, bytes memory ret) = POSITION_MANAGER.call{value: usdcAmount}(
+        (, bytes memory idRet) = POSITION_MANAGER.staticcall(abi.encodeWithSignature("nextTokenId()"));
+        tokenId = abi.decode(idRet, (uint256));
+        (bool ok,) = POSITION_MANAGER.call{value: usdcAmount}(
             abi.encodeWithSignature("modifyLiquidities(bytes,uint256)", unlockData, block.timestamp + 120)
         );
         require(ok, "GV4: mint LP failed");
 
-        if (ret.length >= 32) {
-            tokenId = abi.decode(ret, (uint256));
-        }
     }
 
     /**
@@ -329,8 +353,8 @@ contract GraduationVaultV4 {
      */
     function _collectPositionFees(uint256 tokenId_) internal {
         // Action bytes à vérifier sur le PositionManager Arc après déploiement
-        uint8 ACTION_DECREASE  = 2;   // DECREASE_LIQUIDITY — TODO : vérifier
-        uint8 ACTION_TAKE_PAIR = 16;  // TAKE_PAIR          — TODO : vérifier
+        uint8 ACTION_DECREASE  = 0x01; // DECREASE_LIQUIDITY
+        uint8 ACTION_TAKE_PAIR = 0x11; // TAKE_PAIR
 
         // DECREASE_LIQUIDITY avec liquidity=0 : ne retire rien, collecte les fees
         bytes memory decreaseParams = abi.encode(
@@ -374,25 +398,33 @@ contract GraduationVaultV4 {
      * @dev Swap basique via PoolManager pour générer l'event Swap (indexation DexScreener).
      *      0.1 USDC natif → tokens.
      */
-    function _swap(address currency0, address currency1, uint256 usdcIn) internal {
-        // FIX #1 : passer les champs de struct DIRECTEMENT (pas via abi.encode intermédiaire
-        //          qui encoderait un bytes wrapper autour du tuple → calldata malformé).
-        // FIX #2 : SwapParams V4 = (bool, int256, uint160) — pas de champ bytes interne.
-        (bool ok,) = POOL_MANAGER.call{value: usdcIn}(
-            abi.encodeWithSignature(
-                "swap((address,address,uint24,int24,address),(bool,int256,uint160),bytes)",
-                // PoolKey fields :
-                currency0, currency1, V4_FEE, V4_TICK_SPACING, address(0),
-                // SwapParams fields :
-                true,                // zeroForOne : USDC (currency0) → token
-                int256(usdcIn),      // amountSpecified (exact in)
-                uint160(4295128740), // sqrtPriceLimitX96 = MIN_SQRT_RATIO + 1
-                // hookData :
-                bytes("")
-            )
+    function _swap(address, address, uint256 usdcIn) internal {
+        // Swap dans un unlock (le PoolManager l'exige). Optionnel : en cas d'échec le pool reste créé.
+        try this.firstSwap(usdcIn) {} catch {}
+    }
+
+    /// @dev Appelé uniquement par ce contrat (try/catch ci-dessus).
+    function firstSwap(uint256 usdcIn) external {
+        require(msg.sender == address(this), "GV4: self only");
+        IPoolManager(POOL_MANAGER).unlock(abi.encode(usdcIn));
+    }
+
+    /// @dev Callback du PoolManager : swap exact input USDC -> token, règlement, les tokens achetés sont brûlés.
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        require(msg.sender == POOL_MANAGER, "GV4: only pool manager");
+        uint256 usdcIn = abi.decode(data, (uint256));
+        PoolKey memory k = PoolKey({
+            currency0: Currency.wrap(address(0)), currency1: Currency.wrap(token),
+            fee: V4_FEE, tickSpacing: V4_TICK_SPACING, hooks: IHooks(address(0))
+        });
+        BalanceDelta d = IPoolManager(POOL_MANAGER).swap(
+            k,
+            SwapParams({zeroForOne: true, amountSpecified: -int256(usdcIn), sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1}),
+            bytes("")
         );
-        // Ne pas revert : le pool est créé, le swap est optionnel (indexation seulement)
-        ok;
+        IPoolManager(POOL_MANAGER).settle{value: uint256(uint128(-d.amount0()))}();
+        IPoolManager(POOL_MANAGER).take(k.currency1, address(0xdead), uint256(uint128(d.amount1())));
+        return "";
     }
 
     // ─── Sqrt price (Babylonian) ──────────────────────────────────────────────
