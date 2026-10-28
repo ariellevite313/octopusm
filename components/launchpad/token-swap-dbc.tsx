@@ -426,7 +426,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         // eslint-disable-next-line @next/next/no-img-element
         <img src={logoUrl} alt={ticker} className="size-5 rounded-full object-cover" />
       ) : (
-        <div className="size-5 rounded-full bg-orange-500/80 flex items-center justify-center text-[8px] font-bold text-white">
+        <div className="size-5 rounded-full bg-foreground/70 flex items-center justify-center text-[8px] font-bold text-white">
           {ticker.slice(0, 1)}
         </div>
       )}
@@ -611,7 +611,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               <div className="flex items-center justify-center gap-1.5 animate-pulse">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/octo-coin.png" alt="OMERO" className="size-4 rounded-full object-cover" />
-                <span className="text-[11px] font-semibold text-orange-400">
+                <span className="text-[11px] font-semibold text-foreground">
                   {tr("+{amount} OMERO earned", { amount: omeroEarned.toLocaleString(loc) })}
                 </span>
               </div>
@@ -655,12 +655,12 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
               <span className="text-[10px] text-muted-foreground/60 font-medium">{tr("Bonding curve")}</span>
               <span className="text-[10px] text-muted-foreground/60 font-medium tabular-nums">
                 {poolProgress.solRaised.toFixed(2)} / {poolProgress.gradThresholdSol.toFixed(0)} {quoteLabel}
-                <span className="ml-1 text-orange-400 font-semibold">{poolProgress.progressPct.toFixed(1)}%</span>
+                <span className="ml-1 text-foreground font-semibold">{poolProgress.progressPct.toFixed(1)}%</span>
               </span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-orange-400 transition-all duration-700"
+                className="h-full rounded-full bg-gradient-to-r from-foreground to-foreground/70 transition-all duration-700"
                 style={{ width: `${Math.min(100, poolProgress.progressPct)}%` }}
               />
             </div>

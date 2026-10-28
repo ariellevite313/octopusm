@@ -6,7 +6,7 @@
 
 /* ── Light theme ─────────────────────────────────────────────────────────── */
 :root {
-  --accent: #fff1e6;
+  --accent: #efeff3;
   --accent-foreground: #0b0a12;
   --background: #f5f5f7;
   --border: #e8e8ee;
@@ -27,10 +27,10 @@
   --muted-foreground: #6b6a78;
   --popover: #ffffff;
   --popover-foreground: #0b0a12;
-  --primary: #f76b10;
+  --primary: #0b0a12;
   --primary-foreground: #ffffff;
   --radius: 14px;
-  --ring: #f76b10;
+  --ring: #0b0a12;
   --secondary: #efeff3;
   --secondary-foreground: #0b0a12;
   --up: #16a34a;
@@ -50,7 +50,7 @@
   --sidebar-foreground: #0b0a12;
   --sidebar-primary: #0b0a12;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-ring: #f76b10;
+  --sidebar-ring: #0b0a12;
   --spacing: 0.22rem;
   --text-base: 15px;
   --text-base--line-height: 24px;
@@ -72,7 +72,7 @@
 
 /* ── Dark theme : noir bleuté, cartes à peine plus claires ───────────────── */
 .dark {
-  --accent: #2a1607;
+  --accent: #1b1a25;
   --accent-foreground: #fafafa;
   --background: #07060c;
   --border: #22212c;
@@ -91,9 +91,9 @@
   --muted-foreground: #8e8d9c;
   --popover: #15141e;
   --popover-foreground: #f5f5f7;
-  --primary: #ff7a1a;
-  --primary-foreground: #ffffff;
-  --ring: #ff7a1a;
+  --primary: #f5f5f7;
+  --primary-foreground: #0b0a12;
+  --ring: #f5f5f7;
   --secondary: #1b1a25;
   --secondary-foreground: #f5f5f7;
   --up: #22d36b;
@@ -106,7 +106,7 @@
   --sidebar-foreground: #f5f5f7;
   --sidebar-primary: #f5f5f7;
   --sidebar-primary-foreground: #07060c;
-  --sidebar-ring: #ff7a1a;
+  --sidebar-ring: #f5f5f7;
 }
 
 /* ── Palette remap : les gris "zinc" codés en dur prennent la teinte du thème ── */

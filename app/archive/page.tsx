@@ -57,7 +57,7 @@ function PredictionCard({ market }: { market: PredictionMarketRow }) {
   return (
     <Link
       href={href}
-      className="group block rounded-[22px] border border-border bg-card p-4 transition-all hover:border-orange-300 hover:shadow-md dark:hover:border-orange-700/50"
+      className="group block rounded-[22px] border border-border bg-card p-4 transition-all hover:border-foreground/30 hover:shadow-md dark:hover:border-foreground/30/50"
     >
       {isVs && (
         <div className="mb-3 flex items-center justify-center gap-3">
@@ -81,7 +81,7 @@ function PredictionCard({ market }: { market: PredictionMarketRow }) {
         </div>
       )}
 
-      <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground group-hover:text-orange-600 dark:group-hover:text-orange-400">
+      <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground group-hover:text-foreground dark:group-hover:text-foreground">
         {market.title}
       </p>
 
@@ -117,7 +117,7 @@ function PoolCard({ market }: { market: MutuelMarketRow }) {
   return (
     <Link
       href={href}
-      className="group block rounded-2xl border border-border bg-orange-50/60 p-4 transition-all hover:border-orange-400 hover:shadow-md dark:bg-orange-950/5 dark:hover:border-orange-700/60"
+      className="group block rounded-2xl border border-border bg-muted/60 p-4 transition-all hover:border-foreground/30 hover:shadow-md dark:bg-muted dark:hover:border-foreground/30/60"
     >
       {/* Icon + title */}
       <div className="mb-3 flex items-center gap-2.5">
@@ -126,28 +126,28 @@ function PoolCard({ market }: { market: MutuelMarketRow }) {
             <img src={market.cover_image_src} alt="" className="size-9 object-cover" />
           </div>
         ) : (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-orange-100 text-orange-500 dark:bg-orange-950/30">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-foreground dark:bg-muted">
             <Layers className="size-4" />
           </div>
         )}
-        <span className="text-[13px] font-semibold text-orange-500">
+        <span className="text-[13px] font-semibold text-foreground">
           <Tr>Bookmake</Tr> · {market.category}
         </span>
       </div>
 
-      <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground group-hover:text-orange-600 dark:group-hover:text-orange-400">
+      <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground group-hover:text-foreground dark:group-hover:text-foreground">
         {market.title}
       </p>
 
       <div className="mt-2 flex items-center gap-1.5">
-        <Trophy className="size-3.5 shrink-0 text-orange-500" />
-        <span className="truncate text-xs font-medium text-orange-600 dark:text-orange-400">
+        <Trophy className="size-3.5 shrink-0 text-foreground" />
+        <span className="truncate text-xs font-medium text-foreground dark:text-foreground">
           {winningLabel}
         </span>
       </div>
 
       <div className="mt-3 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground dark:bg-muted dark:text-foreground">
           <Tr>Pool</Tr> ·&nbsp;<TokenAmount amount={market.bet_token === "usdc" ? market.total_pool_usdc.toFixed(2) : market.total_pool_clt.toFixed(0)} token={market.bet_token} logoClass="size-3" />
         </span>
         <span className="text-[10px] text-muted-foreground"><LocalizedDate iso={market.resolved_at} /></span>
@@ -226,7 +226,7 @@ export default async function ArchivePage({
     <div className="mx-auto max-w-6xl px-4 py-10">
       {/* Header */}
       <div className="mb-8 flex items-center gap-3">
-        <Trophy className="size-8 shrink-0 text-orange-500" />
+        <Trophy className="size-8 shrink-0 text-foreground" />
         <div>
           <h1 className="text-2xl font-bold text-foreground"><Tr>Market Archive</Tr></h1>
           <p className="text-sm text-muted-foreground">
@@ -255,7 +255,7 @@ export default async function ArchivePage({
               className={`rounded-full border px-3 py-1 text-xs font-bold capitalize transition-colors ${
                 active
                   ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               }`}
             >
               {t === "prediction" ? <Tr>Predictions</Tr> : t === "pool" ? <Tr>Bookmake</Tr> : <Tr>All</Tr>} ({count})
@@ -272,7 +272,7 @@ export default async function ArchivePage({
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
               !category || category === "all"
                 ? "border-foreground bg-foreground text-background"
-                : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
+                : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
             }`}
           >
             <Tr>All categories</Tr>
@@ -288,7 +288,7 @@ export default async function ArchivePage({
                 className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
                   active
                     ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                 }`}
               >
                 {cat} ({count})

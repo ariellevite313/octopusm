@@ -105,9 +105,9 @@ export function TasksSection({ tasks }: { tasks: TaskWithCompletion[] }) {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 rounded-full bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 border border-border">
+                <div className="flex items-center gap-1 rounded-full bg-muted dark:bg-muted px-2 py-0.5 border border-border">
                   <Image src="/octo-coin.png" alt="OMERO" width={12} height={12} className="rounded-full" />
-                  <span className="text-xs font-semibold text-orange-700 dark:text-orange-300">
+                  <span className="text-xs font-semibold text-foreground dark:text-foreground">
                     +{task.reward_octo}
                   </span>
                 </div>

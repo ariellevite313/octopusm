@@ -157,7 +157,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
   if (selectedChain !== "arc") {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center space-y-3">
-        <CoinsIcon className="size-5 text-orange-400 mx-auto" />
+        <CoinsIcon className="size-5 text-foreground mx-auto" />
         <p className="text-sm font-semibold text-foreground">{t.metamaskRequired}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           {t.connectMetamaskArc}
@@ -178,7 +178,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
   return (
     <div className="rounded-[22px] border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <CoinsIcon className="size-4 text-orange-400 shrink-0" />
+        <CoinsIcon className="size-4 text-foreground shrink-0" />
         <span className="text-sm font-semibold text-foreground">{tr("Creator fees (USDC)")}</span>
         {graduated && (
           <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-up">
