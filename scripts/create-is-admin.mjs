@@ -23,7 +23,7 @@ AS $$
 DECLARE
   v_wallet TEXT;
 BEGIN
-  v_wallet := (auth.jwt() -> 'user_metadata' ->> 'wallet_address');
+  v_wallet := (auth.jwt() -> 'app_metadata' ->> 'wallet_address');
   IF v_wallet IS NULL THEN
     RETURN false;
   END IF;
