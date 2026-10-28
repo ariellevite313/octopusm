@@ -1,6 +1,6 @@
 /** Règles chiffrées du hackathon. Un seul endroit : toute valeur du règlement se change ici. */
 export const RULES = {
-  weights: { holders: 0.4, volume: 0.3, votes: 0.3 },
+  weights: { holders: 0.1, volume: 0.6, votes: 0.3 },
   /** Plafond de votes par wallet (groupe de wallets liés compté comme un seul). */
   voteCapPerWallet: 1000,
   /** Un wallet compte comme holder réel au-dessus de cette part du supply, en %. */
