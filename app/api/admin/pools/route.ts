@@ -168,7 +168,8 @@ export async function POST(req: Request) {
     const { data: allBets, error: bErr } = await sb
       .from("mutuel_bets")
       .select("*")
-      .eq("market_id", marketId);
+      .eq("market_id", marketId)
+      .eq("status", "approved"); // seules les mises approuvées comptent (pas de pending / rejected)
 
     if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
 

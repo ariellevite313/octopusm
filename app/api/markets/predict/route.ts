@@ -52,6 +52,17 @@ export async function POST(req: Request) {
 
   const isArc = body.chain === "arc";
 
+  // Montants : finis, positifs, cohérents entre eux (le client ne décide pas de la mise créditée)
+  const nums = [body.amount_usdc, body.reserve_fee_usdc ?? 0, body.total_paid_usdc];
+  if (!nums.every((n) => typeof n === "number" && Number.isFinite(n)) || body.amount_usdc <= 0 || (body.reserve_fee_usdc ?? 0) < 0 || body.total_paid_usdc <= 0 || body.total_paid_usdc > 1e9) {
+    return NextResponse.json({ error: "Invalid amounts" }, { status: 400 });
+  }
+  if (Math.abs(body.amount_usdc + (body.reserve_fee_usdc ?? 0) - body.total_paid_usdc) > 1e-6) {
+    return NextResponse.json({ error: "Amounts do not add up" }, { status: 400 });
+  }
+  if (!body.tx_signature) return NextResponse.json({ error: "tx_signature is required" }, { status: 400 });
+  if (isArc) body.tx_signature = body.tx_signature.toLowerCase(); // un même hash ne s'enregistre qu'une fois, quelle que soit la casse
+
   // C-01 fix: wallet in body must match authenticated session (adresses EVM : insensible à la casse)
   const sameWallet = isArc
     ? body.wallet_address.toLowerCase() === sessionWallet.toLowerCase()
@@ -72,13 +83,14 @@ export async function POST(req: Request) {
     if (v === "mismatch") {
       return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     }
-    // "unverified" (RPC indisponible) : enregistré en attente, l'admin vérifie à la validation
-  } else if (body.tx_signature && (body.token === "usdc" || body.token === "clawdtrust")) {
-    // Solana : refus si la tx est confirmée mais ne correspond pas à la mise ; sinon en attente (l'admin valide)
-    const v = await checkSolanaTransfer(body.tx_signature, body.token, Number(body.total_paid_usdc));
+    if (v === "unverified") return NextResponse.json({ error: "Could not confirm the transaction yet, retry in a few seconds" }, { status: 503 });
+  } else {
+    if (body.token !== "usdc" && body.token !== "clawdtrust") return NextResponse.json({ error: "Unsupported token" }, { status: 400 });
+    const v = await checkSolanaTransfer(body.tx_signature, body.token, Number(body.total_paid_usdc), sessionWallet);
     if (v === "mismatch") {
       return NextResponse.json({ error: "Transaction does not match this bet" }, { status: 400 });
     }
+    if (v === "unverified") return NextResponse.json({ error: "Could not confirm the transaction yet, retry in a few seconds" }, { status: 503 });
   }
 
   const admin = createAdminClient() as any;

@@ -34,7 +34,9 @@ export async function verifyTokenTransfer(
   txSignature: string,
   token: TokenToVerify,
   expectedAmount: number, // UI units (e.g. 5 for 5 USDC, 500000 for 500K CLT)
+  payer?: string,         // wallet qui doit avoir signé (premier compte) : une tx publique d'un autre ne compte pas
 ): Promise<string | null> {
+  if (!Number.isFinite(expectedAmount) || expectedAmount <= 0 || expectedAmount > 1e12) return "Invalid amount";
   const mintAddress = token === "clawdtrust" ? CLT_MINT : USDC_MINT;
   const decimals    = token === "clawdtrust" ? 9 : 6;
   const expectedRaw = Math.round(expectedAmount * Math.pow(10, decimals));
@@ -78,6 +80,15 @@ export async function verifyTokenTransfer(
         // Transaction must have succeeded on-chain
         if (tx.meta?.err != null) return "Transaction failed on-chain";
 
+        // Le payeur doit être le wallet de la session, et la tx doit être récente
+        if (payer) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const first: any = tx.transaction?.message?.accountKeys?.[0];
+          const firstKey: string = typeof first === "string" ? first : first?.pubkey ?? "";
+          if (firstKey !== payer) return "Transaction was not paid by this wallet";
+        }
+        if (!tx.blockTime || Date.now() - tx.blockTime * 1000 > 6 * 3600 * 1000) return "Transaction too old";
+
         // ── Method 1: parse instructions directly ──────────────────────────
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const instructions: any[] = tx.transaction?.message?.instructions ?? [];
@@ -101,7 +112,7 @@ export async function verifyTokenTransfer(
               ? Number(info.tokenAmount?.amount ?? 0)
               : Number(info.amount ?? 0);
 
-          const correctMint = mintAddr === mintAddress || mintAddr === "";
+          const correctMint = mintAddr === mintAddress;
           const correctDest =
             dest === TREASURY_ADDRESS ||
             dest.toLowerCase().includes(TREASURY_ADDRESS.toLowerCase());
@@ -160,9 +171,10 @@ export async function checkSolanaTransfer(
   txSignature: string,
   token: string,
   expectedAmount: number,
+  payer?: string,
 ): Promise<"ok" | "mismatch" | "unverified"> {
   const t: TokenToVerify = token === "clawdtrust" || token === "clt" ? "clawdtrust" : "usdc";
-  const err = await verifyTokenTransfer(txSignature, t, expectedAmount);
+  const err = await verifyTokenTransfer(txSignature, t, expectedAmount, payer);
   if (err === null) return "ok";
   if (err.startsWith("Could not verify transaction")) return "unverified";
   return "mismatch";
