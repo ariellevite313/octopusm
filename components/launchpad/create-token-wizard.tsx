@@ -96,7 +96,7 @@ const INITIAL: WizardData = {
   arc_first_buy_enabled: false,
   arc_first_buy_usdc: 10,
   arc_fee_tier: 0,
-  arc_launch_mode: "curve",
+  arc_launch_mode: process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT ? "direct" : "curve",
   sol_token_type: "sol",
   sol_stock_symbol: "xNVDA",
   sol_fee_tier: "standard",
@@ -418,7 +418,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           <Label>{tr("Launch & fees")}</Label>
           <ArcLaunchOptions
             mode={data.arc_launch_mode}
-            setMode={(m) => { set("arc_launch_mode", m); if (m === "direct" && (data.arc_fee_tier === 1 || data.arc_fee_tier === 3)) set("arc_fee_tier", 0); }}
+            setMode={(m) => { set("arc_launch_mode", m); set("arc_fee_tier", 0); }}
             tier={data.arc_fee_tier}
             setTier={(tier) => set("arc_fee_tier", tier)}
           />
@@ -791,10 +791,12 @@ const ARC_TIER_DEFS = [
   },
 ];
 
-/** Lancement direct sur Uniswap V4 : frais du pool 0,50 % par échange, répartis (en % de chaque échange). */
+/** Lancement direct sur Uniswap V4 : deux plans de frais (% de chaque achat). Les frais d'une vente sont payés en tokens et brûlés. */
 const DIRECT_TIERS = [
-  { index: 0 as const, name: "Standard", creator: 0.267, platform: 0.1, locked: 0.133, desc: "Simple. The creator earns on every trade." },
-  { index: 2 as const, name: "Creator",  creator: 0.291, platform: 0.1, locked: 0.109, desc: "Highest creator share." },
+  { index: 0 as const, name: "Creator 1%", total: 2.5, desc: "You earn 1% on every buy. Another 1% grows the liquidity.",
+    rows: [["You, the creator", 1], ["Platform", 0.5], ["Liquidity, added to the pool", 1]] as [string, number][] },
+  { index: 1 as const, name: "Holders 0.5%", total: 2, desc: "Holders earn dividends on every buy, plus liquidity growth.",
+    rows: [["You, the creator", 0.5], ["Platform", 0.5], ["Liquidity, added to the pool", 0.5], ["Holders, as dividends", 0.5]] as [string, number][] },
 ];
 
 function Radio({ on }: { on: boolean }) {
@@ -843,6 +845,7 @@ function ArcLaunchOptions({
   const direct = mode === "direct" && directAvailable;
   const curveDef = ARC_TIER_DEFS[tier];
   const directDef = DIRECT_TIERS.find((t) => t.index === tier) ?? DIRECT_TIERS[0];
+  const directTier = (tier === 1 ? 1 : 0) as 0 | 1;
 
   return (
     <div className="space-y-5">
@@ -850,10 +853,10 @@ function ArcLaunchOptions({
         <div>
           <p className="mb-1 text-[13px] text-muted-foreground">{tr("Where it trades")}</p>
           <div className="border-t border-border">
-            <OptionRow on={!direct} onClick={() => setMode("curve")} title={tr("Bonding curve")}
-              desc={tr("Starts on a curve, moves to Uniswap V4 once it reaches about 25,000 USDC market cap.")} />
             <OptionRow on={direct} onClick={() => setMode("direct")} title={tr("Uniswap V4 right away")}
               desc={tr("Trades on Uniswap V4 from the first second. Liquidity is locked for life, and the token stays visible here.")} />
+            <OptionRow on={!direct} onClick={() => setMode("curve")} title={tr("Bonding curve")}
+              desc={tr("Starts on a curve, moves to Uniswap V4 once it reaches about 25,000 USDC market cap.")} />
           </div>
         </div>
       )}
@@ -863,7 +866,7 @@ function ArcLaunchOptions({
         <div className="border-t border-border">
           {direct
             ? DIRECT_TIERS.map((t) => (
-                <OptionRow key={t.index} on={tier === t.index} onClick={() => setTier(t.index)} title={t.name} right={`${t.creator.toFixed(2)}% ${tr("to you")}`} desc={tr(t.desc)} />
+                <OptionRow key={t.index} on={directTier === t.index} onClick={() => setTier(t.index)} title={tr(t.name)} right={`${t.total}%`} desc={tr(t.desc)} />
               ))
             : ARC_TIER_DEFS.map((t) => (
                 <OptionRow key={t.index} on={tier === t.index} onClick={() => setTier(t.index)} title={t.name} right={`${t.totalPct}%`} desc={tr(t.desc)} />
@@ -873,14 +876,12 @@ function ArcLaunchOptions({
 
       <div>
         <p className="mb-1 text-[13px] text-muted-foreground">
-          {direct ? tr("Each trade pays 0.50%, split like this") : tr("Each trade on the curve pays")}
+          {direct ? tr("Each buy pays %s%, split like this").replace("%s", String(directDef.total)) : tr("Each trade on the curve pays")}
         </p>
         <div className="border-t border-border">
           {direct ? (
             <>
-              <FeeLine label={tr("You, the creator")} value={`${directDef.creator.toFixed(3)}%`} />
-              <FeeLine label={tr("Platform")} value={`${directDef.platform.toFixed(3)}%`} />
-              <FeeLine label={tr("Liquidity share, kept by the platform")} value={`${directDef.locked.toFixed(3)}%`} />
+              {directDef.rows.map(([label, pct]) => <FeeLine key={label} label={tr(label)} value={`${pct}%`} />)}
             </>
           ) : (
             curveDef.rows.map((r) => <FeeLine key={r.label} label={tr(r.label === "Creator" ? "You, the creator" : r.label === "LP Bonus" ? "Liquidity bonus" : r.label)} value={`${r.pct.toFixed(2)}%`} />)
@@ -888,7 +889,7 @@ function ArcLaunchOptions({
         </div>
         <p className="mt-2 text-xs leading-snug text-muted-foreground">
           {direct
-            ? tr("Fees are collected by anyone and paid out on chain. No holder dividends in this mode.")
+            ? tr("Fees are collected by anyone and paid out on chain. A sell pays its fee in tokens, which are burned.")
             : tr("After it moves to Uniswap V4, each trade pays 0.50%, split between you, the platform and the liquidity.")}
         </p>
       </div>

@@ -18,13 +18,13 @@ export const ARC_V4_POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951" 
 const SWAP_EVENT = parseAbi([
   "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)",
 ])[0];
-const DIRECT_FACTORY_ABI = parseAbi(["function isVault(address) view returns (bool)"]);
+const DIRECT_VAULT_ABI = parseAbi(["function poolFee() view returns (uint24)"]);
 
-/** Identifiant du pool Uniswap V4 USDC natif / token (frais 0,50 %, espacement 60, sans hook). */
-export function arcPoolId(token: string): `0x${string}` {
+/** Identifiant du pool Uniswap V4 USDC natif / token (espacement 60, sans hook). `fee` : 5000 après graduation d'une courbe, 25000 ou 20000 en lancement direct. */
+export function arcPoolId(token: string, fee = 5000): `0x${string}` {
   return keccak256(encodeAbiParameters(
     [{ type: "address" }, { type: "address" }, { type: "uint24" }, { type: "int24" }, { type: "address" }],
-    [zeroAddress, token as `0x${string}`, 5000, 60, zeroAddress],
+    [zeroAddress, token as `0x${string}`, fee, 60, zeroAddress],
   ));
 }
 
@@ -46,11 +46,13 @@ export async function syncCurveTrades(curveRaw: string, maxChunks = 40, db: Db =
   const curve = curveRaw.toLowerCase();
   const { data: tok } = await db.from("launchpad_tokens").select("mint_address, status").ilike("arc_launch_id", curve).maybeSingle();
   const token = tok?.mint_address as string | undefined;
-  const hasPool = Boolean(token) && /^0x[0-9a-fA-F]{40}$/.test(token!) && (tok?.status === "graduated" || (await isDirectVault(curve)));
-  // Lancement direct : aucun événement Trade de courbe, seulement le pool V4. Token gradué : on lit aussi le pool.
+  const validToken = Boolean(token) && /^0x[0-9a-fA-F]{40}$/.test(token!);
+  const directFee = validToken ? await directPoolFee(curve) : null;
+  const hasPool = validToken && (directFee !== null || tok?.status === "graduated");
+  // Lancement direct : aucun événement Trade de courbe, seulement le pool V4. Token gradué : on lit aussi le pool (frais 0,50 %).
   let poolDone = true;
-  if (hasPool) poolDone = await syncPoolSwaps(curve, token!, maxChunks, db).catch((e) => { console.error("[arc-trades] pool:", e instanceof Error ? e.message : e); return false; });
-  if (hasPool && (await isDirectVault(curve))) return poolDone;
+  if (hasPool) poolDone = await syncPoolSwaps(curve, token!, directFee ?? 5000, maxChunks, db).catch((e) => { console.error("[arc-trades] pool:", e instanceof Error ? e.message : e); return false; });
+  if (directFee !== null) return poolDone;
   const curveDone = await syncBondingCurveTrades(curveRaw, maxChunks, db);
   return curveDone && poolDone;
 }
@@ -111,17 +113,17 @@ async function syncBondingCurveTrades(curveRaw: string, maxChunks = 40, db: Db =
   return reached >= latest;
 }
 
-const directCache = new Map<string, boolean>();
-/** Vrai si l'adresse est un vault de lancement direct Uniswap V4 (factory configurée par NEXT_PUBLIC_ARC_FACTORY_DIRECT). */
-async function isDirectVault(curve: string): Promise<boolean> {
-  const factory = process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT;
-  if (!factory || !/^0x[0-9a-fA-F]{40}$/.test(factory)) return false;
+const directCache = new Map<string, number | null>();
+/** Frais du pool d'un vault de lancement direct (poolFee), ou null si l'adresse n'en est pas un. Actif seulement si NEXT_PUBLIC_ARC_FACTORY_DIRECT est défini. */
+async function directPoolFee(curve: string): Promise<number | null> {
+  if (!process.env.NEXT_PUBLIC_ARC_FACTORY_DIRECT) return null;
   if (directCache.has(curve)) return directCache.get(curve)!;
   try {
-    const ok = Boolean(await client().readContract({ address: factory as `0x${string}`, abi: DIRECT_FACTORY_ABI, functionName: "isVault", args: [curve as `0x${string}`] }));
+    const fee = Number(await client().readContract({ address: curve as `0x${string}`, abi: DIRECT_VAULT_ABI, functionName: "poolFee" }));
+    const ok = fee > 0 ? fee : null;
     directCache.set(curve, ok);
     return ok;
-  } catch { return false; }
+  } catch { directCache.set(curve, null); return null; }
 }
 
 /**
@@ -129,10 +131,10 @@ async function isDirectVault(curve: string): Promise<boolean> {
  * table arc_trades que les trades de la courbe : le graphique reste continu (même unité : USDC par token).
  * Retourne true si le pool est à jour.
  */
-export async function syncPoolSwaps(curveRaw: string, tokenRaw: string, maxChunks = 40, db: Db = createAdminClient()): Promise<boolean> {
+export async function syncPoolSwaps(curveRaw: string, tokenRaw: string, fee = 5000, maxChunks = 40, db: Db = createAdminClient()): Promise<boolean> {
   const curve = curveRaw.toLowerCase();
   const stateKey = `${curve}:v4`;
-  const poolId = arcPoolId(tokenRaw.toLowerCase());
+  const poolId = arcPoolId(tokenRaw.toLowerCase(), fee);
   const pc = client();
   const latest = await pc.getBlockNumber();
   const { data: st } = await db.from("arc_trades_state").select("last_block").eq("curve", stateKey).maybeSingle();

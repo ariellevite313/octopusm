@@ -13,7 +13,7 @@ import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol"
 import {IPositionDescriptor} from "v4-periphery/src/interfaces/IPositionDescriptor.sol";
 import {IWETH9} from "v4-periphery/src/interfaces/external/IWETH9.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../src/OMToken.sol";
+import "../src/OMTokenDirect.sol";
 import "../src/DirectV4Vault.sol";
 import "../src/LaunchpadFactoryArcV4Direct.sol";
 import "../src/DirectV4Router.sol";
@@ -56,14 +56,14 @@ contract DirectV4Test is Test {
         vm.deal(buyer, 10_000 ether);
     }
 
-    function _launch(uint256 firstBuy, uint8 tier) internal returns (DirectV4Vault v, OMToken t) {
+    function _launch(uint256 firstBuy, uint8 tier) internal returns (DirectV4Vault v, OMTokenDirect t) {
         vm.prank(creator);
         (address vault, address token) = factory.createToken{value: firstBuy}("Meme", "MEME", "ipfs://x", "desc", firstBuy, tier);
-        v = DirectV4Vault(payable(vault)); t = OMToken(payable(token));
+        v = DirectV4Vault(payable(vault)); t = OMTokenDirect(payable(token));
     }
 
     function _buy(DirectV4Vault v, uint256 usdc) internal returns (uint256 got) {
-        OMToken t = OMToken(payable(v.token()));
+        OMTokenDirect t = OMTokenDirect(payable(v.token()));
         uint256 before = t.balanceOf(buyer);
         PoolKey memory key = v.poolKey();
         vm.prank(buyer);
@@ -72,7 +72,7 @@ contract DirectV4Test is Test {
     }
 
     function test_launch_creates_pool_with_all_supply_and_locked_lp() public {
-        (DirectV4Vault v, OMToken t) = _launch(0, 0);
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
         assertTrue(v.seeded());
         assertEq(posm.ownerOf(v.positionId()), address(v), "NFT LP dans le vault");
         // Presque tout le supply est dans le pool (PoolManager), rien dans le vault
@@ -82,7 +82,7 @@ contract DirectV4Test is Test {
     }
 
     function test_buying_moves_price_like_a_curve() public {
-        (DirectV4Vault v, OMToken t) = _launch(0, 0);
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
         // 4 000 USDC achetés : environ la moitié du supply (réserve virtuelle ~3 990 USDC, frais 0,5 % inclus)
         uint256 got = _buy(v, 4_000 ether);
         uint256 share = got * 100 / t.TOTAL_SUPPLY();
@@ -90,12 +90,12 @@ contract DirectV4Test is Test {
         // 480 USDC : environ 10,5 % du supply sur un pool neuf
         (DirectV4Vault v2,) = _launch(0, 0);
         uint256 got2 = _buy(v2, 480 ether);
-        uint256 share2 = got2 * 1000 / OMToken(payable(v2.token())).TOTAL_SUPPLY();
+        uint256 share2 = got2 * 1000 / OMTokenDirect(payable(v2.token())).TOTAL_SUPPLY();
         assertGe(share2, 100); assertLe(share2, 108);
     }
 
     function test_sell_back_works() public {
-        (DirectV4Vault v, OMToken t) = _launch(0, 0);
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
         uint256 got = _buy(v, 100 ether);
         assertGt(got, 0);
         PoolKey memory key = v.poolKey();
@@ -104,12 +104,12 @@ contract DirectV4Test is Test {
         uint256 usdcBefore = buyer.balance;
         router.swap(key, SwapParams({zeroForOne: false, amountSpecified: -int256(got), sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1}), PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "");
         vm.stopPrank();
-        assertGt(buyer.balance - usdcBefore, 98 ether); // moins les frais 0,5 % x 2
+        assertGt(buyer.balance - usdcBefore, 94 ether); // moins les frais 2,5 % x 2
         assertEq(t.balanceOf(buyer), 0);
     }
 
     function test_first_buy_goes_to_creator_in_the_same_transaction() public {
-        (DirectV4Vault v, OMToken t) = _launch(480 ether, 0);
+        (DirectV4Vault v, OMTokenDirect t) = _launch(480 ether, 0);
         uint256 share = t.balanceOf(creator) * 1000 / t.TOTAL_SUPPLY();
         assertGe(share, 100); assertLe(share, 108);
         assertEq(t.balanceOf(address(v)), 0);
@@ -125,31 +125,63 @@ contract DirectV4Test is Test {
         factory.createToken{value: 500 ether}("Meme", "MEME", "u", "d", 481 ether, 0);
     }
 
-    function test_collect_fees_splits_and_burns() public {
-        (DirectV4Vault v, OMToken t) = _launch(0, 0);
-        uint256 got = _buy(v, 1_000 ether);
+    function _sellBack(DirectV4Vault v, OMTokenDirect t, uint256 amount) internal {
         PoolKey memory key = v.poolKey();
         vm.startPrank(buyer);
-        t.approve(address(router), got / 2);
-        router.swap(key, SwapParams({zeroForOne: false, amountSpecified: -int256(got / 2), sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1}), PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "");
+        t.approve(address(router), amount);
+        router.swap(key, SwapParams({zeroForOne: false, amountSpecified: -int256(amount), sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1}), PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "");
         vm.stopPrank();
+    }
+
+    function test_plan0_fees_1pct_creator_05_platform_1_liquidity() public {
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
+        assertEq(v.poolFee(), 25_000, "2,5 %");
+        uint256 got = _buy(v, 1_000 ether);
+        _sellBack(v, t, got / 2);
         uint256 c0 = creator.balance; uint256 t0 = treasury.balance;
         v.collectFees();
-        uint256 creatorGot = creator.balance - c0;
-        uint256 treasuryGot = treasury.balance - t0;
-        assertGt(creatorGot, 0); assertGt(treasuryGot, 0);
-        // ~0,5 % de 1 000 USDC de volume d'achat = ~5 USDC de frais, créateur 53,33 %
-        assertApproxEqRel(creatorGot, 5 ether * 5333 / 10_000, 0.2e18);
-        assertEq(address(v).balance, 0);
+        // 1 000 USDC achetés a 2,5 % = ~25 USDC de frais : 40 % createur (~10), 20 % plateforme (~5), 40 % liquidite (~10)
+        assertApproxEqRel(creator.balance - c0, 10 ether, 0.1e18);
+        assertApproxEqRel(treasury.balance - t0, 5 ether, 0.1e18);
+        assertEq(v.positionCount(), 2, "la part liquidite est ajoutee au pool");
+        assertLt(address(v).balance, 0.01 ether, "presque rien ne reste dans le vault");
         assertEq(t.balanceOf(address(v)), 0);
-        // un 2e appel sans nouveaux frais ne casse rien
+        v.collectFees(); // 2e appel sans nouveaux frais : ne casse rien
+    }
+
+    function test_compounded_liquidity_is_locked_and_supports_the_price() public {
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
+        uint256 got = _buy(v, 2_000 ether);
+        _sellBack(v, t, got / 2);
         v.collectFees();
+        assertEq(v.positionCount(), 2);
+        assertEq(posm.ownerOf(v.positionIds(1)), address(v), "le NFT reste dans le vault : verrouille");
+    }
+
+    function test_plan1_pays_holders_dividends_and_excludes_the_pool() public {
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 1);
+        assertEq(v.poolFee(), 20_000, "2,0 %");
+        uint256 got = _buy(v, 1_000 ether);
+        _sellBack(v, t, got / 2);
+        uint256 c0 = creator.balance; uint256 t0 = treasury.balance;
+        v.collectFees();
+        // ~20 USDC de frais : 25 % chacun (~5)
+        assertApproxEqRel(creator.balance - c0, 5 ether, 0.1e18);
+        assertApproxEqRel(treasury.balance - t0, 5 ether, 0.1e18);
+        // le seul holder reel (buyer) recoit toute la part holders (~5 USDC), pas le PoolManager
+        uint256 pending = t.pendingDividend(buyer);
+        assertApproxEqRel(pending, 5 ether, 0.1e18, "les dividendes vont aux vrais holders");
+        assertEq(t.pendingDividend(address(pm)), 0);
+        uint256 b0 = buyer.balance;
+        vm.prank(buyer);
+        t.claimDividend();
+        assertEq(buyer.balance - b0, pending);
     }
 
     function test_unsupported_tier_reverts() public {
         vm.prank(creator);
         vm.expectRevert(bytes("Factory: tier not supported"));
-        factory.createToken("Meme", "MEME", "u", "d", 0, 1);
+        factory.createToken("Meme", "MEME", "u", "d", 0, 2);
     }
 
     function test_only_factory_can_seed_or_first_buy() public {
@@ -161,36 +193,36 @@ contract DirectV4Test is Test {
     }
 
     function test_clone_cannot_be_initialized_twice() public {
-        (DirectV4Vault v, OMToken t) = _launch(0, 0);
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
         vm.expectRevert(bytes("DV4: already initialized"));
         v.initialize(address(t), creator, treasury, 0, address(pm), address(posm), address(permit2));
     }
 
     function test_router_buy_sell_and_quotes_match() public {
-        (DirectV4Vault v, OMToken t) = _launch(0, 0);
+        (DirectV4Vault v, OMTokenDirect t) = _launch(0, 0);
         DirectV4Router r = new DirectV4Router(IPoolManager(address(pm)));
         address token = address(t);
-        uint256 q = r.quoteBuy(token, 200 ether);
+        uint256 q = r.quoteBuy(token, v.poolFee(), 200 ether);
         assertGt(q, 0);
         vm.prank(buyer);
-        uint256 got = r.buy{value: 200 ether}(token, q, buyer);
+        uint256 got = r.buy{value: 200 ether}(token, v.poolFee(), q, buyer);
         assertEq(got, q, "le devis correspond a l'achat");
         assertEq(t.balanceOf(buyer), got);
-        uint256 qs = r.quoteSell(token, got);
+        uint256 qs = r.quoteSell(token, v.poolFee(), got);
         vm.startPrank(buyer);
         t.approve(address(r), got);
         uint256 before = buyer.balance;
-        uint256 out = r.sell(token, got, qs, buyer);
+        uint256 out = r.sell(token, v.poolFee(), got, qs, buyer);
         vm.stopPrank();
         assertEq(out, qs);
         assertEq(buyer.balance - before, out);
-        assertGt(out, 198 ether * 99 / 100);
+        assertGt(out, 200 ether * 94 / 100);
         assertEq(address(r).balance, 0);
         assertEq(t.balanceOf(address(r)), 0);
         // protection contre le glissement
+        uint24 fee = v.poolFee();
         vm.prank(buyer);
         vm.expectRevert(bytes("R: slippage"));
-        r.buy{value: 1 ether}(token, type(uint256).max, buyer);
-        v; // silence
+        r.buy{value: 1 ether}(token, fee, type(uint256).max, buyer);
     }
 }
