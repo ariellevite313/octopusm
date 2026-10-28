@@ -1583,5 +1583,8 @@ const p: Record<string, string> = {
   "2% trading fee per trade: 1% to you, 0.5% to the platform and 0.5% added to the liquidity.": "2 % de frais par échange : 1 % pour toi, 0,5 % pour la plateforme et 0,5 % ajoutés à la liquidité.",
   "Holders earn too": "Les holders gagnent aussi",
   "2% trading fee per trade: 0.5% to you, 0.5% to the platform, 0.5% added to the liquidity and 0.5% shared between holders.": "2 % de frais par trade : 0,5 % pour toi, 0,5 % pour la plateforme, 0,5 % ajouté à la liquidité et 0,5 % partagé entre les holders.",
+  "Creator fee": "Frais créateur",
+  "You earn 0.9% of volume.": "Tu gagnes 0,9 % du volume.",
+  "You earn 0.5% of volume.": "Tu gagnes 0,5 % du volume.",
 };
 export default p;
