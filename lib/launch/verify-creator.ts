@@ -56,9 +56,19 @@ export type TokenForVerify = {
 /** Lit la factory Arc : curveRecord(curve) → token, creator. */
 export async function readArcRecordOnChain(curve: string): Promise<ArcCurveRecord> {
   try {
-    const [{ createPublicClient, http }, { arc }, { ARC_FACTORY_V2_ADDRESS, LAUNCHPAD_FACTORY_V2_ABI }] =
+    const [{ createPublicClient, http }, { arc }, { ARC_FACTORY_V2_ADDRESS, LAUNCHPAD_FACTORY_V2_ABI, ARC_FACTORY_DIRECT_ADDRESS, ARC_DIRECT_FACTORY_ABI }] =
       await Promise.all([import("viem"), import("@/lib/arc-chain"), import("@/lib/arc-launchpad")]);
     const client = createPublicClient({ chain: arc, transport: http("https://rpc.mainnet.arc.io") });
+    // Lancement direct Uniswap V4 : arc_launch_id = adresse du vault
+    if (ARC_FACTORY_DIRECT_ADDRESS) {
+      const d = (await client.readContract({
+        address: ARC_FACTORY_DIRECT_ADDRESS,
+        abi: ARC_DIRECT_FACTORY_ABI,
+        functionName: "vaultRecord",
+        args: [curve as `0x${string}`],
+      }).catch(() => null)) as readonly [string, string, string] | null;
+      if (d && d[0] && !/^0x0{40}$/i.test(d[0])) return { token: d[0], curve: d[1], creator: d[2] };
+    }
     const r = (await client.readContract({
       address: ARC_FACTORY_V2_ADDRESS,
       abi: LAUNCHPAD_FACTORY_V2_ABI,
