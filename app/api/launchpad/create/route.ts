@@ -24,6 +24,7 @@ type CreatePayload = {
   name: string;
   ticker: string;
   category: string;
+  logo_url?: string;
   description: string;
   website: string;
   twitter: string;
@@ -193,6 +194,13 @@ export async function POST(req: Request) {
         const { data: urlData } = adminUpload.storage.from("market-images").getPublicUrl(path);
         logo_url = urlData.publicUrl;
       }
+    }
+
+    // Arc : le logo a déjà été envoyé avant la transaction (son URL est écrite sur la chaîne).
+    // On ne l'accepte que s'il vient de notre propre stockage.
+    if (!logo_url && typeof payload.logo_url === "string") {
+      const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
+      if (base && payload.logo_url.startsWith(`${base}/storage/v1/object/public/market-images/`)) logo_url = payload.logo_url;
     }
 
     const pdfFile = form.get("whitepaper");
