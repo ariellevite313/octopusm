@@ -1155,7 +1155,7 @@ export function CreateTokenWizard({
               onClick={() => router.push("/dashboard/launchpad")}
               className="mt-4 w-full text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              Finish later from My tokens
+              Finish later from the token page
             </button>
           </div>
         </div>

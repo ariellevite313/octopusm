@@ -405,6 +405,16 @@ export default async function TokenDetailPage({ params }: Props) {
         <div className="rounded-[22px] border border-dashed border-border px-5 py-10 text-center md:mx-6">
           <p className="text-sm font-medium text-foreground mb-1">Awaiting launch</p>
           <p className="text-xs text-muted-foreground">The chart will appear once the token is deployed on-chain.</p>
+          {isCreator ? (
+            <div className="mx-auto mt-5 max-w-sm space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Your launch is not finished. Resume it below: fees already paid are not charged again.
+              </p>
+              <LaunchButton tokenId={token.id} walletAddress={token.creator_wallet} isScheduled={token.is_scheduled} />
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground">Connect the creator wallet to finish this launch.</p>
+          )}
         </div>
       )}
 
@@ -513,15 +523,6 @@ export default async function TokenDetailPage({ params }: Props) {
             <WatchlistButton tokenId={token.id} />
 
             {/* Launch button — creator only */}
-            {isPending && isCreator && (
-              <div className="space-y-3 pt-1">
-                <LaunchButton
-                  tokenId={token.id}
-                  walletAddress={token.creator_wallet}
-                  isScheduled={token.is_scheduled}
-                />
-              </div>
-            )}
 
             {/* Claim fees — creator only, Solana tokens only (Arc uses ClaimFeesArc above) */}
             {!isArc && isCreator && (isActive || isGraduated) && (
