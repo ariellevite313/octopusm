@@ -1005,13 +1005,25 @@ export function CreateTokenWizard({
 
       if (direct && firstBuyUsdc > 480n * 10n ** 18n) throw new Error(tr("First buy is limited to 480 USDC on a direct Uniswap V4 launch."));
 
+      // Envoie le logo avant la transaction : son URL est écrite sur la chaîne (imageUri),
+      // ce qui permet aux explorateurs et wallets d'afficher l'image.
+      let logoUrl = "";
+      if (data.logo_file) {
+        try {
+          const lf = new FormData();
+          lf.append("logo", data.logo_file);
+          const lr = await fetch("/api/launchpad/upload-logo", { method: "POST", body: lf });
+          if (lr.ok) logoUrl = (await lr.json()).url ?? "";
+        } catch { /* on lance quand même, le logo sera envoyé après */ }
+      }
+
       toast.info(t.deployingArcV2);
       const txHash = direct
         ? await walletClient.writeContract({
             address:      ARC_FACTORY_DIRECT_ADDRESS as `0x${string}`,
             abi:          ARC_DIRECT_FACTORY_ABI,
             functionName: "createToken",
-            args: [data.name, data.ticker, "", data.description, firstBuyUsdc, data.arc_fee_tier],
+            args: [data.name, data.ticker, logoUrl, data.description, firstBuyUsdc, data.arc_fee_tier],
             value: totalValue,
           })
         : await walletClient.writeContract({
@@ -1021,7 +1033,7 @@ export function CreateTokenWizard({
             args: [
               data.name,
               data.ticker,
-              "",               // imageUri (stocké off-chain)
+              logoUrl,          // imageUri (URL publique du logo)
               data.description,
               firstBuyUsdc,
               data.arc_fee_tier,
@@ -1070,9 +1082,10 @@ export function CreateTokenWizard({
 
       // Sauvegarder — V2 : arc_launch_id = curve address (≠ token)
       const form = new FormData();
-      if (data.logo_file)       form.append("logo",       data.logo_file);
+      if (data.logo_file && !logoUrl) form.append("logo", data.logo_file);
       if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
       form.append("payload", JSON.stringify({
+        logo_url: logoUrl || undefined,
         name: data.name, ticker: data.ticker, category: data.category,
         description: data.description, website: data.website,
         twitter: data.twitter, telegram: data.telegram,
