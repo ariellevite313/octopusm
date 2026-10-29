@@ -184,6 +184,7 @@ const p: Record<string, string> = {
   "Cancel": "Annuler",
   "Comments": "Commentaires",
   "Join discussion": "Rejoindre la discussion",
+  "Join the hackathon": "Rejoindre le hackathon",
   "Post": "Publier",
   "No comments yet. Be the first!": "Aucun commentaire pour l'instant. Soyez le premier !",
   "More": "Plus",
