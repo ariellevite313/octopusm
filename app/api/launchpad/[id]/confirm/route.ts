@@ -165,6 +165,22 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
+    // Repli : si la lecture de la transaction ne trouve pas le pool, on le cherche directement par sa mint.
+    // Un pool existant pour CETTE mint, dont le créateur est le wallet de la session, prouve le lancement.
+    if (!poolAddress && token.mint_address) {
+      try {
+        const rpc = process.env.SOLANA_RPC_URL;
+        if (rpc) {
+          const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const client = new (sdk as any).DynamicBondingCurveClient(new Connection(rpc, "confirmed"), "confirmed");
+          const found = await client.state.getPoolByBaseMint(token.mint_address as string);
+          if (found?.publicKey) poolAddress = found.publicKey.toBase58();
+        }
+      } catch (e) { console.warn("[confirm] getPoolByBaseMint failed:", e); }
+      if (!poolAddress) console.warn(`[confirm] no pool found for token ${id} (mint ${token.mint_address}) tx ${body.txSignature}`);
+    }
+
     // Read the creator from the DBC pool on-chain (never from the client).
     // "mismatch" = the pool was created by someone else: refuse to activate.
     const verdict = poolAddress
