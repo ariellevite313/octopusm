@@ -325,10 +325,23 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       });
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError(tr("Transaction failed on-chain. Click Retry.")); setPhase("error"); return; }
-      if (res.status === 202) { setError(tr("Transaction pending — wait a few seconds then click Retry.")); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(poolSig.slice(0, 8)), { duration: 8000 });
+      if (!res.ok || !body.ok) {
+        // Le serveur n'a pas pu activer le token (pool pas encore visible, etc.) : on cherche la pool
+        // directement sur la chaîne. On ne dit "lancé" que si le token est vraiment actif.
+        const found = await checkPoolAndFinish();
+        if (!found) {
+          setError(tr("Transaction pending — wait a few seconds then click Retry."));
+          setPhase("error");
+        }
+        return;
+      }
     } catch {
-      toast.warning(t.txSentWaiting(poolSig.slice(0, 8)), { duration: 8000 });
+      const found = await checkPoolAndFinish();
+      if (!found) {
+        setError(tr("Transaction pending — wait a few seconds then click Retry."));
+        setPhase("error");
+      }
+      return;
     }
 
     setPhase("done");
