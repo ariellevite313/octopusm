@@ -237,10 +237,21 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       .then(r => r.json())
       .then((b: StatusResponse) => {
         if (b.mintAddress) setMintAddress(b.mintAddress);
-        if (b.status === "active" || b.status === "graduated") setPhase("done");
+        if (b.status === "active" || b.status === "graduated") { setPhase("done"); return; }
+        // Token encore "pending" : la pool existe peut-être déjà sur la chaîne (lancement interrompu). On la cherche et on active.
+        if (b.status === "pending" && b.mintAddress) {
+          fetch(`/api/launchpad/${tokenId}/check-pool`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ walletAddress }),
+          })
+            .then(r => r.json())
+            .then((c: { found?: boolean }) => { if (c.found) { setPhase("done"); router.refresh(); } })
+            .catch(() => {});
+        }
       })
       .catch(() => {});
-  }, [tokenId]);
+  }, [tokenId, walletAddress, router]);
 
   /**
    * After a TX B/C error, check if the pool was actually created on-chain.
