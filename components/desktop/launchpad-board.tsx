@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useT } from "@/lib/i18n";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
 
 // Tableau de bord du launchpad sur ordinateur : bandeau des meilleurs
-// créateurs (le Trending est dans TrendingStrip, commun mobile/ordinateur).
+// créateurs, puis le bouton du hackathon (le Trending est dans TrendingStrip, commun mobile/ordinateur).
 
 function sol(n: number) { return n >= 1 ? n.toFixed(2) : n.toFixed(4); }
 function short(a: string) { return `${a.slice(0, 4)}…${a.slice(-4)}`; }
 
 export function LaunchpadBoard() {
+  const { tr } = useT();
   const [leaders, setLeaders]   = useState<LeaderboardEntry[] | null>(null);
 
   useEffect(() => {
@@ -40,6 +42,10 @@ export function LaunchpadBoard() {
         </div>
       )}
 
+      {/* Accès direct au hackathon, juste sous le bandeau des gagnants (blanc sur fond sombre, noir sur fond clair) */}
+      <Link href="/hackathon" className="mb-5 flex h-12 w-full items-center justify-center rounded-2xl bg-foreground text-[15px] font-bold text-background transition-opacity hover:opacity-90">
+        {tr("Join the hackathon")}
+      </Link>
     </div>
   );
 }
