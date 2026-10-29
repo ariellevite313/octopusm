@@ -14,6 +14,8 @@
  */
 import { NextResponse } from "next/server";
 import { getLaunchpadTokens, type SortOption } from "@/services/launchpad-service";
+import { refreshArcStats } from "@/lib/arc-stats";
+import { createAdminClient } from "@/lib/supabase/server";
 
 const VALID_SORTS: SortOption[] = ["new", "old", "verified", "market_cap_desc", "market_cap_asc", "volume"];
 
@@ -58,6 +60,18 @@ export async function GET(req: Request) {
       offset,
       withCount: true,
     });
+
+    // Tokens Arc sans valeur (nouveaux, ou cron en retard) : on calcule tout de suite pour ne pas afficher « $— »
+    const blank = tokens.filter((t) => t.chain === "arc" && t.market_cap_usd == null).map((t) => t.id);
+    if (blank.length > 0) {
+      try {
+        await Promise.race([refreshArcStats(new URL(req.url).origin, blank.slice(0, 10)), new Promise((r) => setTimeout(r, 6000))]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: fresh } = await (createAdminClient() as any).from("launchpad_tokens").select("id, price_usd, market_cap_usd, volume_24h_usd").in("id", blank);
+        const byId = new Map<string, { price_usd: number | null; market_cap_usd: number | null; volume_24h_usd: number | null }>((fresh ?? []).map((f: { id: string }) => [f.id, f as never]));
+        for (const t of tokens) { const f = byId.get(t.id); if (f && f.market_cap_usd != null) { t.price_usd = f.price_usd; t.market_cap_usd = f.market_cap_usd; t.volume_24h_usd = f.volume_24h_usd; } }
+      } catch (e) { console.error("[launchpad/tokens] arc stats:", e); }
+    }
 
     const totalPages = Math.ceil(total / limit);
 

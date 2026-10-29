@@ -56,16 +56,19 @@ async function getVolume24h(curveAddress: string, origin: string): Promise<numbe
 }
 
 
-export async function refreshArcStats(origin: string): Promise<{ updated: number; failed: number; total: number }> {
+/** `onlyIds` : ne met à jour que ces tokens (sinon tous les tokens Arc). */
+export async function refreshArcStats(origin: string, onlyIds?: string[]): Promise<{ updated: number; failed: number; total: number }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  const { data: tokens, error } = await admin
+  let q = admin
     .from("launchpad_tokens")
     .select("id, arc_launch_id, mint_address, status")
     .eq("chain", "arc")
     .in("status", ["active", "graduating", "graduated"])
     .not("arc_launch_id", "is", null);
+  if (onlyIds) q = q.in("id", onlyIds);
+  const { data: tokens, error } = await q;
 
   if (error) throw error;
   if (!tokens?.length) return { updated: 0, failed: 0, total: 0 };
