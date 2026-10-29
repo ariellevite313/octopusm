@@ -21,7 +21,11 @@ import { requireWallet } from "@/lib/social/session";
 import { getPlatformWallet } from "@/lib/solana/dbc";
 
 // Programmes que certains wallets (Phantom : Lighthouse) ajoutent eux-mêmes comme garde-fous.
-const WALLET_GUARD_PROGRAMS = new Set(["L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95"]);
+// Ajoutés par les wallets (Phantom : Lighthouse, et frais de priorité / limite de calcul) : sans effet sur les comptes du token.
+const WALLET_GUARD_PROGRAMS = new Set([
+  "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95",
+  "ComputeBudget111111111111111111111111111111",
+]);
 
 /** Les instructions (hors garde-fous du wallet) doivent être exactement celles que le serveur a préparées. */
 function sameInstructions(posted: Transaction, prepared: Transaction): boolean {
@@ -33,8 +37,13 @@ function sameInstructions(posted: Transaction, prepared: Transaction): boolean {
         Buffer.from(ix.data).toString("base64"),
         ix.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]),
       ]));
-  const a = norm(posted, true), b = norm(prepared, false);
-  return a.length === b.length && a.every((v, i) => v === b[i]);
+  const a = norm(posted, true), b = norm(prepared, true);
+  const same = a.length === b.length && a.every((v, i) => v === b[i]);
+  if (!same) {
+    const progs = (tx: Transaction) => tx.instructions.map((ix) => ix.programId.toBase58().slice(0, 6));
+    console.warn("[cosign-send] instruction mismatch", { posted: progs(posted), prepared: progs(prepared), a: a.length, b: b.length });
+  }
+  return same;
 }
 
 type RouteParams = { params: Promise<{ id: string }> };
