@@ -10,6 +10,7 @@ import type { FeedPost } from "@/lib/social/posts";
 import { PostCard } from "./post-card";
 import { CreateMenu } from "./create-menu";
 import { WhoToFollowInline } from "./feed-right-rail";
+import { FeedPromoCarousel } from "./feed-promo-carousel";
 
 type Tab = "foryou" | "following";
 
@@ -112,6 +113,8 @@ export function FeedClient() {
           <Link href="/" aria-label={tr("Close")} className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-4" /></Link>
         </div>
       )}
+
+      {tab === "foryou" && !tag && <FeedPromoCarousel />}
 
       {loading ? (
         <div className="space-y-4 p-4">{[0, 1].map((i) => <div key={i} className="h-64 animate-pulse rounded-3xl bg-muted/30" />)}</div>
