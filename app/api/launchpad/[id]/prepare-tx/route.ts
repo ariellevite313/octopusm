@@ -66,6 +66,16 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     const isXStock = Boolean(token.stock_symbol);
+    // xStock : TX A ne contient QUE les frais de la plateforme. Une fois payés (vérifiés sur la chaîne par record-fee-tx),
+    // on ne la redemande plus aux essais suivants.
+    let feeAlreadyPaid = false;
+    if (isXStock) {
+      // Lecture à part : si la colonne n'existe pas encore, on garde l'ancien comportement au lieu de casser le lancement.
+      try {
+        const { data: f } = await admin.from("launchpad_tokens").select("fee_paid_at").eq("id", id).maybeSingle();
+        feeAlreadyPaid = Boolean(f?.fee_paid_at);
+      } catch { /* colonne absente */ }
+    }
 
     // ── Mint keypair ─────────────────────────────────────────────────────────
     let mintKeypair: Keypair;
@@ -214,7 +224,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         };
         if (parsed.a && parsed.b) {
           return NextResponse.json({
-            txABase64:    parsed.a,
+            txABase64:    feeAlreadyPaid ? null : parsed.a,
             txBBase64:    parsed.b,
             txCBase64:    parsed.c ?? undefined,
             mintAddress:  token.mint_address,
@@ -255,7 +265,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     await admin.from("launchpad_tokens").update(updatePayload).eq("id", id);
 
     return NextResponse.json({
-      txABase64,
+      txABase64: feeAlreadyPaid ? null : txABase64,
       txBBase64,
       ...(txCBase64    ? { txCBase64 }    : {}),
       mintAddress,
