@@ -13,6 +13,58 @@ const ROTATE_MS = 5500;
 
 /** Cartes qui défilent en haut du fil : parrainage, token, marché, hackathon, tâches du jour. */
 export function FeedPromoCarousel() {
+  return (
+    <>
+      <div className="lg:hidden"><PromoCarouselCard /></div>
+      <div className="hidden lg:block"><PromoMarquee /></div>
+    </>
+  );
+}
+
+function useSlides(): Slide[] {
+  const { tr } = useT();
+  return [
+    { icon: Users, title: tr("Invite friends, earn on every trade"), text: tr("You get 10% of the platform fee on each trade your friends make."), cta: tr("Get my link"), href: "/dashboard/referrals", needsWallet: true },
+    { icon: Rocket, title: tr("Launch your token in 2 minutes"), text: tr("Solana or Arc. Earn creator fees on every trade, forever."), cta: tr("Launch a token"), href: "/launchpad/create", needsWallet: true },
+    { icon: BarChart3, title: tr("Create a prediction market"), text: tr("Ask any question. Share it in the feed and earn when your followers bet."), cta: tr("Create a market"), href: "/pools", needsWallet: true },
+    { icon: Trophy, title: tr("Hackathon: up to 100,000 USDC"), text: tr("Launch a token, rally voters and climb the leaderboard. Voters win 20% too."), cta: tr("Join the hackathon"), href: "/hackathon" },
+    { icon: ListChecks, title: tr("Your daily tasks are waiting"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
+  ];
+}
+
+/** Ordinateur : petites cases qui défilent en continu (pause au survol). */
+function PromoMarquee() {
+  const slides = useSlides();
+  const { isAuthenticated } = useAuth();
+  const loop = [...slides, ...slides];
+  return (
+    <div className="group relative overflow-hidden border-b border-border py-3 [mask-image:linear-gradient(to_right,transparent,#000_4%,#000_96%,transparent)]">
+      <div className="flex w-max gap-3 px-3 [animation:promo-marquee_48s_linear_infinite] group-hover:[animation-play-state:paused]">
+        {loop.map((s, k) => {
+          const Icon = s.icon;
+          const body = (
+            <>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background"><Icon className="size-[18px]" /></span>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-bold leading-tight text-foreground">{s.title}</span>
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">{s.cta}</span>
+              </span>
+            </>
+          );
+          const cls = "flex w-[250px] shrink-0 items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:bg-muted";
+          return !isAuthenticated && s.needsWallet ? (
+            <button key={k} onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className={`${cls} text-left`}>{body}</button>
+          ) : (
+            <Link key={k} href={s.href} className={cls}>{body}</Link>
+          );
+        })}
+      </div>
+      <style>{`@keyframes promo-marquee{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 6px))}}`}</style>
+    </div>
+  );
+}
+
+function PromoCarouselCard() {
   const { tr } = useT();
   const { isAuthenticated } = useAuth();
   const [i, setI] = useState(0);
@@ -20,13 +72,7 @@ export function FeedPromoCarousel() {
   const [tick, setTick] = useState(0); // relance la barre de progression à chaque changement
   const touch = useRef<number | null>(null);
 
-  const slides: Slide[] = [
-    { icon: Users, title: tr("Invite friends, earn on every trade"), text: tr("You get 10% of the platform fee on each trade your friends make."), cta: tr("Get my link"), href: "/dashboard/referrals", needsWallet: true },
-    { icon: Rocket, title: tr("Launch your token in 2 minutes"), text: tr("Solana or Arc. Earn creator fees on every trade, forever."), cta: tr("Launch a token"), href: "/launchpad/create", needsWallet: true },
-    { icon: BarChart3, title: tr("Create a prediction market"), text: tr("Ask any question. Share it in the feed and earn when your followers bet."), cta: tr("Create a market"), href: "/pools", needsWallet: true },
-    { icon: Trophy, title: tr("Hackathon: up to 100,000 USDC"), text: tr("Launch a token, rally voters and climb the leaderboard. Voters win 20% too."), cta: tr("Join the hackathon"), href: "/hackathon" },
-    { icon: ListChecks, title: tr("Your daily tasks are waiting"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
-  ];
+  const slides = useSlides();
   const n = slides.length;
 
   const go = useCallback((to: number) => { setI(((to % n) + n) % n); setTick((t) => t + 1); }, [n]);
