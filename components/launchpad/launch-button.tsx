@@ -412,6 +412,14 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         setPhase("error");
         return;
       }
+      // Les frais sont payés : le serveur le vérifie sur la chaîne et ne les redemandera pas aux essais suivants.
+      try {
+        await fetch(`/api/launchpad/${tokenId}/record-fee-tx`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feeTxSig: txASig }),
+        });
+      } catch { /* non bloquant */ }
     } else {
       toast.info(t.feeAlreadyPaid);
     }
