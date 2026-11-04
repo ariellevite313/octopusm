@@ -4,6 +4,8 @@
  *   1. LibreTranslate auto-hébergé (LIBRETRANSLATE_URL, + LIBRETRANSLATE_API_KEY si l'instance en demande une) : gratuit
  *   2. Google Cloud Translation (GOOGLE_TRANSLATE_API_KEY) : gratuit jusqu'à 500 000 caractères par mois
  *   3. Anthropic (ANTHROPIC_API_KEY), puis OpenAI (OPENAI_API_KEY) : payants
+ *   4. Sinon MyMemory : gratuit, sans clé, rien à installer (5 000 caractères par jour,
+ *      50 000 avec MYMEMORY_EMAIL). Chaque traduction étant gardée en base, ce quota suffit au début.
  * Le texte à traduire est du contenu écrit par des utilisateurs : il est passé comme donnée,
  * jamais comme instruction.
  */
@@ -13,10 +15,8 @@ export const TRANSLATE_LANGS: Record<string, string> = {
 };
 
 export function translationConfigured(): boolean {
-  return Boolean(
-    process.env.LIBRETRANSLATE_URL || process.env.GOOGLE_TRANSLATE_API_KEY ||
-    process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY,
-  );
+  // MyMemory marche sans clé : la traduction est toujours disponible (TRANSLATE_DISABLED=1 pour la couper)
+  return process.env.TRANSLATE_DISABLED !== "1";
 }
 
 // ── Protection des $TICKER, @noms, #tags et liens pour les traducteurs automatiques ──
@@ -37,6 +37,62 @@ export function restoreTokens(text: string, kept: string[]): string {
 /** Codes de langue attendus par chaque service (seul le chinois diffère). */
 const GOOGLE_CODE: Record<string, string> = { zh: "zh-CN" };
 const LIBRE_CODE: Record<string, string> = { zh: "zh-Hans" };
+const MYMEMORY_CODE: Record<string, string> = { zh: "zh-CN" };
+
+/** Langue d'origine du texte (MyMemory exige de la connaître). Codes franc (ISO 639-3) vers nos codes. */
+const FRANC_TO_LANG: Record<string, string> = {
+  eng: "en", fra: "fr", spa: "es", por: "pt", cmn: "zh", rus: "ru", arb: "ar", tur: "tr",
+  ita: "it", deu: "de", nld: "nl", ind: "id", vie: "vi", jpn: "ja", kor: "ko", hin: "hi", swh: "sw", yor: "yo",
+};
+async function detectLang(text: string): Promise<string> {
+  const { franc } = await import("franc-min");
+  return FRANC_TO_LANG[franc(text, { minLength: 3 })] ?? "en";
+}
+
+/** Coupe en morceaux d'au plus `max` octets (MyMemory : 500 octets par requête), sur les lignes puis les phrases. */
+export function chunkText(text: string, max = 450): string[] {
+  const bytes = (x: string) => new TextEncoder().encode(x).length;
+  const out: string[] = [];
+  for (const line of text.split("\n")) {
+    if (bytes(line) <= max) { out.push(line); continue; }
+    let cur = "";
+    for (const part of line.split(/(?<=[.!?。！？])\s+/)) {
+      const words = bytes(part) <= max ? [part] : part.split(/\s+/);
+      for (const w of words) {
+        const next = cur ? `${cur} ${w}` : w;
+        if (bytes(next) <= max) cur = next;
+        else { if (cur) out.push(cur); cur = bytes(w) <= max ? w : w.slice(0, 150); }
+      }
+    }
+    if (cur) out.push(cur);
+  }
+  return out;
+}
+
+async function viaMyMemory(text: string, lang: string, signal: AbortSignal): Promise<string | null> {
+  const src = await detectLang(text);
+  if (src === lang) return text; // déjà dans la bonne langue
+  const pair = `${MYMEMORY_CODE[src] ?? src}|${MYMEMORY_CODE[lang] ?? lang}`;
+  const pieces: string[] = [];
+  for (const chunk of chunkText(text)) {
+    if (!chunk.trim()) { pieces.push(chunk); continue; }
+    const url = new URL("https://api.mymemory.translated.net/get");
+    url.searchParams.set("q", chunk);
+    url.searchParams.set("langpair", pair);
+    if (process.env.MYMEMORY_EMAIL) url.searchParams.set("de", process.env.MYMEMORY_EMAIL);
+    const r = await fetch(url, { signal });
+    if (!r.ok) { console.error("[translate] mymemory", r.status); return null; }
+    const j = await r.json() as { responseStatus?: number | string; responseData?: { translatedText?: string } };
+    const t = j.responseData?.translatedText ?? "";
+    // Quota dépassé : MyMemory répond parfois 200 avec un avertissement à la place de la traduction
+    if (Number(j.responseStatus) !== 200 || /MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) {
+      console.error("[translate] mymemory refused:", j.responseStatus, t.slice(0, 120));
+      return null;
+    }
+    pieces.push(t);
+  }
+  return pieces.join("\n").trim() || null;
+}
 
 async function viaLibre(text: string, lang: string, signal: AbortSignal): Promise<string | null> {
   const base = (process.env.LIBRETRANSLATE_URL ?? "").replace(/\/$/, "");
@@ -125,5 +181,10 @@ export async function translateText(text: string, lang: string): Promise<string 
     return j.choices?.[0]?.message?.content?.trim() || null;
   }
 
-  return null;
+  // Gratuit, sans clé
+  {
+    const { masked, kept } = protectTokens(text);
+    const out = await viaMyMemory(masked, lang, signal);
+    return out ? restoreTokens(out, kept) : null;
+  }
 }
