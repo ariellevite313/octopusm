@@ -460,47 +460,29 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
     throw new Error(`DBC SDK error: ${msg}`);
   }
 
-  // ── Split instructions by program ────────────────────────────────────────────
+  // ── Split : TX A = frais de la plateforme seulement, TX B = TOUTES les instructions du SDK ──
+  // Le SDK crée le token (mint) DANS l'instruction de pool. Le premier achat ajoute ensuite des comptes
+  // de token, l'emballage du SOL, l'achat puis le déballage : ces instructions doivent rester APRÈS la
+  // création de la pool, dans la même transaction. Les sortir vers TX A la faisait échouer (token inexistant).
   const { Transaction } = await import("@solana/web3.js");
 
-  const ixA = fullTx.instructions.filter(
-    (ix: { programId: PublicKey }) => BLOWFISH_SAFE_PROGRAMS.has(ix.programId.toBase58())
-  );
-  const ixB = fullTx.instructions.filter(
-    (ix: { programId: PublicKey }) => !BLOWFISH_SAFE_PROGRAMS.has(ix.programId.toBase58())
-  );
-
-  // Add platform fee to TX A — alongside standard mint ops, Blowfish sees a
-  // short tx with an explicit "send X SOL" rather than a drainer pattern.
   const CREATION_FEE_LAMPORTS  = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL);
   const SCHEDULED_FEE_LAMPORTS = Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL);
   const totalFeeLamports = CREATION_FEE_LAMPORTS + (params.isScheduled ? SCHEDULED_FEE_LAMPORTS : 0);
 
-  ixA.push(
-    SystemProgram.transfer({
-      fromPubkey: creator,
-      toPubkey:   platformWallet.publicKey,
-      lamports:   totalFeeLamports,
-    })
-  );
-
-  // TX A: mint creation + metadata + fee
   const { blockhash: bhA } = await connection.getLatestBlockhash("confirmed");
   const txA = new Transaction({ recentBlockhash: bhA, feePayer: creator });
-  for (const ix of ixA) txA.add(ix);
+  txA.add(SystemProgram.transfer({ fromPubkey: creator, toPubkey: platformWallet.publicKey, lamports: totalFeeLamports }));
 
-  // TX B: DBC pool creation only
   const { blockhash: bhB } = await connection.getLatestBlockhash("confirmed");
   const txB = new Transaction({ recentBlockhash: bhB, feePayer: creator });
-  for (const ix of ixB) txB.add(ix);
+  for (const ix of fullTx.instructions) txB.add(ix);
+  console.log("[DBC split] TX B instructions:", fullTx.instructions.map((ix: { programId: PublicKey }) => ix.programId.toBase58()));
 
   // Pre-sign with mint keypair where it is a required signer.
   // IMPORTANT: tx.signatures is only populated after compileMessage() is called.
   // Without compileMessage(), the array is always empty → both flags are false
   // → mint never signs → TX B fails on-chain with "missing required signer".
-  console.log("[DBC split] TX A instructions:", ixA.map((ix: { programId: PublicKey }) => ix.programId.toBase58()));
-  console.log("[DBC split] TX B instructions:", ixB.map((ix: { programId: PublicKey }) => ix.programId.toBase58()));
-
   const mintStr = params.mintKeypair.publicKey.toBase58();
   txA.compileMessage();
   txB.compileMessage();

@@ -9,9 +9,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  ChevronRight, ChevronLeft, Upload, X, Plus, Trash2,
+  ChevronRight, ChevronLeft, Upload, X,
   Globe, Twitter, MessageCircle, Hash, ExternalLink, TrendingUp,
-  ImageIcon, Link as LinkIcon, User, Users, SlidersHorizontal, Delete,
+  ImageIcon, Link as LinkIcon, SlidersHorizontal, Delete,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT, Tr } from "@/lib/i18n";
@@ -108,17 +108,6 @@ const CATEGORIES = [T("Meme"), T("Utility"), T("AI"), T("Gaming"), T("DeFi"), T(
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function tomorrowMin(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 16);
-}
-function maxSchedule(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 16);
-}
-
 // ─── UI primitives ──────────────────────────────────────────────────────────
 
 const FIELD = "w-full rounded-2xl bg-muted px-4 py-3.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-foreground/15";
@@ -135,19 +124,6 @@ function Label({ children, hint }: { children: React.ReactNode; hint?: string })
 function Err({ msg }: { msg?: string }) {
   const { tr } = useT();
   return msg ? <p className="mt-1.5 text-xs text-red-500">{tr(msg)}</p> : null;
-}
-
-function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? "bg-up" : "bg-muted-foreground/30"}`}
-    >
-      <span className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
-    </button>
-  );
 }
 
 function ExpandRow({ icon, title, hint, open, onToggle, children }: {
@@ -201,7 +177,6 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
   const { t, tr } = useT();
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<{ name?: boolean; ticker?: boolean }>({});
-  const [share, setShare] = useState(data.fee_recipients.length > 0);
   const [lowFeeEnabled, setLowFeeEnabled] = useState(false);
   useEffect(() => {
     if (chain !== "solana") return;
@@ -243,17 +218,6 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     if (!file) return;
     if (file.size > 20 * 1024 * 1024) { toast.error(t.pdfMaxSize); return; }
     set("whitepaper_file", file);
-  }
-
-  function addRecipient() {
-    if (data.fee_recipients.length >= 4) return;
-    set("fee_recipients", [...data.fee_recipients, { address: "", share_pct: 0 }]);
-  }
-  function updateRecipient(i: number, field: keyof FeeRecipient, val: string | number) {
-    set("fee_recipients", data.fee_recipients.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
-  }
-  function removeRecipient(i: number) {
-    set("fee_recipients", data.fee_recipients.filter((_, idx) => idx !== i));
   }
 
   const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" ? "stock" : "sol";
@@ -426,24 +390,11 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
         </div>
       ) : (
         <div>
-          <Label>{tr("Send creator rewards to:")}</Label>
-          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-            {[
-              { on: !share, label: T("Me"), icon: <User className="size-4" />, click: () => { setShare(false); set("fee_recipients", []); } },
-              { on: share,  label: T("Shared"), icon: <Users className="size-4" />, click: () => { setShare(true); if (data.fee_recipients.length === 0) addRecipient(); } },
-            ].map((o) => (
-              <button key={o.label} type="button" onClick={o.click}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors ${
-                  o.on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}>
-                {o.icon}{tr(o.label)}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <Label>{tr("Trading fee")}</Label>
+          <p className="text-xs text-muted-foreground">
             {data.sol_fee_tier === "low"
-              ? (share ? tr("1.25% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("1.25% trading fee per trade. 100% of your creator fees go to your wallet."))
-              : (share ? tr("2% trading fee per trade. Split your creator fees with up to 4 wallets.") : tr("2% trading fee per trade. 100% of your creator fees go to your wallet."))}
+              ? tr("1.25% trading fee per trade. 100% of your creator fees go to your wallet.")
+              : tr("2% trading fee per trade. 100% of your creator fees go to your wallet.")}
           </p>
           {lowFeeEnabled && (
             <div className="mt-4">
@@ -460,67 +411,11 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
             </div>
           )}
 
-          {share && (
-            <div className="mt-3 space-y-2">
-              {data.fee_recipients.map((r, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    value={r.address}
-                    onChange={(e) => updateRecipient(i, "address", e.target.value)}
-                    placeholder={tr("Solana wallet address")}
-                    className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-3 font-mono text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/15"
-                  />
-                  <div className="relative">
-                    <input
-                      type="number" min={1} max={99}
-                      value={r.share_pct}
-                      onChange={(e) => updateRecipient(i, "share_pct", Number(e.target.value))}
-                      className="w-16 rounded-xl bg-muted py-3 pl-2 pr-5 text-center text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/15"
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                  </div>
-                  <button type="button" onClick={() => removeRecipient(i)} aria-label={tr("Remove")} className="text-muted-foreground transition-colors hover:text-red-500">
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              ))}
-              {data.fee_recipients.length < 4 && (
-                <button type="button" onClick={addRecipient} className="flex items-center gap-1 text-sm font-semibold text-foreground hover:opacity-80">
-                  <Plus className="size-4" /> {tr("Add wallet")}
-                </button>
-              )}
-              <Err msg={errors.fee_recipients} />
-            </div>
-          )}
         </div>
       )}
 
       {/* Plus d'options */}
-      <ExpandRow icon={<SlidersHorizontal className="size-5" />} title={tr("More options")} hint={chain === "arc" ? tr("Whitepaper") : tr("Scheduled launch, whitepaper")} open={openMore} onToggle={() => setOpenMore(!openMore)}>
-        {chain === "solana" && data.sol_token_type === "sol" && (
-          <div className="rounded-xl bg-background p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">{tr("Scheduled launch")}</p>
-                <p className="text-xs text-muted-foreground">{tr("+0.1 SOL · not tradeable until the chosen date")}</p>
-              </div>
-              <Toggle on={data.is_scheduled} onClick={() => set("is_scheduled", !data.is_scheduled)} />
-            </div>
-            {data.is_scheduled && (
-              <>
-                <input
-                  type="datetime-local"
-                  min={tomorrowMin()}
-                  max={maxSchedule()}
-                  value={data.scheduled_at}
-                  onChange={(e) => set("scheduled_at", e.target.value)}
-                  className="mt-3 w-full rounded-xl bg-muted px-3 py-2.5 text-sm text-foreground focus:outline-none"
-                />
-                <Err msg={errors.scheduled_at} />
-              </>
-            )}
-          </div>
-        )}
+      <ExpandRow icon={<SlidersHorizontal className="size-5" />} title={tr("More options")} hint={tr("Whitepaper")} open={openMore} onToggle={() => setOpenMore(!openMore)}>
         <button
           type="button"
           onClick={() => pdfRef.current?.click()}
@@ -903,13 +798,13 @@ export function CreateTokenWizard({
       discord: data.discord, other_social: data.other_social,
       supply: 1_000_000_000,
       creator_fee_pct: data.creator_fee_pct,
-      fee_recipients: data.fee_recipients,
+      fee_recipients: [],
       share_top100: false,
       share_top100_pct: 0,
       first_buy_enabled: data.first_buy_enabled,
       first_buy_amount: data.first_buy_amount,
-      is_scheduled: data.is_scheduled,
-      scheduled_at: data.is_scheduled ? data.scheduled_at : null,
+      is_scheduled: false,
+      scheduled_at: null,
       creator_wallet: walletAddress,
       sol_fee_tier: data.sol_fee_tier,
       // Stock-Paired (Solana via Meteora DBC)

@@ -816,6 +816,8 @@ const p: Record<string, string> = {
   "Done": "Terminé",
   "Token won't be tradeable until the scheduled launch date.": "Le token ne sera pas échangeable avant la date de lancement prévue.",
   "2 signatures: mint + pool (3 for stock-paired tokens).": "2 signatures : mint + pool (3 pour les tokens adossés à une action).",
+  "2 signatures: fee + pool (3 for stock-paired tokens).": "2 signatures : frais + pool (3 pour les tokens adossés à une action).",
+  "Scheduled launches are not available right now": "Le lancement programmé n'est pas disponible pour le moment",
   "All RPCs failed — please try again": "Tous les RPC ont échoué — réessayez",
   "Network error — try again.": "Erreur réseau — réessayez.",
   "Pool address not found": "Adresse du pool introuvable",

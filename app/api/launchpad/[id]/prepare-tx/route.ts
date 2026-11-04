@@ -3,8 +3,8 @@
  *
  * SOL meme token path (stock_symbol = null):
  *   Returns { txABase64, txBBase64, mintAddress }
- *   TX A — mint creation + metadata + platform fee  (no Phantom warning)
- *   TX B — Meteora DBC pool creation                ("Proceed anyway" in Phantom)
+ *   TX A — platform fee only (no Phantom warning)
+ *   TX B — Meteora DBC pool creation, which also creates the mint, + optional first buy
  *
  * xStock-paired path (stock_symbol set, e.g. "xNVDA"):
  *   Returns { txABase64, txBBase64, txCBase64, mintAddress, configAddress }
@@ -12,8 +12,9 @@
  *   TX B — DBC createConfig (fresh keypair, quoteMint = xStock)
  *   TX C — DBC createPool (creates meme mint + metadata + pool + vaults)
  *
- * On-chain mint check always runs BEFORE the cache so a retry after TX A confirmed
- * (but TX B was cancelled) never asks the user to pay again.
+ * The mint only exists once the pool is created (the pool instruction creates it). If it is already
+ * on chain, the token is activated directly ({ alreadyLaunched: true }) instead of rebuilding a pool tx
+ * that can only fail. Once the fee is recorded (fee_paid_at), TX A is never asked again.
  *
  * For xStock retries where TX B (createConfig) already landed on-chain:
  *   Returns { txABase64: null, txBBase64: null, txCBase64, mintAddress, configAddress }
@@ -24,6 +25,7 @@ import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
+import { activateIfPoolExists, type PendingToken } from "@/lib/launch/recover-pool";
 import {
   buildSplitPoolTransactions,
   buildStockPairedTransactions,
@@ -66,10 +68,10 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     const isXStock = Boolean(token.stock_symbol);
-    // xStock : TX A ne contient QUE les frais de la plateforme. Une fois payés (vérifiés sur la chaîne par record-fee-tx),
-    // on ne la redemande plus aux essais suivants.
+    // TX A ne contient QUE les frais de la plateforme (SOL et xStock). Une fois payés (vérifiés sur la chaîne
+    // par record-fee-tx), on ne la redemande plus aux essais suivants.
     let feeAlreadyPaid = false;
-    if (isXStock) {
+    {
       // Lecture à part : si la colonne n'existe pas encore, on garde l'ancien comportement au lieu de casser le lancement.
       try {
         const { data: f } = await admin.from("launchpad_tokens").select("fee_paid_at").eq("id", id).maybeSingle();
@@ -118,6 +120,27 @@ export async function POST(req: Request, { params }: RouteParams) {
       feeTier:       (token.sol_fee_tier === "low" ? "low" : "standard") as "low" | "standard",
     };
 
+    // ── Déjà lancé ? La mint n'existe sur la chaîne qu'une fois la pool créée ────────
+    // Dans ce cas on active le token au lieu de renvoyer une création de pool vouée à l'échec.
+    if (token.mint_address && process.env.SOLANA_RPC_URL) {
+      try {
+        const conn = new Connection(process.env.SOLANA_RPC_URL, "confirmed");
+        const mintInfo = await conn.getAccountInfo(new PublicKey(token.mint_address as string));
+        if (mintInfo !== null) {
+          const pool = await activateIfPoolExists(admin, { id, ...token } as PendingToken);
+          if (pool) {
+            return NextResponse.json({ alreadyLaunched: true, mintAddress: token.mint_address, poolAddress: pool });
+          }
+          return NextResponse.json(
+            { error: "This token already exists on chain but its pool was not found yet. Wait a minute and retry." },
+            { status: 409 },
+          );
+        }
+      } catch (e) {
+        console.warn("[prepare-tx] on-chain mint check failed:", e);
+      }
+    }
+
     // ── xStock: check if DBC config already on-chain (retry where TX B landed) ─
     if (isXStock && token.dbc_config_address) {
       try {
@@ -162,53 +185,6 @@ export async function POST(req: Request, { params }: RouteParams) {
         }
       } catch (e) {
         console.warn("[prepare-tx xStock] config on-chain check failed:", e);
-      }
-    }
-
-    // ── SOL path: check if mint already on-chain (retry where TX A landed) ────
-    if (!isXStock && token.mint_address) {
-      try {
-        const rpc = process.env.SOLANA_RPC_URL;
-        if (rpc) {
-          const conn = new Connection(rpc, "confirmed");
-          const info = await conn.getAccountInfo(new PublicKey(token.mint_address as string));
-          if (info !== null) {
-            console.log("[prepare-tx] mint already on-chain — rebuilding TX B with fresh blockhash");
-
-            if (token.tx_base64) {
-              try {
-                const cached = JSON.parse(token.tx_base64 as string) as { a?: string; b?: string };
-                if (cached.b) {
-                  const { Transaction: Tx } = await import("@solana/web3.js");
-                  const cachedTxB = Tx.from(Buffer.from(cached.b, "base64"));
-                  const { blockhash } = await conn.getLatestBlockhash("confirmed");
-                  const creator      = new PublicKey(body.walletAddress!);
-                  const freshTxB     = new Tx({ recentBlockhash: blockhash, feePayer: creator });
-                  for (const ix of cachedTxB.instructions) freshTxB.add(ix);
-                  // compileMessage() MUST be called before checking .signatures —
-                  // without it the array is always empty and partialSign is never called.
-                  freshTxB.compileMessage();
-                  const mintStr = mintKeypair.publicKey.toBase58();
-                  if (freshTxB.signatures.some((s: { publicKey: PublicKey }) => s.publicKey.toBase58() === mintStr)) {
-                    freshTxB.partialSign(mintKeypair);
-                  }
-                  const txBBase64 = Buffer.from(freshTxB.serialize({ requireAllSignatures: false })).toString("base64");
-                  await admin.from("launchpad_tokens")
-                    .update({
-                      tx_base64:      JSON.stringify({ a: null, b: txBBase64 }),
-                      tx_prepared_at: new Date().toISOString(),
-                    })
-                    .eq("id", id);
-                  return NextResponse.json({ txABase64: null, txBBase64, mintAddress: token.mint_address });
-                }
-              } catch (cacheErr) {
-                console.warn("[prepare-tx] cached TX B rebuild failed:", cacheErr);
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("[prepare-tx] on-chain mint check failed:", e);
       }
     }
 

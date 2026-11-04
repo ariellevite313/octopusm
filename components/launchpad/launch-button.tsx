@@ -4,8 +4,8 @@
  * LaunchButton — multi-transaction launch flow.
  *
  * SOL meme token (no stockSymbol):
- *   TX A  mint + metadata + platform fee   → no Phantom warning
- *   TX B  Meteora DBC create_virtual_pool  → "Proceed anyway" in Phantom
+ *   TX A  platform fee only                → no Phantom warning
+ *   TX B  Meteora DBC create pool (creates the mint) + optional first buy
  *
  * xStock-paired token (stockSymbol set):
  *   TX A  platform fee only               → no Phantom warning
@@ -201,9 +201,10 @@ async function waitForConfirmation(sig: string): Promise<void> {
     for (const rpc of RPCS) {
       try {
         const status = await new Connection(rpc, "confirmed").getSignatureStatus(sig);
+        // L'erreur d'abord : une transaction échouée est aussi « confirmée ».
+        if (status.value?.err) throw new Error("TX failed on-chain");
         const cs = status.value?.confirmationStatus;
         if (cs === "confirmed" || cs === "finalized") return;
-        if (status.value?.err) throw new Error("TX failed on-chain");
       } catch (e) {
         if (e instanceof Error && e.message.includes("failed on-chain")) throw e;
         /* try next RPC */
@@ -223,7 +224,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
   const [phase, setPhase]     = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]     = useState<string | null>(null);
-  const [hasTxA, setHasTxA]  = useState(true);
+  const [, setHasTxA]  = useState(true);
   // Whether this is a 3-TX xStock flow (determines labels + TX C step)
   const [hasThreeTx, setHasThreeTx] = useState(false);
 
@@ -379,11 +380,20 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         txBBase64?: string;
         txCBase64?: string | null;
         mintAddress?: string;
+        alreadyLaunched?: boolean;
         error?: string;
       };
-      if (!res.ok || !body.txBBase64) throw new Error(body.error ?? tr("Failed to prepare transactions"));
+      // La pool existait déjà : le serveur vient d'activer le token, rien à signer.
+      if (res.ok && body.alreadyLaunched) {
+        if (body.mintAddress) setMintAddress(body.mintAddress);
+        setPhase("done");
+        toast.success(isScheduled ? t.tokenScheduled : t.tokenLaunched);
+        setTimeout(() => router.push(`/launchpad/${tokenId}`), 1500);
+        return;
+      }
+      if (!res.ok || (!body.txBBase64 && !body.txCBase64)) throw new Error(body.error ?? tr("Failed to prepare transactions"));
       txABase64  = body.txABase64  ?? null;
-      txBBase64  = body.txBBase64;
+      txBBase64  = body.txBBase64 ?? "";
       txCBase64  = body.txCBase64  ?? null;
       setHasTxA(txABase64 !== null);
       setHasThreeTx(txCBase64 !== null);
@@ -424,6 +434,12 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       toast.info(t.feeAlreadyPaid);
     }
 
+    // ── xStock : la config existe déjà (essai précédent), il ne reste que la pool ──
+    if (!txBBase64 && txCBase64) {
+      await signTxC(wallet, txCBase64);
+      return;
+    }
+
     // ── Sign TX B immediately ───────────────────────────────────
     setPhase("signing-b");
     let txBSig = "";
@@ -458,8 +474,15 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       return;
     }
 
-    // ── SOL path: confirm TX B ───────────────────────────────────────────────
+    // ── SOL path: attendre la pool sur la chaîne, puis confirmer ─────────────
     setPhase("confirming");
+    try {
+      await waitForConfirmation(txBSig);
+    } catch {
+      setError(tr("Transaction failed on-chain. Click Retry."));
+      setPhase("error");
+      return;
+    }
     try {
       const res = await fetch(`/api/launchpad/${tokenId}/confirm`, {
         method: "POST",
@@ -468,10 +491,16 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       });
       const body = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 422) { setError(tr("Transaction failed on-chain. Click Retry.")); setPhase("error"); return; }
-      if (res.status === 202) { setError(tr("Transaction pending — wait a few seconds then click Retry.")); setPhase("error"); return; }
-      if (!res.ok || !body.ok) toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
+      if (!res.ok || !body.ok) {
+        // Le serveur n'a pas pu activer tout de suite : on cherche la pool directement sur la chaîne.
+        const found = await checkPoolAndFinish();
+        if (!found) { setError(tr("Transaction pending — wait a few seconds then click Retry.")); setPhase("error"); }
+        return;
+      }
     } catch {
-      toast.warning(t.txSentWaiting(txBSig.slice(0, 8)), { duration: 8000 });
+      const found = await checkPoolAndFinish();
+      if (!found) { setError(tr("Transaction pending — wait a few seconds then click Retry.")); setPhase("error"); }
+      return;
     }
 
     setPhase("done");
@@ -617,7 +646,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     ready:          isScheduled ? tr("Sign & Schedule Launch") : tr("Sign & Launch"),
     "pick-wallet":  tr("Choose wallet…"),
     "signing-a":    tr("Step 1/{total} — Approve in wallet…", { total: totalSteps }),
-    "sending-a":    hasThreeTx ? tr("Paying creation fee…") : hasTxA ? tr("Creating mint…") : tr("Sending fee…"),
+    "sending-a":    tr("Paying creation fee…"),
     "signing-b":    hasThreeTx
                       ? tr("Step 2/{total} — Approve DBC config in wallet…", { total: totalSteps })
                       : tr("Step 2/{total} — Approve pool in wallet…", { total: totalSteps }),
@@ -652,7 +681,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
 
       {phase === "ready" && (
         <p className="text-center text-xs text-muted-foreground">
-          {tr("2 signatures: mint + pool (3 for stock-paired tokens).")}
+          {tr("2 signatures: fee + pool (3 for stock-paired tokens).")}
         </p>
       )}
     </div>

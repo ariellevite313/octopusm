@@ -398,33 +398,21 @@ describe("POST /api/launchpad/create", () => {
     expect(body.error).toBeUndefined();
   });
 
-  it("sets scheduled_paid_sol to 0.1 when is_scheduled is true", async () => {
-    const NEW_ID = "uuid-sched-001";
-    const adminClient = new SupaMockBuilder()
-      .returnFor("launchpad_tokens", { data: [{ id: NEW_ID }], error: null })
-      .buildClient();
-
-    // Spy on the insert call to verify scheduled_paid_sol is set
-    const insertSpy = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({ data: { id: NEW_ID }, error: null }),
-      }),
-    });
+  it("rejects scheduled launches (feature removed for now)", async () => {
+    const insertSpy = vi.fn();
+    const adminClient = new SupaMockBuilder().buildClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (adminClient as any).from = vi.fn(() => ({ insert: insertSpy }));
     mockCreateAdminClient.mockReturnValue(adminClient);
 
-    const scheduledPayload = {
+    const res = await postCreate(makeCreateRequest({
       ...VALID_PAYLOAD,
       is_scheduled: true,
       scheduled_at: new Date(Date.now() + 86_400_000).toISOString(),
-    };
+    }));
 
-    await postCreate(makeCreateRequest(scheduledPayload));
-
-    expect(insertSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduled_paid_sol: 0.1 })
-    );
+    expect(res.status).toBe(400);
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it("sets scheduled_paid_sol to null when is_scheduled is false", async () => {

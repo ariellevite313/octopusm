@@ -110,7 +110,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Creator fee must be 1%" }, { status: 400 });
     }
 
-    // Scheduled date must be at least 1 hour in the future (client picks tomorrow min, server enforces 1h)
+    // Lancement programmé : retiré pour le moment (l'activation automatique n'est pas garantie sur le serveur).
+    if (payload.is_scheduled) {
+      return NextResponse.json({ error: "Scheduled launches are not available right now" }, { status: 400 });
+    }
+    // Partage des frais et part du top 100 : retirés pour le moment (jamais appliqués on-chain).
+    payload.fee_recipients = [];
+    payload.share_top100 = false;
+
     if (payload.is_scheduled) {
       if (!payload.scheduled_at) {
         return NextResponse.json({ error: "scheduled_at is required for scheduled launches" }, { status: 400 });

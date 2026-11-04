@@ -123,11 +123,22 @@ export async function POST(req: Request, { params }: RouteParams) {
     const rpc = process.env.SOLANA_RPC_URL;
     if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
     const connection = new Connection(rpc, "confirmed");
-    const signature = await connection.sendRawTransaction(tx.serialize(), {
-      skipPreflight: true,
-      preflightCommitment: "confirmed",
-      maxRetries: 3,
-    });
+    // Simulation avant envoi : une transaction vouée à l'échec n'est pas diffusée (le créateur ne paie
+    // pas le réseau pour rien) et l'erreur réelle remonte à l'écran.
+    let signature: string;
+    try {
+      signature = await connection.sendRawTransaction(tx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+        maxRetries: 3,
+      });
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e);
+      console.error("[cosign-send] simulation failed:", m);
+      // Message court et lisible : la première ligne d'erreur du programme si elle existe
+      const short = (m.match(/Error Message: ([^.\n]+)/)?.[1] ?? m.split("\n")[0]).slice(0, 200);
+      return NextResponse.json({ error: `Transaction would fail: ${short}` }, { status: 422 });
+    }
 
     return NextResponse.json({ signature });
   } catch (err) {

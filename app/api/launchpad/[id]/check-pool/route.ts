@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { activateIfPoolExists } from "@/lib/launch/recover-pool";
+import { requireWallet } from "@/lib/social/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -24,6 +25,8 @@ export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
+    const sess = await requireWallet();
+    if ("error" in sess) return sess.error;
     const body = await req.json() as { walletAddress?: string };
     if (!body.walletAddress) {
       return NextResponse.json({ error: "walletAddress is required" }, { status: 400 });
@@ -38,7 +41,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       .maybeSingle();
 
     if (!token) return NextResponse.json({ error: "Token not found" }, { status: 404 });
-    if ((token.creator_wallet as string) !== body.walletAddress) {
+    if ((token.creator_wallet as string) !== body.walletAddress || body.walletAddress !== sess.wallet) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
