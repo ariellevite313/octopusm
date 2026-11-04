@@ -1595,5 +1595,9 @@ const p: Record<string, string> = {
   "Creator fee": "Frais créateur",
   "You earn 0.9% of volume.": "Tu gagnes 0,9 % du volume.",
   "You earn 0.5% of volume.": "Tu gagnes 0,5 % du volume.",
+  "Translate": "Traduire",
+  "Show original": "Voir l'original",
+  "Translation failed": "La traduction a échoué",
+  "Translation is not available yet": "La traduction n'est pas encore disponible",
 };
 export default p;

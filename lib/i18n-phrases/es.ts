@@ -1393,5 +1393,9 @@ const p: Record<string, string> = {
   "Dark": "Oscuro",
   "My profile": "Mi perfil",
   "Market cap": "Cap. de mercado",
+  "Translate": "Traducir",
+  "Show original": "Ver original",
+  "Translation failed": "La traducción falló",
+  "Translation is not available yet": "La traducción aún no está disponible",
 };
 export default p;
