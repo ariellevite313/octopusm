@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     const olderThan = new Date(Date.now() - 2 * 60_000).toISOString();
     const { data, error } = await admin
       .from("launchpad_tokens")
-      .select("id, status, mint_address, tx_base64, is_scheduled, stock_symbol, dbc_config_address")
+      .select("id, status, creator_wallet, mint_address, tx_base64, is_scheduled, stock_symbol, dbc_config_address")
       .eq("status", "pending")
       .eq("chain", "solana")
       .not("mint_address", "is", null)

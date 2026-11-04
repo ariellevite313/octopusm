@@ -4,6 +4,8 @@
  */
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { getXStockMint } from "@/lib/solana/xstocks";
+import { verifyTokenCreator } from "@/lib/launch/verify-creator";
+import { awardOcto, OMERO_PER_LAUNCH } from "@/lib/octo";
 
 const BLOWFISH_SAFE = new Set([
   "11111111111111111111111111111111",
@@ -82,6 +84,7 @@ export type PendingToken = {
   id: string;
   status: string;
   mint_address: string | null;
+  creator_wallet: string | null;
   tx_base64: string | null;
   is_scheduled: boolean | null;
   stock_symbol: string | null;
@@ -117,15 +120,34 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
   }
   if (!poolAddress) return null;
 
+  // Même exigence que /confirm : le créateur lu sur la chaîne doit être celui du token.
+  const verdict = await verifyTokenCreator({
+    chain: "solana",
+    mint_address: token.mint_address,
+    pool_address: poolAddress,
+    creator_wallet: token.creator_wallet,
+  });
+  if (verdict === "mismatch") {
+    console.error(`[recover-pool] creator mismatch for token ${token.id}`);
+    return null;
+  }
+
   const isScheduled = Boolean(token.is_scheduled);
-  await admin.from("launchpad_tokens").update({
+  const { data: flipped } = await admin.from("launchpad_tokens").update({
     status:         "active",
     is_tradeable:   !isScheduled,
     pool_address:   poolAddress,
+    creator_verified:    verdict === "ok",
+    creator_verified_at: verdict === "ok" ? new Date().toISOString() : null,
     tx_base64:      null,
     tx_prepared_at: null,
     vanity_secret_key: null,
     ...(token.stock_symbol ? { dbc_config_secret: null } : {}),
-  }).eq("id", token.id).eq("status", "pending");
+  }).eq("id", token.id).eq("status", "pending").select("id");
+
+  // Même récompense que /confirm, une seule fois (seul l'appel qui a fait passer le token en actif la donne).
+  if (flipped?.length && token.creator_wallet) {
+    awardOcto(token.creator_wallet, OMERO_PER_LAUNCH, "launch").catch((e) => console.warn("[recover-pool] awardOcto:", e));
+  }
   return poolAddress;
 }

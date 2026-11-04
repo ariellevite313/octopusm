@@ -267,7 +267,8 @@ export async function checkNameAvailability(name: string, ticker: string): Promi
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from("launchpad_tokens").delete().in("id", abandonedIds).eq("status", "pending").is("fee_paid_at", null);
   }
-  const existingTokens = allTokens.filter((t) => !isAbandoned(t));
+  // Un token annulé (par l'admin) ne bloque plus son nom ni son ticker.
+  const existingTokens = allTokens.filter((t) => !isAbandoned(t) && t.status !== "cancelled");
 
   const takenNames = new Set([
     ...reservations.map((r) => r.name.toLowerCase()),
