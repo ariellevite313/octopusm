@@ -32,5 +32,6 @@ export async function POST(req: Request, { params }: P) {
   if (!b.wallet || !BASE58_RE.test(b.wallet)) return lErr("wallet must be a valid Solana address", 400);
   const prep = await callJson(prepareTx as never, id, { walletAddress: b.wallet });
   if (prep.status >= 400) return lErr(String(prep.data.error ?? "Could not prepare transactions"), prep.status);
+  if (prep.data.alreadyLaunched) return lJson({ token_id: id, mint: prep.data.mintAddress ?? null, already_launched: true, pool_address: prep.data.poolAddress ?? null });
   return lJson({ token_id: id, mint: prep.data.mintAddress ?? null, tx_a: prep.data.txABase64 ?? null, tx_b: prep.data.txBBase64 ?? null });
 }
