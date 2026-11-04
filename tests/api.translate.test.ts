@@ -65,3 +65,33 @@ describe("POST /api/translate", () => {
     expect(a.upsert).toHaveBeenCalled();
   });
 });
+
+import { protectTokens, restoreTokens } from "@/lib/social/translate";
+
+describe("free translators keep tickers, mentions, tags and links", () => {
+  it("masks then restores them exactly, even with spaces added in brackets", () => {
+    const src = "Gm $OM fam, ask @omero_inu #hackathon https://omdot.fun/hackathon";
+    const { masked, kept } = protectTokens(src);
+    expect(masked).not.toContain("$OM");
+    expect(masked).not.toContain("@omero_inu");
+    expect(restoreTokens(masked.replace("[0]", "[ 0 ]"), kept)).toBe(src);
+  });
+});
+
+describe("POST /api/translate with Google (free tier)", () => {
+  beforeEach(() => { delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENAI_API_KEY; delete process.env.LIBRETRANSLATE_URL; });
+  afterEach(() => { process.env = { ...env }; vi.restoreAllMocks(); });
+
+  it("uses Google when its key is set, and puts $TICKER back unchanged", async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = "g-key";
+    mockCreateAdminClient.mockReturnValue(admin({ body: "Bonjour $OM" }).client);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (_u, init) => {
+      const q = JSON.parse((init as RequestInit).body as string).q as string;
+      return new Response(JSON.stringify({ data: { translations: [{ translatedText: q.replace("Bonjour", "Hello") }] } }), { status: 200 });
+    });
+    const r = await POST(req({ kind: "post", id: ID, lang: "en" }));
+    expect(await r.json()).toEqual({ text: "Hello $OM" });
+    expect(String(fetchSpy.mock.calls[0][0])).toContain("translation.googleapis.com");
+    expect(JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string).q).not.toContain("$OM");
+  });
+});
