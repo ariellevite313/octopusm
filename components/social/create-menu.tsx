@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, PenLine, Plus, Rocket, X } from "lucide-react";
+import { BarChart3, PenLine, Rocket, X } from "lucide-react";
+import { PawIcon } from "@/components/shared/paw-icon";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { ComposeModal } from "./compose-modal";
@@ -53,7 +54,7 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
         aria-label={tr(open ? "Close" : "Create")}
         className="fixed bottom-28 right-4 z-[55] flex size-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform active:scale-95 md:bottom-8 md:right-8"
       >
-        {open ? <X className="size-7" strokeWidth={2.4} /> : <Plus className="size-8" strokeWidth={2.4} />}
+        {open ? <X className="size-7" strokeWidth={2.4} /> : <PawIcon className="size-[30px]" />}
       </button>
 
       {open && (
