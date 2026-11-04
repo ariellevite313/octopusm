@@ -1,5 +1,7 @@
 /** Whitepaper des tokens : règles communes à l'envoi avant lancement et à la création. */
-export const MAX_WHITEPAPER_BYTES = 20 * 1024 * 1024; // 20 MB
+// 1 Mo (un peu sous 1 Mio) : passe sous la limite par défaut des serveurs web (nginx, 1 Mio par requête).
+export const MAX_WHITEPAPER_BYTES = 1_000_000;
+export const MAX_LOGO_BYTES = 1_000_000;
 
 /** Un vrai PDF commence par « %PDF- » (on ne se fie ni à l'extension ni au type annoncé). */
 export function looksLikePdf(buf: ArrayBuffer): boolean {

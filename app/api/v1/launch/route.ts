@@ -23,7 +23,7 @@ export async function OPTIONS() { return lOk(); }
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+import { MAX_LOGO_BYTES } from "@/lib/launch/whitepaper";
 const LOGO_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 export async function GET() {
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     const mime = b.logo_mime ?? "image/png";
     if (!LOGO_TYPES.has(mime)) return lErr("logo_mime must be png, jpeg, webp or gif", 400);
     const buf = Buffer.from(b.logo_base64, "base64");
-    if (buf.length === 0 || buf.length > MAX_LOGO_BYTES) return lErr("logo must be 1 byte to 5 MB", 400);
+    if (buf.length === 0 || buf.length > MAX_LOGO_BYTES) return lErr("logo must be 1 byte to 1 MB", 400);
     form.set("logo", new Blob([new Uint8Array(buf)], { type: mime }), `logo.${mime.split("/")[1]}`);
   }
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
+import { MAX_LOGO_BYTES } from "@/lib/launch/whitepaper";
 
-const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const VALID_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 /**
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const file = form.get("logo");
     if (!(file instanceof Blob) || file.size === 0) return NextResponse.json({ error: "Logo missing" }, { status: 400 });
     if (!VALID_LOGO_TYPES.has(file.type)) return NextResponse.json({ error: "Unsupported logo format. Use PNG, JPG, WebP, or GIF" }, { status: 400 });
-    if (file.size > MAX_LOGO_BYTES) return NextResponse.json({ error: "Logo too large (max 5 MB)" }, { status: 400 });
+    if (file.size > MAX_LOGO_BYTES) return NextResponse.json({ error: "Logo too large (max 1 MB)" }, { status: 400 });
 
     const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;

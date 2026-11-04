@@ -4,11 +4,9 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 import { verifyTokenCreator, type CreatorVerdict } from "@/lib/launch/verify-creator";
 import { requireWallet } from "@/lib/social/session";
-import { looksLikePdf, isOwnWhitepaperUrl } from "@/lib/launch/whitepaper";
+import { looksLikePdf, isOwnWhitepaperUrl, MAX_LOGO_BYTES, MAX_WHITEPAPER_BYTES } from "@/lib/launch/whitepaper";
 
 // Max file sizes
-const MAX_LOGO_BYTES       = 5  * 1024 * 1024; // 5 MB
-const MAX_WHITEPAPER_BYTES = 20 * 1024 * 1024; // 20 MB
 const VALID_LOGO_TYPES     = new Set(["image/jpeg","image/png","image/webp","image/gif"]);
 
 const VALID_CATEGORIES = new Set(["Meme","Utility","AI","Gaming","DeFi","NFT","x402"]);
@@ -191,7 +189,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unsupported logo format. Use PNG, JPG, WebP, or GIF" }, { status: 400 });
       }
       if (logoFile.size > MAX_LOGO_BYTES) {
-        return NextResponse.json({ error: "Logo too large (max 5 MB)" }, { status: 400 });
+        return NextResponse.json({ error: "Logo too large (max 1 MB)" }, { status: 400 });
       }
       const ext  = logoFile.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -217,7 +215,7 @@ export async function POST(req: Request) {
     const pdfFile = form.get("whitepaper");
     if (pdfFile instanceof Blob && pdfFile.size > 0) {
       if (pdfFile.size > MAX_WHITEPAPER_BYTES) {
-        return NextResponse.json({ error: "PDF too large (max 20 MB)" }, { status: 400 });
+        return NextResponse.json({ error: "PDF too large (max 1 MB). Compress it first, for example with ilovepdf.com" }, { status: 400 });
       }
       const pdfPath = `whitepapers/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
       const pdfBuf  = await pdfFile.arrayBuffer();
