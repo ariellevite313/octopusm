@@ -108,6 +108,11 @@ const CATEGORIES = [T("Meme"), T("Utility"), T("AI"), T("Gaming"), T("DeFi"), T(
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Lit une réponse JSON sans planter si le serveur (ou un proxy) renvoie autre chose (ex. 413 en HTML). */
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  try { return (await res.json()) as Record<string, unknown>; } catch { return {}; }
+}
+
 // ─── UI primitives ──────────────────────────────────────────────────────────
 
 const FIELD = "w-full rounded-2xl bg-muted px-4 py-3.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-foreground/15";
@@ -775,6 +780,22 @@ export function CreateTokenWizard({
 
   function back() { setStep((s) => s - 1); }
 
+  /** Envoie le whitepaper avant tout lancement. Renvoie son URL, ou "" si absent ou en échec (avec un avertissement). */
+  async function uploadWhitepaper(): Promise<string> {
+    if (!data.whitepaper_file) return "";
+    try {
+      const f = new FormData();
+      f.append("whitepaper", data.whitepaper_file);
+      const r = await fetch("/api/launchpad/upload-whitepaper", { method: "POST", body: f });
+      const j = await readJson(r);
+      if (r.ok && typeof j.url === "string") return j.url;
+      toast.warning(tr(typeof j.error === "string" ? j.error : "Whitepaper upload failed. You can add it later."));
+    } catch {
+      toast.warning(tr("Whitepaper upload failed. You can add it later."));
+    }
+    return "";
+  }
+
   async function submitSolana() {
     if (!walletAddress) { toast.error(t.connectWalletFirst); return; }
     // Guard : MetaMask est un wallet EVM — ne peut pas signer de TX Solana
@@ -787,11 +808,12 @@ export function CreateTokenWizard({
       toast.error(t.invalidSolanaAddress);
       return;
     }
+    const whitepaperUrl = await uploadWhitepaper();
     const form = new FormData();
     if (data.logo_file) form.append("logo", data.logo_file);
-    if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
     const isStockPaired = data.sol_token_type === "stock";
     form.append("payload", JSON.stringify({
+      whitepaper_url: whitepaperUrl || undefined,
       name: data.name, ticker: data.ticker, category: data.category,
       description: data.description, website: data.website,
       twitter: data.twitter, telegram: data.telegram,
@@ -816,8 +838,9 @@ export function CreateTokenWizard({
     }));
 
     const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
-    const json = await res.json() as { id?: string; error?: string };
-    if (!res.ok || json.error) throw new Error(json.error ?? "Failed to create token");
+    const json = await readJson(res) as { id?: string; error?: string; warning?: string };
+    if (!res.ok || json.error) throw new Error(json.error ?? (res.status === 413 ? "Files too large for the server" : "Failed to create token"));
+    if (json.warning) toast.warning(tr(json.warning));
     // On reste dans l'assistant : les signatures se font tout de suite (pas de page "Pending")
     setLaunchId(json.id ?? null);
   }
@@ -912,6 +935,9 @@ export function CreateTokenWizard({
         } catch { /* on lance quand même, le logo sera envoyé après */ }
       }
 
+      // Le whitepaper aussi part avant la transaction : la sauvegarde d'après reste une petite requête.
+      const whitepaperUrl = await uploadWhitepaper();
+
       toast.info(t.deployingArcV2);
       const txHash = direct
         ? await walletClient.writeContract({
@@ -978,9 +1004,9 @@ export function CreateTokenWizard({
       // Sauvegarder — V2 : arc_launch_id = curve address (≠ token)
       const form = new FormData();
       if (data.logo_file && !logoUrl) form.append("logo", data.logo_file);
-      if (data.whitepaper_file) form.append("whitepaper", data.whitepaper_file);
       form.append("payload", JSON.stringify({
         logo_url: logoUrl || undefined,
+        whitepaper_url: whitepaperUrl || undefined,
         name: data.name, ticker: data.ticker, category: data.category,
         description: data.description, website: data.website,
         twitter: data.twitter, telegram: data.telegram,
@@ -1005,13 +1031,24 @@ export function CreateTokenWizard({
         fee_distributor_address: null,
         holder_rewards: false,
       }));
-      const res = await fetch("/api/launchpad/create", { method: "POST", body: form });
-      const json = await res.json() as { id?: string; error?: string };
-      if (!res.ok || json.error) {
-        const errMsg = json.error ?? `HTTP ${res.status}`;
+      // Le token est déjà sur la chaîne : on insiste (3 essais) avant d'abandonner la sauvegarde.
+      let res: Response | null = null;
+      let json: { id?: string; error?: string; warning?: string } = {};
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await fetch("/api/launchpad/create", { method: "POST", body: form });
+          json = await readJson(res) as typeof json;
+          if (res.ok && json.id) break;
+          if (res.status < 500 && res.status !== 429) break; // erreur définitive : inutile de réessayer
+        } catch { /* réseau : on réessaie */ }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!res || !res.ok || json.error || !json.id) {
+        const errMsg = json.error ?? (res ? `HTTP ${res.status}` : "network error");
         console.error("[Arc wizard] DB save failed:", errMsg, "token:", arcTokenAddress, "curve:", arcCurveAddress, "tx:", txHash);
         throw new Error(`Token deployed on-chain (curve: ${arcCurveAddress}) but DB save failed: ${errMsg}. Save the token address!`);
       }
+      if (json.warning) toast.warning(tr(json.warning));
       toast.success(t.tokenDeployedArc);
       router.push(`/launchpad/${json.id}`);
   }
