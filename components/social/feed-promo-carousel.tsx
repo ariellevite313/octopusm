@@ -7,7 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 
-type Slide = { icon: LucideIcon; live: string; title: string; text: string; cta: string; href: string; needsWallet?: boolean };
+type Slide = { icon: LucideIcon; accent: string; live: string; title: string; text: string; cta: string; href: string; needsWallet?: boolean };
 
 const ROTATE_MS = 5500;
 
@@ -31,11 +31,11 @@ function useSlides(): Slide[] {
       .catch(() => {});
   }, []);
   return [
-    { icon: Users, live: tr("10% of fees, for life"), title: tr("Invite friends"), text: tr("You get 10% of the platform fee on each trade your friends make."), cta: tr("Get my link"), href: "/dashboard/referrals", needsWallet: true },
-    { icon: Rocket, live: tokenCount ? tr("{n} tokens launched", { n: tokenCount }) : tr("Live on Solana and Arc"), title: tr("Launch a token"), text: tr("Solana or Arc, in 2 minutes. Earn creator fees on every trade."), cta: tr("Launch a token"), href: "/launchpad/create", needsWallet: true },
-    { icon: BarChart3, live: tr("Open to everyone"), title: tr("Prediction markets"), text: tr("Ask any question, share it, earn when your followers bet."), cta: tr("Create a market"), href: "/pools", needsWallet: true },
-    { icon: Trophy, live: tr("Starts Nov 24"), title: tr("OM Hackathon"), text: tr("Up to 100,000 USDC. Launch a token, rally voters, climb the board."), cta: tr("Join the hackathon"), href: "/hackathon" },
-    { icon: ListChecks, live: tr("New every day"), title: tr("Daily tasks"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
+    { icon: Users, accent: "#34d399", live: tr("10% of fees, for life"), title: tr("Invite friends"), text: tr("You get 10% of the platform fee on each trade your friends make."), cta: tr("Get my link"), href: "/dashboard/referrals", needsWallet: true },
+    { icon: Rocket, accent: "#fb923c", live: tokenCount ? tr("{n} tokens launched", { n: tokenCount }) : tr("Live on Solana and Arc"), title: tr("Launch a token"), text: tr("Solana or Arc, in 2 minutes. Earn creator fees on every trade."), cta: tr("Launch a token"), href: "/launchpad/create", needsWallet: true },
+    { icon: BarChart3, accent: "#38bdf8", live: tr("Open to everyone"), title: tr("Prediction markets"), text: tr("Ask any question, share it, earn when your followers bet."), cta: tr("Create a market"), href: "/pools", needsWallet: true },
+    { icon: Trophy, accent: "#facc15", live: tr("Starts Nov 24"), title: tr("OM Hackathon"), text: tr("Up to 100,000 USDC. Launch a token, rally voters, climb the board."), cta: tr("Join the hackathon"), href: "/hackathon" },
+    { icon: ListChecks, accent: "#a78bfa", live: tr("New every day"), title: tr("Daily tasks"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
   ];
 }
 
@@ -110,10 +110,12 @@ function PromoCarouselCard() {
     >
       {/* Petite carte horizontale : visuel animé à gauche, texte et bouton à droite */}
       <div key={i} className="flex items-stretch gap-3.5 rounded-[22px] bg-neutral-900 p-3 text-white ring-1 ring-white/10 animate-in fade-in duration-300">
-        <div className="promo-art relative flex w-[34%] max-w-[132px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-neutral-950">
-          <div aria-hidden className="absolute size-20 rounded-full bg-white/15 blur-2xl promo-glow" />
-          <Icon aria-hidden className="relative size-12 text-white promo-float" strokeWidth={1.6} />
-          <div aria-hidden className="promo-shine absolute inset-0" />
+        {/* Visuel animé (comme la référence) : éclat + anneau, balancement 3D, reflet, rotation, nouvel éclat */}
+        <div className="pa w-[34%] max-w-[132px] shrink-0 rounded-2xl bg-neutral-950" style={{ ["--acc" as string]: s.accent }}>
+          <div aria-hidden className="pa-glow" />
+          <div aria-hidden className="pa-rays" />
+          <div aria-hidden className="pa-ring" />
+          <div aria-hidden className="pa-item"><div className="pa-face"><Icon className="pa-icon" strokeWidth={2.2} /></div></div>
         </div>
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
           <p className="flex items-center gap-1.5 text-[13px] font-semibold text-emerald-400">
@@ -133,15 +135,7 @@ function PromoCarouselCard() {
           </div>
         </div>
       </div>
-      <style>{`
-        .promo-shine{background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.28) 50%,transparent 65%);transform:translateX(-120%);animation:promo-shine 2.8s ease-in-out infinite}
-        @keyframes promo-shine{0%,35%{transform:translateX(-120%)}70%,100%{transform:translateX(120%)}}
-        .promo-float{animation:promo-float 3s ease-in-out infinite}
-        @keyframes promo-float{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}
-        .promo-glow{animation:promo-glow 3s ease-in-out infinite}
-        @keyframes promo-glow{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
-        @media (prefers-reduced-motion: reduce){.promo-shine,.promo-float,.promo-glow{animation:none}}
-      `}</style>
+      <style>{`.pa{position:relative;perspective:520px;display:flex;align-items:center;justify-content:center;overflow:hidden} .pa-glow{position:absolute;width:70%;height:70%;border-radius:9999px;background:var(--acc);filter:blur(22px);opacity:0;animation:pa-glow 5.5s ease-out both} .pa-rays{position:absolute;width:160%;height:160%;background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--acc) 55%,transparent) 0deg 3deg,transparent 3deg 22deg);-webkit-mask:radial-gradient(circle,#000 18%,transparent 62%);mask:radial-gradient(circle,#000 18%,transparent 62%);opacity:0;animation:pa-rays 5.5s linear both} .pa-ring{position:absolute;width:78%;aspect-ratio:1;border-radius:9999px;border:3px solid rgba(255,255,255,.85);box-shadow:0 0 18px var(--acc),inset 0 0 18px var(--acc);opacity:0;animation:pa-ring 5.5s ease-out both} .pa-item{position:relative;width:46%;aspect-ratio:.72;transform-style:preserve-3d;animation:pa-item 5.5s cubic-bezier(.3,.7,.2,1) both} .pa-face{position:absolute;inset:0;border-radius:12px;backface-visibility:visible;overflow:hidden;  background:linear-gradient(160deg,color-mix(in srgb,var(--acc) 92%,#fff) 0%,var(--acc) 38%,color-mix(in srgb,var(--acc) 45%,#000) 100%);  box-shadow:0 10px 24px rgba(0,0,0,.55),inset 0 0 0 1.5px rgba(255,255,255,.55),inset 0 0 0 4px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;color:#0b0a12} .pa-face::before{content:"";position:absolute;left:8%;right:8%;top:6%;height:16%;border-radius:6px;background:rgba(255,255,255,.85)} .pa-face::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.75) 47%,transparent 60%);transform:translateX(-130%);animation:pa-shine 5.5s ease-in-out both} .pa-icon{position:relative;margin-top:16%;width:44%;height:44%} @keyframes pa-item{  0%{transform:scale(.4) rotateY(-90deg);opacity:0}  9%{transform:scale(1.12) rotateY(0);opacity:1}  14%{transform:scale(1) rotateY(0)}  28%{transform:scale(1) rotateY(-12deg) rotateX(4deg)}  42%{transform:scale(1) rotateY(12deg) rotateX(-4deg)}  54%{transform:scale(1) rotateY(0)}  76%{transform:scale(.92) rotateY(720deg)}  84%{transform:scale(1.1) rotateY(720deg)}  90%,100%{transform:scale(1) rotateY(720deg);opacity:1}} @keyframes pa-ring{0%{transform:scale(.35);opacity:0}4%{opacity:1}22%{transform:scale(1.35);opacity:0}  78%{transform:scale(.35);opacity:0}80%{opacity:1}97%{transform:scale(1.35);opacity:0}100%{opacity:0}} @keyframes pa-rays{0%{opacity:0;transform:rotate(0)}6%{opacity:1}24%{opacity:0;transform:rotate(40deg)}  78%{opacity:0}82%{opacity:1}98%{opacity:0;transform:rotate(120deg)}100%{opacity:0}} @keyframes pa-glow{0%{opacity:0}7%{opacity:.85}30%{opacity:.25}78%{opacity:.25}82%{opacity:.85}100%{opacity:.3}} @keyframes pa-shine{0%,30%{transform:translateX(-130%)}42%{transform:translateX(130%)}43%,58%{transform:translateX(-130%)}68%{transform:translateX(130%)}100%{transform:translateX(130%)}} @media (prefers-reduced-motion:reduce){.pa-glow,.pa-rays,.pa-ring,.pa-item,.pa-face::after{animation:none}.pa-item{opacity:1}} `}</style>
     </div>
   );
 }
