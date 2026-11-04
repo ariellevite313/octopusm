@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 import { verifyTokenCreator, type CreatorVerdict } from "@/lib/launch/verify-creator";
 import { requireWallet } from "@/lib/social/session";
+import { looksLikePdf, isOwnWhitepaperUrl } from "@/lib/launch/whitepaper";
 
 // Max file sizes
 const MAX_LOGO_BYTES       = 5  * 1024 * 1024; // 5 MB
@@ -25,6 +26,7 @@ type CreatePayload = {
   ticker: string;
   category: string;
   logo_url?: string;
+  whitepaper_url?: string;
   description: string;
   website: string;
   twitter: string;
@@ -219,6 +221,9 @@ export async function POST(req: Request) {
       }
       const pdfPath = `whitepapers/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
       const pdfBuf  = await pdfFile.arrayBuffer();
+      if (!looksLikePdf(pdfBuf)) {
+        return NextResponse.json({ error: "The whitepaper is not a valid PDF" }, { status: 400 });
+      }
       const { error: pdfErr } = await adminUpload.storage
         .from("market-images")
         .upload(pdfPath, pdfBuf, { contentType: "application/pdf", upsert: false });
@@ -229,6 +234,9 @@ export async function POST(req: Request) {
         whitepaper_url = pdfUrl.publicUrl;
       }
     }
+    // Whitepaper déjà envoyé avant la transaction : accepté seulement s'il vient de notre stockage.
+    if (!whitepaper_url && isOwnWhitepaperUrl(payload.whitepaper_url)) whitepaper_url = payload.whitepaper_url;
+    const hadWhitepaper = (pdfFile instanceof Blob && pdfFile.size > 0) || typeof payload.whitepaper_url === "string";
 
     // ── Insert token ────────────────────────────────────────────────────────
     // Mint keypair is generated lazily in prepare-tx (first Launch click)
@@ -293,7 +301,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Database error" }, { status: 500 });
     }
 
-    return NextResponse.json({ id: (data as { id: string }).id });
+    return NextResponse.json({
+      id: (data as { id: string }).id,
+      // L'envoi du whitepaper a échoué : le token est créé quand même, mais on le dit.
+      ...(hadWhitepaper && !whitepaper_url ? { warning: "Whitepaper upload failed. You can add it later." } : {}),
+    });
 
   } catch (err) {
     console.error("launchpad create unexpected error:", err);
