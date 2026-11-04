@@ -118,8 +118,8 @@ function PromoCarouselCard() {
           <div aria-hidden className="pa-item"><div className="pa-face"><Icon className="pa-icon" strokeWidth={2.2} /></div></div>
         </div>
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-emerald-400">
-            <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-emerald-400" /></span>
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: s.accent }}>
+            <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: s.accent }} /><span className="relative inline-flex size-2 rounded-full" style={{ background: s.accent }} /></span>
             <span className="truncate">{s.live}</span>
           </p>
           <h3 className="mt-1 truncate text-[16px] font-bold leading-tight">{s.title}</h3>
