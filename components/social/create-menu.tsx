@@ -52,9 +52,9 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={tr(open ? "Close" : "Create")}
-        className="fixed bottom-28 right-4 z-[55] flex size-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform active:scale-95 md:bottom-8 md:right-8"
+        className="fixed bottom-28 right-4 z-[55] flex size-14 items-center justify-center rounded-full border border-black/10 bg-white/35 text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_1px_rgba(255,255,255,0.65),inset_0_-2px_6px_rgba(255,255,255,0.12)] backdrop-blur-[18px] backdrop-saturate-150 transition-transform active:scale-95 dark:border-white/30 dark:bg-white/10 md:bottom-8 md:right-8"
       >
-        {open ? <X className="size-7" strokeWidth={2.4} /> : <PawIcon className="size-[30px]" />}
+        {open ? <X className="size-7" strokeWidth={2.4} /> : <PawIcon glass className="size-[30px]" />}
       </button>
 
       {open && (
