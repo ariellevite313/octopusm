@@ -52,15 +52,15 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={tr(open ? "Close" : "Create")}
-        className="fixed bottom-28 right-4 z-[55] flex size-14 items-center justify-center rounded-full border border-black/10 bg-white/35 text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_1px_rgba(255,255,255,0.65),inset_0_-2px_6px_rgba(255,255,255,0.12)] backdrop-blur-[18px] backdrop-saturate-150 transition-transform active:scale-95 dark:border-white/30 dark:bg-white/10 md:bottom-8 md:right-8"
+        className="fixed bottom-28 right-4 z-[48] flex size-14 items-center justify-center rounded-full border border-black/10 bg-white/35 text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_1px_rgba(255,255,255,0.65),inset_0_-2px_6px_rgba(255,255,255,0.12)] backdrop-blur-[18px] backdrop-saturate-150 transition-transform active:scale-95 dark:border-white/30 dark:bg-white/10 md:bottom-8 md:right-8"
       >
         {open ? <X className="size-7" strokeWidth={2.4} /> : <PawIcon glass className="size-[30px]" />}
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-[54] bg-black/60" onClick={() => setOpen(false)} aria-hidden />
-          <div className="fixed bottom-48 left-4 right-4 z-[55] mx-auto max-w-sm rounded-[28px] border border-border bg-card p-2 shadow-2xl md:bottom-28 md:left-auto md:right-8 md:mx-0">
+          <div className="fixed inset-0 z-[46] bg-black/60" onClick={() => setOpen(false)} aria-hidden />
+          <div className="fixed bottom-48 left-4 right-4 z-[47] mx-auto max-w-sm rounded-[28px] border border-border bg-card p-2 shadow-2xl md:bottom-28 md:left-auto md:right-8 md:mx-0">
             {items.map(({ k, icon: Icon, title, sub }) => (
               <button key={k} onClick={() => go(k)} className="flex w-full items-center gap-4 rounded-2xl px-3 py-3 text-left hover:bg-muted">
                 <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary"><Icon className="size-5" /></span>
