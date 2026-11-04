@@ -19,7 +19,7 @@ const DOMAIN_LOGOS: Record<string, string> = {
   "telegram.org":    "/telegram-logo.png",
   "discord.com":     "/discord.png",
   "discord.gg":      "/discord.png",
-  "dexscreener.com": "/dexcrenner.png",
+  "dexscreener.com": "/dexscreener-badge.png",
   "clawdtrust.com":  "/clawdtrust-coin.png",
 };
 
@@ -189,7 +189,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
               return (
                 <div key={task.id} className="flex items-center gap-3.5 border-b border-border py-3.5 last:border-b-0">
                   {logo ? (
-                    <img src={logo} alt="" className={`size-9 shrink-0 rounded-full object-contain ${logo === "/x-logo.png" ? "dark:invert" : ""}`} />
+                    <img src={logo} alt="" className={`size-9 shrink-0 rounded-full object-contain ${logo === "/x-logo.png" ? "dark:invert" : ""} ${logo === "/dexscreener-badge.png" ? "dark:ring-1 dark:ring-white/20" : ""}`} />
                   ) : (
                     <Gift className={`size-9 shrink-0 p-1.5 ${done ? "text-muted-foreground/50" : "text-primary"}`} />
                   )}
