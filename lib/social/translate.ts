@@ -1,6 +1,9 @@
 /**
  * Traduction des posts et réponses du fil.
- * Fournisseur : Anthropic (ANTHROPIC_API_KEY) en priorité, sinon OpenAI (OPENAI_API_KEY).
+ * Fournisseurs, dans l'ordre (le premier configuré est utilisé) :
+ *   1. LibreTranslate auto-hébergé (LIBRETRANSLATE_URL, + LIBRETRANSLATE_API_KEY si l'instance en demande une) : gratuit
+ *   2. Google Cloud Translation (GOOGLE_TRANSLATE_API_KEY) : gratuit jusqu'à 500 000 caractères par mois
+ *   3. Anthropic (ANTHROPIC_API_KEY), puis OpenAI (OPENAI_API_KEY) : payants
  * Le texte à traduire est du contenu écrit par des utilisateurs : il est passé comme donnée,
  * jamais comme instruction.
  */
@@ -10,7 +13,56 @@ export const TRANSLATE_LANGS: Record<string, string> = {
 };
 
 export function translationConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY);
+  return Boolean(
+    process.env.LIBRETRANSLATE_URL || process.env.GOOGLE_TRANSLATE_API_KEY ||
+    process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY,
+  );
+}
+
+// ── Protection des $TICKER, @noms, #tags et liens pour les traducteurs automatiques ──
+// Ils sont remplacés par des repères numérotés avant la traduction, puis remis à l'identique.
+const KEEP_RE = /(https?:\/\/\S+|\$[A-Za-z0-9_]{1,15}\b|@[A-Za-z0-9_.]{1,30}|#[\p{L}\p{N}_]{1,50})/gu;
+
+export function protectTokens(text: string): { masked: string; kept: string[] } {
+  const kept: string[] = [];
+  const masked = text.replace(KEEP_RE, (m) => `[${kept.push(m) - 1}]`);
+  return { masked, kept };
+}
+
+export function restoreTokens(text: string, kept: string[]): string {
+  // Les traducteurs ajoutent parfois des espaces dans les crochets : « [ 0 ] »
+  return text.replace(/\[\s*(\d+)\s*\]/g, (m, i) => kept[Number(i)] ?? m);
+}
+
+/** Codes de langue attendus par chaque service (seul le chinois diffère). */
+const GOOGLE_CODE: Record<string, string> = { zh: "zh-CN" };
+const LIBRE_CODE: Record<string, string> = { zh: "zh-Hans" };
+
+async function viaLibre(text: string, lang: string, signal: AbortSignal): Promise<string | null> {
+  const base = (process.env.LIBRETRANSLATE_URL ?? "").replace(/\/$/, "");
+  const call = (target: string) => fetch(`${base}/translate`, {
+    method: "POST",
+    signal,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ q: text, source: "auto", target, format: "text", ...(process.env.LIBRETRANSLATE_API_KEY ? { api_key: process.env.LIBRETRANSLATE_API_KEY } : {}) }),
+  });
+  let r = await call(LIBRE_CODE[lang] ?? lang);
+  if (!r.ok && LIBRE_CODE[lang]) r = await call(lang); // anciennes versions : « zh »
+  if (!r.ok) { console.error("[translate] libretranslate", r.status, await r.text().catch(() => "")); return null; }
+  const j = await r.json() as { translatedText?: string };
+  return j.translatedText?.trim() || null;
+}
+
+async function viaGoogle(text: string, lang: string, signal: AbortSignal): Promise<string | null> {
+  const r = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(process.env.GOOGLE_TRANSLATE_API_KEY ?? "")}`, {
+    method: "POST",
+    signal,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ q: text, target: GOOGLE_CODE[lang] ?? lang, format: "text" }),
+  });
+  if (!r.ok) { console.error("[translate] google", r.status, await r.text().catch(() => "")); return null; }
+  const j = await r.json() as { data?: { translations?: { translatedText?: string }[] } };
+  return j.data?.translations?.[0]?.translatedText?.trim() || null;
 }
 
 function systemPrompt(language: string): string {
@@ -28,6 +80,13 @@ export async function translateText(text: string, lang: string): Promise<string 
   if (!language || !text.trim()) return null;
   const user = `<post>\n${text}\n</post>`;
   const signal = AbortSignal.timeout(20_000);
+
+  // Traducteurs automatiques gratuits d'abord
+  if (process.env.LIBRETRANSLATE_URL || process.env.GOOGLE_TRANSLATE_API_KEY) {
+    const { masked, kept } = protectTokens(text);
+    const out = process.env.LIBRETRANSLATE_URL ? await viaLibre(masked, lang, signal) : await viaGoogle(masked, lang, signal);
+    return out ? restoreTokens(out, kept) : null;
+  }
 
   if (process.env.ANTHROPIC_API_KEY) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
