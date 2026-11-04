@@ -112,6 +112,9 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
   );
 }
 
+/** Durée lisible : 4h, 24h (et 5 min, 15 min pour les anciennes manches). */
+const durLabel = (m: number) => (m < 60 ? `${m} min` : m < 1440 ? `${m / 60}h` : "24h");
+
 const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, opensAt, resolveAt, marketStatus, liveCountdown }: { ticker: string; strikePrice: number; durationMin: number; opensAt: string; resolveAt: string | null; marketStatus: string; liveCountdown: string; }) {
   const { tr, lang } = useT();
   const localeRef = useRef(LOCALES[lang]);
@@ -473,7 +476,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           ? <Image src={meta.img} alt={meta.symbol} width={52} height={52} className="size-[52px] shrink-0 rounded-2xl bg-white p-1 lg:size-14" />
           : <div className="flex size-[52px] shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white" style={{ background: meta.color }}>{meta.symbol[0]}</div>}
         <div className="min-w-0">
-          <h1 className="truncate text-[21px] font-bold tracking-tight text-foreground lg:text-[26px]">{tr("{coin} Up or Down · {n} min", { coin: meta.label, n: durationMin })}</h1>
+          <h1 className="truncate text-[21px] font-bold tracking-tight text-foreground lg:text-[26px]">{tr("{coin} Up or Down · {d}", { coin: meta.label, d: durLabel(durationMin) })}</h1>
           <p className="text-sm text-muted-foreground">{opensAtFormatted}</p>
         </div>
       </div>
@@ -1185,7 +1188,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
                 {meta.img
                   ? <Image src={meta.img} alt="" width={44} height={44} className="size-11 shrink-0 rounded-xl bg-white p-0.5" />
                   : <div className="flex size-11 shrink-0 items-center justify-center rounded-xl font-bold text-white" style={{ background: meta.color }}>{meta.symbol[0]}</div>}
-                <p className="truncate text-[15px] font-semibold text-foreground">{tr("{coin} Up or Down · {n} min", { coin: meta.label, n: market.duration_min })}</p>
+                <p className="truncate text-[15px] font-semibold text-foreground">{tr("{coin} Up or Down · {d}", { coin: meta.label, d: durLabel(market.duration_min) })}</p>
               </div>
               <button type="button" onClick={() => setSheetOpen(false)} aria-label={tr("Close")} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <X className="size-4" />
