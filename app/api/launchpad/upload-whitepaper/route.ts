@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const form = await req.formData();
     const file = form.get("whitepaper");
     if (!(file instanceof Blob) || file.size === 0) return NextResponse.json({ error: "PDF missing" }, { status: 400 });
-    if (file.size > MAX_WHITEPAPER_BYTES) return NextResponse.json({ error: "PDF too large (max 20 MB)" }, { status: 400 });
+    if (file.size > MAX_WHITEPAPER_BYTES) return NextResponse.json({ error: "PDF too large (max 1 MB). Compress it first, for example with ilovepdf.com" }, { status: 400 });
     const buf = await file.arrayBuffer();
     if (!looksLikePdf(buf)) return NextResponse.json({ error: "This file is not a valid PDF" }, { status: 400 });
 

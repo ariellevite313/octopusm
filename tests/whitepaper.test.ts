@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { looksLikePdf, isOwnWhitepaperUrl } from "@/lib/launch/whitepaper";
+import { looksLikePdf, isOwnWhitepaperUrl, MAX_LOGO_BYTES, MAX_WHITEPAPER_BYTES } from "@/lib/launch/whitepaper";
 
 const buf = (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer;
 
@@ -21,5 +21,13 @@ describe("isOwnWhitepaperUrl", () => {
     expect(isOwnWhitepaperUrl("https://db.omdot.fun/storage/v1/object/public/market-images/1-a.pdf")).toBe(false);
     expect(isOwnWhitepaperUrl("https://db.omdot.fun/storage/v1/object/public/market-images/whitepapers/1-a.html")).toBe(false);
     expect(isOwnWhitepaperUrl(42)).toBe(false);
+  });
+});
+
+describe("upload limits", () => {
+  it("stay under the default web server body limit (1 MiB)", () => {
+    expect(MAX_WHITEPAPER_BYTES).toBe(1_000_000);
+    expect(MAX_LOGO_BYTES).toBe(1_000_000);
+    expect(MAX_WHITEPAPER_BYTES).toBeLessThan(1024 * 1024);
   });
 });

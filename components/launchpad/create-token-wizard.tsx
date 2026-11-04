@@ -14,6 +14,7 @@ import {
   ImageIcon, Link as LinkIcon, SlidersHorizontal, Delete,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { MAX_LOGO_BYTES, MAX_WHITEPAPER_BYTES } from "@/lib/launch/whitepaper";
 import { useT, Tr } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
 import { createWalletClient, createPublicClient, custom, http, parseEventLogs } from "viem";
@@ -212,7 +213,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     const file = e.target.files?.[0];
     if (!file) return;
     if (!VALID_LOGO_TYPES.includes(file.type)) { toast.error(t.unsupportedFormat); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error(t.logoMaxSize); return; }
+    if (file.size > MAX_LOGO_BYTES) { toast.error(t.logoMaxSize); return; }
     if (data.logo_preview) URL.revokeObjectURL(data.logo_preview);
     set("logo_file", file);
     set("logo_preview", URL.createObjectURL(file));
@@ -221,7 +222,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
   function handlePdf(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) { toast.error(t.pdfMaxSize); return; }
+    if (file.size > MAX_WHITEPAPER_BYTES) { toast.error(t.pdfMaxSize); return; }
     set("whitepaper_file", file);
   }
 
@@ -253,7 +254,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           ) : (
             <>
               <ImageIcon className="size-9 text-foreground" />
-              <span className="text-sm">{tr("Upload an image · PNG, JPG, GIF · 5 MB max")}</span>
+              <span className="text-sm">{tr("Upload an image · PNG, JPG, GIF · 1 MB max")}</span>
             </>
           )}
         </button>
@@ -427,7 +428,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           className="flex w-full items-center gap-2 rounded-xl bg-background px-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <Upload className="size-4" />
-          <span className="truncate">{data.whitepaper_file ? data.whitepaper_file.name : tr("Whitepaper · PDF, 20 MB max")}</span>
+          <span className="truncate">{data.whitepaper_file ? data.whitepaper_file.name : tr("Whitepaper · PDF, 1 MB max")}</span>
           {data.whitepaper_file && (
             <X className="ml-auto size-4" onClick={(e) => { e.stopPropagation(); set("whitepaper_file", null); }} />
           )}
