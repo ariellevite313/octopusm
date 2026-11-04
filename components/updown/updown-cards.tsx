@@ -42,7 +42,8 @@ export const SYMBOL_IMAGES: Record<string, string> = {
   BTCUSDT: "/bitcoin.png", ETHUSDT: "/ethereum.png", SOLUSDT: "/solana.png",
   BNBUSDT: "/bnb.png", PEPEUSDT: "/pepe.png", DOGEUSDT: "/doge.png",
 };
-const DURATIONS = [5, 15, 30, 60, 240, 1440];
+// Seules les manches de 4 h et 24 h sont affichées (les plus courtes sont en pause)
+const DURATIONS = [240, 1440];
 
 function formatDuration(min: number): string {
   if (min < 60) return `${min}m`;
@@ -182,7 +183,7 @@ export function UpDownSection() {
   const { tr } = useT();
   const [allMarkets, setAllMarkets] = useState<UpDownMarket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeDuration, setActiveDuration] = useState<number>(5);
+  const [activeDuration, setActiveDuration] = useState<number>(240);
 
   const fetchAll = useCallback(async () => {
     const results: UpDownMarket[] = [];
@@ -255,7 +256,7 @@ export function UpDownSection() {
         </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <p className="text-sm text-muted-foreground">{tr("No active {n} min round.", { n: activeDuration })}</p>
+          <p className="text-sm text-muted-foreground">{tr("No active {d} round.", { d: formatDuration(activeDuration) })}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
