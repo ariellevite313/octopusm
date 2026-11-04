@@ -9,6 +9,7 @@ import { Heart, MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import { useContentTranslation } from "./translate-toggle";
 import { shortAddress } from "@/lib/format";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { buildThreads } from "@/lib/social/reply-threads";
@@ -149,7 +150,7 @@ export function PostReplies({ postId, onCount, page = false }: { postId: string;
                     <TokenPill token={r.author_token} size={14} />
                   </div>
                   {child && replyingTo(r)}
-                  <p className="whitespace-pre-wrap break-words text-[15px] text-foreground">{r.body}</p>
+                  <ReplyText id={r.id} body={r.body} className="text-[15px]" />
                   {actions(r)}
                 </div>
               </div>
@@ -184,7 +185,7 @@ export function PostReplies({ postId, onCount, page = false }: { postId: string;
                     <TokenPill token={r.author_token} size={13} />
                   </div>
                   {child && replyingTo(r)}
-                  <p className="whitespace-pre-wrap break-words text-sm text-foreground">{r.body}</p>
+                  <ReplyText id={r.id} body={r.body} className="text-sm" />
                   {actions(r)}
                 </div>
               </div>
@@ -195,5 +196,16 @@ export function PostReplies({ postId, onCount, page = false }: { postId: string;
       ))}
       {bar}
     </div>
+  );
+}
+
+/** Texte d'une réponse, avec le bouton Traduire. */
+function ReplyText({ id, body, className }: { id: string; body: string; className: string }) {
+  const translation = useContentTranslation("reply", id);
+  return (
+    <>
+      <p className={`whitespace-pre-wrap break-words text-foreground ${className}`}>{translation.text ?? body}</p>
+      {translation.button}
+    </>
   );
 }

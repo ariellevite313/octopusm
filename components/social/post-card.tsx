@@ -19,6 +19,7 @@ import { MarketCard } from "./market-card";
 import { LivePrice } from "./live-price";
 import { MARKET_URL_RE } from "@/lib/social/rich";
 import { PostReplies } from "./post-replies";
+import { useContentTranslation } from "./translate-toggle";
 import { ShareSheet, POST_PERKS } from "@/components/shared/share-sheet";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
@@ -49,8 +50,10 @@ function Avatar({ src, name, size = 44, ring = false }: { src: string | null; na
 /** Texte : 4 lignes puis « more ». Les $TICKER sont en couleur. */
 const TOKEN_SPLIT = /(\$[A-Za-z][A-Za-z0-9]{1,15}|#[\p{L}\p{N}_]{2,30}|@[A-Za-z0-9_]{2,30})/gu;
 
-function PostText({ body, mentions, hideUrl }: { body: string; mentions: Record<string, string>; hideUrl: boolean }) {
+function PostText({ postId, body: original, mentions, hideUrl }: { postId: string; body: string; mentions: Record<string, string>; hideUrl: boolean }) {
   const { tr } = useT();
+  const translation = useContentTranslation("post", postId);
+  const body = translation.text ?? original;
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [clamped, setClamped] = useState(false);
@@ -78,6 +81,7 @@ function PostText({ body, mentions, hideUrl }: { body: string; mentions: Record<
       {clamped && !open && (
         <button onClick={() => setOpen(true)} className="mt-0.5 text-sm font-semibold text-muted-foreground hover:text-foreground">{tr("more")}</button>
       )}
+      <div>{translation.button}</div>
     </div>
   );
 }
@@ -326,7 +330,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
         )}
       </div>
 
-      {post.body && <PostText body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
+      {post.body && <PostText postId={post.id} body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
       {post.market && <div className="px-1"><MarketCard m={post.market} postId={post.id} /></div>}
       {post.quoted && <div className="mt-3 px-1"><QuotedCard q={post.quoted} /></div>}
 

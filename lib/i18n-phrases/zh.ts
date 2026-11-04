@@ -1393,5 +1393,9 @@ const p: Record<string, string> = {
   "Dark": "深色",
   "My profile": "我的主页",
   "Market cap": "市值",
+  "Translate": "翻译",
+  "Show original": "查看原文",
+  "Translation failed": "翻译失败",
+  "Translation is not available yet": "翻译功能暂不可用",
 };
 export default p;

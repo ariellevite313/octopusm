@@ -1393,5 +1393,9 @@ const p: Record<string, string> = {
   "Dark": "Тёмная",
   "My profile": "Мой профиль",
   "Market cap": "Капитализация",
+  "Translate": "Перевести",
+  "Show original": "Показать оригинал",
+  "Translation failed": "Не удалось перевести",
+  "Translation is not available yet": "Перевод пока недоступен",
 };
 export default p;
