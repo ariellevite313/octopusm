@@ -16,7 +16,8 @@ export async function GET(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
-    const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    // 60 jours : rattrape aussi les lancements bloqués avant les correctifs.
+    const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
     const olderThan = new Date(Date.now() - 2 * 60_000).toISOString();
     const { data, error } = await admin
       .from("launchpad_tokens")
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
       .gte("created_at", since)
       .lte("created_at", olderThan)
       .order("created_at", { ascending: false })
-      .limit(30);
+      .limit(50);
     if (error) throw error;
 
     let activated = 0;
