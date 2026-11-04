@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart3, ChevronLeft, ChevronRight, ListChecks, Rocket, Trophy, Users } from "lucide-react";
+import { BarChart3, ListChecks, Rocket, Trophy, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 
-type Slide = { icon: LucideIcon; title: string; text: string; cta: string; href: string; needsWallet?: boolean };
+type Slide = { icon: LucideIcon; live: string; title: string; text: string; cta: string; href: string; needsWallet?: boolean };
 
 const ROTATE_MS = 5500;
 
@@ -23,12 +23,19 @@ export function FeedPromoCarousel() {
 
 function useSlides(): Slide[] {
   const { tr } = useT();
+  // Vrai chiffre de la plateforme pour la carte token (rien d'inventé)
+  const [tokenCount, setTokenCount] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/launchpad/platform-stats").then((r) => (r.ok ? r.json() : null))
+      .then((j: { tokenCount?: number } | null) => { if (typeof j?.tokenCount === "number") setTokenCount(j.tokenCount); })
+      .catch(() => {});
+  }, []);
   return [
-    { icon: Users, title: tr("Invite friends, earn on every trade"), text: tr("You get 10% of the platform fee on each trade your friends make."), cta: tr("Get my link"), href: "/dashboard/referrals", needsWallet: true },
-    { icon: Rocket, title: tr("Launch your token in 2 minutes"), text: tr("Solana or Arc. Earn creator fees on every trade, forever."), cta: tr("Launch a token"), href: "/launchpad/create", needsWallet: true },
-    { icon: BarChart3, title: tr("Create a prediction market"), text: tr("Ask any question. Share it in the feed and earn when your followers bet."), cta: tr("Create a market"), href: "/pools", needsWallet: true },
-    { icon: Trophy, title: tr("Hackathon: up to 100,000 USDC"), text: tr("Launch a token, rally voters and climb the leaderboard. Voters win 20% too."), cta: tr("Join the hackathon"), href: "/hackathon" },
-    { icon: ListChecks, title: tr("Your daily tasks are waiting"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
+    { icon: Users, live: tr("10% of fees, for life"), title: tr("Invite friends"), text: tr("You get 10% of the platform fee on each trade your friends make."), cta: tr("Get my link"), href: "/dashboard/referrals", needsWallet: true },
+    { icon: Rocket, live: tokenCount ? tr("{n} tokens launched", { n: tokenCount }) : tr("Live on Solana and Arc"), title: tr("Launch a token"), text: tr("Solana or Arc, in 2 minutes. Earn creator fees on every trade."), cta: tr("Launch a token"), href: "/launchpad/create", needsWallet: true },
+    { icon: BarChart3, live: tr("Open to everyone"), title: tr("Prediction markets"), text: tr("Ask any question, share it, earn when your followers bet."), cta: tr("Create a market"), href: "/pools", needsWallet: true },
+    { icon: Trophy, live: tr("Starts Nov 24"), title: tr("OM Hackathon"), text: tr("Up to 100,000 USDC. Launch a token, rally voters, climb the board."), cta: tr("Join the hackathon"), href: "/hackathon" },
+    { icon: ListChecks, live: tr("New every day"), title: tr("Daily tasks"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
   ];
 }
 
@@ -101,39 +108,40 @@ function PromoCarouselCard() {
         if (Math.abs(d) > 40) go(i + (d < 0 ? 1 : -1));
       }}
     >
-      <div className="relative overflow-hidden rounded-3xl bg-neutral-950 p-5 text-white ring-1 ring-white/10">
-        <Icon aria-hidden className="pointer-events-none absolute -bottom-6 -right-4 size-40 text-white/[0.07]" strokeWidth={1.2} />
-        <div key={i} className="relative animate-in fade-in slide-in-from-right-2 duration-300">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-white/10"><Icon className="size-6" /></div>
-          <h3 className="mt-4 max-w-[85%] text-[22px] font-extrabold leading-tight tracking-tight">{s.title}</h3>
-          <p className="mt-2 max-w-[85%] text-[15px] leading-snug text-white/65">{s.text}</p>
-          <div className="mt-5 flex items-center justify-between">
+      {/* Petite carte horizontale : visuel animé à gauche, texte et bouton à droite */}
+      <div key={i} className="flex items-stretch gap-3.5 rounded-[22px] bg-neutral-900 p-3 text-white ring-1 ring-white/10 animate-in fade-in duration-300">
+        <div className="promo-art relative flex w-[34%] max-w-[132px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-neutral-950">
+          <div aria-hidden className="absolute size-20 rounded-full bg-white/15 blur-2xl promo-glow" />
+          <Icon aria-hidden className="relative size-12 text-white promo-float" strokeWidth={1.6} />
+          <div aria-hidden className="promo-shine absolute inset-0" />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col py-0.5">
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-emerald-400">
+            <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-emerald-400" /></span>
+            <span className="truncate">{s.live}</span>
+          </p>
+          <h3 className="mt-1 truncate text-[16px] font-bold leading-tight">{s.title}</h3>
+          <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-white/60">{s.text}</p>
+          <div className="mt-auto pt-2.5">
             {dest ? (
-              <Link href={dest} className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black">
-                {s.cta}<ArrowRight className="size-4" />
-              </Link>
+              <Link href={dest} className="block w-full rounded-full bg-white py-2 text-center text-[14px] font-bold text-black">{s.cta}</Link>
             ) : (
-              <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black">
-                {tr("Connect to start")}<ArrowRight className="size-4" />
+              <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="block w-full rounded-full bg-white py-2 text-center text-[14px] font-bold text-black">
+                {tr("Connect to start")}
               </button>
             )}
-            <div className="flex items-center gap-1 text-white/60">
-              <button aria-label={tr("Previous")} onClick={() => go(i - 1)} className="flex size-8 items-center justify-center rounded-full hover:bg-white/10"><ChevronLeft className="size-4" /></button>
-              <span className="num w-9 text-center text-sm font-semibold"><span className="text-white">{i + 1}</span>/{n}</span>
-              <button aria-label={tr("Next")} onClick={() => go(i + 1)} className="flex size-8 items-center justify-center rounded-full hover:bg-white/10"><ChevronRight className="size-4" /></button>
-            </div>
           </div>
         </div>
-        {/* Ligne de progression */}
-        <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/10">
-          <div
-            key={`${i}-${tick}`}
-            className="h-full bg-white/80"
-            style={{ animation: `promo-progress ${ROTATE_MS}ms linear forwards`, animationPlayState: paused ? "paused" : "running" }}
-          />
-        </div>
       </div>
-      <style>{`@keyframes promo-progress{from{width:0}to{width:100%}}`}</style>
+      <style>{`
+        .promo-shine{background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.28) 50%,transparent 65%);transform:translateX(-120%);animation:promo-shine 2.8s ease-in-out infinite}
+        @keyframes promo-shine{0%,35%{transform:translateX(-120%)}70%,100%{transform:translateX(120%)}}
+        .promo-float{animation:promo-float 3s ease-in-out infinite}
+        @keyframes promo-float{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}
+        .promo-glow{animation:promo-glow 3s ease-in-out infinite}
+        @keyframes promo-glow{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
+        @media (prefers-reduced-motion: reduce){.promo-shine,.promo-float,.promo-glow{animation:none}}
+      `}</style>
     </div>
   );
 }
