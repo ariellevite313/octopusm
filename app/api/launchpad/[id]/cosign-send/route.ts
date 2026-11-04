@@ -136,7 +136,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       const m = e instanceof Error ? e.message : String(e);
       console.error("[cosign-send] simulation failed:", m);
       // Message court et lisible : la première ligne d'erreur du programme si elle existe
-      const short = (m.match(/Error Message: ([^.\n]+)/)?.[1] ?? m.split("\n")[0]).slice(0, 200);
+      const short = (m.match(/Error Message: ([^.\n]+)/)?.[1] ?? m.match(/Message: ([^\n]+)/)?.[1] ?? m.split("\n")[0]).slice(0, 200);
       return NextResponse.json({ error: `Transaction would fail: ${short}` }, { status: 422 });
     }
 

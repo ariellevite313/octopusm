@@ -146,7 +146,7 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
   }).eq("id", token.id).eq("status", "pending").select("id");
 
   // Même récompense que /confirm, une seule fois (seul l'appel qui a fait passer le token en actif la donne).
-  if (flipped?.length && token.creator_wallet) {
+  if (flipped?.length && token.creator_wallet && verdict === "ok") {
     awardOcto(token.creator_wallet, OMERO_PER_LAUNCH, "launch").catch((e) => console.warn("[recover-pool] awardOcto:", e));
   }
   return poolAddress;

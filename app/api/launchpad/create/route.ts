@@ -117,6 +117,8 @@ export async function POST(req: Request) {
     // Partage des frais et part du top 100 : retirés pour le moment (jamais appliqués on-chain).
     payload.fee_recipients = [];
     payload.share_top100 = false;
+    // xStock : pas de premier achat (non pris en charge), même si le formulaire en garde un.
+    if (payload.stock_symbol) payload.first_buy_enabled = false;
 
     if (payload.is_scheduled) {
       if (!payload.scheduled_at) {
