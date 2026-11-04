@@ -15,7 +15,7 @@ const DOMAIN_LOGOS: Record<string, string> = {
   "telegram.org":    "/telegram-logo.png",
   "discord.com":     "/discord.png",
   "discord.gg":      "/discord.png",
-  "dexscreener.com": "/dexcrenner.png",
+  "dexscreener.com": "/dexscreener-badge.png",
   "clawdtrust.com":  "/clawdtrust-coin.png",
 };
 

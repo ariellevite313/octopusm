@@ -66,15 +66,37 @@ export function FeedClient() {
 
   useEffect(() => { load(tab); }, [tab, load, isAuthenticated]);
 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+
   async function loadMore() {
-    if (!next) return;
+    if (!next || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
     setMore(true);
-    const r = await fetch(`/api/posts?tab=${tab}&limit=10${tq}&before=${encodeURIComponent(next)}`, { cache: "no-store" });
-    const j = await r.json().catch(() => ({}));
-    setPosts((l) => { const seen = new Set(l.map((x) => x.feed_key ?? x.id)); return [...l, ...((j.posts ?? []) as FeedPost[]).filter((x) => !seen.has(x.feed_key ?? x.id))]; });
-    setNext(j.next ?? null);
-    setMore(false);
+    try {
+      const r = await fetch(`/api/posts?tab=${tab}&limit=10${tq}&before=${encodeURIComponent(next)}`, { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      setPosts((l) => { const seen = new Set(l.map((x) => x.feed_key ?? x.id)); return [...l, ...((j.posts ?? []) as FeedPost[]).filter((x) => !seen.has(x.feed_key ?? x.id))]; });
+      setNext(j.next ?? null);
+    } catch { /* réseau : on réessaiera au prochain passage près du bas */ }
+    finally {
+      setMore(false);
+      loadingMoreRef.current = false;
+    }
   }
+
+  // Charge la page suivante dès que le bas du fil approche de l'écran (marge de 600 px)
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !next) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) loadMoreRef.current();
+    }, { rootMargin: "600px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [next, loading]);
 
   return (
     <div className="mx-auto max-w-xl pb-40">
@@ -135,11 +157,10 @@ export function FeedClient() {
         </div>
       )}
 
+      {/* Défilement continu : la suite se charge toute seule en approchant du bas, sans bouton */}
       {next && !loading && (
-        <div className="flex justify-center py-6">
-          <button onClick={loadMore} disabled={more} className="flex items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-semibold hover:bg-muted">
-            {more && <Loader2 className="size-4 animate-spin" />}{tr("Load more")}
-          </button>
+        <div ref={sentinelRef} className="flex justify-center py-6" aria-hidden={!more}>
+          {more && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
         </div>
       )}
 

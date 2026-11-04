@@ -108,7 +108,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 py-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Image src="/dexcrenner.png" alt="Dexscreener" width={14} height={14} className="rounded-sm" />
+                  <Image src="/dexscreener-badge.png" alt="Dexscreener" width={14} height={14} className="rounded-full" />
                   Dexscreener
                 </Link>
               </li>
