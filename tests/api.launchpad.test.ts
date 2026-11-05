@@ -299,6 +299,12 @@ describe("POST /api/launchpad/create", () => {
     expect((await json(res)).error).toBe("Wallet not provided");
   });
 
+  it("returns 403 for a stock-paired Solana launch while xStock launches are off", async () => {
+    const res = await postCreate(makeCreateRequest({ ...VALID_PAYLOAD, stock_symbol: "xNVDA" }));
+    expect(res.status).toBe(403);
+    expect((await json(res)).error).toMatch(/coming soon/i);
+  });
+
   // ── Protected names (real isProtectedName, real protected values) ───────────
 
   it("returns 409 when name is protected (OCTO)", async () => {

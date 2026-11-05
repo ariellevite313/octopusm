@@ -796,6 +796,7 @@ const p: Record<string, string> = {
   "TX B failed: {error}": "Ошибка TX B: {error}",
   "DBC config creation failed on-chain. Click Retry.": "Создание конфигурации DBC не удалось ончейн. Нажмите «Повторить».",
   "Scheduled! Coming soon.": "Запланировано! Скоро.",
+  "Coming soon": "Скоро",
   "Launched successfully!": "Успешно запущено!",
   "Contract address (CA)": "Адрес контракта (CA)",
   "Choose your wallet": "Выберите кошелёк",

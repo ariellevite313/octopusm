@@ -5,6 +5,7 @@ import { checkNameAvailability, isProtectedName } from "@/services/launchpad-ser
 import { verifyTokenCreator, type CreatorVerdict } from "@/lib/launch/verify-creator";
 import { requireWallet } from "@/lib/social/session";
 import { looksLikePdf, isOwnWhitepaperUrl, MAX_LOGO_BYTES, MAX_WHITEPAPER_BYTES } from "@/lib/launch/whitepaper";
+import { XSTOCK_LAUNCH_ENABLED } from "@/lib/solana/xstocks";
 
 // Max file sizes
 const VALID_LOGO_TYPES     = new Set(["image/jpeg","image/png","image/webp","image/gif"]);
@@ -121,6 +122,9 @@ export async function POST(req: Request) {
     // Partage des frais et part du top 100 : retirés pour le moment (jamais appliqués on-chain).
     payload.fee_recipients = [];
     payload.share_top100 = false;
+    if (payload.chain !== "arc" && payload.stock_symbol && !XSTOCK_LAUNCH_ENABLED) {
+      return NextResponse.json({ error: "Stock-paired launches are coming soon" }, { status: 403 });
+    }
     // xStock : pas de premier achat (non pris en charge), même si le formulaire en garde un.
     if (payload.stock_symbol) payload.first_buy_enabled = false;
 

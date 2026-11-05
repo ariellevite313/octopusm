@@ -9,6 +9,12 @@
  * (see lib/solana/dbc.ts) — no pre-created env vars needed.
  */
 
+/**
+ * Lancements adossés à une action (xStock) : coupés tant que Meteora n'a pas créé de token badge pour les mints xStock
+ * (le programme DBC 0.2.2 refuse ces quote mints Token-2022 avec InvalidQuoteMint). Remettre à "1" pour les rouvrir.
+ */
+export const XSTOCK_LAUNCH_ENABLED = process.env.NEXT_PUBLIC_XSTOCK_LAUNCH === "1";
+
 /** On-chain SPL (Token-2022) mint addresses — Solana mainnet */
 export const XSTOCK_MINTS: Record<string, string> = {
   xNVDA: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
