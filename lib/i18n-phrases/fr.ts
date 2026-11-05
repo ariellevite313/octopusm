@@ -824,6 +824,8 @@ const p: Record<string, string> = {
   "This file is not a valid PDF": "Ce fichier n'est pas un PDF valide",
   "The whitepaper is not a valid PDF": "Le whitepaper n'est pas un PDF valide",
   "Files too large for the server": "Fichiers trop lourds pour le serveur",
+  "This name is already taken": "Ce nom est déjà pris",
+  "This ticker is already taken": "Ce ticker est déjà pris",
   "PDF too large (max 1 MB). Compress it first, for example with ilovepdf.com": "PDF trop lourd (1 Mo max). Compresse-le d'abord, par exemple avec ilovepdf.com",
   "Logo too large (max 1 MB)": "Logo trop lourd (1 Mo max)",
   "All RPCs failed — please try again": "Tous les RPC ont échoué — réessayez",
