@@ -8,6 +8,7 @@
  *  - "mismatch"   : la chaîne dit autre chose (tentative de triche ou erreur)
  *  - "unverified" : impossible de lire la chaîne maintenant (RPC, donnée manquante)
  */
+import { solanaConnection } from "@/lib/solana/rpc";
 export type CreatorVerdict = "ok" | "mismatch" | "unverified";
 
 export type ArcCurveRecord = { token: string; curve: string; creator: string } | null;
@@ -92,7 +93,7 @@ export async function readSolanaPoolOnChain(poolAddress: string): Promise<Solana
     ]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Client = (sdk as any).DynamicBondingCurveClient;
-    const client = new Client(new Connection(rpc, "confirmed"), "confirmed");
+    const client = new Client(solanaConnection(), "confirmed");
     const pool = await client.state.getPool(new PublicKey(poolAddress));
     if (!pool) return null;
     return { creator: String(pool.creator.toBase58()), baseMint: String(pool.baseMint.toBase58()) };

@@ -3,6 +3,7 @@
  * Thin wrappers over the existing /api/launchpad handlers (same on-chain flow, same checks).
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection } from "@solana/web3.js";
 import { getIp } from "@/lib/v1/helpers";
 import { runAsAgent } from "@/lib/social/session";
@@ -56,7 +57,7 @@ export async function callJson(
 export async function waitConfirmed(sig: string, timeoutMs = 25_000): Promise<"confirmed" | "failed" | "pending"> {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) return "pending";
-  const conn = new Connection(rpc, "confirmed");
+  const conn = solanaConnection();
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
     const { value } = await conn.getSignatureStatuses([sig], { searchTransactionHistory: false });

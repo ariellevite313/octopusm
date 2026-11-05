@@ -3,6 +3,7 @@
  * Same pattern as betting.ts: on-chain transfer → payments INSERT (pending) → admin validates.
  */
 
+import { solanaConnection } from "@/lib/solana/rpc";
 import type { WalletType } from "@/lib/wallet/adapters";
 import { readVia } from "@/lib/social/share-via";
 
@@ -201,7 +202,7 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
 
   for (const rpcUrl of getRpcUrls()) {
     try {
-      const connection = new Connection(rpcUrl, "confirmed");
+      const connection = solanaConnection();
       const { blockhash } = await connection.getLatestBlockhash("confirmed");
       const tx = new Transaction({ feePayer: payerPK, recentBlockhash: blockhash });
 
@@ -340,7 +341,7 @@ export async function submitPoolCreation(params: PoolCreationParams): Promise<Po
 
   for (const rpcUrl of getRpcUrls()) {
     try {
-      const connection = new Connection(rpcUrl, "confirmed");
+      const connection = solanaConnection();
       const { blockhash } = await connection.getLatestBlockhash("confirmed");
       const tx = new Transaction({ feePayer: payerPK, recentBlockhash: blockhash });
 

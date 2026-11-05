@@ -1,4 +1,5 @@
 /** Création d'un marché pari mutuel (pool) : paiement des frais vérifié sur la chaîne, champs validés, statut « pending » (revue admin). */
+import { solanaConnection } from "@/lib/solana/rpc";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { CATEGORY_SLUGS } from "@/lib/categories";
@@ -9,7 +10,7 @@ import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
 
 async function verifyCreationTx(txSig: string, wallet: string): Promise<boolean> {
   const rpc = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
-  const conn = new Connection(rpc, "confirmed");
+  const conn = solanaConnection();
 
   // Retry up to 3 times with 1.5s delay (tx may not have propagated yet right after broadcast)
   for (let attempt = 0; attempt < 3; attempt++) {

@@ -10,6 +10,7 @@
  * Si TX2 (création du pool) est rejetée puis réessayée, prepare-fee-tx peut alors sauter TX1.
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import bs58 from "bs58";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -53,7 +54,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const due = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL) + (token.is_scheduled ? Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL) : 0);
 
     // La tx vient d'être diffusée : on laisse quelques secondes pour la confirmation.
-    const conn = new Connection(rpc, "confirmed");
+    const conn = solanaConnection();
     let tx = null;
     for (let i = 0; i < 6 && !tx; i++) {
       tx = await conn.getTransaction(body.feeTxSig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);

@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { omeroForSwap } from "@/lib/octo";
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     }
 
     // ── Vérifier la tx on-chain ──────────────────────────────────────────────
-    const conn = new Connection(RPC_URL, "confirmed");
+    const conn = solanaConnection();
 
     let tx;
     try {

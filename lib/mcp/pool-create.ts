@@ -6,6 +6,7 @@
  * Le marché est créé « pending » : il passe en revue par un admin comme sur le site. Solana seulement pour l'instant.
  */
 import { Connection, PublicKey, Transaction, TransactionInstruction, VersionedTransaction } from "@solana/web3.js";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { TREASURY_ADDRESS, USDC_MINT, CLT_MINT } from "@/lib/market/betting";
 import { POOL_CREATION_FEE_USDC, POOL_CREATION_FEE_CLT } from "@/lib/market/pool-fee";
@@ -23,7 +24,7 @@ const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 const COMPUTE_PROGRAM = "ComputeBudget111111111111111111111111111111";
 const ALLOWED = new Set([TOKEN_PROGRAM, ASSOC_PROGRAM, MEMO_PROGRAM, COMPUTE_PROGRAM, "11111111111111111111111111111111"]);
 const SOL_ADDR = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-const conn = () => new Connection(process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com", "confirmed");
+const conn = () => solanaConnection();
 type P = Record<string, unknown>;
 
 const str = (p: P, k: string, max: number, required = false): string | undefined => {

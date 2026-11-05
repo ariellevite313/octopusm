@@ -21,6 +21,7 @@
  *   The caller skips TX A+B and only presents TX C to the user.
  */
 import { generateOmKeypair } from "@/lib/solana/vanity-mint";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -124,7 +125,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     // Dans ce cas on active le token au lieu de renvoyer une création de pool vouée à l'échec.
     if (token.mint_address && process.env.SOLANA_RPC_URL) {
       try {
-        const conn = new Connection(process.env.SOLANA_RPC_URL, "confirmed");
+        const conn = solanaConnection();
         const mintInfo = await conn.getAccountInfo(new PublicKey(token.mint_address as string));
         if (mintInfo !== null) {
           const pool = await activateIfPoolExists(admin, { id, ...token } as PendingToken);
@@ -146,7 +147,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       try {
         const rpc = process.env.SOLANA_RPC_URL;
         if (rpc) {
-          const conn = new Connection(rpc, "confirmed");
+          const conn = solanaConnection();
           const configInfo = await conn.getAccountInfo(new PublicKey(token.dbc_config_address as string));
           if (configInfo !== null) {
             console.log("[prepare-tx xStock] config already on-chain — returning TX C only");

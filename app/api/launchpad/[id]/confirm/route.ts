@@ -12,6 +12,7 @@
  *  3. Clears the stored vanity secret key (no longer needed)
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
@@ -40,7 +41,7 @@ async function extractPoolAddress(
     const rpc = process.env.SOLANA_RPC_URL;
     if (!rpc) return null;
 
-    const connection = new Connection(rpc, "confirmed");
+    const connection = solanaConnection();
 
     const txData = await connection.getTransaction(txSig, {
       maxSupportedTransactionVersion: 0,
@@ -173,7 +174,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         if (rpc) {
           const sdk = await import("@meteora-ag/dynamic-bonding-curve-sdk");
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const client = new (sdk as any).DynamicBondingCurveClient(new Connection(rpc, "confirmed"), "confirmed");
+          const client = new (sdk as any).DynamicBondingCurveClient(solanaConnection(), "confirmed");
           const found = await client.state.getPoolByBaseMint(token.mint_address as string);
           if (found?.publicKey) poolAddress = found.publicKey.toBase58();
         }

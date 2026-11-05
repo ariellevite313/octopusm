@@ -13,12 +13,13 @@
  */
 
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 
 function getConnection() {
-  return new Connection(RPC_URL, "confirmed");
+  return solanaConnection();
 }
 
 function tryPublicKey(str: string): PublicKey | null {

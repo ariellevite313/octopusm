@@ -12,6 +12,7 @@
  *   { results: Array<{ tokenId, name, status, signature?, error? }> }
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import bs58 from "bs58";
@@ -21,7 +22,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
-  return new Connection(rpc, "confirmed");
+  return solanaConnection();
 }
 
 function getPlatformWallet(): Keypair {

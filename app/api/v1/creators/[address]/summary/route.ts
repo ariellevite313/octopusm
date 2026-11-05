@@ -12,6 +12,7 @@
  */
 
 import { Connection, PublicKey } from "@solana/web3.js";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { createAdminClient }     from "@/lib/supabase/server";
 import {
   detectAddrType, json, err, corsOk, checkRateLimit, getIp,
@@ -23,7 +24,7 @@ export async function OPTIONS() { return corsOk(); }
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function getSolanaConnection() {
-  return new Connection(process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com", "confirmed");
+  return solanaConnection();
 }
 
 async function getSolanaClaimable(poolAddresses: string[]): Promise<number> {

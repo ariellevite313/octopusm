@@ -4,6 +4,7 @@
  * Rien n'est cru du client : le wallet vient de la session, le montant vient de la chaîne.
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     const { data: token } = await db.from("launchpad_tokens").select("id, sol_fee_tier, mint_address").eq("pool_address", poolAddress).maybeSingle();
     if (!token) return NextResponse.json({ error: "Unknown token" }, { status: 404 });
 
-    const conn = new Connection(RPC_URL, "confirmed");
+    const conn = solanaConnection();
     const tx = await conn.getTransaction(txSignature, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
     if (!tx || !tx.meta) return NextResponse.json({ error: "Transaction not found yet" }, { status: 404 });
     if (tx.meta.err !== null) return NextResponse.json({ error: "Transaction failed" }, { status: 400 });

@@ -11,6 +11,7 @@
  * We process tokens in batches of 5 with 1s between batches.
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { keepLastKnown } from "@/lib/launch/price-snapshots";
@@ -100,7 +101,7 @@ export async function GET(req: Request) {
     // Prix du SOL + connexion RPC, pour lire le prix sur la courbe quand les sources externes n'ont rien
     const solUsd = await fetchSolUsd();
     const rpcUrl = process.env.SOLANA_RPC_URL;
-    const conn = rpcUrl ? new Connection(rpcUrl, "confirmed") : null;
+    const conn = rpcUrl ? solanaConnection() : null;
     const snapshots: { token_id: string; price_usd: number; market_cap_usd: number | null; volume_24h_usd: number | null }[] = [];
 
     const BATCH = 5;

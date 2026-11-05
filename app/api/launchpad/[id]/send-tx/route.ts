@@ -8,6 +8,7 @@
  * Response: { signature: string }
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
@@ -17,7 +18,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
-  return new Connection(rpc, "confirmed");
+  return solanaConnection();
 }
 
 export async function POST(req: Request, { params }: RouteParams) {

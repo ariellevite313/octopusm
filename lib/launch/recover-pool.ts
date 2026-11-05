@@ -2,6 +2,7 @@
  * Récupération d'un lancement Solana resté "pending" : cherche la pool DBC du token sur la chaîne
  * et, si elle existe, active le token. Utilisé par /check-pool (page du token) et par le cron de rattrapage.
  */
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { getXStockMint } from "@/lib/solana/xstocks";
 import { verifyTokenCreator } from "@/lib/launch/verify-creator";
@@ -97,7 +98,7 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
   if (!token.mint_address) return null;
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) return null;
-  const connection = new Connection(rpc, "confirmed");
+  const connection = solanaConnection();
 
   let dbcProgramId: PublicKey | null = null;
   if (token.tx_base64) {

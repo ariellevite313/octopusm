@@ -8,6 +8,7 @@
  * Returns: { total, tokens: [{ tokenId, name, ticker, logoUrl, pending, poolAddress }] }
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -27,7 +28,7 @@ export type PendingFeesResponse = {
 
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
-  return new Connection(rpc, "confirmed");
+  return solanaConnection();
 }
 
 async function queryPendingSol(poolAddress: string): Promise<number> {

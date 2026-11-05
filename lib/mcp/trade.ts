@@ -6,6 +6,7 @@
  * Garde-fous : plafond par trade, slippage borné, limite horaire par wallet, devis obligatoire.
  */
 import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { createPublicClient, encodeFunctionData, http, parseAbi, parseTransaction } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
 import { arc } from "@/lib/arc-chain";
@@ -23,7 +24,7 @@ const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
 const ARC_RPC = "https://rpc.mainnet.arc.io";
 const ERC20 = parseAbi(["function allowance(address,address) view returns (uint256)", "function approve(address,uint256) returns (bool)", "function balanceOf(address) view returns (uint256)"]);
 
-const solConn = () => new Connection(process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com", "confirmed");
+const solConn = () => solanaConnection();
 const arcClient = () => createPublicClient({ chain: arc, transport: http(ARC_RPC) });
 
 type Token = { id: string; name: string; ticker: string; chain: "solana" | "arc"; status: string; is_hidden: boolean | null; mint_address: string | null; pool_address: string | null; arc_launch_id: string | null; stock_symbol: string | null };
