@@ -245,7 +245,7 @@ export async function buildStockPairedTransactions(
       platformWallet.publicKey,   // feeClaimer
       platformWallet.publicKey,   // leftoverReceiver
       quoteMint,
-      platformWallet.publicKey,   // payer for config account rent
+      creator,                    // le créateur paie la création de la config (plus la plateforme)
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -339,15 +339,13 @@ export async function buildStockPairedTransactions(
 
   // ── TX B: DBC config creation ─────────────────────────────────────────────────
   // Strip ComputeBudget from SDK tx — replace with explicit budget for predictable size.
-  // Pre-signed by platformWallet (payer) + configKeypair (new account).
-  // feePayer = creator.
+  // Le créateur paie (feePayer et rent de la config) ; pré-signée par la clé de config (nouveau compte).
   const configIxs = stripComputeBudget(createConfigTx.instructions) as unknown as import("@solana/web3.js").TransactionInstruction[];
   const { blockhash: bhB } = await connection.getLatestBlockhash("confirmed");
   const txB = new Transaction({ recentBlockhash: bhB, feePayer: creator });
   txB.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }));
   for (const ix of configIxs) txB.add(ix);
   txB.compileMessage();
-  try { txB.partialSign(platformWallet); } catch { /* already signed or not required */ }
   try { txB.partialSign(configKeypair);  } catch { /* new config account */  }
 
   // ── TX C: DBC pool creation ───────────────────────────────────────────────────
