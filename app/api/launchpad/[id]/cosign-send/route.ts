@@ -94,7 +94,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       const prepC = cached.c ? Transaction.from(Buffer.from(cached.c, "base64")) : null;
 
       if (prepB && sameInstructions(tx, prepB)) {
-        // TX B (createConfig) : signatures plateforme + clé de config
+        // TX B (createConfig) : clé de config (la plateforme ne signe plus : le créateur paie)
         const cfgSecret = token.dbc_config_secret as string | null;
         if (!cfgSecret) return NextResponse.json({ error: "Config key missing — click Retry" }, { status: 409 });
         const configKeypair = Keypair.fromSecretKey(Uint8Array.from(Buffer.from(cfgSecret, "base64")));
@@ -134,7 +134,13 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
-      console.error("[cosign-send] simulation failed:", m);
+      // Les journaux du programme disent la vraie raison (fonds insuffisants, compte existant...)
+      const logs = ((e as { logs?: string[] } | null)?.logs ?? []) as string[];
+      console.error("[cosign-send] simulation failed:", m, logs.slice(-15).join("\n"));
+      const reason = logs.find((l) => /insufficient|already in use|custom program error|Error Message/i.test(l));
+      if (reason) {
+        return NextResponse.json({ error: `Transaction would fail: ${reason.replace(/^Program log: /, "").slice(0, 200)}` }, { status: 422 });
+      }
       // Message court et lisible : la première ligne d'erreur du programme si elle existe
       const short = (m.match(/Error Message: ([^.\n]+)/)?.[1] ?? m.match(/Message: ([^\n]+)/)?.[1] ?? m.split("\n")[0]).slice(0, 200);
       return NextResponse.json({ error: `Transaction would fail: ${short}` }, { status: 422 });
