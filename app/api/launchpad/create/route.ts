@@ -90,6 +90,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Stock-paired tokens are not available on Arc yet" }, { status: 403 });
     }
 
+    // Même forme que ce qui sera enregistré : sans espaces autour (sinon « Miauricio  » passait la vérification
+    // puis butait sur la règle d'unicité de la base)
+    payload.name = String(payload.name ?? "").trim();
+    payload.ticker = String(payload.ticker ?? "").trim();
     const { nameAvailable, tickerAvailable } = await checkNameAvailability(payload.name, payload.ticker);
     if (!nameAvailable)   return NextResponse.json({ error: "Name is already taken" }, { status: 409 });
     if (!tickerAvailable) return NextResponse.json({ error: "Ticker is already taken" }, { status: 409 });
