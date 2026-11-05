@@ -21,6 +21,7 @@
  *   The caller skips TX A+B and only presents TX C to the user.
  */
 import { generateOmKeypair } from "@/lib/solana/vanity-mint";
+import { XSTOCK_LAUNCH_ENABLED } from "@/lib/solana/xstocks";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
@@ -66,6 +67,20 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
     if (token.status !== "pending") {
       return NextResponse.json({ error: `Token is already ${token.status as string}` }, { status: 409 });
+    }
+
+    // Lancements xStock coupés : un token xStock resté en attente repart en lancement simple (paire SOL).
+    // Les frais déjà payés restent enregistrés (fee_paid_at), la même adresse de token est gardée.
+    if (token.stock_symbol && !XSTOCK_LAUNCH_ENABLED) {
+      const { error: convErr } = await admin.from("launchpad_tokens").update({
+        stock_symbol: null, quote_asset: null, dbc_config_address: null, dbc_config_secret: null,
+        tx_base64: null, tx_prepared_at: null,
+      }).eq("id", id).eq("status", "pending");
+      if (convErr) {
+        console.error("[prepare-tx] xStock to SOL conversion failed:", convErr);
+        return NextResponse.json({ error: "Could not switch this launch to SOL, retry." }, { status: 500 });
+      }
+      Object.assign(token, { stock_symbol: null, quote_asset: null, dbc_config_address: null, dbc_config_secret: null, tx_base64: null, tx_prepared_at: null });
     }
 
     const isXStock = Boolean(token.stock_symbol);

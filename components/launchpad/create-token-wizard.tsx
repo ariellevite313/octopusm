@@ -31,7 +31,7 @@ import {
   ARC_DIRECT_FACTORY_ABI,
   ARC_FACTORY_DIRECT_ADDRESS,
 } from "@/lib/arc-launchpad";
-import { XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
+import { XSTOCK_CATALOG_SOLANA, XSTOCK_LAUNCH_ENABLED } from "@/lib/solana/xstocks";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { LaunchButton } from "@/components/launchpad/launch-button";
 
@@ -226,8 +226,9 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     set("whitepaper_file", file);
   }
 
-  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" ? "stock" : "sol";
+  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED ? "stock" : "sol";
   function pickPair(p: Pair) {
+    if (p === "stock" && !XSTOCK_LAUNCH_ENABLED) return;
     if (p === "usdc") { onChainChange?.("arc"); return; }
     onChainChange?.("solana");
     set("sol_token_type", p === "stock" ? "stock" : "sol");
@@ -337,20 +338,29 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       <div>
         <Label>{tr("Pool pair")}</Label>
         <div className="grid grid-cols-3 gap-2.5">
-          {PAIRS.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              onClick={() => pickPair(p.key)}
-              aria-pressed={pair === p.key}
-              className={`flex flex-col items-center gap-2 rounded-2xl border-2 bg-muted px-2 py-4 transition-colors ${
-                pair === p.key ? "border-up" : "border-transparent hover:border-border"
-              }`}
-            >
-              {p.icon}
-              <span className="text-[15px] font-bold text-foreground">{p.label}</span>
-            </button>
-          ))}
+          {PAIRS.map((p) => {
+            const soon = p.key === "stock" && !XSTOCK_LAUNCH_ENABLED;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => pickPair(p.key)}
+                aria-pressed={pair === p.key}
+                disabled={soon}
+                className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 bg-muted px-2 py-4 transition-colors ${
+                  soon ? "cursor-not-allowed border-transparent opacity-50" : pair === p.key ? "border-up" : "border-transparent hover:border-border"
+                }`}
+              >
+                {soon && (
+                  <span className="absolute right-1.5 top-1.5 rounded-full bg-background px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                    {tr("Coming soon")}
+                  </span>
+                )}
+                {p.icon}
+                <span className="text-[15px] font-bold text-foreground">{p.label}</span>
+              </button>
+            );
+          })}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : tr("Launches on Solana, traded in SOL.")}
@@ -451,7 +461,7 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
   onBack: () => void;
 }) {
   const isArc   = chain === "arc";
-  const isStock = !isArc && data.sol_token_type === "stock";
+  const isStock = !isArc && data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED;
   const unit    = isArc ? "USDC" : "SOL";
   const maxDec  = isArc ? 2 : 3;
   const [raw, setRaw] = useState(() => {
@@ -501,7 +511,7 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
   }
 
   // Coûts (mêmes montants qu'avant)
-  const NETWORK_RENT = data.sol_token_type === "stock" ? 0.038 : 0.02449768;
+  const NETWORK_RENT = (data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED) ? 0.038 : 0.02449768;
   const mintCost = PLATFORM_FEE_SOL + NETWORK_RENT + (data.is_scheduled ? SCHEDULED_FEE_SOL : 0);
   const total = isArc
     ? `~${(amount + 0.04).toFixed(2)} USDC`
@@ -725,7 +735,7 @@ function validateScreen(screen: number, data: WizardData): Record<string, string
     return e;
   }
   const e: Record<string, string> = {};
-  if (data.first_buy_enabled && data.sol_token_type === "sol" && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
+  if (data.first_buy_enabled && !(data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED) && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
   if (data.arc_first_buy_enabled && data.arc_first_buy_usdc < 0.01) e.arc_first_buy_usdc = "Minimum first buy is 0.01 USDC";
   return e;
 }
@@ -812,7 +822,7 @@ export function CreateTokenWizard({
     const whitepaperUrl = await uploadWhitepaper();
     const form = new FormData();
     if (data.logo_file) form.append("logo", data.logo_file);
-    const isStockPaired = data.sol_token_type === "stock";
+    const isStockPaired = data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED;
     form.append("payload", JSON.stringify({
       whitepaper_url: whitepaperUrl || undefined,
       name: data.name, ticker: data.ticker, category: data.category,
