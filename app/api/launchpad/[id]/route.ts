@@ -5,6 +5,7 @@
  * Admin-only. Token must have status = 'cancelled'.
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 
@@ -43,7 +44,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     if (token.chain !== "arc" && token.mint_address && process.env.SOLANA_RPC_URL) {
       try {
         const { Connection, PublicKey } = await import("@solana/web3.js");
-        const info = await new Connection(process.env.SOLANA_RPC_URL, "confirmed").getAccountInfo(new PublicKey(token.mint_address as string));
+        const info = await solanaConnection().getAccountInfo(new PublicKey(token.mint_address as string));
         if (info !== null) {
           return NextResponse.json(
             { error: "This token is already live on chain. It will be activated by the recovery task, do not delete it." },

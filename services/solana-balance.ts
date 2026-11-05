@@ -3,6 +3,7 @@
  * Races multiple public RPC endpoints — resolves on first success.
  */
 
+import { solanaConnection } from "@/lib/solana/rpc";
 export type OnChainBalances = {
   sol: number;
   usdc: number;
@@ -57,7 +58,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 async function fetchFromRpc(rpcUrl: string, address: string): Promise<OnChainBalances> {
   const { Connection, PublicKey } = await import("@solana/web3.js");
   const owner = new PublicKey(address);
-  const conn = new Connection(rpcUrl, "confirmed");
+  const conn = solanaConnection();
 
   const [lamports, usdcRes, cltRes] = await Promise.all([
     withTimeout(conn.getBalance(owner, "confirmed"), RPC_TIMEOUT_MS),

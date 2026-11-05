@@ -15,6 +15,7 @@
  * Response: { signature: string }
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
@@ -122,7 +123,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     // 3. Broadcast — serialize() verifies every required signature is present & valid.
     const rpc = process.env.SOLANA_RPC_URL;
     if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
-    const connection = new Connection(rpc, "confirmed");
+    const connection = solanaConnection();
     // Simulation avant envoi : une transaction vouée à l'échec n'est pas diffusée (le créateur ne paie
     // pas le réseau pour rien) et l'erreur réelle remonte à l'écran.
     let signature: string;

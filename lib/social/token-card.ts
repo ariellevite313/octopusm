@@ -4,6 +4,7 @@
  * Le bénéfice n'est renvoyé que s'il est calculable de façon fiable ; sinon null (l'UI le masque).
  */
 import { Connection, PublicKey } from "@solana/web3.js";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { GET as arcTrades } from "@/app/api/launchpad/arc-trades/route";
 
@@ -70,7 +71,7 @@ async function solPriceUsd(): Promise<number> {
 
 /** Solana : solde du wallet + coût / produit des 100 dernières transactions du compte token. */
 async function solanaPosition(wallet: string, mint: string, price: number) {
-  const conn = new Connection(RPC, "confirmed");
+  const conn = solanaConnection();
   const owner = new PublicKey(wallet);
   const mintPk = new PublicKey(mint);
   const accs = await conn.getTokenAccountsByOwner(owner, { mint: mintPk }, "confirmed");

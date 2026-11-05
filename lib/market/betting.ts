@@ -3,6 +3,7 @@
  * No server imports — safe to import from "use client" components.
  */
 
+import { solanaConnection } from "@/lib/solana/rpc";
 import type { WalletType, SolanaProvider } from "@/lib/wallet/adapters";
 import { readVia } from "@/lib/social/share-via";
 
@@ -221,7 +222,7 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
 
   for (const rpcUrl of getRpcUrls()) {
     try {
-      const connection = new Connection(rpcUrl, "confirmed");
+      const connection = solanaConnection();
       const { blockhash } = await connection.getLatestBlockhash("confirmed");
       const tx = new Transaction({ feePayer: payerPK, recentBlockhash: blockhash });
 

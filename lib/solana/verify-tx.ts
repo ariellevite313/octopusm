@@ -1,5 +1,6 @@
 import { Connection } from "@solana/web3.js";
 
+import { solanaConnection } from "@/lib/solana/rpc";
 export type TxVerifyResult =
   | { state: "confirmed" }
   | { state: "pending" }                   // not yet visible / still processing
@@ -15,7 +16,7 @@ export async function verifyTransaction(txSignature: string): Promise<TxVerifyRe
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) return { state: "pending" };
   try {
-    const connection = new Connection(rpc, "confirmed");
+    const connection = solanaConnection();
     const result = await connection.getSignatureStatus(txSignature, { searchTransactionHistory: true });
     const status = result.value;
     if (!status) return { state: "pending" };

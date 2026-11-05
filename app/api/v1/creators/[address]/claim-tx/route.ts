@@ -32,6 +32,7 @@
  *   await connection.sendRawTransaction(vtx.serialize());
  */
 
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
@@ -41,10 +42,7 @@ import {
 export async function OPTIONS() { return corsOk(); }
 
 function getSolanaConnection() {
-  return new Connection(
-    process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com",
-    "confirmed",
-  );
+  return solanaConnection();
 }
 
 export async function GET(

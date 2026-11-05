@@ -15,6 +15,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
@@ -35,6 +36,11 @@ function readBN(v: any): number {
   return Number(String(v));
 }
 
+// Cache mémoire : chaque page de token interroge cette route toutes les 30 s, pour chaque visiteur.
+// Sans cache, cela fait autant d'appels au RPC Solana (cause des « 429 Too Many Requests »).
+const CACHE_MS = 20_000;
+const cache = new Map<string, { at: number; body: Record<string, unknown> }>();
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -51,6 +57,9 @@ export async function GET(req: Request) {
     if (!poolPk) {
       return NextResponse.json({ error: "Invalid poolAddress" }, { status: 400 });
     }
+    const cacheKey = `${poolAddress}:${quoteDecimals}`;
+    const hit = cache.get(cacheKey);
+    if (hit && Date.now() - hit.at < CACHE_MS) return NextResponse.json(hit.body);
 
     // ── Load DBC SDK ──────────────────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +71,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "DBC SDK not installed" }, { status: 500 });
     }
 
-    const connection = new Connection(RPC_URL, "confirmed");
+    const connection = solanaConnection();
     const client = new DynamicBondingCurveClient(connection, "confirmed");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,12 +112,10 @@ export async function GET(req: Request) {
       ? Math.min(100, Math.round((solRaised / gradThresholdSol) * 10000) / 100)
       : 0;
 
-    return NextResponse.json({
-      solRaised,
-      gradThresholdSol,
-      progressPct,
-      graduated,
-    }, {
+    const body = { solRaised, gradThresholdSol, progressPct, graduated };
+    if (cache.size > 2000) cache.clear();
+    cache.set(cacheKey, { at: Date.now(), body });
+    return NextResponse.json(body, {
       headers: {
         // Cache for 30s — pool state changes slowly
         "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 const RPC_URL        = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
     }
 
     try {
-      const conn     = new Connection(RPC_URL, "confirmed");
+      const conn     = solanaConnection();
       const accounts = await conn.getTokenAccountsByOwner(walletPk, { mint: mintPk }, "confirmed");
       if (accounts.value.length === 0) {
         return NextResponse.json(
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
 
   // Native SOL balance
   try {
-    const conn     = new Connection(RPC_URL, "confirmed");
+    const conn     = solanaConnection();
     const lamports = await conn.getBalance(walletPk);
     return NextResponse.json(
       { lamports, sol: lamports / 1e9 },

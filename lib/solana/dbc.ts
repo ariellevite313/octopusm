@@ -8,6 +8,7 @@
  */
 
 import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
+import { solanaConnection } from "@/lib/solana/rpc";
 import {
   Connection,
   Keypair,
@@ -57,7 +58,7 @@ export type DbcPoolParams = {
 function getConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
-  return new Connection(rpc, "confirmed");
+  return solanaConnection();
 }
 
 export function getPlatformWallet(): Keypair {

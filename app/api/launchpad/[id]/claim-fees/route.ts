@@ -9,6 +9,7 @@
  * USDC Arc = natif ETH 18 décimales (≠ USDC ERC-20 6 dec)
  */
 import { NextResponse } from "next/server";
+import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createPublicClient, http, encodeFunctionData } from "viem";
 import BN from "bn.js";
@@ -80,7 +81,7 @@ function rawToBN(raw: unknown): BN {
 function getSolanaConnection(): Connection {
   const rpc = process.env.SOLANA_RPC_URL;
   if (!rpc) throw new Error("SOLANA_RPC_URL is not set");
-  return new Connection(rpc, "confirmed");
+  return solanaConnection();
 }
 
 const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
