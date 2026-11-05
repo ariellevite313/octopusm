@@ -296,6 +296,11 @@ export async function POST(req: Request) {
 
     if (insertError || !data) {
       console.error("launchpad create error:", insertError);
+      // Nom ou ticker déjà pris (règle d'unicité de la base) : message clair au lieu de « Database error »
+      if ((insertError as { code?: string } | null)?.code === "23505") {
+        const which = /ticker/i.test((insertError as { message?: string }).message ?? "") ? "ticker" : "name";
+        return NextResponse.json({ error: which === "ticker" ? "This ticker is already taken" : "This name is already taken" }, { status: 409 });
+      }
       return NextResponse.json({ error: "Database error" }, { status: 500 });
     }
 

@@ -267,7 +267,15 @@ export async function checkNameAvailability(name: string, ticker: string): Promi
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from("launchpad_tokens").delete().in("id", abandonedIds).eq("status", "pending").is("fee_paid_at", null);
   }
-  // Un token annulé (par l'admin) ne bloque plus son nom ni son ticker.
+  // Un token annulé (par l'admin), ou abandonné mais impossible à supprimer, ne bloque plus son nom ni son ticker.
+  // La base impose des noms et tickers uniques : on renomme ces anciennes lignes pour libérer la place.
+  const freed = [...new Map(allTokens.filter((t) => t.status === "cancelled" || isAbandoned(t)).map((t) => [t.id, t])).values()];
+  for (const t of freed) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from("launchpad_tokens")
+      .update({ name: `${t.name} (old ${t.id.slice(0, 8)})`, ticker: `${t.ticker}-${t.id.slice(0, 4)}`.toUpperCase() })
+      .eq("id", t.id).in("status", ["cancelled", "pending"]);
+  }
   const existingTokens = allTokens.filter((t) => !isAbandoned(t) && t.status !== "cancelled");
 
   const takenNames = new Set([
