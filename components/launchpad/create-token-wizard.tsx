@@ -338,7 +338,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       {/* Paire de pool */}
       <div>
         <Label>{tr("Pool pair")}</Label>
-        <div className={`grid gap-2.5 ${PAIRS.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+        <div className="grid grid-cols-3 gap-2.5">
           {PAIRS.map((p) => {
             const soon = false;
             return (
@@ -362,6 +362,16 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
               </button>
             );
           })}
+          {/* Place de l'ancienne case Stock : Elysium, grisée et non cliquable */}
+          {!XSTOCK_LAUNCH_ENABLED && (
+            <div
+              aria-disabled="true"
+              className="pointer-events-none flex cursor-not-allowed select-none flex-col items-center gap-2 rounded-2xl border-2 border-transparent bg-muted px-2 py-4 opacity-40 grayscale"
+            >
+              <Image src="/elysium.png" alt="" width={36} height={36} className="size-9 rounded-full" unoptimized />
+              <span className="text-[15px] font-bold text-foreground">Elysium</span>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : tr("Launches on Solana, traded in SOL.")}
