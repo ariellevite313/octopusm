@@ -233,11 +233,12 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     onChainChange?.("solana");
     set("sol_token_type", p === "stock" ? "stock" : "sol");
   }
-  const PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
+  const ALL_PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
     { key: "sol",   label: "SOL",   icon: <SolanaMark className="size-9 text-foreground" /> },
     { key: "usdc",  label: "USDC",  icon: <Image src="/usdc-coin.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
     { key: "stock", label: tr("Stock"), icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
   ];
+  const PAIRS = ALL_PAIRS.filter((p) => p.key !== "stock" || XSTOCK_LAUNCH_ENABLED);
 
   return (
     <div className="space-y-6">
@@ -337,9 +338,9 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       {/* Paire de pool */}
       <div>
         <Label>{tr("Pool pair")}</Label>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className={`grid gap-2.5 ${PAIRS.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
           {PAIRS.map((p) => {
-            const soon = p.key === "stock" && !XSTOCK_LAUNCH_ENABLED;
+            const soon = false;
             return (
               <button
                 key={p.key}
