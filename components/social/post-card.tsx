@@ -16,7 +16,8 @@ import { TokenCardView } from "./token-card";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { TokenPill } from "./token-pill";
 import { MarketCard } from "./market-card";
-import { LivePrice } from "./live-price";
+import { LivePrice, TickerPills } from "./live-price";
+import { cashtagsOf } from "@/lib/social/live-price";
 import { MARKET_URL_RE } from "@/lib/social/rich";
 import { PostReplies } from "./post-replies";
 import { useContentTranslation } from "./translate-toggle";
@@ -74,7 +75,7 @@ function PostText({ postId, body: original, mentions, hideUrl }: { postId: strin
     <div className="px-1">
       <div ref={ref} className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground ${open ? "" : "line-clamp-4"}`}>
         {parts.map((p, i) => {
-          if (p.startsWith("$") && p.length > 2) return <span key={i} className="font-bold text-primary">{p}</span>;
+          if (p.startsWith("$") && p.length > 2) return <Link key={i} href={`/?cashtag=${encodeURIComponent(p.slice(1).toUpperCase())}`} onClick={(e) => e.stopPropagation()} className="font-bold text-primary hover:underline">{p}</Link>;
           if (p.startsWith("#") && p.length > 2) return <Link key={i} href={`/?tag=${encodeURIComponent(p.slice(1).toLowerCase())}`} className="font-semibold text-primary hover:underline">{p}</Link>;
           if (p.startsWith("@") && p.length > 2) {
             const w = mentions[p.slice(1).toLowerCase()];
@@ -137,7 +138,8 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments }: 
 
   const name = post.author_name ?? shortAddress(post.author);
   // Crypto mentionnée ($BTC…) qui n'est pas un token OMdotfun : prix en temps réel
-  const cashtag = post.body.match(/\$([A-Za-z][A-Za-z0-9]{1,15})/)?.[1]?.toUpperCase() ?? null;
+  // 1 crypto : carte avec graphique ; 2 ou plus : pastilles compactes
+  const cashtags = cashtagsOf(post.body, 15);
 
   // Une vue est comptée quand la publication est réellement affichée à l'écran
   useEffect(() => {
@@ -425,8 +427,8 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments }: 
 
       {post.ticker ? (
         <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} postId={post.id} /></div>
-      ) : cashtag && !post.market?.price_ticker ? (
-        <div className="px-1"><LivePrice symbol={cashtag} /></div>
+      ) : cashtags.length && !post.market?.price_ticker ? (
+        <div className="px-1">{cashtags.length === 1 ? <LivePrice symbol={cashtags[0]} /> : <TickerPills symbols={cashtags} />}</div>
       ) : null}
 
       {showReplies && <PostReplies postId={post.id} onCount={(n) => setPost((p) => ({ ...p, reply_count: n }))} />}

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useT } from "@/lib/i18n";
 import { Chart } from "./token-card";
-import { fmtUsd, loadSeries, resolveQuote, subscribePrice, type LiveQuote, type Range } from "@/lib/social/live-price";
+import { TICKERS_MAX, fmtUsd, loadSeries, resolveQuote, subscribePrice, type LiveQuote, type Range } from "@/lib/social/live-price";
 
 const RANGES: Range[] = ["1H", "1D", "1W", "ALL"];
 
@@ -95,6 +97,88 @@ export function LivePrice({ symbol, target, targetLabel, anyDex = false }: { sym
           <span className="num font-bold text-foreground">{fmtUsd(target)} · {gap >= 0 ? "+" : ""}{gap.toFixed(1)}%</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Plusieurs cryptos citées : jusqu'à 9 connues, en pastilles compactes, par pages de 3 qu'on fait défiler. */
+export function TickerPills({ symbols }: { symbols: string[] }) {
+  const { tr } = useT();
+  const [quotes, setQuotes] = useState<LiveQuote[] | undefined>(undefined);
+  const [page, setPage] = useState(0);
+  const strip = useRef<HTMLDivElement>(null);
+  const key = symbols.join(",");
+
+  useEffect(() => {
+    let live = true;
+    Promise.all(key.split(",").map((s) => resolveQuote(s).catch(() => null)))
+      .then((all) => { if (live) setQuotes(all.filter((q): q is LiveQuote => !!q).slice(0, TICKERS_MAX)); });
+    return () => { live = false; };
+  }, [key]);
+
+  if (quotes === undefined) return <div className="mt-3 h-28 animate-pulse rounded-2xl bg-muted/30" />;
+  if (!quotes.length) return null;
+  if (quotes.length === 1) return <LivePrice symbol={quotes[0].symbol} />;
+  const pages: LiveQuote[][] = [];
+  for (let i = 0; i < quotes.length; i += 3) pages.push(quotes.slice(i, i + 3));
+  const go = (i: number) => strip.current?.scrollTo({ left: i * strip.current.clientWidth, behavior: "smooth" });
+
+  return (
+    <div className="mt-3">
+      <div
+        ref={strip}
+        onScroll={(e) => { const el = e.currentTarget; setPage(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}
+        className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {pages.map((pg, i) => (
+          <div key={i} className="flex w-full shrink-0 snap-start flex-col gap-2">
+            {pg.map((q) => <Pill key={q.symbol} q={q} buy={tr("Buy")} soon={tr("Coming soon")} />)}
+          </div>
+        ))}
+      </div>
+      {pages.length > 1 && (
+        <div className="mt-2 flex justify-center gap-1.5">
+          {pages.map((_, i) => (
+            <button key={i} type="button" aria-label={`${i + 1}`} onClick={(e) => { e.stopPropagation(); go(i); }}
+              className={`h-1.5 rounded-full transition-all ${i === page ? "w-4 bg-foreground" : "w-1.5 bg-muted-foreground/40"}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pill({ q, buy, soon }: { q: LiveQuote; buy: string; soon: string }) {
+  const [price, setPrice] = useState(q.price);
+  const [change, setChange] = useState(q.change24h);
+  const root = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!visible) return;
+    return subscribePrice(q, (p, c) => { setPrice(p); setChange(c); });
+  }, [q, visible]);
+  const up = change >= 0;
+  return (
+    <div ref={root} className="flex items-center gap-2.5 rounded-2xl bg-muted/40 px-3 py-2">
+      <Link href={`/?cashtag=${q.symbol}`} onClick={(e) => e.stopPropagation()} className="flex min-w-0 flex-1 items-center gap-2.5">
+        {q.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={q.logo} alt="" className="size-8 shrink-0 rounded-full bg-muted object-cover" />
+        ) : (
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">{q.symbol[0]}</div>
+        )}
+        <span className="truncate text-[15px] font-bold text-foreground">${q.symbol}</span>
+      </Link>
+      <span className="num shrink-0 text-[13px] font-bold text-foreground">{fmtUsd(price)}</span>
+      <span className={`num w-14 shrink-0 text-right text-xs font-bold ${up ? "text-up" : "text-down"}`}>{up ? "+" : ""}{change.toFixed(1)}%</span>
+      <button type="button" disabled title={soon} className="shrink-0 cursor-not-allowed rounded-full bg-foreground/30 px-3 py-1 text-xs font-bold text-background">{buy}</button>
     </div>
   );
 }

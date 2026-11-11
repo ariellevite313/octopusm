@@ -20,6 +20,9 @@ export async function GET(req: Request) {
   const authorParam = url.searchParams.get("author");
   let before = url.searchParams.get("before");
   const tag = (url.searchParams.get("tag") ?? "").replace(/^#/, "").toLowerCase().slice(0, 30);
+  // $PEPE : posts qui citent cette crypto (symbole alphanumérique uniquement)
+  const cashRaw = (url.searchParams.get("cashtag") ?? "").replace(/^\$/, "").toUpperCase();
+  const cashtag = /^[A-Z][A-Z0-9]{1,15}$/.test(cashRaw) ? cashRaw : "";
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "10") || 10, 1), 30);
 
   const viewerRaw = await getWalletAddress();
@@ -37,7 +40,7 @@ export async function GET(req: Request) {
   // Fil classé « Pour toi »
   const RANK_HOURS = 72;
   const cutoff = new Date(Date.now() - RANK_HOURS * 3600_000).toISOString();
-  if (tab === "foryou" && !authorParam && !tag && (!before || before.startsWith("o:"))) {
+  if (tab === "foryou" && !authorParam && !tag && !cashtag && (!before || before.startsWith("o:"))) {
     const offset = before ? Math.max(0, parseInt(before.slice(2)) || 0) : 0;
     const [{ data: cand }, fol] = await Promise.all([
       admin.from("posts").select(POST_COLUMNS).eq("hidden", false).gte("created_at", cutoff).order("created_at", { ascending: false }).limit(400),
@@ -64,6 +67,7 @@ export async function GET(req: Request) {
   let q = admin.from("posts").select(POST_COLUMNS).eq("hidden", false).order("created_at", { ascending: false }).limit(limit);
   if (before && !Number.isNaN(Date.parse(before))) q = q.lt("created_at", before);
   if (tag) q = q.contains("tags", [tag]);
+  if (cashtag) q = q.filter("body", "imatch", `(^|[^a-z0-9_$])\\$${cashtag}([^a-z0-9]|$)`);
 
   if (authorParam) {
     q = q.eq("author", normWallet(authorParam));

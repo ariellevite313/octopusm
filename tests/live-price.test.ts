@@ -48,3 +48,13 @@ describe("prix d'un $TICKER hors OMdotfun", () => {
     expect(await resolveQuote("$USDT")).toBeNull();
   });
 });
+
+import { cashtagsOf } from "@/lib/social/live-price";
+describe("cashtagsOf", () => {
+  it("keeps order, removes duplicates, ignores $ inside words and amounts", () => {
+    expect(cashtagsOf("Top: $Pepe $Bonk $Doge, $pepe again. a$x $5 ($WIF)")).toEqual(["PEPE", "BONK", "DOGE", "WIF"]);
+  });
+  it("stops at max", () => {
+    expect(cashtagsOf("$AA $BB $CC $DD", 2)).toEqual(["AA", "BB"]);
+  });
+});
