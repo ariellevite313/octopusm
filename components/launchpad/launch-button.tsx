@@ -183,6 +183,13 @@ async function walletFirstSignAndSend(
   tr: ReturnType<typeof useT>["tr"],
 ): Promise<string> {
   const tx = Transaction.from(Buffer.from(txBase64, "base64"));
+  // Wallet sans signTransaction (certains wallets mobiles) : la transaction déjà signée par le serveur part
+  // telle quelle par signAndSendTransaction, comme avant le passage « wallet d'abord ».
+  if (typeof wallet.signTransaction !== "function" && wallet.signAndSendTransaction) {
+    const r = await wallet.signAndSendTransaction(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
+    onSending();
+    return r.signature;
+  }
   const me = new PublicKey(walletAddress);
   for (const s of tx.signatures) {
     if (!s.publicKey.equals(me)) s.signature = null;

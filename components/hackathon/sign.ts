@@ -20,6 +20,9 @@ export async function signAction(p: { walletType: WalletType | null; wallet: str
   }
   const provider = p.walletType ? getProviderByType(p.walletType) : null;
   if (!provider?.signMessage) throw new Error("This wallet cannot sign messages");
+  // Après un rechargement de la page, le wallet n'est pas forcément reconnecté : on le reconnecte avant de signer.
+  if (!provider.publicKey) await provider.connect();
+  if (provider.publicKey && provider.publicKey.toString() !== p.wallet) throw new Error("Switch your wallet to the account connected on OM");
   const bytes = new TextEncoder().encode(message);
   const res = await provider.signMessage(bytes).catch(() => provider.signMessage!(bytes, "utf8"));
   const sig: Uint8Array = res instanceof Uint8Array ? res : (res as { signature: Uint8Array }).signature;

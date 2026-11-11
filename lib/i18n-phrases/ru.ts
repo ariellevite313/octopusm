@@ -1426,5 +1426,11 @@ const p: Record<string, string> = {
   "Enter a whole amount between 1 and {n} OMERO": "Введите целое число от 1 до {n} OMERO",
   "sent you OMERO on your post": "отправил вам OMERO за пост",
   "Open the {name} app, go to its Web3 browser and visit omdot.fun": "Откройте приложение {name}, перейдите в его Web3-браузер и откройте omdot.fun",
+  "Applications are open. The hackathon and the votes start on {date}.": "Регистрация открыта. Хакатон и голосование начинаются {date}.",
+  "Applications are open. The hackathon starts on {date}: votes and volume count from that day.": "Регистрация открыта. Хакатон начинается {date}: голоса и объём учитываются с этого дня.",
+  "The creator on-chain is not this wallet": "Создатель в блокчейне не этот кошелёк",
+  "Could not read the blockchain right now, please try again in a minute": "Сейчас не удалось прочитать блокчейн, попробуйте через минуту",
+  "Your website could not be found over https. Check the address (it must start with https://)": "Сайт не найден по https. Проверьте адрес (он должен начинаться с https://)",
+  "Switch your wallet to the account connected on OM": "Переключите кошелёк на аккаунт, подключённый к OM",
 };
 export default p;

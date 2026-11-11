@@ -85,7 +85,9 @@ export async function siteIsReachable(url: string): Promise<boolean> {
     if (u.protocol !== "https:" || net.isIP(u.hostname) || u.hostname === "localhost") return false;
     const addrs = await lookup(u.hostname, { all: true });
     if (addrs.length === 0 || addrs.some((a) => isPrivateIp(a.address))) return false;
-    const res = await fetch(u, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(6000), headers: { "User-Agent": "OMdotfun-hackathon-check" } });
-    return res.status < 400;
+    const res = await fetch(u, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0 (compatible; OMdotfun-hackathon-check)" } });
+    // Le site existe s'il répond. Les protections anti-robots (Cloudflare, Vercel…) répondent 401/403/429/503 à un
+    // serveur : ce n'est pas une absence de site. Seuls « page introuvable » et les vraies erreurs serveur sont refusés.
+    return res.status < 500 ? ![404, 410].includes(res.status) : res.status === 503;
   } catch { return false; }
 }

@@ -1426,5 +1426,11 @@ const p: Record<string, string> = {
   "Enter a whole amount between 1 and {n} OMERO": "请输入 1 到 {n} 之间的整数 OMERO",
   "sent you OMERO on your post": "在你的帖子上给你发送了 OMERO",
   "Open the {name} app, go to its Web3 browser and visit omdot.fun": "打开 {name} 应用，进入其 Web3 浏览器并访问 omdot.fun",
+  "Applications are open. The hackathon and the votes start on {date}.": "报名已开放。黑客松和投票将于 {date} 开始。",
+  "Applications are open. The hackathon starts on {date}: votes and volume count from that day.": "报名已开放。黑客松于 {date} 开始：投票和交易量从当天起计算。",
+  "The creator on-chain is not this wallet": "链上的创建者不是这个钱包",
+  "Could not read the blockchain right now, please try again in a minute": "暂时无法读取区块链，请一分钟后再试",
+  "Your website could not be found over https. Check the address (it must start with https://)": "无法通过 https 找到你的网站。请检查地址（必须以 https:// 开头）",
+  "Switch your wallet to the account connected on OM": "请把钱包切换到已连接 OM 的账户",
 };
 export default p;

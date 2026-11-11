@@ -1426,5 +1426,11 @@ const p: Record<string, string> = {
   "Enter a whole amount between 1 and {n} OMERO": "1 ile {n} OMERO arasında tam bir miktar gir",
   "sent you OMERO on your post": "gönderine OMERO gönderdi",
   "Open the {name} app, go to its Web3 browser and visit omdot.fun": "{name} uygulamasını aç, Web3 tarayıcısına git ve omdot.fun adresini ziyaret et",
+  "Applications are open. The hackathon and the votes start on {date}.": "Başvurular açık. Hackathon ve oylama {date} tarihinde başlıyor.",
+  "Applications are open. The hackathon starts on {date}: votes and volume count from that day.": "Başvurular açık. Hackathon {date} tarihinde başlıyor: oylar ve hacim o günden itibaren sayılır.",
+  "The creator on-chain is not this wallet": "Zincirdeki oluşturucu bu cüzdan değil",
+  "Could not read the blockchain right now, please try again in a minute": "Şu anda blokzincir okunamadı, bir dakika sonra tekrar dene",
+  "Your website could not be found over https. Check the address (it must start with https://)": "Siten https üzerinden bulunamadı. Adresi kontrol et (https:// ile başlamalı)",
+  "Switch your wallet to the account connected on OM": "Cüzdanını OM'ye bağlı hesaba geçir",
 };
 export default p;

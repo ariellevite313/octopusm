@@ -262,6 +262,16 @@ export function normalizeSolanaProvider(p: SolanaProvider): SolanaProvider {
         });
         return { signature: sigToBytes(r) };
       };
+      if (prop === "signTransaction" && typeof target.signTransaction === "function") return async <T,>(tx: T) => {
+        // Certains wallets renvoient des octets ou { signedTransaction } au lieu de l'objet transaction.
+        const r = await target.signTransaction!(tx) as unknown;
+        if (r && typeof (r as { serialize?: unknown }).serialize === "function") return r as T;
+        const bytes = r instanceof Uint8Array ? r
+          : r && typeof r === "object" && "signedTransaction" in (r as object) ? (r as { signedTransaction: Uint8Array }).signedTransaction
+          : null;
+        if (!bytes) throw new Error("The wallet did not return a signed transaction.");
+        return deserializeLike(tx, Uint8Array.from(bytes));
+      };
       if (prop === "signAndSendTransaction" && typeof target.signAndSendTransaction === "function") return async <T,>(tx: T, o?: object) => {
         const r = await target.signAndSendTransaction!(tx, o as never);
         return { signature: sigToString(r) };
