@@ -49,7 +49,8 @@ export async function GET() {
     admin
       .from("octo_transactions")
       .select("amount")
-      .eq("wallet_address", wallet),
+      // Adresses 0x : sans tenir compte des majuscules (les tips sont enregistrés en minuscules). Pas de joker dans une adresse hex.
+      [/^0x[0-9a-fA-F]{40}$/.test(wallet) ? "ilike" : "eq"]("wallet_address", wallet),
   ]);
 
   // ── USDC ──────────────────────────────────────────────────────────────────

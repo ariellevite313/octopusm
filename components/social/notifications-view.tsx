@@ -10,7 +10,7 @@ import { renderAnnouncement } from "@/lib/hackathon/announcements";
 
 type Ann = { id: string; template: string; vars: Record<string, string | number>; href: string | null; publish_at: string; read: boolean };
 
-type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply"; actor: string; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
+type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip"; actor: string; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -50,6 +50,7 @@ export function NotificationsView() {
     : n.kind === "quote" ? tr("quoted your post")
     : n.kind === "reply_reply" ? tr("replied to your reply")
     : n.kind === "reply_like" ? tr("liked your reply")
+    : n.kind === "tip" ? tr("sent you OMERO on your post")
     : tr("liked your post");
 
   return (

@@ -51,16 +51,15 @@ export async function awardOcto(
 
   await admin.from("octo_transactions").insert(row);
 
-  // 2. Increment leaderboard balance (read → upsert; good enough at current scale)
-  const { data: lb } = await admin
-    .from("leaderboard_octo")
-    .select("total_octo")
-    .eq("wallet_address", walletAddress)
-    .maybeSingle();
-
-  const current = Number(lb?.total_octo ?? 0);
-  await admin.from("leaderboard_octo").upsert(
-    { wallet_address: walletAddress, total_octo: current + amount },
-    { onConflict: "wallet_address" },
-  );
+  // 2. Increment leaderboard balance atomically (no read-then-write: concurrent rewards are never lost)
+  const { error: rpcErr } = await admin.rpc("add_leaderboard_octo", { p_wallet: walletAddress, p_amount: amount });
+  if (rpcErr) {
+    // Older databases without the function: previous behaviour
+    const { data: lb } = await admin.from("leaderboard_octo").select("total_octo").eq("wallet_address", walletAddress).maybeSingle();
+    const current = Number(lb?.total_octo ?? 0);
+    await admin.from("leaderboard_octo").upsert(
+      { wallet_address: walletAddress, total_octo: current + amount },
+      { onConflict: "wallet_address" },
+    );
+  }
 }

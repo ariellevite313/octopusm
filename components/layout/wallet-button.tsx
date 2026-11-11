@@ -326,6 +326,11 @@ export function ProfileDrawer({
               <p className="mb-2 flex items-center gap-1 text-lg font-extrabold text-foreground">{tr("Balances")}</p>
               <div className="space-y-2">
                 <BalanceRow logo={<TokenLogo token="usdc" className="size-11" />} name="USDC" sub={`${balances.usdc.toFixed(2)} USDC`} value={fmtUsd(balances.usdc)} note={tr("Available")} />
+                {/* OMUSD : stablecoin de la plateforme, pas encore disponible (grisé) */}
+                <div aria-disabled="true" className="pointer-events-none select-none opacity-40 grayscale">
+                  <BalanceRow logo={<Image src="/omusd.png" alt="OMUSD" width={44} height={44} className="size-11 rounded-full" unoptimized />}
+                    name="OMUSD" sub={tr("OM stablecoin")} value="0.00" />
+                </div>
                 <BalanceRow logo={<TokenLogo token="clawdtrust" className="size-11" />} name="ClawdTrust" sub={`${fmtClt(balances.clt)} CLT`}
                   value={cltPrice > 0 ? fmtUsd(cltUsd) : fmtClt(balances.clt)} note={tr("Available")} />
                 <BalanceRow logo={<Image src="/octo-coin.png" alt="OMERO" width={44} height={44} className="size-11 rounded-full object-cover" unoptimized />}

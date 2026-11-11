@@ -28,6 +28,12 @@ export type FeedPost = {
   created_at: string;
   liked_by_me: boolean;
   liker_avatars: string[];
+  /** Total d'OMERO reçus en tips */
+  tip_total: number;
+  /** Le viewer a déjà envoyé un tip sur ce post */
+  tipped_by_me: boolean;
+  /** Photos des 3 plus gros tippeurs */
+  tipper_avatars: string[];
   mine: boolean;
   following_author: boolean;
   /** @username (minuscules) → wallet */
@@ -128,7 +134,12 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
     if (arr.length < 3) arr.push(l.wallet);
     byPost.set(l.post_id, arr);
   }
-  const [likerProfiles, markets] = await Promise.all([getProfiles(admin, [...byPost.values()].flat()), loadMarkets(admin, rows)]);
+  const tips = await loadTipStats(admin, ids, viewer);
+  const [likerProfiles, markets] = await Promise.all([
+    getProfiles(admin, [...byPost.values()].flat()),
+    loadMarkets(admin, rows),
+  ]);
+  const tipperProfiles = await getProfiles(admin, [...tips.top.values()].flat());
 
   return entries.map(({ row: r, by }) => {
     const p = profiles.get(r.author);
@@ -154,12 +165,38 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
       created_at: r.created_at,
       liked_by_me: liked.has(r.id),
       liker_avatars: (byPost.get(r.id) ?? []).map((w) => likerProfiles.get(w)?.avatar_src ?? "").filter(Boolean),
+      tip_total: tips.total.get(r.id) ?? 0,
+      tipped_by_me: tips.mine.has(r.id),
+      tipper_avatars: (tips.top.get(r.id) ?? []).map((w) => tipperProfiles.get(w)?.avatar_src ?? "/omdot-icon.png"),
       mine: !!viewer && r.author === viewer,
       following_author: followed.has(r.author),
       mentions: r.mentions ?? {},
       market: r.market_id ? markets.get(r.market_id) ?? null : null,
     };
   });
+}
+
+/** Totaux de tips, 3 plus gros tippeurs, et posts déjà tippés par le viewer. Jamais bloquant pour le fil. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadTipStats(admin: any, ids: string[], viewer: string | null) {
+  const total = new Map<string, number>();
+  const top = new Map<string, string[]>();
+  const mine = new Set<string>();
+  if (ids.length === 0) return { total, top, mine };
+  try {
+    const [stats, own] = await Promise.all([
+      admin.rpc("post_tip_stats", { p_ids: ids }),
+      viewer ? admin.from("post_tips").select("post_id").eq("sender", viewer).in("post_id", ids) : Promise.resolve({ data: [] }),
+    ]);
+    for (const r of ((stats?.data ?? []) as { post_id: string; sender: string; post_total: number; rnk: number }[]).sort((a, b) => a.rnk - b.rnk)) {
+      total.set(r.post_id, Number(r.post_total) || 0);
+      const arr = top.get(r.post_id) ?? [];
+      if (arr.length < 3) arr.push(r.sender);
+      top.set(r.post_id, arr);
+    }
+    for (const r of (own?.data ?? []) as { post_id: string }[]) mine.add(r.post_id);
+  } catch (e) { console.warn("[posts] tip stats unavailable:", e); }
+  return { total, top, mine };
 }
 
 export const POST_COLUMNS =
