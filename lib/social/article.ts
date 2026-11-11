@@ -5,7 +5,7 @@
  *
  * Format accepté :
  *   ## Sous-titre      ### Petit titre      > citation      - liste      1. liste numérotée
- *   **gras**   *italique*   [texte](https://…)   https://… (lien direct)   ![légende](image envoyée)   ---
+ *   **gras**   *italique*   ~~barré~~   [texte](https://…)   https://… (lien direct)   ![légende](image envoyée)   ---
  */
 
 export const ARTICLE_MAX_CHARS = 20_000;
@@ -20,6 +20,7 @@ export type Inline =
   | { t: "text"; v: string }
   | { t: "b"; c: Inline[] }
   | { t: "i"; c: Inline[] }
+  | { t: "s"; c: Inline[] }
   | { t: "a"; href: string; c: Inline[] };
 
 export type Block =
@@ -56,6 +57,7 @@ export function parseInline(src: string): Inline[] {
     const rest = src.slice(i);
     let m: RegExpMatchArray | null;
     if ((m = rest.match(/^\*\*([^*]+?)\*\*/))) { flush(); out.push({ t: "b", c: parseInline(m[1]) }); i += m[0].length; continue; }
+    if ((m = rest.match(/^~~([^~]+?)~~/))) { flush(); out.push({ t: "s", c: parseInline(m[1]) }); i += m[0].length; continue; }
     if ((m = rest.match(/^\*([^*\s][^*]*?)\*/))) { flush(); out.push({ t: "i", c: parseInline(m[1]) }); i += m[0].length; continue; }
     if ((m = rest.match(/^\[([^\]]{1,200})\]\(([^)\s]{1,500})\)/))) {
       const href = safeHref(m[2]);
