@@ -25,6 +25,7 @@ import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
 import { TipSheet } from "./tip-sheet";
 import { SupportersSheet } from "./supporters-sheet";
 import { compactCount } from "@/lib/social/tips";
+import { ArticleCard } from "./article-card";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -115,7 +116,11 @@ function Media({
   );
 }
 
-export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemoved?: (id: string) => void }) {
+/**
+ * `bar` : seulement la barre d'actions, fixée en bas (page d'un article) ; `onComments` y remplace l'ouverture
+ * des réponses sous la carte.
+ */
+export function PostCard({ post: initial, onRemoved, bar = false, onComments }: { post: FeedPost; onRemoved?: (id: string) => void; bar?: boolean; onComments?: () => void }) {
   const { tr } = useT();
   const { isAuthenticated } = useAuth();
   const [post, setPost] = useState(initial);
@@ -280,7 +285,7 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
         </button>
         {count(post.like_count, () => setSupporters("likes"))}
       </span>
-      <button onClick={() => setShowReplies((v) => !v)} aria-label={tr("Replies")} className="flex shrink-0 items-center gap-1 text-foreground">
+      <button onClick={() => (onComments ? onComments() : setShowReplies((v) => !v))} aria-label={tr("Replies")} className="flex shrink-0 items-center gap-1 text-foreground">
         <MessageCircle className="size-[23px]" strokeWidth={1.9} />
         {count(post.reply_count)}
       </button>
@@ -313,6 +318,34 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
       ))}
     </button>
   ) : null;
+
+  const sheets = (
+    <>
+      {tipping && (
+        <TipSheet postId={post.id} recipientName={name} onClose={() => setTipping(false)}
+          onSent={(total) => setPost((p) => ({ ...p, tip_total: total, tipped_by_me: true }))} />
+      )}
+      {supporters && <SupportersSheet postId={post.id} initialTab={supporters} onClose={() => setSupporters(null)} />}
+    </>
+  );
+
+  if (bar) {
+    return (
+      <div className="fixed inset-x-3 bottom-[88px] z-30 rounded-2xl border border-border bg-background/95 shadow-xl backdrop-blur md:inset-x-0 md:bottom-0 md:rounded-none md:border-x-0 md:border-b-0 md:shadow-none">
+        <div className="mx-auto flex max-w-2xl flex-nowrap items-center gap-2.5 whitespace-nowrap px-4 py-3 min-[390px]:gap-3">{actions}<div className="ml-auto flex shrink-0 pl-1">{tippers}</div></div>
+        {sheets}
+        {quoting && (
+          <ComposeModal
+            quote={{ id: post.id, author: post.author, author_name: post.author_name, author_avatar: post.author_avatar, body: post.article?.title ?? post.body, images: [], created_at: post.created_at }}
+            onClose={() => setQuoting(false)}
+            onPosted={(p) => { setPost((x) => ({ ...x, repost_count: x.repost_count + 1 })); window.dispatchEvent(new CustomEvent("feed-post-created", { detail: p })); toast.success(tr("Posted to the feed")); }}
+          />
+        )}
+        <ShareSheet open={sharing} onClose={() => setSharing(false)} images={[`/post/${post.id}/opengraph-image`]} url={`/article/${post.id}`}
+          text={post.article?.title ?? post.body.slice(0, 120)} perks={POST_PERKS} feed={false} />
+      </div>
+    );
+  }
 
   return (
     <article ref={root} className="px-4 py-5">
@@ -351,7 +384,9 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
         )}
       </div>
 
-      {post.body && <PostText postId={post.id} body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
+      {post.article
+        ? <div className="px-1"><ArticleCard post={post} /></div>
+        : post.body && <PostText postId={post.id} body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
       {post.market && <div className="px-1"><MarketCard m={post.market} postId={post.id} /></div>}
       {post.quoted && <div className="mt-3 px-1"><QuotedCard q={post.quoted} /></div>}
 
@@ -406,16 +441,12 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
           }}
         />
       )}
-      {tipping && (
-        <TipSheet postId={post.id} recipientName={name} onClose={() => setTipping(false)}
-          onSent={(total) => setPost((p) => ({ ...p, tip_total: total, tipped_by_me: true }))} />
-      )}
-      {supporters && <SupportersSheet postId={post.id} initialTab={supporters} onClose={() => setSupporters(null)} />}
+      {sheets}
       <ShareSheet
         open={sharing}
         onClose={() => setSharing(false)}
         images={[`/post/${post.id}/opengraph-image`]}
-        url={`/post/${post.id}`}
+        url={post.article ? `/article/${post.id}` : `/post/${post.id}`}
         text={(post.body || "").replace(/\s+/g, " ").trim().slice(0, 120) || tr("Post on OMdotfun")}
         perks={POST_PERKS}
         feed={false}
