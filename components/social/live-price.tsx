@@ -132,7 +132,7 @@ export function TickerPills({ symbols }: { symbols: string[] }) {
       >
         {pages.map((pg, i) => (
           <div key={i} className="flex w-full shrink-0 snap-start flex-col gap-2">
-            {pg.map((q) => <Pill key={q.symbol} q={q} buy={tr("Buy")} soon={tr("Coming soon")} />)}
+            {pg.map((q) => <Pill key={q.symbol} q={q} buy={tr("Buy")} />)}
           </div>
         ))}
       </div>
@@ -148,7 +148,7 @@ export function TickerPills({ symbols }: { symbols: string[] }) {
   );
 }
 
-function Pill({ q, buy, soon }: { q: LiveQuote; buy: string; soon: string }) {
+function Pill({ q, buy }: { q: LiveQuote; buy: string }) {
   const [price, setPrice] = useState(q.price);
   const [change, setChange] = useState(q.change24h);
   const root = useRef<HTMLDivElement>(null);
@@ -178,7 +178,7 @@ function Pill({ q, buy, soon }: { q: LiveQuote; buy: string; soon: string }) {
       </Link>
       <span className="num shrink-0 text-[13px] font-bold text-foreground">{fmtUsd(price)}</span>
       <span className={`num w-14 shrink-0 text-right text-xs font-bold ${up ? "text-up" : "text-down"}`}>{up ? "+" : ""}{change.toFixed(1)}%</span>
-      <button type="button" disabled title={soon} className="shrink-0 cursor-not-allowed rounded-full bg-foreground/30 px-3 py-1 text-xs font-bold text-background">{buy}</button>
+      <Link href={`/terminal?q=${q.symbol}`} onClick={(e) => e.stopPropagation()} className="shrink-0 rounded-full bg-foreground px-3 py-1 text-xs font-bold text-background">{buy}</Link>
     </div>
   );
 }
