@@ -48,9 +48,9 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
 
 type OmToken = { id: string; name: string; ticker: string; logo_url: string | null; price_usd: number | null; mint_address: string | null };
-type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null };
+export type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null };
 
-async function jupTokens(mints: string[]): Promise<Map<string, JupToken>> {
+export async function jupTokens(mints: string[]): Promise<Map<string, JupToken>> {
   const out = new Map<string, JupToken>();
   const key = process.env.JUP_API_KEY;
   const base = key ? "https://api.jup.ag" : "https://lite-api.jup.ag";
@@ -123,7 +123,7 @@ export async function solanaBags(wallet: string, omByMint: (mints: string[]) => 
       logo: safeImg(o?.logo_url) ?? safeImg(j?.icon),
       amount, price: price && price > 0 ? price : null,
       value: price && price > 0 ? price * amount : null,
-      href: o ? `/launchpad/${o.id}` : null,
+      href: o ? `/launchpad/${o.id}` : `/terminal?mint=${mint}`,
     });
   }
   return bags;

@@ -17,6 +17,7 @@ const PUBLIC_NAV_LINKS = [
   { href: "/",                       label: T("Feed")         },
   { href: "/launchpad",              label: T("Tokens")       },
   { href: "/launchpad/create",       label: T("+ Launch")     },
+  { href: "/terminal",               label: T("Terminal")     },
   { href: "/leaderboard/launchpad",  label: T("Leaderboard")  },
   { href: "/prediction",             label: T("Predictions")  },
 ];
@@ -25,6 +26,7 @@ const AUTH_NAV_LINKS = [
   { href: "/",                       label: T("Feed")         },
   { href: "/launchpad",              label: T("Tokens")       },
   { href: "/launchpad/create",       label: T("+ Launch")     },
+  { href: "/terminal",               label: T("Terminal")     },
   { href: "/dashboard/launchpad",    label: T("My tokens")    },
   { href: "/leaderboard/launchpad",  label: T("Leaderboard")  },
   { href: "/prediction",             label: T("Predictions")  },
