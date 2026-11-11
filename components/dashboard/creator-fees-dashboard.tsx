@@ -9,6 +9,7 @@
  *   3. Per-token list — fees earned (historical) + pending
  */
 
+import { BagsPanel } from "./bags-panel";
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -157,7 +158,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   const [claimingId,  setClaimingId]  = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
   const [shareOpen,   setShareOpen]   = useState(false);
-  const [section,     setSection]     = useState<"tokens" | "gains" | "votes">("tokens");
+  const [section,     setSection]     = useState<"tokens" | "bags" | "gains" | "votes">("tokens");
 
   const refresh = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
@@ -373,7 +374,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
 
       {/* ── Sections : boutons, rien d'autre n'est affiché tant qu'on n'en touche pas un ── */}
       <div className="-mt-2 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {([["tokens", T("Tokens launched")], ["gains", T("Gains")], ["votes", T("My votes")]] as const).map(([id, label]) => (
+        {([["tokens", T("Tokens launched")], ["bags", "BAGS"], ["gains", T("Gains")], ["votes", T("My votes")]] as const).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setSection(id)}
@@ -389,6 +390,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
         </Link>
       </div>
 
+      {section === "bags" && <BagsPanel />}
       {section === "gains" && <TradeGainsPanel />}
       {section === "votes" && <MyVotesView />}
 
