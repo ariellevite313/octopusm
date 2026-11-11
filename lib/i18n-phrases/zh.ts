@@ -1588,5 +1588,16 @@ const p: Record<string, string> = {
   "Top traders": "Top traders",
   "Filter by network": "按网络筛选",
   "All networks": "所有网络",
+  "No EVM wallet detected": "未检测到 EVM 钱包",
+  "Switching network": "正在切换网络",
+  "Approve in your wallet": "在钱包中授权",
+  "Confirm in your wallet": "在钱包中确认",
+  "Waiting for confirmation": "等待确认",
+  "Explorer": "浏览器",
+  "Connect an EVM wallet to trade on {chain}": "连接 EVM 钱包以在 {chain} 交易",
+  "Unexpected swap contract, try again later": "兑换合约异常，请稍后再试",
+  "Unsupported network": "不支持的网络",
+  "Invalid side": "方向无效",
+  "Connect an EVM wallet to swap": "连接 EVM 钱包以兑换",
 };
 export default p;

@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { SwapBox } from "@/components/swap/swap-box";
+import { EvmSwapBox } from "@/components/swap/evm-swap-box";
+import { isEvmChain } from "@/lib/swap/evm";
 import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
 import { CHAINS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
@@ -421,13 +423,15 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         {/* Ordinateur : boîte de swap à droite */}
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
-            {isSol ? <><SwapBox mint={mint} /><Verified info={info} /></> : <SoonTrade chain={chain} />}
+            {isSol ? <><SwapBox mint={mint} /><Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : <SoonTrade chain={chain} />}
           </div>
         </aside>
       </div>
 
       {/* Téléphone : barre d'achat */}
-      {!isSol ? <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden"><SoonTrade chain={chain} /></div> : (
+      {!isSol ? <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden">
+        {isEvmChain(chain) ? <button onClick={() => setSheet("swap")} className="h-14 w-full rounded-2xl bg-foreground text-[17px] font-bold text-background">{tr("Buy")} / {tr("Sell")}</button> : <SoonTrade chain={chain} />}
+      </div> : (
       <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden">
         <Verified info={info} />
         <div className="mt-2 flex gap-2">
@@ -437,7 +441,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         </div>
       </div>)}
 
-      {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}><SwapBox mint={mint} onSwapped={() => setSheet(null)} /></Sheet>}
+      {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : <SwapBox mint={mint} onSwapped={() => setSheet(null)} />}</Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}
     </div>
   );
@@ -568,7 +572,7 @@ function About({ t, info }: { t: TerminalToken; info: SwapToken | null }) {
         <p className="mt-1 break-all font-mono text-[13px] text-foreground">{t.mint}</p>
       </div>
       <div className="mt-3 flex gap-2">
-        <a href={t.chain === "base" ? `https://basescan.org/token/${t.mint}` : t.chain === "bnb" ? `https://bscscan.com/token/${t.mint}` : `https://solscan.io/token/${t.mint}`} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{t.chain === "base" ? "BaseScan" : t.chain === "bnb" ? "BscScan" : "Solscan"}<ExternalLink className="size-3.5" /></a>
+        <a href={t.chain === "base" ? `https://basescan.org/token/${t.mint}` : t.chain === "bnb" ? `https://bscscan.com/token/${t.mint}` : t.chain === "hyperliquid" ? `https://hyperevmscan.io/token/${t.mint}` : `https://solscan.io/token/${t.mint}`} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{t.chain === "base" ? "BaseScan" : t.chain === "bnb" ? "BscScan" : t.chain === "hyperliquid" ? "HyperEVMScan" : "Solscan"}<ExternalLink className="size-3.5" /></a>
         {info?.om_id && <Link href={`/launchpad/${info.om_id}`} className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{tr("OM token page")}</Link>}
       </div>
     </div>

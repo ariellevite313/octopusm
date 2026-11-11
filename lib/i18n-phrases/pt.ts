@@ -1588,5 +1588,16 @@ const p: Record<string, string> = {
   "Top traders": "Top traders",
   "Filter by network": "Filtrar por rede",
   "All networks": "Todas as redes",
+  "No EVM wallet detected": "Nenhuma carteira EVM detectada",
+  "Switching network": "Trocando de rede",
+  "Approve in your wallet": "Aprove na sua carteira",
+  "Confirm in your wallet": "Confirme na sua carteira",
+  "Waiting for confirmation": "Aguardando confirmação",
+  "Explorer": "Explorador",
+  "Connect an EVM wallet to trade on {chain}": "Conecte uma carteira EVM para negociar na {chain}",
+  "Unexpected swap contract, try again later": "Contrato de swap inesperado, tente mais tarde",
+  "Unsupported network": "Rede não suportada",
+  "Invalid side": "Lado inválido",
+  "Connect an EVM wallet to swap": "Conecte uma carteira EVM para fazer swap",
 };
 export default p;
