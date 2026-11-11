@@ -96,3 +96,14 @@ describe("top traders (earnings on OM)", () => {
     expect(r[1].parts).toEqual({ chill: 10, creator: 5, predict: 0 });
   });
 });
+
+import { mergeLists } from "@/lib/terminal";
+describe("terminal mergeLists", () => {
+  const t = (mint: string, v: number, c: string) => ({ mint, symbol: mint, name: mint, logo: null, price: 1, change24h: 0, volume24h: v, mcap: 1, liquidity: 1, pool: "p", createdAt: c });
+  it("interleaves trending, sorts volume and new", () => {
+    const a = [t("a1", 5, "2026-01-01"), t("a2", 1, "2026-01-03")], b = [t("b1", 9, "2026-01-02")];
+    expect(mergeLists([a, b], "trending").map((x) => x.mint)).toEqual(["a1", "b1", "a2"]);
+    expect(mergeLists([a, b], "volume").map((x) => x.mint)).toEqual(["b1", "a1", "a2"]);
+    expect(mergeLists([a, b], "new").map((x) => x.mint)).toEqual(["a2", "b1", "a1"]);
+  });
+});

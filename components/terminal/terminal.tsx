@@ -87,7 +87,7 @@ export function Terminal() {
   return (
     <div className="mx-auto max-w-[1400px] pb-28 md:pb-10 lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6 lg:px-4 lg:pt-4">
       <div className={`${mint ? "hidden lg:block" : ""} lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
-        <Home key={chain} chain={chain} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
+        <Home key={sp.get("chains") ?? "all"} selected={(sp.get("chains") ?? "").split(",").filter((c) => CHAINS.some((x) => x.id === c && x.ready)) as TerminalChain[]} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
       </div>
       {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? null} favs={favs} />
         : <div className="hidden items-center justify-center text-muted-foreground lg:flex"><EmptyPick /></div>}
@@ -101,7 +101,7 @@ function EmptyPick() {
 }
 
 // ── Accueil ───────────────────────────────────────────────────────────────────
-function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain; favs: ReturnType<typeof useFavs>; active: string; onList: (l: TerminalToken[]) => void; initialQ: string }) {
+function Home({ selected, favs, active, onList, initialQ }: { selected: TerminalChain[]; favs: ReturnType<typeof useFavs>; active: string; onList: (l: TerminalToken[]) => void; initialQ: string }) {
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens">("tokens");
@@ -110,6 +110,8 @@ function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain;
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
   const [err, setErr] = useState(false);
+  const [netSheet, setNetSheet] = useState(false);
+  const chainsQ = selected.length ? selected.join(",") : "all";
 
   useEffect(() => {
     if (tab !== "tokens") return;
@@ -118,17 +120,17 @@ function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain;
     const query = q.trim().replace(/^\$/, "");
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(query.length >= 2 ? `/api/terminal?chain=${chain}&q=${encodeURIComponent(query)}` : `/api/terminal?chain=${chain}&list=${filter}`);
+        const r = await fetch(query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}` : `/api/terminal?chains=${chainsQ}&list=${filter}`);
         const j = await r.json();
         if (live) { setList(j.tokens ?? []); setErr(!r.ok); onList(j.tokens ?? []); }
       } catch { if (live) { setList([]); setErr(true); } }
     }, query ? 350 : 0);
     return () => { live = false; clearTimeout(t); };
-  }, [tab, filter, q, onList, chain]);
+  }, [tab, filter, q, onList, chainsQ]);
 
   const open = (m: string, t?: TerminalToken) => {
     if (t?.href) { router.push(t.href); return; }
-    const c = t?.chain ?? chain;
+    const c = t?.chain ?? "solana";
     router.push(`/terminal?${c !== "solana" ? `chain=${c}&` : ""}mint=${m}`, { scroll: true });
   };
   const rows = tab === "favs" ? favs.favs : list;
@@ -137,22 +139,6 @@ function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain;
     <div className="px-4 pt-3 lg:px-0 lg:pt-0">
       <BalanceCard />
       <TopTraders />
-
-      {/* Chaînes */}
-      <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
-        {CHAINS.map((c) => c.ready ? (
-          <button key={c.id} onClick={() => router.push(c.id === "solana" ? "/terminal" : `/terminal?chain=${c.id}`)}
-            className={`flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[14px] font-semibold ${chain === c.id ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted/70"}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.logo} alt="" className="size-5 rounded-full" />{c.name}
-          </button>
-        ) : (
-          <span key={c.id} title={tr("Soon")} className="flex h-10 shrink-0 cursor-not-allowed items-center gap-2 rounded-xl bg-muted/40 px-3 text-[14px] font-semibold text-muted-foreground/60">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.logo} alt="" className="size-5 rounded-full opacity-50 grayscale" />{c.name}
-          </span>
-        ))}
-      </div>
 
       {/* Favoris | Tokens | Perps */}
       <div className="sticky top-16 z-20 -mx-4 mt-4 border-b border-border bg-background px-4 lg:top-0 lg:mx-0 lg:px-0">
@@ -181,7 +167,10 @@ function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain;
             {([["trending", tr("Trending")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setFilter(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground/40"><SlidersHorizontal className="size-[18px]" /></span>
+            <button onClick={() => setNetSheet(true)} aria-label={tr("Filter by network")}
+              className={`relative flex size-10 shrink-0 items-center justify-center rounded-xl ${selected.length ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+              <SlidersHorizontal className="size-[18px]" />
+            </button>
           </div>
         )
       )}
@@ -199,7 +188,11 @@ function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain;
           ) : rows.map((t) => (
             <button key={`${t.chain ?? "solana"}:${t.mint}`} onClick={() => open(t.mint, t)}
               className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
-              <Logo src={t.logo} sym={t.symbol} />
+              <span className="relative shrink-0">
+                <Logo src={t.logo} sym={t.symbol} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {selected.length !== 1 && <img src={`/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full ring-2 ring-background" />}
+              </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[17px] font-bold text-foreground">{t.symbol}</p>
                 <p className="num truncate text-[14px] text-muted-foreground">{compact(t.mcap)} {tr("cap.")}</p>
@@ -211,7 +204,40 @@ function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain;
             </button>
           ))}
       </div>
+      {netSheet && <NetworkSheet selected={selected} onClose={() => setNetSheet(false)} />}
     </div>
+  );
+}
+
+/** « Filtrer par réseau » : tous les réseaux, ou une sélection (Elysium et Robinhood bientôt). */
+function NetworkSheet({ selected, onClose }: { selected: TerminalChain[]; onClose: () => void }) {
+  const { tr } = useT();
+  const router = useRouter();
+  const [pick, setPick] = useState<TerminalChain[]>(selected);
+  const toggle = (c: TerminalChain) => setPick((cur) => (cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]));
+  const save = () => {
+    const ready = CHAINS.filter((c) => c.ready).map((c) => c.id);
+    const all = pick.length === 0 || ready.every((c) => pick.includes(c));
+    router.push(all ? "/terminal" : `/terminal?chains=${pick.join(",")}`);
+    onClose();
+  };
+  const Row = ({ icon, label, on, onClick, soon }: { icon: string; label: string; on: boolean; onClick?: () => void; soon?: boolean }) => (
+    <button onClick={onClick} disabled={soon} className="flex w-full items-center gap-4 rounded-3xl bg-card px-5 py-4 text-left disabled:cursor-not-allowed">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={icon} alt="" className={`size-9 rounded-[10px] ${soon ? "opacity-40" : ""}`} />
+      <span className={`flex-1 text-[19px] font-semibold ${soon ? "text-muted-foreground/60" : "text-foreground"}`}>{label}</span>
+      {soon ? <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">{tr("Soon")}</span>
+        : <span className={`flex size-7 items-center justify-center rounded-md ${on ? "bg-foreground text-background" : "border-2 border-muted-foreground/50"}`}>{on && <Check className="size-4" strokeWidth={3} />}</span>}
+    </button>
+  );
+  return (
+    <Sheet title={tr("Filter by network")} onClose={onClose}>
+      <div className="space-y-3">
+        <Row icon="/chains/mono/all.png" label={tr("All networks")} on={pick.length === 0} onClick={() => setPick([])} />
+        {CHAINS.map((c) => <Row key={c.id} icon={`/chains/mono/${c.id}.png`} label={c.name === "BNB" ? "BNB Chain" : c.name === "Robinhood" ? "Robinhood Chain" : c.name} on={pick.includes(c.id)} onClick={() => toggle(c.id)} soon={!c.ready} />)}
+      </div>
+      <button onClick={save} className="mt-5 h-14 w-full rounded-3xl bg-foreground text-[17px] font-bold text-background">{tr("Save")}</button>
+    </Sheet>
   );
 }
 

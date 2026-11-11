@@ -100,3 +100,13 @@ export async function arcList(db: any, kind: "trending" | "new" | "volume" | "se
       chain: "arc" as const, href: `/launchpad/${t.id}`,
     }));
 }
+
+/** Fusionne les listes de plusieurs réseaux : récents d'abord pour « new », plus gros volume pour « volume », sinon en alternance. */
+export function mergeLists(lists: TerminalToken[][], kind: "trending" | "new" | "volume" | "search", max = 60): TerminalToken[] {
+  if (lists.length === 1) return lists[0].slice(0, max);
+  if (kind === "new") return lists.flat().sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")).slice(0, max);
+  if (kind === "volume") return lists.flat().sort((a, b) => (b.volume24h ?? -1) - (a.volume24h ?? -1)).slice(0, max);
+  const out: TerminalToken[] = [];
+  for (let i = 0; out.length < max && lists.some((l) => i < l.length); i++) for (const l of lists) if (l[i] && out.length < max) out.push(l[i]);
+  return out;
+}
