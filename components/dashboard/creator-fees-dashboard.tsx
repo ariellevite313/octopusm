@@ -182,7 +182,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
     const phantom = (walletType && selectedChain === "solana") ? getProviderByType(walletType) as unknown as SolanaWallet | null : null;
     if (!phantom) { toast.error(t.solanaWalletNotFound); return false; }
     try { await phantom.connect(); } catch { toast.error(t.connectWalletFirst); return false; }
-    if (phantom.publicKey?.toBase58() !== walletAddress) {
+    if (phantom.publicKey?.toString() !== walletAddress) {
       toast.error(t.wrongWalletCreator(shortAddr(walletAddress, 4, 4)));
       return false;
     }

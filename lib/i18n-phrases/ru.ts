@@ -1425,5 +1425,6 @@ const p: Record<string, string> = {
   "You can't tip your own post": "Нельзя отправить чаевые на свой пост",
   "Enter a whole amount between 1 and {n} OMERO": "Введите целое число от 1 до {n} OMERO",
   "sent you OMERO on your post": "отправил вам OMERO за пост",
+  "Open the {name} app, go to its Web3 browser and visit omdot.fun": "Откройте приложение {name}, перейдите в его Web3-браузер и откройте omdot.fun",
 };
 export default p;

@@ -177,7 +177,7 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
     const w = window as unknown as { solana?: SolanaProvider };
     const s = w.solana;
     if (s && (s.signAndSendTransaction || s.signTransaction)) {
-      provider = s;
+      provider = adapters.normalizeSolanaProvider(s);
     }
   }
 

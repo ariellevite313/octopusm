@@ -1425,5 +1425,6 @@ const p: Record<string, string> = {
   "You can't tip your own post": "Você não pode dar gorjeta na sua própria publicação",
   "Enter a whole amount between 1 and {n} OMERO": "Digite um valor inteiro entre 1 e {n} OMERO",
   "sent you OMERO on your post": "enviou OMERO na sua publicação",
+  "Open the {name} app, go to its Web3 browser and visit omdot.fun": "Abra o app {name}, vá ao navegador Web3 e acesse omdot.fun",
 };
 export default p;
