@@ -21,6 +21,10 @@ import { MARKET_URL_RE } from "@/lib/social/rich";
 import { PostReplies } from "./post-replies";
 import { useContentTranslation } from "./translate-toggle";
 import { ShareSheet, POST_PERKS } from "@/components/shared/share-sheet";
+import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
+import { TipSheet } from "./tip-sheet";
+import { SupportersSheet } from "./supporters-sheet";
+import { compactCount } from "@/lib/social/tips";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -121,6 +125,8 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
   const [sharing, setSharing] = useState(false);
   const [repostMenu, setRepostMenu] = useState(false);
   const [quoting, setQuoting] = useState(false);
+  const [tipping, setTipping] = useState(false);
+  const [supporters, setSupporters] = useState<"tips" | "likes" | null>(null);
   const root = useRef<HTMLElement>(null);
   const viewed = useRef(false);
 
@@ -149,6 +155,12 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
   function needAuth() {
     if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return true; }
     return false;
+  }
+
+  function openTip() {
+    if (needAuth()) return;
+    if (post.mine) { toast.error(tr("You can't tip your own post")); return; }
+    setTipping(true);
   }
 
   async function like() {
@@ -250,19 +262,32 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
     </div>
   );
 
+  const count = (n: number, onClick?: () => void) => n > 0 && (
+    onClick
+      ? <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onClick(); }} className="num whitespace-nowrap text-[13px] font-semibold">{compactCount(n)}</span>
+      : <span className="num whitespace-nowrap text-[13px] font-semibold">{compactCount(n)}</span>
+  );
+
   const actions = (
     <>
-      <button onClick={like} aria-label={tr("Like")} className="flex items-center gap-1.5">
-        <Heart className={`size-[26px] ${post.liked_by_me ? "fill-[#f43f5e] text-[#f43f5e]" : "text-foreground"}`} strokeWidth={post.liked_by_me ? 0 : 1.9} />
+      <button onClick={openTip} aria-label={tr("Send OMERO")} className="flex shrink-0 items-center gap-1 text-foreground">
+        <OmeroHeadIcon filled={post.tipped_by_me} className="size-[24px]" />
+        {count(post.tip_total ?? 0)}
       </button>
-      <button onClick={() => setShowReplies((v) => !v)} aria-label={tr("Replies")} className="flex items-center gap-1.5 text-foreground">
-        <MessageCircle className="size-6" strokeWidth={1.9} />
-        {post.reply_count > 0 && <span className="num text-sm font-semibold">{post.reply_count}</span>}
+      <span className="flex shrink-0 items-center gap-1">
+        <button onClick={like} aria-label={tr("Like")} className="flex items-center">
+          <Heart className={`size-[24px] ${post.liked_by_me ? "fill-[#f43f5e] text-[#f43f5e]" : "text-foreground"}`} strokeWidth={post.liked_by_me ? 0 : 1.9} />
+        </button>
+        {count(post.like_count, () => setSupporters("likes"))}
+      </span>
+      <button onClick={() => setShowReplies((v) => !v)} aria-label={tr("Replies")} className="flex shrink-0 items-center gap-1 text-foreground">
+        <MessageCircle className="size-[23px]" strokeWidth={1.9} />
+        {count(post.reply_count)}
       </button>
-      <div className="relative">
-        <button onClick={() => setRepostMenu((v) => !v)} aria-label={tr("Repost")} className={`flex items-center gap-1.5 ${post.reposted_by_me ? "text-up" : "text-foreground"}`}>
-          <Repeat2 className="size-[25px]" strokeWidth={post.reposted_by_me ? 2.4 : 1.9} />
-          {post.repost_count > 0 && <span className="num text-sm font-semibold">{post.repost_count}</span>}
+      <div className="relative shrink-0">
+        <button onClick={() => setRepostMenu((v) => !v)} aria-label={tr("Repost")} className={`flex items-center gap-1 ${post.reposted_by_me ? "text-up" : "text-foreground"}`}>
+          <Repeat2 className="size-[23px]" strokeWidth={post.reposted_by_me ? 2.4 : 1.9} />
+          {count(post.repost_count)}
         </button>
         {repostMenu && (
           <div onMouseLeave={() => setRepostMenu(false)} className="absolute bottom-9 left-0 z-30 w-48 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-xl">
@@ -275,23 +300,19 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
           </div>
         )}
       </div>
-      <button onClick={share} aria-label={tr("Share")} className="text-foreground"><Send className="size-[23px]" strokeWidth={1.9} /></button>
+      <button onClick={share} aria-label={tr("Share")} className="shrink-0 text-foreground"><Send className="size-[22px]" strokeWidth={1.9} /></button>
     </>
   );
 
-  const likers = (
-    <div className="flex items-center gap-2 text-[13px] font-semibold">
-      {post.liker_avatars.length > 0 && (
-        <div className="flex">
-          {post.liker_avatars.map((a, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={a} alt="" className="-ml-2 size-6 rounded-full border-2 border-background object-cover first:ml-0" />
-          ))}
-        </div>
-      )}
-      <span className="num">{post.like_count} {tr("liked")}</span>
-    </div>
-  );
+  // À droite : les 3 plus gros tippeurs. Un clic ouvre les statistiques du post (tips et likes).
+  const tippers = post.tipper_avatars?.length > 0 ? (
+    <button onClick={() => setSupporters("tips")} aria-label={tr("Post activity")} className="flex shrink-0">
+      {post.tipper_avatars.map((a, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={i} src={a} alt="" className="-ml-3 size-[22px] rounded-full border-2 border-[#a3e635] bg-muted object-cover first:ml-0" />
+      ))}
+    </button>
+  ) : null;
 
   return (
     <article ref={root} className="px-4 py-5">
@@ -348,19 +369,19 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
             {menu && <div onMouseLeave={() => setMenu(false)}>{menuItems}</div>}
             {/* Barre : encoche en bas à gauche, avatars + likes en bas à droite */}
             <div className="relative flex h-[54px] items-stretch">
-              <div className="relative flex w-[58%] min-w-[210px] items-center gap-5 rounded-tr-[24px] bg-background pl-3">
+              <div className="relative flex min-w-[210px] items-center gap-3.5 whitespace-nowrap rounded-tr-[24px] bg-background pl-3 pr-3">
                 <span aria-hidden className="absolute -top-[24px] left-0 size-[24px] bg-[radial-gradient(circle_at_100%_0,transparent_23.5px,var(--background)_24px)]" />
                 {actions}
                 <span aria-hidden className="absolute -right-[24px] bottom-0 size-[24px] bg-[radial-gradient(circle_at_100%_0,transparent_23.5px,var(--background)_24px)]" />
               </div>
-              <div className="relative flex flex-1 items-center justify-end pr-3 text-white [text-shadow:0_1px_4px_rgba(0,0,0,.6)]">{likers}</div>
+              <div className="relative flex flex-1 items-center justify-end pl-6 pr-3">{tippers}</div>
             </div>
           </Media>
         </div>
       )}
 
       {post.images.length === 0 && (
-        <div className="mt-3 flex items-center gap-5 px-1">{actions}<div className="ml-auto">{likers}</div></div>
+        <div className="mt-3 flex flex-nowrap items-center gap-2.5 whitespace-nowrap px-1 min-[390px]:gap-3">{actions}<div className="ml-auto flex shrink-0 pl-1">{tippers}</div></div>
       )}
 
       <div className="mt-2 flex items-center gap-3 px-1 text-xs text-muted-foreground">
@@ -385,6 +406,11 @@ export function PostCard({ post: initial, onRemoved }: { post: FeedPost; onRemov
           }}
         />
       )}
+      {tipping && (
+        <TipSheet postId={post.id} recipientName={name} onClose={() => setTipping(false)}
+          onSent={(total) => setPost((p) => ({ ...p, tip_total: total, tipped_by_me: true }))} />
+      )}
+      {supporters && <SupportersSheet postId={post.id} initialTab={supporters} onClose={() => setSupporters(null)} />}
       <ShareSheet
         open={sharing}
         onClose={() => setSharing(false)}

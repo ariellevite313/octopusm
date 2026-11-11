@@ -171,7 +171,7 @@ export const USER_TOOLS: McpTool[] = [
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const admin = createAdminClient() as any;
       const since = new Date(Date.now() - hours * 3600_000).toISOString();
-      const { data } = await admin.from("octo_transactions").select("wallet_address, amount, type").gt("amount", 0).gte("created_at", since).limit(5000);
+      const { data } = await admin.from("octo_transactions").select("wallet_address, amount, type").gt("amount", 0).not("type", "in", "(tip,tip_sent)").gte("created_at", since).limit(5000);
       const sum = new Map<string, { earned: number; by: Record<string, number> }>();
       for (const r of (data ?? []) as { wallet_address: string; amount: number; type: string }[]) {
         const e = sum.get(r.wallet_address) ?? { earned: 0, by: {} };
