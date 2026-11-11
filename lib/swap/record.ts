@@ -39,3 +39,17 @@ export function swapAmounts(m: SwapMeta, inputMint: string, outputMint: string, 
   }
   return { inAmount, outAmount: dOut, feeAmount: fee > 0n ? fee : 0n };
 }
+
+/** Ce que le détenteur « Chill ton sac » a reçu dans la transaction (lamports ou unités USDC). */
+export function holderReceived(p: {
+  holder: string; mint: string; keys: string[]; preBalances: number[]; postBalances: number[]; preTokens: TB[]; postTokens: TB[];
+}): bigint {
+  if (p.mint === SOL_MINT) {
+    const i = p.keys.indexOf(p.holder);
+    if (i < 0) return 0n;
+    const d = BigInt(p.postBalances[i] - p.preBalances[i]);
+    return d > 0n ? d : 0n;
+  }
+  const d = sumOf(p.postTokens, p.holder, p.mint) - sumOf(p.preTokens, p.holder, p.mint);
+  return d > 0n ? d : 0n;
+}

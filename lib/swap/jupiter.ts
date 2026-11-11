@@ -8,6 +8,7 @@ import {
 } from "@solana/web3.js";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { SWAP_FEE_WALLET, ataOf, createAtaIdempotent, feeMintFor, type SwapInput } from "./core";
+import { cutOf, feeSplit, refTransferIx } from "./chill";
 
 const JUP_BUILD = "https://api.jup.ag/swap/v2/build";
 const CU_MAX = 1_400_000;
@@ -25,7 +26,10 @@ type BuildRes = {
 export type SwapQuote = {
   inAmount: string; outAmount: string; minOut: string; slippageBps: number; feeBps: number; feeMint: string | null;
   priceImpactPct: number | null; route: string[];
+  /** « Chill ton sac » : part des frais envoyée au détenteur (bps) et son adresse */
+  refBps: number; ref: string | null;
 };
+export type SwapRef = { wallet: string } | null;
 
 const toIx = (i: JIx) => new TransactionInstruction({
   programId: new PublicKey(i.programId),
@@ -70,19 +74,42 @@ function quoteOf(j: BuildRes, feeBps: number, feeMint: string | null): SwapQuote
     feeBps, feeMint: feeBps > 0 ? feeMint : null,
     priceImpactPct: Number.isFinite(pi) ? pi * 100 : null,
     route: [...new Set((j.routePlan ?? []).map((p) => p.swapInfo?.label).filter((x): x is string => !!x))].slice(0, 4),
+    refBps: 0, ref: null,
   };
 }
 
+/**
+ * Prépare l'itinéraire. Avec un détenteur : Jupiter prend 0,18 % pour OM et 0,12 % part au détenteur.
+ * Achat (frais dans le mint d'entrée) : la part est retirée du montant échangé, le total payé reste celui saisi.
+ * Vente (frais dans le mint de sortie) : la part est prise sur le minimum garanti, après le swap.
+ */
+async function plan(input: SwapInput, feeBps: number, taker: string, ref: SwapRef) {
+  const feeMint = feeMintFor(input.inputMint, input.outputMint);
+  const { jupBps, refBps } = feeSplit(feeBps, !!ref && !!feeMint);
+  const isBuy = feeMint === input.inputMint;
+  const buyCut = refBps > 0 && isBuy ? cutOf(BigInt(input.amount), refBps) : 0n;
+  const jupInput = buyCut > 0n ? { ...input, amount: (BigInt(input.amount) - buyCut).toString() } : input;
+  const j = await build(jupInput, taker, jupBps);
+  const q = quoteOf(j, feeBps, feeMint);
+  let cut = buyCut;
+  if (refBps > 0 && !isBuy) {
+    cut = cutOf(BigInt(j.otherAmountThreshold), refBps);
+    q.outAmount = (BigInt(j.outAmount) - cutOf(BigInt(j.outAmount), refBps)).toString();
+    q.minOut = (BigInt(j.otherAmountThreshold) - cut).toString();
+  }
+  if (buyCut > 0n) q.inAmount = input.amount;
+  if (refBps > 0 && ref) { q.refBps = refBps; q.ref = ref.wallet; }
+  return { j, q, feeMint, jupBps, cut: refBps > 0 ? cut : 0n, isBuy };
+}
+
 /** Prix seulement (sans transaction). `taker` peut être absent : on utilise alors l'adresse de la plateforme. */
-export async function swapQuote(input: SwapInput, feeBps: number, taker?: string): Promise<SwapQuote> {
-  const j = await build(input, taker ?? SWAP_FEE_WALLET, feeBps);
-  return quoteOf(j, feeBps, feeMintFor(input.inputMint, input.outputMint));
+export async function swapQuote(input: SwapInput, feeBps: number, taker?: string, ref: SwapRef = null): Promise<SwapQuote> {
+  return (await plan(input, feeBps, taker ?? SWAP_FEE_WALLET, ref)).q;
 }
 
 /** Prix + transaction non signée (base64), pour le portefeuille `taker`. */
-export async function swapTransaction(input: SwapInput, feeBps: number, taker: string): Promise<SwapQuote & { tx: string; lastValidBlockHeight: number }> {
-  const j = await build(input, taker, feeBps);
-  const feeMint = feeMintFor(input.inputMint, input.outputMint);
+export async function swapTransaction(input: SwapInput, feeBps: number, taker: string, ref: SwapRef = null): Promise<SwapQuote & { tx: string; lastValidBlockHeight: number }> {
+  const { j, q, feeMint, jupBps, cut, isBuy } = await plan(input, feeBps, taker, ref);
   const user = new PublicKey(taker);
 
   const alts = Object.entries(j.addressesByLookupTableAddress ?? {}).map(([k, addrs]) => new AddressLookupTableAccount({
@@ -92,11 +119,14 @@ export async function swapTransaction(input: SwapInput, feeBps: number, taker: s
   const bh = j.blockhashWithMetadata.blockhash;
   const recentBlockhash = typeof bh === "string" ? bh : bs58.encode(Uint8Array.from(bh));
 
+  const refIx = cut > 0n && ref && feeMint ? [refTransferIx(user, new PublicKey(ref.wallet), feeMint, cut)] : [];
   const body: TransactionInstruction[] = [
-    ...(feeBps > 0 && feeMint ? [createAtaIdempotent(user, new PublicKey(SWAP_FEE_WALLET), new PublicKey(feeMint))] : []),
+    ...(jupBps > 0 && feeMint ? [createAtaIdempotent(user, new PublicKey(SWAP_FEE_WALLET), new PublicKey(feeMint))] : []),
+    ...(isBuy ? refIx : []),
     ...j.setupInstructions.map(toIx),
     toIx(j.swapInstruction),
     ...(j.cleanupInstruction ? [toIx(j.cleanupInstruction)] : []),
+    ...(isBuy ? [] : refIx),
     ...j.otherInstructions.map(toIx),
   ];
   const price = j.computeBudgetInstructions.map(toIx);
@@ -118,5 +148,5 @@ export async function swapTransaction(input: SwapInput, feeBps: number, taker: s
   } catch (e) { if (e instanceof SwapError) throw e; }
 
   const tx = compile(units);
-  return { ...quoteOf(j, feeBps, feeMint), tx: Buffer.from(tx.serialize()).toString("base64"), lastValidBlockHeight: j.blockhashWithMetadata.lastValidBlockHeight };
+  return { ...q, tx: Buffer.from(tx.serialize()).toString("base64"), lastValidBlockHeight: j.blockhashWithMetadata.lastValidBlockHeight };
 }

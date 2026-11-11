@@ -8,7 +8,8 @@ import { solanaConnection } from "@/lib/solana/rpc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { SOL_MINT, SWAP_FEE_WALLET, USDC_MINT, feeMintFor, isMint, tradedMint } from "@/lib/swap/core";
-import { swapAmounts } from "@/lib/swap/record";
+import { holderReceived, swapAmounts } from "@/lib/swap/record";
+import { notify } from "@/lib/social/notify";
 import { isOmToken } from "@/lib/swap/server";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ async function solPriceUsd(): Promise<number> {
 export async function POST(req: Request) {
   const who = await requireWallet();
   if ("error" in who) return who.error;
-  const b = (await req.json().catch(() => ({}))) as { signature?: string; inputMint?: string; outputMint?: string };
+  const b = (await req.json().catch(() => ({}))) as { signature?: string; inputMint?: string; outputMint?: string; ref?: string };
   if (!b.signature || !SIG.test(b.signature) || !isMint(b.inputMint) || !isMint(b.outputMint)) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   const { inputMint, outputMint } = b as { inputMint: string; outputMint: string };
   const feeMint = feeMintFor(inputMint, outputMint);
@@ -60,13 +61,31 @@ export async function POST(req: Request) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
-  const { error } = await db.from("swaps").upsert({
+
+  // « Chill ton sac » : part réellement reçue par l'auteur du post (lue sur la chaîne)
+  let ref: { post: string; wallet: string; amount: bigint } | null = null;
+  if (typeof b.ref === "string" && /^[0-9a-f-]{36}$/i.test(b.ref)) {
+    const { data: post } = await db.from("posts").select("id, author, kind, bag_mint").eq("id", b.ref).maybeSingle();
+    if (post?.kind === "bag" && post.bag_mint === traded && post.author !== who.wallet) {
+      const got = holderReceived({
+        holder: post.author, mint: feeMint, keys: Array.from({ length: keys.length }, (_, i) => keys.get(i)?.toBase58() ?? ""),
+        preBalances: tx.meta.preBalances, postBalances: tx.meta.postBalances,
+        preTokens: (tx.meta.preTokenBalances ?? []) as never, postTokens: (tx.meta.postTokenBalances ?? []) as never,
+      });
+      if (got > 0n) ref = { post: post.id, wallet: post.author, amount: got };
+    }
+  }
+
+  const { data: inserted, error } = await db.from("swaps").upsert({
     signature: b.signature, wallet: who.wallet, chain: "solana", input_mint: inputMint, output_mint: outputMint,
     in_amount: a.inAmount.toString(), out_amount: a.outAmount.toString(), traded_mint: traded, side,
     om_token: await isOmToken(traded), fee_mint: a.feeAmount > 0n ? feeMint : null, fee_amount: a.feeAmount.toString(),
     fee_usd: a.feeAmount > 0n ? toUsd(feeMint, a.feeAmount) : 0, volume_usd: toUsd(baseMint, baseRaw),
     created_at: new Date(tx.blockTime * 1000).toISOString(),
-  }, { onConflict: "signature", ignoreDuplicates: true });
+    ref_post: ref?.post ?? null, ref_wallet: ref?.wallet ?? null, ref_amount: (ref?.amount ?? 0n).toString(),
+    ref_usd: ref ? toUsd(feeMint, ref.amount) : null,
+  }, { onConflict: "signature", ignoreDuplicates: true }).select("id");
   if (error) { console.error("[swap/record]", error.message); return NextResponse.json({ error: "Could not record" }, { status: 500 }); }
-  return NextResponse.json({ recorded: true, side, fee: a.feeAmount.toString() });
+  if (ref && inserted?.length) await notify([{ wallet: ref.wallet, kind: "chill", actor: who.wallet, postId: ref.post }]);
+  return NextResponse.json({ recorded: true, side, fee: a.feeAmount.toString(), ref: ref ? ref.amount.toString() : "0" });
 }

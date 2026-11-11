@@ -14,7 +14,7 @@ import { executeSwap, fromRaw, toRaw } from "@/lib/swap/client";
 
 type Token = { mint: string; decimals: number; symbol: string; name: string; logo: string | null; price: number | null; om_id: string | null; fee_bps: number };
 type Balances = { token: string; sol: string; usdc: string } | null;
-type Quote = { inAmount: string; outAmount: string; minOut: string; feeBps: number; feeMint: string | null; priceImpactPct: number | null; route: string[] };
+type Quote = { inAmount: string; outAmount: string; minOut: string; feeBps: number; feeMint: string | null; priceImpactPct: number | null; route: string[]; refBps?: number; ref?: string | null };
 
 const BASES = { SOL: { mint: SOL_MINT, decimals: 9, logo: "/solana.png" }, USDC: { mint: USDC_MINT, decimals: 6, logo: "/usdc-coin.png" } } as const;
 type Base = keyof typeof BASES;
@@ -30,7 +30,7 @@ function fmt(n: number, max = 6): string {
   return n.toPrecision(Math.min(max, 4)).replace(/\.?0+$/, "");
 }
 
-export function SwapBox({ mint, onSwapped, initialSide = "buy" }: { mint: string; onSwapped?: (sig: string) => void; initialSide?: "buy" | "sell" }) {
+export function SwapBox({ mint, onSwapped, initialSide = "buy", refPost }: { mint: string; onSwapped?: (sig: string) => void; initialSide?: "buy" | "sell"; refPost?: string }) {
   const { tr } = useT();
   const { walletAddress, walletType, isAuthenticated } = useAuth();
   const solWallet = isAuthenticated && !!walletAddress && !walletAddress.startsWith("0x");
@@ -77,7 +77,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy" }: { mint: string
     setQuoting(true);
     const t = setTimeout(async () => {
       try {
-        const r = await fetch("/api/swap/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inputMint: inMint, outputMint: outMint, amount: raw, slippageBps: slip }) });
+        const r = await fetch("/api/swap/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inputMint: inMint, outputMint: outMint, amount: raw, slippageBps: slip, ref: refPost }) });
         const j = await r.json();
         if (id !== seq.current) return;
         if (!r.ok) setQErr(j.error ?? "No price"); else setQuote(j);
@@ -85,7 +85,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy" }: { mint: string
       if (id === seq.current) setQuoting(false);
     }, 450);
     return () => clearTimeout(t);
-  }, [raw, inMint, outMint, slip, token, tr]);
+  }, [raw, inMint, outMint, slip, token, tr, refPost]);
 
   const setPct = (p: number) => {
     if (spendable == null) return;
@@ -97,7 +97,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy" }: { mint: string
     if (!raw || !walletType || !token) return;
     setBusy(true);
     try {
-      const sig = await executeSwap({ inputMint: inMint, outputMint: outMint, amount: raw, slippageBps: slip }, walletType);
+      const sig = await executeSwap({ inputMint: inMint, outputMint: outMint, amount: raw, slippageBps: slip, ref: refPost }, walletType);
       toast.success(side === "buy" ? tr("Bought {symbol}", { symbol: token.symbol }) : tr("Sold {symbol}", { symbol: token.symbol }), {
         action: { label: "Solscan", onClick: () => window.open(`https://solscan.io/tx/${sig}`, "_blank", "noopener") },
       });
@@ -199,6 +199,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy" }: { mint: string
         <div className="mt-3 space-y-1.5 px-1 text-[13px]">
           <Line k={tr("Minimum received")} v={`${fmt(minUi)} ${outSym}`} />
           <Line k={tr("OM fee")} v={quote.feeBps > 0 ? `${quote.feeBps / 100}% · ${fmt(feeUi)} ${feeSym}` : tr("0% (OM token)")} />
+          {!!quote.refBps && quote.ref && <Line k={tr("Holder share")} v={tr("40% of the fee to {who}", { who: `${quote.ref.slice(0, 4)}…${quote.ref.slice(-4)}` })} />}
           {quote.priceImpactPct != null && <Line k={tr("Price impact")} v={`${quote.priceImpactPct < 0.01 ? "<0.01" : quote.priceImpactPct.toFixed(2)}%`} warn={impactHigh} />}
           {quote.route.length > 0 && <Line k={tr("Route")} v={quote.route.join(" › ")} />}
         </div>

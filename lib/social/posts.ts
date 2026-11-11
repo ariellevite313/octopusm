@@ -36,6 +36,8 @@ export type FeedPost = {
   tipper_avatars: string[];
   /** Présent quand le post est un article long (le texte complet est sur /article/:id) */
   article: { title: string; cover_url: string | null; read_minutes: number } | null;
+  /** « Chill ton sac » : token montré par l'auteur (achat / vente depuis le post) */
+  bag?: { mint: string; symbol: string; name: string; logo: string | null } | null;
   mine: boolean;
   following_author: boolean;
   /** @username (minuscules) → wallet */
@@ -136,7 +138,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
     if (arr.length < 3) arr.push(l.wallet);
     byPost.set(l.post_id, arr);
   }
-  const [tips, articles] = await Promise.all([loadTipStats(admin, ids, viewer), loadArticles(admin, ids)]);
+  const [tips, articles, bags] = await Promise.all([loadTipStats(admin, ids, viewer), loadArticles(admin, ids), loadBags(admin, ids)]);
   const [likerProfiles, markets] = await Promise.all([
     getProfiles(admin, [...byPost.values()].flat()),
     loadMarkets(admin, rows),
@@ -171,6 +173,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
       tipped_by_me: tips.mine.has(r.id),
       tipper_avatars: (tips.top.get(r.id) ?? []).map((w) => tipperProfiles.get(w)?.avatar_src ?? "/omdot-icon.png"),
       article: articles.get(r.id) ?? null,
+      bag: bags.get(r.id) ?? null,
       mine: !!viewer && r.author === viewer,
       following_author: followed.has(r.author),
       mentions: r.mentions ?? {},
@@ -191,6 +194,21 @@ async function loadArticles(admin: any, ids: string[]) {
       map.set(r.id, { title: r.title, cover_url: r.cover_url, read_minutes: r.read_minutes ?? 1 });
     }
   } catch { /* fil sans articles */ }
+  return map;
+}
+
+/** Tokens montrés par les posts « Chill ton sac ». Jamais bloquant (colonnes absentes avant la migration). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadBags(admin: any, ids: string[]) {
+  const map = new Map<string, NonNullable<FeedPost["bag"]>>();
+  if (ids.length === 0) return map;
+  try {
+    const { data, error } = await admin.from("posts").select("id, bag_mint, bag_symbol, bag_name, bag_logo").in("id", ids).eq("kind", "bag");
+    if (error) return map;
+    for (const r of (data ?? []) as { id: string; bag_mint: string; bag_symbol: string; bag_name: string | null; bag_logo: string | null }[]) {
+      map.set(r.id, { mint: r.bag_mint, symbol: r.bag_symbol, name: r.bag_name ?? r.bag_symbol, logo: r.bag_logo });
+    }
+  } catch { /* fil sans sacs */ }
   return map;
 }
 

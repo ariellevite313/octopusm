@@ -3,7 +3,7 @@
 import { VersionedTransaction } from "@solana/web3.js";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 
-export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number };
+export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number; ref?: string };
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -44,7 +44,7 @@ export async function executeSwap(req: SwapReq, walletType: WalletType): Promise
   void (async () => {
     for (let i = 0; i < 6; i++) {
       await new Promise((r) => setTimeout(r, 2500 + i * 1500));
-      const r = await fetch("/api/swap/record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signature, inputMint: req.inputMint, outputMint: req.outputMint }) }).catch(() => null);
+      const r = await fetch("/api/swap/record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signature, inputMint: req.inputMint, outputMint: req.outputMint, ref: req.ref }) }).catch(() => null);
       if (r && r.status !== 404) break;
     }
   })();

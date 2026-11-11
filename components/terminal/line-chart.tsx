@@ -23,7 +23,7 @@ async function loadPoints(pool: string, r: TRange): Promise<Pt[]> {
   return list.filter((p, i) => i === 0 || p.time !== list[i - 1].time);
 }
 
-export function TerminalLineChart({ pool, range, onChange }: { pool: string; range: TRange; onChange?: (first: number, last: number) => void }) {
+export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]" }: { pool: string; range: TRange; onChange?: (first: number, last: number) => void; heightClass?: string }) {
   const { tr } = useT();
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"load" | "ok" | "empty">("load");
@@ -73,7 +73,7 @@ export function TerminalLineChart({ pool, range, onChange }: { pool: string; ran
   }, [pool, range]);
 
   return (
-    <div className="relative h-[300px] w-full md:h-[360px]">
+    <div className={`relative w-full ${heightClass}`}>
       <div ref={box} className="absolute inset-0" />
       {state !== "ok" && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
