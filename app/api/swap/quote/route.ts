@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const w = await getWalletAddress();
     const taker = w && !w.startsWith("0x") ? w : undefined;
     const ref = body.ref ? await resolveRef(body.ref, taker ?? "", c.v.inputMint, c.v.outputMint) : null;
-    const q = await swapQuote(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint), taker, ref);
+    const q = await swapQuote(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint, !!ref), taker, ref);
     return NextResponse.json(q);
   } catch (e) {
     if (e instanceof SwapError) return NextResponse.json({ error: e.message }, { status: e.status });

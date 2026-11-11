@@ -1581,5 +1581,7 @@ const p: Record<string, string> = {
   "No price for this token yet": "Bu token için henüz fiyat yok",
   "Hold at least $1 of this token to show it": "Göstermek için bu token'dan en az 1 $ tut",
   "Could not publish": "Yayınlanamadı",
+  "Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.": "%0,3 OM ücreti dahildir, %40'ı bu bag'i paylaşan sahibe gider.",
+  "No eligible token: hold at least $1 of a Solana token.": "Uygun token yok: en az 1 $ değerinde bir Solana token'ı tut.",
 };
 export default p;

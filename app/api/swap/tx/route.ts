@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   if (!c.ok) return NextResponse.json({ error: c.error }, { status: 400 });
   try {
     const ref = body.ref ? await resolveRef(body.ref, who.wallet, c.v.inputMint, c.v.outputMint) : null;
-    return NextResponse.json(await swapTransaction(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint), who.wallet, ref));
+    return NextResponse.json(await swapTransaction(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint, !!ref), who.wallet, ref));
   } catch (e) {
     if (e instanceof SwapError) return NextResponse.json({ error: e.message }, { status: e.status });
     console.error("[swap/tx]", e);

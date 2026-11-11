@@ -11,7 +11,14 @@ export async function holdingUsd(wallet: string, mint: string): Promise<{ amount
   const accs = await solanaConnection().getParsedTokenAccountsByOwner(new PublicKey(wallet), { mint: new PublicKey(mint) }).catch(() => ({ value: [] }));
   let amount = 0;
   for (const a of accs.value) amount += Number((a.account.data as { parsed?: { info?: { tokenAmount?: { uiAmountString?: string } } } }).parsed?.info?.tokenAmount?.uiAmountString ?? 0);
-  const price = (await jupTokens([mint])).get(mint)?.usdPrice ?? null;
+  let price = (await jupTokens([mint])).get(mint)?.usdPrice ?? null;
+  if (price == null) {
+    // Token OM encore sur la bonding curve : prix de notre base
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createAdminClient() as any;
+    const { data } = await db.from("launchpad_tokens").select("price_usd").eq("mint_address", mint).limit(1).maybeSingle();
+    price = data?.price_usd != null && Number(data.price_usd) > 0 ? Number(data.price_usd) : null;
+  }
   return { amount, price, usd: price != null ? amount * price : null };
 }
 

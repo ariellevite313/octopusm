@@ -30,12 +30,12 @@ export async function GET(req: Request) {
   const [info, jup, omRes] = await Promise.all([
     conn.getParsedAccountInfo(mintPk).catch(() => null),
     jupTokens([mint]),
-    db.from("launchpad_tokens").select("id, name, ticker, logo_url, price_usd").eq("mint_address", mint).limit(1).maybeSingle(),
+    db.from("launchpad_tokens").select("id, name, ticker, logo_url, price_usd, status, pool_address").eq("mint_address", mint).limit(1).maybeSingle(),
   ]);
   const parsed = (info?.value?.data as { parsed?: { type?: string; info?: { decimals?: number } } } | undefined)?.parsed;
   if (parsed?.type !== "mint" || typeof parsed.info?.decimals !== "number") return NextResponse.json({ error: "Token not found" }, { status: 404 });
   const j = jup.get(mint);
-  const om = omRes?.data as { id: string; name: string; ticker: string; logo_url: string | null; price_usd: number | null } | null;
+  const om = omRes?.data as { id: string; name: string; ticker: string; logo_url: string | null; price_usd: number | null; status: string | null; pool_address: string | null } | null;
   const logo = om?.logo_url ?? j?.icon ?? null;
 
   const token = {
@@ -47,6 +47,8 @@ export async function GET(req: Request) {
     om_id: om?.id ?? null,
     fee_bps: om ? 0 : SWAP_FEE_BPS,
     verified: om ? true : j?.isVerified ?? null,
+    /** Token OM encore sur la bonding curve : adresse du pool (le trade passe par la courbe, pas par Jupiter) */
+    om_curve: om && ["active", "graduating"].includes(om.status ?? "") && om.pool_address ? om.pool_address : null,
   };
 
   let balances: { token: string; sol: string; usdc: string } | null = null;

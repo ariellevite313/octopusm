@@ -12,7 +12,7 @@ describe("fee split", () => {
   it("40% of 30 bps goes to the holder, OM keeps 18 bps", () => {
     expect(feeSplit(30, true)).toEqual({ jupBps: 18, refBps: CHILL_SHARE_BPS });
     expect(feeSplit(30, false)).toEqual({ jupBps: 30, refBps: 0 });
-    expect(feeSplit(0, true)).toEqual({ jupBps: 0, refBps: 0 }); // tokens OM : pas de frais, pas de part
+    expect(feeSplit(0, true)).toEqual({ jupBps: 0, refBps: 0 });
     expect(cutOf(1_000_000_000n, 12)).toBe(1_200_000n);
   });
 });
@@ -44,5 +44,15 @@ describe("holderReceived", () => {
     expect(holderReceived({ holder: H.toBase58(), mint: SOL_MINT, keys: [U.toBase58(), H.toBase58()], preBalances: [5e9, 1e9], postBalances: [4e9, 1e9 + 1_200_000], preTokens: [], postTokens: [] })).toBe(1_200_000n);
     expect(holderReceived({ holder: H.toBase58(), mint: USDC_MINT, keys: [], preBalances: [], postBalances: [], preTokens: [tb(H.toBase58(), USDC_MINT, "100")], postTokens: [tb(H.toBase58(), USDC_MINT, "3700")] })).toBe(3600n);
     expect(holderReceived({ holder: H.toBase58(), mint: SOL_MINT, keys: [U.toBase58()], preBalances: [1], postBalances: [1], preTokens: [], postTokens: [] })).toBe(0n);
+  });
+});
+
+import { vi } from "vitest";
+vi.mock("@/lib/supabase/server", () => ({ createAdminClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ limit: () => ({ maybeSingle: async () => ({ data: { id: "om-token" } }) }) }) }) }) }) }));
+import { feeBpsFor } from "@/lib/swap/server";
+describe("fee rule", () => {
+  it("OM tokens: 0% normally, 0.3% when traded from a bag post", async () => {
+    expect(await feeBpsFor(SOL_MINT, "OmMint1111111111111111111111111111111111om")).toBe(0);
+    expect(await feeBpsFor(SOL_MINT, "OmMint1111111111111111111111111111111111om", true)).toBe(30);
   });
 });
