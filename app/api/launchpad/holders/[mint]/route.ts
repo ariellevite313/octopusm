@@ -30,7 +30,7 @@ async function rpc(method: string, params: unknown[]) {
   return j.result;
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ mint: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ mint: string }> }) {
   const { mint } = await params;
   if (!BASE58_RE.test(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
 
@@ -41,7 +41,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mint: s
 
     const byOwner = new Map<string, bigint>();
     let partial = false;
+    // light=1 (Terminal, tokens externes parfois très gros) : seulement les 20 plus gros comptes
+    const light = new URL(req.url).searchParams.get("light") === "1";
     try {
+      if (light) throw new Error("light");
       // Liste complète (beaucoup de RPC gratuits refusent cette requête)
       const accounts = await rpc("getProgramAccounts", [TOKEN_PROGRAM, {
         encoding: "base64",

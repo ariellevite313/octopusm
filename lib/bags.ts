@@ -48,7 +48,7 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
 
 type OmToken = { id: string; name: string; ticker: string; logo_url: string | null; price_usd: number | null; mint_address: string | null };
-export type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null };
+export type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null; isVerified?: boolean | null };
 
 export async function jupTokens(mints: string[]): Promise<Map<string, JupToken>> {
   const out = new Map<string, JupToken>();

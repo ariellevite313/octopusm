@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const q = (u.searchParams.get("q") ?? "").trim().slice(0, 60);
-  const list = u.searchParams.get("list") === "new" ? "new" : "trending";
+  const l = u.searchParams.get("list");
+  const list = l === "new" ? "new" : l === "volume" ? "volume" : "trending";
   try {
     const tokens = q.length >= 2 ? await terminalList("search", q) : await terminalList(list);
     return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=30" } });
