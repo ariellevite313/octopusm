@@ -65,6 +65,22 @@ describe("terminal mapPools", () => {
         { id: "solana_SOL", attributes: { address: SOL_MINT, name: "Wrapped SOL", symbol: "SOL", image_url: "https://x/sol.png" } },
       ],
     });
-    expect(r).toEqual([{ mint: "BonkMint", symbol: "BONK", name: "Bonk", logo: null, price: 0.0001, change24h: -3.5, volume24h: 200000, mcap: 1000000, liquidity: 50000, pool: "pool1", createdAt: null }]);
+    expect(r).toEqual([{ mint: "BonkMint", symbol: "BONK", name: "Bonk", logo: null, price: 0.0001, change24h: -3.5, volume24h: 200000, mcap: 1000000, liquidity: 50000, pool: "pool1", createdAt: null, chain: "solana" }]);
+  });
+});
+
+describe("terminal mapPools on EVM chains", () => {
+  it("tags the chain and skips wrapped ETH / stables", () => {
+    const r = mapPools({
+      data: [
+        { attributes: { address: "p1" }, relationships: { base_token: { data: { id: "base_X" } } } },
+        { attributes: { address: "p2" }, relationships: { base_token: { data: { id: "base_W" } } } },
+      ],
+      included: [
+        { id: "base_X", attributes: { address: "0xabc", name: "Degen", symbol: "DEGEN" } },
+        { id: "base_W", attributes: { address: "0x4200000000000000000000000000000000000006", name: "Wrapped Ether", symbol: "WETH" } },
+      ],
+    }, "base");
+    expect(r.map((t) => [t.symbol, t.chain])).toEqual([["DEGEN", "base"]]);
   });
 });

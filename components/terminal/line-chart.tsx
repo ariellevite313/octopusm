@@ -13,9 +13,9 @@ const TF: Record<TRange, [string, number, number]> = {
 
 type Pt = { time: number; value: number };
 
-async function loadPoints(pool: string, r: TRange): Promise<Pt[]> {
+async function loadPoints(pool: string, r: TRange, net = "solana"): Promise<Pt[]> {
   const [tf, agg, limit] = TF[r];
-  const res = await fetch(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=${limit}&currency=usd`);
+  const res = await fetch(`https://api.geckoterminal.com/api/v2/networks/${net}/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=${limit}&currency=usd`);
   if (!res.ok) return [];
   const j = (await res.json()) as { data?: { attributes?: { ohlcv_list?: number[][] } } };
   const list = (j.data?.attributes?.ohlcv_list ?? []).map((c) => ({ time: c[0], value: c[4] })).filter((p) => p.value > 0);
@@ -23,7 +23,7 @@ async function loadPoints(pool: string, r: TRange): Promise<Pt[]> {
   return list.filter((p, i) => i === 0 || p.time !== list[i - 1].time);
 }
 
-export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]" }: { pool: string; range: TRange; onChange?: (first: number, last: number) => void; heightClass?: string }) {
+export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana" }: { pool: string; range: TRange; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string }) {
   const { tr } = useT();
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"load" | "ok" | "empty">("load");
@@ -37,7 +37,7 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
     let chart: any = null, series: any = null, timer: ReturnType<typeof setInterval> | null = null;
     setState("load");
     (async () => { try {
-      const [pts, lw] = await Promise.all([loadPoints(pool, range).catch(() => []), import("lightweight-charts")]);
+      const [pts, lw] = await Promise.all([loadPoints(pool, range, network).catch(() => []), import("lightweight-charts")]);
       if (dead || !box.current) return;
       if (pts.length < 2) { setState("empty"); return; }
       const up = pts[pts.length - 1].value >= pts[0].value;
@@ -62,7 +62,7 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
       cb.current?.(pts[0].value, pts[pts.length - 1].value);
       if (range === "LIVE") {
         timer = setInterval(async () => {
-          const n = await loadPoints(pool, "LIVE").catch(() => []);
+          const n = await loadPoints(pool, "LIVE", network).catch(() => []);
           if (!dead && n.length >= 2) { series.setData(n); cb.current?.(n[0].value, n[n.length - 1].value); }
         }, 15_000);
       }
@@ -70,7 +70,7 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
     const ro = new ResizeObserver(() => { if (chart && box.current) chart.applyOptions({ width: box.current.clientWidth, height: box.current.clientHeight }); });
     ro.observe(box.current);
     return () => { dead = true; ro.disconnect(); if (timer) clearInterval(timer); try { chart?.remove(); } catch { /* déjà retiré */ } };
-  }, [pool, range]);
+  }, [pool, range, network]);
 
   return (
     <div className={`relative w-full ${heightClass}`}>
