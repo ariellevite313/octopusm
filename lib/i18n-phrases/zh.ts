@@ -1581,5 +1581,7 @@ const p: Record<string, string> = {
   "No price for this token yet": "该代币暂无价格",
   "Hold at least $1 of this token to show it": "至少持有 1 美元该代币才能展示",
   "Could not publish": "无法发布",
+  "Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.": "含 0.3% OM 手续费，其中 40% 归发布此持仓的持有人。",
+  "No eligible token: hold at least $1 of a Solana token.": "没有符合条件的代币：至少持有 1 美元的 Solana 代币。",
 };
 export default p;

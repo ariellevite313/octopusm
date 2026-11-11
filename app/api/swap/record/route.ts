@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 const SIG = /^[1-9A-HJ-NP-Za-km-z]{64,90}$/;
 const JUPITER = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+const DBC = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN"; // bonding curve des tokens OM (posts « sac »)
 const MAX_AGE_MS = 30 * 60 * 1000;
 
 async function solPriceUsd(): Promise<number> {
@@ -42,7 +43,9 @@ export async function POST(req: Request) {
   const keys = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta.loadedAddresses });
   if (keys.get(0)?.toBase58() !== who.wallet) return NextResponse.json({ error: "Not your transaction" }, { status: 403 });
   const programs = tx.transaction.message.compiledInstructions.map((ix) => keys.get(ix.programIdIndex)?.toBase58());
-  if (!programs.includes(JUPITER)) return NextResponse.json({ error: "Not a swap" }, { status: 400 });
+  const viaDbc = !programs.includes(JUPITER) && programs.includes(DBC);
+  if (!programs.includes(JUPITER) && !viaDbc) return NextResponse.json({ error: "Not a swap" }, { status: 400 });
+  if (viaDbc && !b.ref) return NextResponse.json({ recorded: false }); // les trades de la courbe sont suivis ailleurs
 
   const a = swapAmounts({
     wallet: who.wallet, feeWallet: SWAP_FEE_WALLET, feeLamports: tx.meta.fee,
@@ -50,6 +53,11 @@ export async function POST(req: Request) {
     preTokens: (tx.meta.preTokenBalances ?? []) as never, postTokens: (tx.meta.postTokenBalances ?? []) as never,
   }, inputMint, outputMint, feeMint);
   if (!a) return NextResponse.json({ error: "Not a swap" }, { status: 400 });
+  const keyList = Array.from({ length: keys.length }, (_, i) => keys.get(i)?.toBase58() ?? "");
+  // Courbe OM : la part OM arrive en SOL natif sur le portefeuille de la plateforme
+  if (viaDbc && a.feeAmount === 0n) {
+    a.feeAmount = holderReceived({ holder: SWAP_FEE_WALLET, mint: SOL_MINT, keys: keyList, preBalances: tx.meta.preBalances, postBalances: tx.meta.postBalances, preTokens: [], postTokens: [] });
+  }
 
   const traded = tradedMint(inputMint, outputMint);
   const side = traded === outputMint ? "buy" : "sell";
@@ -68,7 +76,7 @@ export async function POST(req: Request) {
     const { data: post } = await db.from("posts").select("id, author, kind, bag_mint").eq("id", b.ref).maybeSingle();
     if (post?.kind === "bag" && post.bag_mint === traded && post.author !== who.wallet) {
       const got = holderReceived({
-        holder: post.author, mint: feeMint, keys: Array.from({ length: keys.length }, (_, i) => keys.get(i)?.toBase58() ?? ""),
+        holder: post.author, mint: feeMint, keys: keyList,
         preBalances: tx.meta.preBalances, postBalances: tx.meta.postBalances,
         preTokens: (tx.meta.preTokenBalances ?? []) as never, postTokens: (tx.meta.postTokenBalances ?? []) as never,
       });

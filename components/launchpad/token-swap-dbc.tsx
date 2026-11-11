@@ -44,6 +44,8 @@ type Props = {
   stockSymbol?:      string;
   /** Token-2022 mint address for the xStock quote token */
   quoteMintAddress?: string;
+  /** « Chill ton sac » : post du détenteur (+0,3 % de frais, dont 40 % au détenteur) */
+  refPost?:          string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ function openWalletModal() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockSymbol, quoteMintAddress }: Props) {
+export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockSymbol, quoteMintAddress, refPost }: Props) {
   const { tr, lang } = useT();
   const loc = LOCALES[lang];
   const isXStock = Boolean(stockSymbol && quoteMintAddress);
@@ -200,6 +202,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           amountIn,
           slippageBps: slip,
           swapBaseForQuote: dir === "sell",
+          ref: refPost,
         }),
       });
       if (!res.ok) {
@@ -300,6 +303,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           amountIn,
           slippageBps,
           swapBaseForQuote: !isBuy,
+          ref: refPost,
         }),
       });
 
@@ -342,6 +346,18 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
       }
 
       setTxSig(signature!);
+      // « Chill ton sac » : le serveur relit la transaction et enregistre la part du détenteur
+      if (refPost) {
+        const sigRef = signature!;
+        void (async () => {
+          for (let i = 0; i < 6; i++) {
+            await new Promise((r) => setTimeout(r, 2500 + i * 1500));
+            const r = await fetch("/api/swap/record", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ signature: sigRef, inputMint: isBuy ? "So11111111111111111111111111111111111111112" : mintAddress, outputMint: isBuy ? mintAddress : "So11111111111111111111111111111111111111112", ref: refPost }) }).catch(() => null);
+            if (r && r.status !== 404) break;
+          }
+        })();
+      }
       setAmount("");
       setActivePct(null);
       setEstimatedOut(null);

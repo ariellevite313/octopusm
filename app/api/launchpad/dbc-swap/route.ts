@@ -14,7 +14,10 @@
 
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { resolveRef } from "@/lib/swap/chill-server";
+import { CHILL_SHARE_BPS, cutOf } from "@/lib/swap/chill";
+import { SOL_MINT, SWAP_FEE_BPS, SWAP_FEE_WALLET } from "@/lib/swap/core";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 
@@ -35,6 +38,7 @@ export async function POST(req: Request) {
       amountIn?:         number;   // quote raw units (buy) OR raw base token units (sell) — must be integer ≥ 1
       slippageBps?:      number;
       swapBaseForQuote?: boolean;  // false = buy, true = sell
+      ref?:              string;   // « Chill ton sac » : post du détenteur (+0,3 % : 0,12 % détenteur, 0,18 % OM)
     };
 
     const {
@@ -79,7 +83,21 @@ export async function POST(req: Request) {
 
     const connection  = getConnection();
     const client      = new DynamicBondingCurveClient(connection, "confirmed");
-    const amountInBN  = new BN(amountIn);
+
+    // « Chill ton sac » : seulement pour un pool en SOL et un post valide (détenteur ≥ 1 $, pas soi-même)
+    let ref: { wallet: string } | null = null;
+    if (body.ref && body.mintAddress) {
+      try {
+        const vp = await client.state.getPool(poolPk);
+        const cfg = await client.state.getPoolConfig(vp.poolState.config);
+        if (cfg.quoteMint?.toBase58?.() === SOL_MINT) ref = await resolveRef(body.ref, walletAddress, SOL_MINT, body.mintAddress);
+      } catch { ref = null; }
+    }
+    const omBps = SWAP_FEE_BPS - CHILL_SHARE_BPS;
+    // Achat : les frais sont retirés du SOL échangé, le total payé reste celui saisi
+    const buyOm  = ref && !swapBaseForQuote ? cutOf(BigInt(amountIn), omBps) : 0n;
+    const buyRef = ref && !swapBaseForQuote ? cutOf(BigInt(amountIn), CHILL_SHARE_BPS) : 0n;
+    const amountInBN  = new BN((BigInt(amountIn) - buyOm - buyRef).toString());
 
     // ── Quote estimation via SDK ─────────────────────────────────────────────
     let estimatedOut     = 0;
@@ -123,6 +141,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg }, { status: 500 });
     }
 
+    // ── « Chill ton sac » : virements dans la même transaction ─────────────────
+    let refBps = 0;
+    if (ref && "instructions" in swapTx && Array.isArray(swapTx.instructions)) {
+      const user = userPk;
+      if (!swapBaseForQuote) {
+        swapTx.instructions.unshift(
+          SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(SWAP_FEE_WALLET), lamports: buyOm }),
+          SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(ref.wallet), lamports: buyRef }),
+        );
+      } else {
+        // Vente : pris sur le minimum garanti, après le swap
+        const minOut = BigInt(minimumAmountOut.toString());
+        const om = cutOf(minOut, omBps), rf = cutOf(minOut, CHILL_SHARE_BPS);
+        if (om > 0n) swapTx.instructions.push(SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(SWAP_FEE_WALLET), lamports: om }));
+        if (rf > 0n) swapTx.instructions.push(SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(ref.wallet), lamports: rf }));
+        estimatedOut = Math.max(0, estimatedOut - Math.floor((estimatedOut * SWAP_FEE_BPS) / 10_000));
+      }
+      refBps = CHILL_SHARE_BPS;
+    }
+
     // ── Attach blockhash and serialize ───────────────────────────────────────
     const { blockhash } = await connection.getLatestBlockhash("confirmed");
 
@@ -138,7 +176,7 @@ export async function POST(req: Request) {
 
     const txBase64 = Buffer.from(serialized).toString("base64");
 
-    return NextResponse.json({ txBase64, estimatedOut, amountIn });
+    return NextResponse.json({ txBase64, estimatedOut, amountIn, refBps, ref: refBps ? ref?.wallet ?? null : null });
 
   } catch (err) {
     console.error("[dbc-swap] error:", err);

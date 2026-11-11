@@ -5,6 +5,7 @@
  * paient les frais OM habituels (0,3 %), dont 40 % partent directement au détenteur dans la même transaction.
  */
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
@@ -16,6 +17,22 @@ import type { Bag } from "@/lib/bags";
 import { USDC_MINT } from "@/lib/swap/core";
 
 const MIN_USD = 1;
+const TokenSwapDBC = dynamic(() => import("@/components/launchpad/token-swap-dbc").then((m) => m.TokenSwapDBC), { ssr: false });
+
+/** Achat / vente depuis un post « sac » : par la bonding curve pour un token OM pas encore gradué, sinon par le moteur de swap. */
+function BagTrade({ mint, symbol, logo, side, postId, onDone }: { mint: string; symbol: string; logo: string | null; side: "buy" | "sell"; postId?: string; onDone: () => void }) {
+  const { tr } = useT();
+  const [curve, setCurve] = useState<string | null | undefined>(undefined);
+  useEffect(() => { fetch(`/api/swap/token?mint=${mint}`).then((r) => r.json()).then((j) => setCurve(j.token?.om_curve ?? null)).catch(() => setCurve(null)); }, [mint]);
+  if (curve === undefined) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (curve) return (
+    <div>
+      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
+      <TokenSwapDBC poolAddress={curve} mintAddress={mint} ticker={symbol} logoUrl={logo ?? undefined} refPost={postId} />
+    </div>
+  );
+  return <SwapBox mint={mint} initialSide={side} refPost={postId} onSwapped={onDone} />;
+}
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   const { tr } = useT();
@@ -55,7 +72,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     fetch("/api/bags").then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => {
       if (j.chain === "arc") { setErr(tr("Connect a Solana wallet")); setBags([]); return; }
-      setBags((j.main as Bag[]).filter((b) => b.id !== "native" && b.id !== USDC_MINT && !(b.href ?? "").startsWith("/launchpad/") && (b.value ?? 0) >= MIN_USD));
+      setBags((j.main as Bag[]).filter((b) => b.id !== "native" && b.id !== USDC_MINT && (b.value ?? 0) >= MIN_USD));
     }).catch(() => { setErr(tr("Could not read the wallet right now")); setBags([]); });
   }, [tr]);
 
@@ -79,7 +96,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
       {!pick ? (
         <div className="mt-4">
           {bags === null ? <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
-            : bags.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{err ?? tr("No eligible token: hold at least $1 of a token not launched on OM.")}</p>
+            : bags.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{err ?? tr("No eligible token: hold at least $1 of a Solana token.")}</p>
             : bags.map((b) => (
               <button key={b.id} onClick={() => setPick(b)} className="flex w-full items-center gap-3 rounded-2xl px-1 py-2.5 text-left hover:bg-muted/50">
                 <Logo src={b.logo} sym={b.symbol} />
@@ -140,7 +157,7 @@ export function BagCard({ postId, bag, authorName, mine }: { postId: string; bag
       </div>
       {side && (
         <Sheet title={`$${bag.symbol}`} onClose={() => setSide(null)}>
-          <SwapBox mint={bag.mint} initialSide={side} refPost={mine ? undefined : postId} onSwapped={() => setSide(null)} />
+          <BagTrade mint={bag.mint} symbol={bag.symbol} logo={bag.logo} side={side} postId={mine ? undefined : postId} onDone={() => setSide(null)} />
         </Sheet>
       )}
     </div>

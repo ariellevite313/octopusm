@@ -16,6 +16,8 @@ export async function isOmToken(mint: string): Promise<boolean> {
   return om;
 }
 
-export async function feeBpsFor(inputMint: string, outputMint: string): Promise<number> {
+/** Frais OM : 0,3 % ; 0 % sur les tokens OM, sauf via un post « Chill ton sac » (0,3 % dont 40 % au détenteur). */
+export async function feeBpsFor(inputMint: string, outputMint: string, withRef = false): Promise<number> {
+  if (withRef) return SWAP_FEE_BPS;
   return (await isOmToken(tradedMint(inputMint, outputMint))) ? 0 : SWAP_FEE_BPS;
 }

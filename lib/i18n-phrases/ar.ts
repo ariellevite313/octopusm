@@ -1581,5 +1581,7 @@ const p: Record<string, string> = {
   "No price for this token yet": "لا يوجد سعر لهذا الرمز بعد",
   "Hold at least $1 of this token to show it": "احتفظ بدولار واحد على الأقل من هذا الرمز لعرضه",
   "Could not publish": "تعذّر النشر",
+  "Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.": "يشمل رسوم OM بنسبة 0.3٪، يذهب 40٪ منها للحامل الذي نشر هذه الحقيبة.",
+  "No eligible token: hold at least $1 of a Solana token.": "لا يوجد رمز مؤهل: احتفظ بدولار واحد على الأقل من رمز سولانا.",
 };
 export default p;
