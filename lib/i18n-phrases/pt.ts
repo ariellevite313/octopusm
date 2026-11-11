@@ -1584,5 +1584,7 @@ const p: Record<string, string> = {
   "Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.": "Inclui uma taxa OM de 0,3 %, 40 % vão para o holder que postou esta bag.",
   "No eligible token: hold at least $1 of a Solana token.": "Nenhum token elegível: tenha pelo menos $1 de um token Solana.",
   "Trading on {chain} is coming soon": "O trading na {chain} chega em breve",
+  "earned on OM": "ganhos na OM",
+  "Top traders": "Top traders",
 };
 export default p;
