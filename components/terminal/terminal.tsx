@@ -16,7 +16,7 @@ import { useT } from "@/lib/i18n";
 import { SwapBox } from "@/components/swap/swap-box";
 import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
-import type { TerminalToken } from "@/lib/terminal";
+import { CHAINS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
 import { executeSwap, toRaw } from "@/lib/swap/client";
 import { TerminalLineChart, T_RANGES, type TRange } from "./line-chart";
@@ -80,14 +80,16 @@ function Sheet({ onClose, children, title }: { onClose: () => void; children: Re
 export function Terminal() {
   const sp = useSearchParams();
   const mint = sp.get("mint") ?? "";
+  const cParam = sp.get("chain") ?? "solana";
+  const chain: TerminalChain = CHAINS.some((c) => c.id === cParam && c.ready) ? (cParam as TerminalChain) : "solana";
   const favs = useFavs();
   const [list, setList] = useState<TerminalToken[] | null>(null);
   return (
     <div className="mx-auto max-w-[1400px] pb-28 md:pb-10 lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6 lg:px-4 lg:pt-4">
       <div className={`${mint ? "hidden lg:block" : ""} lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
-        <Home favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
+        <Home key={chain} chain={chain} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
       </div>
-      {mint ? <TokenView key={mint} mint={mint} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? null} favs={favs} />
+      {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? null} favs={favs} />
         : <div className="hidden items-center justify-center text-muted-foreground lg:flex"><EmptyPick /></div>}
     </div>
   );
@@ -99,7 +101,7 @@ function EmptyPick() {
 }
 
 // ── Accueil ───────────────────────────────────────────────────────────────────
-function Home({ favs, active, onList, initialQ }: { favs: ReturnType<typeof useFavs>; active: string; onList: (l: TerminalToken[]) => void; initialQ: string }) {
+function Home({ chain, favs, active, onList, initialQ }: { chain: TerminalChain; favs: ReturnType<typeof useFavs>; active: string; onList: (l: TerminalToken[]) => void; initialQ: string }) {
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens">("tokens");
@@ -116,21 +118,41 @@ function Home({ favs, active, onList, initialQ }: { favs: ReturnType<typeof useF
     const query = q.trim().replace(/^\$/, "");
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(query.length >= 2 ? `/api/terminal?q=${encodeURIComponent(query)}` : `/api/terminal?list=${filter}`);
+        const r = await fetch(query.length >= 2 ? `/api/terminal?chain=${chain}&q=${encodeURIComponent(query)}` : `/api/terminal?chain=${chain}&list=${filter}`);
         const j = await r.json();
         if (live) { setList(j.tokens ?? []); setErr(!r.ok); onList(j.tokens ?? []); }
       } catch { if (live) { setList([]); setErr(true); } }
     }, query ? 350 : 0);
     return () => { live = false; clearTimeout(t); };
-  }, [tab, filter, q, onList]);
+  }, [tab, filter, q, onList, chain]);
 
-  const open = (m: string) => router.push(`/terminal?mint=${m}`, { scroll: true });
+  const open = (m: string, t?: TerminalToken) => {
+    if (t?.href) { router.push(t.href); return; }
+    const c = t?.chain ?? chain;
+    router.push(`/terminal?${c !== "solana" ? `chain=${c}&` : ""}mint=${m}`, { scroll: true });
+  };
   const rows = tab === "favs" ? favs.favs : list;
 
   return (
     <div className="px-4 pt-3 lg:px-0 lg:pt-0">
       <BalanceCard />
       <TopTraders />
+
+      {/* Chaînes */}
+      <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
+        {CHAINS.map((c) => c.ready ? (
+          <button key={c.id} onClick={() => router.push(c.id === "solana" ? "/terminal" : `/terminal?chain=${c.id}`)}
+            className={`flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[14px] font-semibold ${chain === c.id ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted/70"}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={c.logo} alt="" className="size-5 rounded-full" />{c.name}
+          </button>
+        ) : (
+          <span key={c.id} title={tr("Soon")} className="flex h-10 shrink-0 cursor-not-allowed items-center gap-2 rounded-xl bg-muted/40 px-3 text-[14px] font-semibold text-muted-foreground/60">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={c.logo} alt="" className="size-5 rounded-full opacity-50 grayscale" />{c.name}
+          </span>
+        ))}
+      </div>
 
       {/* Favoris | Tokens | Perps */}
       <div className="sticky top-16 z-20 -mx-4 mt-4 border-b border-border bg-background px-4 lg:top-0 lg:mx-0 lg:px-0">
@@ -175,7 +197,7 @@ function Home({ favs, active, onList, initialQ }: { favs: ReturnType<typeof useF
               {tab === "favs" ? tr("No token in your watchlist yet") : err ? tr("Market data unavailable") : tr("No token found")}
             </p>
           ) : rows.map((t) => (
-            <button key={t.mint} onClick={() => open(t.mint)}
+            <button key={`${t.chain ?? "solana"}:${t.mint}`} onClick={() => open(t.mint, t)}
               className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
               <Logo src={t.logo} sym={t.symbol} />
               <div className="min-w-0 flex-1">
@@ -259,7 +281,8 @@ function TopTraders() {
 // ── Page d'un token ───────────────────────────────────────────────────────────
 type SwapToken = { verified: boolean | null; om_id: string | null; fee_bps: number };
 
-function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalToken | null; favs: ReturnType<typeof useFavs> }) {
+function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: TerminalChain; fromList: TerminalToken | null; favs: ReturnType<typeof useFavs> }) {
+  const isSol = chain === "solana";
   const { tr } = useT();
   const router = useRouter();
   const { walletAddress, walletType, isAuthenticated } = useAuth();
@@ -274,12 +297,12 @@ function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalT
 
   useEffect(() => {
     if (fromList) return;
-    fetch(`/api/terminal?q=${mint}`).then((r) => r.json()).then((j) => {
-      const found = (j.tokens ?? []).find((x: TerminalToken) => x.mint === mint);
+    fetch(`/api/terminal?chain=${chain}&q=${mint}`).then((r) => r.json()).then((j) => {
+      const found = (j.tokens ?? []).find((x: TerminalToken) => x.mint.toLowerCase() === mint.toLowerCase());
       setT(found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
     }).catch(() => {});
   }, [mint, fromList]);
-  useEffect(() => { fetch(`/api/swap/token?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((j) => j?.token && setInfo(j.token)).catch(() => {}); }, [mint]);
+  useEffect(() => { if (isSol) fetch(`/api/swap/token?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((j) => j?.token && setInfo(j.token)).catch(() => {}); }, [mint, isSol]);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 170);
     window.addEventListener("scroll", on, { passive: true });
@@ -295,7 +318,7 @@ function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalT
   const rangeLabel = range === "LIVE" ? "30m" : range === "ALL" ? tr("all") : range.toLowerCase();
   const fav = favs.isFav(mint);
   const share = () => {
-    const url = `${location.origin}/terminal?mint=${mint}`;
+    const url = `${location.origin}/terminal?${isSol ? "" : `chain=${chain}&`}mint=${mint}`;
     if (navigator.share) navigator.share({ title: `$${t.symbol} on OM`, url }).catch(() => {});
     else navigator.clipboard.writeText(url).then(() => toast.success(tr("Link copied")));
   };
@@ -347,7 +370,7 @@ function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalT
           </div>
 
           {/* Graphique */}
-          <div className="mt-4">{t.pool ? <TerminalLineChart pool={t.pool} range={range} onChange={onChart} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
+          <div className="mt-4">{t.pool ? <TerminalLineChart pool={t.pool} range={range} onChange={onChart} network={GT_NET[chain] ?? "solana"} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
@@ -363,7 +386,7 @@ function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalT
             ))}
           </div>
           <div className="px-4 pt-3">
-            {tab === "holders" && <Holders mint={mint} price={live} />}
+            {tab === "holders" && (isSol ? <Holders mint={mint} price={live} /> : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
             {tab === "about" && <About t={t} info={info} />}
           </div>
@@ -372,13 +395,13 @@ function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalT
         {/* Ordinateur : boîte de swap à droite */}
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
-            <SwapBox mint={mint} />
-            <Verified info={info} />
+            {isSol ? <><SwapBox mint={mint} /><Verified info={info} /></> : <SoonTrade chain={chain} />}
           </div>
         </aside>
       </div>
 
       {/* Téléphone : barre d'achat */}
+      {!isSol ? <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden"><SoonTrade chain={chain} /></div> : (
       <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden">
         <Verified info={info} />
         <div className="mt-2 flex gap-2">
@@ -386,11 +409,21 @@ function TokenView({ mint, fromList, favs }: { mint: string; fromList: TerminalT
           <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("quick") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
             aria-label={tr("Quick buy")} className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground"><Zap className="size-6 fill-current" /></button>
         </div>
-      </div>
+      </div>)}
 
       {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}><SwapBox mint={mint} onSwapped={() => setSheet(null)} /></Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}
     </div>
+  );
+}
+
+function SoonTrade({ chain }: { chain: TerminalChain }) {
+  const { tr } = useT();
+  const name = CHAINS.find((c) => c.id === chain)?.name ?? chain;
+  return (
+    <button disabled className="h-14 w-full cursor-not-allowed rounded-2xl bg-muted text-[15px] font-bold text-muted-foreground">
+      {tr("Trading on {chain} is coming soon", { chain: name })}
+    </button>
   );
 }
 
@@ -509,7 +542,7 @@ function About({ t, info }: { t: TerminalToken; info: SwapToken | null }) {
         <p className="mt-1 break-all font-mono text-[13px] text-foreground">{t.mint}</p>
       </div>
       <div className="mt-3 flex gap-2">
-        <a href={`https://solscan.io/token/${t.mint}`} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">Solscan<ExternalLink className="size-3.5" /></a>
+        <a href={t.chain === "base" ? `https://basescan.org/token/${t.mint}` : t.chain === "bnb" ? `https://bscscan.com/token/${t.mint}` : `https://solscan.io/token/${t.mint}`} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{t.chain === "base" ? "BaseScan" : t.chain === "bnb" ? "BscScan" : "Solscan"}<ExternalLink className="size-3.5" /></a>
         {info?.om_id && <Link href={`/launchpad/${info.om_id}`} className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{tr("OM token page")}</Link>}
       </div>
     </div>
