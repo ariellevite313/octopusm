@@ -1548,5 +1548,15 @@ const p: Record<string, string> = {
   "Change 24h": "24 小时涨跌",
   "Pool created": "池子创建于",
   "Contract address": "合约地址",
+  "Balance": "余额",
+  "Swap": "兑换",
+  "Assets": "资产",
+  "Send USDC on Arc to your wallet address:": "将 Arc 上的 USDC 发送到你的钱包地址：",
+  "24h change": "24 小时变化",
+  "Mint address": "Mint 地址",
+  "Website": "网站",
+  "Activity": "活动",
+  "Bought": "已买入",
+  "Sold": "已卖出",
 };
 export default p;

@@ -30,7 +30,7 @@ function fmt(n: number, max = 6): string {
   return n.toPrecision(Math.min(max, 4)).replace(/\.?0+$/, "");
 }
 
-export function SwapBox({ mint, onSwapped }: { mint: string; onSwapped?: (sig: string) => void }) {
+export function SwapBox({ mint, onSwapped, initialSide = "buy" }: { mint: string; onSwapped?: (sig: string) => void; initialSide?: "buy" | "sell" }) {
   const { tr } = useT();
   const { walletAddress, walletType, isAuthenticated } = useAuth();
   const solWallet = isAuthenticated && !!walletAddress && !walletAddress.startsWith("0x");
@@ -38,7 +38,7 @@ export function SwapBox({ mint, onSwapped }: { mint: string; onSwapped?: (sig: s
   const [token, setToken] = useState<Token | null>(null);
   const [bal, setBal] = useState<Balances>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [side, setSide] = useState<"buy" | "sell">(initialSide);
   const [base, setBase] = useState<Base>("SOL");
   const [amount, setAmount] = useState("");
   const [slip, setSlip] = useState(100);

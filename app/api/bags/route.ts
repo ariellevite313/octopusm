@@ -9,7 +9,7 @@ import { arcBags, solanaBags, splitBags, type Bag } from "@/lib/bags";
 
 export const dynamic = "force-dynamic";
 
-const cache = new Map<string, { at: number; v: { chain: "solana" | "arc"; main: Bag[]; small: Bag[]; total: number } }>();
+const cache = new Map<string, { at: number; v: { chain: "solana" | "arc"; main: Bag[]; small: Bag[]; total: number; change24h: number } }>();
 
 export async function GET(req: Request) {
   const wallet = await getWalletAddress();

@@ -1548,5 +1548,15 @@ const p: Record<string, string> = {
   "Change 24h": "24 saat değişim",
   "Pool created": "Havuz oluşturuldu",
   "Contract address": "Kontrat adresi",
+  "Balance": "Bakiye",
+  "Swap": "Swap",
+  "Assets": "Varlıklar",
+  "Send USDC on Arc to your wallet address:": "Arc ağında cüzdan adresine USDC gönder:",
+  "24h change": "24 saat değişim",
+  "Mint address": "Mint adresi",
+  "Website": "Web sitesi",
+  "Activity": "Etkinlik",
+  "Bought": "Alındı",
+  "Sold": "Satıldı",
 };
 export default p;
