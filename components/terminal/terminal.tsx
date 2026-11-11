@@ -250,7 +250,7 @@ function BalanceCard() {
   );
 }
 
-type Trader = { wallet: string; volume: number; name: string | null; avatar: string | null };
+type Trader = { wallet: string; usd: number; name: string | null; avatar: string | null };
 function TopTraders() {
   const { tr } = useT();
   const [rows, setRows] = useState<Trader[]>([]);
@@ -258,7 +258,7 @@ function TopTraders() {
   if (rows.length === 0) return null;
   return (
     <div className="mt-3">
-      <p className="mb-2 flex items-center justify-end gap-1.5 text-[14px] font-semibold text-muted-foreground"><Trophy className="size-4" />{tr("Top traders · 7d")}</p>
+      <p className="mb-2 flex items-center justify-end gap-1.5 text-[14px] font-semibold text-muted-foreground"><Trophy className="size-4" />{tr("Top traders")}</p>
       <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
         {rows.map((t) => (
           <Link key={t.wallet} href={`/profile/${t.wallet}`} className="w-40 shrink-0 rounded-2xl bg-muted/50 p-3">
@@ -269,8 +269,8 @@ function TopTraders() {
                 : <span className="size-5 rounded-full bg-muted" />}
               <span className="truncate">{t.name ?? short(t.wallet)}</span>
             </p>
-            <p className="num mt-2 text-[18px] font-bold text-foreground">{compact(t.volume, 2)}</p>
-            <p className="text-[11px] text-muted-foreground">{tr("volume")}</p>
+            <p className="num mt-2 text-[18px] font-bold text-up">+${t.usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-[11px] text-muted-foreground">{tr("earned on OM")}</p>
           </Link>
         ))}
       </div>

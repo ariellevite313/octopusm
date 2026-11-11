@@ -1584,5 +1584,7 @@ const p: Record<string, string> = {
   "Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.": "含 0.3% OM 手续费，其中 40% 归发布此持仓的持有人。",
   "No eligible token: hold at least $1 of a Solana token.": "没有符合条件的代币：至少持有 1 美元的 Solana 代币。",
   "Trading on {chain} is coming soon": "{chain} 上的交易即将推出",
+  "earned on OM": "在 OM 赚取",
+  "Top traders": "Top traders",
 };
 export default p;

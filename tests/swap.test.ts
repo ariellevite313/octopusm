@@ -84,3 +84,15 @@ describe("terminal mapPools on EVM chains", () => {
     expect(r.map((t) => [t.symbol, t.chain])).toEqual([["DEGEN", "base"]]);
   });
 });
+
+import { rankEarners } from "@/lib/top-earners";
+describe("top traders (earnings on OM)", () => {
+  it("adds chill, creator fees and prediction gains per wallet, ignores losses", () => {
+    const r = rankEarners([
+      { wallet: "a", usd: 10, kind: "chill" }, { wallet: "a", usd: 5, kind: "creator" },
+      { wallet: "b", usd: 30, kind: "predict" }, { wallet: "b", usd: -20, kind: "predict" }, { wallet: "c", usd: NaN, kind: "chill" },
+    ]);
+    expect(r.map((e) => [e.wallet, e.usd])).toEqual([["b", 30], ["a", 15]]);
+    expect(r[1].parts).toEqual({ chill: 10, creator: 5, predict: 0 });
+  });
+});
