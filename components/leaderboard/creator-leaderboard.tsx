@@ -102,8 +102,41 @@ function FrameCard({ entry, tone, className = "" }: { entry: LeaderboardEntry; t
   );
 }
 
+type ChillEntry = { rank: number; wallet: string; usd: number; trades: number; name: string | null; avatar: string | null };
+
+/** Classement « Chill ton sac » : détenteurs qui ont gagné le plus de frais grâce à leurs posts. */
+function ChillBoard({ period }: { period: Period }) {
+  const { tr } = useT();
+  const [rows, setRows] = useState<ChillEntry[] | null>(null);
+  useEffect(() => {
+    setRows(null);
+    fetch(`/api/chill/leaderboard?period=${period}`).then((r) => r.json()).then((j) => setRows(j.entries ?? [])).catch(() => setRows([]));
+  }, [period]);
+  if (!rows) return <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted/60" />)}</div>;
+  if (!rows.length) return <p className="py-16 text-center text-sm text-muted-foreground">{tr("No bag earnings yet. Show a token you hold with Chill your bag.")}</p>;
+  return (
+    <div className="divide-y divide-border">
+      {rows.map((r) => (
+        <Link key={r.wallet} href={`/profile/${r.wallet}`} className="flex items-center gap-3 py-3">
+          <span className="num w-7 shrink-0 text-center text-sm font-bold text-muted-foreground">{r.rank}</span>
+          {r.avatar
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={r.avatar} alt="" className="size-10 rounded-full object-cover" />
+            : <span className="size-10 rounded-full bg-muted" />}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-bold text-foreground">{r.name ?? `${r.wallet.slice(0, 4)}…${r.wallet.slice(-4)}`}</p>
+            <p className="text-[12px] text-muted-foreground">{tr("{count} trades", { count: r.trades })}</p>
+          </div>
+          <span className="num shrink-0 text-[16px] font-bold text-foreground">${r.usd < 1 ? r.usd.toFixed(3) : r.usd.toFixed(2)}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export function CreatorLeaderboard() {
   const { tr, lang } = useT();
+  const [board, setBoard] = useState<"creators" | "chill">("creators");
   const [period,  setPeriod]  = useState<Period>("all");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,6 +196,13 @@ export function CreatorLeaderboard() {
 
       <PlatformStatsInline />
 
+      {/* Créateurs | Chill ton sac */}
+      <div className="mb-4 flex gap-2">
+        {([["creators", tr("Creators")], ["chill", tr("Chill your bag")]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setBoard(k)} className={`rounded-2xl px-4 py-2 text-[14px] font-bold ${board === k ? "bg-foreground text-background" : "bg-muted text-foreground"}`}>{label}</button>
+        ))}
+      </div>
+
       {/* Period tabs */}
       <div className="mb-6 flex w-fit items-center gap-0.5 rounded-full border border-border p-1">
         <Trophy className="mx-2 size-4 text-muted-foreground" />
@@ -181,7 +221,7 @@ export function CreatorLeaderboard() {
         ))}
       </div>
 
-      {loading ? (
+      {board === "chill" ? <ChillBoard period={period} /> : loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted/60" />

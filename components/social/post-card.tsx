@@ -27,6 +27,7 @@ import { TipSheet } from "./tip-sheet";
 import { SupportersSheet } from "./supporters-sheet";
 import { compactCount } from "@/lib/social/tips";
 import { ArticleCard } from "./article-card";
+import { BagCard } from "./chill";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -389,6 +390,7 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments }: 
       {post.article
         ? <div className="px-1"><ArticleCard post={post} /></div>
         : post.body && <PostText postId={post.id} body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
+      {post.bag && <div className="px-1"><BagCard postId={post.id} bag={post.bag} authorName={name} mine={!!post.mine} /></div>}
       {post.market && <div className="px-1"><MarketCard m={post.market} postId={post.id} /></div>}
       {post.quoted && <div className="mt-3 px-1"><QuotedCard q={post.quoted} /></div>}
 
@@ -427,7 +429,7 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments }: 
 
       {post.ticker ? (
         <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} postId={post.id} /></div>
-      ) : cashtags.length && !post.market?.price_ticker ? (
+      ) : cashtags.length && !post.market?.price_ticker && !post.bag ? (
         <div className="px-1">{cashtags.length === 1 ? <LivePrice symbol={cashtags[0]} /> : <TickerPills symbols={cashtags} />}</div>
       ) : null}
 

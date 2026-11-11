@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Coins, Copy, Link2, Loader2, MoreHorizontal } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,8 +70,15 @@ export function FollowButton({ wallet }: { wallet: string }) {
 export function FollowCounts({ wallet }: { wallet: string }) {
   const { tr } = useT();
   const { data } = useFollow(wallet);
+  // Gains « Chill ton sac » (affichés seulement s'il y en a)
+  const [chill, setChill] = useState(0);
+  useEffect(() => {
+    if (wallet.startsWith("0x")) return;
+    fetch(`/api/chill/earnings?wallet=${wallet}`).then((r) => r.json()).then((j) => setChill(Number(j.usd) || 0)).catch(() => {});
+  }, [wallet]);
   return (
     <>
+      {chill > 0 && <span><span className="num font-bold text-foreground">${chill < 1 ? chill.toFixed(3) : chill.toFixed(2)}</span> <span className="text-muted-foreground">{tr("earned with bags")}</span></span>}
       <span><span className="font-bold text-foreground">{data?.followers ?? 0}</span> <span className="text-muted-foreground">{tr("Followers")}</span></span>
       <span><span className="font-bold text-foreground">{data?.following ?? 0}</span> <span className="text-muted-foreground">{tr("Following")}</span></span>
     </>

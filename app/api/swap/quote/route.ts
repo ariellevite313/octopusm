@@ -4,6 +4,7 @@ import { checkSwapInput } from "@/lib/swap/core";
 import { swapQuote, SwapError } from "@/lib/swap/jupiter";
 import { feeBpsFor } from "@/lib/swap/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
+import { resolveRef } from "@/lib/swap/chill-server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,8 @@ export async function POST(req: Request) {
   try {
     const w = await getWalletAddress();
     const taker = w && !w.startsWith("0x") ? w : undefined;
-    const q = await swapQuote(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint), taker);
+    const ref = body.ref ? await resolveRef(body.ref, taker ?? "", c.v.inputMint, c.v.outputMint) : null;
+    const q = await swapQuote(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint), taker, ref);
     return NextResponse.json(q);
   } catch (e) {
     if (e instanceof SwapError) return NextResponse.json({ error: e.message }, { status: e.status });

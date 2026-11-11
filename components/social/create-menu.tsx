@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, FileText, PenLine, Rocket, X } from "lucide-react";
+import { BarChart3, FileText, Gem, PenLine, Rocket, X } from "lucide-react";
+import { ChillComposer } from "./chill";
 import { PawIcon } from "@/components/shared/paw-icon";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -18,6 +19,7 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
   const [open, setOpen] = useState(false);
   const [compose, setCompose] = useState(false);
   const [pool, setPool] = useState(false);
+  const [chill, setChill] = useState(false);
 
   // Bouton « Publier » de la barre latérale (ordinateur)
   useEffect(() => {
@@ -33,11 +35,12 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
     return () => window.removeEventListener("keydown", h);
   }, [open]);
 
-  function go(kind: "post" | "article" | "pool" | "token") {
+  function go(kind: "post" | "article" | "bag" | "pool" | "token") {
     setOpen(false);
     if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
     if (kind === "post") setCompose(true);
     else if (kind === "article") router.push("/article/new");
+    else if (kind === "bag") setChill(true);
     else if (kind === "pool") setPool(true);
     else router.push("/launchpad/create");
   }
@@ -45,6 +48,7 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
   const items = [
     { k: "post" as const, icon: PenLine, title: tr("Post"), sub: tr("Text, images or GIF") },
     { k: "article" as const, icon: FileText, title: tr("Article"), sub: tr("A long read with a cover and images") },
+    { k: "bag" as const, icon: Gem, title: tr("Chill your bag"), sub: tr("Show a token you hold, earn 40% of the fees") },
     { k: "pool" as const, icon: BarChart3, title: tr("Launch a pool"), sub: tr("Create a prediction pool") },
     { k: "token" as const, icon: Rocket, title: tr("Launch a token"), sub: tr("Solana or Arc") },
   ];
@@ -76,6 +80,7 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
         </>
       )}
 
+      {chill && <ChillComposer onClose={() => setChill(false)} />}
       {compose && <ComposeModal onClose={() => setCompose(false)} onPosted={onPosted} />}
       {pool && (
         <CreatePoolModal
