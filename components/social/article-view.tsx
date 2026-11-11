@@ -96,6 +96,20 @@ export function ArticleView({ id, title, cover, md, minutes }: { id: string; tit
         <p className="mb-6 mt-3 flex items-center gap-1.5 text-[13px] text-muted-foreground"><BookOpen className="size-3.5" />{tr("{n} min read", { n: minutes })}</p>
 
         <div ref={body}><ArticleBody md={md} /></div>
+
+        {/* Auteur en fin d'article */}
+        {post && (
+          <Link href={`/profile/${post.author}`} className="mt-12 flex items-center gap-3 border-t border-border pt-8">
+            {post.author_avatar
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={post.author_avatar} alt="" className="size-[52px] shrink-0 rounded-full object-cover" />
+              : <span className="flex size-[52px] shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold">{name[0]?.toUpperCase()}</span>}
+            <span className="min-w-0">
+              <span className="block truncate text-[17px] font-bold">{name}</span>
+              <span className="block truncate text-[14px] text-muted-foreground">{shortAddress(post.author)}</span>
+            </span>
+          </Link>
+        )}
       </div>
 
       <div ref={comments} className="mt-6 border-t border-border">

@@ -9,6 +9,7 @@ function Inl({ c }: { c: Inline[] }) {
         if (x.t === "text") return <span key={i}>{x.v}</span>;
         if (x.t === "b") return <strong key={i} className="font-bold text-foreground"><Inl c={x.c} /></strong>;
         if (x.t === "i") return <em key={i}><Inl c={x.c} /></em>;
+        if (x.t === "s") return <s key={i}><Inl c={x.c} /></s>;
         return x.href.startsWith("/")
           ? <Link key={i} href={x.href} className="font-medium text-foreground underline underline-offset-2"><Inl c={x.c} /></Link>
           : <a key={i} href={x.href} target="_blank" rel="noopener noreferrer nofollow ugc" className="font-medium text-foreground underline underline-offset-2 [overflow-wrap:anywhere]"><Inl c={x.c} /></a>;
