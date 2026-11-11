@@ -1548,5 +1548,15 @@ const p: Record<string, string> = {
   "Change 24h": "Variação 24 h",
   "Pool created": "Pool criado",
   "Contract address": "Endereço do contrato",
+  "Balance": "Saldo",
+  "Swap": "Swap",
+  "Assets": "Ativos",
+  "Send USDC on Arc to your wallet address:": "Envie USDC na Arc para o endereço da sua carteira:",
+  "24h change": "Variação 24 h",
+  "Mint address": "Endereço do mint",
+  "Website": "Site",
+  "Activity": "Atividade",
+  "Bought": "Comprado",
+  "Sold": "Vendido",
 };
 export default p;

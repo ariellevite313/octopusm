@@ -460,7 +460,7 @@ function ActionCircle({ label, href, onClick, disabled, highlight, children }: {
 }
 
 /** Fines lignes ondulées en fond de carte. */
-function WaveTexture() {
+export function WaveTexture() {
   const lines = Array.from({ length: 26 }, (_, i) => i);
   return (
     <svg aria-hidden viewBox="0 0 400 240" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full text-foreground opacity-[0.07]">

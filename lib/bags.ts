@@ -20,6 +20,8 @@ export type Bag = {
   amount: number;
   price: number | null;
   value: number | null;
+  /** variation du prix sur 24 h, en % (null si inconnue) */
+  change24h?: number | null;
   /** page OM du token s'il a été lancé chez nous */
   href: string | null;
 };
@@ -36,19 +38,24 @@ export function sortBags(list: Bag[]): Bag[] {
   });
 }
 
-export function splitBags(list: Bag[]): { main: Bag[]; small: Bag[]; total: number } {
+export function splitBags(list: Bag[]): { main: Bag[]; small: Bag[]; total: number; change24h: number } {
   const sorted = sortBags(list.filter((b) => b.amount > 0));
   const main = sorted.filter((b) => (b.value ?? 0) >= BAGS_DUST_USD);
   const small = sorted.filter((b) => (b.value ?? 0) < BAGS_DUST_USD);
   const total = main.reduce((s, b) => s + (b.value ?? 0), 0);
-  return { main, small, total };
+  // Gain ou perte en $ sur 24 h : valeur actuelle moins valeur d'il y a 24 h
+  const change24h = main.reduce((s, b) => {
+    const c = b.change24h;
+    return c != null && Number.isFinite(c) && c > -100 && b.value != null ? s + b.value - b.value / (1 + c / 100) : s;
+  }, 0);
+  return { main, small, total, change24h };
 }
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
 
 type OmToken = { id: string; name: string; ticker: string; logo_url: string | null; price_usd: number | null; mint_address: string | null };
-export type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null; isVerified?: boolean | null };
+export type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null; isVerified?: boolean | null; stats24h?: { priceChange?: number | null } | null };
 
 export async function jupTokens(mints: string[]): Promise<Map<string, JupToken>> {
   const out = new Map<string, JupToken>();
@@ -68,7 +75,7 @@ export async function jupTokens(mints: string[]): Promise<Map<string, JupToken>>
     try {
       const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${missing.slice(i, i + 30).join(",")}`, { signal: AbortSignal.timeout(6000) });
       if (!r.ok) continue;
-      const pairs = (await r.json()) as { baseToken?: { address: string; name?: string; symbol?: string }; priceUsd?: string; liquidity?: { usd?: number }; info?: { imageUrl?: string } }[];
+      const pairs = (await r.json()) as { baseToken?: { address: string; name?: string; symbol?: string }; priceUsd?: string; priceChange?: { h24?: number }; liquidity?: { usd?: number }; info?: { imageUrl?: string } }[];
       const best = new Map<string, (typeof pairs)[number]>();
       for (const p of pairs ?? []) {
         const a = p.baseToken?.address;
@@ -77,7 +84,7 @@ export async function jupTokens(mints: string[]): Promise<Map<string, JupToken>>
       }
       for (const [a, p] of best) {
         const prev = out.get(a);
-        out.set(a, { id: a, name: prev?.name ?? p.baseToken?.name, symbol: prev?.symbol ?? p.baseToken?.symbol, icon: prev?.icon ?? p.info?.imageUrl ?? null, usdPrice: Number(p.priceUsd) || null });
+        out.set(a, { id: a, name: prev?.name ?? p.baseToken?.name, symbol: prev?.symbol ?? p.baseToken?.symbol, icon: prev?.icon ?? p.info?.imageUrl ?? null, usdPrice: Number(p.priceUsd) || null, stats24h: { priceChange: p.priceChange?.h24 ?? null } });
       }
     } catch { /* rien */ }
   }
@@ -111,7 +118,7 @@ export async function solanaBags(wallet: string, omByMint: (mints: string[]) => 
   const sol = lamports / 1e9;
   if (sol > 0) {
     const p = jup.get(SOL_MINT)?.usdPrice ?? null;
-    bags.push({ chain: "solana", id: "native", symbol: "SOL", name: "Solana", logo: "/solana.png", amount: sol, price: p, value: p != null ? p * sol : null, href: null });
+    bags.push({ chain: "solana", id: "native", symbol: "SOL", name: "Solana", logo: "/solana.png", amount: sol, price: p, value: p != null ? p * sol : null, change24h: jup.get(SOL_MINT)?.stats24h?.priceChange ?? null, href: null });
   }
   for (const [mint, amount] of amounts) {
     const j = jup.get(mint), o = omMap.get(mint);
@@ -123,6 +130,7 @@ export async function solanaBags(wallet: string, omByMint: (mints: string[]) => 
       logo: safeImg(o?.logo_url) ?? safeImg(j?.icon),
       amount, price: price && price > 0 ? price : null,
       value: price && price > 0 ? price * amount : null,
+      change24h: j?.stats24h?.priceChange ?? null,
       href: o ? `/launchpad/${o.id}` : `/terminal?mint=${mint}`,
     });
   }
