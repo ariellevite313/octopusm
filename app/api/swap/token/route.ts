@@ -46,6 +46,7 @@ export async function GET(req: Request) {
     price: j?.usdPrice ?? (om?.price_usd != null ? Number(om.price_usd) : null),
     om_id: om?.id ?? null,
     fee_bps: om ? 0 : SWAP_FEE_BPS,
+    verified: om ? true : j?.isVerified ?? null,
   };
 
   let balances: { token: string; sol: string; usdc: string } | null = null;

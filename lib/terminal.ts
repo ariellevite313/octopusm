@@ -46,12 +46,13 @@ export function mapPools(json: { data?: GtPool[]; included?: GtToken[] }): Termi
 
 const cache = new Map<string, { at: number; v: TerminalToken[] }>();
 
-export async function terminalList(kind: "trending" | "new" | "search", q = ""): Promise<TerminalToken[]> {
+export async function terminalList(kind: "trending" | "new" | "volume" | "search", q = ""): Promise<TerminalToken[]> {
   const key = `${kind}:${q.toLowerCase()}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 60_000) return hit.v;
   const url = kind === "trending" ? `${GT}/networks/solana/trending_pools?include=base_token&duration=24h`
     : kind === "new" ? `${GT}/networks/solana/new_pools?include=base_token`
+    : kind === "volume" ? `${GT}/networks/solana/pools?include=base_token&sort=h24_volume_usd_desc`
     : `${GT}/search/pools?network=solana&include=base_token&query=${encodeURIComponent(q)}`;
   const r = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000), cache: "no-store" });
   if (!r.ok) throw new Error(`gecko ${r.status}`);
