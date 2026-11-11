@@ -1479,5 +1479,10 @@ const p: Record<string, string> = {
   "Start writing": "Yazmaya başla",
   "Link address (https://…)": "Bağlantı adresi (https://…)",
   "Links must start with https://": "Bağlantılar https:// ile başlamalı",
+  "{count} tokens": "{count} token",
+  "Loading": "Yükleniyor",
+  "Could not read the wallet right now": "Cüzdan şu anda okunamıyor",
+  "No token in this wallet yet.": "Bu cüzdanda henüz token yok.",
+  "Small balances and unpriced ({count})": "Küçük bakiyeler ve fiyatsızlar ({count})",
 };
 export default p;

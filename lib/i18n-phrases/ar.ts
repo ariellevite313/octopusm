@@ -1479,5 +1479,10 @@ const p: Record<string, string> = {
   "Start writing": "ابدأ الكتابة",
   "Link address (https://…)": "عنوان الرابط (https://…)",
   "Links must start with https://": "يجب أن تبدأ الروابط بـ https://",
+  "{count} tokens": "{count} رمز",
+  "Loading": "جارٍ التحميل",
+  "Could not read the wallet right now": "تعذّرت قراءة المحفظة الآن",
+  "No token in this wallet yet.": "لا توجد رموز في هذه المحفظة بعد.",
+  "Small balances and unpriced ({count})": "أرصدة صغيرة وبدون سعر ({count})",
 };
 export default p;

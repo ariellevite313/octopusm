@@ -1479,5 +1479,10 @@ const p: Record<string, string> = {
   "Start writing": "Начните писать",
   "Link address (https://…)": "Адрес ссылки (https://…)",
   "Links must start with https://": "Ссылки должны начинаться с https://",
+  "{count} tokens": "{count} токенов",
+  "Loading": "Загрузка",
+  "Could not read the wallet right now": "Сейчас не удаётся прочитать кошелёк",
+  "No token in this wallet yet.": "В этом кошельке пока нет токенов.",
+  "Small balances and unpriced ({count})": "Мелкие балансы и без цены ({count})",
 };
 export default p;

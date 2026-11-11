@@ -1479,5 +1479,10 @@ const p: Record<string, string> = {
   "Start writing": "开始写作",
   "Link address (https://…)": "链接地址（https://…）",
   "Links must start with https://": "链接必须以 https:// 开头",
+  "{count} tokens": "{count} 个代币",
+  "Loading": "加载中",
+  "Could not read the wallet right now": "暂时无法读取钱包",
+  "No token in this wallet yet.": "此钱包中还没有代币。",
+  "Small balances and unpriced ({count})": "小额余额和无价格代币（{count}）",
 };
 export default p;
