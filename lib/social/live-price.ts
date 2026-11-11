@@ -27,6 +27,20 @@ const BINANCE = "https://api.binance.com/api/v3";
 const cache = new Map<string, { at: number; q: LiveQuote | null }>();
 
 /** Symboles connus : seuls ceux-ci peuvent être cherchés sur un DEX (un symbole inconnu peut cacher un token sans rapport). */
+/** Nombre maximum de cryptos affichées sous un post (3 pages de 3). */
+export const TICKERS_MAX = 9;
+
+/** Cryptos citées dans un texte ($PEPE…), sans doublon, dans l'ordre, au plus `max`. */
+export function cashtagsOf(text: string, max = 6): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(/(?:^|[^\w$])\$([A-Za-z][A-Za-z0-9]{1,15})(?![A-Za-z0-9])/g)) {
+    const s = m[1].toUpperCase();
+    if (!out.includes(s)) out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 export const dexAllowed = (symbol: string): boolean => Object.prototype.hasOwnProperty.call(NAMES, symbol.toUpperCase());
 
 /**

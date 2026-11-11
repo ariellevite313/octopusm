@@ -23,7 +23,10 @@ export function FeedClient() {
   const [loading, setLoading] = useState(true);
   const [more, setMore] = useState(false);
   const tag = (useSearchParams().get("tag") ?? "").toLowerCase();
-  const tq = tag ? `&tag=${encodeURIComponent(tag)}` : "";
+  const cashRaw = (useSearchParams().get("cashtag") ?? "").toUpperCase();
+  const cashtag = /^[A-Z][A-Z0-9]{1,15}$/.test(cashRaw) ? cashRaw : "";
+  const tq = tag ? `&tag=${encodeURIComponent(tag)}` : cashtag ? `&cashtag=${cashtag}` : "";
+  const filtered = !!(tag || cashtag);
   // Bulle « nouveaux posts » : vérifiée toutes les 30 s depuis le post le plus récent affiché
   const since = useRef<string | null>(null);
   const [fresh, setFresh] = useState<{ count: number; avatars: { avatar: string | null; name: string | null }[] }>({ count: 0, avatars: [] });
@@ -50,14 +53,14 @@ export function FeedClient() {
   }, [tq]);
 
   useEffect(() => {
-    if (tag) return;
+    if (filtered) return;
     const check = () => {
       if (document.hidden || !since.current) return;
       fetch(`/api/posts/new?tab=${tab}&since=${encodeURIComponent(since.current)}`, { cache: "no-store" }).then((r) => r.json()).then((j) => setFresh({ count: j.count ?? 0, avatars: j.avatars ?? [] })).catch(() => {});
     };
     const id = setInterval(check, 30_000);
     return () => clearInterval(id);
-  }, [tab, tag]);
+  }, [tab, filtered]);
 
   function showFresh() {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -129,14 +132,14 @@ export function FeedClient() {
         )}
       </div>
 
-      {tag && (
+      {filtered && (
         <div className="flex items-center gap-2 px-4 pt-4">
-          <span className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary"><Hash className="size-4" />{tag}</span>
+          <span className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary">{tag ? <><Hash className="size-4" />{tag}</> : `$${cashtag}`}</span>
           <Link href="/" aria-label={tr("Close")} className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-4" /></Link>
         </div>
       )}
 
-      {tab === "foryou" && !tag && <FeedPromoCarousel />}
+      {tab === "foryou" && !filtered && <FeedPromoCarousel />}
 
       {loading ? (
         <div className="space-y-4 p-4">{[0, 1].map((i) => <div key={i} className="h-64 animate-pulse rounded-3xl bg-muted/30" />)}</div>
@@ -151,7 +154,7 @@ export function FeedClient() {
           {posts.map((p, i) => (
             <div key={p.feed_key ?? p.id}>
               <PostCard post={p} onRemoved={(id) => setPosts((l) => l.filter((x) => x.id !== id))} />
-              {i === 3 && tab === "foryou" && !tag && <WhoToFollowInline />}
+              {i === 3 && tab === "foryou" && !filtered && <WhoToFollowInline />}
             </div>
           ))}
         </div>
