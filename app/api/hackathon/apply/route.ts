@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { verifyWalletSignature } from "@/lib/launch/wallet-signature";
 import { verifyTokenCreator } from "@/lib/launch/verify-creator";
-import { HACKATHON, hackathonPhase } from "@/lib/hackathon/config";
+import { applicationsOpen } from "@/lib/hackathon/config";
 import { validateApplication, siteIsReachable, type ApplicationInput } from "@/lib/hackathon/apply";
 
 type Body = ApplicationInput & { mintAddress?: string; issuedAt?: number; signature?: string };
@@ -21,9 +21,7 @@ export async function POST(req: Request) {
   const who = await requireWallet();
   if ("error" in who) return who.error;
 
-  const phase = hackathonPhase();
-  if (phase === "soon") return NextResponse.json({ error: `Applications open on ${HACKATHON.startsAt.slice(0, 10)}` }, { status: 403 });
-  if (phase === "ended") return NextResponse.json({ error: "Applications are closed" }, { status: 403 });
+  if (!applicationsOpen()) return NextResponse.json({ error: "Applications are closed" }, { status: 403 });
 
   const body = (await req.json().catch(() => null)) as Body | null;
   if (!body || typeof body.mintAddress !== "string" || typeof body.signature !== "string" || typeof body.issuedAt !== "number") {
@@ -57,12 +55,14 @@ export async function POST(req: Request) {
   // Créateur relu sur la chaîne (les tokens lancés avant la vérification sont vérifiés ici)
   if (!token.creator_verified) {
     const verdict = await verifyTokenCreator(token);
-    if (verdict !== "ok") return NextResponse.json({ error: "Creator could not be verified on-chain" }, { status: 403 });
+    if (verdict === "mismatch") return NextResponse.json({ error: "The creator on-chain is not this wallet" }, { status: 403 });
+    // Lecture de la chaîne impossible pour l'instant (RPC saturé…) : on demande de réessayer, ce n'est pas un refus.
+    if (verdict !== "ok") return NextResponse.json({ error: "Could not read the blockchain right now, please try again in a minute" }, { status: 503 });
     await db.from("launchpad_tokens").update({ creator_verified: true, creator_verified_at: new Date().toISOString() }).eq("id", token.id);
   }
 
   if (!(await siteIsReachable(valid.value.siteUrl))) {
-    return NextResponse.json({ error: "Your website does not respond over https" }, { status: 422 });
+    return NextResponse.json({ error: "Your website could not be found over https. Check the address (it must start with https://)" }, { status: 422 });
   }
 
   const v = valid.value;

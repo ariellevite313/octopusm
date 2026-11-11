@@ -1426,5 +1426,11 @@ const p: Record<string, string> = {
   "Enter a whole amount between 1 and {n} OMERO": "Introduce una cantidad entera entre 1 y {n} OMERO",
   "sent you OMERO on your post": "te envió OMERO en tu publicación",
   "Open the {name} app, go to its Web3 browser and visit omdot.fun": "Abre la app {name}, ve a su navegador Web3 y visita omdot.fun",
+  "Applications are open. The hackathon and the votes start on {date}.": "Las inscripciones están abiertas. El hackathon y los votos empiezan el {date}.",
+  "Applications are open. The hackathon starts on {date}: votes and volume count from that day.": "Las inscripciones están abiertas. El hackathon empieza el {date}: los votos y el volumen cuentan desde ese día.",
+  "The creator on-chain is not this wallet": "El creador en la blockchain no es esta billetera",
+  "Could not read the blockchain right now, please try again in a minute": "No se pudo leer la blockchain ahora, inténtalo en un minuto",
+  "Your website could not be found over https. Check the address (it must start with https://)": "No se encontró tu sitio en https. Revisa la dirección (debe empezar por https://)",
+  "Switch your wallet to the account connected on OM": "Cambia tu billetera a la cuenta conectada en OM",
 };
 export default p;

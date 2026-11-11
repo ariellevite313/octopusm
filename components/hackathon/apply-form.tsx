@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/providers/auth-provider";
-import { HACKATHON, hackathonPhase, MAX_TEAM } from "@/lib/hackathon/config";
+import { HACKATHON, applicationsOpen, hackathonPhase, MAX_TEAM } from "@/lib/hackathon/config";
 import { CATEGORY_LABEL } from "./use-hackathon";
 import { signAction } from "./sign";
 
@@ -14,6 +14,7 @@ export function ApplyForm() {
   const { tr } = useT();
   const { isAuthenticated, walletAddress, walletType } = useAuth();
   const phase = hackathonPhase();
+  const open = applicationsOpen();
   const [f, setF] = useState({ mintAddress: "", name: "", description: "", siteUrl: "", githubUrl: "", xHandle: "", videoUrl: "", category: "ai_agents", team: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -56,8 +57,8 @@ export function ApplyForm() {
   return (
     <form onSubmit={submit} className="max-w-xl space-y-4">
       <h1 className="text-[28px] font-bold text-foreground">{tr("Apply to the hackathon")}</h1>
-      {phase === "soon" && <p className="text-[15px] text-muted-foreground">{tr("Applications open on {date}. Launch your token on OM before.", { date: HACKATHON.startsAt.slice(0, 10) })}</p>}
-      {phase === "ended" && <p className="text-[15px] text-muted-foreground">{tr("Applications are closed.")}</p>}
+      {phase === "soon" && <p className="text-[15px] text-muted-foreground">{tr("Applications are open. The hackathon starts on {date}: votes and volume count from that day.", { date: HACKATHON.startsAt.slice(0, 10) })}</p>}
+      {!open && <p className="text-[15px] text-muted-foreground">{tr("Applications are closed.")}</p>}
 
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("Token contract address (CA)")}</span>
         <input required className={input} value={f.mintAddress} onChange={set("mintAddress")} placeholder="…om" /></label>
@@ -74,11 +75,11 @@ export function ApplyForm() {
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("GitHub (optional)")}</span><input type="url" className={input} value={f.githubUrl} onChange={set("githubUrl")} placeholder="https://github.com/…" /></label>
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("Video (optional)")}</span><input type="url" className={input} value={f.videoUrl} onChange={set("videoUrl")} placeholder="https://" /></label>
 
-      {err && <p className="text-[14px] text-down">{err}</p>}
+      {err && <p className="text-[14px] text-down">{tr(err)}</p>}
       {!isAuthenticated ? (
         <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="btn-primary flex h-12 w-full items-center justify-center rounded-2xl text-[15px]">{tr("Connect Wallet")}</button>
       ) : (
-        <button type="submit" disabled={busy || phase !== "live"} className="flex h-12 w-full items-center justify-center rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-50">
+        <button type="submit" disabled={busy || !open} className="flex h-12 w-full items-center justify-center rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-50">
           {busy ? tr("Signing and checking…") : tr("Sign and apply")}
         </button>
       )}

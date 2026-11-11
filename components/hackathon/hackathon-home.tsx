@@ -51,7 +51,7 @@ export function HackathonHome() {
           <p className="text-[17px] text-muted-foreground">{tr("Up to")}</p>
           <p className="num text-[clamp(40px,10vw,84px)] font-extrabold leading-none tracking-tight text-foreground">{amount.toLocaleString("fr-FR").replace(/ /g, " ")} USDC</p>
           <p className="mt-4 max-w-xl text-[15px] text-muted-foreground">
-            {phase === "soon" ? tr("Applications and votes open on {date}. Launch your token on OM and be ready.", { date: dateFmt(HACKATHON.startsAt, loc) })
+            {phase === "soon" ? tr("Applications are open. The hackathon and the votes start on {date}.", { date: dateFmt(HACKATHON.startsAt, loc) })
               : phase === "live" ? tr("The hackathon is live. Apply, or back a project with your votes.")
               : tr("The hackathon is over. Prizes are paid on {date}.", { date: dateFmt(HACKATHON.payoutAt, loc) })}
           </p>

@@ -17,5 +17,13 @@ export function hackathonPhase(now: number = Date.now()): HackathonPhase {
   return "ended";
 }
 
+/**
+ * Inscriptions : ouvertes dès maintenant et jusqu'à la fin du hackathon. Les projets inscrits avant le 24 novembre
+ * apparaissent tout de suite ; le classement, les votes et le volume ne comptent qu'à partir du début.
+ */
+export function applicationsOpen(now: number = Date.now()): boolean {
+  return now <= Date.parse(HACKATHON.endsAt);
+}
+
 /** Taille maximale d'une équipe (client et serveur). */
 export const MAX_TEAM = 4;
