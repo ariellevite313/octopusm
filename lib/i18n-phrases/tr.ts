@@ -1588,5 +1588,16 @@ const p: Record<string, string> = {
   "Top traders": "Top traders",
   "Filter by network": "Ağa göre filtrele",
   "All networks": "Tüm ağlar",
+  "No EVM wallet detected": "EVM cüzdanı bulunamadı",
+  "Switching network": "Ağ değiştiriliyor",
+  "Approve in your wallet": "Cüzdanında onay ver",
+  "Confirm in your wallet": "Cüzdanında onayla",
+  "Waiting for confirmation": "Onay bekleniyor",
+  "Explorer": "Gezgin",
+  "Connect an EVM wallet to trade on {chain}": "{chain} üzerinde işlem için bir EVM cüzdanı bağla",
+  "Unexpected swap contract, try again later": "Beklenmeyen swap kontratı, daha sonra dene",
+  "Unsupported network": "Desteklenmeyen ağ",
+  "Invalid side": "Geçersiz yön",
+  "Connect an EVM wallet to swap": "Swap için bir EVM cüzdanı bağla",
 };
 export default p;

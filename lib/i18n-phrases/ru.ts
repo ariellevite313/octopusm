@@ -1588,5 +1588,16 @@ const p: Record<string, string> = {
   "Top traders": "Top traders",
   "Filter by network": "Фильтр по сети",
   "All networks": "Все сети",
+  "No EVM wallet detected": "EVM-кошелёк не найден",
+  "Switching network": "Смена сети",
+  "Approve in your wallet": "Подтвердите разрешение в кошельке",
+  "Confirm in your wallet": "Подтвердите в кошельке",
+  "Waiting for confirmation": "Ожидание подтверждения",
+  "Explorer": "Обозреватель",
+  "Connect an EVM wallet to trade on {chain}": "Подключите EVM-кошелёк для торговли в {chain}",
+  "Unexpected swap contract, try again later": "Неожиданный контракт свопа, попробуйте позже",
+  "Unsupported network": "Сеть не поддерживается",
+  "Invalid side": "Неверное направление",
+  "Connect an EVM wallet to swap": "Подключите EVM-кошелёк для свопа",
 };
 export default p;
