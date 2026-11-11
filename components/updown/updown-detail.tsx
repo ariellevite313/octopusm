@@ -789,7 +789,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
       let provider = adapters.getProviderByType(walletType);
       if (!provider && typeof window !== "undefined") {
         const w = window as any;
-        if (w.solana?.signAndSendTransaction || w.solana?.signTransaction) provider = w.solana;
+        if (w.solana?.signAndSendTransaction || w.solana?.signTransaction) provider = adapters.normalizeSolanaProvider(w.solana);
       }
       if (!provider) { toast.error(tr("Wallet not found")); return; }
 

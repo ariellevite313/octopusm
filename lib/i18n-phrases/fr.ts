@@ -1628,5 +1628,6 @@ const p: Record<string, string> = {
   "You can't tip your own post": "Tu ne peux pas envoyer de tip sur ton propre post",
   "Enter a whole amount between 1 and {n} OMERO": "Entre un montant entier entre 1 et {n} OMERO",
   "sent you OMERO on your post": "t'a envoyé des OMERO sur ton post",
+  "Open the {name} app, go to its Web3 browser and visit omdot.fun": "Ouvre l'app {name}, va dans son navigateur Web3 et visite omdot.fun",
 };
 export default p;

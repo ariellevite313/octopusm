@@ -158,7 +158,7 @@ export function ClaimFeesButton({
       return;
     }
 
-    if (wallet.publicKey?.toBase58() !== walletAddress) {
+    if (wallet.publicKey?.toString() !== walletAddress) {
       toast.error(t.wrongWalletCreator(walletAddress.slice(-6)));
       setPhase("idle");
       return;

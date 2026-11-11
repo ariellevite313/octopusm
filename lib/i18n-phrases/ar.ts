@@ -1425,5 +1425,6 @@ const p: Record<string, string> = {
   "You can't tip your own post": "لا يمكنك إرسال إكرامية لمنشورك",
   "Enter a whole amount between 1 and {n} OMERO": "أدخل مبلغًا صحيحًا بين 1 و{n} OMERO",
   "sent you OMERO on your post": "أرسل لك OMERO على منشورك",
+  "Open the {name} app, go to its Web3 browser and visit omdot.fun": "افتح تطبيق {name}، وانتقل إلى متصفح Web3 فيه وزر omdot.fun",
 };
 export default p;

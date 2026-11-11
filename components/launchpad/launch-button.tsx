@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { Loader2, Rocket, CheckCircle2, Clock, Wallet } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
+import { useAuth } from "@/providers/auth-provider";
+import { getProviderByType, normalizeSolanaProvider, type SolanaProvider, type WalletType } from "@/lib/wallet/adapters";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,11 +45,15 @@ type Phase =
 type StatusResponse = { status: string; mintAddress: string | null; isScheduled: boolean };
 
 type SolanaWallet = {
-  publicKey: PublicKey;
+  publicKey: { toString(): string };
   signTransaction: (tx: Transaction) => Promise<Transaction>;
   signAndSendTransaction?: (tx: Transaction, opts?: object) => Promise<{ signature: string }>;
-  connect: () => Promise<{ publicKey: PublicKey }>;
+  connect: () => Promise<{ publicKey?: { toString(): string } }>;
 };
+
+// Même détection que la connexion au site (wallets injectés + Wallet Standard), au format de Phantom.
+const byType = (t: WalletType) => getProviderByType(t) as unknown as SolanaWallet | null;
+const norm = (p: unknown) => (p ? normalizeSolanaProvider(p as SolanaProvider) as unknown as SolanaWallet : null);
 
 // ── Multi-wallet support ───────────────────────────────────────────────────────
 
@@ -71,7 +77,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
     icon: "",
     iconUrl: "https://solflare.com/favicon.ico",
     recommended: true,
-    get: () => w()?.solflare?.isSolflare ? w()?.solflare : null,
+    get: () => byType("solflare"),
     installUrl: "https://solflare.com",
   },
   {
@@ -79,7 +85,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
     name: "Phantom",
     icon: "",
     iconUrl: "https://phantom.app/favicon.ico",
-    get: () => w()?.phantom?.solana ?? (w()?.solana?.isPhantom ? w()?.solana : null),
+    get: () => byType("phantom"),
     installUrl: "https://phantom.app",
   },
   {
@@ -87,7 +93,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
     name: "Backpack",
     icon: "",
     iconUrl: "https://backpack.app/favicon.ico",
-    get: () => w()?.backpack?.solana ?? w()?.xnft?.solana ?? null,
+    get: () => byType("backpack"),
     installUrl: "https://backpack.app",
   },
   {
@@ -95,7 +101,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
     name: "OKX Wallet",
     icon: "",
     iconUrl: "https://www.okx.com/favicon.ico",
-    get: () => w()?.okxwallet?.solana ?? null,
+    get: () => norm(w()?.okxwallet?.solana),
     installUrl: "https://www.okx.com/web3",
   },
   {
@@ -103,7 +109,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
     name: "Coinbase Wallet",
     icon: "",
     iconUrl: "https://www.coinbase.com/favicon.ico",
-    get: () => w()?.coinbaseSolana ?? null,
+    get: () => norm(w()?.coinbaseSolana),
     installUrl: "https://www.coinbase.com/wallet",
   },
   {
@@ -111,8 +117,16 @@ const WALLET_CONFIGS: WalletConfig[] = [
     name: "Trust Wallet",
     icon: "",
     iconUrl: "https://trustwallet.com/favicon.ico",
-    get: () => w()?.trustwallet?.solana ?? (w()?.solana?.isTrust ? w()?.solana : null),
+    get: () => byType("trustwallet"),
     installUrl: "https://trustwallet.com",
+  },
+  {
+    id: "robinhood",
+    name: "Robinhood",
+    icon: "",
+    iconUrl: "/robinhood-logo.png",
+    get: () => byType("robinhood"),
+    installUrl: "https://robinhood.com/us/en/support/articles/connect-to-dapps",
   },
 ];
 
@@ -221,6 +235,7 @@ type Props = { tokenId: string; walletAddress: string; isScheduled: boolean; aut
 export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = false }: Props) {
   const router = useRouter();
   const { t, tr } = useT();
+  const { walletType } = useAuth();
   const [phase, setPhase]     = useState<Phase>("ready");
   const [mintAddress, setMintAddress] = useState<string | null>(null);
   const [error, setError]     = useState<string | null>(null);
@@ -513,7 +528,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
     const wallet = cfg.get();
     if (!wallet) { toast.error(t.walletNotFoundInstall(cfg.name)); return; }
     try { await wallet.connect(); } catch { toast.error(t.unlockWallet); return; }
-    if (wallet.publicKey?.toBase58() !== walletAddress) {
+    if (wallet.publicKey?.toString() !== walletAddress) {
       toast.error(t.wrongWalletEnding(walletAddress.slice(-6)));
       return;
     }
@@ -524,6 +539,10 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
 
   const handleLaunch = useCallback(async () => {
     setError(null);
+    // Le wallet avec lequel l'utilisateur est connecté au site passe en premier, sans demander.
+    const connectedId = walletType === "trustwallet" ? "trust" : walletType;
+    const connected = WALLET_CONFIGS.find((c) => c.id === connectedId && c.get() !== null);
+    if (connected) { await handleWalletSelected(connected); return; }
     const installed = getInstalledWallets();
     if (installed.length === 0) {
       toast.error(t.noSolanaWallet);
@@ -534,7 +553,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
       return;
     }
     setPhase("pick-wallet");
-  }, [handleWalletSelected]);
+  }, [handleWalletSelected, walletType]);
 
   // Lancement direct après la création (depuis l'assistant) — une seule fois
   const autoStartedRef = useRef(false);

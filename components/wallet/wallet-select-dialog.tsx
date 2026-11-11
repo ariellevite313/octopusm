@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useT, Rich } from "@/lib/i18n";
 import { startDeeplinkConnect } from "@/lib/wallet/phantom-deeplink";
 import { type WalletInfo, type WalletType, WALLET_COLORS } from "@/lib/wallet/adapters";
@@ -48,6 +49,11 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
         `${origin}/mobile-connect?wallet=${wallet.type}` +
         (ref ? `&ref=${encodeURIComponent(ref)}` : "") +
         (/OMdotApp/.test(navigator.userAgent) ? "&app=1" : "");
+      if (!wallet.mobileDeepLink) {
+        // Pas de lien officiel (Robinhood Wallet) : on explique comment ouvrir le site dans l'app.
+        toast.message(tr("Open the {name} app, go to its Web3 browser and visit omdot.fun", { name: wallet.name }), { duration: 8000 });
+        return;
+      }
       window.location.href = wallet.mobileDeepLink(connectUrl);
       return;
     }
