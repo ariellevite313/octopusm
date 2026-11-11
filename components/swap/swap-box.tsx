@@ -142,7 +142,7 @@ export function SwapBox({ mint, onSwapped }: { mint: string; onSwapped?: (sig: s
         <div className="flex flex-1 rounded-2xl bg-muted p-1">
           {(["buy", "sell"] as const).map((s) => (
             <button key={s} onClick={() => { setSide(s); setAmount(""); }}
-              className={`flex-1 rounded-xl py-2 text-[15px] font-bold transition-colors ${side === s ? (s === "buy" ? "bg-up text-background" : "bg-down text-background") : "text-muted-foreground hover:text-foreground"}`}>
+              className={`flex-1 rounded-xl py-2 text-[15px] font-bold transition-colors ${side === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>
               {s === "buy" ? tr("Buy") : tr("Sell")}
             </button>
           ))}
