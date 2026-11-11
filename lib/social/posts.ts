@@ -34,6 +34,8 @@ export type FeedPost = {
   tipped_by_me: boolean;
   /** Photos des 3 plus gros tippeurs */
   tipper_avatars: string[];
+  /** Présent quand le post est un article long (le texte complet est sur /article/:id) */
+  article: { title: string; cover_url: string | null; read_minutes: number } | null;
   mine: boolean;
   following_author: boolean;
   /** @username (minuscules) → wallet */
@@ -134,7 +136,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
     if (arr.length < 3) arr.push(l.wallet);
     byPost.set(l.post_id, arr);
   }
-  const tips = await loadTipStats(admin, ids, viewer);
+  const [tips, articles] = await Promise.all([loadTipStats(admin, ids, viewer), loadArticles(admin, ids)]);
   const [likerProfiles, markets] = await Promise.all([
     getProfiles(admin, [...byPost.values()].flat()),
     loadMarkets(admin, rows),
@@ -168,12 +170,28 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
       tip_total: tips.total.get(r.id) ?? 0,
       tipped_by_me: tips.mine.has(r.id),
       tipper_avatars: (tips.top.get(r.id) ?? []).map((w) => tipperProfiles.get(w)?.avatar_src ?? "/omdot-icon.png"),
+      article: articles.get(r.id) ?? null,
       mine: !!viewer && r.author === viewer,
       following_author: followed.has(r.author),
       mentions: r.mentions ?? {},
       market: r.market_id ? markets.get(r.market_id) ?? null : null,
     };
   });
+}
+
+/** Titre, couverture et durée des articles parmi ces posts. Jamais bloquant (colonnes absentes avant la migration). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadArticles(admin: any, ids: string[]) {
+  const map = new Map<string, NonNullable<FeedPost["article"]>>();
+  if (ids.length === 0) return map;
+  try {
+    const { data, error } = await admin.from("posts").select("id, title, cover_url, read_minutes").in("id", ids).eq("kind", "article");
+    if (error) return map;
+    for (const r of (data ?? []) as { id: string; title: string; cover_url: string | null; read_minutes: number | null }[]) {
+      map.set(r.id, { title: r.title, cover_url: r.cover_url, read_minutes: r.read_minutes ?? 1 });
+    }
+  } catch { /* fil sans articles */ }
+  return map;
 }
 
 /** Totaux de tips, 3 plus gros tippeurs, et posts déjà tippés par le viewer. Jamais bloquant pour le fil. */

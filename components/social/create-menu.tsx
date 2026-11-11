@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, PenLine, Rocket, X } from "lucide-react";
+import { BarChart3, FileText, PenLine, Rocket, X } from "lucide-react";
 import { PawIcon } from "@/components/shared/paw-icon";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -33,16 +33,18 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
     return () => window.removeEventListener("keydown", h);
   }, [open]);
 
-  function go(kind: "post" | "pool" | "token") {
+  function go(kind: "post" | "article" | "pool" | "token") {
     setOpen(false);
     if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
     if (kind === "post") setCompose(true);
+    else if (kind === "article") router.push("/article/new");
     else if (kind === "pool") setPool(true);
     else router.push("/launchpad/create");
   }
 
   const items = [
     { k: "post" as const, icon: PenLine, title: tr("Post"), sub: tr("Text, images or GIF") },
+    { k: "article" as const, icon: FileText, title: tr("Article"), sub: tr("A long read with a cover and images") },
     { k: "pool" as const, icon: BarChart3, title: tr("Launch a pool"), sub: tr("Create a prediction pool") },
     { k: "token" as const, icon: Rocket, title: tr("Launch a token"), sub: tr("Solana or Arc") },
   ];
