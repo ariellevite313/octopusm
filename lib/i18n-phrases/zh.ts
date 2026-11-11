@@ -1586,5 +1586,7 @@ const p: Record<string, string> = {
   "Trading on {chain} is coming soon": "{chain} 上的交易即将推出",
   "earned on OM": "在 OM 赚取",
   "Top traders": "Top traders",
+  "Filter by network": "按网络筛选",
+  "All networks": "所有网络",
 };
 export default p;

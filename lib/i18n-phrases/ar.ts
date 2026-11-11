@@ -1586,5 +1586,7 @@ const p: Record<string, string> = {
   "Trading on {chain} is coming soon": "التداول على {chain} قريبًا",
   "earned on OM": "أرباح على OM",
   "Top traders": "Top traders",
+  "Filter by network": "التصفية حسب الشبكة",
+  "All networks": "كل الشبكات",
 };
 export default p;

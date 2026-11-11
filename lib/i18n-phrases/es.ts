@@ -1586,5 +1586,7 @@ const p: Record<string, string> = {
   "Trading on {chain} is coming soon": "El trading en {chain} llega pronto",
   "earned on OM": "ganados en OM",
   "Top traders": "Top traders",
+  "Filter by network": "Filtrar por red",
+  "All networks": "Todas las redes",
 };
 export default p;
