@@ -205,8 +205,10 @@ export function CreatorLeaderboard() {
         {tr("Launchpad")}
       </Link>
 
+      {/* Ordinateur : titre, Créateurs / Chill ton sac et périodes sur la même ligne */}
+      <div className="lg:mb-6 lg:flex lg:flex-wrap lg:items-center lg:gap-x-8 lg:gap-y-3">
       {/* Title */}
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-6 flex items-center justify-between gap-3 lg:mb-0">
         <div className="flex min-w-0 items-center gap-3">
           <Trophy className="size-6 shrink-0 text-primary" />
           <h1 className="whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight tracking-tight text-foreground">{tr("Creator Leaderboard")}</h1>
@@ -216,17 +218,17 @@ export function CreatorLeaderboard() {
         </span>
       </div>
 
-      <PlatformStatsInline />
+      <div className="lg:hidden"><PlatformStatsInline /></div>
 
       {/* Créateurs | Chill ton sac */}
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex gap-2 lg:mb-0">
         {([["creators", tr("Creators")], ["chill", tr("Chill your bag")]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setBoard(k)} className={`rounded-2xl px-4 py-2 text-[14px] font-bold ${board === k ? "bg-foreground text-background" : "bg-muted text-foreground"}`}>{label}</button>
         ))}
       </div>
 
       {/* Period tabs */}
-      <div className="mb-6 flex w-fit items-center gap-0.5 rounded-full border border-border p-1">
+      <div className="mb-6 flex w-fit items-center gap-0.5 rounded-full border border-border p-1 lg:mb-0">
         <Trophy className="mx-2 size-4 text-muted-foreground" />
         {PERIODS.map((p) => (
           <button
@@ -241,6 +243,7 @@ export function CreatorLeaderboard() {
             {tr(p.label)}
           </button>
         ))}
+      </div>
       </div>
 
       {board === "chill" ? <ChillBoard period={period} /> : loading ? (
@@ -370,6 +373,8 @@ export function CreatorLeaderboard() {
         </div>
         </>
       )}
+
+      <div className="mt-10 hidden lg:block"><PlatformStatsInline /></div>
     </main>
   );
 }
