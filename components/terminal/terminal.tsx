@@ -90,20 +90,15 @@ export function Terminal() {
   const chain: TerminalChain = CHAINS.some((c) => c.id === cParam && c.ready) ? (cParam as TerminalChain) : "solana";
   const favs = useFavs();
   const [list, setList] = useState<TerminalToken[] | null>(null);
-  // Ordinateur : sans token choisi, on montre un token Solana pris au hasard parmi les premiers de la liste
-  const [dflt, setDflt] = useState<TerminalToken | null>(null);
-  useEffect(() => {
-    if (mint || dflt || !list?.length) return;
-    const pool = list.filter((t) => (t.chain ?? "solana") === "solana" && !t.href && t.pool).slice(0, 10);
-    if (pool.length) setDflt(pool[Math.floor(Math.random() * pool.length)]);
-  }, [mint, list, dflt]);
+  // Ordinateur : sans token choisi, on montre Solana (SOL)
+  const dflt = { mint: SOL_MINT };
   return (
     <div className="mx-auto max-w-[1400px] pb-28 md:pb-10 lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6 lg:px-4 lg:pt-4">
       <div className={`${mint ? "hidden lg:block" : ""} lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
         <Home key={sp.get("chains") ?? "all"} selected={(sp.get("chains") ?? "").split(",").filter((c) => CHAINS.some((x) => x.id === c && x.ready)) as TerminalChain[]} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
       </div>
       {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? null} favs={favs} />
-        : dflt ? <div className="hidden lg:block"><TokenView key={dflt.mint} mint={dflt.mint} chain="solana" fromList={dflt} favs={favs} /></div>
+        : dflt ? <div className="hidden lg:block"><TokenView key={dflt.mint} mint={dflt.mint} chain="solana" fromList={null} favs={favs} /></div>
         : <div className="hidden items-center justify-center text-muted-foreground lg:flex"><EmptyPick /></div>}
     </div>
   );
@@ -435,7 +430,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             ))}
           </div>
           <div className="px-4 pt-3">
-            {tab === "holders" && (isSol ? <Holders mint={mint} price={live} /> : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>)}
+            {tab === "holders" && (isSol && mint !== SOL_MINT ? <Holders mint={mint} price={live} /> : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
             {tab === "about" && <About t={t} info={info} />}
           </div>
@@ -526,8 +521,14 @@ function Holders({ mint, price: p }: { mint: string; price: number | null }) {
   const { tr } = useT();
   const [rows, setRows] = useState<Holder[] | null>(null);
   const [err, setErr] = useState(false);
+  const [bundle, setBundle] = useState<{ wallets: string[]; pct: number } | null>(null);
   useEffect(() => {
-    fetch(`/api/launchpad/holders/${mint}?light=1`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows((d.holders ?? []).filter((h: Holder) => !h.isProgram))).catch(() => setErr(true));
+    let off = false;
+    fetch(`/api/launchpad/bundle/${mint}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && d?.available && d.wallets?.length) setBundle({ wallets: d.wallets, pct: d.pct }); }).catch(() => {});
+    return () => { off = true; };
+  }, [mint]);
+  useEffect(() => {
+    fetch(`/api/launchpad/holders/${mint}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows((d.holders ?? []).filter((h: Holder) => !h.isProgram))).catch(() => setErr(true));
   }, [mint]);
   if (err) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>;
   if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
@@ -535,6 +536,7 @@ function Holders({ mint, price: p }: { mint: string; price: number | null }) {
   return (
     <div>
       <p className="mb-1 text-xs text-muted-foreground">{tr("Biggest holders, excluding pools and programs")}</p>
+      {bundle && <p className="mb-1 text-xs font-semibold text-down">{tr("Bundle {pct}%", { pct: bundle.pct.toFixed(1) })} · {bundle.wallets.length}</p>}
       {rows.map((h) => (
         <Link key={h.owner} href={`/profile/${h.owner}`} className="flex items-center gap-3 py-2.5">
           {h.avatar
@@ -542,7 +544,7 @@ function Holders({ mint, price: p }: { mint: string; price: number | null }) {
             ? <img src={h.avatar} alt="" className="size-10 rounded-full object-cover" />
             : <span className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">{h.rank}</span>}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-bold text-foreground">{h.name ?? short(h.owner)}</p>
+            <p className="truncate text-[16px] font-bold text-foreground">{h.name ?? short(h.owner)}{bundle?.wallets.includes(h.owner) && <span className="ml-2 rounded-md bg-down/15 px-1.5 py-0.5 text-[11px] font-semibold text-down">{tr("Bundle")}</span>}</p>
             <p className="num text-[13px] text-muted-foreground">{h.pct.toFixed(2)}% {tr("of supply")}</p>
           </div>
           <p className="num shrink-0 text-[16px] font-bold text-foreground">{p != null ? compact(h.amount * p, 2) : "-"}</p>
