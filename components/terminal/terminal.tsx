@@ -57,7 +57,7 @@ function Logo({ src, sym, size = "size-12" }: { src: string | null; sym: string;
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-full bg-muted text-base font-bold text-foreground`}>{sym.slice(0, 1)}</span>;
 }
 function Tick({ className = "size-[18px]" }: { className?: string }) {
-  return <BadgeCheck className={`${className} absolute -right-1 -top-1 rounded-full bg-background fill-[#4f6bff] text-white`} aria-label="Verified" />;
+  return <BadgeCheck className={`${className} shrink-0 fill-[#4f6bff] text-white`} aria-label="Verified" />;
 }
 function Change({ v, className = "" }: { v: number | null; className?: string }) {
   if (v == null) return null;
@@ -203,12 +203,11 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
               <span className="relative shrink-0">
                 <Logo src={t.logo} sym={t.symbol} />
-                {t.verified && <Tick />}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {selected.length !== 1 && <img src={`/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full ring-2 ring-background" />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[17px] font-bold text-foreground">{t.symbol}</p>
+                <p className="flex items-center gap-1.5 text-[17px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{t.verified && <Tick />}</p>
                 <p className="num truncate text-[14px] text-muted-foreground">{compact(t.mcap)} {tr("cap.")}</p>
               </div>
               <div className="shrink-0 text-right">
@@ -372,9 +371,9 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       {/* En-tête */}
       <div className="sticky top-16 z-20 flex items-center gap-2 bg-background/95 px-3 py-2 backdrop-blur lg:top-0">
         <button onClick={() => router.push("/terminal")} aria-label={tr("Back")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground lg:hidden"><ChevronLeft className="size-6" /></button>
-        <span className="relative shrink-0"><Logo src={t.logo} sym={t.symbol} size="size-11" />{(t.verified || info?.verified) && <Tick className="size-5" />}</span>
+        <Logo src={t.logo} sym={t.symbol} size="size-11" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[18px] font-bold text-foreground">{t.symbol}</p>
+          <p className="flex items-center gap-1.5 text-[18px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{(t.verified || info?.verified) && <Tick className="size-5" />}</p>
           <button onClick={() => navigator.clipboard.writeText(mint).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
             className="flex max-w-full items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground">
             <span className="truncate">{t.name}</span>{copied ? <Check className="size-3 shrink-0" /> : <Copy className="size-3 shrink-0" />}
