@@ -554,7 +554,7 @@ function About({ t, info }: { t: TerminalToken; info: SwapToken | null }) {
   const items = useMemo(() => [
     [tr("Market cap"), compact(t.mcap, 2)], [tr("Volume 24h"), compact(t.volume24h, 2)], [tr("Liquidity"), compact(t.liquidity, 2)],
     [tr("Change 24h"), t.change24h != null ? `${t.change24h >= 0 ? "+" : "-"}${pct(t.change24h)}` : "-"],
-    [tr("OM fee"), info ? (info.fee_bps > 0 ? `${info.fee_bps / 100}%` : tr("0% (OM token)")) : "-"],
+    [tr("OM fee"), info ? (info.fee_bps > 0 ? `${info.fee_bps / 100}%` : tr("0% (OM token)")) : t.chain && t.chain !== "solana" && t.chain !== "arc" ? "0.3%" : "-"],
     [tr("Pool created"), t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "-"],
   ], [t, info, tr]);
   return (
