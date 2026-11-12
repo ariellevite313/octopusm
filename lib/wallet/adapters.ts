@@ -73,7 +73,7 @@ type WindowWithWallets = Window & {
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
-const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
+export const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
   {
     type: "phantom",
     name: "Phantom",

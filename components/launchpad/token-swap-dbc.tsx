@@ -11,6 +11,7 @@ import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
+import { currentPath, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT, Rich } from "@/lib/i18n";
@@ -252,7 +253,6 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   const handleSwap = async () => {
     if (!quoteReady || !walletAddress || !walletType) return;
     const provider = getProviderByType(walletType);
-    if (!provider) { setError(tr("Wallet unavailable")); return; }
 
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) return;
@@ -315,6 +315,21 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
       const { txBase64 } = await swapRes.json() as { txBase64: string };
       const rawBytes = Buffer.from(txBase64, "base64");
       let signature: string;
+
+      // Pas de wallet injecté (mobile) : signature par lien profond ou ouverture dans le wallet.
+      // Au retour, /phantom-callback enregistre la transaction (mêmes appels que ci-dessous).
+      if (!provider) {
+        const SOL = "So11111111111111111111111111111111111111112";
+        await signWithoutProvider(walletType, walletAddress, rawBytes, {
+          returnTo: currentPath(),
+          records: [
+            ...(refPost ? [{ url: "/api/swap/record", sigField: "signature", body: { inputMint: isBuy ? SOL : mintAddress, outputMint: isBuy ? mintAddress : SOL, ref: refPost } }] : []),
+            { url: "/api/launchpad/dbc-swap/confirm", sigField: "txSignature", body: { poolAddress } },
+            ...(isBuy ? [{ url: "/api/launchpad/dbc-swap/reward", sigField: "txSignature", body: { walletAddress, poolAddress } }] : []),
+          ],
+        });
+        return;
+      }
 
       try {
         const vtx = VersionedTransaction.deserialize(rawBytes);

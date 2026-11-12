@@ -61,7 +61,7 @@ function TokenLogo({ b, size = "size-12" }: { b: Pick<Bag, "logo" | "symbol">; s
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground`}>{b.symbol.slice(0, 1)}</span>;
 }
 
-export function BagsPanel() {
+export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
   const { tr } = useT();
   const router = useRouter();
   const { walletAddress } = useAuth();
@@ -126,6 +126,8 @@ export function BagsPanel() {
         <Action label={tr("Buy")} onClick={() => router.push("/terminal")} disabled={!isSol}><ShoppingCart className="size-6" /></Action>
         <Action label={tr("Sell")} onClick={() => setSheet("sell")} disabled={!isSol || sellable.length === 0}><Minus className="size-6" /></Action>
       </div>
+
+      {tabs && <div className="mt-6">{tabs}</div>}
 
       {/* Actifs */}
       <h2 className="mt-8 flex items-center gap-1 text-[28px] font-bold tracking-tight text-foreground">{tr("Assets")}<ChevronRight className="size-6" strokeWidth={2.5} /></h2>
