@@ -1,15 +1,19 @@
 /**
- * Swaps EVM du Terminal (Base, BNB Chain, HyperEVM) via l'API 0x (AllowanceHolder).
+ * Swaps EVM du Terminal (Base, BNB Chain, HyperEVM, Ethereum, Arbitrum, Polygon, Avalanche) via l'API 0x (AllowanceHolder).
  * Frais OM 0,3 % pris par 0x dans la même transaction, en jeton natif, vers le portefeuille EVM de la plateforme.
- * Paires : jeton natif (ETH / BNB / HYPE) contre le token. Le portefeuille de l'utilisateur signe toujours.
+ * Paires : jeton natif (ETH / BNB / HYPE / POL / AVAX) contre le token. Le portefeuille de l'utilisateur signe toujours.
  */
-export type EvmChain = "base" | "bnb" | "hyperliquid";
+export type EvmChain = "base" | "bnb" | "hyperliquid" | "ethereum" | "arbitrum" | "polygon" | "avalanche";
 export const NATIVE = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 export const EVM_CHAINS: Record<EvmChain, { id: number; name: string; native: string; rpc: string; explorer: string; logo: string }> = {
   base: { id: 8453, name: "Base", native: "ETH", rpc: "https://mainnet.base.org", explorer: "https://basescan.org", logo: "/ethereum.png" },
   bnb: { id: 56, name: "BNB Chain", native: "BNB", rpc: "https://bsc-dataseed.binance.org", explorer: "https://bscscan.com", logo: "/chains/bnb.png" },
   hyperliquid: { id: 999, name: "HyperEVM", native: "HYPE", rpc: "https://rpc.hyperliquid.xyz/evm", explorer: "https://hyperevmscan.io", logo: "/chains/hyperliquid.png" },
+  ethereum: { id: 1, name: "Ethereum", native: "ETH", rpc: "https://ethereum-rpc.publicnode.com", explorer: "https://etherscan.io", logo: "/chains/ethereum.png" },
+  arbitrum: { id: 42161, name: "Arbitrum", native: "ETH", rpc: "https://arb1.arbitrum.io/rpc", explorer: "https://arbiscan.io", logo: "/chains/arbitrum.png" },
+  polygon: { id: 137, name: "Polygon", native: "POL", rpc: "https://polygon-bor-rpc.publicnode.com", explorer: "https://polygonscan.com", logo: "/chains/polygon.png" },
+  avalanche: { id: 43114, name: "Avalanche", native: "AVAX", rpc: "https://api.avax.network/ext/bc/C/rpc", explorer: "https://snowtrace.io", logo: "/chains/avalanche.png" },
 };
 export const isEvmChain = (c: unknown): c is EvmChain => typeof c === "string" && c in EVM_CHAINS;
 
@@ -52,7 +56,7 @@ export function zeroXParams(v: EvmSwapInput): URLSearchParams {
 }
 
 /** Contrats AllowanceHolder de 0x : seules adresses autorisées comme destinataire et comme « spender ». */
-export const ALLOWANCE_HOLDERS = new Set(["0x0000000000001ff3684f28c67538d4d072c22734", "0x0000005e88410ccdfade4a5efae4b49562"]);
+export const ALLOWANCE_HOLDERS = new Set(["0x0000000000001ff3684f28c67538d4d072c22734", "0x0000000000005e88410ccdfade4a5efae4b49562"]);
 
 export class EvmSwapError extends Error {
   constructor(msg: string, public status = 400) { super(msg); }

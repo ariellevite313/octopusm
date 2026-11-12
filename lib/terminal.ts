@@ -12,15 +12,19 @@ export type TerminalToken = {
   chain?: TerminalChain; href?: string | null;
 };
 
-export type TerminalChain = "solana" | "arc" | "base" | "bnb" | "hyperliquid" | "elysium" | "robinhood";
+export type TerminalChain = "solana" | "arc" | "base" | "bnb" | "hyperliquid" | "ethereum" | "arbitrum" | "polygon" | "avalanche" | "elysium" | "robinhood";
 /** Réseau GeckoTerminal de chaque chaîne (null : pas encore disponible) */
-export const GT_NET: Record<TerminalChain, string | null> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", arc: null, elysium: null, robinhood: null };
+export const GT_NET: Record<TerminalChain, string | null> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", ethereum: "eth", arbitrum: "arbitrum", polygon: "polygon_pos", avalanche: "avax", arc: null, elysium: null, robinhood: null };
 export const CHAINS: { id: TerminalChain; name: string; logo: string; ready: boolean }[] = [
   { id: "solana", name: "Solana", logo: "/chains/solana.png", ready: true },
   { id: "arc", name: "Arc", logo: "/chains/arc.png", ready: true },
   { id: "base", name: "Base", logo: "/chains/base.png", ready: true },
   { id: "bnb", name: "BNB", logo: "/chains/bnb.png", ready: true },
   { id: "hyperliquid", name: "Hyperliquid", logo: "/chains/hyperliquid.png", ready: true },
+  { id: "ethereum", name: "Ethereum", logo: "/chains/ethereum.png", ready: true },
+  { id: "arbitrum", name: "Arbitrum", logo: "/chains/arbitrum.png", ready: true },
+  { id: "polygon", name: "Polygon", logo: "/chains/polygon.png", ready: true },
+  { id: "avalanche", name: "Avalanche", logo: "/chains/avalanche.png", ready: true },
   { id: "elysium", name: "Elysium", logo: "/chains/elysium.png", ready: false },
   { id: "robinhood", name: "Robinhood", logo: "/chains/robinhood.png", ready: false },
 ];

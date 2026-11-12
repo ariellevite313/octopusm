@@ -16,7 +16,7 @@ type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unk
 type Info = { token: { address: string; decimals: number; symbol: string }; balances: { native: string; token: string } | null };
 type Quote = { buyAmount: string; minBuyAmount: string; feeBps: number; feeNative: string | null; route: string[]; allowanceSpender: string | null; balanceShort: boolean; tx: { to: string; data: string; value: string; gas: string | null } | null };
 
-const GAS_RESERVE: Record<EvmChain, bigint> = { base: 300_000_000_000_000n, bnb: 2_000_000_000_000_000n, hyperliquid: 20_000_000_000_000_000n };
+const GAS_RESERVE: Record<EvmChain, bigint> = { base: 300_000_000_000_000n, bnb: 2_000_000_000_000_000n, hyperliquid: 20_000_000_000_000_000n, ethereum: 3_000_000_000_000_000n, arbitrum: 300_000_000_000_000n, polygon: 50_000_000_000_000_000n, avalanche: 20_000_000_000_000_000n };
 const fmt = (n: number) => !Number.isFinite(n) ? "0" : n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1000 ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 4 }) : n.toPrecision(4).replace(/\.?0+$/, "");
 
 async function ensureChain(eth: Eth, chain: EvmChain) {
