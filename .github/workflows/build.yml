@@ -1,0 +1,50 @@
+# Construit le site sur GitHub (le serveur de 4 Go n'a pas assez de RAM pour `next build`)
+# et publie le résultat dans la release « build-latest ». Le serveur le récupère avec scripts/deploy-prebuilt.sh.
+# Secret requis (Settings > Secrets and variables > Actions) : ENV_FILE = contenu complet du .env du serveur
+# (des pages sont pré-rendues avec la base au moment du build). Il n'est jamais publié : seul le dossier .next l'est,
+# et Next n'y intègre que les variables NEXT_PUBLIC_* (déjà publiques dans le navigateur).
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-main
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Variables d'environnement
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -z "$ENV_FILE" ]; then echo "Secret ENV_FILE manquant"; exit 1; fi
+          printf '%s\n' "$ENV_FILE" > .env.production.local
+          echo "$(grep -cE '^[A-Z0-9_]+=' .env.production.local) variables"
+      - run: npm run build
+      - name: Archive (sans le .env ni le cache)
+        run: |
+          rm -f .env.production.local
+          echo "${GITHUB_SHA}" > .next/OM_COMMIT
+          tar --exclude='.next/cache' -czf next-build.tgz .next
+          ls -lh next-build.tgz
+      - name: Publier dans la release build-latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view build-latest >/dev/null 2>&1 || gh release create build-latest --title "Latest build" --notes "Build automatique de main (utilisé par scripts/deploy-prebuilt.sh)" --prerelease
+          gh release upload build-latest next-build.tgz --clobber
+          gh release edit build-latest --notes "Build de ${GITHUB_SHA}"
