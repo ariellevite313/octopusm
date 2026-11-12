@@ -63,7 +63,7 @@ function MoreMenu({ onClose, wide }: { onClose: () => void; wide: boolean }) {
     return () => { document.removeEventListener("mousedown", down); window.removeEventListener("keydown", key); };
   }, [onClose]);
   return createPortal(
-    <div ref={ref} className={`fixed bottom-4 z-[100] ${wide ? "left-[84px] xl:left-[262px]" : "left-[84px]"}`} >
+    <div ref={ref} className={`fixed bottom-4 z-[100] max-h-[calc(100vh-2rem)] w-[300px] overflow-y-auto rounded-3xl border border-border bg-background p-2 shadow-2xl scrollbar-none ${wide ? "left-[84px] xl:left-[262px]" : "left-[84px]"}`}>
       <p className="px-3 pb-1 pt-2 text-[15px] font-bold tracking-tight text-foreground">{tr("More")}</p>
       <ul className="space-y-0.5">
         {EXTRA.map(({ href, label, description, icon: Icon, external }) => (
