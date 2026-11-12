@@ -14,12 +14,7 @@ const ROTATE_MS = 10000; // 10 s par annonce : la carte a le temps de bien tourn
 
 /** Cartes qui défilent en haut du fil : parrainage, token, marché, hackathon, tâches du jour. */
 export function FeedPromoCarousel() {
-  return (
-    <>
-      <div className="lg:hidden"><PromoCarouselCard /></div>
-      <div className="hidden lg:block"><PromoMarquee /></div>
-    </>
-  );
+  return <PromoCarouselCard />;
 }
 
 function useSlides(): Slide[] {
@@ -38,38 +33,6 @@ function useSlides(): Slide[] {
     { icon: Trophy, accent: "#facc15", live: tr("Starts Nov 24"), title: tr("OM Hackathon"), text: tr("Up to 100,000 USDC. Launch a token, rally voters, climb the board."), cta: tr("Join the hackathon"), href: "/hackathon" },
     { icon: ListChecks, accent: "#a78bfa", live: tr("New every day"), title: tr("Daily tasks"), text: tr("Post, share a market, invite someone. Every action earns OMERO."), cta: tr("See my tasks"), href: "/dashboard/tasks", needsWallet: true },
   ];
-}
-
-/** Ordinateur : petites cases qui défilent en continu (pause au survol). */
-function PromoMarquee() {
-  const slides = useSlides();
-  const { isAuthenticated } = useAuth();
-  const loop = [...slides, ...slides];
-  return (
-    <div className="group relative overflow-hidden border-b border-border py-3 [mask-image:linear-gradient(to_right,transparent,#000_4%,#000_96%,transparent)]">
-      <div className="flex w-max gap-3 px-3 [animation:promo-marquee_48s_linear_infinite] group-hover:[animation-play-state:paused]">
-        {loop.map((s, k) => {
-          const Icon = s.icon;
-          const body = (
-            <>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background"><Icon className="size-[18px]" /></span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-bold leading-tight text-foreground">{s.title}</span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">{s.cta}</span>
-              </span>
-            </>
-          );
-          const cls = "flex w-[250px] shrink-0 items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:bg-muted";
-          return !isAuthenticated && s.needsWallet ? (
-            <button key={k} onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className={`${cls} text-left`}>{body}</button>
-          ) : (
-            <Link key={k} href={s.href} className={cls}>{body}</Link>
-          );
-        })}
-      </div>
-      <style>{`@keyframes promo-marquee{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 6px))}}`}</style>
-    </div>
-  );
 }
 
 function PromoCarouselCard() {
