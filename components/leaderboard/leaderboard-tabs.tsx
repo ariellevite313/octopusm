@@ -8,6 +8,7 @@ import type { LeaderboardEntry } from "@/app/api/leaderboard/predictions/route";
 type LeaderboardToken  = "usdc" | "clt" | "octo";
 type LeaderboardPeriod = "24h" | "7d" | "31d" | "all";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { DesktopBoard, type BoardRow } from "@/components/leaderboard/desktop-board";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
@@ -96,19 +97,19 @@ export function LeaderboardTabs() {
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xl font-bold tracking-tight text-foreground">{tr("Best winners")}</h2>
       </div>
-      <div className="-mx-4 mb-6 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
+      <div className="-mx-4 mb-6 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:mx-0 lg:mb-8 lg:grid lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:px-0">
         {TOKENS.map((t) => (
           <button
             key={t.key}
             onClick={() => setToken(t.key)}
-            className={`flex w-[150px] shrink-0 flex-col items-center gap-2 rounded-[24px] border px-3 pb-4 pt-5 transition-all ${
+            className={`flex w-[150px] shrink-0 flex-col items-center gap-2 rounded-[24px] border px-3 pb-4 pt-5 transition-all lg:w-auto lg:flex-row lg:gap-4 lg:px-6 lg:py-[18px] ${
               token === t.key
                 ? "border-primary/60 bg-card"
                 : "border-border bg-card/60 hover:bg-card"
             }`}
           >
             <Image src={t.logo} alt={t.label} width={56} height={56} className="size-14 shrink-0 rounded-2xl object-cover" />
-            <span className="text-[15px] font-bold text-foreground">{t.label}</span>
+            <span className="text-[15px] font-bold text-foreground lg:flex-1 lg:text-left lg:text-[17px]">{t.label}</span>
             <span className={`rounded-full border px-3 py-1 text-xs font-bold ${
               token === t.key ? "border-foreground/40 text-foreground" : "border-border text-muted-foreground"
             }`}>
@@ -161,7 +162,24 @@ export function LeaderboardTabs() {
           {tr("No winners found for this period.")}
         </div>
       ) : (
-        <div className="flex flex-col">
+        <>
+        <DesktopBoard
+          rows={entries.map((entry): BoardRow => ({
+            key: entry.wallet_address,
+            href: `/profile/${entry.wallet_address}`,
+            rank: entry.rank,
+            name: entry.display_name ?? shortAddress(entry.wallet_address),
+            sub: shortAddress(entry.wallet_address),
+            avatar: entry.avatar_src ?? null,
+            badge: entry.octo_balance > 0 ? <OctoBadge totalOcto={entry.octo_balance} size={18} /> : undefined,
+            score: `${tokenCfg.prefix}${fmt(entry.total_gains)}`,
+            chip: token === "octo" ? tokenCfg.unit : (entry.win_count !== 1 ? tr("{count} wins", { count: entry.win_count }) : tr("{count} win", { count: entry.win_count })),
+          }))}
+          logo={tokenCfg.logo}
+          countLabel={token === "octo" ? "" : tr("Wins")}
+          scoreLabel={tokenCfg.label}
+        />
+        <div className="flex flex-col lg:hidden">
           {entries.map((entry) => {
             const name = entry.display_name ?? shortAddress(entry.wallet_address);
             return (
@@ -219,6 +237,7 @@ export function LeaderboardTabs() {
             );
           })}
         </div>
+        </>
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
