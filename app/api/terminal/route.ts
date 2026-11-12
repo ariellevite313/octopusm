@@ -3,8 +3,9 @@
  * (ou &chain=… pour un seul réseau). Tokens pour le Terminal OM.
  */
 import { NextResponse } from "next/server";
-import { arcList, CHAINS, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { arcList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
+import { cryptoFromCoinGecko } from "@/lib/terminal-crypto";
 import { isMajorEvm, isMajorSolana } from "@/lib/swap/majors";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -20,8 +21,13 @@ export async function GET(req: Request) {
   let chains = raw.filter((c): c is TerminalChain => READY.includes(c as TerminalChain));
   if (!chains.length) chains = READY;
   const kind = q.length >= 2 ? "search" : list;
+  // Crypto : classement CoinGecko (prix Binance), puis repli sur les pools GeckoTerminal si CoinGecko ne répond pas
+  let cgList: TerminalToken[] = [];
+  if (kind === "crypto") cgList = await cryptoFromCoinGecko(chains.filter((c) => c !== "arc"), isSkipped).catch(() => []);
   // Recherche sur plusieurs réseaux : un seul appel global (plus Arc depuis notre base)
-  const results = kind === "search" && chains.filter((c) => c !== "arc").length > 1
+  const results = cgList.length
+    ? [cgList, chains.includes("arc") ? await arcList(createAdminClient(), kind, q).catch(() => [] as TerminalToken[]) : []]
+    : kind === "search" && chains.filter((c) => c !== "arc").length > 1
     ? await Promise.all([
         searchAll(q, chains.filter((c) => c !== "arc")).catch(() => [] as TerminalToken[]),
         chains.includes("arc") ? arcList(createAdminClient(), kind, q).catch(() => [] as TerminalToken[]) : Promise.resolve([] as TerminalToken[]),
@@ -33,6 +39,6 @@ export async function GET(req: Request) {
   // Pastille : tokens vérifiés sur Jupiter (Solana), majeurs, ou lancés sur OM (Arc)
   const sol = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.href);
   const ver = await jupVerified(sol.map((t) => t.mint)).catch(() => new Set<string>());
-  for (const t of tokens) t.verified = t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : isMajorEvm(t.chain ?? "", t.mint);
+  for (const t of tokens) t.verified = t.verified || t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : isMajorEvm(t.chain ?? "", t.mint);
   return NextResponse.json({ tokens }, { status: tokens.length || chains.length === 0 ? 200 : 200, headers: { "Cache-Control": "public, max-age=30" } });
 }
