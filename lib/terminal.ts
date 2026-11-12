@@ -133,6 +133,27 @@ export async function terminalList(kind: ListKind, q = "", chain: TerminalChain 
   return v;
 }
 
+/** Recherche sur tous les réseaux en un seul appel GeckoTerminal (un appel par réseau dépassait leur limite). */
+export async function searchAll(q: string, chains: TerminalChain[]): Promise<TerminalToken[]> {
+  const key = `all:search:${chains.join(",")}:${q.toLowerCase()}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return hit.v;
+  const j = await gtJson(`${GT}/search/pools?include=base_token&query=${encodeURIComponent(q)}`) as { data?: (GtPool & { id?: string; relationships?: { network?: { data?: { id?: string } } } })[]; included?: GtToken[] };
+  const byNet = new Map<string, TerminalChain>();
+  for (const c of chains) { const n = GT_NET[c]; if (n) byNet.set(n, c); }
+  const groups = new Map<TerminalChain, GtPool[]>();
+  for (const p of j.data ?? []) {
+    const net = p.relationships?.network?.data?.id ?? (p.id ?? "").split("_")[0];
+    const chain = byNet.get(net);
+    if (!chain) continue;
+    groups.set(chain, [...(groups.get(chain) ?? []), p]);
+  }
+  const v = [...groups.entries()].flatMap(([chain, data]) => mapPools({ data, included: j.included }, chain))
+    .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0));
+  cache.set(key, { at: Date.now(), v });
+  return v;
+}
+
 /** Arc : les tokens lancés sur OM (pas encore suivis par GeckoTerminal). Chaque token ouvre sa page OM. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function arcList(db: any, kind: ListKind, q = ""): Promise<TerminalToken[]> {
