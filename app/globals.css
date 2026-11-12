@@ -448,7 +448,7 @@
 .hackathon-marquee:hover { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .hackathon-marquee { animation: none; } }
 
-/* Classement : lumière qui se déplace sur le podium, fond sombre seulement */
+/* Classement (ordinateur) : projecteurs, anneau du premier, particules et apparition du podium */
 @keyframes podium-glow-move {
   0%   { background-position: 0% 0%; }
   50%  { background-position: 100% 40%; }
@@ -459,6 +459,51 @@
   background-size: 260% 260%;
   animation: podium-glow-move 8s ease-in-out infinite alternate;
 }
+/* Faisceaux de projecteur, fond sombre seulement */
+@keyframes beam-sweep { from { transform: rotate(var(--a0)); } to { transform: rotate(var(--a1)); } }
+@keyframes beam-in { from { opacity: 0; } to { opacity: 1; } }
+.beam {
+  position: absolute; top: 0; left: var(--x); width: 260px; height: 100%; margin-left: -130px;
+  transform-origin: 50% 0;
+  filter: blur(16px);
+  animation: beam-in 1.4s ease-out both, beam-sweep var(--d) ease-in-out infinite alternate;
+}
+.beam::before {
+  content: ""; position: absolute; inset: 0;
+  clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%);
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.26), rgb(255 255 255 / 0) 80%);
+}
+/* Apparition des cartes : flou qui se dissout */
+@keyframes board-reveal {
+  from { opacity: 0; filter: blur(14px); transform: translateY(18px) scale(0.96); }
+  to   { opacity: 1; filter: blur(0); transform: none; }
+}
+.board-reveal { animation: board-reveal 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: var(--delay, 0s); }
+@keyframes row-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.row-in { animation: row-in 0.5s ease-out backwards; animation-delay: var(--delay, 0s); }
+/* Anneau qui pulse autour du premier */
+@keyframes winner-ring {
+  0%   { opacity: 0; transform: scale(0.85); }
+  25%  { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.45); }
+}
+.winner-ring {
+  position: absolute; inset: 0; border-radius: 40px; border: 2px solid #f5b301;
+  box-shadow: 0 0 24px 2px rgb(245 179 1 / 0.45);
+  animation: winner-ring 2.4s ease-out 0.9s 3 both; pointer-events: none;
+}
+/* Particules */
+@keyframes confetti {
+  0%   { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.4); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); }
+}
+.confetti {
+  position: absolute; left: 50%; top: 42%; width: 6px; height: 6px; border-radius: 2px; background: var(--c);
+  animation: confetti 2.2s ease-out var(--delay, 1s) 2 both; pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .podium-glow { animation: none; background-position: 50% 0%; }
+  .beam, .board-reveal, .row-in, .winner-ring, .confetti { animation: none; }
+  .winner-ring, .confetti { display: none; }
 }

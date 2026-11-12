@@ -74,11 +74,18 @@ function Chip({ logo, label }: { logo: string; label: string }) {
   );
 }
 
-function PodiumCard({ row, logo, center }: { row: BoardRow; logo: string; center?: boolean }) {
+const CONFETTI = [
+  ["-150px", "-70px", "200deg", "#f5b301"], ["130px", "-95px", "-160deg", "#ffffff"], ["-90px", "-130px", "120deg", "#c9c9d3"], ["70px", "-150px", "-220deg", "#f5b301"],
+  ["-190px", "20px", "260deg", "#e0712b"], ["175px", "10px", "-120deg", "#f5b301"], ["-40px", "-170px", "180deg", "#ffffff"], ["20px", "-120px", "-90deg", "#c9c9d3"],
+  ["-130px", "90px", "140deg", "#f5b301"], ["120px", "80px", "-200deg", "#ffffff"], ["-60px", "120px", "230deg", "#e0712b"], ["50px", "110px", "-140deg", "#f5b301"],
+];
+
+function PodiumCard({ row, logo, center, delay }: { row: BoardRow; logo: string; center?: boolean; delay: string }) {
   return (
     <Link
       href={row.href}
-      className={`relative flex flex-col items-center overflow-hidden rounded-[28px] border bg-card px-5 shadow-[var(--shadow-lg)] transition-transform hover:-translate-y-0.5 ${
+      style={{ "--delay": delay } as CSSProperties}
+      className={`board-reveal relative flex flex-col items-center overflow-hidden rounded-[28px] border bg-card px-5 shadow-[var(--shadow-lg)] hover:-translate-y-0.5 ${
         center ? "border-foreground/30 pb-9 pt-10" : "border-border pb-7 pt-7"
       }`}
     >
@@ -89,7 +96,13 @@ function PodiumCard({ row, logo, center }: { row: BoardRow; logo: string; center
         style={{ "--glow": LAUREL[row.rank - 1], animationDelay: `${-row.rank * 2.5}s` } as CSSProperties}
       />
       <Laurel rank={row.rank} />
-      <Avatar row={row} className={center ? "my-4 size-[116px] rounded-[32px]" : "my-4 size-[92px] rounded-[26px]"} text={center ? "text-[42px]" : "text-[34px]"} />
+      <span className={`relative my-4 block ${center ? "size-[116px]" : "size-[92px]"}`}>
+        {center && <span aria-hidden="true" className="winner-ring" />}
+        <Avatar row={row} className={center ? "size-[116px] rounded-[32px]" : "size-[92px] rounded-[26px]"} text={center ? "text-[42px]" : "text-[34px]"} />
+      </span>
+      {center && CONFETTI.map(([dx, dy, rot, c], i) => (
+        <span key={i} aria-hidden="true" className="confetti" style={{ "--dx": dx, "--dy": dy, "--rot": rot, "--c": c, "--delay": `${1 + (i % 4) * 0.35}s` } as CSSProperties} />
+      ))}
       <p className={`flex max-w-full items-center gap-1.5 font-bold tracking-tight text-foreground ${center ? "text-[23px]" : "text-xl"}`}>
         <span className="truncate">{row.name}</span>{row.badge}
       </p>
@@ -100,17 +113,25 @@ function PodiumCard({ row, logo, center }: { row: BoardRow; logo: string; center
   );
 }
 
-export function DesktopBoard({ rows, logo, countLabel, scoreLabel }: { rows: BoardRow[]; logo: string; countLabel: string; scoreLabel: string }) {
+export function DesktopBoard({ rows, logo, countLabel, scoreLabel, animKey }: { rows: BoardRow[]; logo: string; countLabel: string; scoreLabel: string; animKey: string }) {
   const { tr } = useT();
   const podium = rows.length >= 3;
   const rest = podium ? rows.slice(3) : rows;
   return (
-    <div className="hidden lg:block">
+    <div key={animKey} className="hidden lg:block">
       {podium && (
-        <div className="mb-9 grid grid-cols-[1fr_1.18fr_1fr] items-end gap-5">
-          <PodiumCard row={rows[1]} logo={logo} />
-          <PodiumCard row={rows[0]} logo={logo} center />
-          <PodiumCard row={rows[2]} logo={logo} />
+        <div className="relative mb-9">
+          <div className="relative grid grid-cols-[1fr_1.18fr_1fr] items-end gap-5">
+            <PodiumCard row={rows[1]} logo={logo} delay="0.15s" />
+            <PodiumCard row={rows[0]} logo={logo} center delay="0.45s" />
+            <PodiumCard row={rows[2]} logo={logo} delay="0.3s" />
+          </div>
+          {/* Projecteurs : fond sombre seulement */}
+          <div aria-hidden="true" className="pointer-events-none absolute -top-16 inset-x-0 hidden h-[520px] overflow-hidden mix-blend-screen dark:block" style={{ maskImage: "linear-gradient(to bottom, black 55%, transparent)" }}>
+            <span className="beam" style={{ "--x": "22%", "--a0": "-22deg", "--a1": "14deg", "--d": "9s" } as CSSProperties} />
+            <span className="beam" style={{ "--x": "50%", "--a0": "12deg", "--a1": "-12deg", "--d": "11s" } as CSSProperties} />
+            <span className="beam" style={{ "--x": "78%", "--a0": "-14deg", "--a1": "22deg", "--d": "10s" } as CSSProperties} />
+          </div>
         </div>
       )}
       {rest.length > 0 && (
@@ -121,8 +142,8 @@ export function DesktopBoard({ rows, logo, countLabel, scoreLabel }: { rows: Boa
             <span className="text-right">{countLabel}</span>
             <span className="text-right">{scoreLabel}</span>
           </div>
-          {rest.map((r) => (
-            <Link key={r.key} href={r.href} className="grid h-[84px] grid-cols-[96px_1fr_180px_190px] items-center border-t border-border px-9 transition-colors hover:bg-muted/40">
+          {rest.map((r, i) => (
+            <Link key={r.key} href={r.href} style={{ "--delay": `${0.6 + Math.min(i, 10) * 0.05}s` } as CSSProperties} className="row-in grid h-[84px] grid-cols-[96px_1fr_180px_190px] items-center border-t border-border px-9 transition-colors hover:bg-muted/40">
               <span className="num text-[17px] font-semibold text-muted-foreground">{r.rank}.</span>
               <span className="flex min-w-0 items-center gap-4">
                 <Avatar row={r} className="size-[52px] rounded-2xl" text="text-[19px]" />
