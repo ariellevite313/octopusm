@@ -111,10 +111,13 @@ const safeImg = (u: string | null | undefined) => (u && (/^https:\/\//i.test(u) 
 export async function solanaBags(wallet: string, omByMint: (mints: string[]) => Promise<OmToken[]>): Promise<Bag[]> {
   const conn = solanaConnection();
   const owner = new PublicKey(wallet);
+  let failed = 0;
   const [lamports, ...accLists] = await Promise.all([
     conn.getBalance(owner),
-    ...TOKEN_PROGRAMS.map((p) => conn.getParsedTokenAccountsByOwner(owner, { programId: new PublicKey(p) }).catch(() => ({ value: [] }))),
+    ...TOKEN_PROGRAMS.map((p) => conn.getParsedTokenAccountsByOwner(owner, { programId: new PublicKey(p) }).catch(() => { failed++; return { value: [] }; })),
   ]);
+  // Si le serveur Solana n'a répondu pour aucun programme, ce n'est pas « aucun token » : on signale l'erreur
+  if (failed === TOKEN_PROGRAMS.length) throw new Error("Solana RPC unavailable");
 
   const amounts = new Map<string, number>();
   for (const list of accLists) {
