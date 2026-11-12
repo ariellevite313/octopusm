@@ -86,12 +86,20 @@ export function Terminal() {
   const chain: TerminalChain = CHAINS.some((c) => c.id === cParam && c.ready) ? (cParam as TerminalChain) : "solana";
   const favs = useFavs();
   const [list, setList] = useState<TerminalToken[] | null>(null);
+  // Ordinateur : sans token choisi, on montre un token Solana pris au hasard parmi les premiers de la liste
+  const [dflt, setDflt] = useState<TerminalToken | null>(null);
+  useEffect(() => {
+    if (mint || dflt || !list?.length) return;
+    const pool = list.filter((t) => (t.chain ?? "solana") === "solana" && !t.href && t.pool).slice(0, 10);
+    if (pool.length) setDflt(pool[Math.floor(Math.random() * pool.length)]);
+  }, [mint, list, dflt]);
   return (
     <div className="mx-auto max-w-[1400px] pb-28 md:pb-10 lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6 lg:px-4 lg:pt-4">
       <div className={`${mint ? "hidden lg:block" : ""} lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
         <Home key={sp.get("chains") ?? "all"} selected={(sp.get("chains") ?? "").split(",").filter((c) => CHAINS.some((x) => x.id === c && x.ready)) as TerminalChain[]} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
       </div>
       {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? null} favs={favs} />
+        : dflt ? <div className="hidden lg:block"><TokenView key={dflt.mint} mint={dflt.mint} chain="solana" fromList={dflt} favs={favs} /></div>
         : <div className="hidden items-center justify-center text-muted-foreground lg:flex"><EmptyPick /></div>}
     </div>
   );
