@@ -62,7 +62,7 @@ export function FollowButton({ wallet }: { wallet: string }) {
         on ? "border border-border text-foreground hover:bg-muted" : "bg-foreground text-background hover:opacity-90"
       }`}
     >
-      {on ? tr("Following") : tr("Follow")}
+      {on ? tr("btn:Following") : tr("Follow")}
     </button>
   );
 }

@@ -2124,5 +2124,6 @@ const p: Record<string, string> = {
   "You need at least 1000 followers to apply": "Il faut au moins 1000 abonnés pour postuler",
   "Tell us in a few words how you will bring users": "Dis-nous en quelques mots comment tu vas amener des utilisateurs",
   "Could not send your application": "Impossible d'envoyer ta candidature",
+  "btn:Following": "Abonné",
 };
 export default p;

@@ -105,7 +105,7 @@ export function FeedRightRail() {
                   onClick={() => follow(u.wallet)}
                   className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${on ? "border border-border text-foreground hover:bg-muted" : "bg-foreground text-background hover:opacity-90"}`}
                 >
-                  {on ? tr("Following") : tr("Follow")}
+                  {on ? tr("btn:Following") : tr("Follow")}
                 </button>
               </div>
             );
@@ -155,7 +155,7 @@ export function WhoToFollowInline() {
               </span>
             </Link>
             <button onClick={() => follow(u.wallet)} className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold ${on ? "border border-border text-foreground" : "bg-foreground text-background"}`}>
-              {on ? tr("Following") : tr("Follow")}
+              {on ? tr("btn:Following") : tr("Follow")}
             </button>
           </div>
         );
