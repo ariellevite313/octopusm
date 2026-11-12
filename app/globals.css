@@ -447,3 +447,18 @@
 .hackathon-marquee { animation: hackathon-marquee 60s linear infinite; }
 .hackathon-marquee:hover { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .hackathon-marquee { animation: none; } }
+
+/* Classement : lumière qui se déplace sur le podium, fond sombre seulement */
+@keyframes podium-glow-move {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 40%; }
+  100% { background-position: 20% 100%; }
+}
+.podium-glow {
+  background-image: radial-gradient(circle at center, color-mix(in srgb, var(--glow) 42%, transparent) 0%, transparent 38%);
+  background-size: 260% 260%;
+  animation: podium-glow-move 8s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .podium-glow { animation: none; background-position: 50% 0%; }
+}

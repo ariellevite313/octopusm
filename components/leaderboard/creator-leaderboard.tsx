@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Trophy, ArrowLeft, Crown } from "lucide-react";
+import { DesktopBoard, type BoardRow } from "@/components/leaderboard/desktop-board";
 import { PlatformStatsInline } from "@/components/launchpad/platform-stats";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
 import { useT } from "@/lib/i18n";
@@ -172,7 +173,7 @@ export function CreatorLeaderboard() {
   const rest  = entries.slice(3);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 lg:max-w-6xl">
+    <main className="mx-auto max-w-2xl px-4 py-6 lg:max-w-[1180px] lg:py-10">
 
       {/* Back */}
       <Link
@@ -236,7 +237,23 @@ export function CreatorLeaderboard() {
           {tr("No claims for this period.")}
         </p>
       ) : (
-        <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-12">
+        <>
+        <DesktopBoard
+          rows={entries.map((e): BoardRow => ({
+            key: e.walletAddress,
+            href: `/profile/${e.walletAddress}`,
+            rank: e.rank,
+            name: displayLabel(e),
+            sub: short(e.walletAddress),
+            avatar: e.avatarSrc,
+            score: `+${fmtFee(e, lang)}`,
+            chip: e.tokenCount !== 1 ? tr("{count} tokens", { count: e.tokenCount }) : tr("{count} token", { count: e.tokenCount }),
+          }))}
+          logo="/usdc-coin.png"
+          countLabel={tr("Tokens")}
+          scoreLabel={tr("Fees earned")}
+        />
+        <div className="lg:hidden">
           {/* Podium */}
           {top3.length >= 3 && (
             <div className="relative mx-auto mb-8 max-w-[26rem] pb-2 pt-6 lg:sticky lg:top-6 lg:mb-0 lg:max-w-none">
@@ -301,6 +318,7 @@ export function CreatorLeaderboard() {
             })}
           </div>
         </div>
+        </>
       )}
     </main>
   );

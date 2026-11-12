@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function PredictionsLeaderboardPage() {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6">
+    <main className="mx-auto max-w-2xl px-4 py-6 lg:max-w-[1180px] lg:py-10">
 
       {/* Back */}
       <Link
