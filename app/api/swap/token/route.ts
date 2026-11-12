@@ -9,6 +9,7 @@ import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import { jupTokens } from "@/lib/bags";
 import { SOL_MINT, SWAP_FEE_BPS, USDC_MINT, isMint } from "@/lib/swap/core";
+import { MAJOR_FEE_BPS, isMajorSolana } from "@/lib/swap/majors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
     logo: logo && (/^https:\/\//i.test(logo) || /^\/(?!\/)/.test(logo)) ? logo : null,
     price: j?.usdPrice ?? (om?.price_usd != null ? Number(om.price_usd) : null),
     om_id: om?.id ?? null,
-    fee_bps: om ? 0 : SWAP_FEE_BPS,
+    fee_bps: om ? 0 : isMajorSolana(mint) ? MAJOR_FEE_BPS : SWAP_FEE_BPS,
     verified: om ? true : j?.isVerified ?? null,
     /** Token OM encore sur la bonding curve : adresse du pool (le trade passe par la courbe, pas par Jupiter) */
     om_curve: om && ["active", "graduating"].includes(om.status ?? "") && om.pool_address ? om.pool_address : null,
