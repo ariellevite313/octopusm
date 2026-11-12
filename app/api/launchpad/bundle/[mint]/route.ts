@@ -44,7 +44,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
     let before: string | undefined;
     let oldest: { signature: string; slot: number; err: unknown }[] = [];
     let reachedStart = false;
-    for (let page = 0; page < MAX_PAGES; page++) {
+    // Helius : lecture directe des plus anciennes transactions (ordre croissant), sans remonter tout l'historique
+    try {
+      const r = await rpc("getTransactionsForAddress", [mint, { sortOrder: "asc", limit: 100, transactionDetails: "signatures" }]) as { data?: { signature: string; slot: number; err: unknown }[] } | { signature: string; slot: number; err: unknown }[];
+      const list = Array.isArray(r) ? r : r?.data ?? [];
+      if (list.length) { oldest = [...list].reverse(); reachedStart = true; }
+    } catch { /* RPC sans cette méthode : lecture par pages ci-dessous */ }
+    for (let page = 0; page < MAX_PAGES && !reachedStart; page++) {
       const sigs = (await rpc("getSignaturesForAddress", [mint, { limit: 1000, ...(before ? { before } : {}) }])) as typeof oldest;
       if (!sigs.length) { reachedStart = true; break; }
       oldest = sigs;

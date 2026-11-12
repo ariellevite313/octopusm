@@ -16,7 +16,7 @@ function rpcUrl() {
   return process.env.SOLANA_RPC_URL ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 }
 
-async function rpc(method: string, params: unknown[]) {
+async function rpc(method: string, params: unknown) {
   const res = await fetch(rpcUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -43,8 +43,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
     let partial = false;
     // light=1 (Terminal, tokens externes parfois très gros) : seulement les 20 plus gros comptes
     const light = new URL(req.url).searchParams.get("light") === "1";
+    // 1) API DAS (Helius et compatibles) : tous les comptes par pages de 1000, propriétaire fourni directement
+    let das = false;
+    if (!light) {
+      try {
+        const t0 = Date.now();
+        for (let page = 1; page <= 12 && Date.now() - t0 < 14_000; page++) {
+          const r = await rpc("getTokenAccounts", { mint, page, limit: 1000 }) as { token_accounts?: { owner: string; amount: number | string }[] };
+          const accs = r?.token_accounts ?? [];
+          for (const a of accs) {
+            const amount = BigInt(String(a.amount).split(".")[0] || "0");
+            if (amount > BigInt(0)) byOwner.set(a.owner, (byOwner.get(a.owner) ?? BigInt(0)) + amount);
+          }
+          das = true;
+          if (accs.length < 1000) break;
+          if (page === 12) partial = true; // plus de 12 000 comptes : classement sur les 12 000 premiers lus
+        }
+      } catch { das = byOwner.size > 0; }
+    }
     try {
-      if (light) throw new Error("light");
+      if (light || das) throw new Error("skip");
       // Liste complète (beaucoup de RPC gratuits refusent cette requête)
       const accounts = await rpc("getProgramAccounts", [TOKEN_PROGRAM, {
         encoding: "base64",
@@ -60,6 +78,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
         byOwner.set(owner, (byOwner.get(owner) ?? BigInt(0)) + amount);
       }
     } catch {
+      if (das) { /* liste DAS complète, rien à faire */ } else {
       // Secours léger : les 20 plus gros comptes, puis leur propriétaire
       partial = true;
       const largest = (await rpc("getTokenLargestAccounts", [mint]))?.value as { address: string; amount: string }[] ?? [];
@@ -70,6 +89,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
         const amount = BigInt(l.amount);
         if (owner && amount > BigInt(0)) byOwner.set(owner, (byOwner.get(owner) ?? BigInt(0)) + amount);
       });
+      }
     }
 
     const top = [...byOwner.entries()]
