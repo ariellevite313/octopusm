@@ -10,7 +10,8 @@ import { useT } from "@/lib/i18n";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { toRaw, fromRaw } from "@/lib/swap/client";
 import { EVM_CHAINS, type EvmChain } from "@/lib/swap/evm";
-import { connectEvmTrader, disconnectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
+import { prefetchWalletConnect } from "@/lib/wallet/walletconnect";
+import { prepareEvmWallet, connectEvmTrader, disconnectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 type Info = { token: { address: string; decimals: number; symbol: string }; balances: { native: string; token: string } | null };
@@ -44,6 +45,7 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
   // Connecté avec un wallet Solana : on signe avec un wallet EVM relié ici (extension ou WalletConnect)
   const [trader, setTrader] = useState<TradingAccount | null>(null);
   useEffect(() => { if (!evm) void restoreEvmTrader().then(setTrader); }, [evm]);
+  useEffect(() => { prefetchWalletConnect(); prepareEvmWallet(); }, []);
   const addr = evm ? walletAddress! : trader?.address ?? null;
   const c = EVM_CHAINS[chain];
   const [info, setInfo] = useState<Info | null>(null);

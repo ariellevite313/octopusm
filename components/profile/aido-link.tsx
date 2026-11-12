@@ -1,13 +1,13 @@
 "use client";
 
 /** Badge Aido sur le profil, et pour le propriétaire du profil : relier / retirer son compte Aido (signature MetaMask). */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { aidoLinkMessage, aidoProfileUrl } from "@/lib/aido-link";
-import { signWithWalletConnect, toHex } from "@/lib/wallet/walletconnect";
+import { prefetchWalletConnect, signWithWalletConnect, toHex } from "@/lib/wallet/walletconnect";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 
@@ -17,6 +17,7 @@ export function AidoBadge({ wallet, aido, handle }: { wallet: string; aido: stri
   const [linked, setLinked] = useState(aido);
   const [name, setName] = useState(handle);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { if (walletAddress) prefetchWalletConnect(); }, [walletAddress]);
   const mine = !!walletAddress && (wallet.startsWith("0x") ? walletAddress.toLowerCase() === wallet.toLowerCase() : walletAddress === wallet);
 
   async function link() {

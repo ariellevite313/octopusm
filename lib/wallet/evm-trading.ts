@@ -6,7 +6,7 @@
  */
 import { EVM_CHAINS } from "@/lib/swap/evm";
 import { getEvmProvider, type EvmProvider } from "./evm-provider";
-import { WC_PROJECT_ID } from "./walletconnect";
+import { WC_PROJECT_ID, WC_QR_MODAL_OPTIONS } from "./walletconnect";
 
 export type TradingAccount = { address: string; provider: EvmProvider; kind: "injected" | "walletconnect" };
 const KEY = "omdot_evm_trader";
@@ -14,6 +14,8 @@ const METHODS = ["eth_sendTransaction", "personal_sign", "wallet_switchEthereumC
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let wc: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let wcPending: Promise<any> | null = null;
 
 function injected(): EvmProvider | null {
   return getEvmProvider() ?? (window as unknown as { phantom?: { ethereum?: EvmProvider } }).phantom?.ethereum ?? null;
@@ -22,17 +24,29 @@ function injected(): EvmProvider | null {
 async function wcProvider() {
   if (wc) return wc;
   if (!WC_PROJECT_ID) throw new Error("Wallet connection is not configured yet");
+  // Une seule initialisation, partagee entre le prechauffage et le clic
+  wcPending ??= initWc().then((p) => { wc = p; return p; }).catch((e) => { wcPending = null; throw e; });
+  return wcPending;
+}
+
+/** A appeler a l'ouverture de la page : l'initialisation est deja faite quand la personne clique sur Connecter. */
+export function prepareEvmWallet(): void {
+  if (typeof window === "undefined" || !WC_PROJECT_ID || injected()) return;
+  void wcProvider().catch(() => {});
+}
+
+async function initWc() {
   const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
   const ids = Object.values(EVM_CHAINS).map((c) => c.id);
-  wc = await EthereumProvider.init({
+  return EthereumProvider.init({
     projectId: WC_PROJECT_ID,
     optionalChains: [1, ...ids] as [number, ...number[]],
     optionalMethods: METHODS,
     showQrModal: true,
+    qrModalOptions: WC_QR_MODAL_OPTIONS,
     rpcMap: Object.fromEntries(Object.values(EVM_CHAINS).map((c) => [c.id, c.rpc])),
     metadata: { name: "OMdotfun", description: "OMdotfun", url: window.location.origin, icons: [`${window.location.origin}/omdot-icon.png`] },
   });
-  return wc;
 }
 
 function remember(a: TradingAccount) { try { localStorage.setItem(KEY, JSON.stringify({ kind: a.kind, address: a.address })); } catch { /* ignore */ } }
