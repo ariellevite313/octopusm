@@ -88,7 +88,7 @@ export async function terminalList(kind: "trending" | "new" | "volume" | "search
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function arcList(db: any, kind: "trending" | "new" | "volume" | "search", q = ""): Promise<TerminalToken[]> {
   let qy = db.from("launchpad_tokens").select("id, name, ticker, logo_url, mint_address, price_usd, market_cap_usd, created_at")
-    .eq("chain", "arc").in("status", ["active", "graduating", "graduated"]).limit(50);
+    .eq("chain", "arc").eq("hidden", false).in("status", ["active", "graduating", "graduated"]).limit(50);
   if (kind === "search" && q) qy = qy.or(`ticker.ilike.%${q.replace(/[^\w$-]/g, "")}%,name.ilike.%${q.replace(/[^\w $-]/g, "")}%`);
   qy = kind === "new" ? qy.order("created_at", { ascending: false }) : qy.order("market_cap_usd", { ascending: false, nullsFirst: false });
   const { data } = await qy;
