@@ -113,7 +113,15 @@ function PodiumCard({ row, logo, center, delay }: { row: BoardRow; logo: string;
   );
 }
 
-export function DesktopBoard({ rows, logo, countLabel, scoreLabel, animKey }: { rows: BoardRow[]; logo: string; countLabel: string; scoreLabel: string; animKey: string }) {
+export function DesktopBoard({ rows, logo, countLabel, scoreLabel, animKey, podiumSlot, rankCell, compact = false }: {
+  rows: BoardRow[]; logo: string; countLabel: string; scoreLabel: string; animKey: string;
+  /** podium propre à la page (remplace les cartes par défaut) */
+  podiumSlot?: ReactNode;
+  /** cellule du rang dans le tableau (sinon « 4. ») */
+  rankCell?: (r: BoardRow) => ReactNode;
+  /** tailles de texte et d'avatar de la liste d'origine */
+  compact?: boolean;
+}) {
   const { tr } = useT();
   const podium = rows.length >= 3;
   const rest = podium ? rows.slice(3) : rows;
@@ -121,11 +129,13 @@ export function DesktopBoard({ rows, logo, countLabel, scoreLabel, animKey }: { 
     <div key={animKey} className="hidden lg:block">
       {podium && (
         <div className="relative mb-9">
-          <div className="relative grid grid-cols-[1fr_1.18fr_1fr] items-end gap-5">
-            <PodiumCard row={rows[1]} logo={logo} delay="0.15s" />
-            <PodiumCard row={rows[0]} logo={logo} center delay="0.45s" />
-            <PodiumCard row={rows[2]} logo={logo} delay="0.3s" />
-          </div>
+          {podiumSlot ?? (
+            <div className="relative grid grid-cols-[1fr_1.18fr_1fr] items-end gap-5">
+              <PodiumCard row={rows[1]} logo={logo} delay="0.15s" />
+              <PodiumCard row={rows[0]} logo={logo} center delay="0.45s" />
+              <PodiumCard row={rows[2]} logo={logo} delay="0.3s" />
+            </div>
+          )}
           {/* Projecteurs : fond sombre seulement */}
           <div aria-hidden="true" className="pointer-events-none absolute -top-16 inset-x-0 hidden h-[520px] overflow-hidden mix-blend-screen dark:block" style={{ maskImage: "linear-gradient(to bottom, black 55%, transparent)" }}>
             <span className="beam" style={{ "--x": "22%", "--a0": "-22deg", "--a1": "14deg", "--d": "9s" } as CSSProperties} />
@@ -144,16 +154,16 @@ export function DesktopBoard({ rows, logo, countLabel, scoreLabel, animKey }: { 
           </div>
           {rest.map((r, i) => (
             <Link key={r.key} href={r.href} style={{ "--delay": `${0.6 + Math.min(i, 10) * 0.05}s` } as CSSProperties} className="row-in grid h-[84px] grid-cols-[96px_1fr_180px_190px] items-center border-t border-border px-9 transition-colors hover:bg-muted/40">
-              <span className="num text-[17px] font-semibold text-muted-foreground">{r.rank}.</span>
+              {rankCell ? rankCell(r) : <span className="num text-[17px] font-semibold text-muted-foreground">{r.rank}.</span>}
               <span className="flex min-w-0 items-center gap-4">
-                <Avatar row={r} className="size-[52px] rounded-2xl" text="text-[19px]" />
+                <Avatar row={r} className={compact ? "size-11 rounded-[28%]" : "size-[52px] rounded-2xl"} text={compact ? "text-xs" : "text-[19px]"} />
                 <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 text-[17px] font-semibold tracking-tight text-foreground"><span className="truncate">{r.name}</span>{r.badge}</span>
+                  <span className={`flex items-center gap-1.5 font-semibold tracking-tight text-foreground ${compact ? "text-[15px]" : "text-[17px]"}`}><span className="truncate">{r.name}</span>{r.badge}</span>
                   <span className="mt-0.5 block text-[13px] text-muted-foreground">{r.sub}</span>
                 </span>
               </span>
               <span className="text-right"><Chip logo={logo} label={r.chip} /></span>
-              <span className="num text-right text-[19px] font-bold text-up">{r.score}</span>
+              <span className={`num text-right font-bold text-up ${compact ? "text-[15px]" : "text-[17px]"}`}>{r.score}</span>
             </Link>
           ))}
         </div>
