@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BadgeCheck, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { Activity, AlertTriangle, BadgeCheck, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -21,7 +21,7 @@ import type { FeedPost } from "@/lib/social/posts";
 import { CHAINS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
 import { executeSwap, toRaw } from "@/lib/swap/client";
-import { TerminalLineChart, T_RANGES, type TRange } from "./line-chart";
+import { TerminalLineChart, T_RANGES, type ChartMode, type TRange } from "./line-chart";
 
 // ── Formats ───────────────────────────────────────────────────────────────────
 const compact = (n: number | null, d = 1) => n == null ? "-" : n >= 1e9 ? `$${(n / 1e9).toFixed(d)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(d)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(d)}K` : `$${n.toFixed(2)}`;
@@ -317,6 +317,10 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const [t, setT] = useState<TerminalToken | null>(fromList);
   const [info, setInfo] = useState<SwapToken | null>(null);
   const [range, setRange] = useState<TRange>("1D");
+  // Ligne par défaut ; le choix de l'utilisateur (ligne ou chandeliers) est retenu
+  const [mode, setMode] = useState<ChartMode>("line");
+  useEffect(() => { try { if (localStorage.getItem("om_chart_mode") === "candle") setMode("candle"); } catch { /* ignore */ } }, []);
+  const toggleMode = () => setMode((m) => { const n = m === "line" ? "candle" : "line"; try { localStorage.setItem("om_chart_mode", n); } catch { /* ignore */ } return n; });
   const [move, setMove] = useState<{ first: number; last: number } | null>(null);
   const [tab, setTab] = useState<"holders" | "feed" | "about">("holders");
   const [sheet, setSheet] = useState<"swap" | "quick" | null>(null);
@@ -398,13 +402,18 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           </div>
 
           {/* Graphique */}
-          <div className="mt-4">{t.pool ? <TerminalLineChart pool={t.pool} range={range} onChange={onChart} network={GT_NET[chain] ?? "solana"} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
+          <div className="mt-4">{t.pool ? <TerminalLineChart pool={t.pool} range={range} mode={mode} onChange={onChart} network={GT_NET[chain] ?? "solana"} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 {r === "LIVE" ? <span className="flex items-center gap-1">LIVE<span className="size-1.5 rounded-full bg-up" /></span> : r}
               </button>
             ))}
+            {t.pool && (
+              <button onClick={toggleMode} aria-label={mode === "line" ? tr("Candlestick chart") : tr("Line chart")} className="ml-1 rounded-lg px-2.5 py-1.5 text-muted-foreground hover:text-foreground">
+                {mode === "line" ? <CandlestickChart className="size-[18px]" /> : <Activity className="size-[18px]" />}
+              </button>
+            )}
           </div>
 
           {/* Détenteurs | Fil | À propos */}
