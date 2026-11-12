@@ -252,6 +252,7 @@ export function CreatorLeaderboard() {
           logo="/usdc-coin.png"
           countLabel={tr("Tokens")}
           scoreLabel={tr("Fees earned")}
+          animKey={`creators-${period}`}
         />
         <div className="lg:hidden">
           {/* Podium */}

@@ -178,6 +178,7 @@ export function LeaderboardTabs() {
           logo={tokenCfg.logo}
           countLabel={token === "octo" ? "" : tr("Wins")}
           scoreLabel={tokenCfg.label}
+          animKey={`${token}-${period}`}
         />
         <div className="flex flex-col lg:hidden">
           {entries.map((entry) => {
