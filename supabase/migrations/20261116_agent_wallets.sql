@@ -72,6 +72,7 @@ ALTER TABLE public.wallets ADD COLUMN IF NOT EXISTS ai_owner text;
 CREATE TABLE IF NOT EXISTS public.aido_links (
   wallet      text PRIMARY KEY,                  -- compte OM
   aido_address text NOT NULL UNIQUE,             -- wallet Arc du compte Aido (minuscules)
+  aido_handle text,                              -- pseudo Aido lu sur le contrat Communauté (Arc)
   signature   text NOT NULL,
   message     text NOT NULL,
   linked_at   timestamptz NOT NULL DEFAULT now()
@@ -80,3 +81,4 @@ CREATE TABLE IF NOT EXISTS public.aido_links (
 ALTER TABLE public.agent_wallets        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_wallet_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.aido_links           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.aido_links ADD COLUMN IF NOT EXISTS aido_handle text;
