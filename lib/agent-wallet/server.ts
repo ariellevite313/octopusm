@@ -5,7 +5,7 @@
  * Les retraits ne partent que vers le wallet de l'humain qui a connecté l'IA.
  */
 import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction, VersionedTransaction, type Keypair } from "@solana/web3.js";
-import { createPublicClient, createWalletClient, http, type Hex } from "viem";
+import { createPublicClient, createWalletClient, defineChain, encodeFunctionData, erc20Abi, http, type Hex } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { arc } from "@/lib/arc-chain";
@@ -21,6 +21,7 @@ import { POST as launchSubmitRoute } from "@/app/api/v1/launch/[id]/submit/route
 import { POST as launchConfirmRoute } from "@/app/api/v1/launch/[id]/confirm/route";
 import { POST as predictRoute } from "@/app/api/pools/predict/route";
 import { evmAccount, newWallets, solKeypair } from "@/lib/agent-wallet/keys";
+import { checkEvmInput, EVM_CHAINS, EvmSwapError, isEvmChain, zeroX, type EvmChain } from "@/lib/swap/evm";
 import { RESERVE_ERRORS, type AgentKind } from "@/lib/agent-wallet/limits";
 
 export class AgentWalletError extends Error {}
@@ -64,15 +65,33 @@ async function solToUsd(sol: number): Promise<number> {
   return Math.round(sol * p * 100) / 100;
 }
 
+const CG_NATIVE: Record<EvmChain, string> = { base: "ETH", ethereum: "ETH", arbitrum: "ETH", bnb: "BNB", polygon: "POL", avalanche: "AVAX", hyperliquid: "HYPE" };
+const evmChainDef = (c: EvmChain) => defineChain({ id: EVM_CHAINS[c].id, name: EVM_CHAINS[c].name, nativeCurrency: { name: EVM_CHAINS[c].native, symbol: EVM_CHAINS[c].native, decimals: 18 }, rpcUrls: { default: { http: [EVM_CHAINS[c].rpc] } } });
+async function nativeUsd(c: EvmChain): Promise<number> {
+  const sym = CG_NATIVE[c];
+  try {
+    const r = await fetch(`https://api.coinbase.com/v2/prices/${sym}-USD/spot`, { signal: AbortSignal.timeout(4000), cache: "no-store" });
+    const v = Number(((await r.json()) as { data?: { amount?: string } }).data?.amount) || 0;
+    if (v) return v;
+  } catch { /* repli ci-dessous */ }
+  try {
+    const r = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${sym}%20USDC`, { signal: AbortSignal.timeout(4000), cache: "no-store" });
+    const pair = ((await r.json()) as { pairs?: { baseToken?: { symbol?: string }; chainId?: string; priceUsd?: string }[] }).pairs?.find((x) => x.baseToken?.symbol === sym);
+    return Number(pair?.priceUsd) || 0;
+  } catch { return 0; }
+}
+
 export async function balances(w: Pick<AgentWallet, "sol_address" | "evm_address">) {
   const conn = solanaConnection();
   const owner = new PublicKey(w.sol_address);
-  const [lamports, usdc, arcUsdc] = await Promise.all([
+  const evmChains = Object.keys(EVM_CHAINS) as EvmChain[];
+  const [evm, lamports, usdc, arcUsdc] = await Promise.all([
+    Promise.all(evmChains.map((c) => createPublicClient({ chain: evmChainDef(c), transport: http(EVM_CHAINS[c].rpc) }).getBalance({ address: w.evm_address as Hex }).then((v) => [c, Number(v) / 1e18] as const).catch(() => [c, null] as const))),
     conn.getBalance(owner).catch(() => null),
     conn.getTokenAccountBalance(ataOf(owner, new PublicKey(USDC_MINT))).then((r) => Number(r.value.uiAmount ?? 0)).catch(() => 0),
     createPublicClient({ chain: arc, transport: http(ARC_RPC) }).getBalance({ address: w.evm_address as Hex }).then((v) => Number(v) / 1e18).catch(() => null),
   ]);
-  return { sol: lamports === null ? null : lamports / 1e9, usdc_solana: usdc, usdc_arc: arcUsdc };
+  return { sol: lamports === null ? null : lamports / 1e9, usdc_solana: usdc, usdc_arc: arcUsdc, evm_native: Object.fromEntries(evm.map(([c, v]) => [c, { symbol: EVM_CHAINS[c].native, amount: v }])) };
 }
 
 // ── Création, réglages (humain) ─────────────────────────────────────────────
@@ -223,6 +242,39 @@ export async function aiSwap(w: AgentWallet, p: { mint: string; side: "buy" | "s
   });
 }
 
+/** Swap EVM via 0x (Base, BNB, HyperEVM, Ethereum, Arbitrum, Polygon, Avalanche). Achat avec le natif de la chaîne, vente contre le natif. */
+export async function aiSwapEvm(w: AgentWallet, p: { chain: string; token: string; side: "buy" | "sell"; amount: number; slippage_bps?: number }) {
+  if (!isEvmChain(p.chain)) throw new AgentWalletError("Unsupported EVM network");
+  if (!Number.isFinite(p.amount) || p.amount <= 0) throw new AgentWalletError("amount must be positive");
+  const chain: EvmChain = p.chain;
+  const pc = createPublicClient({ chain: evmChainDef(chain), transport: http(EVM_CHAINS[chain].rpc) });
+  let decimals = 18, usd = 0;
+  if (p.side === "buy") {
+    const px = await nativeUsd(chain);
+    if (!px) throw new AgentWalletError(`${EVM_CHAINS[chain].native} price unavailable right now, try again in a minute`);
+    usd = Math.round(p.amount * px * 100) / 100;
+  } else {
+    decimals = Number(await pc.readContract({ address: p.token as Hex, abi: erc20Abi, functionName: "decimals" }).catch(() => { throw new AgentWalletError("Unknown token on this network"); }));
+  }
+  const raw = BigInt(Math.floor(p.amount * 10 ** (p.side === "buy" ? 18 : decimals)));
+  const c = checkEvmInput({ chain, token: p.token, side: p.side, amount: raw.toString(), slippageBps: p.slippage_bps ?? 100 }, w.evm_address);
+  if (!c.ok) throw new AgentWalletError(c.error);
+  return guarded(w, "swap", usd, `${p.side} ${p.amount} ${p.side === "buy" ? EVM_CHAINS[chain].native : "tokens"} of ${p.token} on ${EVM_CHAINS[chain].name}`, async () => {
+    let q;
+    try { q = await zeroX(c.v, "quote"); } catch (e) { if (e instanceof EvmSwapError) throw new AgentWalletError(e.message); throw e; }
+    if (!q.tx) throw new AgentWalletError("No route for this pair right now");
+    if (q.balanceShort && p.side === "sell") throw new AgentWalletError("Not enough tokens in the wallet");
+    const wc = createWalletClient({ account: evmAccount(w.evm_secret), chain: evmChainDef(chain), transport: http(EVM_CHAINS[chain].rpc) });
+    if (p.side === "sell" && q.allowanceSpender) {
+      const ah = await wc.sendTransaction({ to: p.token as Hex, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [q.allowanceSpender as Hex, raw] }), value: 0n });
+      if ((await pc.waitForTransactionReceipt({ hash: ah, timeout: 90_000 })).status !== "success") throw new AgentWalletError("The token approval failed");
+    }
+    const hash = await wc.sendTransaction({ to: q.tx.to as Hex, data: q.tx.data as Hex, value: BigInt(q.tx.value || "0"), ...(q.tx.gas ? { gas: BigInt(q.tx.gas) } : {}) });
+    if ((await pc.waitForTransactionReceipt({ hash, timeout: 90_000 })).status !== "success") throw new AgentWalletError("The swap failed on-chain");
+    return { tx: hash, explorer: `${EVM_CHAINS[chain].explorer}/tx/${hash}`, out_estimate: q.buyAmount };
+  });
+}
+
 /** Achat / vente d'un token OM sur sa bonding curve (Solana ou Arc). */
 export async function aiTradeOm(w: AgentWallet, p: { token_id: string; side: "buy" | "sell"; amount: number; chain: "solana" | "arc"; slippage_bps?: number }) {
   if (!Number.isFinite(p.amount) || p.amount <= 0) throw new AgentWalletError("amount must be positive");
@@ -349,14 +401,21 @@ export async function withdrawAll(owner: string, id: string) {
     }
   } else {
     const account = evmAccount(w.evm_secret);
-    const pc = createPublicClient({ chain: arc, transport: http(ARC_RPC) });
-    const bal = await pc.getBalance({ address: account.address });
-    const gasPrice = await pc.getGasPrice();
-    const fee = gasPrice * 21_000n * 2n;
-    if (bal > fee) {
-      const wc = createWalletClient({ account, chain: arc, transport: http(ARC_RPC) });
-      const hash = await wc.sendTransaction({ to: owner as Hex, value: bal - fee, gas: 21_000n, gasPrice });
-      out.push({ chain: "arc", tx: hash }); await log("withdraw USDC on Arc to the owner", hash);
+    const nets: { key: string; chain: ReturnType<typeof defineChain>; rpc: string }[] = [
+      { key: "arc", chain: arc as unknown as ReturnType<typeof defineChain>, rpc: ARC_RPC },
+      ...(Object.keys(EVM_CHAINS) as EvmChain[]).map((c) => ({ key: c, chain: evmChainDef(c), rpc: EVM_CHAINS[c].rpc })),
+    ];
+    for (const n of nets) {
+      try {
+        const pc = createPublicClient({ chain: n.chain, transport: http(n.rpc) });
+        const bal = await pc.getBalance({ address: account.address });
+        const gasPrice = await pc.getGasPrice();
+        const fee = gasPrice * 21_000n * 2n;
+        if (bal <= fee) continue;
+        const wc = createWalletClient({ account, chain: n.chain, transport: http(n.rpc) }) as any;
+        const hash = await wc.sendTransaction({ to: owner as Hex, value: bal - fee, gas: 21_000n, gasPrice });
+        out.push({ chain: n.key, tx: hash }); await log(`withdraw native funds on ${n.key} to the owner`, hash);
+      } catch (e) { await log(`withdraw on ${n.key}`, null, (e as Error).message.slice(0, 200)); }
     }
   }
   if (!out.length) throw new AgentWalletError("Nothing to withdraw");

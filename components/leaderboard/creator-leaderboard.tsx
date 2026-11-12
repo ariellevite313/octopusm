@@ -125,8 +125,18 @@ function ChillBoard({ period }: { period: Period }) {
       <button onClick={() => window.dispatchEvent(new Event("open-chill"))} className="h-11 rounded-full bg-foreground px-6 text-[15px] font-bold text-background">{tr("Chill your bag")}</button>
     </div>
   );
+  const short = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
+  const money = (n: number) => `$${n < 1 ? n.toFixed(3) : n.toFixed(2)}`;
   return (
-    <div className="divide-y divide-border">
+    <>
+    <DesktopBoard
+      rows={rows.map((r): BoardRow => ({
+        key: r.wallet, href: `/profile/${r.wallet}`, rank: r.rank, name: r.name ?? short(r.wallet), sub: short(r.wallet), avatar: r.avatar,
+        score: `+${money(r.usd)}`, chip: r.trades === 1 ? tr("{count} trade", { count: r.trades }) : tr("{count} trades", { count: r.trades }),
+      }))}
+      logo="/usdc-coin.png" countLabel={tr("Trades")} scoreLabel={tr("Fees earned")} animKey={`chill-${period}`}
+    />
+    <div className="divide-y divide-border lg:hidden">
       {rows.map((r) => (
         <Link key={r.wallet} href={`/profile/${r.wallet}`} className="flex items-center gap-3 py-3">
           <span className="num w-7 shrink-0 text-center text-sm font-bold text-muted-foreground">{r.rank}</span>
@@ -142,6 +152,7 @@ function ChillBoard({ period }: { period: Period }) {
         </Link>
       ))}
     </div>
+    </>
   );
 }
 
