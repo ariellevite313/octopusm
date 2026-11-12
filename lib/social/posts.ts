@@ -51,6 +51,10 @@ export type FeedPost = {
   reposted_by: { wallet: string; name: string | null } | null;
   /** Post cité (citation) */
   quoted: QuotedPost | null;
+  /** Communauté où le post a été publié */
+  community?: { slug: string; name: string; logo_src: string | null } | null;
+  /** Épinglé en tête de la page de sa communauté */
+  pinned?: boolean;
 };
 
 export type QuotedPost = {
@@ -144,6 +148,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
     loadMarkets(admin, rows),
   ]);
   const tipperProfiles = await getProfiles(admin, [...tips.top.values()].flat());
+  const communities = await loadCommunities(admin, ids);
 
   return entries.map(({ row: r, by }) => {
     const p = profiles.get(r.author);
@@ -151,6 +156,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
       feed_key: by ? `repost:${by.id}` : r.id,
       reposted_by: by ? { wallet: by.author, name: profiles.get(by.author)?.name ?? null } : null,
       quoted: r.quote_of ? quoted.get(r.quote_of) ?? null : null,
+      community: communities.get(r.id) ?? null,
       repost_count: r.repost_count ?? 0,
       reposted_by_me: repostedSet.has(r.id),
       id: r.id,
@@ -233,6 +239,22 @@ async function loadTipStats(admin: any, ids: string[], viewer: string | null) {
     for (const r of (own?.data ?? []) as { post_id: string }[]) mine.add(r.post_id);
   } catch (e) { console.warn("[posts] tip stats unavailable:", e); }
   return { total, top, mine };
+}
+
+/** Communauté de chaque post (requête à part : sans effet tant que la migration des communautés n'est pas lancée). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadCommunities(admin: any, ids: string[]): Promise<Map<string, { slug: string; name: string; logo_src: string | null }>> {
+  const out = new Map<string, { slug: string; name: string; logo_src: string | null }>();
+  if (!ids.length) return out;
+  try {
+    const { data, error } = await admin.from("posts").select("id, community_id").in("id", ids).not("community_id", "is", null);
+    if (error || !data?.length) return out;
+    const rows = data as { id: string; community_id: string }[];
+    const { data: cs } = await admin.from("communities").select("id, slug, name, logo_src").in("id", [...new Set(rows.map((r) => r.community_id))]).eq("hidden", false);
+    const byId = new Map(((cs ?? []) as { id: string; slug: string; name: string; logo_src: string | null }[]).map((c) => [c.id, c]));
+    for (const r of rows) { const c = byId.get(r.community_id); if (c) out.set(r.id, { slug: c.slug, name: c.name, logo_src: c.logo_src }); }
+  } catch { /* colonne absente avant migration */ }
+  return out;
 }
 
 export const POST_COLUMNS =

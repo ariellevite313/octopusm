@@ -13,7 +13,7 @@ type Result = { status: number; data: Record<string, unknown> };
 
 const TICKER_ALIASES: Record<string, string> = { CLAWDTRUST: "CLT" };
 
-export async function createPost(wallet: string, bodyIn: string, files: PostFile[], opts: { quoteOf?: string | null } = {}): Promise<Result> {
+export async function createPost(wallet: string, bodyIn: string, files: PostFile[], opts: { quoteOf?: string | null; community?: string | null } = {}): Promise<Result> {
   const body = bodyIn.trim();
   const err = (status: number, error: string): Result => ({ status, data: { error } });
 
@@ -82,6 +82,18 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     } else { quote_of = q.id; quotedAuthor = q.author; }
   }
 
+  // Communauté : il faut en être membre actif
+  let community_id: string | null = null;
+  if (opts.community) {
+    const slug = String(opts.community).toLowerCase();
+    if (!/^[a-z0-9_]{3,30}$/.test(slug)) return err(400, "Invalid community");
+    const { data: c } = await admin.from("communities").select("id").eq("slug", slug).eq("hidden", false).maybeSingle();
+    if (!c) return err(404, "Community not found");
+    const { data: m } = await admin.from("community_members").select("status").eq("community_id", c.id).eq("wallet", wallet).maybeSingle();
+    if (!m || m.status !== "active") return err(403, "Join the community to post in it");
+    community_id = c.id;
+  }
+
   // Contrôle du texte, puis des images (octets réels, type réel)
   if ((await moderateText(body)) === "blocked") return err(400, "This post goes against our rules");
   let allChecked = files.length > 0;
@@ -100,7 +112,7 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     urls.push(admin.storage.from("post-images").getPublicUrl(path).data.publicUrl);
   }
 
-  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, quote_of, images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
+  const { data: row, error } = await admin.from("posts").insert({ author: wallet, body, images: urls, ticker, token_id: tokenId, tags, mentions, market_kind, market_id, quote_of, ...(community_id ? { community_id } : {}), images_checked: files.length === 0 || allChecked }).select(POST_COLUMNS).single();
   if (error) return err(500, error.message);
   await notify(Object.values(mentions).map((w) => ({ wallet: w, kind: "mention" as const, actor: wallet, postId: row.id })));
   // Post d'Omero : une annonce pour tous les utilisateurs (une ligne, pas une par utilisateur)

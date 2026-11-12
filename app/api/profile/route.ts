@@ -19,13 +19,20 @@ export async function PATCH(req: Request) {
   }
 
   // Only allow safe fields
-  const allowed = ["username", "display_name", "twitter_handle", "avatar_src"] as const;
+  const allowed = ["username", "display_name", "twitter_handle", "avatar_src", "bio"] as const;
   const updates: Record<string, string | null> = {};
   for (const key of allowed) {
     if (key in body) {
       const val = body[key];
       updates[key] = typeof val === "string" && val.trim() ? val.trim() : null;
     }
+  }
+
+  // Bio : 160 caractères, contrôlée comme un post
+  if ("bio" in updates && updates.bio) {
+    updates.bio = updates.bio.replace(/\s+\n/g, "\n").slice(0, 160);
+    const { moderateText } = await import("@/lib/moderation");
+    if ((await moderateText(updates.bio)) === "blocked") return NextResponse.json({ error: "This bio goes against our rules" }, { status: 400 });
   }
 
   if (Object.keys(updates).length === 0) {
