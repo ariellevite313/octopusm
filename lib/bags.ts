@@ -57,6 +57,21 @@ const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQd
 type OmToken = { id: string; name: string; ticker: string; logo_url: string | null; price_usd: number | null; mint_address: string | null };
 export type JupToken = { id: string; name?: string; symbol?: string; icon?: string | null; usdPrice?: number | null; isVerified?: boolean | null; stats24h?: { priceChange?: number | null } | null };
 
+/** Tokens vérifiés par Jupiter (recherche seule, sans secours DexScreener) */
+export async function jupVerified(mints: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  const key = process.env.JUP_API_KEY;
+  const base = key ? "https://api.jup.ag" : "https://lite-api.jup.ag";
+  for (let i = 0; i < mints.length && i < 200; i += 100) {
+    try {
+      const r = await fetch(`${base}/tokens/v2/search?query=${mints.slice(i, i + 100).join(",")}`, { headers: key ? { "x-api-key": key } : undefined, signal: AbortSignal.timeout(4000), next: { revalidate: 600 } });
+      if (!r.ok) continue;
+      for (const t of (await r.json()) as JupToken[]) if (t?.id && t.isVerified) out.add(t.id);
+    } catch { /* indisponible : pas de pastille */ }
+  }
+  return out;
+}
+
 export async function jupTokens(mints: string[]): Promise<Map<string, JupToken>> {
   const out = new Map<string, JupToken>();
   const key = process.env.JUP_API_KEY;
