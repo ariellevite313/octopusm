@@ -244,6 +244,7 @@ export function CreatorLeaderboard() {
       ) : (
         <>
         <DesktopBoard
+          compact
           rows={entries.map((e): BoardRow => ({
             key: e.walletAddress,
             href: `/profile/${e.walletAddress}`,
@@ -258,6 +259,25 @@ export function CreatorLeaderboard() {
           countLabel={tr("Tokens")}
           scoreLabel={tr("Fees earned")}
           animKey={`creators-${period}`}
+          rankCell={(r) => <span className="num w-6 text-sm font-bold text-muted-foreground">{r.rank}</span>}
+          podiumSlot={top3.length >= 3 ? (
+            <div className="relative mx-auto grid max-w-[900px] grid-cols-3 items-end gap-10 px-6 pb-4 pt-12">
+              {[top3[1], top3[0], top3[2]].map((e, i) => {
+                const first = e.rank === 1;
+                return (
+                  <div key={e.walletAddress} className="relative min-w-0">
+                    {first && <Crown className="absolute -top-8 left-1/2 z-10 size-11 -translate-x-1/2 rotate-[8deg] fill-amber-400 text-amber-500 drop-shadow-[0_2px_6px_rgba(245,179,1,0.6)]" />}
+                    <div className={`mx-auto ${first ? "w-[250px]" : "w-[200px]"}`}>
+                      <FrameCard entry={e} tone={RANK_TONE[e.rank - 1]} delay={first ? "0.45s" : i === 0 ? "0.15s" : "0.3s"} winner={first}
+                        className={first ? "rotate-[4deg]" : i === 0 ? "-rotate-[5deg]" : "rotate-[2deg]"} />
+                    </div>
+                    <p className="mt-5 truncate text-center text-lg font-semibold text-foreground">{displayLabel(e)}</p>
+                    <p className="num truncate text-center text-base font-bold text-up">+{fmtFee(e, lang)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : undefined}
         />
         <div key={period} className="lg:hidden">
           {/* Podium */}
