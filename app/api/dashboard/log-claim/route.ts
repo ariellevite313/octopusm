@@ -8,7 +8,7 @@
  * Body (Arc):    { tokenId, walletAddress, amountSol: 0, amountUsdc, txSignature, chain: "arc" }
  */
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 type Body = {
   tokenId:      string;
@@ -23,12 +23,24 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
+    // Session obligatoire : le wallet connecté doit être celui qui réclame
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const sessionWallet = (user?.app_metadata?.wallet_address as string | undefined) ?? null;
+    if (!sessionWallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
     const body = await req.json() as Partial<Body>;
     const { tokenId, walletAddress, amountSol, txSignature, chain, amountUsdc, claimType } = body;
 
     if (!tokenId || !walletAddress || amountSol == null || !txSignature) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
+
+    if (typeof walletAddress !== "string" || typeof txSignature !== "string" || typeof amountSol !== "number" || !Number.isFinite(amountSol) || amountSol < 0) {
+      return NextResponse.json({ error: "Invalid fields" }, { status: 400 });
+    }
+    const same = walletAddress.startsWith("0x") ? walletAddress.toLowerCase() === sessionWallet.toLowerCase() : walletAddress === sessionWallet;
+    if (!same) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
@@ -75,7 +87,7 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error("[log-claim] insert error:", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Could not record the claim" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
