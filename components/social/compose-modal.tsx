@@ -13,8 +13,15 @@ import { MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES } from "@/lib/social
 
 type Suggest = { wallet: string; username: string; name: string | null; avatar: string | null };
 
-export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null }: { onClose: () => void; onPosted: (p: FeedPost) => void; initialBody?: string; quote?: QuotedPost | null }) {
+export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null, community = null }: { onClose: () => void; onPosted: (p: FeedPost) => void; initialBody?: string; quote?: QuotedPost | null; community?: { slug: string; name: string } | null }) {
   const { tr } = useT();
+  // Où publier : mon profil ou une de mes communautés
+  const [target, setTarget] = useState<string>(community?.slug ?? "");
+  const [mine, setMine] = useState<{ slug: string; name: string }[]>(community ? [community] : []);
+  useEffect(() => {
+    if (quote || community) return;
+    fetch("/api/communities?mine=1").then((r) => (r.ok ? r.json() : null)).then((j) => setMine(((j?.communities ?? []) as { slug: string; name: string }[]).map((c) => ({ slug: c.slug, name: c.name })))).catch(() => {});
+  }, [quote, community]);
   const [body, setBody] = useState(initialBody);
   const [sug, setSug] = useState<Suggest[]>([]);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -82,6 +89,7 @@ export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null
     fd.append("body", body.trim());
     files.forEach((f) => fd.append("images", f));
     if (quote) fd.append("quote_of", quote.id);
+    if (target && !quote) fd.append("community", target);
     const r = await fetch("/api/posts", { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
     setSending(false);
@@ -99,6 +107,17 @@ export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null
           <h2 className="text-lg font-bold text-foreground">{quote ? tr("Quote") : tr("New post")}</h2>
           <button onClick={onClose} aria-label={tr("Close")} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><X className="size-5" /></button>
         </div>
+        {!quote && mine.length > 0 && (
+          <div className="mb-2 flex items-center gap-2 text-[13px]">
+            <span className="text-muted-foreground">{tr("Post to")}</span>
+            {community ? <span className="rounded-full border border-border px-3 py-1 font-semibold text-foreground">{community.name}</span> : (
+              <select value={target} onChange={(e) => setTarget(e.target.value)} className="rounded-full border border-border bg-transparent px-3 py-1 font-semibold text-foreground outline-none">
+                <option value="">{tr("My profile")}</option>
+                {mine.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+              </select>
+            )}
+          </div>
+        )}
         <div className="relative">
         <textarea
           ref={area}

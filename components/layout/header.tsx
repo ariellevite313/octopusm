@@ -16,6 +16,7 @@ import { T } from "@/lib/i18n-mark";
 const NAV_LINKS = [
   { href: "/hackathon",              label: T("Hackathon"),   badge: undefined, disabled: false },
   { href: "/",                        label: T("Feed"),        badge: undefined, disabled: false },
+  { href: "/communities",             label: T("Communities"), badge: undefined, disabled: false },
   { href: "/prediction",              label: T("Markets"),     badge: undefined, disabled: false },
   { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
   { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },

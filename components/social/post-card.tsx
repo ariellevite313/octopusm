@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Download, EyeOff, Flag, Heart, Loader2, MessageCircle, MoreVertical, Eye, Send, Trash2, Repeat2, Quote,
+  Download, EyeOff, Flag, Heart, Loader2, MessageCircle, MoreVertical, Eye, Send, Trash2, Repeat2, Quote, Pin, Users,
 } from "lucide-react";
 import { ComposeModal } from "./compose-modal";
 import { QuotedCard } from "./quoted-card";
@@ -28,6 +28,7 @@ import { SupportersSheet } from "./supporters-sheet";
 import { compactCount } from "@/lib/social/tips";
 import { ArticleCard } from "./article-card";
 import { BagCard } from "./chill";
+import { ProfileHoverCard } from "./profile-hover-card";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -122,7 +123,7 @@ function Media({
  * `bar` : seulement la barre d'actions, fixée en bas (page d'un article) ; `onComments` y remplace l'ouverture
  * des réponses sous la carte.
  */
-export function PostCard({ post: initial, onRemoved, bar = false, onComments }: { post: FeedPost; onRemoved?: (id: string) => void; bar?: boolean; onComments?: () => void }) {
+export function PostCard({ post: initial, onRemoved, bar = false, onComments, hideCommunity = false }: { post: FeedPost; onRemoved?: (id: string) => void; bar?: boolean; onComments?: () => void; hideCommunity?: boolean }) {
   const { tr } = useT();
   const { isAuthenticated } = useAuth();
   const [post, setPost] = useState(initial);
@@ -352,6 +353,18 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments }: 
 
   return (
     <article ref={root} className="px-4 py-5">
+      {post.pinned && (
+        <p className="mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-muted-foreground"><Pin className="size-4" />{tr("Pinned by community mods")}</p>
+      )}
+      {post.community && !hideCommunity && (
+        <Link href={`/c/${post.community.slug}`} className="mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground">
+          {post.community.logo_src
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={post.community.logo_src} alt="" className="size-4 rounded-[4px] object-cover" />
+            : <Users className="size-4" />}
+          <span className="truncate">{post.community.name}</span>
+        </Link>
+      )}
       {post.reposted_by && (
         <Link href={`/profile/${post.reposted_by.wallet}`} className="mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground">
           <Repeat2 className="size-4" />
@@ -360,13 +373,15 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments }: 
       )}
       {/* Auteur */}
       <div className="mb-3 flex items-center gap-3 px-1">
-        <Link href={`/profile/${post.author}`}><Avatar src={post.author_avatar} name={name} ring /></Link>
+        <ProfileHoverCard wallet={post.author} className="shrink-0"><Link href={`/profile/${post.author}`}><Avatar src={post.author_avatar} name={name} ring /></Link></ProfileHoverCard>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
-            <Link href={`/profile/${post.author}`} className="flex min-w-0 items-center gap-1.5 text-[15px] font-bold text-foreground">
-              <span className="truncate">{name}</span>
-              <OctoBadge totalOcto={post.author_octo} size={16} />
-            </Link>
+            <ProfileHoverCard wallet={post.author} className="flex min-w-0">
+              <Link href={`/profile/${post.author}`} className="flex min-w-0 items-center gap-1.5 text-[15px] font-bold text-foreground">
+                <span className="truncate">{name}</span>
+                <OctoBadge totalOcto={post.author_octo} size={16} />
+              </Link>
+            </ProfileHoverCard>
             <TokenPill token={post.author_token} size={16} />
           </div>
           <p className="text-xs text-muted-foreground">{ago(post.created_at, tr)}</p>

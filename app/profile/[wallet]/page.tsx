@@ -15,6 +15,8 @@ import { getFeaturedTokens } from "@/lib/social/featured-token";
 import { FeaturedTokenControl } from "@/components/profile/featured-token";
 import { AvatarZoom } from "@/components/profile/avatar-zoom";
 import { AidoBadge } from "@/components/profile/aido-link";
+import { ProfileBio, ProfileCommunity, type PinnedCommunity } from "@/components/profile/profile-community";
+import { memberFaces } from "@/lib/social/communities";
 import Link from "next/link";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
@@ -126,6 +128,19 @@ async function ProfileContent({ wallet }: { wallet: string }) {
     aidoHandle = l?.aido_handle ?? null;
   } catch { /* colonnes absentes avant migration */ }
   const featured = (await getFeaturedTokens(createAdminClient(), [wallet])).get(wallet) ?? null;
+  // Bio et communauté épinglée (colonnes ajoutées par la migration des communautés)
+  let bio: string | null = null;
+  let pinned: PinnedCommunity | null = null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const { data: w } = await admin.from("wallets").select("bio, pinned_community_id").eq("address", wallet).maybeSingle();
+    bio = w?.bio ?? null;
+    if (w?.pinned_community_id) {
+      const { data: c } = await admin.from("communities").select("id, slug, name, logo_src, category, member_count").eq("id", w.pinned_community_id).eq("hidden", false).maybeSingle();
+      if (c) pinned = { slug: c.slug, name: c.name, logo_src: c.logo_src, category: c.category, member_count: c.member_count, faces: await memberFaces(admin, c.id, 4) };
+    }
+  } catch { /* avant migration */ }
 
 
   return (
@@ -197,6 +212,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
             {!aiOwner && <AidoBadge wallet={wallet} aido={aido} handle={aidoHandle} />}
           </div>
 
+          <ProfileBio wallet={wallet} bio={bio} />
+
           {/* Stats — inline, like followers / following */}
           <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">
             <span><span className="font-bold text-foreground">{data.stats.total_rounds}</span> <span className="text-muted-foreground"><Tr>Rounds</Tr></span></span>
@@ -213,6 +230,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
               <MemberSince iso={joinedAt} />
             </p>
           )}
+          <ProfileCommunity c={pinned} />
         </div>
       </div>
 

@@ -37,6 +37,32 @@ export async function GET(req: Request) {
     hiddenIds = ((h ?? []) as { post_id: string }[]).map((x) => x.post_id);
   }
 
+  // Page d'une communauté : ?community=slug&sort=top|latest&kind=media (épinglé en tête de « latest »)
+  const commSlug = (url.searchParams.get("community") ?? "").toLowerCase();
+  if (/^[a-z0-9_]{3,30}$/.test(commSlug)) {
+    const { data: c } = await admin.from("communities").select("id, pinned_post").eq("slug", commSlug).eq("hidden", false).maybeSingle();
+    if (!c) return NextResponse.json({ posts: [], next: null });
+    const top = url.searchParams.get("sort") === "top";
+    const offset = before?.startsWith("o:") ? Math.max(0, parseInt(before.slice(2)) || 0) : 0;
+    let cq = admin.from("posts").select(POST_COLUMNS).eq("hidden", false).eq("community_id", c.id);
+    if (url.searchParams.get("kind") === "media") cq = cq.neq("images", "{}");
+    cq = top ? cq.order("like_count", { ascending: false }).order("created_at", { ascending: false }).range(offset, offset + limit - 1)
+      : cq.order("created_at", { ascending: false }).limit(limit);
+    if (!top && before && !before.startsWith("o:") && !Number.isNaN(Date.parse(before))) cq = cq.lt("created_at", before);
+    const { data: rows } = await cq;
+    let list = ((rows ?? []) as { id: string; created_at: string }[]).filter((r) => !hiddenIds.includes(r.id));
+    const first = !before && !top && url.searchParams.get("kind") !== "media";
+    let pinnedId: string | null = null;
+    if (first && c.pinned_post) {
+      const { data: pin } = await admin.from("posts").select(POST_COLUMNS).eq("id", c.pinned_post).eq("hidden", false).maybeSingle();
+      if (pin) { pinnedId = pin.id; list = [pin, ...list.filter((r) => r.id !== pin.id)]; }
+    }
+    const posts = (await enrichPosts(admin, list as never, viewer)).map((p) => ({ ...p, pinned: p.id === pinnedId }));
+    const n = (rows ?? []).length;
+    const next = n === limit ? (top ? `o:${offset + limit}` : (rows as { created_at: string }[])[n - 1].created_at) : null;
+    return NextResponse.json({ posts, next });
+  }
+
   // Fil classé « Pour toi »
   const RANK_HOURS = 72;
   const cutoff = new Date(Date.now() - RANK_HOURS * 3600_000).toISOString();
@@ -103,6 +129,7 @@ export async function POST(req: Request) {
   const files = (form.getAll("images") as unknown[]).filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f && (f as File).size > 0);
 
   const quoteOf = String(form.get("quote_of") ?? "").trim() || null;
-  const r = await createPost(s.wallet, body, files.map((f) => ({ type: f.type, size: f.size, bytes: () => f.arrayBuffer() })), { quoteOf });
+  const community = String(form.get("community") ?? "").trim() || null;
+  const r = await createPost(s.wallet, body, files.map((f) => ({ type: f.type, size: f.size, bytes: () => f.arrayBuffer() })), { quoteOf, community });
   return NextResponse.json(r.data, { status: r.status });
 }

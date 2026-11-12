@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart } from "lucide-react";
+import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
 import { ThemeSwitchRail } from "@/components/shared/theme-switch";
@@ -27,6 +27,7 @@ function items(pathname: string) {
   return [
     { href: "/hackathon",              label: T("Hackathon"),   icon: Award,      match: (p: string) => p.startsWith("/hackathon") },
     { href: "/",                       label: T("Feed"),        icon: MessageSquare, match: (p: string) => p === "/" || p.startsWith("/feed") || p.startsWith("/post/") },
+    { href: "/communities",            label: T("Communities"), icon: Users,      match: (p: string) => p.startsWith("/communities") || p.startsWith("/c/") },
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     { href: "/terminal",               label: T("Terminal"),    icon: CandlestickChart, match: (p: string) => p.startsWith("/terminal") },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
