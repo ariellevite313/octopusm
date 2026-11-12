@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
 import { AgeGate } from "@/components/layout/age-gate";
 import { WeeklyBoxPopup } from "@/components/dashboard/weekly-box-popup";
+import { ChillLauncher } from "@/components/social/chill-launcher";
 import { RefCapture } from "@/components/layout/ref-capture";
 import { RootBottomNav } from "@/components/layout/root-bottom-nav";
 import { SearchOverlay } from "@/components/social/search-overlay";
@@ -70,6 +71,7 @@ export default async function RootLayout({
           <RefCapture />
           <AgeGate />
           <WeeklyBoxPopup />
+          <ChillLauncher />
           <div className="flex min-h-screen">
           <DesktopSidebar />
           <div className="flex min-h-screen min-w-0 flex-1 flex-col">

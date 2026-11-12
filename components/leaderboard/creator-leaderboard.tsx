@@ -119,7 +119,12 @@ function ChillBoard({ period }: { period: Period }) {
     fetch(`/api/chill/leaderboard?period=${period}`).then((r) => r.json()).then((j) => setRows(j.entries ?? [])).catch(() => setRows([]));
   }, [period]);
   if (!rows) return <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted/60" />)}</div>;
-  if (!rows.length) return <p className="py-16 text-center text-sm text-muted-foreground">{tr("No bag earnings yet. Show a token you hold with Chill your bag.")}</p>;
+  if (!rows.length) return (
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <p className="max-w-xs text-sm text-muted-foreground">{tr("No bag earnings yet. Show a token you hold with Chill your bag.")}</p>
+      <button onClick={() => window.dispatchEvent(new Event("open-chill"))} className="h-11 rounded-full bg-foreground px-6 text-[15px] font-bold text-background">{tr("Chill your bag")}</button>
+    </div>
+  );
   return (
     <div className="divide-y divide-border">
       {rows.map((r) => (
