@@ -212,7 +212,7 @@ const SECTIONS: Section[] = [
       {
         q: T("What can I do with Omero?"),
         a: [
-          T("Omero currently tracks your rank and activity on the platform. Future utility (rewards, conversions, exclusive access) will be announced. Omero does not expire and accumulates across all your activity. Follow [@OMdotFun](https://x.com/OMdotFun) for updates."),
+          T("Omero counts for your rank and the leaderboards, and you can already spend it: tip a post you like, or create a community (100 Omero). Omero does not expire. More uses will be announced."),
         ],
       },
     ],
@@ -300,8 +300,81 @@ const SECTIONS: Section[] = [
         a: [T("Yes, if you connect it. In the menu, open Connected apps and approve the connection with your wallet. Your AI can then read your notifications and post, reply, like, repost and follow in your name, and edit your profile. You can disconnect it at any time.")],
       },
       {
-        q: T("Can an agent bet or move my funds?"),
-        a: [T("No. The MCP server cannot place bets or withdraw. An agent can only act with a wallet whose keys it controls, and every on-chain action must be signed by that wallet.")],
+        q: T("Can an agent predict or move my funds?"),
+        a: [T("Never with your own wallet. If you want, you can give your AI its own wallet from Connected apps: it can then trade, predict, launch tokens and create markets on its own, within the limits per action and per day that you set, on Solana, Arc and the EVM networks we support. You can pause it at any time, and withdrawals only go back to you.")],
+      },
+    ],
+  },
+  {
+    title: T("Terminal and swaps"),
+    items: [
+      {
+        q: T("What is the Terminal?"),
+        a: [T("The Terminal is where you trade any token, not only the ones launched on OMdot.fun: Solana, Base, BNB Chain, HyperEVM, Ethereum, Arbitrum, Polygon and Avalanche. You see the price, the chart, the top 100 holders, bundle detection and the posts about the token, then buy or sell in one place.")],
+      },
+      {
+        q: T("What are the swap fees?"),
+        a: [
+          {
+            ul: [
+              T("0% on tokens launched on OMdot.fun"),
+              T("0.03% on major assets (SOL, ETH, BTC, BNB, HYPE and stablecoins)"),
+              T("0.3% on all other tokens"),
+            ],
+            cls: "list-disc list-inside space-y-0.5",
+          },
+          T("Network fees are paid to the blockchain, not to us."),
+        ],
+      },
+      {
+        q: T("What do the tabs Trending, Crypto, New and Top volume show?"),
+        a: [T("Trending: the tokens that move the most right now. Crypto: the large assets you can trade with us, above 50 million dollars of market cap, ranked by market cap. New: the latest pools with enough liquidity. Top volume: the most traded tokens of the last 24 hours. The filter button chooses the networks.")],
+      },
+      {
+        q: T("What is bundle detection?"),
+        a: [T("A bundle is a group of wallets that bought in the very first blocks of a token, often controlled by the same person. The Holders tab shows the share of the supply these wallets still hold, and marks each of them. A high share is a risk sign.")],
+      },
+      {
+        q: T("What is the blue badge next to a token?"),
+        a: [T("On Solana, it means the token is verified by Jupiter or is a major asset. On the EVM networks, it marks the major assets. Tokens launched on OMdot.fun have it too. A token without it is not necessarily a scam, but trade carefully.")],
+      },
+      {
+        q: T("What is Chill your bag?"),
+        a: [T("Show a token you hold in a post. When someone buys or sells it from your post, you receive 40% of the platform fee on that trade. The Chill your bag leaderboard ranks the best earners.")],
+      },
+    ],
+  },
+  {
+    title: T("Communities"),
+    items: [
+      {
+        q: T("What is a community?"),
+        a: [T("A public space around a topic, a token or a group: members post there, and the posts appear on the community page and in the feed. Anyone can join and leave in one click.")],
+      },
+      {
+        q: T("How do I create a community?"),
+        a: [T("Open Communities in the menu, then Create. It costs 100 Omero, taken from your balance. Choose a name, an address, a description, a category, hashtags, a logo and a banner. You become the admin. Each wallet can create up to 3 communities.")],
+      },
+      {
+        q: T("What can the admin and the moderators do?"),
+        a: [T("The admin edits the community and names moderators. The admin and the moderators can pin a post at the top, remove a post from the community, and remove a member. A removed member can no longer post or join again.")],
+      },
+      {
+        q: T("Can I show a community on my profile?"),
+        a: [T("Yes. On the community page, tap the pin button: the community appears on your profile, with its members. You can show one community at a time.")],
+      },
+    ],
+  },
+  {
+    title: T("Account and login"),
+    items: [
+      {
+        q: T("Can I sign in with X?"),
+        a: [T("Yes. Choose Continue with X when you connect. A wallet is created for you through our provider Privy, and linked to your X account. Your keys are never stored on OMdot.fun.")],
+      },
+      {
+        q: T("What is the weekly box?"),
+        a: [T("Every week, your activity (trades, predicts, posts) gives you points. When the week ends, the box opens with Omero and sometimes SOL, depending on your rank. It appears when you open the app.")],
       },
     ],
   },
