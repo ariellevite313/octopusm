@@ -30,7 +30,9 @@ function Inner({ onDone, onFail, onCancel }: Props) {
   useEffect(() => {
     if (!ready || started.current) return;
     started.current = true;
-    if (!authenticated) login({ loginMethods: ["twitter"] });
+    // Au retour de X, Privy termine seul la connexion à partir de l'adresse : pas de nouvelle fenêtre
+    const returning = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("privy_oauth_code");
+    if (!authenticated && !returning) login({ loginMethods: ["twitter"] });
   }, [ready, authenticated, login]);
 
   useEffect(() => {
@@ -40,6 +42,12 @@ function Inner({ onDone, onFail, onCancel }: Props) {
       const token = await getAccessToken();
       if (!token) return onFail("Sign-in failed");
       const r = await openSession(token);
+      // Nettoie l'adresse (paramètres OAuth de Privy)
+      if (typeof window !== "undefined" && window.location.search.includes("privy_oauth")) {
+        const u = new URL(window.location.href);
+        ["privy_oauth_code", "privy_oauth_state", "privy_oauth_provider"].forEach((k) => u.searchParams.delete(k));
+        window.history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+      }
       "wallet" in r ? onDone(r.wallet) : onFail(r.error);
     })();
   }, [ready, authenticated, getAccessToken, onDone, onFail]);

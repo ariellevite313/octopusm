@@ -520,6 +520,15 @@ function WalletButtonInner() {
   const [showProfile, setShowProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [xFlow, setXFlow] = useState(false);
+  // Retour de X (redirection OAuth de Privy) : on relance le flux pour terminer la connexion
+  useEffect(() => {
+    if (typeof window === "undefined" || isAuthenticated) return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("privy_oauth_code") && !(window as unknown as { __omXFlow?: boolean }).__omXFlow) {
+      (window as unknown as { __omXFlow?: boolean }).__omXFlow = true;
+      setXFlow(true);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handler = () => setShowDialog(true);
