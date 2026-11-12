@@ -44,6 +44,21 @@ export async function GET(req: Request) {
     }
   } catch { /* marché indisponible : la fiche reste lisible */ }
 
+  // Pas de paire DexScreener (aucun volume) : on garde un prix grace a Jupiter, sinon au prix OM du token
+  if (market.price == null) {
+    try {
+      const { jupTokens } = await import("@/lib/bags");
+      const p = (await jupTokens([mint])).get(mint)?.usdPrice ?? null;
+      if (p && p > 0) market = { ...market, price: p };
+      else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: om } = await (createAdminClient() as any).from("launchpad_tokens").select("price_usd").eq("mint_address", mint).maybeSingle();
+        const op = om?.price_usd != null ? Number(om.price_usd) : null;
+        if (op && op > 0) market = { ...market, price: op };
+      }
+    } catch { /* prix indisponible */ }
+  }
+
   // Activité du portefeuille connecté sur ce token (swaps passés par OM)
   let activity: { sig: string; side: string; base: string; base_amount: number; token_amount: number; at: string }[] = [];
   const w = await getWalletAddress();

@@ -149,7 +149,7 @@ export function BagCard({ postId, bag, authorName, mine }: { postId: string; bag
           {c != null && <p className={`num text-[12px] font-semibold ${c >= 0 ? "text-up" : "text-down"}`}>{c >= 0 ? "+" : ""}{c.toFixed(2)}%</p>}
         </div>
       </div>
-      {m?.pool && <div className="-mx-1 mt-2"><TerminalLineChart pool={m.pool} range="1D" heightClass="h-[110px]" /></div>}
+      {(m?.pool || m?.price) && <div className="-mx-1 mt-2"><TerminalLineChart pool={m.pool ?? ""} range="1D" heightClass="h-[110px]" fallbackPrice={m.price} /></div>}
       <p className="mt-2 text-[12px] text-muted-foreground">{mine ? tr("You earn 40% of the OM fee on trades from this post") : tr("{name} holds it and earns 40% of the OM fee on trades from this post", { name: authorName })}</p>
       <div className="mt-3 flex gap-2">
         <button onClick={() => setSide("sell")} className="h-11 flex-1 rounded-full bg-muted text-[15px] font-bold text-foreground">{tr("Sell")}</button>

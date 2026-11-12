@@ -24,7 +24,7 @@ async function loadPoints(pool: string, r: TRange, net = "solana"): Promise<Pt[]
   return list.filter((p, i) => i === 0 || p.time !== list[i - 1].time);
 }
 
-export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana", mode = "line" }: { pool: string; range: TRange; mode?: ChartMode; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string }) {
+export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana", mode = "line", fallbackPrice = null }: { pool: string; range: TRange; mode?: ChartMode; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string; fallbackPrice?: number | null }) {
   const { tr } = useT();
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"load" | "ok" | "empty">("load");
@@ -32,13 +32,20 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
   cb.current = onChange;
 
   useEffect(() => {
-    if (!pool || !box.current) { setState("empty"); return; }
+    if ((!pool && !(fallbackPrice && fallbackPrice > 0)) || !box.current) { setState("empty"); return; }
     let dead = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let chart: any = null, series: any = null, timer: ReturnType<typeof setInterval> | null = null;
     setState("load");
     (async () => { try {
-      const [pts, lw] = await Promise.all([loadPoints(pool, range, network).catch(() => []), import("lightweight-charts")]);
+      const [first, lw] = await Promise.all([pool ? loadPoints(pool, range, network).catch(() => []) : Promise.resolve([] as Pt[]), import("lightweight-charts")]);
+      let pts = first;
+      // Pas de volume sur cette periode : on essaie l'historique complet, puis une ligne plate au prix connu
+      if (pts.length < 2 && pool && range !== "ALL") pts = await loadPoints(pool, "ALL", network).catch(() => []);
+      if (pts.length < 2 && fallbackPrice && fallbackPrice > 0) {
+        const now = Math.floor(Date.now() / 1000), p = fallbackPrice;
+        pts = [{ time: now - 3600, value: p, open: p, high: p, low: p }, { time: now, value: p, open: p, high: p, low: p }];
+      }
       if (dead || !box.current) return;
       if (pts.length < 2) { setState("empty"); return; }
       const up = pts[pts.length - 1].value >= pts[0].value;
@@ -79,7 +86,7 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
     const ro = new ResizeObserver(() => { if (chart && box.current) chart.applyOptions({ width: box.current.clientWidth, height: box.current.clientHeight }); });
     ro.observe(box.current);
     return () => { dead = true; ro.disconnect(); if (timer) clearInterval(timer); try { chart?.remove(); } catch { /* déjà retiré */ } };
-  }, [pool, range, network, mode]);
+  }, [pool, range, network, mode, fallbackPrice]);
 
   return (
     <div className={`relative w-full ${heightClass}`}>

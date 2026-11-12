@@ -414,7 +414,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           </div>
 
           {/* Graphique */}
-          <div className="mt-4">{t.pool ? <TerminalLineChart pool={t.pool} range={range} mode={mode} onChange={onChart} network={GT_NET[chain] ?? "solana"} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
+          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} onChange={onChart} network={GT_NET[chain] ?? "solana"} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
