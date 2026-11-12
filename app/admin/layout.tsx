@@ -16,6 +16,7 @@ import {
   ArrowDownToLine,
   Flag,
   Gift,
+  Award,
   Plug,
   ShieldAlert,
 } from "lucide-react";
@@ -39,6 +40,7 @@ const NAV = [
   { href: "/admin/reports",      label: "Reports",     icon: Flag },
   { href: "/admin/rewards",     label: "Rewards",     icon: Gift },
   { href: "/admin/weekly-box",  label: "Weekly box",  icon: Gift },
+  { href: "/admin/ambassadors", label: "Ambassadors", icon: Award },
   { href: "/admin/moderation",  label: "Moderation",  icon: ShieldAlert },
   { href: "/admin/apps",        label: "Connected apps", icon: Plug },
   { href: "/admin/wallets",      label: "Wallets",     icon: Users },

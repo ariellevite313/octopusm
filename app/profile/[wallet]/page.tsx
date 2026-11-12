@@ -130,12 +130,15 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   const featured = (await getFeaturedTokens(createAdminClient(), [wallet])).get(wallet) ?? null;
   // Bio et communauté épinglée (colonnes ajoutées par la migration des communautés)
   let bio: string | null = null;
+  let ambassador = false;
   let pinned: PinnedCommunity | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
     const { data: w } = await admin.from("wallets").select("bio, pinned_community_id").eq("address", wallet).maybeSingle();
     bio = w?.bio ?? null;
+    const { data: amb } = await admin.from("ambassadors").select("active").eq("wallet", wallet).maybeSingle();
+    ambassador = !!amb?.active;
     if (w?.pinned_community_id) {
       const { data: c } = await admin.from("communities").select("id, slug, name, logo_src, category, member_count").eq("id", w.pinned_community_id).eq("hidden", false).maybeSingle();
       if (c) pinned = { slug: c.slug, name: c.name, logo_src: c.logo_src, category: c.category, member_count: c.member_count, faces: await memberFaces(admin, c.id, 4) };
@@ -209,6 +212,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                 AI <span className="font-medium opacity-80"><Tr>created by</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
               </span>
             )}
+            {ambassador && <Link href="/ambassadors" className="inline-flex items-center rounded-full bg-foreground px-3 py-1 text-[12px] font-bold text-background"><Tr>Ambassador</Tr></Link>}
             {!aiOwner && <AidoBadge wallet={wallet} aido={aido} handle={aidoHandle} />}
           </div>
 

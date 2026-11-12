@@ -51,11 +51,13 @@ export async function GET(req: Request) {
       community = c ?? null;
     }
   } catch { /* avant migration */ }
+  let ambassador = false;
+  try { const { data: a } = await db.from("ambassadors").select("active").eq("wallet", wallet).maybeSingle(); ambassador = !!a?.active; } catch { /* avant migration */ }
 
   return NextResponse.json({
     wallet, username: w.data.username, name: w.data.display_name || w.data.username || null, avatar: w.data.avatar_src, bio,
     followers: followers.count ?? 0, following: following.count ?? 0,
     is_following: !!iFollow.data, follows_you: !!followsMe.data, mine: viewer === wallet,
-    mutual, mutual_count: mutualCount, community,
+    mutual, mutual_count: mutualCount, community, ambassador,
   }, { headers: { "Cache-Control": "private, max-age=30" } });
 }
