@@ -3,7 +3,7 @@
  * (ou &chain=… pour un seul réseau). Tokens pour le Terminal OM.
  */
 import { NextResponse } from "next/server";
-import { arcList, CHAINS, mergeLists, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { arcList, CHAINS, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
 import { isMajorEvm, isMajorSolana } from "@/lib/swap/majors";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -20,9 +20,15 @@ export async function GET(req: Request) {
   let chains = raw.filter((c): c is TerminalChain => READY.includes(c as TerminalChain));
   if (!chains.length) chains = READY;
   const kind = q.length >= 2 ? "search" : list;
-  const results = await Promise.all(chains.map(async (chain): Promise<TerminalToken[]> => {
-    try { return chain === "arc" ? await arcList(createAdminClient(), kind, q) : await terminalList(kind, q, chain); } catch { return []; }
-  }));
+  // Recherche sur plusieurs réseaux : un seul appel global (plus Arc depuis notre base)
+  const results = kind === "search" && chains.filter((c) => c !== "arc").length > 1
+    ? await Promise.all([
+        searchAll(q, chains.filter((c) => c !== "arc")).catch(() => [] as TerminalToken[]),
+        chains.includes("arc") ? arcList(createAdminClient(), kind, q).catch(() => [] as TerminalToken[]) : Promise.resolve([] as TerminalToken[]),
+      ])
+    : await Promise.all(chains.map(async (chain): Promise<TerminalToken[]> => {
+        try { return chain === "arc" ? await arcList(createAdminClient(), kind, q) : await terminalList(kind, q, chain); } catch { return []; }
+      }));
   const tokens = mergeLists(results, kind);
   // Pastille : tokens vérifiés sur Jupiter (Solana), majeurs, ou lancés sur OM (Arc)
   const sol = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.href);
