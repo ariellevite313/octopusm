@@ -25,7 +25,10 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
   useEffect(() => {
     const h = () => { if (!isAuthenticated) window.dispatchEvent(new CustomEvent("open-wallet-connect")); else setCompose(true); };
     window.addEventListener("open-compose", h);
-    return () => window.removeEventListener("open-compose", h);
+    // Indique au lanceur global que ce menu gere deja « Publier » sur cette page
+    const w = window as unknown as { __omCompose?: number };
+    w.__omCompose = (w.__omCompose ?? 0) + 1;
+    return () => { window.removeEventListener("open-compose", h); w.__omCompose = Math.max(0, (w.__omCompose ?? 1) - 1); };
   }, [isAuthenticated]);
 
   useEffect(() => {
