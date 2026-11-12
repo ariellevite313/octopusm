@@ -148,7 +148,7 @@ export function DesktopBoard({ rows, logo, countLabel, scoreLabel, animKey, podi
         <div className="overflow-hidden rounded-[28px] border border-border bg-card shadow-[var(--shadow-lg)]">
           <div className="grid h-[58px] grid-cols-[96px_1fr_180px_190px] items-center px-9 text-xs font-bold uppercase tracking-[0.09em] text-muted-foreground">
             <span>{tr("Rank")}</span>
-            <span>{tr("Player")}</span>
+            <span>{tr("Trader")}</span>
             <span className="text-right">{countLabel}</span>
             <span className="text-right">{scoreLabel}</span>
           </div>

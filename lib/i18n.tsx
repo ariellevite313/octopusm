@@ -515,6 +515,17 @@ type LangContextValue = {
   setLang: (l: Lang) => void;
 };
 
+/** Vocabulaire OM en anglais : « predict » au lieu de « bet », partout où une phrase n'a pas de traduction. */
+const WORDING: [RegExp, string][] = [
+  [/\bBetting\b/g, "Predicting"], [/\bbetting\b/g, "predicting"], [/\bBettors\b/g, "Predictors"], [/\bbettors\b/g, "predictors"],
+  [/\bBets\b/g, "Predicts"], [/\bbets\b/g, "predicts"], [/\bBet\b/g, "Predict"], [/\bbet\b/g, "predict"],
+  [/\bPlayers\b/g, "Traders"], [/\bplayers\b/g, "traders"],
+];
+export function omWording(text: string): string {
+  if (!/bet|layer/i.test(text)) return text;
+  return WORDING.reduce((t, [re, to]) => t.replace(re, to), text);
+}
+
 function fill(text: string, vars?: Vars) {
   return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
 }
@@ -522,7 +533,7 @@ function fill(text: string, vars?: Vars) {
 const LangContext = createContext<LangContextValue>({
   lang: "en",
   t: en,
-  tr: (text, vars) => fill(text, vars),
+  tr: (text, vars) => fill(omWording(text), vars),
   toggleLang: () => {},
   setLang: () => {},
 });
@@ -579,7 +590,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   const tr = useCallback(
-    (text: string, vars?: Vars) => fill(phrases[text] ?? text, vars),
+    (text: string, vars?: Vars) => fill(phrases[text] ?? omWording(text), vars),
     [phrases],
   );
 
