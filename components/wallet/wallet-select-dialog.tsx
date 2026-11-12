@@ -3,12 +3,14 @@
 import { toast } from "sonner";
 import { useT, Rich } from "@/lib/i18n";
 import { startDeeplinkConnect } from "@/lib/wallet/phantom-deeplink";
+import { X_LOGIN_ENABLED, XLogo } from "@/components/auth/x-login";
 import { type WalletInfo, type WalletType, WALLET_COLORS } from "@/lib/wallet/adapters";
 
 type Props = {
   wallets: WalletInfo[];
   onSelect: (type: WalletType) => void;
   onClose: () => void;
+  onX?: () => void;
 };
 
 function isMobile(): boolean {
@@ -17,7 +19,7 @@ function isMobile(): boolean {
 }
 
 
-export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
+export function WalletSelectDialog({ wallets, onSelect, onClose, onX }: Props) {
   const { tr } = useT();
   const installed = wallets.filter((w) => w.detected);
   const notInstalled = wallets.filter((w) => !w.detected);
@@ -81,6 +83,18 @@ export function WalletSelectDialog({ wallets, onSelect, onClose }: Props) {
             </svg>
           </button>
         </div>
+
+        {/* Connexion avec X : un wallet est cree pour la personne */}
+        {X_LOGIN_ENABLED && onX && (
+          <>
+            <button type="button" onClick={onX}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-sm font-bold text-background transition-opacity hover:opacity-90">
+              <XLogo className="size-4" />{tr("Continue with X")}
+            </button>
+            <p className="mb-3 text-center text-[12px] text-muted-foreground">{tr("No wallet? One is created for you.")}</p>
+            <div className="mb-3 flex items-center gap-3 text-[12px] text-muted-foreground"><span className="h-px flex-1 bg-border" />{tr("or")}<span className="h-px flex-1 bg-border" /></div>
+          </>
+        )}
 
         {/* Installed wallets */}
         {installed.length > 0 && (
