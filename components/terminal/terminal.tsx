@@ -57,7 +57,8 @@ function Logo({ src, sym, size = "size-12" }: { src: string | null; sym: string;
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-full bg-muted text-base font-bold text-foreground`}>{sym.slice(0, 1)}</span>;
 }
 function Tick({ className = "size-[18px]" }: { className?: string }) {
-  return <BadgeCheck className={`${className} shrink-0 fill-[#4f6bff] text-white`} aria-label="Verified" />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/verified.png" alt="Verified" className={`${className} shrink-0`} />;
 }
 function Change({ v, className = "" }: { v: number | null; className?: string }) {
   if (v == null) return null;
