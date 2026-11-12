@@ -8,6 +8,7 @@ import { isBanned } from "@/lib/moderation";
  * de la signature ; jamais à partir d'une valeur fournie par le client.
  */
 const agentWallet = new AsyncLocalStorage<string>();
+export const currentAgentWallet = (): string | null => agentWallet.getStore() ?? null;
 export const runAsAgent = <T,>(wallet: string, fn: () => Promise<T>): Promise<T> => agentWallet.run(wallet, fn);
 
 /** Wallet connecté, ou une réponse 401 prête à renvoyer. */

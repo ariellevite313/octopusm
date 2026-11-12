@@ -88,7 +88,10 @@ describe("/mcp/connect", () => {
     expect(j.result.content[0].text).toMatch(/permission: social/);
   });
 
-  it("no account tool moves money", () => {
-    expect(USER_TOOLS.map((t) => t.name).some((n) => /withdraw|transfer|swap|bet$/.test(n))).toBe(false);
+  it("no account tool moves money (only the AI's own wallet tools do)", () => {
+    const names = USER_TOOLS.map((t) => t.name);
+    expect(names.filter((n) => !n.startsWith("ai_")).some((n) => /withdraw|transfer|swap|bet$/.test(n))).toBe(false);
+    // L'IA ne peut jamais retirer ni envoyer de l'argent ailleurs : seul l'humain retire, vers son propre wallet
+    expect(names.some((n) => /withdraw|transfer|send/.test(n))).toBe(false);
   });
 });
