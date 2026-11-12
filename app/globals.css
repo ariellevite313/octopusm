@@ -507,3 +507,10 @@
   .beam, .board-reveal, .row-in, .winner-ring, .confetti { animation: none; }
   .winner-ring, .confetti { display: none; }
 }
+
+/* Fenêtres et panneaux (filtres, menus, feuilles) : ça défile sans barre de défilement visible */
+[role="dialog"], [role="dialog"] *, [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] * { scrollbar-width: none; }
+[role="dialog"]::-webkit-scrollbar, [role="dialog"] *::-webkit-scrollbar, [role="menu"]::-webkit-scrollbar, [role="listbox"]::-webkit-scrollbar, [data-radix-popper-content-wrapper] *::-webkit-scrollbar { display: none; }
+/* Même chose pour toutes les fenêtres posées par-dessus la page (position fixe) */
+.fixed .overflow-y-auto, .fixed.overflow-y-auto { scrollbar-width: none; }
+.fixed .overflow-y-auto::-webkit-scrollbar, .fixed.overflow-y-auto::-webkit-scrollbar { display: none; }
