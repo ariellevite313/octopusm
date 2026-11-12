@@ -30,10 +30,24 @@ jobs:
       - name: Variables d'environnement
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
         run: |
-          if [ -z "$ENV_FILE" ]; then echo "Secret ENV_FILE manquant"; exit 1; fi
-          printf '%s\n' "$ENV_FILE" > .env.production.local
+          # ENV_FILE_B64 (prioritaire) : sortie de `base64 -w 76 .env.local`, insensible aux retours à la ligne du copier-coller
+          if [ -n "$ENV_FILE_B64" ]; then
+            printf '%s' "$ENV_FILE_B64" | tr -d ' \r\n\t' | base64 -d > .env.production.local || { echo "ENV_FILE_B64 illisible"; exit 1; }
+          elif [ -n "$ENV_FILE" ]; then
+            printf '%s\n' "$ENV_FILE" > .env.production.local
+          else echo "Secret ENV_FILE_B64 (ou ENV_FILE) manquant"; exit 1; fi
+          sed -i 's/\r$//' .env.production.local
           echo "$(grep -cE '^[A-Z0-9_]+=' .env.production.local) variables"
+      - name: Contrôle de la clé Supabase publique
+        run: |
+          val() { grep -E "^$1=" .env.production.local | tail -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '\r'; }
+          URL=$(val NEXT_PUBLIC_SUPABASE_URL); KEY=$(val NEXT_PUBLIC_SUPABASE_ANON_KEY)
+          [ -n "$URL" ] && [ -n "$KEY" ] || { echo "NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY absente"; exit 1; }
+          CODE=$(curl -s -o /dev/null -m 15 -w '%{http_code}' "$URL/auth/v1/settings" -H "apikey: $KEY" || echo 000)
+          echo "Supabase répond $CODE (longueur de la clé : ${#KEY})"
+          if [ "$CODE" = "401" ] || [ "$CODE" = "403" ]; then echo "Clé Supabase refusée : vérifie le secret, le site ne pourrait pas connecter les wallets"; exit 1; fi
       - run: npm run build
       - name: Archive (sans le .env ni le cache)
         run: |
