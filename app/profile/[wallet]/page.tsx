@@ -111,6 +111,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   let bannerSrc: string | null = null;
   let aiOwner: { wallet: string; name: string } | null = null;
   let aido: string | null = null;
+  let aidoHandle: string | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
@@ -120,8 +121,9 @@ async function ProfileContent({ wallet }: { wallet: string }) {
       const { data: o } = await admin.from("wallets").select("display_name, username").eq("address", b.ai_owner).maybeSingle();
       aiOwner = { wallet: b.ai_owner, name: o?.display_name || o?.username || shortAddress(b.ai_owner) };
     }
-    const { data: l } = await admin.from("aido_links").select("aido_address").eq("wallet", wallet).maybeSingle();
+    const { data: l } = await admin.from("aido_links").select("aido_address, aido_handle").eq("wallet", wallet).maybeSingle();
     aido = l?.aido_address ?? null;
+    aidoHandle = l?.aido_handle ?? null;
   } catch { /* colonnes absentes avant migration */ }
   const featured = (await getFeaturedTokens(createAdminClient(), [wallet])).get(wallet) ?? null;
 
@@ -192,7 +194,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                 AI <span className="font-medium opacity-80"><Tr>created by</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
               </span>
             )}
-            {!aiOwner && <AidoBadge wallet={wallet} aido={aido} />}
+            {!aiOwner && <AidoBadge wallet={wallet} aido={aido} handle={aidoHandle} />}
           </div>
 
           {/* Stats — inline, like followers / following */}

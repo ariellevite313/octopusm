@@ -1870,5 +1870,7 @@ const p: Record<string, string> = {
   "This Aido account is already linked to another OM account": "Ce compte Aido est déjà relié à un autre compte OM",
   "The signature does not match this Aido wallet": "La signature ne correspond pas à ce wallet Aido",
   "The signature expired, sign again": "La signature a expiré, signe à nouveau",
+  "No Aido profile for this wallet. Create your profile in Aido first.": "Aucun profil Aido pour ce wallet. Crée d'abord ton profil dans Aido.",
+  "Could not reach Arc right now, try again": "Impossible de joindre Arc pour le moment, réessaie",
 };
 export default p;

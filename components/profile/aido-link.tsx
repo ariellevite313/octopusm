@@ -6,14 +6,15 @@ import { Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
-import { AIDO_URL, aidoLinkMessage } from "@/lib/aido-link";
+import { aidoLinkMessage, aidoProfileUrl } from "@/lib/aido-link";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 
-export function AidoBadge({ wallet, aido }: { wallet: string; aido: string | null }) {
+export function AidoBadge({ wallet, aido, handle }: { wallet: string; aido: string | null; handle: string | null }) {
   const { tr } = useT();
   const { walletAddress } = useAuth();
   const [linked, setLinked] = useState(aido);
+  const [name, setName] = useState(handle);
   const [busy, setBusy] = useState(false);
   const mine = !!walletAddress && (wallet.startsWith("0x") ? walletAddress.toLowerCase() === wallet.toLowerCase() : walletAddress === wallet);
 
@@ -30,6 +31,7 @@ export function AidoBadge({ wallet, aido }: { wallet: string; aido: string | nul
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not link");
       setLinked(j.aido_address);
+      setName(j.aido_handle ?? null);
       toast.success(tr("Aido account linked"));
     } catch (e) { toast.error(tr((e as Error).message?.slice(0, 120) || "Could not link")); }
     setBusy(false);
@@ -43,9 +45,9 @@ export function AidoBadge({ wallet, aido }: { wallet: string; aido: string | nul
 
   if (linked) return (
     <span className="inline-flex items-center gap-2">
-      <a href={AIDO_URL} target="_blank" rel="noopener noreferrer" title={linked}
+      <a href={aidoProfileUrl(name)} target="_blank" rel="noopener noreferrer" title={linked}
         className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[12px] font-bold text-foreground">
-        <Link2 className="size-3.5" />Aido {linked.slice(0, 6)}...{linked.slice(-4)}
+        <Link2 className="size-3.5" />Aido {name ? `@${name}` : `${linked.slice(0, 6)}...${linked.slice(-4)}`}
       </a>
       {mine && <button onClick={unlink} disabled={busy} className="text-[12px] font-semibold text-muted-foreground underline">{tr("Unlink")}</button>}
     </span>

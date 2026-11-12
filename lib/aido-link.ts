@@ -1,5 +1,8 @@
 /** Lien entre un compte Aido (wallet Arc) et un compte OM : message signé par le wallet Aido, envoyé depuis la session OM. */
 export const AIDO_URL = "https://aidocircle.com";
+/** Contrat « Communauté » d'Aido sur Arc : profileOf(adresse) donne le pseudo (lien public aidocircle.com/@pseudo). */
+export const AIDO_SOCIAL = "0x84be0d0E9fBEC2571421a5486Ba535F812bc90b8";
+export const aidoProfileUrl = (handle: string | null) => (handle ? `${AIDO_URL}/@${encodeURIComponent(handle)}` : AIDO_URL);
 const MAX_AGE_MS = 10 * 60_000;
 
 export function aidoLinkMessage(omWallet: string, aidoAddress: string, issuedAt: string): string {
