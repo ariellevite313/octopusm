@@ -20,6 +20,8 @@ import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
 import { CHAINS, EXTRA_EXPLORERS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
+
+const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium SOL/USDC
 import { executeSwap, toRaw } from "@/lib/swap/client";
 import { TerminalLineChart, T_RANGES, type ChartMode, type TRange } from "./line-chart";
 
@@ -338,7 +340,9 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
     if (fromList) return;
     fetch(`/api/terminal?chain=${chain}&q=${mint}`).then((r) => r.json()).then((j) => {
       const found = (j.tokens ?? []).find((x: TerminalToken) => x.mint.toLowerCase() === mint.toLowerCase());
-      setT(found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
+      // SOL est presque toujours le token de cotation : on prend la grande pool SOL/USDC de Raydium pour son graphique
+      const sol = mint === SOL_MINT ? { mint, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: SOL_USDC_POOL, createdAt: null, chain: "solana" as const, verified: true } : null;
+      setT(sol ? { ...sol, ...(found ?? {}), pool: SOL_USDC_POOL, logo: found?.logo ?? sol.logo } : found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
     }).catch(() => {});
   }, [mint, fromList]);
   useEffect(() => { if (isSol) fetch(`/api/swap/token?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((j) => j?.token && setInfo(j.token)).catch(() => {}); }, [mint, isSol]);
