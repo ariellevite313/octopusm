@@ -47,7 +47,8 @@ const EXTRA = [
   { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", description: T("Our partner token on Solana"), icon: Coins, external: true },
   { href: "https://t.me/Omdotfun",       label: T("Support"),        description: T("Get help from the team"),        icon: Headset,     external: true  },
   { href: "/faq",                        label: T("FAQ"),            description: T("Frequently asked questions"),    icon: HelpCircle,  external: false },
-  { href: "https://t.me/OmdotfunTuto",   label: T("Tutorial"),       description: T("Learn how to use OMdotfun"),     icon: BookOpen,    external: true  },
+  { href: "/guide",                      label: T("User guide"),     description: T("Learn how to use OMdotfun"),     icon: BookOpen,    external: false },
+  { href: "https://t.me/OmdotfunTuto",   label: T("Tutorial"),       description: T("Video tutorials on Telegram"),   icon: BookOpen,    external: true  },
   { href: "/policy",                     label: T("ŌM Policy"),      description: T("Rules, prohibitions, removals"), icon: ShieldCheck, external: false },
   { href: "/privacy",                    label: T("Privacy Policy"), description: T("How we handle your data"),       icon: Lock,        external: false },
 ];
