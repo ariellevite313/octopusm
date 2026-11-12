@@ -522,6 +522,8 @@ const WORDING: [RegExp, string][] = [
   [/\bPlayers\b/g, "Traders"], [/\bplayers\b/g, "traders"],
 ];
 export function omWording(text: string): string {
+  // Clé avec contexte (« btn:Following ») : l'anglais affiche le texte après le préfixe
+  if (text.startsWith("btn:")) text = text.slice(4);
   if (!/bet|layer/i.test(text)) return text;
   return WORDING.reduce((t, [re, to]) => t.replace(re, to), text);
 }

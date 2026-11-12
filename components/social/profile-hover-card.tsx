@@ -84,7 +84,7 @@ export function ProfileHoverCard({ wallet, children, className = "" }: { wallet:
                 </Link>
                 {!card.mine && (
                   <button onClick={follow} disabled={busy} className={`rounded-full px-4 py-1.5 text-[14px] font-bold disabled:opacity-50 ${card.is_following ? "border border-border text-foreground" : "bg-foreground text-background"}`}>
-                    {card.is_following ? tr("Following") : tr("Follow")}
+                    {card.is_following ? tr("btn:Following") : tr("Follow")}
                   </button>
                 )}
               </div>

@@ -88,7 +88,7 @@ export function ArticleView({ id, title, cover, md, minutes }: { id: string; tit
             </Link>
             {!post.mine && (
               <button onClick={follow} className={`shrink-0 rounded-full border px-3.5 py-1 text-[12px] font-bold ${post.following_author ? "border-border text-muted-foreground" : "border-foreground text-foreground"}`}>
-                {post.following_author ? tr("Following") : tr("Follow")}
+                {post.following_author ? tr("btn:Following") : tr("Follow")}
               </button>
             )}
           </div>
