@@ -17,6 +17,7 @@ type Card = {
   followers: number; following: number; is_following: boolean; follows_you: boolean; mine: boolean;
   mutual: { name: string | null; avatar: string | null }[]; mutual_count: number;
   community: { slug: string; name: string; logo_src: string | null } | null;
+  ambassador?: boolean;
 };
 
 const cache = new Map<string, Card>();
@@ -90,6 +91,7 @@ export function ProfileHoverCard({ wallet, children, className = "" }: { wallet:
               <Link href={`/profile/${card.wallet}`} className="mt-2 block truncate text-[17px] font-extrabold text-foreground hover:underline">{name}</Link>
               <p className="flex items-center gap-2 text-[14px] text-muted-foreground">
                 <span className="truncate">{card.username ? `@${card.username}` : shortAddress(card.wallet)}</span>
+                {card.ambassador && <span className="shrink-0 rounded-md bg-foreground px-1.5 py-0.5 text-[11px] font-bold text-background">{tr("Ambassador")}</span>}
                 {card.follows_you && <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold">{tr("Follows you")}</span>}
               </p>
               {card.bio && <p className="mt-2 whitespace-pre-line text-[14px] text-foreground">{card.bio}</p>}

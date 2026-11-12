@@ -35,3 +35,14 @@ describe("computeTradeRewards", () => {
     expect(PLATFORM_FEE_RATE.arc).toBeLessThanOrEqual(0.0025);
   });
 });
+
+describe("ambassador referral share", () => {
+  it("pays 20% of the platform fee to an active ambassador, 10% otherwise", async () => {
+    const { AMBASSADOR_SHARE_OF_FEE } = await import("@/lib/trade-rewards");
+    const normal = computeTradeRewards("arc", 1000, { hasReferrer: true, hasPost: false });
+    const amb = computeTradeRewards("arc", 1000, { hasReferrer: true, hasPost: false, ambassador: true });
+    expect(AMBASSADOR_SHARE_OF_FEE).toBe(0.2);
+    expect(amb.referral).toBeCloseTo(normal.referral * 2, 6);
+    expect(amb.referral).toBeLessThan(amb.fee);
+  });
+});

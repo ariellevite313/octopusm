@@ -1,6 +1,6 @@
 /**
  * Gains sur les achats de tokens, payés sur ce que la plateforme gagne (jamais plus que ses frais) :
- *  - parrain : 10 % des frais de la plateforme sur les achats de ses filleuls
+ *  - parrain : 10 % des frais de la plateforme sur les achats de ses filleuls (20 % pour un ambassadeur actif)
  *  - post    : 1 % des frais de la plateforme sur les achats faits depuis un post (bouton Trade)
  * Tous les taux sont ici, à un seul endroit.
  *
@@ -15,6 +15,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { isBanned } from "@/lib/moderation";
 
 export const REFERRER_SHARE_OF_FEE = 0.1;
+/** Parrain ambassadeur (programme sur candidature, 20 places) : 20 % des frais de la plateforme */
+export const AMBASSADOR_SHARE_OF_FEE = 0.2;
 export const POST_SHARE_OF_FEE = 0.01;
 /**
  * Part du volume que la plateforme encaisse réellement.
@@ -35,16 +37,24 @@ export const normWallet = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLo
 const round6 = (n: number) => Math.floor(n * 1_000_000) / 1_000_000;
 
 /** Calcul pur des montants (en USDC) pour un achat. */
-export function computeTradeRewards(chain: Chain, volumeUsd: number, opts: { hasReferrer: boolean; hasPost: boolean }, feeRate?: number) {
+export function computeTradeRewards(chain: Chain, volumeUsd: number, opts: { hasReferrer: boolean; hasPost: boolean; ambassador?: boolean }, feeRate?: number) {
   if (!Number.isFinite(volumeUsd) || volumeUsd < MIN_VOLUME_USD) return { fee: 0, referral: 0, post: 0 };
   // Taux réel du token si connu (jamais au-dessus de 1,5 % du volume), sinon le taux prudent de la chaîne
   const rate = feeRate !== undefined && Number.isFinite(feeRate) && feeRate > 0 && feeRate <= 0.015 ? feeRate : PLATFORM_FEE_RATE[chain];
   const fee = volumeUsd * rate;
   return {
     fee,
-    referral: opts.hasReferrer ? round6(fee * REFERRER_SHARE_OF_FEE) : 0,
+    referral: opts.hasReferrer ? round6(fee * (opts.ambassador ? AMBASSADOR_SHARE_OF_FEE : REFERRER_SHARE_OF_FEE)) : 0,
     post: opts.hasPost ? round6(fee * POST_SHARE_OF_FEE) : 0,
   };
+}
+
+/** Ambassadeur actif (table créée par la migration du programme ; false si elle n'existe pas encore). */
+export async function isActiveAmbassador(db: Db, wallet: string): Promise<boolean> {
+  try {
+    const { data, error } = await db.from("ambassadors").select("wallet").ilike("wallet", normWallet(wallet)).eq("active", true).maybeSingle();
+    return !error && !!data;
+  } catch { return false; }
 }
 
 /** Enregistre de quel post vient un trader pour un token (premier post gagnant, 7 jours, pas soi-même). */
@@ -78,7 +88,8 @@ export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: n
     const referrer: string | null = ref?.referrer_wallet && normWallet(ref.referrer_wallet) !== trader ? ref.referrer_wallet : null;
     const attAt = att ? new Date(att.created_at).getTime() : 0;
     const postOk = !!att && att.sharer !== trader && buy.tsMs >= attAt && buy.tsMs - attAt <= ATTRIBUTION_DAYS * 86_400_000;
-    const r = computeTradeRewards(buy.chain, buy.volumeUsd, { hasReferrer: !!referrer, hasPost: postOk }, buy.feeRate);
+    const ambassador = referrer ? await isActiveAmbassador(db, referrer) : false;
+    const r = computeTradeRewards(buy.chain, buy.volumeUsd, { hasReferrer: !!referrer, hasPost: postOk, ambassador }, buy.feeRate);
     const pay = async (kind: "referral" | "post", who: string, amount: number) => {
       if (amount <= 0) return 0;
       if (await isBanned(who) || await isBanned(trader)) return 0; // comptes bannis : pas de gains
