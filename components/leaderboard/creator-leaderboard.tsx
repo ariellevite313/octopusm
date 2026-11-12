@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import Link from "next/link";
 import { Trophy, ArrowLeft, Crown } from "lucide-react";
-import { DesktopBoard, type BoardRow } from "@/components/leaderboard/desktop-board";
+import { DesktopBoard, CONFETTI, type BoardRow } from "@/components/leaderboard/desktop-board";
 import { PlatformStatsInline } from "@/components/launchpad/platform-stats";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
 import { useT } from "@/lib/i18n";
@@ -77,14 +77,19 @@ type Tone = keyof typeof TONES;
 
 const RANK_TONE: Tone[] = ["gold", "silver", "bronze", "violet"];
 
-function FrameCard({ entry, tone, className = "" }: { entry: LeaderboardEntry; tone: Tone; className?: string }) {
+function FrameCard({ entry, tone, className = "", delay = "0s", winner = false }: { entry: LeaderboardEntry; tone: Tone; className?: string; delay?: string; winner?: boolean }) {
   const t = TONES[tone];
   const initials = (entry.displayName ?? entry.walletAddress).slice(0, 2).toUpperCase();
   return (
     <Link
       href={`/profile/${entry.walletAddress}`}
-      className={`relative block aspect-square rounded-[22px] bg-gradient-to-br p-[5px] transition-transform hover:scale-[1.03] ${t.frame} ${t.glow} ${className}`}
+      style={{ "--delay": delay } as CSSProperties}
+      className={`board-reveal relative block aspect-square rounded-[22px] bg-gradient-to-br p-[5px] transition-transform hover:scale-[1.03] ${t.frame} ${t.glow} ${className}`}
     >
+      {winner && <span aria-hidden="true" className="winner-ring" style={{ borderRadius: 26 }} />}
+      {winner && CONFETTI.map(([dx, dy, rot, c], i) => (
+        <span key={i} aria-hidden="true" className="confetti" style={{ "--dx": `${parseInt(dx) * 0.6}px`, "--dy": `${parseInt(dy) * 0.6}px`, "--rot": rot, "--c": c, "--delay": `${1 + (i % 4) * 0.35}s` } as CSSProperties} />
+      ))}
       <div className="relative h-full w-full overflow-hidden rounded-[17px] bg-zinc-900">
         {entry.avatarSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -254,7 +259,7 @@ export function CreatorLeaderboard() {
           scoreLabel={tr("Fees earned")}
           animKey={`creators-${period}`}
         />
-        <div className="lg:hidden">
+        <div key={period} className="lg:hidden">
           {/* Podium */}
           {top3.length >= 3 && (
             <div className="relative mx-auto mb-8 max-w-[26rem] pb-2 pt-6 lg:sticky lg:top-6 lg:mb-0 lg:max-w-none">
@@ -271,15 +276,22 @@ export function CreatorLeaderboard() {
                 </div>
                 <div className="relative">
                   <Crown className="absolute -top-5 left-1/2 z-10 size-9 -translate-x-1/2 rotate-[8deg] fill-amber-400 text-amber-500 drop-shadow-[0_2px_6px_rgba(245,179,1,0.6)]" />
-                  <FrameCard entry={top3[0]} tone="gold" className="rotate-[4deg]" />
+                  <FrameCard entry={top3[0]} tone="gold" className="rotate-[4deg]" delay="0.45s" winner />
                 </div>
+              </div>
+
+              {/* Projecteurs : fond sombre seulement */}
+              <div aria-hidden="true" className="pointer-events-none absolute -top-4 inset-x-0 hidden h-[460px] overflow-hidden opacity-60 mix-blend-screen dark:block lg:hidden" style={{ maskImage: "linear-gradient(to bottom, black 55%, transparent)" }}>
+                <span className="beam" style={{ "--x": "20%", "--a0": "-22deg", "--a1": "14deg", "--d": "9s" } as CSSProperties} />
+                <span className="beam" style={{ "--x": "60%", "--a0": "12deg", "--a1": "-14deg", "--d": "11s" } as CSSProperties} />
+                <span className="beam" style={{ "--x": "90%", "--a0": "-14deg", "--a1": "20deg", "--d": "10s" } as CSSProperties} />
               </div>
 
               {/* #2, #3, #4 */}
               <div className="mt-5 grid grid-cols-3 gap-3">
                 {[top3[1], top3[2], entries[3]].filter(Boolean).map((e, i) => (
                   <div key={e.walletAddress} className="min-w-0">
-                    <FrameCard entry={e} tone={RANK_TONE[i + 1]} className={i === 0 ? "-rotate-[5deg]" : i === 1 ? "rotate-[2deg]" : "-rotate-[3deg]"} />
+                    <FrameCard entry={e} tone={RANK_TONE[i + 1]} delay={`${0.15 + i * 0.15}s`} className={i === 0 ? "-rotate-[5deg]" : i === 1 ? "rotate-[2deg]" : "-rotate-[3deg]"} />
                     <p className="mt-2.5 truncate text-center text-[13px] font-semibold text-foreground">{displayLabel(e)}</p>
                     <p className="num truncate text-center text-xs font-bold text-up">+{fmtFee(e, lang)}</p>
                   </div>
@@ -290,14 +302,15 @@ export function CreatorLeaderboard() {
 
           {/* Ranking list — défilable à côté du podium sur ordinateur */}
           <div className="-mx-3 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:pr-1">
-            {entries.map(entry => {
+            {entries.map((entry, idx) => {
               const top = entry.rank <= 3;
               const tone = top ? TONES[RANK_TONE[entry.rank - 1]] : null;
               return (
                 <Link
                   key={entry.walletAddress}
                   href={`/profile/${entry.walletAddress}`}
-                  className="flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-muted/50"
+                  style={{ "--delay": `${0.7 + Math.min(idx, 10) * 0.05}s` } as CSSProperties}
+                  className="row-in flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-muted/50"
                 >
                   <span className={`num w-6 shrink-0 text-center text-sm font-bold ${tone ? tone.text : "text-muted-foreground"}`}>
                     {entry.rank}

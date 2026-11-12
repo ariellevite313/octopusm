@@ -74,7 +74,7 @@ function Chip({ logo, label }: { logo: string; label: string }) {
   );
 }
 
-const CONFETTI = [
+export const CONFETTI = [
   ["-150px", "-70px", "200deg", "#f5b301"], ["130px", "-95px", "-160deg", "#ffffff"], ["-90px", "-130px", "120deg", "#c9c9d3"], ["70px", "-150px", "-220deg", "#f5b301"],
   ["-190px", "20px", "260deg", "#e0712b"], ["175px", "10px", "-120deg", "#f5b301"], ["-40px", "-170px", "180deg", "#ffffff"], ["20px", "-120px", "-90deg", "#c9c9d3"],
   ["-130px", "90px", "140deg", "#f5b301"], ["120px", "80px", "-200deg", "#ffffff"], ["-60px", "120px", "230deg", "#e0712b"], ["50px", "110px", "-140deg", "#f5b301"],
