@@ -25,7 +25,9 @@ const nextConfig: NextConfig = {
     ],
   },
   // Polyfill Buffer pour @solana/web3.js (webpack uniquement, pas Turbopack)
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
+    // Build de production : pas de cache webpack (il faisait monter le build à 3,6 Go et le serveur le tuait ; sans lui ~2,1 Go)
+    if (!dev) config.cache = false;
     config.resolve.fallback = {
       ...config.resolve.fallback,
       buffer: require.resolve("buffer"),
