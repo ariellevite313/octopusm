@@ -10,6 +10,8 @@ export type TerminalToken = {
   pool: string; createdAt: string | null;
   /** chaîne du token (solana par défaut) ; href : page OM à ouvrir à la place du Terminal (tokens Arc) */
   chain?: TerminalChain; href?: string | null;
+  /** vérifié par Jupiter (Solana) ou lancé sur OM : pastille bleue */
+  verified?: boolean;
 };
 
 export type TerminalChain = "solana" | "arc" | "base" | "bnb" | "hyperliquid" | "ethereum" | "arbitrum" | "polygon" | "avalanche" | "elysium" | "robinhood";

@@ -56,6 +56,9 @@ function Logo({ src, sym, size = "size-12" }: { src: string | null; sym: string;
   return src ? <img src={src} alt="" loading="lazy" className={`${size} shrink-0 rounded-full bg-muted object-cover`} />
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-full bg-muted text-base font-bold text-foreground`}>{sym.slice(0, 1)}</span>;
 }
+function Tick({ className = "size-[18px]" }: { className?: string }) {
+  return <BadgeCheck className={`${className} absolute -right-1 -top-1 rounded-full bg-background fill-[#4f6bff] text-white`} aria-label="Verified" />;
+}
 function Change({ v, className = "" }: { v: number | null; className?: string }) {
   if (v == null) return null;
   const up = v >= 0;
@@ -200,6 +203,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
               <span className="relative shrink-0">
                 <Logo src={t.logo} sym={t.symbol} />
+                {t.verified && <Tick />}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {selected.length !== 1 && <img src={`/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full ring-2 ring-background" />}
               </span>
@@ -368,7 +372,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       {/* En-tête */}
       <div className="sticky top-16 z-20 flex items-center gap-2 bg-background/95 px-3 py-2 backdrop-blur lg:top-0">
         <button onClick={() => router.push("/terminal")} aria-label={tr("Back")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground lg:hidden"><ChevronLeft className="size-6" /></button>
-        <Logo src={t.logo} sym={t.symbol} size="size-11" />
+        <span className="relative shrink-0"><Logo src={t.logo} sym={t.symbol} size="size-11" />{(t.verified || info?.verified) && <Tick className="size-5" />}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[18px] font-bold text-foreground">{t.symbol}</p>
           <button onClick={() => navigator.clipboard.writeText(mint).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
