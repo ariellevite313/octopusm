@@ -64,6 +64,13 @@ function TokenLogo({ b, size = "size-12" }: { b: Pick<Bag, "logo" | "symbol">; s
 export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
   const { tr } = useT();
   const router = useRouter();
+  // Clic sur un actif : on ouvre le Terminal pour le trader (page OM pour les tokens Arc)
+  const toTerminal = (b: Bag) => {
+    if (b.href?.startsWith("/launchpad/")) { router.push(b.href); return; }
+    const mint = b.id === "native" ? (b.chain === "solana" ? "So11111111111111111111111111111111111111112" : "") : b.id;
+    if (!mint) { setOpen(b); return; }
+    router.push(`/terminal?chain=${b.chain}&mint=${encodeURIComponent(mint)}`);
+  };
   const { walletAddress } = useAuth();
   const { data: me } = useQuery({ queryKey: ["wallet-profile", walletAddress], queryFn: () => getWalletProfile(walletAddress!), enabled: !!walletAddress, staleTime: 60_000 });
   const [data, setData] = useState<Data | null>(null);
@@ -141,7 +148,7 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
           <p className="py-6 text-sm text-muted-foreground">{tr("No token in this wallet yet.")}</p>
         ) : data && (
           <>
-            {data.main.map((b) => <Row key={`${b.chain}:${b.id}`} b={b} onOpen={setOpen} />)}
+            {data.main.map((b) => <Row key={`${b.chain}:${b.id}`} b={b} onOpen={toTerminal} />)}
             {data.small.length > 0 && (
               <>
                 <button onClick={() => setShowSmall((v) => !v)}
@@ -149,7 +156,7 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
                   <span>{tr("Small balances and unpriced ({count})", { count: data.small.length })}</span>
                   <ChevronDown className={`size-4 transition-transform ${showSmall ? "rotate-180" : ""}`} />
                 </button>
-                {showSmall && <div className="opacity-70">{data.small.map((b) => <Row key={`${b.chain}:${b.id}`} b={b} onOpen={setOpen} />)}</div>}
+                {showSmall && <div className="opacity-70">{data.small.map((b) => <Row key={`${b.chain}:${b.id}`} b={b} onOpen={toTerminal} />)}</div>}
               </>
             )}
           </>
