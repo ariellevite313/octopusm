@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { arcList, CHAINS, mergeLists, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
-import { isMajorSolana } from "@/lib/swap/majors";
+import { isMajorEvm, isMajorSolana } from "@/lib/swap/majors";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,6 @@ export async function GET(req: Request) {
   // Pastille : tokens vérifiés sur Jupiter (Solana), majeurs, ou lancés sur OM (Arc)
   const sol = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.href);
   const ver = await jupVerified(sol.map((t) => t.mint)).catch(() => new Set<string>());
-  for (const t of tokens) t.verified = t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : false;
+  for (const t of tokens) t.verified = t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : isMajorEvm(t.chain ?? "", t.mint);
   return NextResponse.json({ tokens }, { status: tokens.length || chains.length === 0 ? 200 : 200, headers: { "Cache-Control": "public, max-age=30" } });
 }
