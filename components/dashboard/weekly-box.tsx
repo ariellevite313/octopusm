@@ -52,7 +52,7 @@ function useCountdown(end: string | undefined) {
 }
 
 /** Le dessin de la box : le couvercle s'envole à l'ouverture. */
-function GiftSvg({ opening }: { opening: boolean }) {
+export function GiftSvg({ opening }: { opening: boolean }) {
   return (
     <svg viewBox="0 0 120 120" className={`size-36 ${opening ? "animate-[wbshake_0.6s_ease-in-out]" : ""}`} aria-hidden>
       <defs><linearGradient id="wb-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff9a5c" /><stop offset="1" stopColor="#e2560f" /></linearGradient></defs>

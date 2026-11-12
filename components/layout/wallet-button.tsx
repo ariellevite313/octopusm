@@ -15,6 +15,7 @@ import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
+import { XLoginFlow } from "@/components/auth/x-login";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
 import { TokenLogo } from "@/components/shared/token-logo";
@@ -518,6 +519,7 @@ function WalletButtonInner() {
   const [showDialog, setShowDialog] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [xFlow, setXFlow] = useState(false);
 
   useEffect(() => {
     const handler = () => setShowDialog(true);
@@ -549,6 +551,13 @@ function WalletButtonInner() {
     } finally {
       setIsConnecting(false);
     }
+  }
+
+  function onXDone() {
+    setXFlow(false);
+    toast.success(tr("Wallet connected"));
+    const returnTo = searchParams.get("returnTo");
+    if (returnTo && returnTo.startsWith("/")) router.push(returnTo);
   }
 
   async function handleDisconnect() {
@@ -607,9 +616,11 @@ function WalletButtonInner() {
           wallets={availableWallets}
           onSelect={handleSelectWallet}
           onClose={() => setShowDialog(false)}
+          onX={() => { setShowDialog(false); setXFlow(true); }}
         />,
         document.body,
       )}
+      {xFlow && <XLoginFlow onDone={onXDone} onFail={(m) => { setXFlow(false); toast.error(tr(m)); }} onCancel={() => setXFlow(false)} />}
     </>
   );
 }
