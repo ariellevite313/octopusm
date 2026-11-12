@@ -159,10 +159,13 @@ async function _getPublicProfile(walletAddress: string): Promise<PublicProfileDa
       .maybeSingle(),
 
     // OCTO total from leaderboard (includes total_octo used for balance + rank)
+    // Adresses 0x : sans tenir compte des majuscules (les tips sont enregistrés en minuscules)
     admin
       .from("leaderboard_octo")
       .select("total_octo")
-      .eq("wallet_address", walletAddress)
+      [/^0x[0-9a-fA-F]{40}$/.test(walletAddress) ? "ilike" : "eq"]("wallet_address", walletAddress)
+      .order("total_octo", { ascending: false })
+      .limit(1)
       .maybeSingle(),
 
     // Up/Down bets — for P&L computation + activity display
