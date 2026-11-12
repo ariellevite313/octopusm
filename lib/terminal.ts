@@ -16,7 +16,9 @@ export type TerminalToken = {
 
 export type TerminalChain = "solana" | "arc" | "base" | "bnb" | "hyperliquid" | "ethereum" | "arbitrum" | "polygon" | "avalanche" | "elysium" | "robinhood";
 /** Réseau GeckoTerminal de chaque chaîne (null : pas encore disponible) */
-export const GT_NET: Record<TerminalChain, string | null> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", ethereum: "eth", arbitrum: "arbitrum", polygon: "polygon_pos", avalanche: "avax", arc: null, elysium: null, robinhood: null };
+export const GT_NET: Record<TerminalChain, string | null> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", ethereum: "eth", arbitrum: "arbitrum", polygon: "polygon_pos", avalanche: "avax", arc: null, elysium: "elysium", robinhood: "robinhood" };
+/** Explorateurs des reseaux suivis dans le Terminal mais pas encore tradables (0x ne les gere pas) */
+export const EXTRA_EXPLORERS: Partial<Record<TerminalChain, string>> = { robinhood: "https://robinhoodchain.blockscout.com" };
 export const CHAINS: { id: TerminalChain; name: string; logo: string; ready: boolean }[] = [
   { id: "solana", name: "Solana", logo: "/chains/solana.png", ready: true },
   { id: "arc", name: "Arc", logo: "/chains/arc.png", ready: true },
@@ -27,8 +29,8 @@ export const CHAINS: { id: TerminalChain; name: string; logo: string; ready: boo
   { id: "arbitrum", name: "Arbitrum", logo: "/chains/arbitrum.png", ready: true },
   { id: "polygon", name: "Polygon", logo: "/chains/polygon.png", ready: true },
   { id: "avalanche", name: "Avalanche", logo: "/chains/avalanche.png", ready: true },
-  { id: "elysium", name: "Elysium", logo: "/chains/elysium.png", ready: false },
-  { id: "robinhood", name: "Robinhood", logo: "/chains/robinhood.png", ready: false },
+  { id: "elysium", name: "Elysium", logo: "/chains/elysium.png", ready: true },
+  { id: "robinhood", name: "Robinhood", logo: "/chains/robinhood.png", ready: true },
 ];
 
 const GT = "https://api.geckoterminal.com/api/v2";
