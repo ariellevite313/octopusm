@@ -13,7 +13,10 @@ export const EVM_CHAINS: Record<EvmChain, { id: number; name: string; native: st
 };
 export const isEvmChain = (c: unknown): c is EvmChain => typeof c === "string" && c in EVM_CHAINS;
 
+import { MAJOR_FEE_BPS, isMajorEvm } from "./majors";
 export const EVM_FEE_BPS = 30;
+/** Frais OM d'un token EVM : 0,03 % sur les majeurs, 0,3 % sinon. */
+export const evmFeeBps = (chain: string, token: string) => (isMajorEvm(chain, token) ? MAJOR_FEE_BPS : EVM_FEE_BPS);
 export const EVM_FEE_WALLET = process.env.EVM_FEE_WALLET ?? process.env.NEXT_PUBLIC_ARC_TREASURY_ADDRESS ?? "0xf1173b875829293F7f02C20f177242a556f302fA";
 
 export const isAddr = (s: unknown): s is string => typeof s === "string" && /^0x[0-9a-fA-F]{40}$/.test(s);
@@ -41,7 +44,7 @@ export function zeroXParams(v: EvmSwapInput): URLSearchParams {
     sellAmount: v.amount,
     slippageBps: String(v.slippageBps),
     swapFeeRecipient: EVM_FEE_WALLET,
-    swapFeeBps: String(EVM_FEE_BPS),
+    swapFeeBps: String(evmFeeBps(v.chain, v.token)),
     swapFeeToken: NATIVE,
   });
   if (v.taker) p.set("taker", v.taker);
@@ -92,7 +95,7 @@ export async function zeroX(v: EvmSwapInput, mode: "price" | "quote"): Promise<E
   const fee = j.fees?.integratorFees?.[0]?.amount ?? j.fees?.integratorFee?.amount ?? null;
   return {
     buyAmount: j.buyAmount, minBuyAmount: j.minBuyAmount ?? j.buyAmount, sellAmount: j.sellAmount ?? v.amount,
-    feeBps: EVM_FEE_BPS, feeNative: fee, route: [...new Set((j.route?.fills ?? []).map((f) => f.source).filter((x): x is string => !!x))].slice(0, 4),
+    feeBps: evmFeeBps(v.chain, v.token), feeNative: fee, route: [...new Set((j.route?.fills ?? []).map((f) => f.source).filter((x): x is string => !!x))].slice(0, 4),
     allowanceSpender: spender,
     balanceShort: !!j.issues?.balance,
     tx: mode === "quote" && j.transaction ? { to: j.transaction.to, data: j.transaction.data, value: j.transaction.value, gas: j.transaction.gas ?? null } : null,
