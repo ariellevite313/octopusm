@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { aidoLinkMessage, aidoProfileUrl } from "@/lib/aido-link";
+import { signWithWalletConnect, toHex } from "@/lib/wallet/walletconnect";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 
@@ -20,13 +21,22 @@ export function AidoBadge({ wallet, aido, handle }: { wallet: string; aido: stri
 
   async function link() {
     const eth = (window as unknown as { ethereum?: Eth }).ethereum;
-    if (!eth) { toast.error(tr("Open this page in a browser with MetaMask to sign with your Aido wallet")); return; }
     setBusy(true);
     try {
-      const [addr] = (await eth.request({ method: "eth_requestAccounts" })) as string[];
-      const message = aidoLinkMessage(walletAddress!, addr, new Date().toISOString());
-      const hex = `0x${Array.from(new TextEncoder().encode(message)).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
-      const signature = (await eth.request({ method: "personal_sign", params: [hex, addr] })) as string;
+      const issued = new Date().toISOString();
+      let message: string;
+      let signature: string;
+      if (eth) {
+        // Extension ou navigateur de wallet : signature directe
+        const [addr] = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+        message = aidoLinkMessage(walletAddress!, addr, issued);
+        signature = (await eth.request({ method: "personal_sign", params: [toHex(message), addr] })) as string;
+      } else {
+        // Pas de wallet dans ce navigateur (utilisateurs Solana, mobile) : WalletConnect, on signe dans l'app Aido
+        const r = await signWithWalletConnect((addr) => aidoLinkMessage(walletAddress!, addr, issued));
+        message = aidoLinkMessage(walletAddress!, r.address, issued);
+        signature = r.signature;
+      }
       const r = await fetch("/api/aido-link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, signature }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not link");

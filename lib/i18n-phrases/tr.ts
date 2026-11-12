@@ -861,6 +861,7 @@ const p: Record<string, string> = {
   "This token runs on Solana.<br/>Connect a Solana wallet (Phantom, Solflare…) to trade.": "Bu token Solana üzerinde çalışır.<br/>İşlem yapmak için bir Solana cüzdanı (Phantom, Solflare…) bağlayın.",
   "Quote failed": "Fiyat teklifi alınamadı",
   "Wallet unavailable": "Cüzdan kullanılamıyor",
+  "Wallet connection is not configured yet": "Cüzdan bağlantısı henüz yapılandırılmadı",
   "Open this page in your wallet app to trade": "İşlem yapmak için bu sayfayı cüzdan uygulamanda aç",
   "Wallet ready. Go back and tap Buy or Sell again.": "Cüzdan hazır. Geri dön ve tekrar Al veya Sat'a dokun.",
   "Transaction sent": "İşlem gönderildi",
