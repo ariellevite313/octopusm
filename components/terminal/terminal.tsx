@@ -116,7 +116,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens">("tokens");
-  const [filter, setFilter] = useState<"trending" | "new" | "volume">("trending");
+  const [filter, setFilter] = useState<"trending" | "crypto" | "new" | "volume">("trending");
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
@@ -175,7 +175,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
         ) : (
           <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
             <button onClick={() => setSearching(true)} aria-label={tr("Search")} className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground"><Search className="size-[18px]" /></button>
-            {([["trending", tr("Trending")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
+            {([["trending", tr("Trending")], ["crypto", tr("Crypto")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setFilter(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
             <button onClick={() => setNetSheet(true)} aria-label={tr("Filter by network")}

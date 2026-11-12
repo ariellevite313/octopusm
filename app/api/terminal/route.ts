@@ -1,5 +1,5 @@
 /**
- * GET /api/terminal?list=trending|new|volume  ou  ?q=…  &chains=solana,base (absent ou « all » : tous les réseaux)
+ * GET /api/terminal?list=trending|new|volume|crypto  ou  ?q=…  &chains=solana,base (absent ou « all » : tous les réseaux)
  * (ou &chain=… pour un seul réseau). Tokens pour le Terminal OM.
  */
 import { NextResponse } from "next/server";
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const u = new URL(req.url);
   const q = (u.searchParams.get("q") ?? "").trim().slice(0, 60);
   const l = u.searchParams.get("list");
-  const list = l === "new" ? "new" : l === "volume" ? "volume" : "trending";
+  const list = l === "new" ? "new" : l === "volume" ? "volume" : l === "crypto" ? "crypto" : "trending";
   const raw = (u.searchParams.get("chains") ?? u.searchParams.get("chain") ?? "all").split(",").map((s) => s.trim());
   let chains = raw.filter((c): c is TerminalChain => READY.includes(c as TerminalChain));
   if (!chains.length) chains = READY;

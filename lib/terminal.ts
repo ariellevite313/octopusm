@@ -73,12 +73,53 @@ export function mapPools(json: { data?: GtPool[]; included?: GtToken[] }, chain:
 
 const cache = new Map<string, { at: number; v: TerminalToken[] }>();
 
-export async function terminalList(kind: "trending" | "new" | "volume" | "search", q = "", chain: TerminalChain = "solana"): Promise<TerminalToken[]> {
+export type ListKind = "trending" | "new" | "volume" | "crypto" | "search";
+/** Onglet Crypto : seuil de capitalisation */
+export const CRYPTO_MIN_MCAP = 50_000_000;
+/** Réseaux tradables chez nous (Elysium et Robinhood : pas encore de swap) */
+export const TRADABLE: TerminalChain[] = ["solana", "arc", "base", "bnb", "hyperliquid", "ethereum", "arbitrum", "polygon", "avalanche"];
+const STABLE = /^(usd|dai$|fdusd|pyusd|usde|susde|eurc|tusd|busd|frax|lusd|gho)/i;
+const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
+
+async function gtJson(url: string) {
+  const r = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000), cache: "no-store" });
+  if (!r.ok) throw new Error(`gecko ${r.status}`);
+  return r.json();
+}
+
+/** Gros tokens d'un réseau : pools au plus gros volume (2 pages), capitalisation >= 50 M$. SOL en tête sur Solana. */
+async function cryptoList(chain: TerminalChain, net: string): Promise<TerminalToken[]> {
+  const pages = await Promise.all([
+    gtJson(`${GT}/networks/${net}/pools?include=base_token&sort=h24_volume_usd_desc&page=1`),
+    gtJson(`${GT}/networks/${net}/pools?include=base_token&sort=h24_volume_usd_desc&page=2`).catch(() => ({})),
+  ]);
+  const seen = new Set<string>();
+  const out: TerminalToken[] = [];
+  if (chain === "solana") {
+    const sol = await gtJson(`${GT}/networks/solana/pools/${SOL_USDC_POOL}`).catch(() => null) as { data?: GtPool } | null;
+    const a = sol?.data?.attributes;
+    if (a) out.push({ mint: SOL_MINT, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), volume24h: num(a.volume_usd?.h24), mcap: num(a.market_cap_usd) ?? num(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: SOL_USDC_POOL, createdAt: null, chain, verified: true });
+    seen.add(SOL_MINT);
+  }
+  for (const j of pages) for (const t of mapPools(j, chain)) {
+    if (seen.has(t.mint) || (t.mcap ?? 0) < CRYPTO_MIN_MCAP || STABLE.test(t.symbol)) continue;
+    seen.add(t.mint); out.push(t);
+  }
+  return out.sort((x, y) => (y.mcap ?? 0) - (x.mcap ?? 0));
+}
+
+export async function terminalList(kind: ListKind, q = "", chain: TerminalChain = "solana"): Promise<TerminalToken[]> {
   const net = GT_NET[chain];
   if (!net) return [];
   const key = `${chain}:${kind}:${q.toLowerCase()}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < 60_000) return hit.v;
+  if (hit && Date.now() - hit.at < (kind === "crypto" ? 600_000 : 60_000)) return hit.v; // Crypto : 10 min (limite de GeckoTerminal)
+  if (kind === "crypto") {
+    if (!TRADABLE.includes(chain)) return [];
+    const v = await cryptoList(chain, net);
+    cache.set(key, { at: Date.now(), v });
+    return v;
+  }
   const url = kind === "trending" ? `${GT}/networks/${net}/trending_pools?include=base_token&duration=24h`
     : kind === "new" ? `${GT}/networks/${net}/new_pools?include=base_token`
     : kind === "volume" ? `${GT}/networks/${net}/pools?include=base_token&sort=h24_volume_usd_desc`
@@ -94,9 +135,10 @@ export async function terminalList(kind: "trending" | "new" | "volume" | "search
 
 /** Arc : les tokens lancés sur OM (pas encore suivis par GeckoTerminal). Chaque token ouvre sa page OM. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function arcList(db: any, kind: "trending" | "new" | "volume" | "search", q = ""): Promise<TerminalToken[]> {
+export async function arcList(db: any, kind: ListKind, q = ""): Promise<TerminalToken[]> {
   let qy = db.from("launchpad_tokens").select("id, name, ticker, logo_url, mint_address, price_usd, market_cap_usd, created_at")
     .eq("chain", "arc").eq("hidden", false).in("status", ["active", "graduating", "graduated"]).limit(50);
+  if (kind === "crypto") qy = qy.gte("market_cap_usd", CRYPTO_MIN_MCAP);
   if (kind === "search" && q) qy = qy.or(`ticker.ilike.%${q.replace(/[^\w$-]/g, "")}%,name.ilike.%${q.replace(/[^\w $-]/g, "")}%`);
   qy = kind === "new" ? qy.order("created_at", { ascending: false }) : qy.order("market_cap_usd", { ascending: false, nullsFirst: false });
   const { data } = await qy;
@@ -111,7 +153,8 @@ export async function arcList(db: any, kind: "trending" | "new" | "volume" | "se
 }
 
 /** Fusionne les listes de plusieurs réseaux : récents d'abord pour « new », plus gros volume pour « volume », sinon en alternance. */
-export function mergeLists(lists: TerminalToken[][], kind: "trending" | "new" | "volume" | "search", max = 60): TerminalToken[] {
+export function mergeLists(lists: TerminalToken[][], kind: ListKind, max = 60): TerminalToken[] {
+  if (kind === "crypto") return lists.flat().sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0)).slice(0, max);
   if (lists.length === 1) return lists[0].slice(0, max);
   if (kind === "new") return lists.flat().sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")).slice(0, max);
   if (kind === "volume") return lists.flat().sort((a, b) => (b.volume24h ?? -1) - (a.volume24h ?? -1)).slice(0, max);
