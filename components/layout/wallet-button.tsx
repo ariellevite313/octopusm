@@ -138,8 +138,15 @@ export function ProfileDrawer({
     queryKey: ["platform-balances", walletAddress],
     queryFn: () => getPlatformBalances(walletAddress),
     staleTime: 60_000,
+    refetchInterval: 20_000, // un tip reçu s'ajoute au solde sans recharger la page
   });
   const octoBalance = balances.octo;
+  // Après un tip envoyé : recalcule le solde tout de suite
+  useEffect(() => {
+    const onChange = () => { void qc.invalidateQueries({ queryKey: ["platform-balances"] }); };
+    window.addEventListener("omero-balance-changed", onChange);
+    return () => window.removeEventListener("omero-balance-changed", onChange);
+  }, [qc]);
 
   const { data: drawerStats } = useQuery({
     queryKey: ["drawer-stats", walletAddress],
