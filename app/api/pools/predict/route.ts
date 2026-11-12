@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
 import { verifyArcTransfer } from "@/lib/arc-verify";
 import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
+import { currentAgentWallet } from "@/lib/social/session";
 
 /**
  * POST /api/pools/predict
@@ -15,7 +16,8 @@ export async function POST(req: Request) {
   // BUG-03 fix: verify authenticated session before accepting any body data
   const supabase = await createClient();
   const { data: { user } } = await (supabase as any).auth.getUser();
-  const sessionWallet: string | null = user?.app_metadata?.wallet_address ?? null;
+  // Wallet d'IA (serveur uniquement, jamais lu depuis la requête), sinon la session
+  const sessionWallet: string | null = currentAgentWallet() ?? user?.app_metadata?.wallet_address ?? null;
   if (!sessionWallet) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

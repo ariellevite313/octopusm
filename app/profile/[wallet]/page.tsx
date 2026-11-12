@@ -14,6 +14,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getFeaturedTokens } from "@/lib/social/featured-token";
 import { FeaturedTokenControl } from "@/components/profile/featured-token";
 import { AvatarZoom } from "@/components/profile/avatar-zoom";
+import { AidoBadge } from "@/components/profile/aido-link";
+import Link from "next/link";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -107,11 +109,20 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
   // Bannière lue hors cache (le profil public est mis en cache 60 s)
   let bannerSrc: string | null = null;
+  let aiOwner: { wallet: string; name: string } | null = null;
+  let aido: string | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: b } = await (createAdminClient() as any).from("wallets").select("banner_src").eq("address", wallet).maybeSingle();
+    const admin = createAdminClient() as any;
+    const { data: b } = await admin.from("wallets").select("banner_src, ai_owner").eq("address", wallet).maybeSingle();
     bannerSrc = b?.banner_src ?? null;
-  } catch { /* colonne absente avant migration */ }
+    if (b?.ai_owner) {
+      const { data: o } = await admin.from("wallets").select("display_name, username").eq("address", b.ai_owner).maybeSingle();
+      aiOwner = { wallet: b.ai_owner, name: o?.display_name || o?.username || shortAddress(b.ai_owner) };
+    }
+    const { data: l } = await admin.from("aido_links").select("aido_address").eq("wallet", wallet).maybeSingle();
+    aido = l?.aido_address ?? null;
+  } catch { /* colonnes absentes avant migration */ }
   const featured = (await getFeaturedTokens(createAdminClient(), [wallet])).get(wallet) ?? null;
 
 
@@ -174,6 +185,15 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
           {/* Handle + X */}
           <p className="mt-1.5 font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</p>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {aiOwner && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-[12px] font-bold text-background">
+                AI <span className="font-medium opacity-80"><Tr>created by</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
+              </span>
+            )}
+            {!aiOwner && <AidoBadge wallet={wallet} aido={aido} />}
+          </div>
 
           {/* Stats — inline, like followers / following */}
           <div className="num mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[15px]">

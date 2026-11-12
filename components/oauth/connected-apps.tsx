@@ -6,18 +6,21 @@ import { AssistantLogo, ASSISTANTS } from "./assistant-logo";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import { AiWalletCreate, AiWalletPanel, type AiWallet } from "./ai-wallet-panel";
 
 type App = { client_id: string; name: string; scopes: string[]; connected_at: string; last_used_at: string | null };
 
 export function ConnectedApps() {
   const { tr } = useT();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, walletAddress } = useAuth();
+  const [wallets, setWallets] = useState<AiWallet[]>([]);
   const [apps, setApps] = useState<App[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const url = typeof window !== "undefined" ? `${window.location.origin}/mcp/connect` : "https://omdot.fun/mcp/connect";
 
   const load = useCallback(() => {
     fetch("/api/oauth/apps", { cache: "no-store" }).then((r) => r.json()).then((j) => setApps(j.apps ?? [])).catch(() => setApps([]));
+    fetch("/api/agent-wallets", { cache: "no-store" }).then((r) => r.json()).then((j) => setWallets(j.wallets ?? [])).catch(() => setWallets([]));
   }, []);
   useEffect(() => { if (isAuthenticated) load(); }, [isAuthenticated, load]);
 
@@ -62,7 +65,8 @@ export function ConnectedApps() {
       ) : (
         <ul className="mt-6 space-y-2">
           {apps.map((a) => (
-            <li key={a.client_id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+            <li key={a.client_id} className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center gap-3">
               <AssistantLogo name={a.name} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-foreground">{a.name}</p>
@@ -71,6 +75,11 @@ export function ConnectedApps() {
               <button onClick={() => revoke(a.client_id)} disabled={busy === a.client_id} className="rounded-full border border-border px-4 py-2 text-sm font-bold text-foreground hover:bg-muted">
                 {busy === a.client_id ? <Loader2 className="size-4 animate-spin" /> : tr("Disconnect")}
               </button>
+              </div>
+              {(() => {
+                const w = wallets.find((x) => x.client_id === a.client_id);
+                return w ? <AiWalletPanel w={w} ownerIsEvm={!!walletAddress?.startsWith("0x")} onChange={load} /> : <AiWalletCreate clientId={a.client_id} onDone={load} />;
+              })()}
             </li>
           ))}
         </ul>
