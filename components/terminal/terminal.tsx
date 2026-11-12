@@ -18,7 +18,7 @@ import { EvmSwapBox } from "@/components/swap/evm-swap-box";
 import { EVM_CHAINS, isEvmChain } from "@/lib/swap/evm";
 import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
-import { CHAINS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { CHAINS, EXTRA_EXPLORERS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
 import { executeSwap, toRaw } from "@/lib/swap/client";
 import { TerminalLineChart, T_RANGES, type ChartMode, type TRange } from "./line-chart";
@@ -223,7 +223,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   );
 }
 
-/** « Filtrer par réseau » : tous les réseaux, ou une sélection (Elysium et Robinhood bientôt). */
+/** « Filtrer par réseau » : tous les réseaux, ou une sélection (Elysium et Robinhood : liste et graphique, trading bientôt). */
 function NetworkSheet({ selected, onClose }: { selected: TerminalChain[]; onClose: () => void }) {
   const { tr } = useT();
   const router = useRouter();
@@ -593,7 +593,11 @@ function About({ t, info }: { t: TerminalToken; info: SwapToken | null }) {
         <p className="mt-1 break-all font-mono text-[13px] text-foreground">{t.mint}</p>
       </div>
       <div className="mt-3 flex gap-2">
-        <a href={`${isEvmChain(t.chain) ? EVM_CHAINS[t.chain].explorer : "https://solscan.io"}/token/${t.mint}`} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{isEvmChain(t.chain) ? `${EVM_CHAINS[t.chain].name} explorer` : "Solscan"}<ExternalLink className="size-3.5" /></a>
+        {(() => {
+          const base = isEvmChain(t.chain) ? EVM_CHAINS[t.chain].explorer : t.chain === "solana" ? "https://solscan.io" : EXTRA_EXPLORERS[t.chain ?? "solana"] ?? null;
+          const label = isEvmChain(t.chain) ? `${EVM_CHAINS[t.chain].name} explorer` : t.chain === "solana" ? "Solscan" : "Explorer";
+          return base ? <a href={`${base}/token/${t.mint}`} target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{label}<ExternalLink className="size-3.5" /></a> : null;
+        })()}
         {info?.om_id && <Link href={`/launchpad/${info.om_id}`} className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-muted/40 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground">{tr("OM token page")}</Link>}
       </div>
     </div>
