@@ -18,6 +18,7 @@ vi.mock("@/lib/social/session", () => ({
     : { error: new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401 }) },
 }));
 vi.mock("@/lib/supabase/server", () => ({ createAdminClient: () => ({ rpc }) }));
+vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 vi.mock("@/lib/social/notify", () => ({ notify: notifyMock }));
 
 const { POST } = await import("../app/api/posts/[id]/tip/route");

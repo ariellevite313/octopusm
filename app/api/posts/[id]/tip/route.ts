@@ -1,5 +1,6 @@
 /** POST /api/posts/:id/tip  { amount: number, currency?: "omero" } — envoie des OMERO à l'auteur du post. */
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { UUID_RE } from "@/lib/social/posts";
@@ -24,6 +25,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const r = await sendTip(admin, s.wallet, id, body.amount as number);
     if ("error" in r) return NextResponse.json({ error: TIP_ERRORS[r.error].message, code: r.error }, { status: TIP_ERRORS[r.error].status });
     await notify([{ wallet: r.recipient, kind: "tip", actor: s.wallet, postId: id }]);
+    try { revalidateTag("profile"); } catch { /* sans effet sur le tip */ } // les profils publics (cache 60 s) affichent tout de suite les nouveaux OMERO
     return NextResponse.json({ ok: true, tip_total: r.post_total, balance: r.balance });
   } catch (e) {
     console.error("[tip]", e);
