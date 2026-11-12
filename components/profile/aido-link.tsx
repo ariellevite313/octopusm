@@ -45,9 +45,11 @@ export function AidoBadge({ wallet, aido, handle }: { wallet: string; aido: stri
 
   if (linked) return (
     <span className="inline-flex items-center gap-2">
-      <a href={aidoProfileUrl(name)} target="_blank" rel="noopener noreferrer" title={linked}
-        className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[12px] font-bold text-foreground">
-        <Link2 className="size-3.5" />Aido {name ? `@${name}` : `${linked.slice(0, 6)}...${linked.slice(-4)}`}
+      <a href={aidoProfileUrl(name)} target="_blank" rel="noopener noreferrer" title={name ? `Aido @${name}` : "Aido"} aria-label={name ? `Aido @${name}` : "Aido"}
+        className="inline-flex items-center transition-opacity hover:opacity-70">
+        {/* Logo Aido blanc sans fond : inversé en noir en mode clair */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/aido-logo.png" alt="Aido" className="size-6 invert dark:invert-0" />
       </a>
       {mine && <button onClick={unlink} disabled={busy} className="text-[12px] font-semibold text-muted-foreground underline">{tr("Unlink")}</button>}
     </span>
