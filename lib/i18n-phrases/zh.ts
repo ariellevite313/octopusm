@@ -861,6 +861,7 @@ const p: Record<string, string> = {
   "This token runs on Solana.<br/>Connect a Solana wallet (Phantom, Solflare…) to trade.": "该代币运行在 Solana 上。<br/>请连接 Solana 钱包（Phantom、Solflare…）进行交易。",
   "Quote failed": "报价失败",
   "Wallet unavailable": "钱包不可用",
+  "Could not connect": "无法连接",
   "Wallet connection is not configured yet": "钱包连接尚未配置",
   "Open this page in your wallet app to trade": "请在钱包应用中打开此页面进行交易",
   "Wallet ready. Go back and tap Buy or Sell again.": "钱包已就绪。请返回并再次点击买入或卖出。",

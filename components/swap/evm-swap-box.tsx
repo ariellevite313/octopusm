@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { toRaw, fromRaw } from "@/lib/swap/client";
 import { EVM_CHAINS, type EvmChain } from "@/lib/swap/evm";
+import { connectEvmTrader, disconnectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 type Info = { token: { address: string; decimals: number; symbol: string }; balances: { native: string; token: string } | null };
@@ -40,6 +41,10 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
   const { tr } = useT();
   const { walletAddress, isAuthenticated } = useAuth();
   const evm = isAuthenticated && !!walletAddress && walletAddress.startsWith("0x");
+  // Connecté avec un wallet Solana : on signe avec un wallet EVM relié ici (extension ou WalletConnect)
+  const [trader, setTrader] = useState<TradingAccount | null>(null);
+  useEffect(() => { if (!evm) void restoreEvmTrader().then(setTrader); }, [evm]);
+  const addr = evm ? walletAddress! : trader?.address ?? null;
   const c = EVM_CHAINS[chain];
   const [info, setInfo] = useState<Info | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -54,8 +59,8 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
   const seq = useRef(0);
 
   const load = useCallback(() => {
-    fetch(`/api/swap/evm/token?chain=${chain}&token=${token}`).then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); setInfo(j); setErr(null); }).catch((e) => setErr((e as Error).message || "Token not found"));
-  }, [chain, token]);
+    fetch(`/api/swap/evm/token?chain=${chain}&token=${token}${!evm && addr ? `&address=${addr}` : ""}`).then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); setInfo(j); setErr(null); }).catch((e) => setErr((e as Error).message || "Token not found"));
+  }, [chain, token, evm, addr]);
   useEffect(() => { load(); }, [load, walletAddress]);
 
   const inDec = side === "buy" ? 18 : info?.token.decimals ?? 18;
@@ -67,7 +72,7 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
   const inSym = side === "buy" ? c.native : info?.token.symbol ?? "";
   const outSym = side === "buy" ? info?.token.symbol ?? "" : c.native;
 
-  const body = useCallback((mode: "price" | "quote") => JSON.stringify({ chain, side, token, amount: raw, slippageBps: slip, mode }), [chain, side, token, raw, slip]);
+  const body = useCallback((mode: "price" | "quote") => JSON.stringify({ chain, side, token, amount: raw, slippageBps: slip, mode, ...(!evm && addr ? { taker: addr } : {}) }), [chain, side, token, raw, slip, evm, addr]);
 
   useEffect(() => {
     setQuote(null); setQErr(null);
@@ -86,9 +91,19 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
     return () => clearTimeout(t);
   }, [raw, body, tr]);
 
+  async function connect() {
+    setBusy(tr("Connecting…"));
+    try { setTrader(await connectEvmTrader()); }
+    catch (e) {
+      const m = (e as { message?: string; code?: number })?.message ?? "";
+      if ((e as { code?: number })?.code !== 4001 && !/reject|cancel|denied|declined|closed/i.test(m)) toast.error(tr(m) || tr("Could not connect"));
+    }
+    setBusy(null);
+  }
+
   async function swap() {
-    if (!raw || !walletAddress || !info) return;
-    const eth = getProviderByType("metamask") as unknown as Eth | null;
+    if (!raw || !addr || !info) return;
+    const eth = (evm ? getProviderByType("metamask") : trader?.provider ?? null) as unknown as Eth | null;
     if (!eth?.request) { toast.error(tr("No EVM wallet detected")); return; }
     try {
       setBusy(tr("Switching network"));
@@ -96,14 +111,14 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
       // Vente : autoriser le contrat 0x à dépenser le token (une fois)
       if (side === "sell" && quote?.allowanceSpender) {
         setBusy(tr("Approve in your wallet"));
-        const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: walletAddress, to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [quote.allowanceSpender as `0x${string}`, BigInt(raw)] }) }] })) as string;
+        const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [quote.allowanceSpender as `0x${string}`, BigInt(raw)] }) }] })) as string;
         await waitReceipt(eth, hash);
       }
       setBusy(tr("Confirm in your wallet"));
       const r = await fetch("/api/swap/evm", { method: "POST", headers: { "Content-Type": "application/json" }, body: body("quote") });
       const q = (await r.json()) as Quote & { error?: string };
       if (!r.ok || !q.tx) throw new Error(q.error ?? "Swap failed");
-      const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: walletAddress, to: q.tx.to, data: q.tx.data, value: toHex(BigInt(q.tx.value || "0")), ...(q.tx.gas ? { gas: toHex(BigInt(q.tx.gas)) } : {}) }] })) as string;
+      const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: q.tx.to, data: q.tx.data, value: toHex(BigInt(q.tx.value || "0")), ...(q.tx.gas ? { gas: toHex(BigInt(q.tx.gas)) } : {}) }] })) as string;
       setBusy(tr("Waiting for confirmation"));
       await waitReceipt(eth, hash);
       toast.success(side === "buy" ? tr("Bought {symbol}", { symbol: info.token.symbol }) : tr("Sold {symbol}", { symbol: info.token.symbol }), {
@@ -124,7 +139,7 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
   const feeUi = quote?.feeNative ? fromRaw(quote.feeNative, 18) : null;
   let label = side === "buy" ? tr("Buy {symbol}", { symbol: info.token.symbol }) : tr("Sell {symbol}", { symbol: info.token.symbol });
   let disabled = !!busy || quoting || !quote;
-  if (!evm) { label = isAuthenticated ? tr("Connect an EVM wallet to trade on {chain}", { chain: c.name }) : tr("Connect wallet"); disabled = isAuthenticated; }
+  if (!addr) { label = isAuthenticated ? tr("Connect an EVM wallet to trade on {chain}", { chain: c.name }) : tr("Connect wallet"); disabled = !!busy; }
   else if (!raw) { label = tr("Enter an amount"); disabled = true; }
   else if (tooMuch || quote?.balanceShort) { label = tr("Insufficient {symbol} balance", { symbol: inSym }); disabled = true; }
   if (busy) label = busy;
@@ -173,10 +188,16 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
           {quote.route.length > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{tr("Route")}</span><span className="truncate font-semibold">{quote.route.join(" › ")}</span></div>}
         </div>
       )}
-      <button onClick={evm ? swap : () => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} disabled={disabled}
+      <button onClick={addr ? swap : isAuthenticated ? connect : () => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} disabled={disabled}
         className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">
         {busy && <Loader2 className="size-4 animate-spin" />}{label}
       </button>
+      {!evm && trader && (
+        <p className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <span className="num">{trader.address.slice(0, 6)}...{trader.address.slice(-4)}</span>
+          <button onClick={() => { void disconnectEvmTrader(); setTrader(null); setInfo(null); load(); }} className="font-semibold underline">{tr("Disconnect")}</button>
+        </p>
+      )}
     </div>
   );
 }

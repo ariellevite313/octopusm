@@ -17,7 +17,10 @@ export async function GET(req: Request) {
       client.readContract({ address: t, abi: erc20Abi, functionName: "decimals" }),
       client.readContract({ address: t, abi: erc20Abi, functionName: "symbol" }).catch(() => "TOKEN"),
     ]);
-    const w = await getWalletAddress();
+    // Wallet EVM de la session ; sinon l'adresse EVM passée par le client (compte de trading, lecture publique)
+    const session = await getWalletAddress();
+    const given = u.searchParams.get("address");
+    const w = session && session.startsWith("0x") ? session : isAddr(given) ? given : null;
     let balances: { native: string; token: string } | null = null;
     if (w && w.startsWith("0x")) {
       const [n, b] = await Promise.all([
