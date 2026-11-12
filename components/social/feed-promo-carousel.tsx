@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BarChart3, ListChecks, Rocket, Trophy, Users } from "lucide-react";
+import { BarChart3, ListChecks, Rocket, Trophy, Users, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -13,8 +13,25 @@ type Slide = { icon: LucideIcon; accent: string; live: string; title: string; te
 const ROTATE_MS = 10000; // 10 s par annonce : la carte a le temps de bien tourner sur elle-même
 
 /** Cartes qui défilent en haut du fil : parrainage, token, marché, hackathon, tâches du jour. */
+const HIDE_KEY = "om_promo_hidden_until";
+const HIDE_MS = 60 * 60 * 1000; // fermée : elle revient au bout d'une heure
+
 export function FeedPromoCarousel() {
-  return <PromoCarouselCard />;
+  const [hidden, setHidden] = useState(true);
+  useEffect(() => {
+    const check = () => {
+      let until = 0;
+      try { until = Number(localStorage.getItem(HIDE_KEY) ?? 0); } catch { /* stockage indisponible */ }
+      setHidden(Date.now() < until);
+      return until;
+    };
+    const until = check();
+    if (Date.now() >= until) return;
+    const t = setTimeout(check, until - Date.now() + 500);
+    return () => clearTimeout(t);
+  }, []);
+  if (hidden) return null;
+  return <PromoCarouselCard onClose={() => { try { localStorage.setItem(HIDE_KEY, String(Date.now() + HIDE_MS)); } catch { /* ignore */ } setHidden(true); }} />;
 }
 
 function useSlides(): Slide[] {
@@ -35,7 +52,7 @@ function useSlides(): Slide[] {
   ];
 }
 
-function PromoCarouselCard() {
+function PromoCarouselCard({ onClose }: { onClose: () => void }) {
   const { tr } = useT();
   const { isAuthenticated } = useAuth();
   const [i, setI] = useState(0);
@@ -73,7 +90,8 @@ function PromoCarouselCard() {
       }}
     >
       {/* Petite carte horizontale : visuel animé à gauche, texte et bouton à droite */}
-      <div key={i} className="flex items-stretch gap-3.5 rounded-[22px] bg-neutral-900 p-3 text-white ring-1 ring-white/10 animate-in fade-in duration-300">
+      <div key={i} className="relative flex items-stretch gap-3.5 rounded-[22px] bg-neutral-900 p-3 text-white ring-1 ring-white/10 animate-in fade-in duration-300">
+        <button onClick={onClose} aria-label={tr("Close")} className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"><X className="size-4" /></button>
         {/* Visuel animé : carte holographique inclinée sur fond hexagonal, sphères brillantes, étincelles,
             et la séquence de la référence (éclat + anneau, balancement 3D, reflet, rotation, nouvel éclat) */}
         <div className="pa w-[34%] max-w-[132px] shrink-0 rounded-2xl" style={{ ["--acc" as string]: s.accent }}>
@@ -103,7 +121,7 @@ function PromoCarouselCard() {
           <i aria-hidden className="pa-sp s1" /><i aria-hidden className="pa-sp s2" /><i aria-hidden className="pa-sp s3" /><i aria-hidden className="pa-sp s4" />
         </div>
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: s.accent }}>
+          <p className="flex items-center gap-1.5 pr-8 text-[13px] font-semibold" style={{ color: s.accent }}>
             <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: s.accent }} /><span className="relative inline-flex size-2 rounded-full" style={{ background: s.accent }} /></span>
             <span className="truncate">{s.live}</span>
           </p>
