@@ -861,6 +861,7 @@ const p: Record<string, string> = {
   "This token runs on Solana.<br/>Connect a Solana wallet (Phantom, Solflare…) to trade.": "Este token roda na Solana.<br/>Conecte uma carteira Solana (Phantom, Solflare…) para negociar.",
   "Quote failed": "Falha na cotação",
   "Wallet unavailable": "Carteira indisponível",
+  "Could not connect": "Não foi possível conectar",
   "Wallet connection is not configured yet": "A conexão por carteira ainda não está configurada",
   "Open this page in your wallet app to trade": "Abra esta página no app da sua carteira para negociar",
   "Wallet ready. Go back and tap Buy or Sell again.": "Carteira pronta. Volte e toque em Comprar ou Vender novamente.",

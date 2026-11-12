@@ -5,14 +5,15 @@
  */
 import { NextResponse } from "next/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
-import { checkEvmInput, EvmSwapError, zeroX } from "@/lib/swap/evm";
+import { checkEvmInput, EvmSwapError, isAddr, zeroX } from "@/lib/swap/evm";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const w = await getWalletAddress();
-  const taker = w && w.startsWith("0x") ? w : null;
+  // Wallet EVM de la session, ou l'adresse EVM du compte de trading (le wallet signe, le serveur ne fait que chiffrer le devis)
+  const taker = w && w.startsWith("0x") ? w : isAddr(b.taker) ? String(b.taker) : null;
   const c = checkEvmInput(b, taker);
   if (!c.ok) return NextResponse.json({ error: c.error }, { status: 400 });
   try {
