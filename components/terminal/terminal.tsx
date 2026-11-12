@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Terminal OM (Solana) : solde, meilleurs traders, Favoris / Tokens / Perps, filtres, liste ;
+ * Terminal OM (Solana) : solde, meilleurs traders, Favoris / Tokens / Up/Down, filtres, liste ;
  * page d'un token avec graphique en ligne, Détenteurs / Fil / À propos et barre d'achat.
  * Frais OM 0,3 % (0 % sur les tokens OM), toujours signé par le portefeuille de l'utilisateur.
  */
@@ -20,6 +20,7 @@ import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
 import { CHAINS, EXTRA_EXPLORERS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
+import { UpDownSection } from "@/components/updown/updown-cards";
 
 const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium SOL/USDC
 import { executeSwap, toRaw } from "@/lib/swap/client";
@@ -115,7 +116,7 @@ function EmptyPick() {
 function Home({ selected, favs, active, onList, initialQ }: { selected: TerminalChain[]; favs: ReturnType<typeof useFavs>; active: string; onList: (l: TerminalToken[]) => void; initialQ: string }) {
   const { tr } = useT();
   const router = useRouter();
-  const [tab, setTab] = useState<"favs" | "tokens">("tokens");
+  const [tab, setTab] = useState<"favs" | "tokens" | "updown">("tokens");
   const [filter, setFilter] = useState<"trending" | "crypto" | "new" | "volume">("trending");
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
@@ -151,16 +152,14 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
       <BalanceCard />
       <TopTraders />
 
-      {/* Favoris | Tokens | Perps */}
+      {/* Favoris | Tokens | Up/Down */}
       <div className="sticky top-16 z-20 -mx-4 mt-4 border-b border-border bg-background px-4 lg:top-0 lg:mx-0 lg:px-0">
         <div className="flex">
           <button onClick={() => setTab("favs")} className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 py-3 text-[16px] font-bold ${tab === "favs" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>
             <Star className="size-4" />{tr("Favorites")}
           </button>
           <button onClick={() => setTab("tokens")} className={`flex-1 border-b-2 py-3 text-[16px] font-bold ${tab === "tokens" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{tr("Tokens")}</button>
-          <span className="flex flex-1 cursor-not-allowed items-center justify-center gap-1.5 border-b-2 border-transparent py-3 text-[16px] font-bold text-muted-foreground/50">
-            {tr("Perps")}<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">{tr("Soon")}</span>
-          </span>
+          <button onClick={() => setTab("updown")} className={`flex-1 border-b-2 py-3 text-[16px] font-bold ${tab === "updown" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>Up/Down</button>
         </div>
       </div>
 
@@ -190,7 +189,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
         <button onClick={() => open(q.trim())} className="mt-3 w-full rounded-2xl bg-muted/60 px-4 py-3 text-left text-sm font-semibold hover:bg-muted">{tr("Open this mint")} <span className="font-mono text-muted-foreground">{short(q.trim())}</span></button>
       )}
 
-      <div className="mt-1">
+      {tab === "updown" && <div className="mt-4"><UpDownSection compact /></div>}
+
+      <div className={`mt-1 ${tab === "updown" ? "hidden" : ""}`}>
         {rows === null ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="my-2 h-14 animate-pulse rounded-2xl bg-muted/40" />)
           : rows.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">
@@ -339,6 +340,15 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const [sheet, setSheet] = useState<"swap" | "quick" | null>(null);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  // Token sans pool connue (onglet Crypto, BAGS) : on cherche sa pool pour le graphique
+  const needPool = !!t && !t.pool && !t.href && chain !== "arc";
+  useEffect(() => {
+    if (!needPool) return;
+    let off = false;
+    fetch(`/api/terminal/pool?chain=${chain}&mint=${encodeURIComponent(mint)}`).then((r) => r.json()).then((j) => { if (!off && j.pool) setT((x) => (x ? { ...x, pool: j.pool } : x)); }).catch(() => {});
+    return () => { off = true; };
+  }, [needPool, chain, mint]);
 
   useEffect(() => {
     if (fromList) return;

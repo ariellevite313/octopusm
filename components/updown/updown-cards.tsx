@@ -179,7 +179,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
   );
 }
 
-export function UpDownSection() {
+export function UpDownSection({ compact = false }: { compact?: boolean } = {}) {
   const { tr } = useT();
   const [allMarkets, setAllMarkets] = useState<UpDownMarket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,7 +214,7 @@ export function UpDownSection() {
 
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={compact ? "grid gap-3" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"}>
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted/40" />
         ))}
@@ -259,7 +259,7 @@ export function UpDownSection() {
           <p className="text-sm text-muted-foreground">{tr("No active {d} round.", { d: formatDuration(activeDuration) })}</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={compact ? "grid gap-3" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"}>
           {visible.map((m) => <UpDownCard key={m.id} market={m} />)}
         </div>
       )}

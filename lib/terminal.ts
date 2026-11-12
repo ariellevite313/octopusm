@@ -40,6 +40,9 @@ const SKIP = new Set([SOL_MINT, USDC_MINT, "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe
   "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", "0x55d398326f99059ff775485246999027b3197955", "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", "0xe9e7cea3dcae0e3d40d4f4c7ac10f4b75d0d20e1",
 ]);
 
+/** Adresses jamais listées comme token à échanger (SOL, USDC, USDT, natifs enveloppés...) */
+export const isSkipped = (a: string) => SKIP.has(a) || SKIP.has(a.toLowerCase());
+
 type GtPool = {
   attributes: {
     address: string; base_token_price_usd?: string | null; fdv_usd?: string | null; market_cap_usd?: string | null;
