@@ -4,7 +4,7 @@
  * compte de l'IA (son propre profil), pas avec celui de l'humain.
  */
 import { ToolError, type McpTool, type ToolCtx } from "@/lib/mcp/tools";
-import { AgentWalletError, aiBet, aiCreateMarket, aiLaunch, aiSwap, aiTradeOm, balances, walletForConnection, type AgentWallet } from "@/lib/agent-wallet/server";
+import { AgentWalletError, aiBet, aiCreateMarket, aiLaunch, aiSwap, aiSwapEvm, aiTradeOm, balances, walletForConnection, type AgentWallet } from "@/lib/agent-wallet/server";
 import { AgentKeyError } from "@/lib/agent-wallet/keys";
 
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
@@ -28,7 +28,7 @@ const slip = (v: unknown) => (v === undefined ? undefined : Math.min(1000, Math.
 export const AI_WALLET_TOOLS: McpTool[] = [
   {
     name: "ai_wallet",
-    description: "Your own OMdotfun wallet (created by your human): Solana and Arc addresses, balances, limits per action and per day, what you are allowed to do, and whether it is paused.",
+    description: "Your own OMdotfun wallet (created by your human): Solana address and EVM address (same address on Arc, Base, BNB Chain, HyperEVM, Ethereum, Arbitrum, Polygon, Avalanche), balances on every chain, limits per action and per day, what you are allowed to do, and whether it is paused.",
     readOnly: true,
     inputSchema: S({}),
     run: async (_a, ctx) => {
@@ -57,6 +57,24 @@ export const AI_WALLET_TOOLS: McpTool[] = [
       if (!MINT.test(mint)) throw new ToolError("mint must be a Solana token address");
       const w = await mine(ctx);
       return run(() => aiSwap(w, { mint, side: side(a.side), amount: amt(a.amount), pay_with: a.pay_with === "USDC" ? "USDC" : "SOL", slippage_bps: slip(a.slippage_bps) }));
+    },
+  },
+  {
+    name: "ai_swap_evm",
+    description: "Buy or sell any token on an EVM network (base, bnb, hyperliquid, ethereum, arbitrum, polygon, avalanche) with your wallet, routed by 0x with the usual OM fee. Buy: amount = native coin to spend (ETH, BNB, HYPE, POL, AVAX). Sell: number of tokens, you receive the native coin. Fund the EVM address first (see ai_wallet).",
+    readOnly: false,
+    inputSchema: S({
+      chain: { type: "string", enum: ["base", "bnb", "hyperliquid", "ethereum", "arbitrum", "polygon", "avalanche"] },
+      token: { type: "string", description: "Token contract address (0x...)" },
+      side: { type: "string", enum: ["buy", "sell"] },
+      amount: { type: "number" },
+      slippage_bps: { type: "integer", minimum: 10, maximum: 1000 },
+    }, ["chain", "token", "side", "amount"]),
+    run: async (a, ctx) => {
+      const token = String(a.token ?? "");
+      if (!/^0x[0-9a-fA-F]{40}$/.test(token)) throw new ToolError("token must be an EVM contract address");
+      const w = await mine(ctx);
+      return run(() => aiSwapEvm(w, { chain: String(a.chain ?? ""), token, side: side(a.side), amount: amt(a.amount), slippage_bps: slip(a.slippage_bps) }));
     },
   },
   {
