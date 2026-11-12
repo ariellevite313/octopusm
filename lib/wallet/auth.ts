@@ -92,6 +92,8 @@ async function connectMetaMaskAndAuth(refCode?: string): Promise<WalletAuthResul
       throw new Error("Authentication failed: no token returned from Edge Function.");
     }
 
+    // Efface une ancienne session locale (cookie périmé) avant d'installer la nouvelle
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
     const { error: sessionError } = await supabase.auth.setSession({
       access_token: data.access_token,
       refresh_token: data.refresh_token,
@@ -198,6 +200,8 @@ export async function connectWalletAndAuth(
       throw new Error("Authentication failed: no token returned from Edge Function.");
     }
 
+    // Efface une ancienne session locale (cookie périmé) avant d'installer la nouvelle
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
     const { error: sessionError } = await supabase.auth.setSession({
       access_token: data.access_token,
       refresh_token: data.refresh_token,
