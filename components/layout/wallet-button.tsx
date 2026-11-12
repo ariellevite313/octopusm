@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { ArrowUpRight, Camera, Check, Copy, History, LayoutDashboard, LogOut, Moon, Pencil, Plus, Rocket, Settings2, Sun, Trophy, User, UserPlus } from "lucide-react";
+import { ArrowUpRight, Camera, Check, Copy, Gift, History, LayoutDashboard, LogOut, Moon, Pencil, Plus, Rocket, Settings2, Sun, Trophy, User, UserPlus } from "lucide-react";
 import { T } from "@/lib/i18n-mark";
 import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import Image from "next/image";
@@ -350,6 +350,8 @@ export function ProfileDrawer({
                   value={fmtUsd(winningsUsd)} />
                 <BalanceRow logo={<RowIcon icon={UserPlus} />} name={tr("Referral")} sub={tr("{n} friends", { n: drawerStats?.referral_count ?? 0 })}
                   value={fmtUsd(referralUsd)} note={`${(drawerStats?.referral_octo ?? 0).toLocaleString()} OMERO`} href={isAdmin ? "/admin/account" : "/dashboard/referrals"} onNavigate={onClose} />
+                <BalanceRow logo={<RowIcon icon={Gift} />} name={tr("Weekly box")} sub={tr("Top 10 earn OMERO every week")}
+                  value={tr("Open")} href="/dashboard/box" onNavigate={onClose} />
                 <BalanceRow logo={<RowIcon icon={Rocket} />} name={tr("Creator fees")} sub={tr("{n} launched", { n: drawerStats?.tokens_launched ?? 0 })}
                   value={tr("Claim")} href="/dashboard/launchpad" onNavigate={onClose} />
               </div>

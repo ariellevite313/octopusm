@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Layers, CheckSquare, Users, Rocket } from "lucide-react";
+import { BarChart2, Layers, CheckSquare, Users, Rocket, Gift } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
@@ -10,11 +10,12 @@ const TABS = [
   { label: T("Predictions"), href: "/dashboard/predictions", icon: BarChart2 },
   { label: T("Pools"),       href: "/dashboard/pools",       icon: Layers },
   { label: T("Tokens"),      href: "/dashboard/launchpad",   icon: Rocket },
+  { label: T("Weekly box"),  href: "/dashboard/box",         icon: Gift },
   { label: T("Tasks"),       href: "/dashboard/tasks",       icon: CheckSquare },
   { label: T("Referrals"),   href: "/dashboard/referrals",   icon: Users },
 ];
 
-// Note: 5 tabs — kept compact via text-sm. The container uses overflow-x-auto
+// Note: 6 tabs — kept compact via text-sm. The container uses overflow-x-auto
 // so tabs never wrap or clip on narrow desktop screens.
 
 export function DashboardTabs() {

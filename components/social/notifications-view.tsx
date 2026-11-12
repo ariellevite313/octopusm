@@ -10,7 +10,7 @@ import { renderAnnouncement } from "@/lib/hackathon/announcements";
 
 type Ann = { id: string; template: string; vars: Record<string, string | number>; href: string | null; publish_at: string; read: boolean };
 
-type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip" | "chill"; actor: string; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
+type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip" | "chill" | "weekly_box"; actor: string; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -52,6 +52,7 @@ export function NotificationsView() {
     : n.kind === "reply_like" ? tr("liked your reply")
     : n.kind === "tip" ? tr("sent you OMERO on your post")
     : n.kind === "chill" ? tr("traded through your bag, you earned 40% of the fee")
+    : n.kind === "weekly_box" ? tr("your weekly box result is in. Your OMERO is credited.")
     : tr("liked your post");
 
   return (
@@ -82,12 +83,16 @@ export function NotificationsView() {
             );
           })}
           {list.map((n) => {
-            const name = n.actor_name ?? shortAddress(n.actor);
-            const href = n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
+            const box = n.kind === "weekly_box";
+            const name = box ? "OMdotfun" : n.actor_name ?? shortAddress(n.actor);
+            const href = box ? "/dashboard/box" : n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
             return (
               <li key={n.id}>
                 <Link href={href} className={`flex gap-3 px-4 py-3.5 hover:bg-muted/40 ${n.read ? "" : "bg-muted/30"}`}>
-                  {n.actor_avatar ? (
+                  {box ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src="/omdot-icon.png" alt="" className="size-10 shrink-0 rounded-full bg-muted object-cover p-1" />
+                  ) : n.actor_avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={n.actor_avatar} alt="" className="size-10 shrink-0 rounded-full object-cover" />
                   ) : (
