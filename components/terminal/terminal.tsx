@@ -296,21 +296,25 @@ function TopTraders() {
   return (
     <div className="mt-3">
       <p className="mb-2 flex items-center justify-end gap-1.5 text-[14px] font-semibold text-muted-foreground"><Trophy className="size-4" />{tr("Top traders")}</p>
-      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
-        {rows.map((t) => (
-          <Link key={t.wallet} href={`/profile/${t.wallet}`} className="w-40 shrink-0 rounded-2xl bg-muted/50 p-3">
-            <p className="flex items-center gap-2 truncate text-[14px] font-semibold text-foreground">
-              {t.avatar
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={t.avatar} alt="" className="size-5 rounded-full object-cover" />
-                : <span className="size-5 rounded-full bg-muted" />}
-              <span className="truncate">{t.name ?? short(t.wallet)}</span>
-            </p>
-            <p className="num mt-2 text-[18px] font-bold text-up">+${t.usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            <p className="text-[11px] text-muted-foreground">{tr("earned on OM")}</p>
-          </Link>
-        ))}
+      {/* Bande qui défile toute seule (pause au survol ou au toucher) */}
+      <div className="group -mx-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_5%,#000_95%,transparent)] lg:mx-0">
+        <div className="flex w-max gap-2.5 px-4 [animation:tt-marquee_var(--tt-dur)_linear_infinite] group-hover:[animation-play-state:paused] group-active:[animation-play-state:paused] lg:px-0" style={{ ["--tt-dur" as string]: `${Math.max(20, rows.length * 5)}s` }}>
+          {[...rows, ...rows].map((t, i) => (
+            <Link key={`${t.wallet}-${i}`} href={`/profile/${t.wallet}`} aria-hidden={i >= rows.length} tabIndex={i >= rows.length ? -1 : 0} className="w-40 shrink-0 rounded-2xl bg-muted/50 p-3">
+              <p className="flex items-center gap-2 truncate text-[14px] font-semibold text-foreground">
+                {t.avatar
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={t.avatar} alt="" className="size-5 rounded-full object-cover" />
+                  : <span className="size-5 rounded-full bg-muted" />}
+                <span className="truncate">{t.name ?? short(t.wallet)}</span>
+              </p>
+              <p className="num mt-2 text-[18px] font-bold text-up">+${t.usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[11px] text-muted-foreground">{tr("earned on OM")}</p>
+            </Link>
+          ))}
+        </div>
       </div>
+      <style>{`@keyframes tt-marquee{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 5px))}}@media (prefers-reduced-motion: reduce){[style*="--tt-dur"]{animation:none!important}}`}</style>
     </div>
   );
 }
