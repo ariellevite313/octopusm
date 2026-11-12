@@ -10,6 +10,7 @@ import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { Loader2, Settings2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
+import { currentPath, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 import { useT } from "@/lib/i18n";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -122,7 +123,6 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
   const handleSwap = async () => {
     if (!quote || !walletAddress || !walletType) return;
     const provider = getProviderByType(walletType);
-    if (!provider) { setError(t.walletNotAvailable); return; }
     // Balance check — leave ~0.002 SOL for fees
     const needed = parseFloat(solAmount) + 0.002;
     if (solBalance !== null && needed > solBalance) {
@@ -149,6 +149,10 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
       const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, "base64"));
       let signature: string;
 
+      if (!provider) {
+        await signWithoutProvider(walletType, walletAddress, tx.serialize(), { returnTo: currentPath() });
+        return;
+      }
       if (provider.signAndSendTransaction) {
         const r = await provider.signAndSendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
         signature = r.signature;

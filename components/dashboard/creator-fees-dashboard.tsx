@@ -303,9 +303,29 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   const [intPart, decPart] = total.split(".");
   const totalEarned = mergedTokens.reduce((acc, m) => acc + m.earned, 0);
 
+  const tabsRow = (
+      <div className="-mt-2 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+        {([["tokens", T("Tokens launched")], ["bags", "BAGS"], ["gains", T("Gains")], ["votes", T("My votes")]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setSection(id)}
+            className={`shrink-0 rounded-2xl px-5 py-3 text-[15px] font-bold transition-colors ${
+              section === id ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted/70"
+            }`}
+          >
+            {tr(label)}
+          </button>
+        ))}
+        <Link href="/hackathon" className="shrink-0 rounded-2xl bg-muted px-5 py-3 text-[15px] font-bold text-foreground transition-colors hover:bg-muted/70">
+          {tr("Hackathon")}
+        </Link>
+      </div>
+  );
+
   return (
     <div className="space-y-8">
 
+      {section === "bags" ? <BagsPanel tabs={tabsRow} /> : (<>
       {/* ── Carte solde ──────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-[28px] bg-card p-5 ring-1 ring-border">
         <WaveTexture />
@@ -372,26 +392,10 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       {isArc && <div id="arc-fees"><ArcFeesTabs /></div>}
       {isArc && <ArcHolderHoldings />}
 
-      {/* ── Sections : boutons, rien d'autre n'est affiché tant qu'on n'en touche pas un ── */}
-      <div className="-mt-2 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {([["tokens", T("Tokens launched")], ["bags", "BAGS"], ["gains", T("Gains")], ["votes", T("My votes")]] as const).map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setSection(id)}
-            className={`shrink-0 rounded-2xl px-5 py-3 text-[15px] font-bold transition-colors ${
-              section === id ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted/70"
-            }`}
-          >
-            {tr(label)}
-          </button>
-        ))}
-        <Link href="/hackathon" className="shrink-0 rounded-2xl bg-muted px-5 py-3 text-[15px] font-bold text-foreground transition-colors hover:bg-muted/70">
-          {tr("Hackathon")}
-        </Link>
-      </div>
+      {tabsRow}
+      </>)}
 
-      {section === "bags" && <BagsPanel />}
-      {section === "gains" && <TradeGainsPanel />}
+            {section === "gains" && <TradeGainsPanel />}
       {section === "votes" && <MyVotesView />}
 
       {/* ── Tokens lancés ────────────────────────────────────────────────── */}

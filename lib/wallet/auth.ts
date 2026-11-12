@@ -3,6 +3,7 @@
 import { getEvmProvider } from "@/lib/wallet/evm-provider";
 import { createClient } from "@/lib/supabase/client";
 import { getProviderByType, type WalletType } from "./adapters";
+import { clearPhantomDeeplink } from "./phantom-deeplink";
 
 export interface WalletAuthResult {
   success: boolean;
@@ -229,6 +230,7 @@ export async function connectWalletAndAuth(
 
 export async function disconnectWallet(walletType: WalletType | null): Promise<void> {
   const supabase = createClient();
+  clearPhantomDeeplink();
   try {
     await supabase.auth.signOut();
     // MetaMask has no disconnect API — just sign out of Supabase

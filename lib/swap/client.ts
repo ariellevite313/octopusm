@@ -2,6 +2,7 @@
 /** Navigateur : demande la transaction au serveur, la fait signer par le portefeuille, puis la fait enregistrer. */
 import { VersionedTransaction } from "@solana/web3.js";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
+import { currentPath, feePayerOf, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 
 export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number; ref?: string };
 
@@ -27,9 +28,16 @@ export function fromRaw(raw: string | bigint, decimals: number): number {
 /** Signe et envoie ; renvoie la signature. Le serveur ne voit jamais la clé. */
 export async function executeSwap(req: SwapReq, walletType: WalletType): Promise<string> {
   const provider = getProviderByType(walletType);
-  if (!provider) throw new Error("Wallet unavailable");
   const { tx } = await post<{ tx: string }>("/api/swap/tx", req);
-  const vtx = VersionedTransaction.deserialize(Buffer.from(tx, "base64"));
+  const raw = Buffer.from(tx, "base64");
+  // Pas de wallet injecté (mobile) : signature par lien profond ou ouverture dans le wallet
+  if (!provider) {
+    return signWithoutProvider(walletType, feePayerOf(raw), raw, {
+      returnTo: currentPath(),
+      records: [{ url: "/api/swap/record", sigField: "signature", body: { inputMint: req.inputMint, outputMint: req.outputMint, ref: req.ref } }],
+    });
+  }
+  const vtx = VersionedTransaction.deserialize(raw);
   let signature: string;
   if (provider.signAndSendTransaction) {
     signature = (await provider.signAndSendTransaction(vtx, { skipPreflight: false, maxRetries: 3 })).signature;
