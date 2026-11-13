@@ -13,7 +13,11 @@ export type TerminalToken = {
   chain?: TerminalChain; href?: string | null;
   /** vérifié par Jupiter (Solana) ou lancé sur OM : pastille bleue */
   verified?: boolean;
+  /** Infos DexScreener : profil payé (Enhanced Token Info) ou boosté, site web, réseaux sociaux */
+  dex?: DexInfo;
 };
+
+export type DexInfo = { paid: boolean; boost: number; website: string | null; socials: { type: string; url: string }[] };
 
 export type TerminalChain = "solana" | "arc" | "base" | "bnb" | "hyperliquid" | "ethereum" | "arbitrum" | "polygon" | "avalanche" | "elysium" | "robinhood";
 /** Réseau GeckoTerminal de chaque chaîne (null : pas encore disponible) */
@@ -178,9 +182,23 @@ export async function arcList(db: any, kind: ListKind, q = ""): Promise<Terminal
     }));
 }
 
+/** Retire les doublons entre listes (même token vu par plusieurs sources) en gardant la première fiche et en la complétant. */
+function dedupe(all: TerminalToken[][]): TerminalToken[][] {
+  const seen = new Map<string, TerminalToken>();
+  return all.map((l) => l.filter((t) => {
+    const k = `${t.chain ?? "solana"}:${t.mint.startsWith("0x") ? t.mint.toLowerCase() : t.mint}`;
+    const first = seen.get(k);
+    if (!first) { seen.set(k, t); return true; }
+    first.dex = first.dex ?? t.dex;
+    first.logo = first.logo ?? t.logo; first.mcap = first.mcap ?? t.mcap; first.liquidity = first.liquidity ?? t.liquidity;
+    first.volume24h = first.volume24h ?? t.volume24h; first.price = first.price ?? t.price; first.pool = first.pool || t.pool;
+    return false;
+  }));
+}
+
 /** Fusionne les listes de plusieurs réseaux : récents d'abord pour « new », plus gros volume pour « volume », sinon en alternance. */
 export function mergeLists(all: TerminalToken[][], kind: ListKind, max = 60): TerminalToken[] {
-  const lists = all.map((l) => l.filter((t) => !isRemovedToken(t.mint)));
+  const lists = dedupe(all.map((l) => l.filter((t) => !isRemovedToken(t.mint))));
   if (kind === "crypto") return lists.flat().sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0)).slice(0, max);
   if (lists.length === 1) return lists[0].slice(0, max);
   if (kind === "new") return lists.flat().sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")).slice(0, max);

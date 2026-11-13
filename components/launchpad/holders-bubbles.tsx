@@ -17,7 +17,7 @@ const OCT_CLIP = "polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,
  * Bubble map interactive : une bulle par holder (taille = % du supply), déplaçable à la souris ou au doigt.
  * Rouge = bundle (relié en étoile), gris = pool/programme, bleu = autres holders.
  */
-export function HoldersBubbles({ holders, bundle, chain }: { holders: H[]; bundle: Set<string>; chain: "solana" | "arc" }) {
+export function HoldersBubbles({ holders, bundle, chain, explorerUrl }: { holders: H[]; bundle: Set<string>; chain: "solana" | "arc"; explorerUrl?: (owner: string) => string }) {
   const { tr } = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const nodesRef = useRef<SimNode[]>([]);
@@ -89,7 +89,7 @@ export function HoldersBubbles({ holders, bundle, chain }: { holders: H[]; bundl
   const tipNode = tipId ? pos.get(tipId) : undefined;
   const tipH = tipId ? byOwner.get(tipId) : undefined;
   const tip = tipNode && tipH ? { node: tipNode, h: tipH, cluster: clusterOf.has(tipH.owner) ? clusters[clusterOf.get(tipH.owner)!] : null } : null;
-  const explorer = (o: string) => (chain === "arc" ? `https://explorer.arc.io/address/${o}` : `https://solscan.io/account/${o}`);
+  const explorer = explorerUrl ?? ((o: string) => (chain === "arc" ? `https://explorer.arc.io/address/${o}` : `https://solscan.io/account/${o}`));
   // Holder : vert · Bundle : rouge · Pool / programme : gris
   const colorOf = (h: H) => {
     if (h.isProgram) return { fill: "#6b6a7a", glow: "#a4a3b4" };
