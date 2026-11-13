@@ -1,0 +1,43 @@
+/**
+ * Tokens retirés du site (lancés en test sur Arc). Ils ne s'affichent plus nulle part :
+ * Terminal, recherche, listes du launchpad, page du token.
+ */
+export const REMOVED_TOKENS = new Set<string>([
+  "0x5a22dac7320f604a457caa7dbd413a55d0c84e77",
+  "0x8a0efb2ce7b20432eb142f3ed140396604d67d17",
+  "0xfdeed9ee66af7dc701b335fdbdd948e60f65ae51",
+  "0x0306992d5bb7362b0972761680d12740b6902ef0",
+  "0x5cca8313541482ecfa16bc245be49371fca1b4d3",
+  "0x848768838f8b2d1e4a24737b76bfa69dff77b669",
+  "0x5c3af18ec11712ac34eaa8e5ff1107fe02182787",
+  "0x13d8b444ad182639a2c7c7078f4b37b359188e9c",
+  "0xfc2f7650289192d2c67a955c660c23b89fdb7e4d",
+  "0x4c1573b32cae0e84a701aa4a0892637751f53056",
+  "0xc67c04e6937e7846d11f0e80a6b1a06a65ec0176",
+  "0x59fc1d80a4c9b160bb6f2e7cf2dd91c3e4bcdbdd",
+  "0xd6905f2a12d0c179e42b57272e8352483f56ed51",
+  "0xfcc6ddc0f19f1b2e23d3d6c8851044f5e5988992",
+  "0x6b46a23fa1cb4d78195e08309c7283cd723a16b5",
+  "0xc748bfa3cc52ba48284e609f4e802dd689f96941",
+  "0x7c03e4734cc693dee5ca634e58327a28d0cb6e7d",
+  "0x5e1efb7019c7b09906f8eb9f521d3378ea95a0a2",
+  "0x1e0e142f4909d0d97a8c9adb6584cca39fe0cb6c",
+  "0x9b1eecb2176071d498148dab4dd77947f50a8357",
+  "0x2cea055df7abd3879bfdf58406c91e8f16bf7d16",
+  "0xe211658974327e06391b779a5443384c65d8edbe",
+  "0x6b54bcd5e24bf110b27e08b416070fcd97dae5a6",
+  "0xe6b549b323bf41bc98a480c0c3bc7f1ab6ffd349",
+  "0xcc54af1a6c5619090e8567556f0c4bb253fdf701",
+  "0x81904715a7782a366f8d42e33bea3144e3d04c1e",
+  "0x021b7f6984db5cc1acacb3da72bb254a444cedcf",
+  "0x736e6cea8dcfc4cc4f671ae604b047663049f71b",
+  "0x8bfaf0dcbf513258318859d8b523e825845ab0f4",
+  "0x148e4aa92c631436c8268db6cd5ebc7506880b2e",
+  "0x52412dbc7ebbf8109dd4f152db6c6f2fbb3644e5",
+  "0x2b4956a5bf1d0cbe5916e1e822ad9f4e70d5afc4",
+  "0x116133e418d4b35cad533b309c3a4e26dc13bb54",
+  "0x142edd0a44aee2c6a3e0f2d558cff363a24cb2d5",
+  "0xfc7368f3ca04f0b7a5dc8e2c407e97dfe12a0c7c",
+]);
+
+export const isRemovedToken = (a: string | null | undefined) => !!a && REMOVED_TOKENS.has(a.toLowerCase());

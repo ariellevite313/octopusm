@@ -6,6 +6,7 @@
  * Revalidated every 5 minutes server-side.
  */
 import { NextResponse } from "next/server";
+import { isRemovedToken } from "@/lib/removed-tokens";
 import { createAdminClient } from "@/lib/supabase/server";
 import { maybeRefreshArcStats } from "@/lib/arc-stats";
 
@@ -40,9 +41,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: all.error.message }, { status: 500 });
     }
 
-    type Row = { id: string; chain: string | null; volume_24h_usd: number | null };
-    const top = (all.data ?? []) as Row[];
-    const arcRows = (arcTop.data ?? []) as Row[];
+    type Row = { id: string; chain: string | null; volume_24h_usd: number | null; mint_address?: string | null };
+    const keep = (r: Row) => !isRemovedToken(r.mint_address);
+    const top = ((all.data ?? []) as Row[]).filter(keep);
+    const arcRows = ((arcTop.data ?? []) as Row[]).filter(keep);
     const arcInTop = top.filter((t) => t.chain === "arc").length;
     let merged = top;
     if (arcInTop < arcQuota && arcRows.length > arcInTop) {

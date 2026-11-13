@@ -3,6 +3,7 @@
  * SOL et les stablecoins ne sont pas listés comme token à échanger.
  */
 import { SOL_MINT, USDC_MINT } from "@/lib/swap/core";
+import { isRemovedToken } from "@/lib/removed-tokens";
 
 export type TerminalToken = {
   mint: string; symbol: string; name: string; logo: string | null;
@@ -33,6 +34,7 @@ export const CHAINS: { id: TerminalChain; name: string; logo: string; ready: boo
   { id: "robinhood", name: "Robinhood", logo: "/chains/robinhood.png", ready: true },
 ];
 
+
 const GT = "https://api.geckoterminal.com/api/v2";
 const SKIP = new Set([SOL_MINT, USDC_MINT, "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
   // Base / BNB : ETH, USDC, USDT, WBNB, BUSD… ne sont pas listés comme tokens à échanger
@@ -41,7 +43,7 @@ const SKIP = new Set([SOL_MINT, USDC_MINT, "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe
 ]);
 
 /** Adresses jamais listées comme token à échanger (SOL, USDC, USDT, natifs enveloppés...) */
-export const isSkipped = (a: string) => SKIP.has(a) || SKIP.has(a.toLowerCase());
+export const isSkipped = (a: string) => SKIP.has(a) || SKIP.has(a.toLowerCase()) || isRemovedToken(a);
 
 type GtPool = {
   attributes: {
@@ -177,7 +179,8 @@ export async function arcList(db: any, kind: ListKind, q = ""): Promise<Terminal
 }
 
 /** Fusionne les listes de plusieurs réseaux : récents d'abord pour « new », plus gros volume pour « volume », sinon en alternance. */
-export function mergeLists(lists: TerminalToken[][], kind: ListKind, max = 60): TerminalToken[] {
+export function mergeLists(all: TerminalToken[][], kind: ListKind, max = 60): TerminalToken[] {
+  const lists = all.map((l) => l.filter((t) => !isRemovedToken(t.mint)));
   if (kind === "crypto") return lists.flat().sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0)).slice(0, max);
   if (lists.length === 1) return lists[0].slice(0, max);
   if (kind === "new") return lists.flat().sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")).slice(0, max);

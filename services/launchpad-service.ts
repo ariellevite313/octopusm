@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getProfiles } from "@/lib/profiles";
+import { isRemovedToken } from "@/lib/removed-tokens";
 
 export type LaunchpadToken = {
   id: string;
@@ -175,7 +176,7 @@ export async function getLaunchpadTokens({
 
   const { data, error, count } = await q;
   if (error) console.error("[launchpad-service] getLaunchpadTokens error:", error.message);
-  const tokens = (data ?? []) as LaunchpadToken[];
+  const tokens = ((data ?? []) as LaunchpadToken[]).filter((t) => !isRemovedToken(t.mint_address) && !isRemovedToken(t.arc_launch_id));
 
   // Profils créateurs en direct (nom, photo, niveau OMERO)
   const profiles = await getProfiles(admin, tokens.map((t: LaunchpadToken) => t.creator_wallet));
@@ -200,7 +201,7 @@ export async function getLaunchpadToken(id: string): Promise<LaunchpadToken | nu
 }
 
 async function withCreatorProfile(t: LaunchpadToken | null): Promise<LaunchpadToken | null> {
-  if (!t) return t;
+  if (!t || isRemovedToken(t.mint_address) || isRemovedToken(t.arc_launch_id)) return null;
   const admin = createAdminClient();
   const p = (await getProfiles(admin, [t.creator_wallet])).get(t.creator_wallet);
   t.creator_display_name = p?.name ?? null;
