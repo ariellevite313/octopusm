@@ -3,14 +3,15 @@
 import { toast } from "sonner";
 import { useT, Rich } from "@/lib/i18n";
 import { startDeeplinkConnect } from "@/lib/wallet/phantom-deeplink";
-import { X_LOGIN_ENABLED, XLogo } from "@/components/auth/x-login";
+import { X_LOGIN_ENABLED, XLogo, TelegramLogo, GithubLogo, TwitchLogo } from "@/components/auth/x-login";
+import type { SocialMethod } from "@/components/auth/x-login-flow";
 import { type WalletInfo, type WalletType, WALLET_COLORS } from "@/lib/wallet/adapters";
 
 type Props = {
   wallets: WalletInfo[];
   onSelect: (type: WalletType) => void;
   onClose: () => void;
-  onX?: () => void;
+  onX?: (method?: SocialMethod) => void;
 };
 
 function isMobile(): boolean {
@@ -87,10 +88,18 @@ export function WalletSelectDialog({ wallets, onSelect, onClose, onX }: Props) {
         {/* Connexion avec X : un wallet est cree pour la personne */}
         {X_LOGIN_ENABLED && onX && (
           <>
-            <button type="button" onClick={onX}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-sm font-bold text-background transition-opacity hover:opacity-90">
+            <button type="button" onClick={() => onX("twitter")}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-sm font-bold text-background transition-opacity hover:opacity-90">
               <XLogo className="size-4" />{tr("Continue with X")}
             </button>
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              {([["telegram", "Telegram", TelegramLogo], ["github", "GitHub", GithubLogo], ["twitch", "Twitch", TwitchLogo]] as const).map(([m, label, Logo]) => (
+                <button key={m} type="button" onClick={() => onX(m)} aria-label={tr("Continue with {name}", { name: label })}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 py-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted">
+                  <Logo className="size-4 shrink-0" />{label}
+                </button>
+              ))}
+            </div>
             <p className="mb-3 text-center text-[12px] text-muted-foreground">{tr("No wallet? One is created for you.")}</p>
             <div className="mb-3 flex items-center gap-3 text-[12px] text-muted-foreground"><span className="h-px flex-1 bg-border" />{tr("or")}<span className="h-px flex-1 bg-border" /></div>
           </>

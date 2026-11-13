@@ -16,6 +16,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
 import { XLoginFlow } from "@/components/auth/x-login";
+import type { SocialMethod } from "@/components/auth/x-login-flow";
 import { getAvailableWallets, type WalletType } from "@/lib/wallet/adapters";
 import { WalletSelectDialog } from "@/components/wallet/wallet-select-dialog";
 import { TokenLogo } from "@/components/shared/token-logo";
@@ -520,6 +521,7 @@ function WalletButtonInner() {
   const [showProfile, setShowProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [xFlow, setXFlow] = useState(false);
+  const [social, setSocial] = useState<SocialMethod>("twitter");
   // Retour de X (redirection OAuth de Privy) : on relance le flux pour terminer la connexion
   useEffect(() => {
     if (typeof window === "undefined" || isAuthenticated) return;
@@ -625,11 +627,11 @@ function WalletButtonInner() {
           wallets={availableWallets}
           onSelect={handleSelectWallet}
           onClose={() => setShowDialog(false)}
-          onX={() => { setShowDialog(false); setXFlow(true); }}
+          onX={(m) => { setShowDialog(false); setSocial(m ?? "twitter"); setXFlow(true); }}
         />,
         document.body,
       )}
-      {xFlow && <XLoginFlow onDone={onXDone} onFail={(m) => { setXFlow(false); toast.error(tr(m)); }} onCancel={() => setXFlow(false)} />}
+      {xFlow && <XLoginFlow method={social} onDone={onXDone} onFail={(m) => { setXFlow(false); toast.error(tr(m)); }} onCancel={() => setXFlow(false)} />}
     </>
   );
 }
