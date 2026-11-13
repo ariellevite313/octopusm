@@ -135,14 +135,20 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     let live = true;
     setList(null); setErr(false);
     const query = q.trim().replace(/^\$/, "");
-    const t = setTimeout(async () => {
+    const url = query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`;
+    // silent = rafraîchissement automatique : la liste se met à jour sans clignoter ni se vider
+    const load = async (silent: boolean) => {
       try {
-        const r = await fetch(query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`);
+        const r = await fetch(url);
         const j = await r.json();
-        if (live) { setList(j.tokens ?? []); setErr(!r.ok); onList(j.tokens ?? []); }
-      } catch { if (live) { setList([]); setErr(true); } }
-    }, query ? 350 : 0);
-    return () => { live = false; clearTimeout(t); };
+        if (!live) return;
+        if (silent && !(j.tokens ?? []).length) return;
+        setList(j.tokens ?? []); setErr(!r.ok); onList(j.tokens ?? []);
+      } catch { if (live && !silent) { setList([]); setErr(true); } }
+    };
+    const t = setTimeout(() => load(false), query ? 350 : 0);
+    const every = setInterval(() => { if (document.visibilityState === "visible") load(true); }, filter === "new" && !query ? 12_000 : 20_000);
+    return () => { live = false; clearTimeout(t); clearInterval(every); };
   }, [tab, filter, q, onList, chainsQ, extra]);
 
   const open = (m: string, t?: TerminalToken) => {
@@ -369,7 +375,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       const found = (j.tokens ?? []).find((x: TerminalToken) => x.mint.toLowerCase() === mint.toLowerCase());
       // SOL est presque toujours le token de cotation : on prend la grande pool SOL/USDC de Raydium pour son graphique
       const sol = mint === SOL_MINT ? { mint, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: SOL_USDC_POOL, createdAt: null, chain: "solana" as const, verified: true } : null;
-      setT(sol ? { ...sol, ...(found ?? {}), pool: SOL_USDC_POOL, logo: found?.logo ?? sol.logo } : found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
+      setT(sol ? { ...sol, ...(found ?? {}), mcap: null, pool: SOL_USDC_POOL, logo: found?.logo ?? sol.logo } : found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
     }).catch(() => {});
   }, [mint, fromList]);
   // Chiffres complets (capitalisation, liquidité, volume, date de la pool) : DexScreener puis GeckoTerminal

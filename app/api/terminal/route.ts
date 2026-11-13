@@ -50,5 +50,5 @@ export async function GET(req: Request) {
   const sol = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.href);
   const ver = await jupVerified(sol.map((t) => t.mint)).catch(() => new Set<string>());
   for (const t of tokens) t.verified = t.verified || t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : isMajorEvm(t.chain ?? "", t.mint);
-  return NextResponse.json({ tokens }, { status: tokens.length || chains.length === 0 ? 200 : 200, headers: { "Cache-Control": "public, max-age=30" } });
+  return NextResponse.json({ tokens }, { status: tokens.length || chains.length === 0 ? 200 : 200, headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
 }
