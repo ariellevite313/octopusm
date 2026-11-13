@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { GT_NET, type TerminalChain } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
+import { coinMarketCap } from "@/lib/terminal-crypto";
 import { dexInfoOf, dexPaidCheck, type DsPair as DsFull } from "@/lib/dexscreener";
 
 export const revalidate = 60;
@@ -77,6 +78,6 @@ export async function GET(req: Request) {
     dex: dex?.dex,
   };
   // SOL : la « capitalisation » des pools de SOL enveloppé ne veut rien dire, la liste CoinGecko donne la vraie
-  if (mint === SOL_MINT) s.mcap = null;
+  if (mint === SOL_MINT) s.mcap = await coinMarketCap("solana");
   return NextResponse.json({ stats: s }, { headers: { "Cache-Control": "public, s-maxage=60" } });
 }

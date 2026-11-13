@@ -107,3 +107,15 @@ export async function cryptoFromCoinGecko(chains: TerminalChain[], skip: (addr: 
   }
   return out;
 }
+
+/** Capitalisation réelle d'une grande crypto (id CoinGecko, ex. « solana »). Null si CoinGecko ne répond pas. */
+export async function coinMarketCap(id: string): Promise<number | null> {
+  try {
+    const hit = (await markets()).find((m) => m.id === id)?.market_cap;
+    if (hit) return hit;
+  } catch { /* repli ci-dessous */ }
+  try {
+    const j = await cg<Record<string, { usd_market_cap?: number }>>(`/simple/price?ids=${id}&vs_currencies=usd&include_market_cap=true`, 8000);
+    return j[id]?.usd_market_cap ?? null;
+  } catch { return null; }
+}
