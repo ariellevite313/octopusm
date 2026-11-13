@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { PrivyProvider, usePrivy, useLogin } from "@privy-io/react-auth";
 import { createClient } from "@/lib/supabase/client";
 
-export type SocialMethod = "twitter" | "telegram" | "github" | "twitch";
+export type SocialMethod = "twitter" | "github" | "twitch";
 type Props = { method?: SocialMethod; onDone: (wallet: string) => void; onFail: (message: string) => void; onCancel: () => void };
 
 /** Echange le jeton Privy contre une session OM (le serveur verifie tout, le client n'envoie que le jeton). */
@@ -59,7 +59,7 @@ export default function XLoginFlow(props: Props) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID as string;
   return (
     <PrivyProvider appId={appId} config={{
-      loginMethods: ["twitter", "telegram", "github", "twitch"],
+      loginMethods: ["twitter", "github", "twitch"],
       appearance: { theme: "dark" },
       embeddedWallets: { ethereum: { createOnLogin: "all-users" }, solana: { createOnLogin: "all-users" } },
     }}>
