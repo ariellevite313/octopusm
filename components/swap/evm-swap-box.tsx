@@ -38,7 +38,7 @@ async function waitReceipt(eth: Eth, hash: string) {
   }
 }
 
-export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string }) {
+export function EvmSwapBox({ chain, token, refPost }: { chain: EvmChain; token: string; refPost?: string }) {
   const { tr } = useT();
   const { walletAddress, isAuthenticated } = useAuth();
   const evm = isAuthenticated && !!walletAddress && walletAddress.startsWith("0x");
@@ -74,7 +74,7 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
   const inSym = side === "buy" ? c.native : info?.token.symbol ?? "";
   const outSym = side === "buy" ? info?.token.symbol ?? "" : c.native;
 
-  const body = useCallback((mode: "price" | "quote") => JSON.stringify({ chain, side, token, amount: raw, slippageBps: slip, mode, ...(!evm && addr ? { taker: addr } : {}) }), [chain, side, token, raw, slip, evm, addr]);
+  const body = useCallback((mode: "price" | "quote") => JSON.stringify({ chain, side, token, amount: raw, slippageBps: slip, mode, ...(!evm && addr ? { taker: addr } : {}), ...(mode === "quote" && refPost ? { refPost } : {}) }), [chain, side, token, raw, slip, evm, addr, refPost]);
 
   useEffect(() => {
     setQuote(null); setQErr(null);
@@ -118,11 +118,13 @@ export function EvmSwapBox({ chain, token }: { chain: EvmChain; token: string })
       }
       setBusy(tr("Confirm in your wallet"));
       const r = await fetch("/api/swap/evm", { method: "POST", headers: { "Content-Type": "application/json" }, body: body("quote") });
-      const q = (await r.json()) as Quote & { error?: string };
+      const q = (await r.json()) as Quote & { error?: string; ref?: { postId: string; holder: string; feeNative: string; taker: string; token: string } };
       if (!r.ok || !q.tx) throw new Error(q.error ?? "Swap failed");
       const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: q.tx.to, data: q.tx.data, value: toHex(BigInt(q.tx.value || "0")), ...(q.tx.gas ? { gas: toHex(BigInt(q.tx.gas)) } : {}) }] })) as string;
       setBusy(tr("Waiting for confirmation"));
       await waitReceipt(eth, hash);
+      // Swap lancé depuis un post « sac » : on enregistre la part du détenteur (jamais bloquant)
+      if (q.ref) void fetch("/api/chill/evm-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chain, hash, postId: q.ref.postId, holder: q.ref.holder, feeNative: q.ref.feeNative, taker: q.ref.taker, token, to: q.tx.to, data: q.tx.data, refToken: q.ref.token }) }).catch(() => {});
       toast.success(side === "buy" ? tr("Bought {symbol}", { symbol: info.token.symbol }) : tr("Sold {symbol}", { symbol: info.token.symbol }), {
         action: { label: tr("Explorer"), onClick: () => window.open(`${c.explorer}/tx/${hash}`, "_blank", "noopener") },
       });

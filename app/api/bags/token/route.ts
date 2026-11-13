@@ -9,6 +9,8 @@ import { solanaConnection } from "@/lib/solana/rpc";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SOL_MINT, USDC_MINT, isMint } from "@/lib/swap/core";
+import { isAddr, isEvmChain } from "@/lib/swap/evm";
+import { DS_EVM } from "@/lib/swap/chill-evm";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,18 @@ type Pair = {
 const https = (u: unknown) => (typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) ? u : null);
 
 export async function GET(req: Request) {
-  const mint = new URL(req.url).searchParams.get("mint") ?? "";
+  const sp = new URL(req.url).searchParams;
+  const mint = sp.get("mint") ?? "";
+  const evmChain = sp.get("chain");
+  if (isEvmChain(evmChain) && isAddr(mint)) {
+    // Token EVM : marché seul (DexScreener)
+    try {
+      const r = await fetch(`https://api.dexscreener.com/tokens/v1/${DS_EVM[evmChain]}/${mint}`, { signal: AbortSignal.timeout(6000), cache: "no-store" });
+      const best = (((r.ok ? await r.json() : []) as Pair[]) ?? []).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
+      if (best) return NextResponse.json({ market: { pool: best.pairAddress ?? null, price: best.priceUsd ? Number(best.priceUsd) : null, change24h: best.priceChange?.h24 ?? null, mcap: best.marketCap ?? best.fdv ?? null, volume24h: best.volume?.h24 ?? null, liquidity: best.liquidity?.usd ?? null, links: [] }, activity: [] });
+    } catch { /* marché indisponible */ }
+    return NextResponse.json({ market: null, activity: [] });
+  }
   if (!isMint(mint)) return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   let market: Record<string, unknown> = { pool: null, price: null, change24h: null, mcap: null, volume24h: null, liquidity: null, links: [] };
