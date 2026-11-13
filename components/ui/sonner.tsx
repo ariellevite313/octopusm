@@ -25,12 +25,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme}
       position="bottom-right"
-      richColors
       closeButton
       toastOptions={{
         duration: 4000,
         classNames: {
-          toast: "font-sans text-sm rounded-2xl border shadow-lg",
+          toast: "om-glass-toast font-sans text-sm rounded-2xl",
           title: "font-semibold",
           description: "text-xs opacity-80",
           closeButton: "rounded-full",
