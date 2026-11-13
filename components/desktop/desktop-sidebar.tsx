@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart } from "lucide-react";
+import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
 import { ThemeSwitchRail } from "@/components/shared/theme-switch";
@@ -30,6 +30,7 @@ function items(pathname: string) {
     { href: "/communities",            label: T("Communities"), icon: Users,      match: (p: string) => p.startsWith("/communities") || p.startsWith("/c/") },
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     { href: "/terminal",               label: T("Terminal"),    icon: CandlestickChart, match: (p: string) => p.startsWith("/terminal") },
+    { href: "/ambassadors",            label: T("Ambassadors"), icon: Megaphone,      match: (p: string) => p.startsWith("/ambassadors") },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
     predict
       ? { href: "/leaderboard/predictions", label: T("Prediction leaderboard"), icon: Trophy, match: (p: string) => p.startsWith("/leaderboard/predictions") }
@@ -47,7 +48,6 @@ const EXTRA = [
   { href: "https://dexscreener.com/solana/egi97rat7zrxrqvvv7edb5tvxzzxwgdh8vwvkgpfzdfc", label: "$CLAWDTRUST", description: T("Our partner token on Solana"), icon: Coins, external: true },
   { href: "https://t.me/Omdotfun",       label: T("Support"),        description: T("Get help from the team"),        icon: Headset,     external: true  },
   { href: "/faq",                        label: T("FAQ"),            description: T("Frequently asked questions"),    icon: HelpCircle,  external: false },
-  { href: "/ambassadors",                label: T("Ambassadors"),    description: T("20 places: earn 20% of the fees on your referrals"), icon: Award, external: false },
   { href: "/guide",                      label: T("User guide"),     description: T("Learn how to use OMdotfun"),     icon: BookOpen,    external: false },
   { href: "https://t.me/OmdotfunTuto",   label: T("Tutorial"),       description: T("Video tutorials on Telegram"),   icon: BookOpen,    external: true  },
   { href: "/policy",                     label: T("ŌM Policy"),      description: T("Rules, prohibitions, removals"), icon: ShieldCheck, external: false },
