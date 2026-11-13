@@ -515,22 +515,25 @@
 .fixed .overflow-y-auto, .fixed.overflow-y-auto { scrollbar-width: none; }
 .fixed .overflow-y-auto::-webkit-scrollbar, .fixed.overflow-y-auto::-webkit-scrollbar { display: none; }
 
-/* Notifications : bulle de verre transparente, texte et icônes blancs (plus de vert ni de rouge) */
+/* Notifications : bulle de verre transparente teintée (vert succès, rouge erreur), texte noir */
 .om-glass-toast,
 [data-sonner-toast].om-glass-toast {
-  background: rgba(20, 20, 28, 0.38) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
-  color: #fff !important;
+  --om-tint: 255, 255, 255;
+  background: rgba(var(--om-tint), 0.34) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  border: 1px solid rgba(var(--om-tint), 0.7) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  color: #000 !important;
 }
+[data-sonner-toast].om-glass-toast[data-type="success"] { --om-tint: 34, 197, 94; }
+[data-sonner-toast].om-glass-toast[data-type="error"] { --om-tint: 239, 68, 68; }
 .om-glass-toast [data-title],
 .om-glass-toast [data-description],
 .om-glass-toast [data-icon],
-.om-glass-toast [data-icon] svg { color: #fff !important; }
+.om-glass-toast [data-icon] svg { color: #000 !important; }
 .om-glass-toast [data-close-button] {
-  background: rgba(255, 255, 255, 0.18) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  color: #000 !important;
 }
