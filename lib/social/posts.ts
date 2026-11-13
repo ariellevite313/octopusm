@@ -37,7 +37,7 @@ export type FeedPost = {
   /** Présent quand le post est un article long (le texte complet est sur /article/:id) */
   article: { title: string; cover_url: string | null; read_minutes: number } | null;
   /** « Chill ton sac » : token montré par l'auteur (achat / vente depuis le post) */
-  bag?: { mint: string; symbol: string; name: string; logo: string | null } | null;
+  bag?: { mint: string; symbol: string; name: string; logo: string | null; chain?: string | null } | null;
   mine: boolean;
   following_author: boolean;
   /** @username (minuscules) → wallet */
@@ -209,10 +209,10 @@ async function loadBags(admin: any, ids: string[]) {
   const map = new Map<string, NonNullable<FeedPost["bag"]>>();
   if (ids.length === 0) return map;
   try {
-    const { data, error } = await admin.from("posts").select("id, bag_mint, bag_symbol, bag_name, bag_logo").in("id", ids).eq("kind", "bag");
+    const { data, error } = await admin.from("posts").select("id, bag_mint, bag_symbol, bag_name, bag_logo, bag_chain").in("id", ids).eq("kind", "bag");
     if (error) return map;
-    for (const r of (data ?? []) as { id: string; bag_mint: string; bag_symbol: string; bag_name: string | null; bag_logo: string | null }[]) {
-      map.set(r.id, { mint: r.bag_mint, symbol: r.bag_symbol, name: r.bag_name ?? r.bag_symbol, logo: r.bag_logo });
+    for (const r of (data ?? []) as { id: string; bag_mint: string; bag_symbol: string; bag_name: string | null; bag_logo: string | null; bag_chain: string | null }[]) {
+      map.set(r.id, { mint: r.bag_mint, symbol: r.bag_symbol, name: r.bag_name ?? r.bag_symbol, logo: r.bag_logo, chain: r.bag_chain });
     }
   } catch { /* fil sans sacs */ }
   return map;
