@@ -1400,6 +1400,8 @@ const p: Record<string, string> = {
   "Holders": "Holders",
   "Top 100 of {count} holders": "Top 100 sur {count} holders",
   "Holders unavailable right now.": "Holders indisponibles pour le moment.",
+  "SOL is the native coin of Solana: millions of wallets hold it, so there is no top holders list.": "Le SOL est la monnaie native de Solana : des millions de wallets en détiennent, il n'y a donc pas de liste des plus gros holders.",
+  "Holders list not available on this network yet.": "La liste des holders n'est pas encore disponible sur ce réseau.",
   "No holders yet.": "Aucun holder pour le moment.",
   "Pool / program": "Pool / programme",
   "Open on Polymarket": "Ouvrir sur Polymarket",

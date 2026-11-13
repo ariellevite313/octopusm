@@ -359,6 +359,22 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       setT(sol ? { ...sol, ...(found ?? {}), pool: SOL_USDC_POOL, logo: found?.logo ?? sol.logo } : found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
     }).catch(() => {});
   }, [mint, fromList]);
+  // Chiffres complets (capitalisation, liquidité, volume, date de la pool) : DexScreener puis GeckoTerminal
+  const loaded = !!t;
+  useEffect(() => {
+    if (!loaded || chain === "arc") return;
+    let off = false;
+    fetch(`/api/terminal/stats?chain=${chain}&mint=${encodeURIComponent(mint)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      const s = j?.stats;
+      if (off || !s) return;
+      setT((x) => x ? {
+        ...x,
+        price: x.price ?? s.price, mcap: x.mcap ?? s.mcap, volume24h: x.volume24h ?? s.volume24h, change24h: x.change24h ?? s.change24h,
+        liquidity: s.liquidity ?? x.liquidity, createdAt: s.createdAt ?? x.createdAt, pool: x.pool || s.pool || "",
+      } : x);
+    }).catch(() => {});
+    return () => { off = true; };
+  }, [loaded, chain, mint]);
   useEffect(() => { if (isSol) fetch(`/api/swap/token?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((j) => j?.token && setInfo(j.token)).catch(() => {}); }, [mint, isSol]);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 170);
@@ -448,7 +464,10 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             ))}
           </div>
           <div className="px-4 pt-3">
-            {tab === "holders" && (isSol && mint !== SOL_MINT ? <Holders mint={mint} price={live} /> : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>)}
+            {tab === "holders" && (mint === SOL_MINT
+              ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">{tr("SOL is the native coin of Solana: millions of wallets hold it, so there is no top holders list.")}</p>
+              : isSol || EVM_HOLDERS.includes(chain) ? <Holders mint={mint} chain={chain} price={live} />
+              : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders list not available on this network yet.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
             {tab === "about" && <About t={t} info={info} />}
           </div>
@@ -535,19 +554,21 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
 }
 
 type Holder = { rank: number; owner: string; amount: number; pct: number; isProgram: boolean; name: string | null; avatar: string | null };
-function Holders({ mint, price: p }: { mint: string; price: number | null }) {
+const EVM_HOLDERS: TerminalChain[] = ["ethereum", "base", "arbitrum", "polygon", "robinhood"];
+function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain; price: number | null }) {
   const { tr } = useT();
   const [rows, setRows] = useState<Holder[] | null>(null);
   const [err, setErr] = useState(false);
   const [bundle, setBundle] = useState<{ wallets: string[]; pct: number } | null>(null);
   useEffect(() => {
     let off = false;
+    if (chain !== "solana") return;
     fetch(`/api/launchpad/bundle/${mint}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && d?.available && d.wallets?.length) setBundle({ wallets: d.wallets, pct: d.pct }); }).catch(() => {});
     return () => { off = true; };
-  }, [mint]);
+  }, [mint, chain]);
   useEffect(() => {
-    fetch(`/api/launchpad/holders/${mint}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows((d.holders ?? []).filter((h: Holder) => !h.isProgram))).catch(() => setErr(true));
-  }, [mint]);
+    fetch(chain === "solana" ? `/api/launchpad/holders/${mint}` : `/api/terminal/holders?chain=${chain}&token=${mint}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows((d.holders ?? []).filter((h: Holder) => !h.isProgram))).catch(() => setErr(true));
+  }, [mint, chain]);
   if (err) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>;
   if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
   if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("No holders yet.")}</p>;
