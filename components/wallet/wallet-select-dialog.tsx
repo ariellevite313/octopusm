@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { useT, Rich } from "@/lib/i18n";
 import { startDeeplinkConnect } from "@/lib/wallet/phantom-deeplink";
-import { X_LOGIN_ENABLED, XLogo, TelegramLogo, GithubLogo, TwitchLogo } from "@/components/auth/x-login";
+import { X_LOGIN_ENABLED, XLogo, GithubLogo, TwitchLogo } from "@/components/auth/x-login";
 import type { SocialMethod } from "@/components/auth/x-login-flow";
 import { type WalletInfo, type WalletType, WALLET_COLORS } from "@/lib/wallet/adapters";
 
@@ -92,8 +92,8 @@ export function WalletSelectDialog({ wallets, onSelect, onClose, onX }: Props) {
               className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-sm font-bold text-background transition-opacity hover:opacity-90">
               <XLogo className="size-4" />{tr("Continue with X")}
             </button>
-            <div className="mb-4 grid grid-cols-3 gap-2">
-              {([["telegram", "Telegram", TelegramLogo], ["github", "GitHub", GithubLogo], ["twitch", "Twitch", TwitchLogo]] as const).map(([m, label, Logo]) => (
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              {([["github", "GitHub", GithubLogo], ["twitch", "Twitch", TwitchLogo]] as const).map(([m, label, Logo]) => (
                 <button key={m} type="button" onClick={() => onX(m)} aria-label={tr("Continue with {name}", { name: label })}
                   className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 py-2.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted">
                   <Logo className="size-4 shrink-0" />{label}

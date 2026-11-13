@@ -31,9 +31,9 @@ export async function POST(req: Request) {
     const privy = new PrivyClient(appId, secret);
     const claims = await privy.verifyAuthToken(token);          // signature, expiration, appId
     const user = await privy.getUser(claims.userId);
-    // Comptes sociaux acceptés : X, Telegram, GitHub, Twitch (Privy vérifie le compte, on ne lit que son résultat)
+    // Comptes sociaux acceptés : X, GitHub, Twitch (Privy vérifie le compte, on ne lit que son résultat)
     const x = user.linkedAccounts.find((a) => a.type === "twitter_oauth") as { subject?: string; username?: string | null } | undefined;
-    const other = user.linkedAccounts.find((a) => ["telegram", "github_oauth", "twitch_oauth"].includes(a.type));
+    const other = user.linkedAccounts.find((a) => ["github_oauth", "twitch_oauth"].includes(a.type));
     if (!x?.subject && !other) return NextResponse.json({ error: "No social account linked" }, { status: 401 });
     // Wallet Solana embarque cree par Privy (jamais une adresse envoyee par le client)
     const w = user.linkedAccounts.find((a) => a.type === "wallet" && (a as { walletClientType?: string; chainType?: string }).walletClientType === "privy" && (a as { chainType?: string }).chainType === "solana") as { address?: string } | undefined;
