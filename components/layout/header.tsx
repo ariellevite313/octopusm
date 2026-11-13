@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
   { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },
   { href: "/terminal",                label: T("Terminal"),    badge: undefined, disabled: false },
+  { href: "/ambassadors",             label: T("Ambassadors"), badge: undefined, disabled: false },
   { href: "/live",                    label: T("Live scores"), badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];
 
