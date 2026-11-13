@@ -70,3 +70,20 @@ export function buildClusters(owners: { owner: string; pct: number }[], links: {
   for (const c of clusters) for (const m of c.members) of.set(m, c.id);
   return { clusters, of };
 }
+
+/**
+ * Repli quand l'historique du mint est trop long : on part des gros holders et de leur premier slot d'acquisition.
+ * Les portefeuilles dont le premier achat tombe à moins de `windowSlots` d'un autre forment un groupe ; seuls les groupes
+ * de 2 portefeuilles ou plus comptent (le créateur est exclu).
+ */
+export function bundleFromFirstSlots(first: { owner: string; slot: number }[], creator: string | null, balancesPct: Map<string, number>, windowSlots = 3) {
+  const sorted = first.filter((f) => f.owner !== creator).sort((a, b) => a.slot - b.slot);
+  const groups: { owner: string; slot: number }[][] = [];
+  for (const f of sorted) {
+    const g = groups[groups.length - 1];
+    if (g && f.slot - g[g.length - 1].slot <= windowSlots) g.push(f); else groups.push([f]);
+  }
+  const wallets = groups.filter((g) => g.length >= 2).flat().map((f) => f.owner);
+  const pct = wallets.reduce((s, w) => s + (balancesPct.get(w) ?? 0), 0);
+  return { wallets, pct };
+}

@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { arcList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
 import { cryptoFromCoinGecko } from "@/lib/terminal-crypto";
+import { dexList, dexSearch, enrichDex } from "@/lib/dexscreener";
 import { isMajorEvm, isMajorSolana } from "@/lib/swap/majors";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -24,18 +25,27 @@ export async function GET(req: Request) {
   // Crypto : classement CoinGecko (prix Binance), puis repli sur les pools GeckoTerminal si CoinGecko ne répond pas
   let cgList: TerminalToken[] = [];
   if (kind === "crypto") cgList = await cryptoFromCoinGecko(chains.filter((c) => c !== "arc"), isSkipped).catch(() => []);
-  // Recherche sur plusieurs réseaux : un seul appel global (plus Arc depuis notre base)
-  const results = cgList.length
-    ? [cgList, chains.includes("arc") ? await arcList(createAdminClient(), kind, q).catch(() => [] as TerminalToken[]) : []]
-    : kind === "search" && chains.filter((c) => c !== "arc").length > 1
-    ? await Promise.all([
-        searchAll(q, chains.filter((c) => c !== "arc")).catch(() => [] as TerminalToken[]),
-        chains.includes("arc") ? arcList(createAdminClient(), kind, q).catch(() => [] as TerminalToken[]) : Promise.resolve([] as TerminalToken[]),
-      ])
-    : await Promise.all(chains.map(async (chain): Promise<TerminalToken[]> => {
-        try { return chain === "arc" ? await arcList(createAdminClient(), kind, q) : await terminalList(kind, q, chain); } catch { return []; }
+  const geckoChains = chains.filter((c) => c !== "arc");
+  const arcPromise = chains.includes("arc") ? arcList(createAdminClient(), kind, q).catch(() => [] as TerminalToken[]) : Promise.resolve([] as TerminalToken[]);
+  // DexScreener : tokens boostés (tendances), nouveaux profils, recherche multi-réseaux. Une panne de cette source ne casse rien.
+  const dexPromise: Promise<TerminalToken[]> = kind === "trending" || kind === "new" ? dexList(kind, geckoChains).catch(() => [])
+    : kind === "search" ? dexSearch(q, geckoChains).catch(() => []) : Promise.resolve([]);
+  const geckoPromise: Promise<TerminalToken[][]> = cgList.length ? Promise.resolve([cgList])
+    : kind === "search" && geckoChains.length > 1 ? searchAll(q, geckoChains).catch(() => [] as TerminalToken[]).then((x) => [x])
+    : Promise.all(geckoChains.map(async (chain): Promise<TerminalToken[]> => {
+        try { return await terminalList(kind, q, chain); } catch { return []; }
       }));
-  const tokens = mergeLists(results, kind);
+  const [gecko, arc, dex] = await Promise.all([geckoPromise, arcPromise, dexPromise]);
+  // Arc d'abord pour les recherches ciblées ; DexScreener en dernier (complète GeckoTerminal sans le remplacer)
+  const merged = mergeLists([...gecko, arc, dex], kind, 120);
+  await enrichDex(merged).catch(() => {});
+  // Filtres : profil DexScreener payé, réseaux sociaux, site web
+  const f = u.searchParams;
+  const tokens = merged
+    .filter((t) => f.get("dex") !== "paid" || t.dex?.paid)
+    .filter((t) => f.get("social") !== "1" || (t.dex?.socials.length ?? 0) > 0)
+    .filter((t) => f.get("site") !== "1" || !!t.dex?.website)
+    .slice(0, 60);
   // Pastille : tokens vérifiés sur Jupiter (Solana), majeurs, ou lancés sur OM (Arc)
   const sol = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.href);
   const ver = await jupVerified(sol.map((t) => t.mint)).catch(() => new Set<string>());

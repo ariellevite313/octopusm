@@ -5,6 +5,7 @@
  * page d'un token avec graphique en ligne, Détenteurs / Fil / À propos et barre d'achat.
  * Frais OM 0,3 % (0 % sur les tokens OM), toujours signé par le portefeuille de l'utilisateur.
  */
+import { HoldersBubbles } from "@/components/launchpad/holders-bubbles";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -123,6 +124,10 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const [list, setList] = useState<TerminalToken[] | null>(null);
   const [err, setErr] = useState(false);
   const [netSheet, setNetSheet] = useState(false);
+  const [fDex, setFDex] = useState(false);
+  const [fSocial, setFSocial] = useState(false);
+  const [fSite, setFSite] = useState(false);
+  const extra = `${fDex ? "&dex=paid" : ""}${fSocial ? "&social=1" : ""}${fSite ? "&site=1" : ""}`;
   const chainsQ = selected.length ? selected.join(",") : "all";
 
   useEffect(() => {
@@ -132,13 +137,13 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     const query = q.trim().replace(/^\$/, "");
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}` : `/api/terminal?chains=${chainsQ}&list=${filter}`);
+        const r = await fetch(query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`);
         const j = await r.json();
         if (live) { setList(j.tokens ?? []); setErr(!r.ok); onList(j.tokens ?? []); }
       } catch { if (live) { setList([]); setErr(true); } }
     }, query ? 350 : 0);
     return () => { live = false; clearTimeout(t); };
-  }, [tab, filter, q, onList, chainsQ]);
+  }, [tab, filter, q, onList, chainsQ, extra]);
 
   const open = (m: string, t?: TerminalToken) => {
     if (t?.href) { router.push(t.href); return; }
@@ -185,6 +190,14 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
         )
       )}
 
+      {tab === "tokens" && (
+        <div className="mt-2 flex gap-2 overflow-x-auto [scrollbar-width:none]">
+          {([[fDex, setFDex, tr("Dex paid")], [fSocial, setFSocial, tr("Social networks")], [fSite, setFSite, tr("Website")]] as const).map(([on, set, label]) => (
+            <button key={label} onClick={() => set(!on)} aria-pressed={on} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${on ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          ))}
+        </div>
+      )}
+
       {tab === "tokens" && q.trim() && isMintLike(q.trim()) && (
         <button onClick={() => open(q.trim())} className="mt-3 w-full rounded-2xl bg-muted/60 px-4 py-3 text-left text-sm font-semibold hover:bg-muted">{tr("Open this mint")} <span className="font-mono text-muted-foreground">{short(q.trim())}</span></button>
       )}
@@ -207,7 +220,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               </span>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[17px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{t.verified && <Tick />}</p>
-                <p className="num truncate text-[14px] text-muted-foreground">{compact(t.mcap)} {tr("cap.")}</p>
+                <p className="num truncate text-[14px] text-muted-foreground">{compact(t.mcap)} {tr("cap.")}{t.dex?.paid && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Dex paid")}</span>}{(t.dex?.boost ?? 0) > 0 && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Boost")}</span>}</p>
               </div>
               <div className="shrink-0 text-right">
                 <p className="num text-[17px] font-bold text-foreground">{price(t.price)}</p>
@@ -371,6 +384,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         ...x,
         price: x.price ?? s.price, mcap: x.mcap ?? s.mcap, volume24h: x.volume24h ?? s.volume24h, change24h: x.change24h ?? s.change24h,
         liquidity: s.liquidity ?? x.liquidity, createdAt: s.createdAt ?? x.createdAt, pool: x.pool || s.pool || "",
+        dex: s.dex ? { ...s.dex, paid: s.dex.paid ?? x.dex?.paid ?? false } : x.dex,
       } : x);
     }).catch(() => {});
     return () => { off = true; };
@@ -554,12 +568,14 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
 }
 
 type Holder = { rank: number; owner: string; amount: number; pct: number; isProgram: boolean; name: string | null; avatar: string | null };
+const EXPLORER: Partial<Record<TerminalChain, string>> = { ethereum: "https://etherscan.io", base: "https://basescan.org", arbitrum: "https://arbiscan.io", polygon: "https://polygonscan.com" };
 const EVM_HOLDERS: TerminalChain[] = ["ethereum", "base", "arbitrum", "polygon", "robinhood"];
 function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain; price: number | null }) {
   const { tr } = useT();
   const [rows, setRows] = useState<Holder[] | null>(null);
   const [err, setErr] = useState(false);
   const [bundle, setBundle] = useState<{ wallets: string[]; pct: number } | null>(null);
+  const [view, setView] = useState<"list" | "bubbles">("list");
   useEffect(() => {
     let off = false;
     if (chain !== "solana") return;
@@ -567,16 +583,26 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
     return () => { off = true; };
   }, [mint, chain]);
   useEffect(() => {
-    fetch(chain === "solana" ? `/api/launchpad/holders/${mint}` : `/api/terminal/holders?chain=${chain}&token=${mint}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows((d.holders ?? []).filter((h: Holder) => !h.isProgram))).catch(() => setErr(true));
+    fetch(chain === "solana" ? `/api/launchpad/holders/${mint}` : `/api/terminal/holders?chain=${chain}&token=${mint}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows(d.holders ?? [])).catch(() => setErr(true));
   }, [mint, chain]);
   if (err) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>;
   if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
   if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("No holders yet.")}</p>;
+  const people = rows.filter((h) => !h.isProgram);
+  const bundleSet = new Set(bundle?.wallets ?? []);
+  const explorerUrl = (o: string) => (chain === "solana" ? `https://solscan.io/account/${o}` : `${EXPLORER[chain] ?? "https://etherscan.io"}/address/${o}`);
   return (
     <div>
+      <div className="mb-2 flex overflow-hidden rounded-lg border border-border text-[12px] font-semibold w-fit">
+        {(["list", "bubbles"] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)} className={`px-2.5 py-1 ${view === v ? "bg-foreground text-background" : "text-muted-foreground"}`}>{tr(v === "list" ? "List" : "Bubble map")}</button>
+        ))}
+      </div>
+      {view === "bubbles" && <HoldersBubbles holders={rows} bundle={bundleSet} chain="solana" explorerUrl={explorerUrl} />}
+      {view === "list" && <>
       <p className="mb-1 text-xs text-muted-foreground">{tr("Biggest holders, excluding pools and programs")}</p>
       {bundle && <p className="mb-1 text-xs font-semibold text-down">{tr("Bundle {pct}%", { pct: bundle.pct.toFixed(1) })} · {bundle.wallets.length}</p>}
-      {rows.map((h) => (
+      {people.map((h) => (
         <Link key={h.owner} href={`/profile/${h.owner}`} className="flex items-center gap-3 py-2.5">
           {h.avatar
             // eslint-disable-next-line @next/next/no-img-element
@@ -589,6 +615,7 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
           <p className="num shrink-0 text-[16px] font-bold text-foreground">{p != null ? compact(h.amount * p, 2) : "-"}</p>
         </Link>
       ))}
+      </>}
     </div>
   );
 }
@@ -629,6 +656,18 @@ function About({ t, info }: { t: TerminalToken; info: SwapToken | null }) {
           </div>
         ))}
       </div>
+      {t.dex && (
+        <div className="mt-3 rounded-2xl bg-muted/40 p-3">
+          <p className="text-xs text-muted-foreground">{tr("DexScreener profile")}</p>
+          <p className="mt-1 text-[15px] font-bold text-foreground">{t.dex.paid ? tr("Paid") : tr("Not paid")}{t.dex.boost > 0 && <span className="ml-2 text-[13px] font-semibold text-muted-foreground">{tr("Boost")} {t.dex.boost}</span>}</p>
+          {(t.dex.website || t.dex.socials.length > 0) && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {t.dex.website && <a href={t.dex.website} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-muted-foreground hover:text-foreground">{tr("Website")}</a>}
+              {t.dex.socials.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold capitalize text-muted-foreground hover:text-foreground">{s.type}</a>)}
+            </div>
+          )}
+        </div>
+      )}
       <div className="mt-3 rounded-2xl bg-muted/40 p-3">
         <p className="text-xs text-muted-foreground">{tr("Contract address")}</p>
         <p className="mt-1 break-all font-mono text-[13px] text-foreground">{t.mint}</p>

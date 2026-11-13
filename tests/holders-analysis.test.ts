@@ -59,3 +59,17 @@ describe("buildClusters", () => {
     expect(of.has("x")).toBe(false);
   });
 });
+
+import { bundleFromFirstSlots } from "@/lib/holders-analysis";
+import { describe as d2, it as i2, expect as e2 } from "vitest";
+d2("bundleFromFirstSlots", () => {
+  i2("groups wallets acquiring within 3 slots, ignores creator and singles", () => {
+    const bal = new Map([["a", 5], ["b", 3], ["c", 2], ["d", 1], ["cr", 9]]);
+    const r = bundleFromFirstSlots([{ owner: "a", slot: 100 }, { owner: "b", slot: 102 }, { owner: "c", slot: 500 }, { owner: "d", slot: 100 }, { owner: "cr", slot: 100 }], "cr", bal);
+    e2(r.wallets.sort()).toEqual(["a", "b", "d"]);
+    e2(r.pct).toBe(9);
+  });
+  i2("no group when all far apart", () => {
+    e2(bundleFromFirstSlots([{ owner: "a", slot: 1 }, { owner: "b", slot: 50 }], null, new Map()).wallets).toEqual([]);
+  });
+});

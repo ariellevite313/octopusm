@@ -6,7 +6,7 @@
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { detectBundle, type EarlyTx } from "@/lib/holders-analysis";
+import { detectBundle, bundleFromFirstSlots, type EarlyTx } from "@/lib/holders-analysis";
 
 export const revalidate = 300;
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -57,7 +57,32 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
       before = sigs[sigs.length - 1].signature;
       if (sigs.length < 1000) { reachedStart = true; break; }
     }
-    if (!reachedStart || !oldest.length) return NextResponse.json(none, cache);
+    if (!reachedStart || !oldest.length) {
+      // Mint trop ancien ou trop actif : premier slot d'acquisition des plus gros holders
+      const origin0 = new URL(req.url).origin;
+      const hj0 = await fetch(`${origin0}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const top = ((hj0?.holders ?? []) as { owner: string; pct: number; isProgram: boolean }[]).filter((h) => !h.isProgram).slice(0, 25);
+      if (!top.length) return NextResponse.json(none, cache);
+      const first = (await Promise.all(top.map(async (h) => {
+        try {
+          const accs = (await rpc("getTokenAccountsByOwner", [h.owner, { mint }, { encoding: "jsonParsed" }])) as { value?: { pubkey: string }[] };
+          const acc = accs?.value?.[0]?.pubkey;
+          if (!acc) return null;
+          let bef: string | undefined; let last: { signature: string; slot: number } | null = null; let done = false;
+          for (let p = 0; p < 3 && !done; p++) {
+            const sg = (await rpc("getSignaturesForAddress", [acc, { limit: 1000, ...(bef ? { before: bef } : {}) }])) as { signature: string; slot: number }[];
+            if (!sg.length) { done = true; break; }
+            last = sg[sg.length - 1]; bef = last.signature;
+            if (sg.length < 1000) done = true;
+          }
+          return done && last ? { owner: h.owner, slot: last.slot } : null;
+        } catch { return null; }
+      }))).filter(Boolean) as { owner: string; slot: number }[];
+      if (first.length < 2) return NextResponse.json(none, cache);
+      const bal0 = new Map<string, number>(top.map((h) => [h.owner, h.pct]));
+      const r0 = bundleFromFirstSlots(first, creator, bal0);
+      return NextResponse.json({ available: true, wallets: r0.wallets, pct: r0.pct, approx: true }, cache);
+    }
 
     // Les plus anciennes d'abord ; on garde celles des premiers blocs
     const chrono = [...oldest].reverse();
