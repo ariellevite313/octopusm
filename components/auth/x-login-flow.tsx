@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { PrivyProvider, usePrivy, useLogin } from "@privy-io/react-auth";
 import { createClient } from "@/lib/supabase/client";
 
-type Props = { onDone: (wallet: string) => void; onFail: (message: string) => void; onCancel: () => void };
+export type SocialMethod = "twitter" | "telegram" | "github" | "twitch";
+type Props = { method?: SocialMethod; onDone: (wallet: string) => void; onFail: (message: string) => void; onCancel: () => void };
 
 /** Echange le jeton Privy contre une session OM (le serveur verifie tout, le client n'envoie que le jeton). */
 async function openSession(token: string): Promise<{ wallet: string } | { error: string }> {
@@ -19,7 +20,7 @@ async function openSession(token: string): Promise<{ wallet: string } | { error:
   return { error: "Wallet not ready, try again" };
 }
 
-function Inner({ onDone, onFail, onCancel }: Props) {
+function Inner({ method = "twitter", onDone, onFail, onCancel }: Props) {
   const { ready, authenticated, getAccessToken } = usePrivy();
   const started = useRef(false), exchanged = useRef(false);
   const { login } = useLogin({
@@ -30,10 +31,10 @@ function Inner({ onDone, onFail, onCancel }: Props) {
   useEffect(() => {
     if (!ready || started.current) return;
     started.current = true;
-    // Au retour de X, Privy termine seul la connexion à partir de l'adresse : pas de nouvelle fenêtre
+    // Au retour de X (ou GitHub, Twitch), Privy termine seul la connexion à partir de l'adresse : pas de nouvelle fenêtre
     const returning = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("privy_oauth_code");
-    if (!authenticated && !returning) login({ loginMethods: ["twitter"] });
-  }, [ready, authenticated, login]);
+    if (!authenticated && !returning) login({ loginMethods: [method] });
+  }, [ready, authenticated, login, method]);
 
   useEffect(() => {
     if (!ready || !authenticated || exchanged.current) return;
@@ -58,7 +59,7 @@ export default function XLoginFlow(props: Props) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID as string;
   return (
     <PrivyProvider appId={appId} config={{
-      loginMethods: ["twitter"],
+      loginMethods: ["twitter", "telegram", "github", "twitch"],
       appearance: { theme: "dark" },
       embeddedWallets: { ethereum: { createOnLogin: "all-users" }, solana: { createOnLogin: "all-users" } },
     }}>

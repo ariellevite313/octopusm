@@ -31,8 +31,10 @@ export async function POST(req: Request) {
     const privy = new PrivyClient(appId, secret);
     const claims = await privy.verifyAuthToken(token);          // signature, expiration, appId
     const user = await privy.getUser(claims.userId);
+    // Comptes sociaux acceptés : X, Telegram, GitHub, Twitch (Privy vérifie le compte, on ne lit que son résultat)
     const x = user.linkedAccounts.find((a) => a.type === "twitter_oauth") as { subject?: string; username?: string | null } | undefined;
-    if (!x?.subject) return NextResponse.json({ error: "No X account linked" }, { status: 401 });
+    const other = user.linkedAccounts.find((a) => ["telegram", "github_oauth", "twitch_oauth"].includes(a.type));
+    if (!x?.subject && !other) return NextResponse.json({ error: "No social account linked" }, { status: 401 });
     // Wallet Solana embarque cree par Privy (jamais une adresse envoyee par le client)
     const w = user.linkedAccounts.find((a) => a.type === "wallet" && (a as { walletClientType?: string; chainType?: string }).walletClientType === "privy" && (a as { chainType?: string }).chainType === "solana") as { address?: string } | undefined;
     const address = w?.address;
@@ -41,10 +43,12 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
     // Un compte X ne peut pas ouvrir un wallet different de celui deja lie
-    const { data: link } = await admin.from("x_links").select("wallet_address").eq("x_user_id", x.subject).maybeSingle();
-    if (link && link.wallet_address !== address) return NextResponse.json({ error: "This X account is linked to another wallet" }, { status: 409 });
-    const { data: taken } = await admin.from("x_links").select("x_user_id").eq("wallet_address", address).maybeSingle();
-    if (taken && taken.x_user_id !== x.subject) return NextResponse.json({ error: "This wallet is linked to another X account" }, { status: 409 });
+    if (x?.subject) {
+      const { data: link } = await admin.from("x_links").select("wallet_address").eq("x_user_id", x.subject).maybeSingle();
+      if (link && link.wallet_address !== address) return NextResponse.json({ error: "This X account is linked to another wallet" }, { status: 409 });
+    }
+    const { data: taken } = await admin.from("x_links").select("x_user_id, privy_user_id").eq("wallet_address", address).maybeSingle();
+    if (taken && (x?.subject ? taken.x_user_id !== x.subject : taken.privy_user_id !== claims.userId)) return NextResponse.json({ error: "This wallet is linked to another account" }, { status: 409 });
 
     const email = `${address.toLowerCase()}@octopus-market.wallet`;
     const password = await derivePassword(address, serviceKey);
@@ -66,12 +70,12 @@ export async function POST(req: Request) {
         address, role: "user", status: "active", first_connected_at: now, last_connected_at: now, connection_count: 1,
         latest_activity_at: now, latest_activity_label: "First connection", payment_count: 0, approved_payment_count: 0,
         pending_payment_count: 0, rejected_payment_count: 0, total_paid_usdc: 0, total_won_usdc: 0, total_lost_usdc: 0, total_claimed_usdc: 0,
-        ...(x.username ? { twitter_handle: x.username } : {}),
+        ...(x?.username ? { twitter_handle: x.username } : {}),
       });
     } else {
       await admin.from("wallets").update({ last_connected_at: now, connection_count: (row.connection_count ?? 0) + 1, latest_activity_at: now, latest_activity_label: "Connected" }).eq("address", address);
     }
-    await admin.from("x_links").upsert({ x_user_id: x.subject, privy_user_id: claims.userId, wallet_address: address, x_username: x.username ?? null, updated_at: now }, { onConflict: "x_user_id" });
+    if (x?.subject) await admin.from("x_links").upsert({ x_user_id: x.subject, privy_user_id: claims.userId, wallet_address: address, x_username: x.username ?? null, updated_at: now }, { onConflict: "x_user_id" });
     if (isNew) {
       const code = Array.from(crypto.getRandomValues(new Uint8Array(6))).map((b) => b.toString(36).toUpperCase().padStart(2, "0")).join("").slice(0, 8);
       await admin.from("referral_codes").upsert({ wallet_address: address, code }, { onConflict: "wallet_address" });

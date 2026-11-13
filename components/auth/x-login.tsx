@@ -13,3 +13,22 @@ export function XLogo({ className = "size-4" }: { className?: string }) {
     </svg>
   );
 }
+
+export function TelegramLogo({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="#229ED9" aria-hidden="true">
+      <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.16-1.97 9.28c-.15.66-.54.82-1.09.51l-3-2.21-1.45 1.39c-.16.16-.29.29-.6.29l.21-3.05 5.56-5.02c.24-.21-.05-.33-.37-.12l-6.87 4.33-2.96-.92c-.64-.2-.66-.64.14-.95l11.57-4.46c.54-.2 1.01.13.83.93z" />
+    </svg>
+  );
+}
+
+export function GithubLogo({ className = "size-4" }: { className?: string }) {
+  // Logo noir : inversé en mode nuit pour rester visible
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/social/github.png" alt="" className={`${className} object-contain dark:invert`} aria-hidden="true" />;
+}
+
+export function TwitchLogo({ className = "size-4" }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/social/twitch.png" alt="" className={`${className} object-contain`} aria-hidden="true" />;
+}
