@@ -50,6 +50,8 @@ export function AmbassadorsPage() {
 
   return (
     <main className="mx-auto max-w-2xl space-y-8 px-4 py-8 pb-24">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/ambassador-banner.jpg" alt="" width={1080} height={608} className="aspect-[16/9] w-full rounded-3xl object-cover" />
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-foreground">{tr("Ambassador program")}</h1>
         <p className="text-[15px] leading-relaxed text-muted-foreground">{tr("{max} places only. Bring real users to OMdotfun and earn more on their activity. Nothing is paid in advance: you earn only on real trades.", { max: AMBASSADOR_MAX })}</p>
