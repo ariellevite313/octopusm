@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart2, LayoutGrid, MessageSquare, Trophy, User } from "lucide-react";
@@ -59,6 +59,26 @@ export function BottomNav() {
     try { localStorage.setItem(KEY, section); } catch { /* stockage indisponible */ }
   }, [section, last]);
 
+  // Position réelle du menu : le bouton Buy/Sell s'en sert pour rester juste au-dessus (Phantom, navigateurs intégrés)
+  const navRef = useRef<HTMLElement>(null);
+  const android = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      if (r.height > 0) root.style.setProperty("--om-nav-top", `${Math.max(0, Math.round(vh - r.top))}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("resize", measure); root.style.removeProperty("--om-nav-top"); };
+  }, [mounted, section]);
+
   if (!mounted) return null;
 
   const cls = (active: boolean) =>
@@ -66,7 +86,7 @@ export function BottomNav() {
   const profileActive = !!walletAddress && pathname.toLowerCase() === `/profile/${walletAddress.toLowerCase()}`;
 
   return (
-    <nav className="fixed inset-x-4 bottom-4 z-40 flex gap-1 p-1.5 md:hidden nav-pill" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <nav ref={navRef} className="fixed inset-x-4 bottom-4 z-40 flex gap-1 p-1.5 md:hidden nav-pill" style={{ marginBottom: android ? "0px" : "env(safe-area-inset-bottom, 0px)" }}>
       {NAV[section].map(({ label, href, icon: Icon, active }) => {
         const on = active(pathname);
         return (
