@@ -214,8 +214,8 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     let cancelled = false;
     const fetchProgress = () => {
       // Pass quoteDecimals so the API divides by the correct power of 10:
-      // 9 for SOL pools (default), 6 for xStock (Token-2022)
-      const qd = isXStock ? 6 : 9;
+      // 9 for SOL pools (default), 6 for xStock (Token-2022), DOGE 8, PEPE 4, CLT 9 (paires spéciales)
+      const qd = pairQ ? pairQ.decimals : isXStock ? 6 : 9;
       fetch(`/api/launchpad/dbc-pool-state?poolAddress=${encodeURIComponent(poolAddress)}&quoteDecimals=${qd}`)
         .then(r => r.ok ? r.json() : null)
         .then((d: { solRaised: number; gradThresholdSol: number; progressPct: number; graduated: boolean } | null) => {

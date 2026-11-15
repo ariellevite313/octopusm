@@ -9,6 +9,8 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { awardTradeRewards, SOL_PLATFORM_RATE } from "@/lib/trade-rewards";
+import { pairQuoteByMint } from "@/lib/solana/quotes";
+import { fetchTokenUsd } from "@/lib/launch/onchain-price";
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const WSOL = "So11111111111111111111111111111111111111112";
@@ -64,11 +66,13 @@ export async function POST(req: Request) {
     if (idx < 0) return NextResponse.json({ rewarded: false });
     const pre = tx.meta.preTokenBalances?.find((b) => b.accountIndex === idx);
     const post = tx.meta.postTokenBalances?.find((b) => b.accountIndex === idx);
-    if (!post || post.mint !== WSOL) return NextResponse.json({ rewarded: false }); // seuls les pools en SOL donnent des gains
-    const delta = Number(BigInt(post.uiTokenAmount.amount) - BigInt(pre?.uiTokenAmount.amount ?? "0")) / 1e9;
+    // Pools en DOGE, PEPE ou CLT : le trade est enregistré (graphique, historique), sans gains (comme avant)
+    const pq = post && post.mint !== WSOL ? pairQuoteByMint(post.mint) : null;
+    if (!post || (post.mint !== WSOL && !pq)) return NextResponse.json({ rewarded: false }); // seuls les pools en SOL donnent des gains
+    const delta = Number(BigInt(post.uiTokenAmount.amount) - BigInt(pre?.uiTokenAmount.amount ?? "0")) / (pq ? 10 ** pq.decimals : 1e9);
     if (!(delta !== 0)) return NextResponse.json({ rewarded: false });
 
-    const price = await solPriceUsd();
+    const price = pq ? (await fetchTokenUsd(pq.mint)) ?? 0 : await solPriceUsd();
     if (!(price > 0)) return NextResponse.json({ error: "Price unavailable, retry" }, { status: 503 });
 
     // Historique des achats et ventes (base des votes du hackathon) : montant payé lu sur la chaîne,
@@ -87,7 +91,7 @@ export async function POST(req: Request) {
         if (tradeErr) console.error("[dbc-swap/confirm] token_trades:", tradeErr.message);
       }
     }
-    if (!(delta > 0)) return NextResponse.json({ rewarded: false }); // vente : pas de gain
+    if (!(delta > 0) || pq) return NextResponse.json({ rewarded: false }); // vente, ou pool hors SOL : pas de gain
     const r = await awardTradeRewards(db, {
       chain: "solana", tokenId: token.id, txId: txSignature, trader: who.wallet, volumeUsd: delta * price, tsMs: tx.blockTime * 1000,
       feeRate: token.sol_fee_tier === "low" ? SOL_PLATFORM_RATE.low : SOL_PLATFORM_RATE.standard,

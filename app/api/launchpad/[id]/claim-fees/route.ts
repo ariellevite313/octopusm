@@ -8,6 +8,7 @@
  *
  * USDC Arc = natif ETH 18 décimales (≠ USDC ERC-20 6 dec)
  */
+import { pairQuoteByMint } from "@/lib/solana/quotes";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -97,7 +98,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("chain, arc_launch_id, vault_address, pool_address, mint_address")
+      .select("chain, arc_launch_id, vault_address, pool_address, mint_address, quote_asset")
       .eq("id", id)
       .maybeSingle();
 
@@ -160,7 +161,9 @@ export async function GET(_req: Request, { params }: RouteParams) {
           const inner  = poolState.poolState ?? poolState;
           const quoteL = bnToNumber(inner?.creatorQuoteFee);
           const baseL  = bnToNumber(inner?.creatorBaseFee);
-          return NextResponse.json({ claimableSol: quoteL / 1e9, claimableBaseUnits: baseL });
+          // Pools en DOGE, PEPE, CLT : montant dans leur monnaie (quoteSymbol)
+          const pq = pairQuoteByMint(token.quote_asset as string | null);
+          return NextResponse.json({ claimableSol: quoteL / (pq ? 10 ** pq.decimals : 1e9), claimableBaseUnits: baseL, quoteSymbol: pq?.symbol ?? "SOL" });
         }
       } catch { /* fallthrough */ }
     }
@@ -221,7 +224,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const admin = createAdminClient() as any;
     const { data: token, error } = await admin
       .from("launchpad_tokens")
-      .select("id, chain, arc_launch_id, vault_address, creator_wallet, status, pool_address, mint_address")
+      .select("id, chain, arc_launch_id, vault_address, creator_wallet, status, pool_address, mint_address, quote_asset")
       .eq("id", id)
       .maybeSingle();
 
@@ -336,7 +339,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       if (maxBaseAmount.isZero() && maxQuoteAmount.isZero()) {
         return NextResponse.json({ error: "Nothing to claim — no fees accumulated in this pool yet" }, { status: 409 });
       }
-      claimableSol = maxQuoteAmount.toNumber() / 1e9;
+      const pqc = pairQuoteByMint(token.quote_asset as string | null);
+      claimableSol = maxQuoteAmount.toNumber() / (pqc ? 10 ** pqc.decimals : 1e9);
     } catch (e) {
       return NextResponse.json({ error: `Could not fetch pool state: ${e instanceof Error ? e.message : "Unknown"}` }, { status: 503 });
     }

@@ -116,13 +116,19 @@ export async function POST(req: Request, { params }: RouteParams) {
       if (!dogeLaunchEnabled()) return NextResponse.json({ error: "DOGE launches are not available yet" }, { status: 503 });
       const { data: claimed } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: DSOL_PREFIX });
       const row = (Array.isArray(claimed) ? claimed[0] : claimed) as { pub_key?: string; sec_key?: string } | null;
-      if (!row?.sec_key) return NextResponse.json({ error: "No DoGE address available right now, try again later." }, { status: 503 });
-      mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
-      if (mintKeypair.publicKey.toBase58() !== row.pub_key || !row.pub_key.startsWith(DSOL_PREFIX)) {
-        return NextResponse.json({ error: "Invalid DoGE address in the pool" }, { status: 500 });
+      if (row?.sec_key) {
+        mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
+        if (mintKeypair.publicKey.toBase58() !== row.pub_key || !row.pub_key!.startsWith(DSOL_PREFIX)) {
+          return NextResponse.json({ error: "Invalid DoGE address in the pool" }, { status: 500 });
+        }
+      } else {
+        // Réserve DoGE vide : adresse normale finissant par « om », le lancement ne bloque pas
+        try { mintKeypair = await generateOmKeypair(); } catch {
+          return NextResponse.json({ error: "Génération de l'adresse trop longue, réessaie." }, { status: 503 });
+        }
       }
       await admin.from("launchpad_tokens")
-        .update({ mint_address: row.pub_key, vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
+        .update({ mint_address: mintKeypair.publicKey.toBase58(), vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
         .eq("id", id);
     } else if (pairQuoteByMint(token.quote_asset as string | null)) {
       // Paire PEPE ou CLT : adresse finissant par « PEPE » ou commençant par « CLT », prise dans la réserve de clés pré-générées
@@ -156,6 +162,26 @@ export async function POST(req: Request, { params }: RouteParams) {
       await admin.from("launchpad_tokens")
         .update({ mint_address: mintAddress, vanity_secret_key: mintSecret })
         .eq("id", id);
+    }
+
+    // Paire DOGE, PEPE ou CLT avec premier achat : le créateur doit avoir assez de cette monnaie,
+    // sinon la transaction échouerait sur la chaîne. On le dit avant la signature.
+    {
+      const pq = pairQuoteByMint(token.quote_asset as string | null);
+      const fb = Number(token.first_buy_amount ?? 0);
+      if (pq && fb > 0 && process.env.SOLANA_RPC_URL) {
+        try {
+          const conn = solanaConnection();
+          const accs = await conn.getParsedTokenAccountsByOwner(new PublicKey(token.creator_wallet as string), { mint: new PublicKey(pq.mint) });
+          const have = accs.value.reduce((n, a) => n + Number(a.account.data.parsed?.info?.tokenAmount?.uiAmount ?? 0), 0);
+          if (have < fb) {
+            return NextResponse.json({
+              error: `Your first buy is ${fb.toLocaleString("en-US")} ${pq.symbol} but your wallet has ${have.toLocaleString("en-US")} ${pq.symbol}. Add ${pq.symbol} to your wallet or lower the first buy.`,
+              code: "quote_balance",
+            }, { status: 400 });
+          }
+        } catch (e) { console.warn("[prepare-tx] quote balance check failed:", e); }
+      }
     }
 
     const metadataUri = (token.metadata_uri as string | null)

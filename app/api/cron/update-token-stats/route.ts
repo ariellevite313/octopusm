@@ -17,7 +17,7 @@ import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { keepLastKnown } from "@/lib/launch/price-snapshots";
-import { fetchSolUsd, onchainStats } from "@/lib/launch/onchain-price";
+import { fetchSolUsd, fetchTokenUsd, onchainStats, onchainStatsQuote } from "@/lib/launch/onchain-price";
 import { cronDenied } from "@/lib/auth/cron";
 
 const DS_BASE = "https://api.dexscreener.com/latest/dex/tokens";
@@ -129,6 +129,13 @@ export async function GET(req: Request) {
           // (hors DSOL-20 : la courbe est en DOGE, pas en SOL ; leur prix vient des sources externes)
           if ((!stats || stats.priceUsd === null) && conn && solUsd && t.pool_address && !t.stock_symbol && !isDogeQuote(t.quote_asset) && !pairQuoteByMint(t.quote_asset)) {
             const chain = await onchainStats(conn, t.pool_address, t.supply ?? 0, solUsd);
+            if (chain) stats = { priceUsd: chain.priceUsd, marketCap: stats?.marketCap ?? chain.marketCap, volume24h: stats?.volume24h ?? null };
+          }
+          // Paires DOGE, PEPE, CLT : lecture de la courbe dans leur monnaie, convertie en USD (pour le graphique et la capitalisation)
+          const pq = pairQuoteByMint(t.quote_asset);
+          if ((!stats || stats.priceUsd === null) && conn && pq && t.pool_address) {
+            const qUsd = await fetchTokenUsd(pq.mint);
+            const chain = qUsd ? await onchainStatsQuote(conn, t.pool_address, t.supply ?? 0, qUsd, pq.decimals) : null;
             if (chain) stats = { priceUsd: chain.priceUsd, marketCap: stats?.marketCap ?? chain.marketCap, volume24h: stats?.volume24h ?? null };
           }
           if (!stats) {

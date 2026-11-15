@@ -2147,6 +2147,7 @@ const p: Record<string, string> = {
   "Could not send your application": "Impossible d'envoyer ta candidature",
   "btn:Following": "Abonné",
   "Pay in": "Payer en",
+  "{amount} {unit} claimed!": "{amount} {unit} récupérés !",
   "Sending…": "Envoi…",
   "${ticker} is a reserved DRC-20 ticker": "${ticker} est un ticker DRC-20 réservé",
   "To protect holders, only the project's verified team can launch it on OM. If you are on the team, send a request: we check the project's X account before approving.": "Pour protéger les détenteurs, seule l'équipe vérifiée du projet peut le lancer sur OM. Si tu fais partie de l'équipe, envoie une demande : on vérifie le compte X du projet avant de valider.",

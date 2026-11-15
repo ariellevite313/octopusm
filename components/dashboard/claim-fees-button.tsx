@@ -53,6 +53,7 @@ export function ClaimFeesButton({
   const [claimable, setClaimable]   = useState<number | null>(null);
   const [feesUsd24h, setFeesUsd24h] = useState<number | null>(null);
   const [loadingAmt, setLoadingAmt] = useState(true);
+  const [quoteSym, setQuoteSym]     = useState("SOL"); // DOGE, PEPE, CLT pour les paires spéciales
 
   const isArc = chain === "arc";
 
@@ -60,7 +61,8 @@ export function ClaimFeesButton({
   useEffect(() => {
     fetch(`/api/launchpad/${tokenId}/claim-fees`)
       .then(r => r.json())
-      .then((body: { claimableUsdc?: number | null; claimableSol?: number | null; feesUsd24h?: number | null }) => {
+      .then((body: { claimableUsdc?: number | null; claimableSol?: number | null; feesUsd24h?: number | null; quoteSymbol?: string }) => {
+        if (body.quoteSymbol) setQuoteSym(body.quoteSymbol);
         // Arc returns claimableUsdc, Solana returns claimableSol
         const amount = body.claimableUsdc ?? body.claimableSol ?? null;
         setClaimable(amount);
@@ -199,7 +201,7 @@ export function ClaimFeesButton({
       }
 
       setPhase("done");
-      const label = claimableSol !== null ? tr("{amount} SOL claimed!", { amount: claimableSol.toFixed(6) }) : tr("Fees claimed!");
+      const label = claimableSol !== null ? tr("{amount} {unit} claimed!", { amount: claimableSol.toFixed(6), unit: quoteSym }) : tr("Fees claimed!");
       toast.success(tr("{label} — Sig: {sig}…", { label, sig: sig.slice(0, 8) }));
 
       if (claimableSol && claimableSol > 0) {
@@ -260,7 +262,7 @@ export function ClaimFeesButton({
 
   const busy  = phase === "building" || phase === "signing";
   const label = phase === "building" ? t.preparing : phase === "signing" ? t.signing : t.claimFees;
-  const unit  = isArc ? "USDC" : "SOL";
+  const unit  = isArc ? "USDC" : quoteSym;
 
   return (
     <div className="space-y-2">

@@ -45,8 +45,10 @@ export async function GET(req: Request) {
       fetch(`${u.origin}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       openedAt(mint),
       db.from("agent_wallets").select("sol_address").limit(5000),
-      db.from("launchpad_tokens").select("creator_wallet").eq("mint_address", mint).maybeSingle(),
+      db.from("launchpad_tokens").select("creator_wallet, created_at").eq("mint_address", mint).maybeSingle(),
     ]);
+    // Pas de date sur DexScreener (pool tout neuf, paires DOGE / PEPE) : date du lancement sur OM
+    const openTs = opened ?? (tok?.data?.created_at ? Math.floor(new Date(tok.data.created_at).getTime() / 1000) : null);
     const exclude = new Set<string>(((ai?.data ?? []) as { sol_address: string }[]).map((w) => w.sol_address));
     if (tok?.data?.creator_wallet) exclude.add(tok.data.creator_wallet);
     const top = ((hj?.holders ?? []) as { owner: string; pct: number; isProgram: boolean }[])
@@ -59,7 +61,7 @@ export async function GET(req: Request) {
         const acc = accs?.value?.[0]?.pubkey;
         if (!acc) return null;
         const sg = (await rpc("getSignaturesForAddress", [acc, { limit: 200 }])) as { blockTime?: number | null }[];
-        const kind = classify(sg.map((s) => s.blockTime ?? 0), opened);
+        const kind = classify(sg.map((s) => s.blockTime ?? 0), openTs);
         return kind ? { owner: h.owner, kind, pct: h.pct } : null;
       } catch { return null; }
     }))).filter(Boolean) as BotHit[];
