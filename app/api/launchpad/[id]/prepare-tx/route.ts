@@ -21,6 +21,8 @@
  *   The caller skips TX A+B and only presents TX C to the user.
  */
 import { generateOmKeypair } from "@/lib/solana/vanity-mint";
+import { DSOL_PREFIX, isDogeQuote } from "@/lib/solana/doge";
+import bs58 from "bs58";
 import { XSTOCK_LAUNCH_ENABLED } from "@/lib/solana/xstocks";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { NextResponse } from "next/server";
@@ -32,6 +34,7 @@ import {
   buildSplitPoolTransactions,
   buildStockPairedTransactions,
   buildMetadataJson,
+  dogeLaunchEnabled,
 } from "@/lib/solana/dbc";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -54,7 +57,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       .select(
         "id,creator_wallet,status,name,ticker,description,logo_url,website,twitter,telegram," +
         "supply,first_buy_amount,is_scheduled,mint_address,vanity_secret_key,metadata_uri," +
-        "tx_base64,tx_prepared_at,stock_symbol,dbc_config_secret,dbc_config_address,sol_fee_tier"
+        "tx_base64,tx_prepared_at,stock_symbol,dbc_config_secret,dbc_config_address,sol_fee_tier,quote_asset"
       )
       .eq("id", id)
       .maybeSingle();
@@ -106,6 +109,19 @@ export async function POST(req: Request, { params }: RouteParams) {
         );
       }
       mintKeypair = Keypair.fromSecretKey(secretBytes);
+    } else if (isDogeQuote(token.quote_asset as string | null)) {
+      // DSOL-20 (paire DOGE) : adresse commençant par « DoGE », prise dans la réserve de clés pré-générées
+      if (!dogeLaunchEnabled()) return NextResponse.json({ error: "DOGE launches are not available yet" }, { status: 503 });
+      const { data: claimed } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: DSOL_PREFIX });
+      const row = (Array.isArray(claimed) ? claimed[0] : claimed) as { pub_key?: string; sec_key?: string } | null;
+      if (!row?.sec_key) return NextResponse.json({ error: "No DoGE address available right now, try again later." }, { status: 503 });
+      mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
+      if (mintKeypair.publicKey.toBase58() !== row.pub_key || !row.pub_key.startsWith(DSOL_PREFIX)) {
+        return NextResponse.json({ error: "Invalid DoGE address in the pool" }, { status: 500 });
+      }
+      await admin.from("launchpad_tokens")
+        .update({ mint_address: row.pub_key, vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
+        .eq("id", id);
     } else {
       // L'adresse du token se termine toujours par « om » (générée à la volée)
       try {
@@ -134,6 +150,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       isScheduled:   Boolean(token.is_scheduled),
       stockSymbol:   (token.stock_symbol as string | null) ?? null,
       feeTier:       (token.sol_fee_tier === "low" ? "low" : "standard") as "low" | "standard",
+      quote:         (isDogeQuote(token.quote_asset as string | null) ? "doge" : "sol") as "doge" | "sol",
     };
 
     // ── Déjà lancé ? La mint n'existe sur la chaîne qu'une fois la pool créée ────────

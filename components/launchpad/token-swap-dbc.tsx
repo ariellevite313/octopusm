@@ -45,6 +45,8 @@ type Props = {
   stockSymbol?:      string;
   /** Token-2022 mint address for the xStock quote token */
   quoteMintAddress?: string;
+  /** Décimales connues de la monnaie de paire (DOGE : 8), utilisées même sans compte de ce token */
+  quoteDecimalsHint?: number;
   /** « Chill ton sac » : post du détenteur (+0,3 % de frais, dont 40 % au détenteur) */
   refPost?:          string;
 };
@@ -57,7 +59,7 @@ function openWalletModal() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockSymbol, quoteMintAddress, refPost }: Props) {
+export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockSymbol, quoteMintAddress, quoteDecimalsHint, refPost }: Props) {
   const { tr, lang } = useT();
   const loc = LOCALES[lang];
   const isXStock = Boolean(stockSymbol && quoteMintAddress);
@@ -89,7 +91,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
 
   const [solBalance,    setSolBalance]   = useState<number | null>(null);  // lamports (always needed for TX fees)
   const [quoteBalance,  setQuoteBalance] = useState<number | null>(null);  // raw units — xStock quote (when isXStock)
-  const [quoteDecimals, setQuoteDecimals] = useState(6);                   // xStock decimals (typically 6)
+  const [quoteDecimals, setQuoteDecimals] = useState(quoteDecimalsHint ?? 6);                   // xStock decimals (typically 6)
   const [tokBalance,   setTokBalance]   = useState<number | null>(null);  // raw units
   const [tokDecimals,  setTokDecimals]  = useState(6);                    // dynamic from balance API
   const [estimatedOut, setEstimatedOut] = useState<number | null>(null);
@@ -204,6 +206,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           slippageBps: slip,
           swapBaseForQuote: dir === "sell",
           ref: refPost,
+          quoteMint: quoteMintAddress ?? "So11111111111111111111111111111111111111112",
         }),
       });
       if (!res.ok) {
@@ -304,6 +307,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           slippageBps,
           swapBaseForQuote: !isBuy,
           ref: refPost,
+          quoteMint: quoteMintAddress ?? "So11111111111111111111111111111111111111112",
         }),
       });
 

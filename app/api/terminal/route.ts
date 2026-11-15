@@ -3,7 +3,7 @@
  * (ou &chain=… pour un seul réseau). Tokens pour le Terminal OM.
  */
 import { NextResponse } from "next/server";
-import { arcList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { arcList, dsolList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
 import { cryptoFromCoinGecko } from "@/lib/terminal-crypto";
 import { arcMarket, dexList, dexSearch, enrichDex } from "@/lib/dexscreener";
@@ -21,6 +21,11 @@ export async function GET(req: Request) {
   const raw = (u.searchParams.get("chains") ?? u.searchParams.get("chain") ?? "all").split(",").map((s) => s.trim());
   let chains = raw.filter((c): c is TerminalChain => READY.includes(c as TerminalChain));
   if (!chains.length) chains = READY;
+  // DSOL-20 : tokens lancés sur OM en paire DOGE (Solana), liste à part
+  if (l === "dsol20") {
+    const tokens = await dsolList(createAdminClient(), q).catch(() => [] as TerminalToken[]);
+    return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
+  }
   const kind = q.length >= 2 ? "search" : list;
   // Crypto : classement CoinGecko (prix Binance), puis repli sur les pools GeckoTerminal si CoinGecko ne répond pas
   let cgList: TerminalToken[] = [];

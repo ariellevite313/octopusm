@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { quoteOf } from "@/lib/solana/doge";
 import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -485,8 +486,9 @@ export default async function TokenDetailPage({ params }: Props) {
                 mintAddress={token.mint_address}
                 ticker={token.ticker}
                 logoUrl={token.logo_url ?? undefined}
-                stockSymbol={token.stock_symbol ?? undefined}
-                quoteMintAddress={token.stock_symbol ? (getXStockMint(token.stock_symbol) ?? undefined) : undefined}
+                stockSymbol={quoteOf(token, getXStockMint)?.symbol}
+                quoteMintAddress={quoteOf(token, getXStockMint)?.mint}
+                quoteDecimalsHint={quoteOf(token, getXStockMint)?.decimals}
               />
             )}
 

@@ -2,6 +2,7 @@
  * Récupération d'un lancement Solana resté "pending" : cherche la pool DBC du token sur la chaîne
  * et, si elle existe, active le token. Utilisé par /check-pool (page du token) et par le cron de rattrapage.
  */
+import { DOGE_MINT } from "@/lib/solana/doge";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { getXStockMint } from "@/lib/solana/xstocks";
@@ -62,6 +63,14 @@ export async function findPoolOnChain(
     // Legacy 3-seed variants (older SDK versions)
     seedSets.push([Buffer.from("virtual_pool"), solConfig.toBuffer(), baseMint.toBuffer()]);
     seedSets.push([Buffer.from("pool"),         solConfig.toBuffer(), baseMint.toBuffer()]);
+  }
+  // ── DOGE pool (DSOL-20) : ["pool", dogeConfig, sorted(DOGE, baseMint)] ──
+  for (const k of [process.env.DBC_CONFIG_KEY_DOGE, process.env.DBC_CONFIG_KEY_DOGE_LOW].filter(Boolean)) {
+    try {
+      const cfg = new PublicKey(k as string), doge = new PublicKey(DOGE_MINT);
+      const big = doge.toBuffer().compare(baseMint.toBuffer()) > 0;
+      seedSets.push([Buffer.from("pool"), cfg.toBuffer(), big ? doge.toBuffer() : baseMint.toBuffer(), big ? baseMint.toBuffer() : doge.toBuffer()]);
+    } catch { /* clé invalide */ }
   }
   // Legacy 2-seed fallbacks
   seedSets.push([Buffer.from("virtual_pool"), baseMint.toBuffer()]);

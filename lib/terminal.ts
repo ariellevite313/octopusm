@@ -2,6 +2,7 @@
  * Terminal OM : listes de tokens Solana (tendance, nouveaux, recherche) depuis GeckoTerminal.
  * SOL et les stablecoins ne sont pas listés comme token à échanger.
  */
+import { DOGE_MINT } from "@/lib/solana/doge";
 import { SOL_MINT, USDC_MINT } from "@/lib/swap/core";
 import { isRemovedToken } from "@/lib/removed-tokens";
 
@@ -179,6 +180,23 @@ export async function arcList(db: any, kind: ListKind, q = ""): Promise<Terminal
       price: t.price_usd != null ? Number(t.price_usd) : null, change24h: null, volume24h: null,
       mcap: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, liquidity: null, pool: "", createdAt: t.created_at,
       chain: "arc" as const, href: `/launchpad/${t.id}`,
+    }));
+}
+
+/** DSOL-20 : tokens lancés sur OM en paire DOGE (Solana). Chaque token ouvre sa page OM. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function dsolList(db: any, q = ""): Promise<TerminalToken[]> {
+  let qy = db.from("launchpad_tokens").select("id, name, ticker, logo_url, mint_address, price_usd, market_cap_usd, created_at")
+    .eq("chain", "solana").eq("quote_asset", DOGE_MINT).eq("hidden", false).in("status", ["active", "graduating", "graduated"]).limit(60);
+  if (q) qy = qy.or(`ticker.ilike.%${q.replace(/[^\w$-]/g, "")}%,name.ilike.%${q.replace(/[^\w $-]/g, "")}%`);
+  const { data } = await qy.order("created_at", { ascending: false });
+  return ((data ?? []) as { id: string; name: string; ticker: string; logo_url: string | null; mint_address: string | null; price_usd: number | null; market_cap_usd: number | null; created_at: string }[])
+    .filter((t) => t.mint_address)
+    .map((t) => ({
+      mint: t.mint_address as string, symbol: t.ticker.slice(0, 16), name: t.name.slice(0, 40), logo: t.logo_url,
+      price: t.price_usd != null ? Number(t.price_usd) : null, change24h: null, volume24h: null,
+      mcap: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, liquidity: null, pool: "", createdAt: t.created_at,
+      chain: "solana" as const, href: `/launchpad/${t.id}`, verified: true,
     }));
 }
 

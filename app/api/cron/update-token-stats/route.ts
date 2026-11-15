@@ -10,6 +10,7 @@
  * Rate limit: GeckoTerminal free tier allows ~30 req/min.
  * We process tokens in batches of 5 with 1s between batches.
  */
+import { isDogeQuote } from "@/lib/solana/doge";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection } from "@solana/web3.js";
@@ -89,7 +90,7 @@ export async function GET(req: Request) {
     // Get all active tokens with a mint address (so GeckoTerminal can find them)
     const { data: tokens, error } = await admin
       .from("launchpad_tokens")
-      .select("id, mint_address, pool_address, supply, stock_symbol, volume_total_usd, volume_24h_snapshot_usd")
+      .select("id, mint_address, pool_address, supply, stock_symbol, quote_asset, volume_total_usd, volume_24h_snapshot_usd")
       .not("status", "in", "(pending,cancelled)")
       .not("mint_address", "is", null)
       .limit(200);
@@ -115,6 +116,7 @@ export async function GET(req: Request) {
         pool_address: string | null;
         supply: number | null;
         stock_symbol: string | null;
+        quote_asset?: string | null;
         volume_total_usd: number | null;
         volume_24h_snapshot_usd: number | null;
       }[];
@@ -123,7 +125,8 @@ export async function GET(req: Request) {
         batch.map(async (t) => {
           let stats = await fetchStats(t.mint_address);
           // Aucun prix externe : on lit la courbe directement (hors xStock)
-          if ((!stats || stats.priceUsd === null) && conn && solUsd && t.pool_address && !t.stock_symbol) {
+          // (hors DSOL-20 : la courbe est en DOGE, pas en SOL ; leur prix vient des sources externes)
+          if ((!stats || stats.priceUsd === null) && conn && solUsd && t.pool_address && !t.stock_symbol && !isDogeQuote(t.quote_asset)) {
             const chain = await onchainStats(conn, t.pool_address, t.supply ?? 0, solUsd);
             if (chain) stats = { priceUsd: chain.priceUsd, marketCap: stats?.marketCap ?? chain.marketCap, volume24h: stats?.volume24h ?? null };
           }

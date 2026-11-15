@@ -133,9 +133,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens" | "updown">("tokens");
-  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume">("trending");
-  const setFilter = (f: "trending" | "crypto" | "new" | "volume") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
-  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume") setFilterRaw(f); } catch { /* ignore */ } }, []);
+  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20">("trending");
+  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
+  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20") setFilterRaw(f); } catch { /* ignore */ } }, []);
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
@@ -152,7 +152,8 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     let live = true;
     setList(null); setErr(false);
     const query = q.trim().replace(/^\$/, "");
-    const url = query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`;
+    const url = filter === "dsol20" ? `/api/terminal?list=dsol20${query.length >= 2 ? `&q=${encodeURIComponent(query)}` : ""}`
+      : query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`;
     // silent = rafraîchissement automatique : la liste se met à jour sans clignoter ni se vider
     const load = async (silent: boolean) => {
       try {
@@ -205,6 +206,10 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             {([["trending", tr("Trending")], ["crypto", tr("Crypto")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setFilter(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
+            <button onClick={() => setFilter("dsol20")} className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[15px] font-semibold ${filter === "dsol20" ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/chains/dogecoin.png" alt="" className="size-[18px] rounded-full" />DSOL-20
+            </button>
             <Link href="/drc20" className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-border px-3.5 text-[15px] font-semibold text-muted-foreground hover:text-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/chains/dogecoin.png" alt="" className="size-[18px] rounded-full" />DRC-20

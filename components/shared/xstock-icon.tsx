@@ -11,7 +11,8 @@ interface XStockIconProps {
 }
 
 export function XStockIcon({ symbol, size = 16, className = "" }: XStockIconProps) {
-  const logo = XSTOCK_LOGOS[symbol];
+  // DOGE (paire des tokens DSOL-20) : logo Dogecoin
+  const logo = symbol === "DOGE" ? "/chains/dogecoin.png" : XSTOCK_LOGOS[symbol];
 
   if (logo) {
     return (

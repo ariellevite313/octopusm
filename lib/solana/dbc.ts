@@ -30,8 +30,10 @@ export type DbcPoolParams = {
   /** Mint keypair (randomly generated, pre-signed server-side) */
   mintKeypair: Keypair;
   totalSupply: number;
-  /** First buy amount in SOL (0 = disabled) */
+  /** First buy amount in the pool's quote (SOL, or DOGE for a DSOL-20 launch) (0 = disabled) */
   firstBuySol: number;
+  /** Monnaie de paire : SOL (défaut) ou DOGE sur Solana (DSOL-20, configs DBC_CONFIG_KEY_DOGE / _LOW) */
+  quote?: "sol" | "doge";
   /**
    * Whether this is a scheduled launch. When true, an additional 0.1 SOL is
    * collected on-chain (creator → platform wallet) on top of the standard platform fee
@@ -71,8 +73,14 @@ export type SolFeeTier = "standard" | "low";
 /** Niveau "low" disponible seulement si DBC_CONFIG_KEY_LOW est défini. */
 export const lowFeeTierEnabled = () => !!process.env.DBC_CONFIG_KEY_LOW;
 
-function getSolConfigKey(tier: SolFeeTier = "standard"): PublicKey {
-  const name = tier === "low" ? "DBC_CONFIG_KEY_LOW" : "DBC_CONFIG_KEY";
+/** Lancements DSOL-20 (paire DOGE) possibles : la config Meteora en DOGE a été créée (scripts/create-doge-config.mjs). */
+export const dogeLaunchEnabled = () => !!process.env.DBC_CONFIG_KEY_DOGE;
+
+/** Unités brutes de la monnaie de paire : lamports pour SOL, 8 décimales pour DOGE. */
+const quoteUnits = (amount: number, quote: "sol" | "doge" = "sol") => Math.floor(amount * (quote === "doge" ? 1e8 : LAMPORTS_PER_SOL));
+
+function getSolConfigKey(tier: SolFeeTier = "standard", quote: "sol" | "doge" = "sol"): PublicKey {
+  const name = (quote === "doge" ? "DBC_CONFIG_KEY_DOGE" : "DBC_CONFIG_KEY") + (tier === "low" ? "_LOW" : "");
   const key = process.env[name] ?? "";
   if (!key) throw new Error(`${name} is not set`);
   return new PublicKey(key);
@@ -420,11 +428,11 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
 
   const connection     = getConnection();
   const platformWallet = getPlatformWallet();
-  const configKey      = getSolConfigKey(params.feeTier);
+  const configKey      = getSolConfigKey(params.feeTier, params.quote);
   let creator: PublicKey;
   try { creator = new PublicKey(params.creatorWallet); }
   catch { throw new Error(`Creator wallet "${params.creatorWallet}" is not a valid Solana address. Connect Phantom, Solflare or Backpack.`); }
-  const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
+  const firstBuyLamports = quoteUnits(params.firstBuySol, params.quote);
 
   const client = new DynamicBondingCurveClient(connection, "confirmed");
 
@@ -531,9 +539,9 @@ export async function buildPoolOnlyTransaction(params: DbcPoolParams): Promise<{
   }
 
   const connection      = getConnection();
-  const configKey       = getSolConfigKey(params.feeTier);
+  const configKey       = getSolConfigKey(params.feeTier, params.quote);
   const creator         = new PublicKey(params.creatorWallet);
-  const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
+  const firstBuyLamports = quoteUnits(params.firstBuySol, params.quote);
   const client = new DynamicBondingCurveClient(connection, "confirmed");
 
   const createPoolParam = {
@@ -605,10 +613,10 @@ export async function buildCreatePoolTransaction(params: DbcPoolParams): Promise
 
   const connection     = getConnection();
   const platformWallet = getPlatformWallet();
-  const configKey      = getSolConfigKey(params.feeTier);
+  const configKey      = getSolConfigKey(params.feeTier, params.quote);
   const creator        = new PublicKey(params.creatorWallet);
   console.log("[DBC] configKey:", configKey.toBase58(), "| firstBuySol:", params.firstBuySol);
-  const firstBuyLamports = Math.floor(params.firstBuySol * LAMPORTS_PER_SOL);
+  const firstBuyLamports = quoteUnits(params.firstBuySol, params.quote);
 
   const client = new DynamicBondingCurveClient(connection, "confirmed");
 

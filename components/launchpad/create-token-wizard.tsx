@@ -1,5 +1,6 @@
 "use client";
 
+import { DOGE_LAUNCH_ENABLED } from "@/lib/solana/doge";
 import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 import { SolanaMark } from "@/components/shared/solana-mark";
 import { NAME_MAX, TICKER_MAX } from "@/lib/launch/name-rules";
@@ -81,7 +82,7 @@ type WizardData = {
   arc_fee_tier: 0 | 1 | 2;
   arc_launch_mode: "curve" | "direct";
   // Stock-paired (Solana)
-  sol_token_type: "sol" | "stock";
+  sol_token_type: "sol" | "stock" | "doge";
   sol_stock_symbol: string;      // ex: "xNVDA"
   sol_fee_tier: "standard" | "low";
 };
@@ -167,7 +168,7 @@ function SocialInput({ icon, value, onChange, placeholder, error }: {
 
 // ─── Écran 1 — Le coin ───────────────────────────────────────────────────────
 
-type Pair = "sol" | "usdc" | "stock";
+type Pair = "sol" | "usdc" | "stock" | "doge";
 
 function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpenSocials, openMore, setOpenMore }: {
   data: WizardData;
@@ -226,19 +227,24 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     set("whitepaper_file", file);
   }
 
-  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED ? "stock" : "sol";
+  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED ? "stock" : data.sol_token_type === "doge" && DOGE_LAUNCH_ENABLED ? "doge" : "sol";
   function pickPair(p: Pair) {
     if (p === "stock" && !XSTOCK_LAUNCH_ENABLED) return;
+    if (p === "doge" && !DOGE_LAUNCH_ENABLED) return;
     if (p === "usdc") { onChainChange?.("arc"); return; }
     onChainChange?.("solana");
-    set("sol_token_type", p === "stock" ? "stock" : "sol");
+    set("sol_token_type", p === "stock" ? "stock" : p === "doge" ? "doge" : "sol");
+    // Premier achat : l'unité change (SOL ↔ DOGE), on repart de zéro
+    if ((p === "doge") !== (data.sol_token_type === "doge")) { set("first_buy_enabled", false); set("first_buy_amount", p === "doge" ? 100 : 0.1); }
   }
   const ALL_PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
     { key: "sol",   label: "SOL",   icon: <SolanaMark className="size-9 text-foreground" /> },
     { key: "usdc",  label: "USDC",  icon: <Image src="/usdc-coin.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
+    // eslint-disable-next-line @next/next/no-img-element
+    { key: "doge",  label: "DOGE",  icon: <img src="/chains/dogecoin.png" alt="" width={36} height={36} className="size-9 rounded-full" /> },
     { key: "stock", label: tr("Stock"), icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
   ];
-  const PAIRS = ALL_PAIRS.filter((p) => p.key !== "stock" || XSTOCK_LAUNCH_ENABLED);
+  const PAIRS = ALL_PAIRS.filter((p) => (p.key !== "stock" || XSTOCK_LAUNCH_ENABLED) && (p.key !== "doge" || DOGE_LAUNCH_ENABLED));
 
   return (
     <div className="space-y-6">
@@ -338,7 +344,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
       {/* Paire de pool */}
       <div>
         <Label>{tr("Pool pair")}</Label>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className={`grid gap-2.5 ${PAIRS.length + (XSTOCK_LAUNCH_ENABLED ? 0 : 1) > 3 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
           {PAIRS.map((p) => {
             const soon = false;
             return (
@@ -374,7 +380,7 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           )}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          {pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : tr("Launches on Solana, traded in SOL.")}
+          {pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : pair === "doge" ? tr("Launches on Solana, traded in DOGE. Your token is a DSOL-20 and its address starts with DoGE.") : tr("Launches on Solana, traded in SOL.")}
         </p>
 
         {pair === "stock" && (
@@ -473,8 +479,9 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
 }) {
   const isArc   = chain === "arc";
   const isStock = !isArc && data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED;
-  const unit    = isArc ? "USDC" : "SOL";
-  const maxDec  = isArc ? 2 : 3;
+  const isDoge  = !isArc && data.sol_token_type === "doge" && DOGE_LAUNCH_ENABLED;
+  const unit    = isArc ? "USDC" : isDoge ? "DOGE" : "SOL";
+  const maxDec  = isArc ? 2 : isDoge ? 0 : 3;
   const [raw, setRaw] = useState(() => {
     if (isArc) return data.arc_first_buy_enabled ? String(data.arc_first_buy_usdc) : "0";
     return data.first_buy_enabled ? String(data.first_buy_amount) : "0";
@@ -501,12 +508,13 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
     if (dec !== undefined && dec.length >= maxDec) return;
     const next = raw === "0" ? k : raw + k;
     const n = parseFloat(next);
-    if (!isArc && n > 100) return;
+    if (!isArc && !isDoge && n > 100) return;
+    if (isDoge && n > 1_000_000) return;
     if (isArc && n > 1_000_000) return;
     commit(next);
   }
 
-  const QUICK = isArc ? [25, 50, 100] : [0.1, 0.5, 1];
+  const QUICK = isArc ? [25, 50, 100] : isDoge ? [100, 500, 1000] : [0.1, 0.5, 1];
   const amount = parseFloat(raw) || 0;
 
   // Estimation de tokens sur Arc (courbe initiale)
@@ -526,14 +534,14 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
   const mintCost = PLATFORM_FEE_SOL + NETWORK_RENT + (data.is_scheduled ? SCHEDULED_FEE_SOL : 0);
   const total = isArc
     ? `~${(amount + 0.04).toFixed(2)} USDC`
-    : `~${(mintCost + (isStock ? 0 : amount)).toFixed(3)} SOL`;
+    : isDoge ? `~${mintCost.toFixed(3)} SOL${amount > 0 ? ` + ${amount} DOGE` : ""}` : `~${(mintCost + (isStock ? 0 : amount)).toFixed(3)} SOL`;
   const feeRows: [string, string][] = isArc
     ? [["Creation fee", "Free"], ["Network gas", "~0.04 USDC"], ...(amount > 0 ? [["First buy", `${amount} USDC`] as [string, string]] : [])]
     : [
         ["Platform fee", `${PLATFORM_FEE_SOL} SOL`],
         ["Network rent", `~${NETWORK_RENT.toFixed(4)} SOL`],
         ...(data.is_scheduled ? [["Scheduled launch", `${SCHEDULED_FEE_SOL.toFixed(2)} SOL`] as [string, string]] : []),
-        ...(!isStock && amount > 0 ? [["First buy", `${amount} SOL`] as [string, string]] : []),
+        ...(!isStock && amount > 0 ? [["First buy", `${amount} ${isDoge ? "DOGE" : "SOL"}`] as [string, string]] : []),
         ...(isStock ? [["Signatures", "3 (fee + config + pool)"] as [string, string]] : []),
       ];
 
@@ -568,7 +576,7 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
             {QUICK.map((q) => (
               <button key={q} type="button" onClick={() => commit(String(q))}
                 className="rounded-full bg-muted py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
-                {isArc ? `$${q}` : `${q} SOL`}
+                {isArc ? `$${q}` : `${q} ${unit}`}
               </button>
             ))}
           </div>
@@ -727,7 +735,9 @@ function validate(step: number, data: WizardData): Record<string, string> {
   }
   if (step === 2) {
     if (data.is_scheduled && !data.scheduled_at) errors.scheduled_at = "Please pick a launch date";
-    if (data.first_buy_enabled && data.first_buy_amount < 0.01)
+    if (data.first_buy_enabled && data.sol_token_type === "doge" && data.first_buy_amount < 1)
+      errors.first_buy_amount = "Minimum first buy is 1 DOGE";
+    else if (data.first_buy_enabled && data.sol_token_type !== "doge" && data.first_buy_amount < 0.01)
       errors.first_buy_amount = "Minimum first buy is 0.01 SOL";
     if (data.fee_recipients.length > 0) {
       const hasInvalidAddr = data.fee_recipients.some(r => !BASE58_RE.test(r.address.trim()));
@@ -746,7 +756,8 @@ function validateScreen(screen: number, data: WizardData): Record<string, string
     return e;
   }
   const e: Record<string, string> = {};
-  if (data.first_buy_enabled && !(data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED) && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
+  if (data.first_buy_enabled && data.sol_token_type === "doge" && data.first_buy_amount < 1) e.first_buy_amount = "Minimum first buy is 1 DOGE";
+  else if (data.first_buy_enabled && data.sol_token_type !== "doge" && !(data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED) && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
   if (data.arc_first_buy_enabled && data.arc_first_buy_usdc < 0.01) e.arc_first_buy_usdc = "Minimum first buy is 0.01 USDC";
   return e;
 }
@@ -851,6 +862,7 @@ export function CreateTokenWizard({
       scheduled_at: null,
       creator_wallet: walletAddress,
       sol_fee_tier: data.sol_fee_tier,
+      ...(data.sol_token_type === "doge" && DOGE_LAUNCH_ENABLED ? { sol_quote: "doge" } : {}),
       // Stock-Paired (Solana via Meteora DBC)
       ...(isStockPaired ? {
         stock_symbol: data.sol_stock_symbol,

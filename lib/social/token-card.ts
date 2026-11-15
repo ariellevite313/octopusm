@@ -11,7 +11,7 @@ import { GET as arcTrades } from "@/app/api/launchpad/arc-trades/route";
 export type Range = "1H" | "1D" | "1W" | "ALL";
 export type Series = Record<Range, number[]>;
 export type TokenCard = {
-  token: { id: string; name: string; ticker: string; logo_url: string | null; chain: "solana" | "arc"; market_cap_usd: number | null; mint_address: string | null; pool_address?: string | null; arc_launch_id?: string | null; stock_symbol?: string | null; status?: string };
+  token: { id: string; name: string; ticker: string; logo_url: string | null; chain: "solana" | "arc"; market_cap_usd: number | null; mint_address: string | null; pool_address?: string | null; arc_launch_id?: string | null; stock_symbol?: string | null; quote_asset?: string | null; status?: string };
   series: Series;
   price_usd: number | null;
   holds_usd: number | null;
@@ -112,7 +112,7 @@ export async function getTokenCard(origin: string, ticker: string, wallet: strin
   const admin = createAdminClient() as any;
   const { data: t } = await admin
     .from("launchpad_tokens")
-    .select("id, name, ticker, logo_url, chain, mint_address, pool_address, arc_launch_id, market_cap_usd, price_usd, status, stock_symbol")
+    .select("id, name, ticker, logo_url, chain, mint_address, pool_address, arc_launch_id, market_cap_usd, price_usd, status, stock_symbol, quote_asset")
     .ilike("ticker", ticker).in("status", ["active", "graduating", "graduated"]).maybeSingle();
   if (!t) { cache.set(key, { at: Date.now(), v: null }); return null; }
 
@@ -148,7 +148,7 @@ export async function getTokenCard(origin: string, ticker: string, wallet: strin
   } catch { /* on renvoie ce qu'on a */ }
 
   const v: TokenCard = {
-    token: { id: t.id, name: t.name, ticker: t.ticker, logo_url: t.logo_url ?? null, chain, market_cap_usd: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, mint_address: t.mint_address ?? null, pool_address: t.pool_address ?? null, arc_launch_id: t.arc_launch_id ?? null, stock_symbol: t.stock_symbol ?? null, status: t.status },
+    token: { id: t.id, name: t.name, ticker: t.ticker, logo_url: t.logo_url ?? null, chain, market_cap_usd: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, mint_address: t.mint_address ?? null, pool_address: t.pool_address ?? null, arc_launch_id: t.arc_launch_id ?? null, stock_symbol: t.stock_symbol ?? null, quote_asset: t.quote_asset ?? null, status: t.status },
     series, price_usd: price, holds_usd: holds,
     profit_usd: profit, return_pct: profit != null && basis > 0 ? (profit / basis) * 100 : null,
   };

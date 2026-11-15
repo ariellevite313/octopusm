@@ -1,5 +1,6 @@
 "use client";
 
+import { quoteOf } from "@/lib/solana/doge";
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -56,8 +57,9 @@ export function TradeSheet({ token, onClose, postId }: { token: TokenCard["token
             mintAddress={token.mint_address!}
             ticker={token.ticker}
             logoUrl={token.logo_url ?? undefined}
-            stockSymbol={token.stock_symbol ?? undefined}
-            quoteMintAddress={token.stock_symbol ? getXStockMint(token.stock_symbol) ?? undefined : undefined}
+            stockSymbol={quoteOf(token, getXStockMint)?.symbol}
+            quoteMintAddress={quoteOf(token, getXStockMint)?.mint}
+            quoteDecimalsHint={quoteOf(token, getXStockMint)?.decimals}
           />
         ) : canArc ? (
           <TokenSwapArc launchId={token.arc_launch_id!} tokenAddress={token.mint_address!} ticker={token.ticker} logoUrl={token.logo_url ?? undefined} />

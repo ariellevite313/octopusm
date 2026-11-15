@@ -12,6 +12,7 @@
  *   Sell: estimatedOut = lamports
  */
 
+import { DOGE_MINT } from "@/lib/solana/doge";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
@@ -29,6 +30,21 @@ function tryPublicKey(str: string): PublicKey | null {
   try { return new PublicKey(str); } catch { return null; }
 }
 
+/** Monnaie de paire d'un pool DBC (ne change jamais : gardée en mémoire). */
+const QUOTE_CACHE = new Map<string, string>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function poolQuoteMint(client: any, pool: PublicKey): Promise<string> {
+  const k = pool.toBase58();
+  const hit = QUOTE_CACHE.get(k);
+  if (hit) return hit;
+  const vp = await client.state.getPool(pool);
+  const cfg = await client.state.getPoolConfig(vp.poolState.config);
+  const q = cfg.quoteMint.toBase58();
+  if (QUOTE_CACHE.size > 5000) QUOTE_CACHE.clear();
+  QUOTE_CACHE.set(k, q);
+  return q;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json() as {
@@ -39,6 +55,7 @@ export async function POST(req: Request) {
       slippageBps?:      number;
       swapBaseForQuote?: boolean;  // false = buy, true = sell
       ref?:              string;   // « Chill ton sac » : post du détenteur (+0,3 % : 0,12 % détenteur, 0,18 % OM)
+      quoteMint?:        string;   // monnaie de paire vue par l'écran d'achat (SOL par défaut)
     };
 
     const {
@@ -83,6 +100,14 @@ export async function POST(req: Request) {
 
     const connection  = getConnection();
     const client      = new DynamicBondingCurveClient(connection, "confirmed");
+
+    // Pool DSOL-20 (paire DOGE) : l'écran doit compter en DOGE, sinon les montants seraient faux (SOL ≠ DOGE)
+    if (!swapBaseForQuote) {
+      const q = await poolQuoteMint(client, poolPk).catch(() => null);
+      if (q === DOGE_MINT && body.quoteMint !== DOGE_MINT) {
+        return NextResponse.json({ error: "This token trades in DOGE. Open its page to buy it." }, { status: 400 });
+      }
+    }
 
     // « Chill ton sac » : seulement pour un pool en SOL et un post valide (détenteur ≥ 1 $, pas soi-même)
     let ref: { wallet: string } | null = null;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { DOGE_MINT } from "@/lib/solana/doge";
 import { nameTickerError } from "@/lib/launch/name-rules";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
@@ -57,6 +58,8 @@ type CreatePayload = {
   stock_symbol?: string | null;
   // Solana : niveau de frais ("standard" = config actuelle, "low" = frais 1,25 %, créateur 0,5 %)
   sol_fee_tier?: "standard" | "low";
+  /** Paire d'un lancement Solana : SOL (défaut) ou DOGE sur Solana (DSOL-20) */
+  sol_quote?: "sol" | "doge";
 };
 
 export async function POST(req: Request) {
@@ -138,8 +141,21 @@ export async function POST(req: Request) {
       }
     }
 
+    // DSOL-20 : paire DOGE sur Solana (sans xStock), seulement si la config Meteora en DOGE existe
+    const isDoge = payload.sol_quote === "doge";
+    if (isDoge) {
+      if (payload.chain === "arc" || payload.stock_symbol) return NextResponse.json({ error: "DOGE pair is only for Solana launches" }, { status: 400 });
+      if (!process.env.DBC_CONFIG_KEY_DOGE || (payload.sol_fee_tier === "low" && !process.env.DBC_CONFIG_KEY_DOGE_LOW)) {
+        return NextResponse.json({ error: "DOGE launches are not available yet" }, { status: 403 });
+      }
+      payload.quote_asset = DOGE_MINT;
+      if (payload.first_buy_enabled && (payload.first_buy_amount < 1 || payload.first_buy_amount > 1_000_000)) {
+        return NextResponse.json({ error: "First buy amount must be between 1 and 1,000,000 DOGE" }, { status: 400 });
+      }
+    } else if (payload.quote_asset === DOGE_MINT) payload.quote_asset = null;
+
     // First buy amount must be between 0.01 and 100 SOL (Solana only)
-    if (payload.chain !== "arc" && payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
+    if (!isDoge && payload.chain !== "arc" && payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
       return NextResponse.json({ error: "First buy amount must be between 0.01 and 100 SOL" }, { status: 400 });
     }
 
@@ -293,6 +309,7 @@ export async function POST(req: Request) {
         } : {
           // Solana: store stock info if stock-paired
           sol_fee_tier: payload.sol_fee_tier === "low" ? "low" : "standard",
+          ...(isDoge ? { quote_asset: DOGE_MINT } : {}),
           ...(payload.stock_symbol ? {
             stock_symbol: payload.stock_symbol,
             quote_asset:  payload.quote_asset ?? null,
