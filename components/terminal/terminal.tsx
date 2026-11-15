@@ -614,11 +614,17 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
   const [rows, setRows] = useState<Holder[] | null>(null);
   const [err, setErr] = useState(false);
   const [bundle, setBundle] = useState<{ wallets: string[]; pct: number } | null>(null);
+  // Robots probables (snipers, rythme de machine) ; les wallets d'IA d'OM ne sont jamais comptés
+  const [bots, setBots] = useState<{ wallets: { owner: string; kind: "sniper" | "bot" }[]; pct: number } | null>(null);
   const [view, setView] = useState<"list" | "bubbles">("list");
+  const [detail, setDetail] = useState<"bundle" | "bots" | null>(null);
+  const [related, setRelated] = useState<{ a: string; b: string }[]>([]);
   useEffect(() => {
     let off = false;
     if (chain !== "solana") return;
     fetch(`/api/launchpad/bundle/${mint}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && d?.available && d.wallets?.length) setBundle({ wallets: d.wallets, pct: d.pct }); }).catch(() => {});
+    fetch(`/api/terminal/links?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && d?.links?.length) setRelated(d.links); }).catch(() => {});
+    fetch(`/api/terminal/bots?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && d?.available && d.wallets?.length) setBots({ wallets: d.wallets, pct: d.pct }); }).catch(() => {});
     return () => { off = true; };
   }, [mint, chain]);
   const [count, setCount] = useState<number | null>(null);
@@ -640,6 +646,11 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
   if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("No holders yet.")}</p>;
   const people = rows.filter((h) => !h.isProgram);
   const bundleSet = new Set(bundle?.wallets ?? []);
+  const botOf = new Map((bots?.wallets ?? []).map((b) => [b.owner, b.kind]));
+  const byOwner = new Map(rows.map((h) => [h.owner, h]));
+  // Détails d'un groupe (clic sur la pastille Bundle ou Bots)
+  const group = detail === "bundle" ? (bundle?.wallets ?? []).map((o) => ({ owner: o, kind: tr("Bundle") }))
+    : detail === "bots" ? (bots?.wallets ?? []).map((b) => ({ owner: b.owner, kind: b.kind === "sniper" ? tr("Sniper") : tr("Bot") })) : [];
   const explorerUrl = (o: string) => (chain === "solana" ? `https://solscan.io/account/${o}` : `${EXPLORER[chain] ?? "https://etherscan.io"}/address/${o}`);
   return (
     <div>
@@ -648,10 +659,25 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
           <button key={v} onClick={() => setView(v)} className={`px-2.5 py-1 ${view === v ? "bg-foreground text-background" : "text-muted-foreground"}`}>{tr(v === "list" ? "List" : "Bubble map")}</button>
         ))}
       </div>
-      {view === "bubbles" && <HoldersBubbles holders={rows} bundle={bundleSet} chain="solana" explorerUrl={explorerUrl} />}
+      {view === "bubbles" && <HoldersBubbles holders={rows} bundle={bundleSet} bots={botOf} related={related} chain="solana" explorerUrl={explorerUrl} />}
       {view === "list" && <>
       {total}
-      {bundle && <p className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-down/15 px-2.5 py-1 text-[13px] font-bold text-down">{tr("Bundle {pct}%", { pct: bundle.pct.toFixed(1) })} · {bundle.wallets.length} {tr("wallets")}</p>}
+      {(bundle || bots) && <div className="mb-2 flex flex-wrap gap-2">
+        {bundle && <button onClick={() => setDetail((d) => (d === "bundle" ? null : "bundle"))} aria-expanded={detail === "bundle"} className={`inline-flex items-center gap-1.5 rounded-lg bg-down/15 px-2.5 py-1 text-[13px] font-bold text-down ${detail === "bundle" ? "ring-1 ring-down/60" : ""}`}>{tr("Bundle {pct}%", { pct: bundle.pct.toFixed(1) })} · {bundle.wallets.length} {tr("wallets")}</button>}
+        {bots && <button onClick={() => setDetail((d) => (d === "bots" ? null : "bots"))} aria-expanded={detail === "bots"} className={`inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-[13px] font-bold text-muted-foreground ${detail === "bots" ? "ring-1 ring-muted-foreground/50" : ""}`}>{tr("Bots {pct}%", { pct: bots.pct.toFixed(1) })} · {bots.wallets.length} {tr("wallets")}</button>}
+      </div>}
+      {detail && group.length > 0 && (
+        <div className="mb-3 rounded-2xl border border-border bg-card p-3">
+          <p className="text-[13px] text-muted-foreground">{detail === "bundle" ? tr("Wallets that bought in the very first blocks, together. Share of supply they still hold.") : tr("Probable bots: snipers buy within seconds of the market opening, bots trade at a machine-like rhythm. OM AI wallets are never counted. Estimate only.")}</p>
+          {group.map((g) => { const h = byOwner.get(g.owner); return (
+            <div key={g.owner} className="flex items-center gap-2 py-1.5 text-[14px]">
+              <Link href={`/profile/${g.owner}`} className="min-w-0 flex-1 truncate font-semibold text-foreground">{h?.name ?? short(g.owner)}</Link>
+              <span className="text-[12px] text-muted-foreground">{g.kind}</span>
+              <span className="num w-16 text-right font-semibold text-foreground">{h ? `${h.pct.toFixed(2)}%` : "-"}</span>
+              <a href={explorerUrl(g.owner)} target="_blank" rel="noopener noreferrer" aria-label={tr("Explorer")} className="text-muted-foreground hover:text-foreground"><ExternalLink className="size-3.5" /></a>
+            </div>); })}
+        </div>
+      )}
       <p className="mb-1 text-xs text-muted-foreground">{tr("Biggest holders, excluding pools and programs")}</p>
       {people.map((h) => (
         <Link key={h.owner} href={`/profile/${h.owner}`} className="flex items-center gap-3 py-2.5">
@@ -660,7 +686,7 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
             ? <img src={h.avatar} alt="" className="size-10 rounded-full object-cover" />
             : <span className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">{h.rank}</span>}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-bold text-foreground">{h.name ?? short(h.owner)}{bundle?.wallets.includes(h.owner) && <span className="ml-2 rounded-md bg-down/15 px-1.5 py-0.5 text-[11px] font-semibold text-down">{tr("Bundle")}</span>}</p>
+            <p className="truncate text-[16px] font-bold text-foreground">{h.name ?? short(h.owner)}{bundle?.wallets.includes(h.owner) && <span className="ml-2 rounded-md bg-down/15 px-1.5 py-0.5 text-[11px] font-semibold text-down">{tr("Bundle")}</span>}{botOf.has(h.owner) && <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">{botOf.get(h.owner) === "sniper" ? tr("Sniper") : tr("Bot")}</span>}</p>
             <p className="num text-[13px] text-muted-foreground">{h.pct.toFixed(2)}% {tr("of supply")}</p>
           </div>
           <p className="num shrink-0 text-[16px] font-bold text-foreground">{p != null ? compact(h.amount * p, 2) : "-"}</p>

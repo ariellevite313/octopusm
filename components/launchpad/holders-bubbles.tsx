@@ -11,13 +11,20 @@ const SIZE = 100;
 /** Octogone régulier inscrit dans le cercle de rayon r (côté plat en haut). */
 const oct = (x: number, y: number, r: number) =>
   Array.from({ length: 8 }, (_, i) => { const a = Math.PI / 8 + (i * Math.PI) / 4; return `${(x + r * Math.cos(a)).toFixed(2)},${(y + r * Math.sin(a)).toFixed(2)}`; }).join(" ");
+/** Distance du centre au bord de l'octogone dans la direction `ang` (le trait s'arrête au bord, sans jamais entrer). */
+const edge = (r: number, ang: number) => {
+  const step = Math.PI / 4;
+  const d = ((((ang % step) + step) % step)) - step / 2; // écart à la normale du côté le plus proche
+  return (r * Math.cos(Math.PI / 8)) / Math.cos(d) + 0.15;
+};
 const OCT_CLIP = "polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)";
 
 /**
  * Bubble map interactive : une bulle par holder (taille = % du supply), déplaçable à la souris ou au doigt.
- * Rouge = bundle (relié en étoile), gris = pool/programme, bleu = autres holders.
+ * Rouge = bundle (relié en étoile), gris = robots (snipers, bots), bleu = pool de liquidité / programme, vert = autres holders.
+ * Un clic sur une bulle ouvre ses détails.
  */
-export function HoldersBubbles({ holders, bundle, chain, explorerUrl }: { holders: H[]; bundle: Set<string>; chain: "solana" | "arc"; explorerUrl?: (owner: string) => string }) {
+export function HoldersBubbles({ holders, bundle, bots, related, chain, explorerUrl }: { holders: H[]; bundle: Set<string>; bots?: Map<string, "sniper" | "bot">; related?: { a: string; b: string }[]; chain: "solana" | "arc"; explorerUrl?: (owner: string) => string }) {
   const { tr } = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const nodesRef = useRef<SimNode[]>([]);
@@ -32,8 +39,13 @@ export function HoldersBubbles({ holders, bundle, chain, explorerUrl }: { holder
   // Bundle : tous reliés au plus gros portefeuille du bundle
   const links = useMemo<SimLink[]>(() => {
     const ids = holders.filter((h) => bundle.has(h.owner)).sort((a, b) => b.pct - a.pct).map((h) => h.owner);
-    return ids.slice(1).map((id) => ({ a: ids[0], b: id }));
-  }, [holders, bundle]);
+    const star = ids.slice(1).map((id) => ({ a: ids[0], b: id }));
+    // Wallets liés (financement) : on ajoute les liens dont les deux bouts sont affichés
+    const shown = new Set(holders.map((h) => h.owner));
+    const keys = new Set(star.map((l) => [l.a, l.b].sort().join(":")));
+    const extra = (related ?? []).filter((l) => shown.has(l.a) && shown.has(l.b) && !keys.has([l.a, l.b].sort().join(":")));
+    return [...star, ...extra];
+  }, [holders, bundle, related]);
 
   // Groupes reliés + couleur par groupe ; les holders isolés restent sombres
   const { clusters, of: clusterOf } = useMemo(() => buildClusters(holders.map((h) => ({ owner: h.owner, pct: h.pct })), links), [holders, links]);
@@ -90,12 +102,18 @@ export function HoldersBubbles({ holders, bundle, chain, explorerUrl }: { holder
   const tipH = tipId ? byOwner.get(tipId) : undefined;
   const tip = tipNode && tipH ? { node: tipNode, h: tipH, cluster: clusterOf.has(tipH.owner) ? clusters[clusterOf.get(tipH.owner)!] : null } : null;
   const explorer = explorerUrl ?? ((o: string) => (chain === "arc" ? `https://explorer.arc.io/address/${o}` : `https://solscan.io/account/${o}`));
-  // Holder : vert · Bundle : rouge · Pool / programme : gris
+  // Holder : vert · Bundle : rouge · Robot : gris · Pool de liquidité / programme : bleu
   const colorOf = (h: H) => {
-    if (h.isProgram) return { fill: "#6b6a7a", glow: "#a4a3b4" };
+    if (h.isProgram) return { fill: "#3b82f6", glow: "#60a5fa" };
     if (bundle.has(h.owner)) return { fill: "#ef4444", glow: "#f87171" };
+    if (bots?.has(h.owner)) return { fill: "#8a8a96", glow: "#b4b4be" };
     return { fill: "#22c55e", glow: "#4ade80" };
   };
+  const kindOf = (h: H) => (h.isProgram ? tr("Liquidity pool or program") : bundle.has(h.owner) ? tr("Bundle") : bots?.get(h.owner) === "sniper" ? tr("Sniper") : bots?.has(h.owner) ? tr("Bot") : tr("Holder"));
+  const whyOf = (h: H) => (h.isProgram ? tr("Holds tokens for trading, not a person.")
+    : bundle.has(h.owner) ? tr("Bought in the very first blocks, together with other wallets.")
+    : bots?.get(h.owner) === "sniper" ? tr("First buy within seconds of the market opening.")
+    : bots?.has(h.owner) ? tr("Trades at a machine-like rhythm.") : null);
 
   return (
     <div>
@@ -113,7 +131,9 @@ export function HoldersBubbles({ holders, bundle, chain, explorerUrl }: { holder
             const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
             if (d <= a.r + b.r) return null;
             const ux = dx / d, uy = dy / d;
-            return <line key={l.a + l.b} x1={a.x + ux * a.r} y1={a.y + uy * a.r} x2={b.x - ux * b.r} y2={b.y - uy * b.r} stroke="currentColor" className="text-muted-foreground" strokeOpacity={0.7} strokeWidth={0.25} />;
+            const ea = edge(a.r, Math.atan2(dy, dx)), eb = edge(b.r, Math.atan2(-dy, -dx));
+            if (d <= ea + eb) return null;
+            return <line key={l.a + l.b} x1={a.x + ux * ea} y1={a.y + uy * ea} x2={b.x - ux * eb} y2={b.y - uy * eb} stroke="currentColor" className="text-muted-foreground" strokeOpacity={0.7} strokeWidth={0.25} />;
           })}
           {nodes.map((n) => {
             const h = byOwner.get(n.id); if (!h) return null;
@@ -138,17 +158,20 @@ export function HoldersBubbles({ holders, bundle, chain, explorerUrl }: { holder
               </button>
               <a aria-label="explorer" href={explorer(tip.h.owner)} target="_blank" rel="noopener noreferrer" className="opacity-80 hover:opacity-100"><ExternalLink className="size-3.5" /></a>
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-muted-foreground">
-              <span>{tip.cluster && bundle.has(tip.h.owner) ? tr("Bundle supply") : tr("Supply")}: {(tip.cluster && bundle.has(tip.h.owner) ? tip.cluster.supply : tip.h.pct).toFixed(2)}%</span>
-              <span className="size-3" style={{ background: colorOf(tip.h).glow, clipPath: OCT_CLIP }} />
+            <div className="mt-1 flex items-center gap-1.5 font-semibold" style={{ color: colorOf(tip.h).glow }}>
+              <span className="size-3" style={{ background: colorOf(tip.h).glow, clipPath: OCT_CLIP }} />{kindOf(tip.h)}
             </div>
+            {whyOf(tip.h) && <p className="mt-0.5 max-w-[240px] whitespace-normal text-[12px] text-muted-foreground">{whyOf(tip.h)}</p>}
+            <div className="mt-1 text-muted-foreground">{tr("Supply")}: <span className="num font-semibold text-foreground">{tip.h.pct.toFixed(2)}%</span></div>
+            {tip.cluster && bundle.has(tip.h.owner) && <div className="text-muted-foreground">{tr("Bundle supply")}: <span className="num font-semibold text-foreground">{tip.cluster.supply.toFixed(2)}%</span> · {bundle.size} {tr("wallets")}</div>}
           </div>
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[12px] text-muted-foreground">
         <span className="flex items-center gap-1"><span className="size-3" style={{ background: "#22c55e", clipPath: OCT_CLIP }} />{tr("Holders")}</span>
         {bundle.size > 0 && <span className="flex items-center gap-1"><span className="size-3" style={{ background: "#ef4444", clipPath: OCT_CLIP }} />{tr("Bundle")}</span>}
-        <span className="flex items-center gap-1"><span className="size-3" style={{ background: "#6b6a7a", clipPath: OCT_CLIP }} />{tr("Pool / program")}</span>
+        {(bots?.size ?? 0) > 0 && <span className="flex items-center gap-1"><span className="size-3" style={{ background: "#8a8a96", clipPath: OCT_CLIP }} />{tr("Bots")}</span>}
+        <span className="flex items-center gap-1"><span className="size-3" style={{ background: "#3b82f6", clipPath: OCT_CLIP }} />{tr("Liquidity pool")}</span>
       </div>
     </div>
   );
