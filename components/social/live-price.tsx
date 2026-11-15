@@ -13,7 +13,7 @@ const RANGES: Range[] = ["1H", "1D", "1W", "ALL"];
  * `target` : objectif de prix d'un marché de prédiction (affiche l'écart restant).
  * `anyDex` : pour un marché créé par un admin sur un token précis ; les cashtags des posts restent limités aux symboles connus.
  */
-export function LivePrice({ symbol, target, targetLabel, anyDex = false }: { symbol: string; target?: number | null; targetLabel?: string; anyDex?: boolean }) {
+export function LivePrice({ symbol, target, targetLabel, anyDex = false, hideLogo = false }: { symbol: string; target?: number | null; targetLabel?: string; anyDex?: boolean; hideLogo?: boolean }) {
   const [q, setQ] = useState<LiveQuote | null | undefined>(undefined);
   const [price, setPrice] = useState(0);
   const [change, setChange] = useState(0);
@@ -59,7 +59,7 @@ export function LivePrice({ symbol, target, targetLabel, anyDex = false }: { sym
   return (
     <div ref={root} className="mt-3">
       <div className="flex items-center gap-3">
-        {q.logo ? (
+        {hideLogo ? null : q.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={q.logo} alt="" className="size-9 shrink-0 rounded-full bg-muted object-cover" />
         ) : (

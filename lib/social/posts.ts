@@ -62,6 +62,9 @@ export type QuotedPost = {
   body: string; images: string[]; created_at: string;
 };
 
+/** Logo de l'actif d'un marché Up/Down (fichiers du site) */
+const UPDOWN_LOGO: Record<string, string> = { BTC: "/bitcoin.png", ETH: "/ethereum.png", SOL: "/solana.png", BNB: "/bnb.png", PEPE: "/pepe.png", DOGE: "/doge.png" };
+
 export type SharedMarket = {
   kind: "pool" | "prediction" | "updown";
   title: string;
@@ -279,8 +282,10 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
       for (const m of (u ?? []) as Record<string, unknown>[]) {
         const sym = String(m.symbol ?? "").replace("USDT", "");
         out.set(String(m.id), {
-          kind: "updown", title: `${sym} Up or Down · ${m.duration_min} min`, image: null, href: `/updown/${m.id}`,
+          kind: "updown", title: `${sym} Up or Down · ${m.duration_min} min`, image: UPDOWN_LOGO[sym] ?? null, href: `/updown/${m.id}`,
           options: ["Up", "Down"], option_ids: ["up", "down"], pool: null,
+          // Prix en temps réel de l'actif (carte LivePrice)
+          price_ticker: sym || null,
           closes_at: (m.resolve_at as string) ?? null, status: m.status === "open" && new Date(String(m.resolve_at)).getTime() > Date.now() ? "active" : "closed",
         });
       }
