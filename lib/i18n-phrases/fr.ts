@@ -2146,5 +2146,16 @@ const p: Record<string, string> = {
   "Tell us in a few words how you will bring users": "Dis-nous en quelques mots comment tu vas amener des utilisateurs",
   "Could not send your application": "Impossible d'envoyer ta candidature",
   "btn:Following": "Abonné",
+  "Pay in": "Payer en",
+  "Receive in": "Recevoir en",
+  "Step 1/2: SOL to DOGE": "Étape 1/2 : SOL en DOGE",
+  "Step 2/2: DOGE to {ticker}": "Étape 2/2 : DOGE en {ticker}",
+  "Step 1/2: {ticker} to DOGE": "Étape 1/2 : {ticker} en DOGE",
+  "Step 2/2: DOGE to SOL": "Étape 2/2 : DOGE en SOL",
+  "Paying in SOL needs your wallet app or extension. Pay in DOGE instead.": "Payer en SOL demande ton wallet (extension ou application). Paie en DOGE à la place.",
+  "Your DOGE is on its way. Finish the purchase by paying in DOGE.": "Ton DOGE arrive. Termine l'achat en payant en DOGE.",
+  "Sold for DOGE. Your DOGE will show up in your wallet shortly.": "Vendu contre du DOGE. Il apparaîtra bientôt dans ton wallet.",
+  "Your SOL is converted to DOGE first. Two signatures. Fees are paid in DOGE.": "Ton SOL est d'abord converti en DOGE. Deux signatures. Les frais sont payés en DOGE.",
+  "You get DOGE first, then it is converted to SOL. Two signatures. Fees are paid in DOGE.": "Tu reçois d'abord du DOGE, puis il est converti en SOL. Deux signatures. Les frais sont payés en DOGE.",
 };
 export default p;

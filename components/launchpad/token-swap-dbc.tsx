@@ -16,6 +16,7 @@ import { SwapKeypad } from "@/components/launchpad/swap-keypad";
 import { XStockIcon } from "@/components/shared/xstock-icon";
 import { useT, Rich } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
+import { DOGE_MINT } from "@/lib/solana/doge";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,51 @@ type Props = {
 
 function openWalletModal() {
   window.dispatchEvent(new CustomEvent("open-wallet-connect"));
+}
+
+// ── Paiement en SOL (DSOL-20) ─────────────────────────────────────────────────
+
+type ConvQuote = { outAmount: string; minOut: string };
+
+/** Prix de la conversion SOL <-> DOGE (sans frais OM). */
+async function convertQuote(dir: "toDoge" | "toSol", amount: number, slippageBps: number): Promise<ConvQuote> {
+  const r = await fetch("/api/launchpad/dsol-convert", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dir, amount: String(Math.floor(amount)), slippageBps, quoteOnly: true }),
+  });
+  const j = await r.json().catch(() => ({})) as ConvQuote & { error?: string };
+  if (!r.ok) throw new Error(j.error ?? "No quote available");
+  return j;
+}
+
+/** Solde DOGE brut (8 décimales). */
+async function dogeRaw(wallet: string): Promise<number> {
+  const r = await fetch(`/api/solana/balance?wallet=${wallet}&mint=${DOGE_MINT}`, { cache: "no-store" });
+  const d = r.ok ? await r.json() as { raw?: number } : null;
+  return d?.raw ?? 0;
+}
+
+/** Attend que le solde DOGE monte au-dessus de `before` (transaction confirmée) ; renvoie le DOGE reçu ou 0. */
+async function waitDogeIn(wallet: string, before: number): Promise<number> {
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const now = await dogeRaw(wallet).catch(() => before);
+    if (now > before) return now - before;
+  }
+  return 0;
+}
+
+/** Signe et envoie une transaction (versionnée ou ancienne) avec le wallet injecté. */
+async function signSend(provider: NonNullable<ReturnType<typeof getProviderByType>>, raw: Uint8Array, wallet: string): Promise<string> {
+  const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
+  let tx: VersionedTransaction | Transaction;
+  try { tx = VersionedTransaction.deserialize(raw); } catch { const t = Transaction.from(raw); t.feePayer = new PublicKey(wallet); tx = t; }
+  if (provider.signAndSendTransaction) return (await provider.signAndSendTransaction(tx, { skipPreflight: false, maxRetries: 3 })).signature;
+  if (!provider.signTransaction) throw new Error("Wallet does not support signing");
+  const { Connection } = await import("@solana/web3.js");
+  const conn = new Connection(rpc, "confirmed");
+  const signed = await provider.signTransaction(tx);
+  return conn.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 3 });
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -113,6 +159,13 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isBuy = direction === "buy";
+
+  // DSOL-20 (paire DOGE) : payer ou recevoir en SOL. Le SOL est converti en DOGE (sans frais OM),
+  // puis le pool prend ses frais créateur et plateforme en DOGE comme d'habitude.
+  const isDoge = quoteMintAddress === DOGE_MINT;
+  const [viaSol,  setViaSol]  = useState(false);
+  const [stepMsg, setStepMsg] = useState<string | null>(null);
+  const useSol = isDoge && viaSol;
 
   // ── Balances ────────────────────────────────────────────────────────────────
 
@@ -181,8 +234,8 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
       return;
     }
 
-    const amountIn = dir === "buy"
-      ? isXStock
+    let amountIn = dir === "buy"
+      ? isXStock && !useSol
         ? Math.round(parsed * Math.pow(10, quoteDecimals))   // xStock quote units
         : Math.round(parsed * 1e9)                            // SOL lamports
       : Math.round(parsed * Math.pow(10, tokDecimals));
@@ -195,6 +248,12 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     setError(null);
 
     try {
+      // Achat en SOL : on compte avec le DOGE minimum garanti par la conversion
+      if (useSol && dir === "buy") {
+        const cq = await convertQuote("toDoge", amountIn, slip);
+        amountIn = Number(cq.minOut);
+        if (!(amountIn >= 1)) throw new Error("no quote");
+      }
       const res = await fetch("/api/launchpad/dbc-swap", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,6 +273,11 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
         throw new Error(msg ?? tr("Quote failed"));
       }
       const data = await res.json() as { estimatedOut: number };
+      // Vente vers SOL : le DOGE reçu est ensuite converti en SOL
+      if (useSol && dir === "sell" && data.estimatedOut > 0) {
+        const cq = await convertQuote("toSol", data.estimatedOut, slip);
+        data.estimatedOut = Number(cq.outAmount);
+      }
       setEstimatedOut(data.estimatedOut ?? null);
       setQuoteReady(true);
     } catch {
@@ -223,7 +287,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     } finally {
       setQuoteLoading(false);
     }
-  }, [poolAddress, mintAddress, walletAddress, tokDecimals, isXStock, quoteDecimals]);
+  }, [poolAddress, mintAddress, walletAddress, tokDecimals, isXStock, quoteDecimals, useSol]);
 
   useEffect(() => {
     setQuoteReady(false);
@@ -254,6 +318,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   // Always builds a fresh transaction at click time to avoid stale blockhash.
 
   const handleSwap = async () => {
+    if (useSol) return handleSwapViaSol();
     if (!quoteReady || !walletAddress || !walletType) return;
     const provider = getProviderByType(walletType);
 
@@ -434,12 +499,103 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     }
   };
 
+  // ── Achat / vente en SOL (DSOL-20) : deux signatures ──────────────────────────
+  // Achat : SOL -> DOGE, puis DOGE -> token. Vente : token -> DOGE, puis DOGE -> SOL.
+  // Les frais créateur et plateforme sont pris en DOGE par le pool, la conversion n'a pas de frais OM.
+
+  const handleSwapViaSol = async () => {
+    if (!quoteReady || !walletAddress || !walletType) return;
+    const provider = getProviderByType(walletType);
+    if (!provider) { setError(tr("Paying in SOL needs your wallet app or extension. Pay in DOGE instead.")); return; }
+    const parsed = parseFloat(amount);
+    if (!parsed || parsed <= 0) return;
+
+    if (isBuy) {
+      const need = Math.round(parsed * 1e9) + 4_000_000; // deux transactions
+      if (solBalance !== null && need > solBalance) { setError(tr("Insufficient SOL balance")); return; }
+    } else {
+      const need = Math.round(parsed * Math.pow(10, tokDecimals));
+      if (tokBalance !== null && need > tokBalance) { setError(tr("Insufficient {symbol} balance", { symbol: ticker })); return; }
+    }
+
+    setSwapping(true); setError(null); setTxSig(null);
+    const post = async (url: string, body: object) => {
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({})) as { error?: string; tx?: string; txBase64?: string };
+      if (!r.ok) throw new Error(j.error ?? tr("Failed to build transaction"));
+      return j;
+    };
+    const dbc = (amountIn: number, sell: boolean) => post("/api/launchpad/dbc-swap", {
+      poolAddress, mintAddress, walletAddress, amountIn, slippageBps, swapBaseForQuote: sell, quoteMint: DOGE_MINT,
+    });
+
+    try {
+      let tradeSig: string;
+      let lastSig: string;
+      const before = await dogeRaw(walletAddress);
+      if (isBuy) {
+        setStepMsg(tr("Step 1/2: SOL to DOGE"));
+        const c = await post("/api/launchpad/dsol-convert", { dir: "toDoge", amount: String(Math.round(parsed * 1e9)), slippageBps });
+        await signSend(provider, Buffer.from(c.tx!, "base64"), walletAddress);
+        const got = await waitDogeIn(walletAddress, before);
+        if (!got) throw new Error(tr("Your DOGE is on its way. Finish the purchase by paying in DOGE."));
+        setStepMsg(tr("Step 2/2: DOGE to {ticker}", { ticker }));
+        const b = await dbc(got, false);
+        tradeSig = lastSig = await signSend(provider, Buffer.from(b.txBase64!, "base64"), walletAddress);
+      } else {
+        setStepMsg(tr("Step 1/2: {ticker} to DOGE", { ticker }));
+        const b = await dbc(Math.round(parsed * Math.pow(10, tokDecimals)), true);
+        tradeSig = lastSig = await signSend(provider, Buffer.from(b.txBase64!, "base64"), walletAddress);
+        const got = await waitDogeIn(walletAddress, before);
+        if (!got) throw new Error(tr("Sold for DOGE. Your DOGE will show up in your wallet shortly."));
+        setStepMsg(tr("Step 2/2: DOGE to SOL"));
+        const c = await post("/api/launchpad/dsol-convert", { dir: "toSol", amount: String(got), slippageBps });
+        lastSig = await signSend(provider, Buffer.from(c.tx!, "base64"), walletAddress);
+      }
+
+      setTxSig(lastSig);
+      setAmount(""); setActivePct(null); setEstimatedOut(null); setQuoteReady(false);
+      setTimeout(() => fetchBalances(), 2000);
+
+      // Comme un achat ou une vente en DOGE : enregistrement du trade et récompense OMERO sur les achats
+      const sig = tradeSig;
+      void (async () => {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const r = await fetch("/api/launchpad/dbc-swap/confirm", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txSignature: sig, poolAddress }) }).catch(() => null);
+          if (r && r.status !== 404 && r.status !== 503) { if (r.ok) window.dispatchEvent(new CustomEvent("om-trade-recorded", { detail: { mint: mintAddress } })); break; }
+        }
+      })();
+      if (isBuy) {
+        void (async () => {
+          for (let i = 0; i < 5; i++) {
+            await new Promise((r) => setTimeout(r, 3000));
+            const r = await fetch("/api/launchpad/dbc-swap/reward", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ txSignature: sig, walletAddress, poolAddress }) }).catch(() => null);
+            if (r && r.status !== 404 && r.status !== 503) {
+              const d = r.ok ? await r.json().catch(() => null) as { omeroAwarded?: number } | null : null;
+              if (d?.omeroAwarded && d.omeroAwarded > 0) { setOmeroEarned(d.omeroAwarded); setTimeout(() => setOmeroEarned(null), 5000); }
+              return;
+            }
+          }
+        })();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : tr("Swap failed");
+      setError(/reject|cancel/i.test(msg) ? tr("Transaction cancelled") : msg);
+      setTimeout(() => fetchBalances(), 2000);
+    } finally {
+      setSwapping(false); setStepMsg(null);
+    }
+  };
+
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   // Quote token label + balance display
   const quoteLabel = isXStock ? (stockSymbol ?? "xStock") : "SOL";
   const activeBalanceFmt = isBuy
-    ? isXStock
+    ? isXStock && !useSol
       ? (quoteBalance !== null ? `${(quoteBalance / Math.pow(10, quoteDecimals)).toFixed(4)} ${quoteLabel}` : "—")
       : (solBalance  !== null ? `${(solBalance  / 1e9).toFixed(4)} SOL` : "—")
     : (tokBalance !== null ? `${fmtTokens(tokBalance, tokDecimals, loc)} ${ticker}` : "—");
@@ -447,7 +603,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
   const outFormatted = estimatedOut != null && estimatedOut > 0
     ? isBuy
       ? `~${fmtTokens(estimatedOut, tokDecimals, loc)} ${ticker}`
-      : isXStock
+      : isXStock && !useSol
         ? `~${(estimatedOut / Math.pow(10, quoteDecimals)).toFixed(4)} ${quoteLabel}`
         : `~${fmtSol(estimatedOut)} SOL`
     : "";
@@ -491,7 +647,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
     </div>
   );
 
-  const payLabel = isBuy ? quoteLabel : ticker;
+  const payLabel = isBuy ? (useSol ? "SOL" : quoteLabel) : ticker;
 
   return (
     <div>
@@ -553,7 +709,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           >
             {isBuy ? tr("Pay with") : tr("Sell")}
             <span className="flex items-center gap-1.5 font-semibold text-foreground">
-              {isBuy ? (isXStock
+              {isBuy ? (isXStock && !useSol
                 ? (stockSymbol ? <XStockIcon symbol={stockSymbol} size={16} /> : null)
                 : <SolanaMark className="size-4 text-foreground" />)
                 // eslint-disable-next-line @next/next/no-img-element
@@ -564,6 +720,35 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           </button>
         </div>
 
+        {/* ── DSOL-20 : payer / recevoir en DOGE ou en SOL ── */}
+        {isDoge && (
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-[11px] text-muted-foreground">{isBuy ? tr("Pay in") : tr("Receive in")}</span>
+            <div className="flex gap-1 rounded-full bg-muted p-0.5">
+              {[false, true].map((sol) => (
+                <button
+                  key={String(sol)}
+                  type="button"
+                  disabled={swapping}
+                  onClick={() => { setViaSol(sol); setAmount(""); setActivePct(null); setEstimatedOut(null); setQuoteReady(false); setQuoteError(false); setError(null); }}
+                  className={`flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
+                    viaSol === sol ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {sol ? <SolanaMark className="size-3.5" /> : <XStockIcon symbol="DOGE" size={14} />}
+                  {sol ? "SOL" : "DOGE"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {useSol && (
+          <p className="px-2 text-center text-[11px] leading-snug text-muted-foreground">
+            {isBuy ? tr("Your SOL is converted to DOGE first. Two signatures. Fees are paid in DOGE.")
+                   : tr("You get DOGE first, then it is converted to SOL. Two signatures. Fees are paid in DOGE.")}
+          </p>
+        )}
+
         {/* ── % ── */}
         <div className="grid grid-cols-4 gap-2">
           {PCT_SHORTCUTS.map(pct => (
@@ -573,7 +758,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                 setActivePct(pct);
                 let base: number;
                 if (isBuy) {
-                  if (isXStock) {
+                  if (isXStock && !useSol) {
                     base = (quoteBalance ?? 0) / Math.pow(10, quoteDecimals);
                   } else {
                     base = (solBalance ?? 0) / 1e9;
@@ -582,7 +767,8 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
                   base = (tokBalance ?? 0) / Math.pow(10, tokDecimals);
                 }
                 // For SOL 100%, leave 0.002 SOL for fees; xStock has no fee buffer needed
-                const effective = (!isXStock && isBuy && pct === 100) ? Math.max(0, base - 0.002) : base;
+                const effective = (useSol && isBuy && pct === 100) ? Math.max(0, base - 0.004)
+                  : (!isXStock && isBuy && pct === 100) ? Math.max(0, base - 0.002) : base;
                 setAmount(((effective * pct) / 100).toFixed(isBuy ? 4 : 2));
               }}
               className={`rounded-full py-2.5 text-[13px] font-semibold transition-colors ${
@@ -680,7 +866,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
-                {isBuy ? tr("Buying…") : tr("Selling…")}
+                {stepMsg ?? (isBuy ? tr("Buying…") : tr("Selling…"))}
               </span>
             ) : ctaLabel}
           </button>
