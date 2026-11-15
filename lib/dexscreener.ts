@@ -9,7 +9,7 @@ const API = "https://api.dexscreener.com";
 
 /** Réseau DexScreener → réseau du Terminal */
 export const DS_TO_CHAIN: Record<string, TerminalChain> = {
-  solana: "solana", base: "base", bsc: "bnb", ethereum: "ethereum", arbitrum: "arbitrum", polygon: "polygon", avalanche: "avalanche", hyperevm: "hyperliquid",
+  solana: "solana", base: "base", bsc: "bnb", ethereum: "ethereum", arbitrum: "arbitrum", polygon: "polygon", avalanche: "avalanche", hyperevm: "hyperliquid", arc: "arc",
 };
 export const CHAIN_TO_DS: Partial<Record<TerminalChain, string>> = Object.fromEntries(Object.entries(DS_TO_CHAIN).map(([k, v]) => [v, k]));
 
@@ -160,4 +160,21 @@ export async function dexPaidCheck(chain: TerminalChain, address: string): Promi
   const orders = await dsJson<DsOrder[]>(`/orders/v1/${ds}/${address}`, 1_800_000);
   if (!Array.isArray(orders)) return null;
   return orders.some((o) => o.type === "tokenProfile" && o.status === "approved");
+}
+
+/** Native USDC d'Arc : presque toutes les paires y sont cotées contre lui. */
+const ARC_USDC = "0x3600000000000000000000000000000000000000";
+
+/**
+ * Arc (hors lancements OM) : paires cotées contre USDC sur DexScreener (Uniswap V3/V4, etc.).
+ * trending : plus gros volume 24 h ; volume : idem ; new : paires les plus récentes ; crypto : plus grosse liquidité (BTC, ETH, EURC…).
+ */
+export async function arcMarket(kind: "trending" | "new" | "volume" | "crypto" | "search"): Promise<TerminalToken[]> {
+  const j = await dsJson<DsPair[]>(`/token-pairs/v1/arc/${ARC_USDC}`, 60_000);
+  const pairs = (Array.isArray(j) ? j : []).filter((p) => p.baseToken?.address?.toLowerCase() !== ARC_USDC && (p.liquidity?.usd ?? 0) >= 2000 && (p.liquidity?.usd ?? 0) < 5e8);
+  const tokens = groupPairs(pairs.map((p) => ({ ...p, chainId: "arc" }))).map((g) => toToken(g));
+  const by = (f: (t: TerminalToken) => number) => tokens.sort((a, b) => f(b) - f(a));
+  if (kind === "new") return by((t) => (t.createdAt ? Date.parse(t.createdAt) : 0));
+  if (kind === "crypto") return by((t) => t.liquidity ?? 0);
+  return by((t) => t.volume24h ?? 0);
 }

@@ -94,6 +94,17 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/terminal"
+              aria-label={tr("Terminal")}
+              title={tr("Terminal")}
+              className="glass-btn flex size-10 shrink-0 items-center justify-center rounded-full text-foreground transition-transform active:scale-95"
+            >
+              <svg viewBox="0 0 300 300" className="size-[19px]" fill="none" stroke="currentColor" strokeWidth="32" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M54 66 L124 136 L54 208" />
+                <path d="M152 237 H248" />
+              </svg>
+            </Link>
             <SearchButton />
             <WalletButton />
             <button

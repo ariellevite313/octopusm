@@ -18,7 +18,6 @@ import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { EmptyIcon } from "@/components/shared/empty-icon";
-import { CreateMenu } from "@/components/social/create-menu";
 import { TokenFolderCard } from "@/components/launchpad/token-folder-card";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -578,7 +577,6 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
   initialTotal: number;
 }) {
   const { tr } = useT();
-  const router = useRouter();
   const [tab,      setTab]      = useState<TabId>("all");
   const [chain,    setChain]    = useState<ChainId>("all");
   const [sort,     setSort]     = useState<SortOption>("new");
@@ -853,7 +851,6 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
       <p className="text-center text-xs text-muted-foreground">
         {(() => { const n = tab !== "watchlist" ? total : visibleTokens.length; return n !== 1 ? tr("{n} tokens", { n }) : tr("{n} token", { n }); })()}
       </p>
-      <CreateMenu onPosted={() => router.push("/")} />
     </div>
   );
 }

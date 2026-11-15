@@ -16,6 +16,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { SwapBox } from "@/components/swap/swap-box";
 import { EvmSwapBox } from "@/components/swap/evm-swap-box";
+import { ArcTradeBox } from "@/components/swap/arc-trade-box";
 import { EVM_CHAINS, isEvmChain } from "@/lib/swap/evm";
 import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
@@ -86,6 +87,9 @@ function Sheet({ onClose, children, title }: { onClose: () => void; children: Re
   );
 }
 
+const NET_KEY = "om_terminal_chains";
+const FILTER_KEY = "om_terminal_filter";
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function Terminal() {
   const sp = useSearchParams();
@@ -93,7 +97,18 @@ export function Terminal() {
   const cParam = sp.get("chain") ?? "solana";
   const chain: TerminalChain = CHAINS.some((c) => c.id === cParam && c.ready) ? (cParam as TerminalChain) : "solana";
   const favs = useFavs();
+  const router = useRouter();
   const [list, setList] = useState<TerminalToken[] | null>(null);
+  // Réseaux choisis : on les retrouve à chaque retour sur le Terminal (stockés sur l'appareil)
+  useEffect(() => {
+    const cur = sp.get("chains");
+    try {
+      if (cur) { localStorage.setItem(NET_KEY, cur); return; }
+      if (mint || sp.get("q") || sp.get("chain")) return;
+      const saved = localStorage.getItem(NET_KEY);
+      if (saved && saved !== "all") router.replace(`/terminal?chains=${saved}`);
+    } catch { /* stockage indisponible */ }
+  }, [sp, mint, router]);
   // Ordinateur : sans token choisi, on montre Solana (SOL)
   const dflt = { mint: SOL_MINT };
   return (
@@ -118,7 +133,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens" | "updown">("tokens");
-  const [filter, setFilter] = useState<"trending" | "crypto" | "new" | "volume">("trending");
+  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume">("trending");
+  const setFilter = (f: "trending" | "crypto" | "new" | "volume") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
+  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume") setFilterRaw(f); } catch { /* ignore */ } }, []);
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
@@ -249,6 +266,7 @@ function NetworkSheet({ selected, onClose }: { selected: TerminalChain[]; onClos
   const save = () => {
     const ready = CHAINS.filter((c) => c.ready).map((c) => c.id);
     const all = pick.length === 0 || ready.every((c) => pick.includes(c));
+    try { localStorage.setItem(NET_KEY, all ? "all" : pick.join(",")); } catch { /* ignore */ }
     router.push(all ? "/terminal" : `/terminal?chains=${pick.join(",")}`);
     onClose();
   };
@@ -463,7 +481,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           </div>
 
           {/* Graphique */}
-          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} onChange={onChart} network={GT_NET[chain] ?? "solana"} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
+          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} onChange={onChart} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
@@ -496,14 +514,14 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         {/* Ordinateur : boîte de swap à droite */}
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
-            {isSol ? <><SwapBox mint={mint} /><Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : <SoonTrade chain={chain} />}
+            {isSol ? <><SwapBox mint={mint} /><Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
           </div>
         </aside>
       </div>
 
       {/* Téléphone : barre d'achat */}
       {!isSol ? <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden">
-        {isEvmChain(chain) ? <button onClick={() => setSheet("swap")} className="h-14 w-full rounded-2xl bg-foreground text-[17px] font-bold text-background">{tr("Buy")} / {tr("Sell")}</button> : <SoonTrade chain={chain} />}
+        {isEvmChain(chain) || chain === "arc" ? <button onClick={() => setSheet("swap")} className="h-14 w-full rounded-2xl bg-foreground text-[17px] font-bold text-background">{tr("Buy")} / {tr("Sell")}</button> : <SoonTrade chain={chain} />}
       </div> : (
       <div className="fixed inset-x-0 bottom-[88px] z-30 border-t border-border bg-background px-4 pb-2 pt-2.5 lg:hidden">
         <Verified info={info} />
@@ -514,7 +532,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         </div>
       </div>)}
 
-      {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : <SwapBox mint={mint} onSwapped={() => setSheet(null)} />}</Sheet>}
+      {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SwapBox mint={mint} onSwapped={() => setSheet(null)} />}</Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}
     </div>
   );
