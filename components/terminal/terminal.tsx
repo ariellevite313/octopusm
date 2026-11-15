@@ -458,13 +458,19 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
     return () => window.removeEventListener("scroll", on);
   }, []);
   const onChart = useCallback((first: number, last: number) => setMove({ first, last }), []);
+  const [hover, setHover] = useState<{ value: number; time: number } | null>(null);
+  const onHover = useCallback((p: { value: number; time: number } | null) => setHover(p), []);
 
   if (!t) return <div className="m-4 h-[70vh] animate-pulse rounded-3xl bg-muted/30" />;
 
-  const live = move?.last ?? t.price;
-  const diff = move ? move.last - move.first : null;
-  const diffPct = move && move.first > 0 ? ((move.last - move.first) / move.first) * 100 : null;
-  const rangeLabel = range === "LIVE" ? "30m" : range === "ALL" ? tr("all") : range.toLowerCase();
+  const live = hover?.value ?? move?.last ?? t.price;
+  const diff = move && live != null ? live - move.first : null;
+  const diffPct = move && live != null && move.first > 0 ? ((live - move.first) / move.first) * 100 : null;
+  const rangeLabel = hover
+    ? new Date(hover.time * 1000).toLocaleString(undefined, range === "ALL" || range === "7D" ? { day: "numeric", month: "short", year: "numeric", hour: range === "7D" ? "2-digit" : undefined, minute: range === "7D" ? "2-digit" : undefined } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : range === "LIVE" ? "30m" : range === "ALL" ? tr("all") : range.toLowerCase();
+  // Capitalisation à l'instant survolé (prix survolé / prix actuel)
+  const mcapShown = hover && t.price && t.mcap ? t.mcap * (hover.value / t.price) : t.mcap;
   const fav = favs.isFav(mint);
   const share = () => {
     const url = `${location.origin}/terminal?${isSol ? "" : `chain=${chain}&`}mint=${mint}`;
@@ -513,13 +519,13 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
               )}
             </div>
             <div className="shrink-0 text-right">
-              <p className="num text-[18px] font-bold text-foreground">{compact(t.mcap)}</p>
+              <p className="num text-[18px] font-bold text-foreground">{compact(mcapShown)}</p>
               <p className="text-[14px] text-muted-foreground">{tr("Market cap")}</p>
             </div>
           </div>
 
           {/* Graphique */}
-          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
+          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
