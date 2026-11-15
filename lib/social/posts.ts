@@ -65,6 +65,13 @@ export type QuotedPost = {
 /** Logo de l'actif d'un marché Up/Down (fichiers du site) */
 const UPDOWN_LOGO: Record<string, string> = { BTC: "/bitcoin.png", ETH: "/ethereum.png", SOL: "/solana.png", BNB: "/bnb.png", PEPE: "/pepe.png", DOGE: "/doge.png" };
 
+/** Durée d'une manche en heures, minutes, secondes : 240 → « 4h 00min 00s » */
+function hms(min: number): string {
+  const t = Math.max(0, Math.round((Number.isFinite(min) ? min : 0) * 60));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return `${h}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`;
+}
+
 export type SharedMarket = {
   kind: "pool" | "prediction" | "updown";
   title: string;
@@ -282,7 +289,7 @@ async function loadMarkets(admin: any, rows: Row[]): Promise<Map<string, SharedM
       for (const m of (u ?? []) as Record<string, unknown>[]) {
         const sym = String(m.symbol ?? "").replace("USDT", "");
         out.set(String(m.id), {
-          kind: "updown", title: `${sym} Up or Down · ${m.duration_min} min`, image: UPDOWN_LOGO[sym] ?? null, href: `/updown/${m.id}`,
+          kind: "updown", title: `${sym} Up or Down · ${hms(Number(m.duration_min))}`, image: UPDOWN_LOGO[sym] ?? null, href: `/updown/${m.id}`,
           options: ["Up", "Down"], option_ids: ["up", "down"], pool: null,
           // Prix en temps réel de l'actif (carte LivePrice)
           price_ticker: sym || null,
