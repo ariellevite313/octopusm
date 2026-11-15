@@ -2,13 +2,16 @@
 import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { AgentWalletError, withdrawAll } from "@/lib/agent-wallet/server";
+import { requireSecondFactor } from "@/lib/twofa";
 import { AgentKeyError } from "@/lib/agent-wallet/keys";
 import { rateHit } from "@/lib/rate-limit";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const { id } = await params;
+  const f = await requireSecondFactor(s.wallet, req);
+  if (f) return f;
   if (!(await rateHit(`agent-withdraw:${s.wallet}`, 5, 600_000))) return NextResponse.json({ error: "Too many withdrawals, wait a few minutes" }, { status: 429 });
   try { return NextResponse.json({ ok: true, txs: await withdrawAll(s.wallet, id) }); }
   catch (e) {

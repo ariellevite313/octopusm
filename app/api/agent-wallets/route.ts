@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { AgentWalletError, createWallet, listForOwner } from "@/lib/agent-wallet/server";
 import { AgentKeyError } from "@/lib/agent-wallet/keys";
+import { requireSecondFactor } from "@/lib/twofa";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const s = await requireWallet();
   if ("error" in s) return s.error;
+  const f = await requireSecondFactor(s.wallet, req);
+  if (f) return f;
   const b = (await req.json().catch(() => ({}))) as { client_id?: unknown };
   if (typeof b.client_id !== "string" || !b.client_id || b.client_id.length > 200) return NextResponse.json({ error: "client_id required" }, { status: 400 });
   try {

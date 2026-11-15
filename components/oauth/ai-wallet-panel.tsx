@@ -4,6 +4,7 @@
  * Wallet autonome d'une IA connectée : créer, approvisionner (adresses), régler plafonds et permissions,
  * mettre en pause, tout retirer vers mon wallet, voir le journal des actions.
  */
+import { fetch2fa } from "@/components/security/two-factor";
 import { useState } from "react";
 import { Copy, Loader2, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
@@ -48,7 +49,7 @@ export function AiWalletCreate({ clientId, onDone }: { clientId: string; onDone:
   async function create() {
     setBusy(true);
     try {
-      const r = await fetch("/api/agent-wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clientId }) });
+      const r = await fetch2fa("/api/agent-wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clientId }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not create the wallet");
       toast.success(tr("Wallet created. Fund it to let your AI act."));
@@ -75,7 +76,7 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
   async function patch(body: Record<string, unknown>, key: string) {
     setBusy(key);
     try {
-      const r = await fetch(`/api/agent-wallets/${w.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch2fa(`/api/agent-wallets/${w.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not save");
       toast.success(tr("Saved"));
@@ -87,7 +88,7 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
     if (!window.confirm(tr("Send the whole balance of this AI wallet back to your wallet?"))) return;
     setBusy("withdraw");
     try {
-      const r = await fetch(`/api/agent-wallets/${w.id}/withdraw`, { method: "POST" });
+      const r = await fetch2fa(`/api/agent-wallets/${w.id}/withdraw`, { method: "POST" });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "The withdrawal failed");
       toast.success(tr("Withdrawal sent to your wallet"));

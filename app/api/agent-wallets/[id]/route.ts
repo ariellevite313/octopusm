@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { AgentWalletError, updateWallet } from "@/lib/agent-wallet/server";
 import { parseLimits } from "@/lib/agent-wallet/limits";
+import { requireSecondFactor } from "@/lib/twofa";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const s = await requireWallet();
@@ -11,6 +12,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const p = parseLimits((await req.json().catch(() => ({}))) as Record<string, unknown>);
   if (!p.ok) return NextResponse.json({ error: p.error }, { status: 400 });
   if (!Object.keys(p.v).length) return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
+  // Mettre l'IA en pause ne demande jamais de code ; tout le reste (plafonds, permissions, reprise) oui
+  const onlyPause = Object.keys(p.v).length === 1 && p.v.paused === true;
+  if (!onlyPause) { const f = await requireSecondFactor(s.wallet, req); if (f) return f; }
   try { await updateWallet(s.wallet, id, p.v); return NextResponse.json({ ok: true }); }
   catch (e) { return NextResponse.json({ error: e instanceof AgentWalletError ? e.message : "Could not save" }, { status: 400 }); }
 }

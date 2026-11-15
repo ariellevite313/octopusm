@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { AiWalletCreate, AiWalletPanel, type AiWallet } from "./ai-wallet-panel";
+import { TwoFactorCard, TwoFactorPrompt } from "@/components/security/two-factor";
 
 type App = { client_id: string; name: string; scopes: string[]; connected_at: string; last_used_at: string | null };
 
@@ -53,6 +54,9 @@ export function ConnectedApps() {
           <Copy className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </div>
+
+      <TwoFactorPrompt />
+      {isAuthenticated && <div className="mt-6"><TwoFactorCard /></div>}
 
       {!isAuthenticated ? (
         <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="btn-primary mt-6 flex h-12 w-full items-center justify-center rounded-full text-[15px]">
