@@ -404,13 +404,12 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
                 return (
                   <button key={k} type="button" disabled={!on} onClick={() => pickPair(k)} aria-pressed={active}
                     className={`relative flex flex-col items-center gap-1.5 rounded-2xl border-2 bg-muted px-1 py-3 transition-colors ${
-                      !on ? "cursor-not-allowed border-transparent opacity-45" : active ? "border-up" : "border-transparent hover:border-border"}`}>
+                      !on ? "pointer-events-none cursor-not-allowed select-none border-transparent opacity-40 grayscale" : active ? "border-up" : "border-transparent hover:border-border"}`}>
                     {logo
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={logo} alt="" width={28} height={28} className="size-7 rounded-full object-cover" />
                       : <SolanaMark className="size-7 text-foreground" />}
                     <span className="text-[13px] font-bold text-foreground">{label}</span>
-                    {!on && <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{tr("Coming soon")}</span>}
                   </button>
                 );
               })}
