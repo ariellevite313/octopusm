@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { LANGS, useT } from "@/lib/i18n";
+import { COLOR_MODES, useColorMode } from "@/lib/color-mode";
 
 function useIsDark() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -70,5 +71,27 @@ export function MobileSettings() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Mode couleur pour la barre latérale (ordinateur) : chaque appui passe au mode suivant (normal, DOGE, PEPE, CLT). */
+export function DogeSwitchRail() {
+  const { mode, set } = useColorMode();
+  const order = ["none", ...COLOR_MODES.map((m) => m.id)] as const;
+  const cur = COLOR_MODES.find((m) => m.id === mode);
+  const next = order[(order.indexOf(mode) + 1) % order.length];
+  const label = cur ? `${cur.label} mode` : "Color mode";
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={() => set(next)}
+      className={`flex size-11 items-center justify-center rounded-2xl transition-colors hover:bg-muted/60 ${cur ? "" : "opacity-70 hover:opacity-100"}`}
+      style={cur ? { boxShadow: `0 0 0 2px ${cur.color}` } : undefined}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={cur?.logo ?? "/chains/dogecoin.png"} alt="" className={`size-[22px] rounded-full object-cover ${cur ? "" : "grayscale"}`} />
+    </button>
   );
 }

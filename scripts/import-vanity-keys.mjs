@@ -7,6 +7,9 @@
  *    Cela crée des fichiers DoGE….json dans le dossier courant.
  * 2. Importer :
  *      node scripts/import-vanity-keys.mjs --label DoGE ./DoGE*.json
+ *      node scripts/import-vanity-keys.mjs --label CLT ./CLT/*.json
+ *      node scripts/import-vanity-keys.mjs --label PEPE --end ./PEPE/*.json   (adresses qui finissent par PEPE)
+ *    Générateur rapide : scripts/vanity-grind (voir son README).
  *    Les fichiers peuvent ensuite être supprimés (la clé est dans la base, effacée après le lancement).
  *
  * Lit NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY dans .env.local.
@@ -22,6 +25,7 @@ const args = process.argv.slice(2);
 const li = args.indexOf("--label");
 const LABEL = li >= 0 ? args[li + 1] : "DoGE";
 const files = args.filter((a, i) => a.endsWith(".json") && i !== li + 1);
+const AT_END = args.includes("--end");
 if (!files.length) { console.error("Usage: node scripts/import-vanity-keys.mjs --label DoGE ./DoGE*.json"); process.exit(1); }
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -34,7 +38,7 @@ const rows = [];
 for (const f of files) {
   const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(f, "utf8"))));
   const pub = kp.publicKey.toBase58();
-  if (!pub.startsWith(LABEL)) { console.warn(`skip ${f}: ${pub} does not start with ${LABEL}`); continue; }
+  if (AT_END ? !pub.endsWith(LABEL) : !pub.startsWith(LABEL)) { console.warn(`skip ${f}: ${pub} does not ${AT_END ? "end" : "start"} with ${LABEL}`); continue; }
   rows.push({ public_key: pub, secret_key: bs58.encode(kp.secretKey), suffix: LABEL });
 }
 if (!rows.length) { console.error("No valid key"); process.exit(1); }

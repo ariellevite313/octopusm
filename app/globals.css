@@ -537,3 +537,34 @@
   border: 1px solid rgba(0, 0, 0, 0.15) !important;
   color: #000 !important;
 }
+
+/* ── Modes couleur (DOGE jaune, PEPE vert, CLT bleu) : boutons en verre transparent 3D teinté ──
+   Activés dans le menu (classe mode-doge / mode-pepe / mode-clt sur <html>). */
+html.mode-doge { --mode: 247 197 49;  --mode-deep: 176 132 8;  --mode-ink: #0b0a12; }
+html.mode-pepe { --mode: 92 184 72;   --mode-deep: 46 112 36;  --mode-ink: #0b0a12; }
+html.mode-clt  { --mode: 0 82 255;    --mode-deep: 0 46 160;   --mode-ink: #ffffff; }
+
+html:is(.mode-doge, .mode-pepe, .mode-clt) :is(button, a):is(.bg-foreground, .bg-up, .bg-down),
+html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary {
+  background-color: rgb(var(--mode)) !important;
+  background-image:
+    radial-gradient(120% 90% at 50% -20%, rgb(255 255 255 / 0.42) 0%, rgb(255 255 255 / 0.10) 45%, rgb(255 255 255 / 0) 70%),
+    linear-gradient(180deg, rgb(var(--mode) / 0.88) 0%, rgb(var(--mode) / 1) 55%, rgb(var(--mode-deep) / 0.55) 140%) !important;
+  color: var(--mode-ink) !important;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -1px 0 rgb(var(--mode-deep) / 0.35),
+    0 1px 2px rgb(0 0 0 / 0.10),
+    0 8px 18px -12px rgb(var(--mode-deep) / 0.75);
+  backdrop-filter: saturate(140%);
+  -webkit-backdrop-filter: saturate(140%);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+html.dark:is(.mode-doge, .mode-pepe, .mode-clt) :is(button, a):is(.bg-foreground, .bg-up, .bg-down),
+html.dark:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary { border-color: rgb(255 255 255 / 0.16); }
+html:is(.mode-doge, .mode-pepe, .mode-clt) :is(button, a):is(.bg-foreground, .bg-up, .bg-down):hover,
+html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary:hover { filter: brightness(1.04); }
+html:is(.mode-doge, .mode-pepe, .mode-clt) :is(button, a):is(.bg-foreground, .bg-up, .bg-down):active,
+html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary:active { transform: scale(0.985); filter: brightness(0.97); }
+html:is(.mode-doge, .mode-pepe, .mode-clt) :is(button, a):is(.bg-foreground, .bg-up, .bg-down) :is(svg, span) { color: var(--mode-ink); }

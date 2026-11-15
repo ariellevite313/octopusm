@@ -3,6 +3,7 @@
  * Utilisé partout où un sigle xStock est montré (badges, swap, wizard…).
  */
 import { XSTOCK_LOGOS, XSTOCK_CATALOG_SOLANA } from "@/lib/solana/xstocks";
+import { PAIR_QUOTES } from "@/lib/solana/quotes";
 
 interface XStockIconProps {
   symbol: string;   // ex: "xNVDA", "xMSTR"
@@ -12,7 +13,9 @@ interface XStockIconProps {
 
 export function XStockIcon({ symbol, size = 16, className = "" }: XStockIconProps) {
   // DOGE (paire des tokens DSOL-20) : logo Dogecoin
-  const logo = symbol === "DOGE" ? "/chains/dogecoin.png" : XSTOCK_LOGOS[symbol];
+  // PEPE et CLT (autres paires spéciales) : leur logo
+  const logo = symbol === "DOGE" ? "/chains/dogecoin.png"
+    : Object.values(PAIR_QUOTES).find((q) => q.symbol === symbol)?.logo ?? XSTOCK_LOGOS[symbol];
 
   if (logo) {
     return (

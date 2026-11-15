@@ -13,6 +13,7 @@
  */
 
 import { DOGE_MINT } from "@/lib/solana/doge";
+import { pairQuoteByMint } from "@/lib/solana/quotes";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
@@ -106,6 +107,11 @@ export async function POST(req: Request) {
       const q = await poolQuoteMint(client, poolPk).catch(() => null);
       if (q === DOGE_MINT && body.quoteMint !== DOGE_MINT) {
         return NextResponse.json({ error: "This token trades in DOGE. Open its page to buy it." }, { status: 400 });
+      }
+      // Même règle pour les pools PEPE et CLT
+      const pq = q ? pairQuoteByMint(q) : null;
+      if (pq && body.quoteMint !== pq.mint) {
+        return NextResponse.json({ error: `This token trades in ${pq.symbol}. Open its page to buy it.` }, { status: 400 });
       }
     }
 

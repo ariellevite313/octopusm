@@ -29,6 +29,7 @@ const PRIMARY = [
   { href: "/admin/markets",   label: "Markets",   icon: BarChart3 },
   { href: "/admin/bets",      label: "Predicts",  icon: Gavel },
   { href: "/admin/launchpad", label: "Launchpad", icon: Coins },
+  { href: "/admin/tickers", label: "Reserved tickers", icon: Coins },
   { href: "/admin/payments",  label: "Payments",  icon: CreditCard },
 ];
 

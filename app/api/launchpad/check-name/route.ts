@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkNameAvailability } from "@/services/launchpad-service";
+import { reservedTicker } from "@/lib/launch/reserved-tickers";
+import { getWalletAddress } from "@/lib/auth/get-wallet";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -15,5 +17,8 @@ export async function GET(req: Request) {
   }
 
   const result = await checkNameAvailability(name, ticker);
+  // Ticker DRC-20 réservé : indiqué à part, pour proposer une demande
+  const r = await reservedTicker(ticker, await getWalletAddress().catch(() => null));
+  if (r.reserved && !r.allowed) return NextResponse.json({ ...result, tickerAvailable: false, tickerReserved: true });
   return NextResponse.json(result);
 }

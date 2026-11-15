@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { COLOR_MODE_BOOT } from "@/lib/color-mode";
 import { Providers } from "@/providers/providers";
 import { HeaderSwitch } from "@/components/layout/header-switch";
 import { Footer } from "@/components/layout/footer";
@@ -68,6 +69,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_BOOT }} />
         <Providers>
           <RefCapture />
           <AgeGate />

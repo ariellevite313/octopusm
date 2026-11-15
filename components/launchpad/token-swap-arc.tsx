@@ -512,7 +512,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
                 onClick={() => { setDirection(d); setAmount(""); setEstimatedOut(null); }}
                 className={`rounded-full py-2.5 text-[14px] font-bold capitalize transition-colors ${
                   direction === d
-                    ? d === "buy" ? "bg-up text-black" : "bg-down text-white"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >

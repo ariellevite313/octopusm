@@ -22,6 +22,7 @@
  */
 import { generateOmKeypair } from "@/lib/solana/vanity-mint";
 import { DSOL_PREFIX, isDogeQuote } from "@/lib/solana/doge";
+import { hasPairMark, pairQuoteByMint, type PairQuote } from "@/lib/solana/quotes";
 import bs58 from "bs58";
 import { XSTOCK_LAUNCH_ENABLED } from "@/lib/solana/xstocks";
 import { solanaConnection } from "@/lib/solana/rpc";
@@ -35,6 +36,7 @@ import {
   buildStockPairedTransactions,
   buildMetadataJson,
   dogeLaunchEnabled,
+  pairLaunchEnabled,
 } from "@/lib/solana/dbc";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -122,6 +124,26 @@ export async function POST(req: Request, { params }: RouteParams) {
       await admin.from("launchpad_tokens")
         .update({ mint_address: row.pub_key, vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
         .eq("id", id);
+    } else if (pairQuoteByMint(token.quote_asset as string | null)) {
+      // Paire PEPE ou CLT : adresse finissant par « PEPE » ou commençant par « CLT », prise dans la réserve de clés pré-générées
+      const pq = pairQuoteByMint(token.quote_asset as string | null)!;
+      if (!pairLaunchEnabled(pq.key)) return NextResponse.json({ error: `${pq.symbol} launches are not available yet` }, { status: 503 });
+      const { data: claimed } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: pq.prefix });
+      const row = (Array.isArray(claimed) ? claimed[0] : claimed) as { pub_key?: string; sec_key?: string } | null;
+      if (row?.sec_key) {
+        mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
+        if (mintKeypair.publicKey.toBase58() !== row.pub_key || !hasPairMark(pq, row.pub_key!)) {
+          return NextResponse.json({ error: `Invalid ${pq.prefix} address in the pool` }, { status: 500 });
+        }
+      } else {
+        // Réserve vide (les clés PEPE sont longues à générer) : adresse normale finissant par « om », le lancement ne bloque pas
+        try { mintKeypair = await generateOmKeypair(); } catch {
+          return NextResponse.json({ error: "Génération de l'adresse trop longue, réessaie." }, { status: 503 });
+        }
+      }
+      await admin.from("launchpad_tokens")
+        .update({ mint_address: mintKeypair.publicKey.toBase58(), vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
+        .eq("id", id);
     } else {
       // L'adresse du token se termine toujours par « om » (générée à la volée)
       try {
@@ -150,7 +172,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       isScheduled:   Boolean(token.is_scheduled),
       stockSymbol:   (token.stock_symbol as string | null) ?? null,
       feeTier:       (token.sol_fee_tier === "low" ? "low" : "standard") as "low" | "standard",
-      quote:         (isDogeQuote(token.quote_asset as string | null) ? "doge" : "sol") as "doge" | "sol",
+      quote:         (isDogeQuote(token.quote_asset as string | null) ? "doge" : pairQuoteByMint(token.quote_asset as string | null)?.key ?? "sol") as "sol" | PairQuote,
     };
 
     // ── Déjà lancé ? La mint n'existe sur la chaîne qu'une fois la pool créée ────────

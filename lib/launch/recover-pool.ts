@@ -3,6 +3,7 @@
  * et, si elle existe, active le token. Utilisé par /check-pool (page du token) et par le cron de rattrapage.
  */
 import { DOGE_MINT } from "@/lib/solana/doge";
+import { PAIR_QUOTES } from "@/lib/solana/quotes";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { getXStockMint } from "@/lib/solana/xstocks";
@@ -71,6 +72,16 @@ export async function findPoolOnChain(
       const big = doge.toBuffer().compare(baseMint.toBuffer()) > 0;
       seedSets.push([Buffer.from("pool"), cfg.toBuffer(), big ? doge.toBuffer() : baseMint.toBuffer(), big ? baseMint.toBuffer() : doge.toBuffer()]);
     } catch { /* clé invalide */ }
+  }
+  // ── Pools PEPE et CLT : même schéma que DOGE ──
+  for (const pq of [PAIR_QUOTES.pepe, PAIR_QUOTES.clt]) {
+    for (const k of [process.env[pq.configEnv], process.env[`${pq.configEnv}_LOW`]].filter(Boolean)) {
+      try {
+        const cfg = new PublicKey(k as string), q = new PublicKey(pq.mint);
+        const big = q.toBuffer().compare(baseMint.toBuffer()) > 0;
+        seedSets.push([Buffer.from("pool"), cfg.toBuffer(), big ? q.toBuffer() : baseMint.toBuffer(), big ? baseMint.toBuffer() : q.toBuffer()]);
+      } catch { /* clé invalide */ }
+    }
   }
   // Legacy 2-seed fallbacks
   seedSets.push([Buffer.from("virtual_pool"), baseMint.toBuffer()]);

@@ -2,8 +2,9 @@
  * GET /api/terminal?list=trending|new|volume|crypto  ou  ?q=…  &chains=solana,base (absent ou « all » : tous les réseaux)
  * (ou &chain=… pour un seul réseau). Tokens pour le Terminal OM.
  */
+import { PAIR_QUOTES } from "@/lib/solana/quotes";
 import { NextResponse } from "next/server";
-import { arcList, dsolList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { arcList, dsolList, pairList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
 import { cryptoFromCoinGecko } from "@/lib/terminal-crypto";
 import { arcMarket, dexList, dexSearch, enrichDex } from "@/lib/dexscreener";
@@ -22,6 +23,11 @@ export async function GET(req: Request) {
   let chains = raw.filter((c): c is TerminalChain => READY.includes(c as TerminalChain));
   if (!chains.length) chains = READY;
   // DSOL-20 : tokens lancés sur OM en paire DOGE (Solana), liste à part
+  // PSOL-20 (paire PEPE) et CLT-20 (paire ClawdTrust)
+  if (l === "psol20" || l === "clt20") {
+    const tokens = await pairList(createAdminClient(), PAIR_QUOTES[l === "psol20" ? "pepe" : "clt"].mint, q).catch(() => [] as TerminalToken[]);
+    return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
+  }
   if (l === "dsol20") {
     const tokens = await dsolList(createAdminClient(), q).catch(() => [] as TerminalToken[]);
     return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });

@@ -7,6 +7,7 @@
  *   DBC_CONFIG_KEY          — pre-created Meteora partner config key (public key)
  */
 
+import { PAIR_QUOTES, type PairQuote } from "@/lib/solana/quotes";
 import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 import { solanaConnection } from "@/lib/solana/rpc";
 import {
@@ -33,7 +34,7 @@ export type DbcPoolParams = {
   /** First buy amount in the pool's quote (SOL, or DOGE for a DSOL-20 launch) (0 = disabled) */
   firstBuySol: number;
   /** Monnaie de paire : SOL (défaut) ou DOGE sur Solana (DSOL-20, configs DBC_CONFIG_KEY_DOGE / _LOW) */
-  quote?: "sol" | "doge";
+  quote?: "sol" | PairQuote;
   /**
    * Whether this is a scheduled launch. When true, an additional 0.1 SOL is
    * collected on-chain (creator → platform wallet) on top of the standard platform fee
@@ -76,11 +77,14 @@ export const lowFeeTierEnabled = () => !!process.env.DBC_CONFIG_KEY_LOW;
 /** Lancements DSOL-20 (paire DOGE) possibles : la config Meteora en DOGE a été créée (scripts/create-doge-config.mjs). */
 export const dogeLaunchEnabled = () => !!process.env.DBC_CONFIG_KEY_DOGE;
 
-/** Unités brutes de la monnaie de paire : lamports pour SOL, 8 décimales pour DOGE. */
-const quoteUnits = (amount: number, quote: "sol" | "doge" = "sol") => Math.floor(amount * (quote === "doge" ? 1e8 : LAMPORTS_PER_SOL));
+/** Lancements avec une paire PEPE ou CLT possibles : leur config Meteora a été créée (scripts/create-pair-config.mjs). */
+export const pairLaunchEnabled = (q: PairQuote) => !!process.env[PAIR_QUOTES[q].configEnv];
 
-function getSolConfigKey(tier: SolFeeTier = "standard", quote: "sol" | "doge" = "sol"): PublicKey {
-  const name = (quote === "doge" ? "DBC_CONFIG_KEY_DOGE" : "DBC_CONFIG_KEY") + (tier === "low" ? "_LOW" : "");
+/** Unités brutes de la monnaie de paire : lamports pour SOL, décimales du token sinon (DOGE 8, PEPE 4, CLT 9). */
+const quoteUnits = (amount: number, quote: "sol" | PairQuote = "sol") => Math.floor(amount * (quote === "sol" ? LAMPORTS_PER_SOL : 10 ** PAIR_QUOTES[quote].decimals));
+
+function getSolConfigKey(tier: SolFeeTier = "standard", quote: "sol" | PairQuote = "sol"): PublicKey {
+  const name = (quote === "sol" ? "DBC_CONFIG_KEY" : PAIR_QUOTES[quote].configEnv) + (tier === "low" ? "_LOW" : "");
   const key = process.env[name] ?? "";
   if (!key) throw new Error(`${name} is not set`);
   return new PublicKey(key);

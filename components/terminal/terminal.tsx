@@ -133,9 +133,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens" | "updown">("tokens");
-  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20">("trending");
-  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
-  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20") setFilterRaw(f); } catch { /* ignore */ } }, []);
+  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20">("trending");
+  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
+  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20" || f === "psol20" || f === "clt20") setFilterRaw(f); } catch { /* ignore */ } }, []);
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
@@ -152,7 +152,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     let live = true;
     setList(null); setErr(false);
     const query = q.trim().replace(/^\$/, "");
-    const url = filter === "dsol20" ? `/api/terminal?list=dsol20${query.length >= 2 ? `&q=${encodeURIComponent(query)}` : ""}`
+    const url = filter === "dsol20" || filter === "psol20" || filter === "clt20" ? `/api/terminal?list=${filter}${query.length >= 2 ? `&q=${encodeURIComponent(query)}` : ""}`
       : query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`;
     // silent = rafraîchissement automatique : la liste se met à jour sans clignoter ni se vider
     const load = async (silent: boolean) => {
@@ -210,6 +210,13 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/chains/dogecoin.png" alt="" className="size-[18px] rounded-full" />DSOL-20
             </button>
+            {/* PSOL-20 (paire PEPE) et CLT-20 (paire ClawdTrust) */}
+            {([["psol20", "/pepe.png", "PSOL-20"], ["clt20", "/clawdtrust-coin.png", "CLT-20"]] as const).map(([k, logo, label]) => (
+              <button key={k} onClick={() => setFilter(k)} className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logo} alt="" className="size-[18px] rounded-full object-cover" />{label}
+              </button>
+            ))}
             <Link href="/drc20" className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-border px-3.5 text-[15px] font-semibold text-muted-foreground hover:text-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/chains/dogecoin.png" alt="" className="size-[18px] rounded-full" />DRC-20
@@ -261,13 +268,13 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             </button>
           ))}
       </div>
-      {netSheet && <NetworkSheet selected={selected} onClose={() => setNetSheet(false)} />}
+      {netSheet && <NetworkSheet selected={selected} onClose={() => setNetSheet(false)} list={filter} onPickList={(k) => { setFilter(k); setNetSheet(false); }} />}
     </div>
   );
 }
 
 /** « Filtrer par réseau » : tous les réseaux, ou une sélection (Elysium et Robinhood : liste et graphique, trading bientôt). */
-function NetworkSheet({ selected, onClose }: { selected: TerminalChain[]; onClose: () => void }) {
+function NetworkSheet({ selected, onClose, list, onPickList }: { selected: TerminalChain[]; onClose: () => void; list?: string; onPickList?: (k: "dsol20" | "psol20" | "clt20") => void }) {
   const { tr } = useT();
   const router = useRouter();
   const [pick, setPick] = useState<TerminalChain[]>(selected);
@@ -294,6 +301,17 @@ function NetworkSheet({ selected, onClose }: { selected: TerminalChain[]; onClos
         <Row icon="/chains/mono/all.png" label={tr("All networks")} on={pick.length === 0} onClick={() => setPick([])} />
         {CHAINS.map((c) => <Row key={c.id} icon={`/chains/mono/${c.id}.png`} label={c.name === "BNB" ? "BNB Chain" : c.name === "Robinhood" ? "Robinhood Chain" : c.name} on={pick.includes(c.id)} onClick={() => toggle(c.id)} soon={!c.ready} />)}
       </div>
+      {/* Tokens lancés sur OM en paire DOGE, PEPE ou ClawdTrust (Solana) : logos en noir et blanc comme les réseaux */}
+      {onPickList && (
+        <>
+          <p className="mb-2 mt-5 px-1 text-[13px] font-semibold text-muted-foreground">{tr("OM pairs on Solana")}</p>
+          <div className="space-y-3">
+            {([["dsol20", "dogecoin", "DSOL-20 · DOGE"], ["psol20", "pepe", "PSOL-20 · PEPE"], ["clt20", "clt", "CLT-20 · ClawdTrust"]] as const).map(([k, icon, label]) => (
+              <Row key={k} icon={`/chains/mono/${icon}.png`} label={label} on={list === k} onClick={() => onPickList(k)} />
+            ))}
+          </div>
+        </>
+      )}
       <button onClick={save} className="mt-5 h-14 w-full rounded-3xl bg-foreground text-[17px] font-bold text-background">{tr("Save")}</button>
     </Sheet>
   );

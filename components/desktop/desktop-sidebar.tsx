@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { LanguageSelectRail } from "@/components/shared/language-select";
-import { ThemeSwitchRail } from "@/components/shared/theme-switch";
+import { DogeSwitchRail, ThemeSwitchRail } from "@/components/shared/theme-switch";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 
@@ -180,6 +180,7 @@ export function DesktopSidebar() {
           <Wallet className="size-[20px] shrink-0" />
           {wide && <span className="hidden text-[15px] font-semibold xl:inline">{isAuthenticated ? tr("My wallet") : tr("Connect wallet")}</span>}
         </button>
+        <DogeSwitchRail />
         <ThemeSwitchRail />
         <LanguageSelectRail />
         <button

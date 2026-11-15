@@ -200,6 +200,23 @@ export async function dsolList(db: any, q = ""): Promise<TerminalToken[]> {
     }));
 }
 
+/** PSOL-20 (paire PEPE) et CLT-20 (paire ClawdTrust) : même liste que DSOL-20, pour leur monnaie de paire. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function pairList(db: any, quoteMint: string, q = ""): Promise<TerminalToken[]> {
+  let qy = db.from("launchpad_tokens").select("id, name, ticker, logo_url, mint_address, price_usd, market_cap_usd, created_at")
+    .eq("chain", "solana").eq("quote_asset", quoteMint).eq("hidden", false).in("status", ["active", "graduating", "graduated"]).limit(60);
+  if (q) qy = qy.or(`ticker.ilike.%${q.replace(/[^\w$-]/g, "")}%,name.ilike.%${q.replace(/[^\w $-]/g, "")}%`);
+  const { data } = await qy.order("created_at", { ascending: false });
+  return ((data ?? []) as { id: string; name: string; ticker: string; logo_url: string | null; mint_address: string | null; price_usd: number | null; market_cap_usd: number | null; created_at: string }[])
+    .filter((t) => t.mint_address)
+    .map((t) => ({
+      mint: t.mint_address as string, symbol: t.ticker.slice(0, 16), name: t.name.slice(0, 40), logo: t.logo_url,
+      price: t.price_usd != null ? Number(t.price_usd) : null, change24h: null, volume24h: null,
+      mcap: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, liquidity: null, pool: "", createdAt: t.created_at,
+      chain: "solana" as const, href: `/launchpad/${t.id}`, verified: true,
+    }));
+}
+
 /** Retire les doublons entre listes (même token vu par plusieurs sources) en gardant la première fiche et en la complétant. */
 function dedupe(all: TerminalToken[][]): TerminalToken[][] {
   const seen = new Map<string, TerminalToken>();

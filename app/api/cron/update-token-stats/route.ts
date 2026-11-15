@@ -11,6 +11,7 @@
  * We process tokens in batches of 5 with 1s between batches.
  */
 import { isDogeQuote } from "@/lib/solana/doge";
+import { pairQuoteByMint } from "@/lib/solana/quotes";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection } from "@solana/web3.js";
@@ -126,7 +127,7 @@ export async function GET(req: Request) {
           let stats = await fetchStats(t.mint_address);
           // Aucun prix externe : on lit la courbe directement (hors xStock)
           // (hors DSOL-20 : la courbe est en DOGE, pas en SOL ; leur prix vient des sources externes)
-          if ((!stats || stats.priceUsd === null) && conn && solUsd && t.pool_address && !t.stock_symbol && !isDogeQuote(t.quote_asset)) {
+          if ((!stats || stats.priceUsd === null) && conn && solUsd && t.pool_address && !t.stock_symbol && !isDogeQuote(t.quote_asset) && !pairQuoteByMint(t.quote_asset)) {
             const chain = await onchainStats(conn, t.pool_address, t.supply ?? 0, solUsd);
             if (chain) stats = { priceUsd: chain.priceUsd, marketCap: stats?.marketCap ?? chain.marketCap, volume24h: stats?.volume24h ?? null };
           }

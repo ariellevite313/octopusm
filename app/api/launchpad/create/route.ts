@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { DOGE_MINT } from "@/lib/solana/doge";
+import { PAIR_QUOTES, pairQuoteByMint } from "@/lib/solana/quotes";
 import { nameTickerError } from "@/lib/launch/name-rules";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkNameAvailability, isProtectedName } from "@/services/launchpad-service";
 import { verifyTokenCreator, type CreatorVerdict } from "@/lib/launch/verify-creator";
 import { requireWallet } from "@/lib/social/session";
+import { reservedTicker } from "@/lib/launch/reserved-tickers";
 import { looksLikePdf, isOwnWhitepaperUrl, MAX_LOGO_BYTES, MAX_WHITEPAPER_BYTES } from "@/lib/launch/whitepaper";
 import { XSTOCK_LAUNCH_ENABLED } from "@/lib/solana/xstocks";
 
@@ -59,7 +61,7 @@ type CreatePayload = {
   // Solana : niveau de frais ("standard" = config actuelle, "low" = frais 1,25 %, créateur 0,5 %)
   sol_fee_tier?: "standard" | "low";
   /** Paire d'un lancement Solana : SOL (défaut) ou DOGE sur Solana (DSOL-20) */
-  sol_quote?: "sol" | "doge";
+  sol_quote?: "sol" | "doge" | "pepe" | "clt";
 };
 
 export async function POST(req: Request) {
@@ -84,6 +86,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not your wallet" }, { status: 403 });
     }
 
+    // Tickers DRC-20 réservés : seule l'équipe du projet (wallet validé par l'admin) peut les lancer
+    {
+      const r = await reservedTicker(payload.ticker, sess.wallet);
+      if (r.reserved && !r.allowed) {
+        return NextResponse.json({ error: "This ticker is reserved for its DRC-20 team. Submit a request to launch it.", code: "reserved_ticker" }, { status: 403 });
+      }
+    }
     if (isProtectedName(payload.name) || isProtectedName(payload.ticker)) {
       return NextResponse.json({ error: "This name or ticker is reserved" }, { status: 409 });
     }
@@ -152,10 +161,23 @@ export async function POST(req: Request) {
       if (payload.first_buy_enabled && (payload.first_buy_amount < 1 || payload.first_buy_amount > 1_000_000)) {
         return NextResponse.json({ error: "First buy amount must be between 1 and 1,000,000 DOGE" }, { status: 400 });
       }
-    } else if (payload.quote_asset === DOGE_MINT) payload.quote_asset = null;
+    } else if (payload.sol_quote === "pepe" || payload.sol_quote === "clt") {
+      // Paire PEPE ou ClawdTrust (CLT) sur Solana : même règle que DOGE, avec leur propre config Meteora
+      const pq = PAIR_QUOTES[payload.sol_quote];
+      if (payload.chain === "arc" || payload.stock_symbol) return NextResponse.json({ error: `${pq.symbol} pair is only for Solana launches` }, { status: 400 });
+      if (!process.env[pq.configEnv] || (payload.sol_fee_tier === "low" && !process.env[`${pq.configEnv}_LOW`])) {
+        return NextResponse.json({ error: `${pq.symbol} launches are not available yet` }, { status: 403 });
+      }
+      payload.quote_asset = pq.mint;
+      const [lo, hi] = pq.firstBuy;
+      if (payload.first_buy_enabled && (payload.first_buy_amount < lo || payload.first_buy_amount > hi)) {
+        return NextResponse.json({ error: `First buy amount must be between ${lo.toLocaleString("en-US")} and ${hi.toLocaleString("en-US")} ${pq.symbol}` }, { status: 400 });
+      }
+    } else if (pairQuoteByMint(payload.quote_asset)) payload.quote_asset = null;
+    const pairMint = isDoge ? DOGE_MINT : pairQuoteByMint(payload.quote_asset)?.mint ?? null;
 
     // First buy amount must be between 0.01 and 100 SOL (Solana only)
-    if (!isDoge && payload.chain !== "arc" && payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
+    if (!pairMint && payload.chain !== "arc" && payload.first_buy_enabled && (payload.first_buy_amount < 0.01 || payload.first_buy_amount > 100)) {
       return NextResponse.json({ error: "First buy amount must be between 0.01 and 100 SOL" }, { status: 400 });
     }
 
@@ -309,7 +331,7 @@ export async function POST(req: Request) {
         } : {
           // Solana: store stock info if stock-paired
           sol_fee_tier: payload.sol_fee_tier === "low" ? "low" : "standard",
-          ...(isDoge ? { quote_asset: DOGE_MINT } : {}),
+          ...(pairMint ? { quote_asset: pairMint } : {}),
           ...(payload.stock_symbol ? {
             stock_symbol: payload.stock_symbol,
             quote_asset:  payload.quote_asset ?? null,

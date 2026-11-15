@@ -1,6 +1,15 @@
 "use client";
 
 import { DOGE_LAUNCH_ENABLED } from "@/lib/solana/doge";
+import { ReservedTickerBox, useReservedTicker } from "@/components/launchpad/reserved-ticker";
+import { PAIR_LAUNCH_ON, PAIR_QUOTES, isPairQuote, type PairQuote } from "@/lib/solana/quotes";
+
+/** Paires spéciales activées : DOGE (déjà existant) + PEPE et CLT */
+const PAIR_ON: Record<PairQuote, boolean> = { doge: DOGE_LAUNCH_ENABLED, pepe: PAIR_LAUNCH_ON.pepe, clt: PAIR_LAUNCH_ON.clt };
+/** Paire spéciale choisie et activée, sinon null */
+const activePair = (t: string): PairQuote | null => (isPairQuote(t) && PAIR_ON[t] ? t : null);
+/** Montants rapides du premier achat, par paire */
+const PAIR_QUICK: Record<PairQuote, number[]> = { doge: [100, 500, 1000], pepe: [1_000_000, 5_000_000, 20_000_000], clt: [100_000, 1_000_000, 10_000_000] };
 import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 import { SolanaMark } from "@/components/shared/solana-mark";
 import { NAME_MAX, TICKER_MAX } from "@/lib/launch/name-rules";
@@ -82,7 +91,7 @@ type WizardData = {
   arc_fee_tier: 0 | 1 | 2;
   arc_launch_mode: "curve" | "direct";
   // Stock-paired (Solana)
-  sol_token_type: "sol" | "stock" | "doge";
+  sol_token_type: "sol" | "stock" | "doge" | "pepe" | "clt";
   sol_stock_symbol: string;      // ex: "xNVDA"
   sol_fee_tier: "standard" | "low";
 };
@@ -168,7 +177,7 @@ function SocialInput({ icon, value, onChange, placeholder, error }: {
 
 // ─── Écran 1 — Le coin ───────────────────────────────────────────────────────
 
-type Pair = "sol" | "usdc" | "stock" | "doge";
+type Pair = "sol" | "usdc" | "stock" | "doge" | "pepe" | "clt";
 
 function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpenSocials, openMore, setOpenMore }: {
   data: WizardData;
@@ -184,6 +193,8 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
   const { t, tr } = useT();
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<{ name?: boolean; ticker?: boolean }>({});
+  // Ticker DRC-20 réservé : seule l'équipe vérifiée peut le lancer
+  const reserved = useReservedTicker(data.ticker);
   const [lowFeeEnabled, setLowFeeEnabled] = useState(false);
   useEffect(() => {
     if (chain !== "solana") return;
@@ -227,24 +238,26 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
     set("whitepaper_file", file);
   }
 
-  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED ? "stock" : data.sol_token_type === "doge" && DOGE_LAUNCH_ENABLED ? "doge" : "sol";
+  const pair: Pair = chain === "arc" ? "usdc" : data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED ? "stock" : activePair(data.sol_token_type) ?? "sol";
   function pickPair(p: Pair) {
     if (p === "stock" && !XSTOCK_LAUNCH_ENABLED) return;
-    if (p === "doge" && !DOGE_LAUNCH_ENABLED) return;
+    if (isPairQuote(p) && !PAIR_ON[p]) return;
     if (p === "usdc") { onChainChange?.("arc"); return; }
     onChainChange?.("solana");
-    set("sol_token_type", p === "stock" ? "stock" : p === "doge" ? "doge" : "sol");
-    // Premier achat : l'unité change (SOL ↔ DOGE), on repart de zéro
-    if ((p === "doge") !== (data.sol_token_type === "doge")) { set("first_buy_enabled", false); set("first_buy_amount", p === "doge" ? 100 : 0.1); }
+    set("sol_token_type", p === "stock" ? "stock" : isPairQuote(p) ? p : "sol");
+    // Premier achat : l'unité change (SOL, DOGE, PEPE, CLT), on repart de zéro
+    const prev = activePair(data.sol_token_type);
+    const next = isPairQuote(p) ? p : null;
+    if (prev !== next) { set("first_buy_enabled", false); set("first_buy_amount", next ? PAIR_QUICK[next][0] : 0.1); }
   }
+  /** Solana choisi (SOL ou une paire spéciale) : on montre les tokens de pool possibles */
+  const solFamily = pair === "sol" || isPairQuote(pair);
   const ALL_PAIRS: { key: Pair; label: string; icon: React.ReactNode }[] = [
     { key: "sol",   label: "SOL",   icon: <SolanaMark className="size-9 text-foreground" /> },
     { key: "usdc",  label: "USDC",  icon: <Image src="/usdc-coin.png" alt="" width={36} height={36} className="rounded-full" unoptimized /> },
-    // eslint-disable-next-line @next/next/no-img-element
-    { key: "doge",  label: "DOGE",  icon: <img src="/chains/dogecoin.png" alt="" width={36} height={36} className="size-9 rounded-full" /> },
     { key: "stock", label: tr("Stock"), icon: <span className="flex size-9 items-center justify-center rounded-full bg-background"><TrendingUp className="size-5 text-up" /></span> },
   ];
-  const PAIRS = ALL_PAIRS.filter((p) => (p.key !== "stock" || XSTOCK_LAUNCH_ENABLED) && (p.key !== "doge" || DOGE_LAUNCH_ENABLED));
+  const PAIRS = ALL_PAIRS.filter((p) => p.key !== "stock" || XSTOCK_LAUNCH_ENABLED);
 
   return (
     <div className="space-y-6">
@@ -303,7 +316,8 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
           className={`${FIELD} uppercase placeholder:normal-case`}
         />
         {availability.ticker === true && <p className="mt-1.5 text-xs text-up">{tr("✓ Available")}</p>}
-        {availability.ticker === false && <p className="mt-1.5 text-xs text-red-500">{tr("✗ Already taken")}</p>}
+        {availability.ticker === false && !(reserved.info.reserved && !reserved.info.allowed) && <p className="mt-1.5 text-xs text-red-500">{tr("✗ Already taken")}</p>}
+        <ReservedTickerBox ticker={data.ticker} info={reserved.info} onSent={() => reserved.setInfo({ ...reserved.info, pending: true })} />
         {checking && <p className="mt-1.5 text-xs text-muted-foreground">{tr("Checking…")}</p>}
         <Err msg={errors.ticker} />
       </div>
@@ -351,11 +365,11 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
               <button
                 key={p.key}
                 type="button"
-                onClick={() => pickPair(p.key)}
-                aria-pressed={pair === p.key}
+                onClick={() => pickPair(p.key === "sol" && solFamily ? pair : p.key)}
+                aria-pressed={pair === p.key || (p.key === "sol" && solFamily)}
                 disabled={soon}
                 className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 bg-muted px-2 py-4 transition-colors ${
-                  soon ? "cursor-not-allowed border-transparent opacity-50" : pair === p.key ? "border-up" : "border-transparent hover:border-border"
+                  soon ? "cursor-not-allowed border-transparent opacity-50" : pair === p.key || (p.key === "sol" && solFamily) ? "border-up" : "border-transparent hover:border-border"
                 }`}
               >
                 {soon && (
@@ -379,8 +393,35 @@ function CoinForm({ data, set, errors, chain, onChainChange, openSocials, setOpe
             </div>
           )}
         </div>
+        {/* Solana : token de la pool (SOL, DOGE, PEPE, ClawdTrust) */}
+        {solFamily && (
+          <div className="mt-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">{tr("Pool token on Solana")}</p>
+            <div className="grid grid-cols-4 gap-2">
+              {([["sol", "SOL", null], ...(Object.values(PAIR_QUOTES).map((q) => [q.key, q.symbol, q.logo]))] as [Pair, string, string | null][]).map(([k, label, logo]) => {
+                const on = k === "sol" || (isPairQuote(k) && PAIR_ON[k]);
+                const active = pair === k;
+                return (
+                  <button key={k} type="button" disabled={!on} onClick={() => pickPair(k)} aria-pressed={active}
+                    className={`relative flex flex-col items-center gap-1.5 rounded-2xl border-2 bg-muted px-1 py-3 transition-colors ${
+                      !on ? "cursor-not-allowed border-transparent opacity-45" : active ? "border-up" : "border-transparent hover:border-border"}`}>
+                    {logo
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={logo} alt="" width={28} height={28} className="size-7 rounded-full object-cover" />
+                      : <SolanaMark className="size-7 text-foreground" />}
+                    <span className="text-[13px] font-bold text-foreground">{label}</span>
+                    {!on && <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{tr("Coming soon")}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <p className="mt-2 text-xs text-muted-foreground">
-          {pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : pair === "doge" ? tr("Launches on Solana, traded in DOGE. Your token is a DSOL-20 and its address starts with DoGE.") : tr("Launches on Solana, traded in SOL.")}
+          {pair === "pepe" ? tr("Launches on Solana, traded in PEPE. Your token is a PSOL-20 and its address ends with PEPE.")
+            : pair === "clt" ? tr("Launches on Solana, traded in ClawdTrust (CLT). Your token is a CLT-20 and its address starts with CLT.")
+            : pair === "usdc" ? tr("Launches on Arc, traded in USDC.") : pair === "stock" ? tr("Launches on Solana, paired with a tokenized stock.") : pair === "doge" ? tr("Launches on Solana, traded in DOGE. Your token is a DSOL-20 and its address starts with DoGE.") : tr("Launches on Solana, traded in SOL.")}
         </p>
 
         {pair === "stock" && (
@@ -479,8 +520,10 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
 }) {
   const isArc   = chain === "arc";
   const isStock = !isArc && data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED;
-  const isDoge  = !isArc && data.sol_token_type === "doge" && DOGE_LAUNCH_ENABLED;
-  const unit    = isArc ? "USDC" : isDoge ? "DOGE" : "SOL";
+  // Paire spéciale (DOGE, PEPE, CLT) : montants dans cette monnaie
+  const pq      = isArc ? null : activePair(data.sol_token_type);
+  const isDoge  = pq !== null;
+  const unit    = isArc ? "USDC" : pq ? PAIR_QUOTES[pq].symbol : "SOL";
   const maxDec  = isArc ? 2 : isDoge ? 0 : 3;
   const [raw, setRaw] = useState(() => {
     if (isArc) return data.arc_first_buy_enabled ? String(data.arc_first_buy_usdc) : "0";
@@ -509,12 +552,12 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
     const next = raw === "0" ? k : raw + k;
     const n = parseFloat(next);
     if (!isArc && !isDoge && n > 100) return;
-    if (isDoge && n > 1_000_000) return;
+    if (pq && n > PAIR_QUOTES[pq].firstBuy[1]) return;
     if (isArc && n > 1_000_000) return;
     commit(next);
   }
 
-  const QUICK = isArc ? [25, 50, 100] : isDoge ? [100, 500, 1000] : [0.1, 0.5, 1];
+  const QUICK = isArc ? [25, 50, 100] : pq ? PAIR_QUICK[pq] : [0.1, 0.5, 1];
   const amount = parseFloat(raw) || 0;
 
   // Estimation de tokens sur Arc (courbe initiale)
@@ -534,14 +577,14 @@ function BuyScreen({ data, set, errors, chain, onBack }: {
   const mintCost = PLATFORM_FEE_SOL + NETWORK_RENT + (data.is_scheduled ? SCHEDULED_FEE_SOL : 0);
   const total = isArc
     ? `~${(amount + 0.04).toFixed(2)} USDC`
-    : isDoge ? `~${mintCost.toFixed(3)} SOL${amount > 0 ? ` + ${amount} DOGE` : ""}` : `~${(mintCost + (isStock ? 0 : amount)).toFixed(3)} SOL`;
+    : isDoge ? `~${mintCost.toFixed(3)} SOL${amount > 0 ? ` + ${amount.toLocaleString("en-US")} ${unit}` : ""}` : `~${(mintCost + (isStock ? 0 : amount)).toFixed(3)} SOL`;
   const feeRows: [string, string][] = isArc
     ? [["Creation fee", "Free"], ["Network gas", "~0.04 USDC"], ...(amount > 0 ? [["First buy", `${amount} USDC`] as [string, string]] : [])]
     : [
         ["Platform fee", `${PLATFORM_FEE_SOL} SOL`],
         ["Network rent", `~${NETWORK_RENT.toFixed(4)} SOL`],
         ...(data.is_scheduled ? [["Scheduled launch", `${SCHEDULED_FEE_SOL.toFixed(2)} SOL`] as [string, string]] : []),
-        ...(!isStock && amount > 0 ? [["First buy", `${amount} ${isDoge ? "DOGE" : "SOL"}`] as [string, string]] : []),
+        ...(!isStock && amount > 0 ? [["First buy", `${amount.toLocaleString("en-US")} ${unit}`] as [string, string]] : []),
         ...(isStock ? [["Signatures", "3 (fee + config + pool)"] as [string, string]] : []),
       ];
 
@@ -735,9 +778,9 @@ function validate(step: number, data: WizardData): Record<string, string> {
   }
   if (step === 2) {
     if (data.is_scheduled && !data.scheduled_at) errors.scheduled_at = "Please pick a launch date";
-    if (data.first_buy_enabled && data.sol_token_type === "doge" && data.first_buy_amount < 1)
-      errors.first_buy_amount = "Minimum first buy is 1 DOGE";
-    else if (data.first_buy_enabled && data.sol_token_type !== "doge" && data.first_buy_amount < 0.01)
+    if (data.first_buy_enabled && activePair(data.sol_token_type) && data.first_buy_amount < PAIR_QUOTES[activePair(data.sol_token_type)!].firstBuy[0])
+      errors.first_buy_amount = `Minimum first buy is ${PAIR_QUOTES[activePair(data.sol_token_type)!].firstBuy[0].toLocaleString("en-US")} ${PAIR_QUOTES[activePair(data.sol_token_type)!].symbol}`;
+    else if (data.first_buy_enabled && !activePair(data.sol_token_type) && data.first_buy_amount < 0.01)
       errors.first_buy_amount = "Minimum first buy is 0.01 SOL";
     if (data.fee_recipients.length > 0) {
       const hasInvalidAddr = data.fee_recipients.some(r => !BASE58_RE.test(r.address.trim()));
@@ -756,8 +799,9 @@ function validateScreen(screen: number, data: WizardData): Record<string, string
     return e;
   }
   const e: Record<string, string> = {};
-  if (data.first_buy_enabled && data.sol_token_type === "doge" && data.first_buy_amount < 1) e.first_buy_amount = "Minimum first buy is 1 DOGE";
-  else if (data.first_buy_enabled && data.sol_token_type !== "doge" && !(data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED) && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
+  const fpq = activePair(data.sol_token_type);
+  if (data.first_buy_enabled && fpq && data.first_buy_amount < PAIR_QUOTES[fpq].firstBuy[0]) e.first_buy_amount = `Minimum first buy is ${PAIR_QUOTES[fpq].firstBuy[0].toLocaleString("en-US")} ${PAIR_QUOTES[fpq].symbol}`;
+  else if (data.first_buy_enabled && !fpq && !(data.sol_token_type === "stock" && XSTOCK_LAUNCH_ENABLED) && data.first_buy_amount < 0.01) e.first_buy_amount = "Minimum first buy is 0.01 SOL";
   if (data.arc_first_buy_enabled && data.arc_first_buy_usdc < 0.01) e.arc_first_buy_usdc = "Minimum first buy is 0.01 USDC";
   return e;
 }
@@ -862,7 +906,7 @@ export function CreateTokenWizard({
       scheduled_at: null,
       creator_wallet: walletAddress,
       sol_fee_tier: data.sol_fee_tier,
-      ...(data.sol_token_type === "doge" && DOGE_LAUNCH_ENABLED ? { sol_quote: "doge" } : {}),
+      ...(activePair(data.sol_token_type) ? { sol_quote: activePair(data.sol_token_type) } : {}),
       // Stock-Paired (Solana via Meteora DBC)
       ...(isStockPaired ? {
         stock_symbol: data.sol_stock_symbol,

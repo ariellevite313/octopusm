@@ -35,6 +35,7 @@ const NAV = [
   // ── Launchpad ──────────────────────────────────
   { href: "/admin/launches",     label: "Launches",    icon: Rocket },
   { href: "/admin/launchpad",    label: "Launchpad",   icon: Coins },
+  { href: "/admin/tickers",    label: "Reserved tickers",   icon: Coins },
   // ── Admin ──────────────────────────────────────
   { href: "/admin/tasks",        label: "Tasks",       icon: CheckSquare },
   { href: "/admin/reports",      label: "Reports",     icon: Flag },

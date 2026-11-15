@@ -9,6 +9,7 @@ import { LANGS, useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { MORE_ITEMS } from "@/lib/nav/more-items";
 import { useAuth } from "@/providers/auth-provider";
+import { COLOR_MODES, useColorMode } from "@/lib/color-mode";
 
 const row = "flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground";
 const isOn = (href: string, pathname: string) => pathname === href || pathname.startsWith(href + "/");
@@ -20,8 +21,33 @@ export function MenuFooter({ onSettings }: { onSettings: () => void }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === "dark";
+  const cm = useColorMode();
   return (
-    <div className="flex items-center gap-2 border-t border-border p-3">
+    <div className="border-t border-border">
+    {/* Modes couleur : DOGE, PEPE, CLT (boutons en verre 3D teinté). Un deuxième appui revient au mode normal. */}
+    <div className="px-3 pt-3">
+      <p className="mb-2 px-1 text-[13px] font-semibold text-muted-foreground">{tr("Color mode")}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {COLOR_MODES.map((m) => {
+          const on = cm.mode === m.id;
+          return (
+            <button key={m.id} type="button" onClick={() => cm.set(on ? "none" : m.id)} aria-pressed={on}
+              className="flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-2.5 text-[12px] font-bold transition-all"
+              style={{
+                borderColor: on ? m.color : "transparent",
+                background: on ? `linear-gradient(180deg, ${m.color}33, ${m.color}14)` : "var(--muted)",
+                boxShadow: on ? `inset 0 1px 0 rgb(255 255 255 / 0.6), 0 6px 16px -8px ${m.color}` : "none",
+                color: "var(--foreground)",
+              }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.logo} alt="" className="size-7 rounded-full object-cover" />
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+    <div className="flex items-center gap-2 p-3">
       <button type="button" onClick={onSettings} className="flex h-11 flex-1 items-center gap-2.5 rounded-2xl px-4 text-[15px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
         <Settings className="size-[18px]" strokeWidth={1.9} />
         {tr("Settings")}
@@ -37,6 +63,7 @@ export function MenuFooter({ onSettings }: { onSettings: () => void }) {
           );
         })}
       </div>
+    </div>
     </div>
   );
 }
