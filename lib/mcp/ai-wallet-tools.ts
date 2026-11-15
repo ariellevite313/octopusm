@@ -4,7 +4,7 @@
  * compte de l'IA (son propre profil), pas avec celui de l'humain.
  */
 import { ToolError, type McpTool, type ToolCtx } from "@/lib/mcp/tools";
-import { AgentWalletError, aiBet, aiCreateMarket, aiLaunch, aiSwap, aiSwapEvm, aiTradeOm, balances, walletForConnection, type AgentWallet } from "@/lib/agent-wallet/server";
+import { AgentWalletError, aiBet, aiCreateMarket, aiLaunch, aiSwap, aiSwapArc, aiSwapEvm, aiTradeOm, balances, walletForConnection, type AgentWallet } from "@/lib/agent-wallet/server";
 import { AgentKeyError } from "@/lib/agent-wallet/keys";
 
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
@@ -57,6 +57,23 @@ export const AI_WALLET_TOOLS: McpTool[] = [
       if (!MINT.test(mint)) throw new ToolError("mint must be a Solana token address");
       const w = await mine(ctx);
       return run(() => aiSwap(w, { mint, side: side(a.side), amount: amt(a.amount), pay_with: a.pay_with === "USDC" ? "USDC" : "SOL", slippage_bps: slip(a.slippage_bps) }));
+    },
+  },
+  {
+    name: "ai_swap_arc",
+    description: "Buy or sell a token already listed on Arc (for example TOLLY or ARGUS, found with get_terminal_tokens chain arc) with your wallet, through the OMdotfun Uniswap V4 router. Buy: amount = USDC to spend (USDC is Arc's native coin). Sell: amount = number of tokens. Counts in the limits set by your human. Tokens launched on OMdotfun use ai_trade_om_token instead.",
+    readOnly: false,
+    inputSchema: S({
+      token: { type: "string", description: "Token contract address on Arc (0x...)" },
+      side: { type: "string", enum: ["buy", "sell"] },
+      amount: { type: "number" },
+      slippage_bps: { type: "integer", minimum: 10, maximum: 1000 },
+    }, ["token", "side", "amount"]),
+    run: async (a, ctx) => {
+      const token = String(a.token ?? "");
+      if (!/^0x[0-9a-fA-F]{40}$/.test(token)) throw new ToolError("token must be an Arc contract address");
+      const w = await mine(ctx);
+      return run(() => aiSwapArc(w, { token, side: side(a.side), amount: amt(a.amount), slippage_bps: slip(a.slippage_bps) }));
     },
   },
   {

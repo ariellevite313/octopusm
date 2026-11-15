@@ -13,6 +13,8 @@ import { getProfiles } from "@/lib/profiles";
 import { UUID_RE } from "@/lib/social/posts";
 import { fetchImage, ImageUrlError } from "@/lib/mcp/fetch-image";
 import { AI_WALLET_TOOLS } from "@/lib/mcp/ai-wallet-tools";
+import { createArticle, uploadArticleImage } from "@/lib/social/create-article";
+import { getTradeCard } from "@/lib/trade-card";
 
 const SIGNED_ONLY = new Set(["trade_prepare", "trade_submit", "create_post_prepare", "create_post", "agent_action_prepare", "agent_action", "launch_token_prepare", "launch_token_submit", "launch_token_confirm"]);
 
@@ -128,6 +130,110 @@ export const USER_TOOLS: McpTool[] = [
       const r = await createPost(ctx.user.wallet, body, files, { quoteOf: q });
       if (r.status >= 400) throw new ToolError(String(r.data.error ?? "Could not publish"));
       return r.data;
+    },
+  },
+  {
+    name: "create_article",
+    description: "Publish a long article (not a simple post) on the OMdotfun feed as the connected user: a title, the body in Markdown (## headings, **bold**, lists, links, images as ![alt](https://...)), and an optional cover image. Images given as public https links or base64 are uploaded and checked automatically. 50 to 20,000 characters, up to 12 images, 3 articles per 24 hours. Returns the article id; it opens at /article/<id>.",
+    readOnly: false,
+    inputSchema: S({
+      title: { type: "string", minLength: 3, maxLength: 120 },
+      body: { type: "string", minLength: 50, maxLength: 20000, description: "Markdown" },
+      cover_url: { type: "string", description: "Public https link to the cover image (optional)" },
+      cover_base64: { type: "string", description: "Or the cover image in base64 (max 5 MB)" },
+    }, ["title", "body"]),
+    run: async (a, ctx) => {
+      if (!ctx.user) throw new ToolError("Not connected");
+      need(ctx.user.scopes, "social");
+      const wallet = ctx.user.wallet;
+      const up = async (bytes: Buffer) => {
+        const r = await uploadArticleImage(wallet, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+        if (r.status >= 400) throw new ToolError(String(r.data.error ?? "Image upload failed"));
+        return String(r.data.url);
+      };
+      const fromLink = async (link: string) => {
+        try { return await up((await fetchImage(link, 5 * 1024 * 1024)).buf); }
+        catch (e) { if (e instanceof ImageUrlError) throw new ToolError(e.message); throw e; }
+      };
+      let body = typeof a.body === "string" ? a.body : "";
+      // Images du texte : envoyées sur OMdotfun puis remplacées par leur nouvelle adresse
+      const links = [...new Set([...body.matchAll(/!\[[^\]]{0,200}\]\((https:\/\/[^)\s]+)\)/g)].map((m) => m[1]))].slice(0, 12);
+      for (const l of links) { const u = await fromLink(l); body = body.split(`(${l})`).join(`(${u})`); }
+      let cover: string | null = null;
+      if (typeof a.cover_base64 === "string" && a.cover_base64) cover = await up(Buffer.from(a.cover_base64, "base64"));
+      else if (typeof a.cover_url === "string" && a.cover_url) cover = await fromLink(a.cover_url);
+      const r = await createArticle(wallet, { title: a.title, body, cover_url: cover ?? undefined });
+      if (r.status >= 400) throw new ToolError(String(r.data.error ?? "Could not publish the article"));
+      return { ...r.data, url: `${ctx.origin}/article/${r.data.id}` };
+    },
+  },
+  {
+    name: "get_trade_card",
+    description: "Trade card of any wallet on a token (public on-chain activity known to OMdotfun): buys and sells, open or closed position, amount invested, realized + unrealized gain in $ and %, and a shareable image (glass card with the OMDOTFUN mark). Works for Solana and Arc tokens.",
+    readOnly: true,
+    inputSchema: S({ wallet: { type: "string" }, mint: { type: "string", description: "Token mint (Solana) or contract (Arc)" } }, ["wallet", "mint"]),
+    run: async (a, ctx) => {
+      const wallet = String(a.wallet ?? "").trim(), mint = String(a.mint ?? "").trim();
+      if (!wallet || !mint) throw new ToolError("wallet and mint are required");
+      const c = await getTradeCard(wallet, mint);
+      if (!c) return { found: false, message: "No trade of this wallet on this token is known to OMdotfun." };
+      return {
+        found: true, name: c.name, symbol: c.symbol, chain: c.chain, open: c.open, trades: c.trades.length,
+        bought_usd: c.bought, sold_usd: c.sold, holding_value_usd: c.value, pnl_usd: c.pnl, pnl_pct: c.pct,
+        image: `${ctx.origin}/api/og/trade/${encodeURIComponent(wallet)}?mint=${encodeURIComponent(mint)}`,
+      };
+    },
+  },
+  {
+    name: "get_token_analysis",
+    description: "Holder analysis of a Solana token, as shown in the OMdotfun Terminal: number of holders, biggest holders, bundle (wallets that bought together in the first blocks), probable bots and snipers (OMdotfun AI wallets are never counted), and linked wallets (one funded the other, or same funder). Estimates, not certainties. Not investment advice.",
+    readOnly: true,
+    inputSchema: S({ mint: { type: "string", description: "Solana token mint" } }, ["mint"]),
+    run: async (a, ctx) => {
+      const mint = String(a.mint ?? "").trim();
+      if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) throw new ToolError("mint must be a Solana token address");
+      const get = (path: string) => fetch(`${ctx.origin}${path}`, { signal: AbortSignal.timeout(45_000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const [holders, count, bundle, bots, links] = await Promise.all([
+        get(`/api/launchpad/holders/${mint}`), get(`/api/terminal/holder-count?chain=solana&mint=${mint}`), get(`/api/launchpad/bundle/${mint}`),
+        get(`/api/terminal/bots?mint=${mint}`), get(`/api/terminal/links?mint=${mint}`),
+      ]);
+      const top = ((holders?.holders ?? []) as { owner: string; pct: number; isProgram: boolean; name: string | null }[]).slice(0, 20);
+      return {
+        holders: count?.count ?? holders?.total ?? null,
+        top_holders: top.map((h) => ({ wallet: h.owner, name: h.name, pct: Number(h.pct.toFixed(3)), liquidity_pool_or_program: h.isProgram })),
+        bundle: bundle?.available ? { wallets: bundle.wallets, pct: bundle.pct } : null,
+        bots: bots?.available ? { wallets: bots.wallets, pct: bots.pct } : null,
+        linked_wallets: links?.links ?? [],
+        note: "Estimates from on-chain data, not investment advice.",
+      };
+    },
+  },
+  {
+    name: "get_token_trades",
+    description: "Recent buys and sells of a token made by OMdotfun users (OMdotfun launches and swaps through OMdotfun), the same markers the Terminal can show on the chart: wallet, side, amount in $, time.",
+    readOnly: true,
+    inputSchema: S({ mint: { type: "string", description: "Token mint (Solana) or contract (Arc)" } }, ["mint"]),
+    run: async (a, ctx) => {
+      const mint = String(a.mint ?? "").trim();
+      const r = await fetch(`${ctx.origin}/api/terminal/trades?mint=${encodeURIComponent(mint)}`, { signal: AbortSignal.timeout(20_000) }).then((x) => x.json()).catch(() => null);
+      if (!r || r.error) throw new ToolError(r?.error ?? "Trades unavailable right now");
+      return { trades: ((r.trades ?? []) as { w: string; s: string; usd: number; t: number }[]).slice(-100).map((t) => ({ wallet: t.w, side: t.s === "b" ? "buy" : "sell", usd: t.usd, at: new Date(t.t * 1000).toISOString() })) };
+    },
+  },
+  {
+    name: "get_terminal_tokens",
+    description: "Tokens listed in the OMdotfun Terminal for one or more networks (solana, arc, base, bnb, hyperliquid, ethereum, arbitrum, polygon, avalanche): trending, new, top volume or big crypto, or a search by name or address. On Arc it includes tokens listed on Uniswap (TOLLY, ARGUS...) and OMdotfun launches.",
+    readOnly: true,
+    inputSchema: S({
+      chains: { type: "string", description: "Comma separated, default all" },
+      list: { type: "string", enum: ["trending", "new", "volume", "crypto"] },
+      q: { type: "string", description: "Search (name, symbol or address)" },
+    }),
+    run: async (a, ctx) => {
+      const qs = new URLSearchParams({ chains: typeof a.chains === "string" && a.chains ? a.chains : "all" });
+      if (typeof a.q === "string" && a.q.trim().length >= 2) qs.set("q", a.q.trim().slice(0, 60)); else qs.set("list", typeof a.list === "string" ? a.list : "trending");
+      const r = await fetch(`${ctx.origin}/api/terminal?${qs}`, { signal: AbortSignal.timeout(20_000) }).then((x) => x.json()).catch(() => null);
+      return { tokens: ((r?.tokens ?? []) as Record<string, unknown>[]).slice(0, 40).map((t) => ({ chain: t.chain ?? "solana", address: t.mint, symbol: t.symbol, name: t.name, price: t.price, change24h: t.change24h, volume24h: t.volume24h, mcap: t.mcap, liquidity: t.liquidity, om_launch: !!t.href })) };
     },
   },
   {

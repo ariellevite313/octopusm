@@ -23,6 +23,7 @@ import { POST as predictRoute } from "@/app/api/pools/predict/route";
 import { evmAccount, newWallets, solKeypair } from "@/lib/agent-wallet/keys";
 import { checkEvmInput, EVM_CHAINS, EvmSwapError, isEvmChain, zeroX, type EvmChain } from "@/lib/swap/evm";
 import { RESERVE_ERRORS, type AgentKind } from "@/lib/agent-wallet/limits";
+import { ARC_DIRECT_ROUTER_ABI, ARC_DIRECT_ROUTER_ADDRESS } from "@/lib/arc-launchpad";
 
 export class AgentWalletError extends Error {}
 
@@ -272,6 +273,49 @@ export async function aiSwapEvm(w: AgentWallet, p: { chain: string; token: strin
     const hash = await wc.sendTransaction({ to: q.tx.to as Hex, data: q.tx.data as Hex, value: BigInt(q.tx.value || "0"), ...(q.tx.gas ? { gas: BigInt(q.tx.gas) } : {}) });
     if ((await pc.waitForTransactionReceipt({ hash, timeout: 90_000 })).status !== "success") throw new AgentWalletError("The swap failed on-chain");
     return { tx: hash, explorer: `${EVM_CHAINS[chain].explorer}/tx/${hash}`, out_estimate: q.buyAmount };
+  });
+}
+
+/** Frais de pool V4 sans hook que le routeur Arc d'OM sait viser (le meilleur prix l'emporte). */
+const ARC_FEES = [100, 500, 2500, 3000, 5000, 10000, 15000, 20000, 30000];
+
+/**
+ * Achat / vente d'un token déjà coté sur Arc (TOLLY, ARGUS…) par le routeur Uniswap V4 d'OM.
+ * Achat : amount = USDC à dépenser. Vente : amount = nombre de tokens. USDC est la monnaie native d'Arc.
+ */
+export async function aiSwapArc(w: AgentWallet, p: { token: string; side: "buy" | "sell"; amount: number; slippage_bps?: number }) {
+  if (!ARC_DIRECT_ROUTER_ADDRESS) throw new AgentWalletError("Arc trading is not available yet");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(p.token)) throw new AgentWalletError("token must be an Arc contract address");
+  if (!Number.isFinite(p.amount) || p.amount <= 0) throw new AgentWalletError("amount must be positive");
+  const router = ARC_DIRECT_ROUTER_ADDRESS as Hex, token = p.token as Hex;
+  const pc = createPublicClient({ chain: arc, transport: http(ARC_RPC) });
+  const decimals = Number(await pc.readContract({ address: token, abi: erc20Abi, functionName: "decimals" }).catch(() => { throw new AgentWalletError("Unknown token on Arc"); }));
+  const raw = BigInt(Math.floor(p.amount * 10 ** (p.side === "buy" ? 18 : decimals)));
+  const fn = p.side === "buy" ? "quoteBuy" : "quoteSell";
+  const quotes = await Promise.all(ARC_FEES.map(async (fee) => {
+    try { const { result } = await pc.simulateContract({ address: router, abi: ARC_DIRECT_ROUTER_ABI, functionName: fn, args: [token, fee, raw] }); return { fee, out: result as bigint }; }
+    catch { return { fee, out: 0n }; }
+  }));
+  const best = quotes.filter((q) => q.out > 0n).sort((a, b) => (b.out > a.out ? 1 : -1))[0];
+  if (!best) throw new AgentWalletError("This token has no pool OM can trade yet");
+  const slip = BigInt(10_000 - Math.min(Math.max(p.slippage_bps ?? 100, 10), 2000));
+  const minOut = (best.out * slip) / 10_000n;
+  return guarded(w, "swap", p.side === "buy" ? p.amount : 0, `${p.side} ${p.amount} ${p.side === "buy" ? "USDC" : "tokens"} of ${p.token} on Arc`, async () => {
+    const account = evmAccount(w.evm_secret);
+    const wc = createWalletClient({ account, chain: arc, transport: http(ARC_RPC) });
+    if (p.side === "sell") {
+      const allowance = (await pc.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account.address, router] })) as bigint;
+      if (allowance < raw) {
+        const ah = await wc.sendTransaction({ to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [router, raw] }), value: 0n });
+        if ((await pc.waitForTransactionReceipt({ hash: ah, timeout: 90_000 })).status !== "success") throw new AgentWalletError("The token approval failed");
+      }
+    }
+    const data = p.side === "buy"
+      ? encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "buy", args: [token, best.fee, minOut, account.address] })
+      : encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "sell", args: [token, best.fee, raw, minOut, account.address] });
+    const hash = await wc.sendTransaction({ to: router, data, value: p.side === "buy" ? raw : 0n });
+    if ((await pc.waitForTransactionReceipt({ hash, timeout: 90_000 })).status !== "success") throw new AgentWalletError("The swap failed on Arc");
+    return { tx: hash, explorer: `https://explorer.arc.io/tx/${hash}`, out_estimate: best.out.toString() };
   });
 }
 
