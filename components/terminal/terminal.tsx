@@ -205,6 +205,10 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             {([["trending", tr("Trending")], ["crypto", tr("Crypto")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setFilter(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
+            <Link href="/drc20" className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-border px-3.5 text-[15px] font-semibold text-muted-foreground hover:text-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/chains/dogecoin.png" alt="" className="size-[18px] rounded-full" />DRC-20
+            </Link>
             <button onClick={() => setNetSheet(true)} aria-label={tr("Filter by network")}
               className={`relative flex size-10 shrink-0 items-center justify-center rounded-xl ${selected.length ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>
               <SlidersHorizontal className="size-[18px]" />

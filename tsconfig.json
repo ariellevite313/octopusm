@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     "supabase/functions",
-    "arc-launchpad"
+    "arc-launchpad",
+    "drc20-indexer"
   ]
 }

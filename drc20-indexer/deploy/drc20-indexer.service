@@ -1,0 +1,15 @@
+[Unit]
+Description=OMdotfun DRC-20 indexer
+After=network-online.target dogecoind.service
+Wants=dogecoind.service
+
+[Service]
+WorkingDirectory=/opt/drc20-indexer
+EnvironmentFile=/opt/drc20-indexer/.env
+ExecStart=/usr/bin/npx tsx src/main.ts
+Restart=always
+RestartSec=15
+User=doge
+
+[Install]
+WantedBy=multi-user.target

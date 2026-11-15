@@ -1,0 +1,21 @@
+{
+  "name": "omdotfun-drc20-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Indexer DRC-20 (Dogecoin) pour OMdotfun : lit les blocs d'un nœud Dogecoin Core, les inscriptions Doginals et applique les règles DRC-20.",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@types/node": "^22.0.0"
+  }
+}

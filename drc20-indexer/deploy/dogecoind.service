@@ -1,0 +1,13 @@
+[Unit]
+Description=Dogecoin Core
+After=network-online.target
+
+[Service]
+ExecStart=/opt/dogecoin/bin/dogecoind -conf=/home/doge/.dogecoin/dogecoin.conf -datadir=/home/doge/.dogecoin
+User=doge
+Restart=always
+RestartSec=30
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

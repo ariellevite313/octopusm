@@ -10,6 +10,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  { ignores: ["drc20-indexer/**"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
