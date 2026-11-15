@@ -20,3 +20,12 @@ export function extractMarketRef(body: string): { kind: "pool" | "prediction" | 
   if (!m) return null;
   return { kind: m[1] === "pools" ? "pool" : m[1] === "updown" ? "updown" : "prediction", key: m[2] };
 }
+
+/** Lien vers un post X : https://x.com/<handle>/status/<id> (twitter.com et mobile.* acceptés, ?s=19 etc. ignorés). */
+export const X_STATUS_RE = /https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{1,15})\/status(?:es)?\/(\d{5,25})[^\s]*/i;
+export const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
+
+export function extractXStatus(body: string): { handle: string; id: string; url: string } | null {
+  const m = body.match(X_STATUS_RE);
+  return m ? { handle: m[1], id: m[2], url: `https://x.com/${m[1]}/status/${m[2]}` } : null;
+}

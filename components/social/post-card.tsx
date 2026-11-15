@@ -18,7 +18,8 @@ import { TokenPill } from "./token-pill";
 import { MarketCard } from "./market-card";
 import { LivePrice, TickerPills } from "./live-price";
 import { cashtagsOf } from "@/lib/social/live-price";
-import { MARKET_URL_RE } from "@/lib/social/rich";
+import { MARKET_URL_RE, X_STATUS_RE, extractXStatus } from "@/lib/social/rich";
+import { XCard } from "./x-card";
 import { PostReplies } from "./post-replies";
 import { useContentTranslation } from "./translate-toggle";
 import { ShareSheet, POST_PERKS } from "@/components/shared/share-sheet";
@@ -56,7 +57,7 @@ function Avatar({ src, name, size = 44, ring = false }: { src: string | null; na
 }
 
 /** Texte : 4 lignes puis « more ». Les $TICKER sont en couleur. */
-const TOKEN_SPLIT = /(\$[A-Za-z][A-Za-z0-9]{1,15}|#[\p{L}\p{N}_]{2,30}|@[A-Za-z0-9_]{2,30})/gu;
+const TOKEN_SPLIT = /(https?:\/\/[^\s<>"']*[^\s<>"'.,;:!?)\]]|\$[A-Za-z][A-Za-z0-9]{1,15}|#[\p{L}\p{N}_]{2,30}|@[A-Za-z0-9_]{2,30})/gu;
 
 function PostText({ postId, body: original, mentions, hideUrl }: { postId: string; body: string; mentions: Record<string, string>; hideUrl: boolean }) {
   const { tr } = useT();
@@ -66,17 +67,22 @@ function PostText({ postId, body: original, mentions, hideUrl }: { postId: strin
   const [open, setOpen] = useState(false);
   const [clamped, setClamped] = useState(false);
   // Le lien du marché partagé est remplacé par sa carte
-  const text = hideUrl ? body.replace(MARKET_URL_RE, "").replace(/\n{3,}/g, "\n\n").trim() : body;
+  const xs = extractXStatus(body);
+  let text = hideUrl ? body.replace(MARKET_URL_RE, "").replace(/\n{3,}/g, "\n\n").trim() : body;
+  // Le lien d'un post X est remplacé par sa carte
+  if (xs) text = text.replace(new RegExp(X_STATUS_RE.source, "gi"), "").replace(/\n{3,}/g, "\n\n").trim();
   useEffect(() => {
     const el = ref.current;
     if (el && !open) setClamped(el.scrollHeight > el.clientHeight + 1);
   }, [text, open]);
-  if (!text) return null;
+  if (!text && !xs) return null;
   const parts = text.split(TOKEN_SPLIT);
   return (
     <div className="px-1">
+      {text && <>
       <div ref={ref} className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground ${open ? "" : "line-clamp-4"}`}>
         {parts.map((p, i) => {
+          if (/^https?:\/\//.test(p)) return <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()} className="font-semibold text-primary hover:underline">{p.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}{p.replace(/^https?:\/\/(www\.)?/, "").length > 40 ? "..." : ""}</a>;
           if (p.startsWith("$") && p.length > 2) return <Link key={i} href={`/?cashtag=${encodeURIComponent(p.slice(1).toUpperCase())}`} onClick={(e) => e.stopPropagation()} className="font-bold text-primary hover:underline">{p}</Link>;
           if (p.startsWith("#") && p.length > 2) return <Link key={i} href={`/?tag=${encodeURIComponent(p.slice(1).toLowerCase())}`} className="font-semibold text-primary hover:underline">{p}</Link>;
           if (p.startsWith("@") && p.length > 2) {
@@ -90,6 +96,8 @@ function PostText({ postId, body: original, mentions, hideUrl }: { postId: strin
         <button onClick={() => setOpen(true)} className="mt-0.5 text-sm font-semibold text-muted-foreground hover:text-foreground">{tr("more")}</button>
       )}
       <div>{translation.button}</div>
+      </>}
+      {xs && <div className="mt-2"><XCard handle={xs.handle} id={xs.id} url={xs.url} /></div>}
     </div>
   );
 }
