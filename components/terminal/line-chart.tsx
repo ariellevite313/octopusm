@@ -31,7 +31,29 @@ async function loadPoints(pool: string, r: TRange, net = "solana"): Promise<Pt[]
   return list.filter((p, i) => i === 0 || p.time !== list[i - 1].time);
 }
 
-export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana", mode = "line", fallbackPrice = null }: { pool: string; range: TRange; mode?: ChartMode; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string; fallbackPrice?: number | null }) {
+/** Achat (b) ou vente (s) d'un utilisateur d'OM, horodaté en secondes. */
+export type ChartMark = { t: number; s: "b" | "s"; usd: number };
+
+/** Un marqueur par bougie et par sens (le plus gros montant donne le libellé), calé sur l'horodatage de la bougie. */
+function toMarkers(pts: Pt[], marks: ChartMark[]) {
+  if (!pts.length) return [];
+  const first = pts[0].time, step = pts.length > 1 ? pts[1].time - pts[0].time : 60;
+  const by = new Map<string, { time: number; s: "b" | "s"; usd: number; n: number }>();
+  for (const m of marks) {
+    if (m.t < first - step) continue;
+    let lo = 0, hi = pts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (pts[mid].time <= m.t) lo = mid; else hi = mid - 1; }
+    const time = pts[lo].time, k = `${time}:${m.s}`;
+    const g = by.get(k) ?? { time, s: m.s, usd: 0, n: 0 };
+    g.usd += m.usd; g.n += 1; by.set(k, g);
+  }
+  return [...by.values()].sort((a, b) => a.time - b.time).map((g) => ({
+    time: g.time, position: g.s === "b" ? "belowBar" : "aboveBar", shape: "circle", size: g.usd >= 1000 ? 1.6 : 1,
+    color: g.s === "b" ? "#22c55e" : "#ef4444", text: `${g.s === "b" ? "B" : "S"}${g.n > 1 ? ` ${g.n}` : ""}`,
+  }));
+}
+
+export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana", mode = "line", fallbackPrice = null, marks = null }: { marks?: ChartMark[] | null; pool: string; range: TRange; mode?: ChartMode; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string; fallbackPrice?: number | null }) {
   const { tr } = useT();
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"load" | "ok" | "empty">("load");
@@ -87,6 +109,8 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
         setDot(x == null || y == null ? null : { x, y, color });
       };
       series.setData(toData(pts));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mk: any = marks?.length ? lw.createSeriesMarkers(series, toMarkers(pts, marks) as never) : null;
       chart.timeScale().fitContent();
       chart.timeScale().subscribeVisibleLogicalRangeChange(placeDot);
       setTimeout(placeDot, 0);
@@ -95,14 +119,14 @@ export function TerminalLineChart({ pool, range, onChange, heightClass = "h-[300
       if (range === "LIVE") {
         timer = setInterval(async () => {
           const n = await loadPoints(pool, "LIVE", network).catch(() => []);
-          if (!dead && n.length >= 2) { series.setData(toData(n)); lastPt = n[n.length - 1]; placeDot(); cb.current?.(n[0].value, n[n.length - 1].value); }
+          if (!dead && n.length >= 2) { series.setData(toData(n)); if (mk && marks) mk.setMarkers(toMarkers(n, marks)); lastPt = n[n.length - 1]; placeDot(); cb.current?.(n[0].value, n[n.length - 1].value); }
         }, 15_000);
       }
     } catch (e) { console.error("[terminal-chart]", e); if (!dead) setState("empty"); } })();
     const ro = new ResizeObserver(() => { if (chart && box.current) { chart.applyOptions({ width: box.current.clientWidth, height: box.current.clientHeight }); setTimeout(() => { try { chart.timeScale().fitContent(); } catch { /* retiré */ } }, 0); } });
     ro.observe(box.current);
     return () => { dead = true; ro.disconnect(); if (timer) clearInterval(timer); try { chart?.remove(); } catch { /* déjà retiré */ } };
-  }, [pool, range, network, mode, fallbackPrice]);
+  }, [pool, range, network, mode, fallbackPrice, marks]);
 
   return (
     <div className={`relative w-full ${heightClass}`}>

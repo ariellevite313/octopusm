@@ -44,7 +44,7 @@ describe("AI wallet limits", () => {
   });
   it("rejects bad values", () => {
     expect(parseLimits({ max_action_usd: -1 }).ok).toBe(false);
-    expect(parseLimits({ max_day_usd: 1e9 }).ok).toBe(false);
+    expect(parseLimits({ max_day_usd: 1e13 }).ok).toBe(false);
     expect(parseLimits({ max_action_usd: 300, max_day_usd: 100 }).ok).toBe(false);
     expect(parseLimits({ allow_trade: "yes" }).ok).toBe(false);
   });

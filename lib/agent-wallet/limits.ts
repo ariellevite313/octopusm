@@ -14,10 +14,11 @@ export const RESERVE_ERRORS: Record<string, string> = {
 
 export function parseLimits(b: Record<string, unknown>): { ok: true; v: Record<string, number | boolean> } | { ok: false; error: string } {
   const v: Record<string, number | boolean> = {};
-  for (const [k, max] of [["max_action_usd", 10_000], ["max_day_usd", 50_000]] as const) {
+  // Le propriétaire choisit ses plafonds sans maximum imposé (seule borne : un nombre positif raisonnable)
+  for (const k of ["max_action_usd", "max_day_usd"] as const) {
     if (b[k] === undefined) continue;
     const n = Number(b[k]);
-    if (!Number.isFinite(n) || n <= 0 || n > max) return { ok: false, error: `${k} must be between 0 and ${max}` };
+    if (!Number.isFinite(n) || n <= 0 || n > 1e12) return { ok: false, error: `${k} must be a positive amount` };
     v[k] = Math.round(n * 100) / 100;
   }
   if (typeof v.max_action_usd === "number" && typeof v.max_day_usd === "number" && v.max_action_usd > v.max_day_usd) {

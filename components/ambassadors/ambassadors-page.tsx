@@ -3,7 +3,8 @@
 /** Page /ambassadors : le programme, les places restantes et le formulaire de candidature. */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Coins, Gift, Loader2, Users } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { IconBadge, IconCommunity, IconFlag, IconGift, IconLink, IconSeek, IconShare, IconTiers, WorldDots } from "./amb-icons";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -42,46 +43,94 @@ export function AmbassadorsPage() {
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long" }) : "");
   const input = "w-full rounded-2xl border border-border bg-transparent px-3.5 py-3 text-[15px] outline-none focus:border-foreground/40";
   const perks = [
-    { icon: Coins, title: tr("{n}% of the fees", { n: AMBASSADOR_SHARE_PCT }), text: tr("On every trade of the people you bring, instead of {n}% for a normal referral. Credited automatically, trade by trade.", { n: NORMAL_REFERRAL_PCT }) },
-    { icon: Gift, title: tr("{n} Omero for your referrals", { n: AMBASSADOR_WELCOME_OMERO }), text: tr("Each person who signs up with your link receives a welcome bonus and joins your community.") },
-    { icon: BadgeCheck, title: tr("Ambassador badge"), text: tr("Shown on your profile and on your posts, with early access to new features.") },
-    { icon: Users, title: tr("Your official community"), text: tr("Lead the OMdotfun community of your country or your language.") },
+    { Icon: IconShare, title: tr("{n}% of the fees", { n: AMBASSADOR_SHARE_PCT }), text: tr("On every trade of the people you bring, instead of {n}% for a normal referral. Credited automatically, trade by trade.", { n: NORMAL_REFERRAL_PCT }) },
+    { Icon: IconGift, title: tr("{n} Omero for your referrals", { n: AMBASSADOR_WELCOME_OMERO }), text: tr("Each person who signs up with your link receives a welcome bonus and joins your community.") },
+    { Icon: IconBadge, title: tr("Ambassador badge"), text: tr("Shown on your profile and on your posts, with early access to new features.") },
+    { Icon: IconCommunity, title: tr("Your official community"), text: tr("Lead the OMdotfun community of your country or your language.") },
   ];
+  const steps = [
+    { Icon: IconFlag, title: tr("Independent partner"), text: tr("You lead your own community, your way. OMdotfun gives you the tools and the support.") },
+    { Icon: IconTiers, title: tr("Rewards on real activity"), text: tr("The more active users you bring, the more you earn. Nothing is paid in advance.") },
+    { Icon: IconLink, title: tr("Your own referral link"), text: tr("Use your OMdotfun referral link. Every trade of your community is tracked automatically.") },
+  ];
+  const H = ({ children }: { children: React.ReactNode }) => <h2 className="text-[22px] font-bold tracking-tight text-foreground sm:text-[26px]">{children}</h2>;
+  const cta = "inline-flex h-12 items-center justify-center rounded-full bg-foreground px-7 text-[15px] font-bold text-background transition-transform active:scale-[.98]";
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 px-4 py-8 pb-24">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/ambassador-banner.jpg" alt="" width={1080} height={608} className="aspect-[16/9] w-full rounded-3xl object-cover" />
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-foreground">{tr("Ambassador program")}</h1>
-        <p className="text-[15px] leading-relaxed text-muted-foreground">{tr("{max} places only. Bring real users to OMdotfun and earn more on their activity. Nothing is paid in advance: you earn only on real trades.", { max: AMBASSADOR_MAX })}</p>
-        <p className="text-[15px] font-semibold text-foreground">
-          {tr("{n} places left", { n: left })}
-          {open && <> · {daysLeft <= 1 ? tr("Last day to apply") : tr("{n} days left to apply", { n: daysLeft })} ({tr("until {date}", { date: fmtDate(st?.apply_until ?? null) })})</>}
-        </p>
-        {st?.results_at && <p className="text-[14px] text-muted-foreground">{tr("Selected ambassadors are announced on {date}.", { date: fmtDate(st.results_at) })}</p>}
-      </div>
+    <main className="mx-auto max-w-3xl space-y-14 px-4 py-8 pb-24">
+      {/* En-tête */}
+      <section className="space-y-5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/ambassador-banner.jpg" alt="" width={1280} height={720} className="aspect-[16/9] w-full rounded-3xl object-cover" />
+        <div className="space-y-3 text-center">
+          <h1 className="text-[30px] font-bold leading-tight tracking-tight text-foreground sm:text-[40px]">{tr("OMdotfun Ambassador Program")}</h1>
+          <p className="mx-auto max-w-xl text-[16px] leading-relaxed text-muted-foreground">{tr("Turn your community into a rewarding partnership. {max} places only, and you earn only on real activity.", { max: AMBASSADOR_MAX })}</p>
+          <p className="text-[15px] font-semibold text-foreground">
+            {tr("{n} places left", { n: left })}
+            {open && <> · {daysLeft <= 1 ? tr("Last day to apply") : tr("{n} days left to apply", { n: daysLeft })}</>}
+          </p>
+          {st?.results_at && <p className="text-[14px] text-muted-foreground">{tr("Selected ambassadors are announced on {date}.", { date: fmtDate(st.results_at) })}</p>}
+          <a href="#apply" className={cta}>{tr("Apply now")}</a>
+        </div>
+      </section>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {perks.map((p) => (
-          <div key={p.title} className="rounded-3xl border border-border p-4">
-            <p.icon className="size-6 text-foreground" />
-            <p className="mt-2 text-[16px] font-bold text-foreground">{p.title}</p>
-            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{p.text}</p>
-          </div>
-        ))}
-      </div>
+      {/* À propos + carte du monde */}
+      <section className="space-y-4">
+        <H>{tr("About the program")}</H>
+        <p className="text-[15px] leading-relaxed text-muted-foreground">{tr("You bring your network, OMdotfun brings the platform: prediction markets, token launches and a social feed in one place. Ambassadors lead the OMdotfun community in their language, wherever they are.")}</p>
+        <div className="rounded-3xl border border-border bg-muted/30 px-4 py-6 sm:px-8"><WorldDots className="w-full text-foreground" /></div>
+      </section>
 
-      <div className="rounded-3xl border border-border p-5">
-        <p className="text-[17px] font-bold text-foreground">{tr("Rules")}</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-[14px] text-muted-foreground">
-          <li>{tr("At least {n} real followers on X or Telegram, with engagement.", { n: AMBASSADOR_MIN_FOLLOWERS.toLocaleString() })}</li>
-          <li>{tr("You must be 18 or older.")}</li>
-          <li>{tr("No self-referral, no fake volume, no promise of gains. Fraud removes the status and the rewards.")}</li>
-          <li>{tr("An inactive ambassador (no new active user for 2 months) gives the place to someone else.")}</li>
-        </ul>
-      </div>
+      {/* Fonctionnement */}
+      <section className="space-y-5">
+        <H>{tr("How does the program work?")}</H>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {steps.map(({ Icon, title, text }) => (
+            <div key={title} className="rounded-3xl border border-border p-5">
+              <Icon className="size-20 text-foreground" />
+              <p className="mt-3 text-[16px] font-bold text-foreground">{title}</p>
+              <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
+      {/* Avantages */}
+      <section className="space-y-5">
+        <H>{tr("The benefits that await you")}</H>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {perks.map(({ Icon, title, text }) => (
+            <div key={title} className="flex items-start gap-4 rounded-3xl border border-border p-5">
+              <Icon className="size-24 shrink-0 text-foreground" />
+              <div className="pt-2">
+                <p className="text-[17px] font-bold text-foreground">{title}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Profil recherché */}
+      <section className="flex flex-col gap-5 rounded-3xl border border-border p-6 sm:flex-row sm:items-start">
+        <IconSeek className="size-24 shrink-0 text-foreground" />
+        <div>
+          <H>{tr("Who are we looking for?")}</H>
+          <ul className="mt-3 space-y-2 text-[15px] text-muted-foreground">
+            <li>{tr("At least {n} real followers on X or Telegram, with engagement.", { n: AMBASSADOR_MIN_FOLLOWERS.toLocaleString() })}</li>
+            <li>{tr("You must be 18 or older.")}</li>
+            <li>{tr("No self-referral, no fake volume, no promise of gains. Fraud removes the status and the rewards.")}</li>
+            <li>{tr("An inactive ambassador (no new active user for 2 months) gives the place to someone else.")}</li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Candidature */}
+      <section id="apply" className="scroll-mt-20 space-y-5">
+        <div className="space-y-1 text-center">
+          <H>{tr("Ready to be an OMdotfun ambassador?")}</H>
+          <p className="text-[15px] text-muted-foreground">{tr("Apply below and we will get back to you.")}{open && st?.apply_until ? ` ${tr("until {date}", { date: fmtDate(st.apply_until) })}` : ""}</p>
+        </div>
       {!st ? <div className="flex justify-center py-8"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
         : st.ambassador ? (
           <div className="rounded-3xl bg-muted/50 p-5 text-center">
@@ -98,8 +147,7 @@ export function AmbassadorsPage() {
           <div className="rounded-3xl bg-muted/50 p-5 text-center text-[15px] text-muted-foreground">{tr("Applications are closed. Results soon.")}</div>
         ) : (
           <div className="space-y-3 rounded-3xl border border-border p-5">
-            <p className="text-[17px] font-bold text-foreground">{tr("Apply")}</p>
-            <p className="pt-1 text-[14px] font-bold text-foreground">{tr("Your networks")}</p>
+                        <p className="pt-1 text-[14px] font-bold text-foreground">{tr("Your networks")}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <input value={f.x_handle} onChange={(e) => setF({ ...f, x_handle: e.target.value })} placeholder={tr("X account (@name)") + " *"} className={input} />
               <input value={f.telegram} onChange={(e) => setF({ ...f, telegram: e.target.value })} placeholder={tr("Telegram or Discord")} className={input} />
@@ -128,6 +176,9 @@ export function AmbassadorsPage() {
             </button>
           </div>
         )}
+      </section>
+
+      <p className="text-[12px] leading-relaxed text-muted-foreground/80">{tr("The program, its rewards and its conditions can change at any time. Ambassadors act independently: being an ambassador creates no employment or partnership relationship with OMdotfun. Rewards depend only on the real activity of the users you bring.")}</p>
     </main>
   );
 }

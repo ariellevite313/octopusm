@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Activity, AlertTriangle, BadgeCheck, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDownUp, BadgeCheck, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -26,7 +26,7 @@ import { UpDownSection } from "@/components/updown/updown-cards";
 
 const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium SOL/USDC
 import { executeSwap, toRaw } from "@/lib/swap/client";
-import { TerminalLineChart, T_RANGES, type ChartMode, type TRange } from "./line-chart";
+import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
 
 // ── Formats ───────────────────────────────────────────────────────────────────
 const compact = (n: number | null, d = 1) => n == null ? "-" : n >= 1e9 ? `$${(n / 1e9).toFixed(d)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(d)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(d)}K` : `$${n.toFixed(2)}`;
@@ -371,6 +371,17 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   // Ligne par défaut ; le choix de l'utilisateur (ligne ou chandeliers) est retenu
   const [mode, setMode] = useState<ChartMode>("line");
   useEffect(() => { try { if (localStorage.getItem("om_chart_mode") === "candle") setMode("candle"); } catch { /* ignore */ } }, []);
+  // Achats / ventes des autres utilisateurs sur le graphique (au choix, mémorisé)
+  const [showTrades, setShowTrades] = useState(false);
+  const [marks, setMarks] = useState<ChartMark[] | null>(null);
+  useEffect(() => { try { if (localStorage.getItem("om_chart_trades") === "1") setShowTrades(true); } catch { /* ignore */ } }, []);
+  useEffect(() => {
+    if (!showTrades) { setMarks(null); return; }
+    let off = false;
+    fetch(`/api/terminal/trades?mint=${encodeURIComponent(mint)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (!off) setMarks(j?.trades ?? []); }).catch(() => {});
+    return () => { off = true; };
+  }, [showTrades, mint]);
+  const toggleTrades = () => setShowTrades((v) => { try { localStorage.setItem("om_chart_trades", v ? "0" : "1"); } catch { /* ignore */ } return !v; });
   const toggleMode = () => setMode((m) => { const n = m === "line" ? "candle" : "line"; try { localStorage.setItem("om_chart_mode", n); } catch { /* ignore */ } return n; });
   const [move, setMove] = useState<{ first: number; last: number } | null>(null);
   const [tab, setTab] = useState<"holders" | "feed" | "about">("holders");
@@ -481,13 +492,17 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           </div>
 
           {/* Graphique */}
-          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} onChange={onChart} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
+          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 {r === "LIVE" ? <span className="flex items-center gap-1">LIVE<span className="size-1.5 rounded-full bg-up" /></span> : r}
               </button>
             ))}
+            <button onClick={toggleTrades} aria-pressed={showTrades} title={tr("Show buys and sells of OM users")} aria-label={tr("Show buys and sells of OM users")}
+              className={`ml-1 rounded-lg px-2.5 py-1.5 ${showTrades ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <ArrowDownUp className="size-[18px]" />
+            </button>
             {t.pool && (
               <button onClick={toggleMode} aria-label={mode === "line" ? tr("Candlestick chart") : tr("Line chart")} className="ml-1 rounded-lg px-2.5 py-1.5 text-muted-foreground hover:text-foreground">
                 {mode === "line" ? <CandlestickChart className="size-[18px]" /> : <Activity className="size-[18px]" />}
@@ -606,10 +621,21 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
     fetch(`/api/launchpad/bundle/${mint}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && d?.available && d.wallets?.length) setBundle({ wallets: d.wallets, pct: d.pct }); }).catch(() => {});
     return () => { off = true; };
   }, [mint, chain]);
+  const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
-    fetch(chain === "solana" ? `/api/launchpad/holders/${mint}` : `/api/terminal/holders?chain=${chain}&token=${mint}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => setRows(d.holders ?? [])).catch(() => setErr(true));
+    let off = false;
+    const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject()));
+    const main = chain === "solana" ? `/api/launchpad/holders/${mint}` : `/api/terminal/holders?chain=${chain}&token=${mint}`;
+    // Gros token ou RPC limité : on retente en mode léger (20 plus gros comptes) avant d'abandonner
+    get(main).catch(() => (chain === "solana" ? get(`${main}?light=1`) : Promise.reject()))
+      .then((d) => { if (off) return; setRows(d.holders ?? []); if (!d.partial && typeof d.total === "number") setCount(d.total); else if (typeof d.total === "number" && d.total > 20) setCount(d.total); })
+      .catch(() => { if (!off) setErr(true); });
+    // Nombre exact de holders quand la liste n'en donne qu'une partie (ou ne répond pas)
+    fetch(`/api/terminal/holder-count?chain=${chain}&mint=${encodeURIComponent(mint)}`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!off && typeof d?.count === "number") setCount(d.count); }).catch(() => {});
+    return () => { off = true; };
   }, [mint, chain]);
-  if (err) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>;
+  const total = count != null ? <p className="mb-1 text-sm font-bold text-foreground">{count.toLocaleString("en-US")} {tr("holders")}</p> : null;
+  if (err) return <div className="py-8 text-center">{total}<p className="text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p></div>;
   if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
   if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("No holders yet.")}</p>;
   const people = rows.filter((h) => !h.isProgram);
@@ -624,8 +650,9 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
       </div>
       {view === "bubbles" && <HoldersBubbles holders={rows} bundle={bundleSet} chain="solana" explorerUrl={explorerUrl} />}
       {view === "list" && <>
+      {total}
+      {bundle && <p className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-down/15 px-2.5 py-1 text-[13px] font-bold text-down">{tr("Bundle {pct}%", { pct: bundle.pct.toFixed(1) })} · {bundle.wallets.length} {tr("wallets")}</p>}
       <p className="mb-1 text-xs text-muted-foreground">{tr("Biggest holders, excluding pools and programs")}</p>
-      {bundle && <p className="mb-1 text-xs font-semibold text-down">{tr("Bundle {pct}%", { pct: bundle.pct.toFixed(1) })} · {bundle.wallets.length}</p>}
       {people.map((h) => (
         <Link key={h.owner} href={`/profile/${h.owner}`} className="flex items-center gap-3 py-2.5">
           {h.avatar
