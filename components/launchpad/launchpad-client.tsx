@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Rocket } from "lucide-react";
+import { Copy, Check, BadgeCheck, Bell, ChevronLeft, ChevronRight, ArrowUpDown, Flame, Trophy, Sprout, ChevronDown, ChevronUp, Rocket, History, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import type { LaunchpadToken, SortOption } from "@/services/launchpad-service";
@@ -478,6 +478,59 @@ const DESKTOP_SORTS: { value: SortOption; label: string; icon: React.ReactNode }
   { value: "verified",        label: T("Verified"),  icon: <BadgeCheck className="size-4" /> },
 ];
 
+
+const SORT_ICONS: Record<string, React.ReactNode> = {
+  new: <Sprout className="size-4" />,
+  old: <History className="size-4" />,
+  verified: <BadgeCheck className="size-4" />,
+  market_cap_desc: <TrendingDown className="size-4" />,
+  market_cap_asc: <TrendingUp className="size-4" />,
+  volume: <Flame className="size-4" />,
+};
+
+/** Menu de tri mobile : remplace le <select> natif (liste système d'Android). */
+export function SortMenu({ value, onChange }: { value: SortOption; onChange: (s: SortOption) => void }) {
+  const { tr } = useT();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const cur = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
+  return (
+    <div ref={ref} className="relative shrink-0 lg:hidden">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="listbox" aria-expanded={open}
+        className={`flex h-11 w-[140px] items-center gap-2 rounded-2xl border px-3 text-sm font-semibold text-foreground transition-colors ${open ? "border-border bg-card" : "border-transparent bg-muted"}`}>
+        <span className="text-muted-foreground">{SORT_ICONS[cur.value]}</span>
+        <span className="min-w-0 flex-1 truncate text-left">{tr(cur.label)}</span>
+        <ChevronDown className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div role="listbox" className="absolute right-0 top-[calc(100%+6px)] z-50 w-56 origin-top-right animate-in fade-in zoom-in-95 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.45)] duration-150">
+          <p className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{tr("Sort by")}</p>
+          {SORT_OPTIONS.map((o) => {
+            const on = o.value === value;
+            return (
+              <button key={o.value} type="button" role="option" aria-selected={on}
+                onClick={() => { onChange(o.value); setOpen(false); }}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm transition-colors ${on ? "bg-muted font-semibold text-foreground" : "text-foreground/80 hover:bg-muted/60"}`}>
+                <span className={on ? "text-foreground" : "text-muted-foreground"}>{SORT_ICONS[o.value]}</span>
+                <span className="flex-1">{tr(o.label)}</span>
+                {on && <Check className="size-4 text-foreground" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Pagination ─────────────────────────────────────────────────────────────────
 
 function Pagination({
@@ -751,7 +804,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
         </div>
 
         {/* Row 2: Search + Sort */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pt-2">
           <input
             type="text"
             value={search}
@@ -772,18 +825,7 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
             </div>
           )}
           {tab !== "watchlist" && (
-            <div className="relative shrink-0 lg:hidden">
-              <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-              <select
-                value={sort}
-                onChange={e => handleSortChange(e.target.value as SortOption)}
-                className="h-11 w-[140px] appearance-none rounded-2xl border border-transparent bg-muted pl-9 pr-3 text-sm font-semibold sm:w-auto text-foreground focus:outline-none focus:border-primary/50 cursor-pointer"
-              >
-                {SORT_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{tr(o.label)}</option>
-                ))}
-              </select>
-            </div>
+            <SortMenu value={sort} onChange={handleSortChange} />
           )}
         </div>
       </div>

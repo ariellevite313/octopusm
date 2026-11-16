@@ -2237,5 +2237,6 @@ const p: Record<string, string> = {
   "Held": "Détenu",
   "Sent": "Envoyé",
   "Recipients": "Destinataires",
+  "Sort by": "Trier par",
 };
 export default p;

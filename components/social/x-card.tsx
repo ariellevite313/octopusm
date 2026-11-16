@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
+import { Play, FileText } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
-type Info = { author?: string; text?: string | null; media?: { type: "photo" | "video" | "gif"; url: string } | null };
+type Info = { author?: string; text?: string | null; media?: { type: "photo" | "video" | "gif"; url: string } | null; article?: { title: string; text: string | null } | null; isArticle?: boolean };
 
 /** Aperçu d'un post X collé dans un post OM : média (image, vidéo, GIF), auteur et texte. Un clic ouvre X. */
 export function XCard({ handle, id, url }: { handle: string; id: string; url: string }) {
+  const { tr } = useT();
   const [info, setInfo] = useState<Info | null>(null);
   const [bad, setBad] = useState(false);
   useEffect(() => {
@@ -39,6 +41,13 @@ export function XCard({ handle, id, url }: { handle: string; id: string; url: st
           <span className="truncate">@{handle}</span>
         </div>
         {info?.text && <p className="mt-2 line-clamp-6 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground">{info.text}</p>}
+        {info?.isArticle && (
+          <div className="mt-2.5 rounded-xl border border-border bg-muted/50 p-3">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><FileText className="size-3.5" />{tr("Article")}</p>
+            <p className="mt-1 line-clamp-2 text-[15px] font-bold leading-snug text-foreground">{info.article?.title ?? tr("Read the article on X")}</p>
+            {info.article?.text && <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-muted-foreground">{info.article.text}</p>}
+          </div>
+        )}
       </div>
     </a>
   );
