@@ -14,12 +14,13 @@ import { verifyMessage } from "viem";
 import { isEvmChain, isAddr } from "@/lib/swap/evm";
 import { evmHolding, refMessage } from "@/lib/swap/chill-evm";
 import { CHILL_MIN_USD, CHILL_POSTS_PER_DAY } from "@/lib/swap/chill";
+import { arcHolding } from "@/lib/swap/chill-arc";
 
 export async function POST(req: Request) {
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const b = (await req.json().catch(() => ({}))) as { mint?: unknown; body?: unknown; chain?: unknown; holder?: unknown; signature?: unknown; nonce?: unknown };
-  if (isEvmChain(b.chain)) return postEvm(s.wallet, b as { mint?: unknown; body?: unknown; chain: string; holder?: unknown; signature?: unknown; nonce?: unknown });
+  if (isEvmChain(b.chain) || b.chain === "arc") return postEvm(s.wallet, b as { mint?: unknown; body?: unknown; chain: string; holder?: unknown; signature?: unknown; nonce?: unknown });
   if (s.wallet.startsWith("0x")) return NextResponse.json({ error: "Pick an EVM network to show a bag from this wallet" }, { status: 400 });
   const mint = typeof b.mint === "string" ? b.mint : "";
   const text = typeof b.body === "string" ? b.body.replace(/\r\n?/g, "\n").trim().slice(0, 1000) : "";
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
 
 /** Sac sur un réseau EVM : le détenteur est le wallet EVM de la session, ou un wallet EVM relié qui signe un message. */
 async function postEvm(sessionWallet: string, b: { mint?: unknown; body?: unknown; chain: string; holder?: unknown; signature?: unknown; nonce?: unknown }) {
-  const chain = b.chain as import("@/lib/swap/evm").EvmChain;
+  const chain = b.chain as import("@/lib/swap/evm").EvmChain; // « arc » aussi : traité plus bas avec le routeur d'Arc
   const token = typeof b.mint === "string" ? b.mint.toLowerCase() : "";
   const text = typeof b.body === "string" ? b.body.replace(/\r\n?/g, "\n").trim().slice(0, 1000) : "";
   if (!isAddr(token)) return NextResponse.json({ error: "Pick a token from your bags" }, { status: 400 });
@@ -74,7 +75,7 @@ async function postEvm(sessionWallet: string, b: { mint?: unknown; body?: unknow
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const { count } = await admin.from("posts").select("id", { count: "exact", head: true }).eq("author", sessionWallet).eq("kind", "bag").gte("created_at", since);
   if ((count ?? 0) >= CHILL_POSTS_PER_DAY) return NextResponse.json({ error: `You can show ${CHILL_POSTS_PER_DAY} bags per 24 hours` }, { status: 429 });
-  const h = await evmHolding(chain, holder, token);
+  const h = (chain as string) === "arc" ? await arcHolding(holder as `0x${string}`, token as `0x${string}`) : await evmHolding(chain, holder, token);
   if (h.usd == null) return NextResponse.json({ error: "No price for this token yet" }, { status: 400 });
   if (h.usd < CHILL_MIN_USD) return NextResponse.json({ error: `Hold at least $${CHILL_MIN_USD} of this token to show it` }, { status: 400 });
   if (text && (await moderateText(text)) === "blocked") return NextResponse.json({ error: "This post goes against our rules" }, { status: 400 });

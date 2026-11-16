@@ -34,6 +34,12 @@ export async function GET(req: Request) {
     } catch { /* marché indisponible */ }
     return NextResponse.json({ market: null, activity: [] });
   }
+  if (evmChain === "arc" && isAddr(mint)) {
+    // Token d'Arc : pas de DexScreener, le prix vient du routeur OM
+    const { arcTokenMeta } = await import("@/lib/swap/chill-arc");
+    const m = await arcTokenMeta(mint.toLowerCase() as `0x${string}`);
+    return NextResponse.json({ market: m?.price != null ? { pool: null, price: m.price, change24h: null, mcap: null, volume24h: null, liquidity: null, links: [] } : null, activity: [] });
+  }
   if (!isMint(mint)) return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   let market: Record<string, unknown> = { pool: null, price: null, change24h: null, mcap: null, volume24h: null, liquidity: null, links: [] };

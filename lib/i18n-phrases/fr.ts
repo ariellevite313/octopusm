@@ -1797,6 +1797,7 @@ const p: Record<string, string> = {
   "Holder share": "Part du détenteur",
   "40% of the fee to {who}": "40 % des frais pour {who}",
   "Connect a Solana wallet": "Connecte un portefeuille Solana",
+  "Includes a 0.5% OM fee, 40% of it goes to the holder who posted this bag.": "Inclut 0,5 % de frais OM, dont 40 % vont au détenteur qui a publié ce sac.",
   "Your bag is live": "Ton sac est en ligne",
   "Chill your bag": "Chill ton sac",
   "Show a token you hold. When people buy or sell it from your post, you earn 40% of the OM fee, paid instantly.": "Montre un token que tu détiens. Quand quelqu'un l'achète ou le vend depuis ton post, tu gagnes 40 % des frais OM, payés tout de suite.",

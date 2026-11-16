@@ -16,6 +16,7 @@ import { TerminalLineChart } from "@/components/terminal/line-chart";
 import type { Bag } from "@/lib/bags";
 import { USDC_MINT } from "@/lib/swap/core";
 import { EvmSwapBox } from "@/components/swap/evm-swap-box";
+import { ArcTradeBox } from "@/components/swap/arc-trade-box";
 import { EVM_CHAINS, isEvmChain, type EvmChain } from "@/lib/swap/evm";
 import { GT_NET } from "@/lib/terminal";
 import { useAuth } from "@/providers/auth-provider";
@@ -29,7 +30,13 @@ const TokenSwapDBC = dynamic(() => import("@/components/launchpad/token-swap-dbc
 function BagTrade({ mint, symbol, logo, side, postId, chain, onDone }: { mint: string; symbol: string; logo: string | null; side: "buy" | "sell"; postId?: string; chain?: string | null; onDone: () => void }) {
   const { tr } = useT();
   const [curve, setCurve] = useState<string | null | undefined>(undefined);
-  useEffect(() => { if (isEvmChain(chain)) return; fetch(`/api/swap/token?mint=${mint}`).then((r) => r.json()).then((j) => setCurve(j.token?.om_curve ?? null)).catch(() => setCurve(null)); }, [mint, chain]);
+  useEffect(() => { if (isEvmChain(chain) || chain === "arc") return; fetch(`/api/swap/token?mint=${mint}`).then((r) => r.json()).then((j) => setCurve(j.token?.om_curve ?? null)).catch(() => setCurve(null)); }, [mint, chain]);
+  if (chain === "arc") return (
+    <div>
+      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.5% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
+      <ArcTradeBox token={mint} symbol={symbol} refPost={postId} />
+    </div>
+  );
   if (isEvmChain(chain)) return (
     <div>
       {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
@@ -72,7 +79,8 @@ const usd = (n: number | null) => n == null ? "-" : n >= 1e9 ? `$${(n / 1e9).toF
 const price = (n: number | null) => n == null ? "-" : n >= 1 ? `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}` : n >= 0.0001 ? `$${n.toFixed(6).replace(/0+$/, "")}` : `$${n.toPrecision(3)}`;
 
 type PickBag = { id: string; symbol: string; name: string; logo: string | null; value: number | null };
-type Net = "solana" | EvmChain;
+type Net = "solana" | EvmChain | "arc";
+const netName = (n: Net) => (n === "solana" ? "Solana" : n === "arc" ? "Arc" : EVM_CHAINS[n].name);
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 
 /** Fenêtre de création : choisir le réseau (Solana ou EVM), un token de ses BAGS et écrire un message. */
@@ -104,7 +112,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
       return;
     }
     if (!evmAddr) { setBags([]); return; }
-    fetch(`/api/bags/evm?chain=${net}&address=${evmAddr}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { setBags(j.bags ?? []); setManual(!!j.manual); })
+    fetch(net === "arc" ? `/api/bags/arc?address=${evmAddr}` : `/api/bags/evm?chain=${net}&address=${evmAddr}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { setBags(j.bags ?? []); setManual(!!j.manual); })
       .catch(() => { setErr(tr("Could not read the wallet right now")); setBags([]); setManual(true); });
   }, [net, evmAddr, tr]);
 
@@ -117,7 +125,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
     if (!evmAddr || !/^0x[0-9a-f]{40}$/.test(t)) { setErr(tr("Paste a token contract address")); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await fetch(`/api/bags/evm?chain=${net}&address=${evmAddr}&token=${t}`);
+      const r = await fetch(net === "arc" ? `/api/bags/arc?address=${evmAddr}&token=${t}` : `/api/bags/evm?chain=${net}&address=${evmAddr}&token=${t}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Token not found");
       if ((j.bag.value ?? 0) < MIN_USD) throw new Error(`Hold at least $${MIN_USD} of this token to show it`);
@@ -161,8 +169,8 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
     <Sheet title={tr("Chill your bag")} onClose={onClose}>
       <p className="text-sm text-muted-foreground">{tr("Show a token you hold. When people buy or sell it from your post, you earn 40% of the OM fee, paid instantly.")}</p>
       <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {(["solana", ...(Object.keys(EVM_CHAINS) as EvmChain[])] as Net[]).map((n) => (
-          <button key={n} onClick={() => setNet(n)} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${net === n ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{n === "solana" ? "Solana" : EVM_CHAINS[n].name}</button>
+        {(["solana", ...(Object.keys(EVM_CHAINS) as EvmChain[]), "arc"] as Net[]).map((n) => (
+          <button key={n} onClick={() => setNet(n)} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${net === n ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{netName(n)}</button>
         ))}
       </div>
       {net !== "solana" && <p className="mt-2 text-xs text-muted-foreground">{tr("On EVM networks the 40% is added up for you and sent to your wallet.")}</p>}
@@ -170,7 +178,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
         <div className="mt-4">
           {net !== "solana" && !evmAddr ? (
             <div className="py-6 text-center">
-              <p className="text-sm text-muted-foreground">{tr("Connect an EVM wallet to show a token from {chain}", { chain: EVM_CHAINS[net].name })}</p>
+              <p className="text-sm text-muted-foreground">{tr("Connect an EVM wallet to show a token from {chain}", { chain: netName(net) })}</p>
               <button onClick={connect} className="mt-3 h-11 rounded-2xl bg-foreground px-6 text-[15px] font-bold text-background">{tr("Connect an EVM wallet")}</button>
             </div>
           ) : bags === null ? <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
@@ -241,7 +249,7 @@ export function BagCard({ postId, bag, authorName, mine }: { postId: string; bag
           {c != null && <p className={`num text-[12px] font-semibold ${c >= 0 ? "text-up" : "text-down"}`}>{c >= 0 ? "+" : ""}{c.toFixed(2)}%</p>}
         </div>
       </div>
-      {(m?.pool || m?.price) && <div className="-mx-1 mt-2"><TerminalLineChart pool={m.pool ?? ""} range="1D" heightClass="h-[110px]" fallbackPrice={m.price} network={(bag.chain && GT_NET[bag.chain as keyof typeof GT_NET]) || "solana"} /></div>}
+      {(m?.pool || m?.price) && bag.chain !== "arc" && <div className="-mx-1 mt-2"><TerminalLineChart pool={m.pool ?? ""} range="1D" heightClass="h-[110px]" fallbackPrice={m.price} network={(bag.chain && GT_NET[bag.chain as keyof typeof GT_NET]) || "solana"} /></div>}
       <p className="mt-2 text-[12px] text-muted-foreground">{mine ? tr("You earn 40% of the OM fee on trades from this post") : tr("{name} holds it and earns 40% of the OM fee on trades from this post", { name: authorName })}</p>
       <div className="mt-3 flex gap-2">
         <button onClick={() => setSide("sell")} className="h-11 flex-1 rounded-full bg-muted text-[15px] font-bold text-foreground">{tr("Sell")}</button>

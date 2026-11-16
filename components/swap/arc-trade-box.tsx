@@ -51,7 +51,21 @@ async function waitReceipt(hash: string) {
   }
 }
 
-export function ArcTradeBox({ token, symbol }: { token: string; symbol: string }) {
+/** Après un trade lancé depuis un post « sac » : prouve l'origine (arc-ref) puis enregistre la part du détenteur (arc-record). Silencieux en cas d'échec. */
+async function recordChill(hash: string, postId: string, taker: string, token: string) {
+  try {
+    const rr = await fetch("/api/chill/arc-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId, taker, token }) });
+    const rj = await rr.json();
+    if (!rr.ok || !rj.ref) return;
+    for (let i = 0; i < 4; i++) {
+      const r = await fetch("/api/chill/arc-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hash, postId, taker, token, refToken: rj.ref.refToken }) });
+      if (r.status !== 202) return;
+      await new Promise((x) => setTimeout(x, 3000));
+    }
+  } catch { /* la part du détenteur n'est jamais bloquante pour le trade */ }
+}
+
+export function ArcTradeBox({ token, symbol, refPost }: { token: string; symbol: string; refPost?: string }) {
   const { tr } = useT();
   const { walletAddress, isAuthenticated } = useAuth();
   const evm = isAuthenticated && !!walletAddress && walletAddress.startsWith("0x");
@@ -158,6 +172,7 @@ export function ArcTradeBox({ token, symbol }: { token: string; symbol: string }
       }
       setBusy(tr("Waiting for confirmation"));
       await waitReceipt(hash);
+      if (refPost) void recordChill(hash, refPost, addr, token);
       toast.success(side === "buy" ? tr("Bought {symbol}", { symbol }) : tr("Sold {symbol}", { symbol }), { action: { label: tr("Explorer"), onClick: () => window.open(`https://explorer.arc.io/tx/${hash}`, "_blank", "noopener") } });
       setAmount("");
       setTimeout(() => void loadBal(), 3000);
