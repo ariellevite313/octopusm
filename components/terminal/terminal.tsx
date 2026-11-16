@@ -6,6 +6,8 @@
  * Frais OM 0,3 % (0 % sur les tokens OM), toujours signé par le portefeuille de l'utilisateur.
  */
 import { HoldersBubbles } from "@/components/launchpad/holders-bubbles";
+import { ARC_FEE_TIERS } from "@/lib/arc-launchpad";
+import { TokenHolders } from "@/components/launchpad/token-holders";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -556,6 +558,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             {tab === "holders" && (mint === SOL_MINT
               ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">{tr("SOL is the native coin of Solana: millions of wallets hold it, so there is no top holders list.")}</p>
               : isSol || EVM_HOLDERS.includes(chain) ? <Holders mint={mint} chain={chain} price={live} />
+              : chain === "arc" ? <TokenHolders mint={mint} chain="arc" />
               : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders list not available on this network yet.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
             {tab === "about" && <About t={t} info={info} />}
@@ -756,7 +759,7 @@ function About({ t, info }: { t: TerminalToken; info: SwapToken | null }) {
   const items = useMemo(() => [
     [tr("Market cap"), compact(t.mcap, 2)], [tr("Volume 24h"), compact(t.volume24h, 2)], [tr("Liquidity"), compact(t.liquidity, 2)],
     [tr("Change 24h"), t.change24h != null ? `${t.change24h >= 0 ? "+" : "-"}${pct(t.change24h)}` : "-"],
-    [tr("OM fee"), info ? (info.fee_bps > 0 ? `${info.fee_bps / 100}%` : tr("0% (OM token)")) : t.chain && t.chain !== "solana" && t.chain !== "arc" ? "0.3%" : "-"],
+    [tr("OM fee"), info ? (info.fee_bps > 0 ? `${info.fee_bps / 100}%` : tr("0% (OM token)")) : t.chain === "arc" ? (t.href ? `${ARC_FEE_TIERS[0].platformBps / 100}%` : "-") : t.chain && t.chain !== "solana" ? "0.3%" : "-"],
     [tr("Pool created"), t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "-"],
   ], [t, info, tr]);
   return (
