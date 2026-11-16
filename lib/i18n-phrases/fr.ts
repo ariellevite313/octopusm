@@ -176,6 +176,7 @@ const p: Record<string, string> = {
   "Unknown date": "Date inconnue",
   "Predictions Leaderboard": "Classement des prédictions",
   "Top 100": "Top 100",
+  "Prices from CoinGecko and doggy.market. Trade opens doggy.market. The full OM list will appear once the Dogecoin indexer is running.": "Prix CoinGecko et doggy.market. Trade ouvre doggy.market. La liste complète d'OM apparaîtra quand l'indexer Dogecoin sera actif.",
   "just now": "à l'instant",
   "{n} min ago": "il y a {n} min",
   "{n} h ago": "il y a {n} h",

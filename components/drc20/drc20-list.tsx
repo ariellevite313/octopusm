@@ -7,11 +7,16 @@ import { ChevronLeft, Loader2, Search } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { drcAmount, type Drc20Token } from "@/lib/drc20";
 
+type MarketRow = { holders?: number | null; id: string; symbol: string; name: string; image: string | null; price: number | null; mcap: number | null; volume: number | null; change24h: number | null };
+
+const usd = (n: number | null) => n == null ? "—" : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`;
+const px = (n: number | null) => n == null ? "—" : n >= 1 ? `$${n.toFixed(2)}` : n >= 0.0001 ? `$${n.toFixed(4)}` : n > 0 ? `$${n.toExponential(2)}` : "$0";
+
 export function Drc20List() {
   const { tr } = useT();
   const [sort, setSort] = useState<"holders" | "new" | "progress">("holders");
   const [q, setQ] = useState("");
-  const [data, setData] = useState<{ tokens: Drc20Token[]; indexed: number | null } | null>(null);
+  const [data, setData] = useState<{ tokens: Drc20Token[]; market?: MarketRow[]; indexed: number | null } | null>(null);
   // Classement numéroté : Top 100 par nombre de détenteurs, hors recherche
   const ranked = sort === "holders" && !q.trim();
 
@@ -47,6 +52,37 @@ export function Drc20List() {
       </div>
 
       {!data ? <div className="flex justify-center py-16"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+        : !data.tokens.length && data.market?.length ? (
+          <>
+            <ul className="mt-3 divide-y divide-border">
+              {data.market.map((m, i) => (
+                <li key={m.id}>
+                  <a href={`https://doggy.market/${encodeURIComponent(m.symbol.toLowerCase())}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-3">
+                    <span className="num w-7 shrink-0 text-center text-[13px] font-bold text-muted-foreground">{i + 1}</span>
+                    {m.image
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={m.image} alt="" className="size-11 shrink-0 rounded-full object-cover" />
+                      : <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-[13px] font-bold text-foreground">{m.symbol.slice(0, 4)}</span>}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[16px] font-bold uppercase text-foreground">{m.symbol}</p>
+                      <p className="truncate text-[12px] text-muted-foreground">{m.name}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="num text-[15px] font-bold text-foreground">{px(m.price)}</p>
+                      <p className="num text-[12px] text-muted-foreground">
+                        {m.change24h != null && <span className={m.change24h >= 0 ? "text-up" : "text-down"}>{m.change24h >= 0 ? "+" : ""}{m.change24h.toFixed(1)}% · </span>}
+                        {usd(m.mcap)} MC
+                      </p>
+                      {m.holders ? <p className="num text-[12px] text-muted-foreground">{m.holders.toLocaleString("en-US")} {tr("holders")}</p> : null}
+                    </div>
+                    <span className="ml-1 shrink-0 rounded-xl bg-foreground px-3 py-1.5 text-[13px] font-bold text-background">{tr("Trade")}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-center text-xs text-muted-foreground">{tr("Prices from CoinGecko and doggy.market. Trade opens doggy.market. The full OM list will appear once the Dogecoin indexer is running.")}</p>
+          </>
+        )
         : !data.tokens.length ? (
           <div className="mt-10 rounded-3xl border border-border p-6 text-center">
             <p className="text-[16px] font-bold text-foreground">{data.indexed ? tr("No token found") : tr("DRC-20 indexing is starting")}</p>
