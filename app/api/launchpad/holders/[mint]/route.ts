@@ -10,6 +10,7 @@ import { TOP_HOLDERS, withProfiles } from "@/lib/holders";
 export const revalidate = 60;
 
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"; // les tokens récents (pump.fun…) sont souvent en Token-2022
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 function rpcUrl() {
@@ -62,12 +63,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
       } catch { das = byOwner.size > 0; }
     }
     try {
-      if (light || das) throw new Error("skip");
+      if (light || (das && byOwner.size > 0)) throw new Error("skip");
       // Liste complète (beaucoup de RPC gratuits refusent cette requête)
-      const accounts = await rpc("getProgramAccounts", [TOKEN_PROGRAM, {
+      // Le programme du mint décide : Token classique (comptes de 165 octets) ou Token-2022 (comptes à taille variable)
+      const info = await rpc("getAccountInfo", [mint, { encoding: "base64", dataSlice: { offset: 0, length: 0 } }]) as { value?: { owner?: string } | null };
+      const is2022 = info?.value?.owner === TOKEN_2022;
+      const accounts = await rpc("getProgramAccounts", [is2022 ? TOKEN_2022 : TOKEN_PROGRAM, {
         encoding: "base64",
         dataSlice: { offset: 32, length: 40 }, // owner (32) + amount (8)
-        filters: [{ dataSize: 165 }, { memcmp: { offset: 0, bytes: mint } }],
+        filters: is2022 ? [{ memcmp: { offset: 0, bytes: mint } }] : [{ dataSize: 165 }, { memcmp: { offset: 0, bytes: mint } }],
       }]);
       for (const a of accounts as { account: { data: [string, string] } }[]) {
         const buf = Buffer.from(a.account.data[0], "base64");
@@ -77,8 +81,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
         if (amount === BigInt(0)) continue;
         byOwner.set(owner, (byOwner.get(owner) ?? BigInt(0)) + amount);
       }
+      if (byOwner.size === 0) throw new Error("empty"); // rien lu : on passe au secours ci-dessous
     } catch {
-      if (das) { /* liste DAS complète, rien à faire */ } else {
+      if (das && byOwner.size > 0) { /* liste DAS complète, rien à faire */ } else {
       // Secours léger : les 20 plus gros comptes, puis leur propriétaire
       partial = true;
       const largest = (await rpc("getTokenLargestAccounts", [mint]))?.value as { address: string; amount: string }[] ?? [];
