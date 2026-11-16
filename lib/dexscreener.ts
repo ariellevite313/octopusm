@@ -173,8 +173,15 @@ export async function arcMarket(kind: "trending" | "new" | "volume" | "crypto" |
   const j = await dsJson<DsPair[]>(`/token-pairs/v1/arc/${ARC_USDC}`, 60_000);
   const pairs = (Array.isArray(j) ? j : []).filter((p) => p.baseToken?.address?.toLowerCase() !== ARC_USDC && (p.liquidity?.usd ?? 0) >= 2000 && (p.liquidity?.usd ?? 0) < 5e8);
   const tokens = groupPairs(pairs.map((p) => ({ ...p, chainId: "arc" }))).map((g) => toToken(g));
-  const by = (f: (t: TerminalToken) => number) => tokens.sort((a, b) => f(b) - f(a));
+  // EURC et cirBTC officiels d'Arc (adresses de la doc Arc) : logo OM, pastille vérifiée, toujours en tête
+  for (const t of tokens) { const o = ARC_OFFICIAL[t.mint.toLowerCase()]; if (o) { t.logo = o.logo; t.verified = true; } }
+  const top = (l: TerminalToken[]) => [...l.filter((t) => ARC_OFFICIAL[t.mint.toLowerCase()]), ...l.filter((t) => !ARC_OFFICIAL[t.mint.toLowerCase()])];
+  const by = (f: (t: TerminalToken) => number) => top(tokens.sort((a, b) => f(b) - f(a)));
   if (kind === "new") return by((t) => (t.createdAt ? Date.parse(t.createdAt) : 0));
   if (kind === "crypto") return by((t) => t.liquidity ?? 0);
   return by((t) => t.volume24h ?? 0);
 }
+const ARC_OFFICIAL: Record<string, { logo: string }> = {
+  "0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1": { logo: "/chains/eurc.png" },
+  "0x171a4217b86a807a64eb94757db6849fb4bdbaa0": { logo: "/chains/cirbtc.png" },
+};
