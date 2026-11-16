@@ -20,6 +20,7 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { EmptyIcon } from "@/components/shared/empty-icon";
 import { TokenFolderCard } from "@/components/launchpad/token-folder-card";
 import { useCardStyle, type CardStyle } from "@/lib/card-style";
+import { quoteOf } from "@/lib/solana/doge";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -232,7 +233,7 @@ function TokenPulseRow({ token }: { token: LaunchpadToken }) {
   const { tr } = useT();
   const href = `/launchpad/${token.mint_address ?? token.id}`;
   const isArc = token.chain === "arc";
-  const quote = isArc ? "USDC" : token.stock_symbol ? token.stock_symbol.replace(/^x/, "") : "SOL";
+  const quote = isArc ? "USDC" : token.stock_symbol ? token.stock_symbol.replace(/^x/, "") : (quoteOf(token, () => null)?.symbol ?? "SOL");
   const creator = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
 
   const [trend, setTrend] = useState<Trend>("flat");
@@ -423,7 +424,7 @@ function TokenTable({ tokens, offset, sort, onSort }: {
         <tbody>
           {tokens.map((token, i) => {
             const href = `/launchpad/${token.mint_address ?? token.id}`;
-            const quote = token.chain === "arc" ? "USDC" : token.stock_symbol ? token.stock_symbol : "SOL";
+            const quote = token.chain === "arc" ? "USDC" : token.stock_symbol ? token.stock_symbol : (quoteOf(token, () => null)?.symbol ?? "SOL");
             const st = STATUS_TEXT[token.status] ?? STATUS_TEXT.pending;
             return (
               <tr key={token.id} onClick={() => router.push(href)}
