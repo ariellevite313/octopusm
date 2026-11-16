@@ -26,7 +26,7 @@ export type PairQuoteInfo = {
 };
 
 export const PAIR_QUOTES: Record<PairQuote, PairQuoteInfo> = {
-  doge: { key: "doge", symbol: "DOGE", name: "Dogecoin", mint: "DoGEV7LASBkQbibMc5k5vKnTZoMg423GpJ5QtJEGfm7R", decimals: 8, prefix: "DoGE", label: "DSOL-20", logo: "/chains/dogecoin.png", configEnv: "DBC_CONFIG_KEY_DOGE", solRoute: true, firstBuy: [1, 1_000_000] },
+  doge: { key: "doge", symbol: "DOGE", name: "Dogecoin", mint: "DoGEV7LASBkQbibMc5k5vKnTZoMg423GpJ5QtJEGfm7R", decimals: 8, prefix: "DoGE", label: "DSOL-20", logo: "/chains/doge-solana.png", configEnv: "DBC_CONFIG_KEY_DOGE", solRoute: true, firstBuy: [1, 1_000_000] },
   pepe: { key: "pepe", symbol: "PEPE", name: "Pepe", mint: "PEPEqnuuCDbBC89p1u9vpnP1KQ2oj1xTcQBsjt9X55m", decimals: 4, prefix: "PEPE", atEnd: true, label: "PSOL-20", logo: "/pepe.png", configEnv: "DBC_CONFIG_KEY_PEPE", solRoute: true, firstBuy: [10_000, 10_000_000_000] },
   clt: { key: "clt", symbol: "CLT", name: "ClawdTrust", mint: "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS", decimals: 9, prefix: "CLT", label: "CLT-20", logo: "/clawdtrust-coin.png", configEnv: "DBC_CONFIG_KEY_CLT", solRoute: false, firstBuy: [1_000, 500_000_000] },
 };

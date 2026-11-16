@@ -12,6 +12,8 @@ export function Drc20List() {
   const [sort, setSort] = useState<"holders" | "new" | "progress">("holders");
   const [q, setQ] = useState("");
   const [data, setData] = useState<{ tokens: Drc20Token[]; indexed: number | null } | null>(null);
+  // Classement numéroté : Top 100 par nombre de détenteurs, hors recherche
+  const ranked = sort === "holders" && !q.trim();
 
   useEffect(() => {
     let off = false;
@@ -39,7 +41,7 @@ export function Drc20List() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search a ticker")} className="h-11 w-full rounded-xl border border-border bg-transparent pl-9 pr-3 text-[15px] outline-none focus:border-foreground/40" />
       </div>
       <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
-        {([["holders", tr("Most holders")], ["new", tr("New")], ["progress", tr("Mint progress")]] as const).map(([k, label]) => (
+        {([["holders", tr("Top 100")], ["new", tr("New")], ["progress", tr("Mint progress")]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setSort(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${sort === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
@@ -52,9 +54,10 @@ export function Drc20List() {
           </div>
         ) : (
           <ul className="mt-3 divide-y divide-border">
-            {data.tokens.map((t) => (
+            {data.tokens.slice(0, 100).map((t, i) => (
               <li key={t.tick}>
                 <Link href={`/drc20/${encodeURIComponent(t.tick)}`} className="flex items-center gap-3 py-3">
+                  {ranked && <span className={`num w-7 shrink-0 text-center text-[13px] font-bold ${i < 3 ? "text-foreground" : "text-muted-foreground"}`}>{i + 1}</span>}
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-muted text-[13px] font-bold uppercase text-foreground">{t.tick.slice(0, 4)}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[16px] font-bold uppercase text-foreground">{t.tick}</p>

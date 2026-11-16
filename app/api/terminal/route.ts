@@ -23,7 +23,8 @@ async function pinnedPairs(): Promise<TerminalToken[]> {
     const mint = PAIR_QUOTES[k].mint;
     const found = await dexSearch(mint, ["solana"]).catch(() => [] as TerminalToken[]);
     const t = found.find((x) => x.mint === mint);
-    if (t) out.push({ ...t, verified: true });
+    // Logos d'OM pour les deux paires (DOGE de Solana et PEPE), quel que soit celui de DexScreener
+    if (t) out.push({ ...t, verified: true, logo: PAIR_QUOTES[k].logo });
   }
   if (out.length) pinnedCache = { at: Date.now(), v: out };
   return out;

@@ -210,7 +210,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             ))}
             <button onClick={() => setFilter("dsol20")} className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[15px] font-semibold ${filter === "dsol20" ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/chains/dogecoin.png" alt="" className="size-[18px] rounded-full" />DSOL-20
+              <img src="/chains/doge-solana.png" alt="" className="size-[18px] rounded-full" />DSOL-20
             </button>
             {/* PSOL-20 (paire PEPE) et CLT-20 (paire ClawdTrust) */}
             {([["psol20", "/pepe.png", "PSOL-20"], ["clt20", "/clawdtrust-coin.png", "CLT-20"]] as const).map(([k, logo, label]) => (
