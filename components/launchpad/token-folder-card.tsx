@@ -51,6 +51,16 @@ export function TokenFolderCard({ token }: { token: LaunchpadToken }) {
 
   return (
     <Link ref={ref} href={`/launchpad/${token.mint_address ?? token.id}`} className="tok-fold" title={`${token.name} ($${token.ticker})`}>
+      {/* Cadre en verre : liquide (teinté par le logo au choix) et reflet */}
+      <span className="tok-fold-liq" aria-hidden>
+        <span className="tok-fold-liq-fill">
+          {token.logo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={token.logo_url} alt="" loading="lazy" />
+          )}
+        </span>
+      </span>
+      <span className="tok-fold-gloss" aria-hidden />
       <div className="tok-fold-in">
         {/* Feuille colorée */}
         <div className="tok-fold-sheet">

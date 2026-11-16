@@ -2238,5 +2238,12 @@ const p: Record<string, string> = {
   "Sent": "Envoyé",
   "Recipients": "Destinataires",
   "Sort by": "Trier par",
+  "Glass": "Verre",
+  "Color": "Couleur",
+  "Classic": "Classique",
+  "Clear liquid": "Liquide clair",
+  "Liquid in the token colors": "Liquide aux couleurs du token",
+  "Solid frame": "Cadre plein",
+  "Card style": "Style des cartes",
 };
 export default p;

@@ -19,6 +19,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { EmptyIcon } from "@/components/shared/empty-icon";
 import { TokenFolderCard } from "@/components/launchpad/token-folder-card";
+import { useCardStyle, type CardStyle } from "@/lib/card-style";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -531,6 +532,58 @@ export function SortMenu({ value, onChange }: { value: SortOption; onChange: (s:
   );
 }
 
+const CARD_STYLES: { value: CardStyle; label: string; hint: string }[] = [
+  { value: "glass",   label: T("Glass"),   hint: T("Clear liquid") },
+  { value: "color",   label: T("Color"),   hint: T("Liquid in the token colors") },
+  { value: "classic", label: T("Classic"), hint: T("Solid frame") },
+];
+
+/** Choix du cadre des cartes : verre + liquide clair, liquide aux couleurs du token, ou cadre plein. */
+function CardStyleMenu() {
+  const { tr } = useT();
+  const { style, change } = useCardStyle();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+  const swatch = (v: CardStyle) => (
+    <span className="relative size-6 shrink-0 overflow-hidden rounded-[8px] border border-border" style={{ background: v === "classic" ? "var(--foreground)" : "linear-gradient(160deg,rgb(255 255 255/.7),rgb(255 255 255/.15))" }}>
+      {v !== "classic" && <span className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: v === "color" ? "linear-gradient(90deg,#f7c531,#ec4899,#3b82f6)" : "linear-gradient(180deg,rgb(170 225 255/.9),rgb(90 170 255/.8))" }} />}
+    </span>
+  );
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="listbox" aria-expanded={open} aria-label={tr("Card style")} title={tr("Card style")}
+        className={`flex size-11 items-center justify-center rounded-2xl border transition-colors ${open ? "border-border bg-card" : "border-transparent bg-muted"}`}>
+        {swatch(style)}
+      </button>
+      {open && (
+        <div role="listbox" className="absolute right-0 top-[calc(100%+6px)] z-50 w-60 origin-top-right animate-in fade-in zoom-in-95 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.45)] duration-150">
+          <p className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{tr("Card style")}</p>
+          {CARD_STYLES.map((o) => {
+            const on = o.value === style;
+            return (
+              <button key={o.value} type="button" role="option" aria-selected={on} onClick={() => { change(o.value); setOpen(false); }}
+                className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors ${on ? "bg-muted" : "hover:bg-muted/60"}`}>
+                {swatch(o.value)}
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-sm ${on ? "font-semibold text-foreground" : "text-foreground/85"}`}>{tr(o.label)}</span>
+                  <span className="block truncate text-[12px] text-muted-foreground">{tr(o.hint)}</span>
+                </span>
+                {on && <Check className="size-4 text-foreground" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Pagination ─────────────────────────────────────────────────────────────────
 
 function Pagination({
@@ -826,6 +879,9 @@ export function LaunchpadClient({ initialTokens, initialTotal }: {
           )}
           {tab !== "watchlist" && (
             <SortMenu value={sort} onChange={handleSortChange} />
+          )}
+          {viewMode === "grid" && (
+            <CardStyleMenu />
           )}
         </div>
       </div>
