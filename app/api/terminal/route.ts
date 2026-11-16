@@ -14,6 +14,21 @@ import { createAdminClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 const READY = CHAINS.filter((c) => c.ready).map((c) => c.id);
 
+/** PEPE et DOGE (Solana) : toujours affichés en tête des listes Tendances, Crypto et Volume (cache 60 s). */
+let pinnedCache: { at: number; v: TerminalToken[] } | null = null;
+async function pinnedPairs(): Promise<TerminalToken[]> {
+  if (pinnedCache && Date.now() - pinnedCache.at < 60_000) return pinnedCache.v;
+  const out: TerminalToken[] = [];
+  for (const k of ["pepe", "doge"] as const) {
+    const mint = PAIR_QUOTES[k].mint;
+    const found = await dexSearch(mint, ["solana"]).catch(() => [] as TerminalToken[]);
+    const t = found.find((x) => x.mint === mint);
+    if (t) out.push({ ...t, verified: true });
+  }
+  if (out.length) pinnedCache = { at: Date.now(), v: out };
+  return out;
+}
+
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const q = (u.searchParams.get("q") ?? "").trim().slice(0, 60);
@@ -51,6 +66,10 @@ export async function GET(req: Request) {
   const [gecko, arc, dex, arcDex] = await Promise.all([geckoPromise, arcPromise, dexPromise, arcDexPromise]);
   // Arc d'abord pour les recherches ciblées ; DexScreener en dernier (complète GeckoTerminal sans le remplacer)
   const merged = mergeLists([...gecko, arc, arcDex, dex], kind, 120);
+  if (chains.includes("solana") && (kind === "trending" || kind === "crypto" || kind === "volume")) {
+    const pins = await pinnedPairs();
+    if (pins.length) { const pm = new Set(pins.map((p) => p.mint)); merged.splice(0, merged.length, ...pins, ...merged.filter((t) => !pm.has(t.mint))); }
+  }
   await enrichDex(merged).catch(() => {});
   // Filtres : profil DexScreener payé, réseaux sociaux, site web
   const f = u.searchParams;

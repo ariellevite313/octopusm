@@ -8,7 +8,7 @@ import { isRemovedToken } from "@/lib/removed-tokens";
 
 export type TerminalToken = {
   mint: string; symbol: string; name: string; logo: string | null;
-  price: number | null; change24h: number | null; volume24h: number | null; mcap: number | null; liquidity: number | null;
+  price: number | null; change24h: number | null; change1h?: number | null; volume24h: number | null; mcap: number | null; liquidity: number | null;
   pool: string; createdAt: string | null;
   /** chaîne du token (solana par défaut) ; href : page OM à ouvrir à la place du Terminal (tokens Arc) */
   chain?: TerminalChain; href?: string | null;
@@ -54,7 +54,7 @@ type GtPool = {
   attributes: {
     address: string; base_token_price_usd?: string | null; fdv_usd?: string | null; market_cap_usd?: string | null;
     reserve_in_usd?: string | null; pool_created_at?: string | null;
-    price_change_percentage?: { h24?: string | null }; volume_usd?: { h24?: string | null };
+    price_change_percentage?: { h1?: string | null; h24?: string | null }; volume_usd?: { h24?: string | null };
   };
   relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } } };
 };
@@ -74,7 +74,7 @@ export function mapPools(json: { data?: GtPool[]; included?: GtToken[] }, chain:
     const img = base.image_url && /^https:\/\//.test(base.image_url) && !/missing/.test(base.image_url) ? base.image_url : null;
     out.push({
       mint: base.address, symbol: base.symbol.slice(0, 16), name: base.name.slice(0, 40), logo: img,
-      price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), volume24h: num(a.volume_usd?.h24),
+      price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), change1h: num(a.price_change_percentage?.h1), volume24h: num(a.volume_usd?.h24),
       mcap: num(a.market_cap_usd) ?? num(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: a.address, createdAt: a.pool_created_at ?? null, chain,
     });
   }

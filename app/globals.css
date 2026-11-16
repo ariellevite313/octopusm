@@ -591,3 +591,17 @@ html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary {
 html:is(.mode-doge, .mode-pepe, .mode-clt) :is(button, a):is(.bg-foreground, .bg-up, .bg-down):hover,
 html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary:hover { background-position: -40% 0, 0 0, 0 0, 0 0 !important; filter: brightness(1.06); }
 
+
+
+/* Hackathon : champ de points animé (grille qui dérive + vague de lumière) */
+@keyframes om-dots-drift { from { background-position: 0 0; } to { background-position: 9px 18px; } }
+@keyframes om-dots-sweep { from { -webkit-mask-position: 130% 0; mask-position: 130% 0; } to { -webkit-mask-position: -30% 0; mask-position: -30% 0; } }
+.om-dots { animation: om-dots-drift 4s linear infinite; }
+.om-dots-wave {
+  -webkit-mask-image: linear-gradient(115deg, transparent 42%, #000 50%, transparent 58%);
+  mask-image: linear-gradient(115deg, transparent 42%, #000 50%, transparent 58%);
+  -webkit-mask-size: 260% 100%; mask-size: 260% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  animation: om-dots-sweep 5.5s ease-in-out infinite, om-dots-drift 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .om-dots, .om-dots-wave { animation: none; } }

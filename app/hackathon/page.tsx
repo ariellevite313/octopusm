@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { HackathonHome } from "@/components/hackathon/hackathon-home";
+import { HackathonLanding } from "@/components/hackathon/hackathon-landing";
 
 export const metadata: Metadata = {
   title: "OM Builders Hackathon",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function HackathonPage() {
-  return <HackathonHome />;
+  return <HackathonLanding />;
 }

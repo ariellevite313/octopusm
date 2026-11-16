@@ -16,7 +16,7 @@ export const CHAIN_TO_DS: Partial<Record<TerminalChain, string>> = Object.fromEn
 type DsLink = { type?: string; label?: string; url?: string };
 export type DsPair = {
   chainId?: string; pairAddress?: string; baseToken?: { address?: string; name?: string; symbol?: string };
-  priceUsd?: string; priceChange?: { h24?: number }; volume?: { h24?: number }; liquidity?: { usd?: number };
+  priceUsd?: string; priceChange?: { h1?: number; h24?: number }; volume?: { h24?: number }; liquidity?: { usd?: number };
   fdv?: number; marketCap?: number; pairCreatedAt?: number; boosts?: { active?: number };
   info?: { imageUrl?: string; header?: string; websites?: DsLink[]; socials?: DsLink[] };
 };
@@ -74,7 +74,7 @@ function toToken(g: Group, feed?: { boost: number }): TerminalToken {
   const volume = g.pairs.reduce((s, p) => s + (p.volume?.h24 ?? 0), 0);
   return {
     mint: g.address, symbol: (best.baseToken?.symbol ?? "?").slice(0, 16), name: (best.baseToken?.name ?? best.baseToken?.symbol ?? "?").slice(0, 40), logo: img,
-    price: num(best.priceUsd), change24h: num(best.priceChange?.h24), volume24h: volume || null, mcap: num(best.marketCap) ?? num(best.fdv),
+    price: num(best.priceUsd), change24h: num(best.priceChange?.h24), change1h: num(best.priceChange?.h1), volume24h: volume || null, mcap: num(best.marketCap) ?? num(best.fdv),
     liquidity: num(best.liquidity?.usd), pool: best.pairAddress as string,
     createdAt: best.pairCreatedAt ? new Date(best.pairCreatedAt).toISOString() : null, chain: g.chain,
     dex: dexInfoOf(g.pairs, !!feed, feed?.boost ?? 0),
