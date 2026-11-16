@@ -14,7 +14,7 @@ const DOGGY_SNAPSHOT: Record<string, { price: number; mcap: number; holders: num
 
 /** Tokens relevés sur doggy.market (16 nov. 2026) qui ne sont pas sur CoinGecko. */
 const DOGGY_EXTRA: Market[] = [
-  { id: "dbit", symbol: "DBIT", name: "dbit", image: null, price: 2.9e-11, mcap: 61_800, volume: null, change24h: null, holders: 7_343 },
+  { id: "dbit", symbol: "DBIT", name: "dbit", image: "/chains/dbit.png", price: 2.9e-11, mcap: 61_800, volume: null, change24h: null, holders: 7_343 },
 ];
 
 /** Secours tant que l'indexer OM n'a rien lu : les DRC-20 listés sur CoinGecko (catégorie « drc-20 »). */
