@@ -65,8 +65,12 @@ contract DirectV4Vault is V4FeeEngine, IUnlockCallback {
         uint160 sqrtUpper = TickMath.getSqrtPriceAtTick(TICK_UPPER);
         uint160 sqrtLower = TickMath.getSqrtPriceAtTick(TICK_LOWER);
 
-        // 1. Initialiser le pool au prix de départ (exactement le bord haut de la plage : liquidité 100 % token)
-        IPoolManager(poolManager).initialize(poolKey(), sqrtUpper);
+        // 1. Initialiser le pool au prix de départ (exactement le bord haut de la plage : liquidité 100 % token).
+        //    Si quelqu'un l'a initialisé avant nous, on ramène le prix au départ (voir V4FeeEngine._initOrAlign).
+        require(_initOrAlign(poolKey(), sqrtUpper) == sqrtUpper, "DV4: price not aligned");
+        // USDC éventuellement reçu en vendant des tokens à la liquidité d'un tiers (au-dessus du prix de départ) : à la plateforme
+        if (address(this).balance > 0) _send(treasury, address(this).balance);
+        tokenAmount = IERC20(token).balanceOf(address(this));
 
         // 2. Liquidité pour un montant de token1 seul : L = amount1 * 2^96 / (sqrtUpper - sqrtLower)
         uint256 liq = FullMath.mulDiv(tokenAmount, 1 << 96, uint256(sqrtUpper) - uint256(sqrtLower));
@@ -106,6 +110,7 @@ contract DirectV4Vault is V4FeeEngine, IUnlockCallback {
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         require(msg.sender == poolManager, "DV4: only pool manager");
+        if (_handleAlign(data)) return "";
         (address recipient, uint256 amountIn) = abi.decode(data, (address, uint256));
         PoolKey memory key = poolKey();
         BalanceDelta delta = IPoolManager(poolManager).swap(

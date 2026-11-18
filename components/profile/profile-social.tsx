@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Coins, Copy, Link2, Loader2, MoreHorizontal } from "lucide-react";
+import { Camera, Coins, Copy, Link2, Loader2, MoreHorizontal, Share2 } from "lucide-react";
+import { ProfileShareSheet } from "@/components/profile/profile-share";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -123,10 +124,11 @@ export function BannerCamera({ wallet }: { wallet: string }) {
 }
 
 /** Bouton « … » rond en haut à droite de la bannière : copier l'adresse ou le lien du profil. */
-export function ProfileMenu({ wallet, hasFeatured = false }: { wallet: string; hasFeatured?: boolean }) {
+export function ProfileMenu({ wallet, hasFeatured = false, name }: { wallet: string; hasFeatured?: boolean; name?: string }) {
   const { tr } = useT();
   const mine = useIsMine(wallet);
   const [open, setOpen] = useState(false);
+  const [share, setShare] = useState(false);
 
   async function copy(text: string, done: string) {
     setOpen(false);
@@ -135,6 +137,7 @@ export function ProfileMenu({ wallet, hasFeatured = false }: { wallet: string; h
 
   return (
     <div className="absolute right-3 top-3 z-20">
+      <ProfileShareSheet wallet={wallet} name={name ?? `${wallet.slice(0, 4)}…${wallet.slice(-4)}`} open={share} onClose={() => setShare(false)} />
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={tr("More")}
@@ -151,6 +154,9 @@ export function ProfileMenu({ wallet, hasFeatured = false }: { wallet: string; h
             </button>
             <button onClick={() => copy(`${window.location.origin}/profile/${wallet}`, "Link copied")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">
               <Link2 className="size-4 text-muted-foreground" />{tr("Copy profile link")}
+            </button>
+            <button onClick={() => { setOpen(false); setShare(true); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">
+              <Share2 className="size-4 text-muted-foreground" />{tr("Share profile")}
             </button>
             {mine && (
               <button onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-featured-token-picker")); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted">

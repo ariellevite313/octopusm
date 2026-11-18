@@ -68,10 +68,13 @@ contract GraduationVaultV4 is V4FeeEngine, IUnlockCallback {
         uint256 firstSwapAmount = 0.1 ether;
         uint256 usdcForLP = totalUsdc > firstSwapAmount ? totalUsdc - firstSwapAmount : totalUsdc;
 
-        // 1. Prix de départ = rapport des réserves
-        uint160 sqrtPriceX96 = _computeSqrtPriceX96(usdcForLP, tokenBalance);
+        // 1. Prix de départ = rapport des réserves. Si quelqu'un a initialisé le pool avant nous, on y ramène le prix
+        //    (voir V4FeeEngine._initOrAlign) ; les soldes peuvent alors avoir changé, on les relit.
         PoolKey memory key = poolKey();
-        IPoolManager(POOL_MANAGER).initialize(key, sqrtPriceX96);
+        uint160 sqrtPriceX96 = _initOrAlign(key, _computeSqrtPriceX96(usdcForLP, tokenBalance));
+        totalUsdc    = address(this).balance;
+        tokenBalance = IERC20(token).balanceOf(address(this));
+        usdcForLP    = totalUsdc > firstSwapAmount ? totalUsdc - firstSwapAmount : totalUsdc;
         bytes32 poolId = keccak256(abi.encode(key));
 
         // 2. Tokens via Permit2
@@ -112,6 +115,7 @@ contract GraduationVaultV4 is V4FeeEngine, IUnlockCallback {
     /// @dev Callback du PoolManager : swap exact input USDC -> token, règlement ; les tokens achetés sont brûlés.
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         require(msg.sender == POOL_MANAGER, "GV4: only pool manager");
+        if (_handleAlign(data)) return "";
         uint256 usdcIn = abi.decode(data, (uint256));
         PoolKey memory k = poolKey();
         BalanceDelta d = IPoolManager(POOL_MANAGER).swap(

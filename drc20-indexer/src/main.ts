@@ -4,7 +4,7 @@
  *
  * Variables d'environnement (fichier .env du serveur, jamais dans le code) :
  *   DOGE_RPC_URL (ex. http://127.0.0.1:22555), DOGE_RPC_USER, DOGE_RPC_PASS
- *   SUPABASE_URL, SUPABASE_SERVICE_KEY
+ *   SUPABASE_URL, SUPABASE_KEY (clé limitée « drc20_indexer », voir scripts-make-key.mjs ; SUPABASE_SERVICE_KEY accepté en repli)
  *   START_HEIGHT  premier bloc à lire (avant les premiers deploy DRC-20), CONFIRMATIONS (défaut 6)
  *   PRUNE_KEEP    avec un nœud en élagage manuel (prune=1) : nombre de blocs gardés derrière l'indexer (défaut 2000).
  *                 L'indexer dit au nœud d'effacer les blocs déjà lus, le disque reste petit.
@@ -30,19 +30,38 @@ async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (m: string) => console.log(`${new Date().toISOString()} ${m}`);
 
+/**
+ * Montant d'une ancienne sortie, pour placer exactement une inscription de transfert (sinon : supposée sur la sortie 0).
+ * Ne marche qu'avec un nœud qui garde l'index des transactions (txindex=1, non élagué) : activer avec TXINDEX=1.
+ */
+const txCache = new Map<string, bigint[]>();
+async function nodeValue(txid: string, vout: number): Promise<bigint | null> {
+  let outs = txCache.get(txid);
+  if (!outs) {
+    const tx = await rpc<{ vout: { value: number; n: number }[] }>("getrawtransaction", [txid, true]);
+    // Montants en DOGE (8 décimales) → koinus, sans erreur d'arrondi
+    outs = tx.vout.sort((a, b) => a.n - b.n).map((o) => BigInt(Math.round(o.value * 1e8)));
+    txCache.set(txid, outs);
+    if (txCache.size > 20_000) { const k = txCache.keys().next().value; if (k !== undefined) txCache.delete(k); }
+  }
+  return outs[vout] ?? null;
+}
+
 async function main() {
   const conf = Number(env("CONFIRMATIONS", "6"));
   const pruneKeep = Number(env("PRUNE_KEEP", "2000"));
   let store!: DbStore, next = 0, prevHash: string | null = null;
-  let ctx = { partials: new Map<string, Partial>(), recent: new RecentOutputs(), log };
+  const recentBlocks = Number(env("RECENT_BLOCKS", "200")); // sorties des derniers blocs gardées en mémoire (montants exacts)
+  const values = process.env.TXINDEX === "1" ? nodeValue : undefined;
+  let ctx = { partials: new Map<string, Partial>(), recent: new RecentOutputs(recentBlocks), values, log };
   // (Re)part de l'état enregistré en base : après une erreur, rien de ce qui n'a pas été écrit n'est gardé en mémoire
   const reset = async () => {
-    store = new DbStore(env("SUPABASE_URL"), env("SUPABASE_SERVICE_KEY"));
+    store = new DbStore(env("SUPABASE_URL"), process.env.SUPABASE_KEY || env("SUPABASE_SERVICE_KEY"));
     await store.load();
     const st = await store.state();
     next = st ? st.height + 1 : Number(env("START_HEIGHT"));
     prevHash = st?.hash ?? null;
-    ctx = { partials: new Map<string, Partial>(), recent: new RecentOutputs(), log };
+    ctx = { partials: new Map<string, Partial>(), recent: new RecentOutputs(recentBlocks), values, log };
   };
   await reset();
   log(`start at block ${next} (${store.tokens.size} tokens, ${store.pending.size} pending transfers)`);

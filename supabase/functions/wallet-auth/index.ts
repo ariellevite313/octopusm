@@ -43,7 +43,9 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { walletAddress, signature, nonce, message, ref_code, chain } = await req.json();
+    const body = await req.json();
+    const { signature, nonce, message, ref_code, chain } = body;
+    let walletAddress: string = body.walletAddress;
 
     // ── Validation ────────────────────────────────────────────────────────
     if (!walletAddress || !signature || !nonce || !message) {
@@ -122,6 +124,13 @@ serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Adresse EVM : une seule écriture par wallet, quelle que soit la casse envoyée. On garde celle déjà enregistrée
+    // (pour ne pas séparer l'historique d'un compte existant), sinon les minuscules.
+    if (isEvm) {
+      const { data: known } = await admin.from("wallets").select("address").ilike("address", walletAddress).limit(1).maybeSingle();
+      walletAddress = known?.address ?? walletAddress.toLowerCase();
+    }
+
     // Nonce à usage unique : un message signé ne peut ouvrir qu'une session
     const { error: nonceErr } = await admin.from("wallet_auth_nonces").insert({ nonce: msgNonce, wallet_address: walletAddress });
     if (nonceErr) {
@@ -153,9 +162,15 @@ serve(async (req: Request) => {
         session = r.data;
       } else {
         // Existing user with old password — find and update
-        const { data: found } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        // Recherche page par page (au-delà de 1000 comptes, la première page ne suffisait plus)
         // deno-lint-ignore no-explicit-any
-        const match = found?.users?.find((u: any) => u.email === fakeEmail);
+        let match: any = null;
+        for (let page = 1; page <= 100 && !match; page++) {
+          const { data: found } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+          // deno-lint-ignore no-explicit-any
+          match = found?.users?.find((u: any) => u.email === fakeEmail) ?? null;
+          if (!found?.users?.length || found.users.length < 1000) break;
+        }
         if (!match) throw new Error("User not found.");
         await admin.auth.admin.updateUserById(match.id, { password });
         const r = await anon.auth.signInWithPassword({ email: fakeEmail, password });

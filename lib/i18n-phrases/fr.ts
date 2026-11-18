@@ -2248,5 +2248,12 @@ const p: Record<string, string> = {
   "Liquid in the token colors": "Liquide aux couleurs du token",
   "Solid frame": "Cadre plein",
   "Card style": "Style des cartes",
+  "Share image": "Partager l'image",
+  "Download image": "Télécharger l'image",
+  "Share profile": "Partager le profil",
+  "{name}'s gains on OMdotfun": "Les gains de {name} sur OMdotfun",
+  "My trade on ${symbol} on OMdotfun": "Mon trade sur ${symbol} sur OMdotfun",
+  "${symbol} on OMdotfun": "${symbol} sur OMdotfun",
+  "Trade this token": "Trader ce token",
 };
 export default p;

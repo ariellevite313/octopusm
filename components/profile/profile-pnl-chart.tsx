@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import type { PnlPoint } from "@/services/profile-service";
 import { fmt as formatAmount } from "@/lib/format";
 import { useT } from "@/lib/i18n";
+import { ProfileShareButton } from "@/components/profile/profile-share";
 import type { Lang } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
 
@@ -18,6 +19,8 @@ interface Props {
   marketFeesUsd?: number;
   openCount?: number;
   openStakeUsd?: number;
+  /** Bouton de partage de la carte des gains (profil) */
+  share?: { wallet: string; name: string };
 }
 
 type Range = "1W" | "1M" | "ALL";
@@ -51,7 +54,7 @@ function filterSeries(series: PnlPoint[], range: Range): PnlPoint[] {
   return filtered.length > 0 ? filtered : series.slice(-1);
 }
 
-export function ProfilePnlChart({ series, totalUsd, predictionUsd = 0, launchpadUsd = 0, marketFeesUsd = 0, openCount = 0, openStakeUsd = 0 }: Props) {
+export function ProfilePnlChart({ series, totalUsd, predictionUsd = 0, launchpadUsd = 0, marketFeesUsd = 0, openCount = 0, openStakeUsd = 0, share }: Props) {
   const { tr, lang } = useT();
   const [range, setRange] = useState<Range>("ALL");
 
@@ -73,6 +76,8 @@ export function ProfilePnlChart({ series, totalUsd, predictionUsd = 0, launchpad
             {openCount > 0 && <p>{tr("Open positions: {count} (${amount} staked)", { count: openCount, amount: formatAmount(openStakeUsd) })}</p>}
           </div>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        {share && <ProfileShareButton wallet={share.wallet} name={share.name} />}
         <div className="flex shrink-0 gap-0.5 rounded-full border border-border p-1">
           {RANGES.map(r => (
             <button
@@ -85,6 +90,7 @@ export function ProfilePnlChart({ series, totalUsd, predictionUsd = 0, launchpad
               {tr(RANGE_LABELS[r])}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

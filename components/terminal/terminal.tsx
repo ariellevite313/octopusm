@@ -30,6 +30,7 @@ const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium
 import { executeSwap, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
 import { DevAlert } from "./dev-alert";
+import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
 import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
 
 // ── Formats ───────────────────────────────────────────────────────────────────
@@ -416,6 +417,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const toggleMode = () => setMode((m) => { const n = m === "line" ? "candle" : "line"; try { localStorage.setItem("om_chart_mode", n); } catch { /* ignore */ } return n; });
   const [move, setMove] = useState<{ first: number; last: number } | null>(null);
   const [tab, setTab] = useState<"holders" | "feed" | "about">("holders");
+  const [shareCard, setShareCard] = useState<{ wallet: string | null } | null>(null);
   const [sheet, setSheet] = useState<"swap" | "quick" | null>(null);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -476,14 +478,29 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   // Capitalisation à l'instant survolé (prix survolé / prix actuel)
   const mcapShown = hover && t.price && t.mcap ? t.mcap * (hover.value / t.price) : t.mcap;
   const fav = favs.isFav(mint);
-  const share = () => {
-    const url = `${location.origin}/terminal?${isSol ? "" : `chain=${chain}&`}mint=${mint}`;
-    if (navigator.share) navigator.share({ title: `$${t.symbol} on OM`, url }).catch(() => {});
-    else navigator.clipboard.writeText(url).then(() => toast.success(tr("Link copied")));
+  // Partage : la carte de gains du wallet connecté sur ce token (s'il l'a tradé), sinon le lien du token
+  const share = async () => {
+    const w = isAuthenticated && walletAddress ? walletAddress : null;
+    let has = false;
+    if (w) has = await fetch(`/api/share/has-trades?wallet=${encodeURIComponent(w)}&mint=${encodeURIComponent(mint)}`).then((r) => r.json()).then((j) => !!j.has).catch(() => false);
+    setShareCard(has && w ? { wallet: w } : { wallet: null });
   };
 
   return (
     <div className="min-w-0 pb-40 lg:pb-8">
+      <ShareSheet
+        open={!!shareCard}
+        onClose={() => setShareCard(null)}
+        portrait
+        fileName={`omdot-${t.symbol.toLowerCase()}.png`}
+        // Carte de gains du wallet s'il a tradé ce token, sinon carte du token (même style) : jamais un simple lien
+        images={[shareCard?.wallet ? `/api/og/trade/${encodeURIComponent(shareCard.wallet)}?mint=${encodeURIComponent(mint)}` : `/api/og/token/${encodeURIComponent(mint)}`]}
+        url={shareCard?.wallet
+          ? `/share/trade/${encodeURIComponent(shareCard.wallet)}?mint=${encodeURIComponent(mint)}`
+          : `/share/token/${encodeURIComponent(mint)}`}
+        text={shareCard?.wallet ? tr("My trade on ${symbol} on OMdotfun", { symbol: t.symbol }) : tr("${symbol} on OMdotfun", { symbol: t.symbol })}
+        perks={TOKEN_PERKS}
+      />
       {/* En-tête */}
       <div className="sticky top-16 z-20 flex items-center gap-2 bg-background/95 px-3 py-2 backdrop-blur lg:top-0">
         <button onClick={() => router.push("/terminal")} aria-label={tr("Back")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground lg:hidden"><ChevronLeft className="size-6" /></button>

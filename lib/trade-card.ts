@@ -133,3 +133,40 @@ export async function getTradeCard(walletIn: string, mint: string): Promise<Trad
   };
 }
 
+
+export type TokenCard = {
+  chain: "solana" | "arc"; mint: string; symbol: string; name: string | null; logo: string | null; verified: boolean;
+  mcap: number | null; price: number | null; series: { t: number; v: number }[];
+  change: number; pct: number | null; marks: { t: number; side: "buy" | "sell" }[];
+};
+
+/**
+ * Carte de partage d'un token sans trade du wallet (Terminal) : capitalisation sur 30 jours, achats et ventes passés par OM
+ * en marqueurs, variation de la capitalisation sur la période.
+ */
+export async function getTokenCard(mint: string): Promise<TokenCard | null> {
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) && !isEvm(mint)) return null;
+  const chain: "solana" | "arc" = isEvm(mint) ? "arc" : "solana";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createAdminClient() as any;
+  const [{ data: lt }, ds] = await Promise.all([
+    db.from("launchpad_tokens").select("id, chain, arc_launch_id, name, ticker, logo_url, price_usd, market_cap_usd").ilike("mint_address", mint).maybeSingle(),
+    dsToken(chain, mint),
+  ]);
+  if (!lt && !ds.pool) return null;
+  const price = ds.price ?? (lt?.price_usd != null ? Number(lt.price_usd) : null);
+  const mcap = ds.mcap ?? (lt?.market_cap_usd != null ? Number(lt.market_cap_usd) : null);
+  const from = Date.now() - 30 * 86_400_000;
+  let series = await priceSeries(chain, ds.pool, from);
+  const k = mcap && price ? mcap / price : 1;
+  series = series.map((p) => ({ t: p.t, v: p.v * k }));
+  if (series.length < 2 && mcap) series = [{ t: from, v: mcap }, { t: Date.now(), v: mcap }];
+  const first = series[0]?.v ?? 0, last = mcap ?? series[series.length - 1]?.v ?? 0;
+  const trades = await loadTokenTrades(db, chain, mint, lt, undefined, 80).catch(() => []);
+  return {
+    chain, mint, symbol: (lt?.ticker ?? ds.symbol ?? "TOKEN").replace(/^\$/, "").slice(0, 14), name: lt?.name ?? null,
+    logo: lt?.logo_url ?? ds.logo, verified: !!lt, mcap, price, series,
+    change: last - first, pct: first > 0 ? ((last - first) / first) * 100 : null,
+    marks: trades.filter((t) => t.tsMs >= (series[0]?.t ?? from)).map((t) => ({ t: t.tsMs, side: t.side })),
+  };
+}

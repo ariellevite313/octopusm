@@ -36,3 +36,13 @@ Le nœud télécharge la chaîne pendant que l'indexer avance derrière lui. Com
   au-delà il suppose la sortie 0 (cas le plus courant) et l'écrit dans le journal (`approx`).
 - Les inscriptions réparties sur plusieurs transactions restent en mémoire : un redémarrage au milieu en perd une.
   Ça ne touche pas le DRC-20 (contenu de moins de 1 Ko, toujours en une transaction).
+
+## Sécurité (mise à jour)
+
+- **Clé limitée** : n'utilise plus la clé `service_role`. Lance la migration `supabase/migrations/20261129_drc20_indexer_role.sql`,
+  puis sur ton serveur : `SUPABASE_JWT_SECRET=... node scripts-make-key.mjs` et mets le résultat dans `SUPABASE_KEY` du `.env`.
+  Cette clé peut seulement lire les tables DRC-20 et écrire les blocs.
+- **Montants exacts des transferts** : l'indexer garde en mémoire les sorties des 200 derniers blocs (`RECENT_BLOCKS`).
+  Au-delà, une inscription de transfert est supposée sur la sortie 0. Avec un nœud non élagué et `txindex=1`,
+  mets `TXINDEX=1` : les anciens montants sont alors lus sur le nœud (placement toujours exact).
+- **Ticker malformé** (caractère nul, moitié de caractère Unicode) : ignoré, il ne bloque plus l'indexer.

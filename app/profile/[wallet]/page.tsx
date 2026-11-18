@@ -155,7 +155,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
           className="profile-banner relative h-36 bg-cover bg-center sm:h-48"
           style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
         >
-          <ProfileMenu wallet={wallet} hasFeatured={!!featured} />
+          <ProfileMenu wallet={wallet} hasFeatured={!!featured} name={displayName} />
           <BannerCamera wallet={wallet} />
         </div>
 
@@ -247,6 +247,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         marketFeesUsd={data.earnings.market_fees_usd}
         openCount={data.earnings.open_count}
         openStakeUsd={data.earnings.open_stake_usd}
+        share={{ wallet, name: displayName }}
       />
 
       {/* ── Recent activity / Tokens launched / Markets created (tabs) ── */}

@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link2, Copy, Loader2, Users, Coins, Flame, MessageSquare } from "lucide-react";
+import { Link2, Copy, Loader2, Users, Coins, Flame, MessageSquare, Share, Download } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { ComposeModal } from "@/components/social/compose-modal";
 import { toast } from "sonner";
@@ -49,8 +49,19 @@ const DiscordIcon = () => (
   </svg>
 );
 
+const WaIcon = () => (
+  <svg viewBox="0 0 24 24" className="size-6 fill-current" aria-hidden>
+    <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.3-.4.8-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 2s.8 2.3 1 2.5c.1.2 1.6 2.5 4 3.5 1.5.6 2 .7 2.8.6.4-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.4-.3z" />
+  </svg>
+);
+const FbIcon = () => (
+  <svg viewBox="0 0 24 24" className="size-6 fill-current" aria-hidden>
+    <path d="M13.5 22v-8.2h2.8l.4-3.2h-3.2V8.5c0-.9.3-1.6 1.6-1.6h1.7V4.1c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.4H7.3v3.2h2.8V22h3.4z" />
+  </svg>
+);
+
 export function ShareSheet({
-  open, onClose, images, text, perks = MARKET_PERKS, url, feed = true,
+  open, onClose, images, text, perks = MARKET_PERKS, url, feed = true, portrait = false, fileName = "omdot-share.png",
 }: {
   open: boolean;
   onClose: () => void;
@@ -63,6 +74,10 @@ export function ShareSheet({
   url?: string;
   /** Affiche le bouton « Publier sur le fil » (faux pour le partage d'un post). */
   feed?: boolean;
+  /** Cartes verticales (carte de gains 1080×1240) au lieu des aperçus 1200×630. */
+  portrait?: boolean;
+  /** Nom du fichier image enregistré ou partagé. */
+  fileName?: string;
 }) {
   const { tr } = useT();
   const [refCode, setRefCode] = useState<string | null>(null);
@@ -112,6 +127,29 @@ export function ShareSheet({
   const shareX = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`, "_blank", "noopener,noreferrer");
   const shareTg = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   const shareDiscord = () => navigator.clipboard.writeText(`${text} ${link}`).then(() => toast.success(tr("Link copied — paste it in Discord")));
+  const shareWa = () => window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${link}`)}`, "_blank", "noopener,noreferrer");
+  const shareFb = () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`, "_blank", "noopener,noreferrer");
+  const imageBlob = () => fetch(abs(images[idx] ?? images[0])).then(r => { if (!r.ok) throw new Error("img"); return r.blob(); });
+  const saveBlob = (b: Blob) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b); a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  };
+  // Partage natif avec l'image (téléphone : Instagram, WhatsApp, X… avec la carte en pièce jointe)
+  async function shareImage() {
+    setBusy(true);
+    try {
+      const b = await imageBlob();
+      const file = new File([b], fileName, { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], text: `${text} ${link}` });
+      else if (navigator.share) await navigator.share({ text, url: link });
+      else { saveBlob(b); toast.success(tr("Image saved")); }
+    } catch { /* annulé */ } finally { setBusy(false); }
+  }
+  async function downloadImage() {
+    try { saveBlob(await imageBlob()); toast.success(tr("Image saved")); } catch { toast.error(tr("Could not copy the image")); }
+  }
 
   async function copyImage() {
     setBusy(true);
@@ -124,11 +162,11 @@ export function ShareSheet({
     } catch {
       try {
         const b = await getBlob;
-        const file = new File([b], "omdot-share.png", { type: "image/png" });
+        const file = new File([b], fileName, { type: "image/png" });
         if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file] });
         else {
           const a = document.createElement("a");
-          a.href = URL.createObjectURL(b); a.download = "omdot-share.png";
+          a.href = URL.createObjectURL(b); a.download = fileName;
           document.body.appendChild(a); a.click(); a.remove();
           setTimeout(() => URL.revokeObjectURL(a.href), 4000);
           toast.success(tr("Image saved"));
@@ -147,11 +185,11 @@ export function ShareSheet({
         </button>
 
         {/* ── Carrousel de cartes ─────────────────────────────────────── */}
-        <div className="bg-[linear-gradient(180deg,rgba(255,122,26,0.12),rgba(255,122,26,0.03))] py-5">
+        <div className={`${images.length ? "" : "hidden"} ${portrait ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.01))]" : "bg-[linear-gradient(180deg,rgba(255,122,26,0.12),rgba(255,122,26,0.03))]"} py-5`}>
           <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none]"
             onScroll={(e) => { const el = e.currentTarget; setIdx(Math.round(el.scrollLeft / (el.clientWidth * 0.9))); }}>
             {images.map((src) => (
-              <div key={src} className={`relative aspect-[1200/630] ${images.length > 1 ? "w-[90%]" : "w-full"} shrink-0 snap-center overflow-hidden rounded-2xl bg-white shadow-[0_14px_40px_-16px_rgba(255,122,26,0.6)] ring-1 ring-black/5`}>
+              <div key={src} className={`relative ${portrait ? "mx-auto aspect-[1080/1240] w-[68%] max-w-[320px] rounded-[22px] bg-[#0b0b0f] shadow-[0_18px_44px_-18px_rgba(0,0,0,0.6)]" : `aspect-[1200/630] ${images.length > 1 ? "w-[90%]" : "w-full"} rounded-2xl bg-white shadow-[0_14px_40px_-16px_rgba(255,122,26,0.6)] ring-1 ring-black/5`} shrink-0 snap-center overflow-hidden`}>
                 {!loaded[src] && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="size-6 animate-spin text-[#ff7a1a]" /></div>}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="" onLoad={() => setLoaded(l => ({ ...l, [src]: true }))} onError={() => setLoaded(l => ({ ...l, [src]: true }))}
@@ -190,10 +228,14 @@ export function ShareSheet({
           {feed && <button onClick={postToFeed} className={circle} aria-label={tr("Post on the feed")} title={tr("Post on the feed")}><MessageSquare className="size-6" /></button>}
           <button onClick={shareX} className={circle} aria-label="X"><XIcon /></button>
           <button onClick={shareTg} className={circle} aria-label="Telegram"><TgIcon /></button>
+          <button onClick={shareWa} className={circle} aria-label="WhatsApp"><WaIcon /></button>
+          <button onClick={shareFb} className={circle} aria-label="Facebook"><FbIcon /></button>
           <button onClick={shareDiscord} className={circle} aria-label="Discord"><DiscordIcon /></button>
-          <button onClick={copyImage} disabled={busy} className={circle} aria-label={tr("Copy image")}>
+          {images.length > 0 && <button onClick={shareImage} disabled={busy} className={circle} aria-label={tr("Share image")} title={tr("Share image")}><Share className="size-6" /></button>}
+          {images.length > 0 && <button onClick={downloadImage} className={circle} aria-label={tr("Download image")} title={tr("Download image")}><Download className="size-6" /></button>}
+          {images.length > 0 && <button onClick={copyImage} disabled={busy} className={circle} aria-label={tr("Copy image")}>
             {busy ? <Loader2 className="size-6 animate-spin" /> : <Copy className="size-6" />}
-          </button>
+          </button>}
         </div>
       </div>
     </div>,

@@ -10,8 +10,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Par défaut : lecture seule. Seul le job « publish », qui n'exécute aucun code du projet, peut écrire (release).
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-main
@@ -21,8 +22,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: npm
@@ -60,10 +61,27 @@ jobs:
           echo "${GITHUB_SHA}" > .next/OM_COMMIT
           tar --exclude='.next/cache' -czf next-build.tgz .next
           ls -lh next-build.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: next-build
+          path: next-build.tgz
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build
       - name: Publier dans la release build-latest
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release view build-latest >/dev/null 2>&1 || gh release create build-latest --title "Latest build" --notes "Build automatique de main (utilisé par scripts/deploy-prebuilt.sh)" --prerelease
-          gh release upload build-latest next-build.tgz --clobber
-          gh release edit build-latest --notes "Build de ${GITHUB_SHA}"
+          # Release recréée à chaque build : son tag pointe toujours sur le dernier commit de main
+          # (l'ancien tag gardait en vie un vieil historique qui contenait une clé, effacée depuis)
+          gh release delete build-latest --cleanup-tag -y >/dev/null 2>&1 || true
+          gh release create build-latest next-build.tgz --target "${GITHUB_SHA}" --title "Latest build" --notes "Build de ${GITHUB_SHA} (utilisé par scripts/deploy-prebuilt.sh)" --prerelease

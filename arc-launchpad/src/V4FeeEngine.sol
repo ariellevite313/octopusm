@@ -8,6 +8,8 @@ import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {LiquidityAmounts} from "v4-periphery/src/libraries/LiquidityAmounts.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -187,6 +189,63 @@ abstract contract V4FeeEngine {
         if (feeTier == 0) return (3333, 3333, 0);
         if (feeTier == 1) return (5000, 2500, 0);
         return (2500, 2500, 2500);
+    }
+
+    // ─── Pool déjà initialisé par un tiers ──────────────────────────────────────
+    // initialize() est sans permission dans Uniswap V4 et la clé du pool ne dépend que du token et des frais :
+    // n'importe qui pouvait l'appeler avant nous à un prix quelconque, et le lancement (ou la graduation)
+    // échouait alors pour toujours. On ramène plutôt le prix au prix voulu.
+
+    /// @dev Marque des données de callback « alignement » : impossible à confondre avec les callbacks des vaults
+    ///      (une adresse ou un montant n'ont jamais cette valeur dans leur premier mot).
+    bytes32 internal constant ALIGN_TAG = keccak256("OM_V4_ALIGN_PRICE");
+
+    event PoolPriceAligned(uint160 fromSqrtPrice, uint160 toSqrtPrice);
+
+    /**
+     * @dev Initialise le pool au prix voulu, ou, s'il existe déjà, y ramène son prix par un swap borné par nos fonds.
+     *      Chaque échange de ce swap se fait entre le prix actuel et le prix voulu, donc à un prix plus favorable au vault
+     *      que le prix voulu. Renvoie le prix final du pool.
+     */
+    function _initOrAlign(PoolKey memory key, uint160 target) internal returns (uint160 price) {
+        IPoolManager pm = IPoolManager(poolManager);
+        (price,,,) = pm.getSlot0(key.toId());
+        if (price == 0) {
+            pm.initialize(key, target);
+            return target;
+        }
+        if (price != target) {
+            uint160 before = price;
+            pm.unlock(abi.encode(ALIGN_TAG, target));
+            (price,,,) = pm.getSlot0(key.toId());
+            emit PoolPriceAligned(before, price);
+        }
+    }
+
+    /// @dev À appeler en tête de unlockCallback. Renvoie true si les données étaient un alignement (déjà traité).
+    function _handleAlign(bytes calldata data) internal returns (bool) {
+        if (data.length != 64 || bytes32(data[0:32]) != ALIGN_TAG) return false;
+        uint160 target = uint160(uint256(bytes32(data[32:64])));
+        IPoolManager pm = IPoolManager(poolManager);
+        PoolKey memory key = poolKey();
+        (uint160 cur,,,) = pm.getSlot0(key.toId());
+        if (cur == target) return true;
+        bool zeroForOne = target < cur; // faire baisser le prix (tokens par USDC) = vendre de l'USDC
+        uint256 budget = zeroForOne ? address(this).balance : IERC20(token).balanceOf(address(this));
+        if (budget == 0) budget = 1; // sans liquidité sur le chemin, le prix se déplace sans rien coûter
+        if (budget > uint256(uint128(type(int128).max))) budget = uint256(uint128(type(int128).max));
+        BalanceDelta d = pm.swap(key, SwapParams({zeroForOne: zeroForOne, amountSpecified: -int256(budget), sqrtPriceLimitX96: target}), bytes(""));
+        int128 a0 = d.amount0();
+        int128 a1 = d.amount1();
+        if (a0 < 0) pm.settle{value: uint256(uint128(-a0))}();
+        if (a1 < 0) {
+            pm.sync(key.currency1);
+            require(IERC20(token).transfer(poolManager, uint256(uint128(-a1))), "V4E: transfer failed");
+            pm.settle();
+        }
+        if (a0 > 0) pm.take(key.currency0, address(this), uint256(uint128(a0)));
+        if (a1 > 0) pm.take(key.currency1, address(this), uint256(uint128(a1)));
+        return true;
     }
 
     function _send(address to, uint256 amount) internal {

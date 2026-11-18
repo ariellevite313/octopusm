@@ -140,3 +140,14 @@ describe("vrais blocs Dogecoin", () => {
     expect((await s.balance("fiwb", "DMo8t6YABMVJUiarNa1s2yybhtovX8gGDY")).avail > 0n).toBe(true);
   });
 });
+
+describe("ticker malformé (ne doit jamais bloquer l'indexer)", () => {
+  const op = (tick: string) => readOp("text/plain", Buffer.from(JSON.stringify({ p: "drc-20", op: "deploy", tick, max: "1000" })));
+  it("refuse un caractère nul ou de contrôle", () => {
+    expect(op("\u0000abc")).toBeNull();
+    expect(op("ab\ncd")).toBeNull();
+  });
+  it("refuse une moitié de caractère Unicode isolée", () => { expect(op("\ud800abc")).toBeNull(); });
+  it("refuse un ticker qui change de longueur en minuscules", () => { expect(op("İabc")).toBeNull(); });
+  it("accepte un ticker normal", () => { expect(op("DOGI")?.tick).toBe("dogi"); });
+});
