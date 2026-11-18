@@ -41,8 +41,12 @@ export async function loadEvents(db: Db, from: Date, to: Date): Promise<Event[]>
     safe("arc_trades", async () => (await all<{ trader: string; ts: number }>(() =>
       db.from("arc_trades").select("trader, ts").gte("ts", Math.floor(from.getTime() / 1000)).lt("ts", Math.floor(to.getTime() / 1000)).gte("usdc_amt", MIN_TRADE_USD).order("ts")))
       .map((r) => ev("trade")(r.trader, Number(r.ts) * 1000))),
-    ...(["mutuel_bets", "updown_bets", "prediction_history"] as const).map((t) => safe(t, async () => (await all<{ wallet_address: string; created_at: string }>(() =>
-      db.from(t).select("wallet_address, created_at").gte("created_at", a).lt("created_at", b).order("created_at")))
+    // Seuls les paris validés comptent (pas ceux en attente, refusés, ni les frais créateur) : sinon on farmait la box
+    ...(["mutuel_bets", "updown_bets", "prediction_history"] as const).map((t) => safe(t, async () => (await all<{ wallet_address: string; created_at: string }>(() => {
+      let q = db.from(t).select("wallet_address, created_at").gte("created_at", a).lt("created_at", b);
+      if (t !== "prediction_history") q = q.not("status", "in", "(pending,rejected,creator_fee)");
+      return q.order("created_at");
+    }))
       .map((r) => ev("bet")(r.wallet_address, r.created_at)))),
     safe("posts", async () => (await all<{ author: string; kind: string | null; created_at: string }>(() =>
       db.from("posts").select("author, kind, created_at").eq("hidden", false).gte("created_at", a).lt("created_at", b).order("created_at")))

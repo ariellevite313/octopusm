@@ -55,8 +55,19 @@ export function readOp(contentType: string, body: Buffer): Op | null {
   const o = j as Record<string, unknown>;
   if (typeof o.p !== "string" || o.p.toLowerCase() !== "drc-20") return null;
   if (o.op !== "deploy" && o.op !== "mint" && o.op !== "transfer") return null;
-  if (typeof o.tick !== "string" || [...o.tick].length !== 4) return null;
+  if (typeof o.tick !== "string" || !safeTick(o.tick)) return null;
   return { op: o.op, tick: o.tick.toLowerCase(), raw: o };
+}
+
+/**
+ * Ticker sûr : 4 caractères, aussi après passage en minuscules, sans caractère de contrôle ni NUL (refusé par Postgres en jsonb)
+ * et sans moitié de caractère Unicode isolée. Sinon une seule inscription malformée bloquait l'indexer sur son bloc.
+ */
+function safeTick(t: string): boolean {
+  if ([...t].length !== 4 || [...t.toLowerCase()].length !== 4) return false;
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(t)) return false;
+  try { encodeURIComponent(t); } catch { return false; } // moitié de caractère Unicode isolée
+  return true;
 }
 
 const add = async (s: Store, tick: string, addr: string, f: (b: Balance) => void) => { const b = await s.balance(tick, addr); f(b); await s.putBalance(tick, addr, b); };

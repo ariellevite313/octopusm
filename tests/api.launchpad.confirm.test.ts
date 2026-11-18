@@ -28,6 +28,10 @@ vi.mock("@/lib/social/session", () => ({
 
 vi.mock("@/lib/launch/verify-creator", () => ({ verifyTokenCreator: mockVerifyTokenCreator }));
 
+// Frais de création : payés par défaut (cas d'échec testé à part)
+const mockFeePaid = vi.fn(async () => true);
+vi.mock("@/lib/launch/fee-check", () => ({ ensureLaunchFeePaid: mockFeePaid }));
+
 // extractPoolAddress asks the RPC for the tx and probes the DBC SDK: give it a fake pool
 vi.mock("@solana/web3.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("@solana/web3.js")>();
@@ -330,6 +334,16 @@ describe("POST /api/launchpad/[id]/confirm — creator verification", () => {
     expect(res.status).toBe(200);
     expect(updateFn.mock.calls[0][0]).toMatchObject({ creator_verified: true, status: "active" });
     expect(mockVerifyTokenCreator).toHaveBeenCalledWith(expect.objectContaining({ chain: "solana", creator_wallet: "CreatorWallet111" }));
+  });
+
+  it("refuses with 402 and keeps the token pending when the launch fee was not paid", async () => {
+    mockVerifyTokenCreator.mockResolvedValue("ok");
+    mockFeePaid.mockResolvedValueOnce(false);
+    const { client, updateFn } = buildAdminMock(TOKEN);
+    mockCreateAdminClient.mockReturnValue(client);
+    const res = await postConfirm(makeRequest({ txSignature: "sig", walletAddress: "CreatorWallet111" }), ROUTE_PARAMS);
+    expect(res.status).toBe(402);
+    expect(updateFn).not.toHaveBeenCalled();
   });
 
   it("returns 202 and keeps the token pending when the chain cannot confirm the pool", async () => {

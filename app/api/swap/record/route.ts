@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { SOL_MINT, SWAP_FEE_WALLET, USDC_MINT, feeMintFor, isMint, tradedMint } from "@/lib/swap/core";
 import { holderReceived, swapAmounts } from "@/lib/swap/record";
+import { CHILL_SHARE_BPS } from "@/lib/swap/chill";
 import { notify } from "@/lib/social/notify";
 import { isOmToken } from "@/lib/swap/server";
 
@@ -80,7 +81,11 @@ export async function POST(req: Request) {
         preBalances: tx.meta.preBalances, postBalances: tx.meta.postBalances,
         preTokens: (tx.meta.preTokenBalances ?? []) as never, postTokens: (tx.meta.postTokenBalances ?? []) as never,
       });
-      if (got > 0n) ref = { post: post.id, wallet: post.author, amount: got };
+      // Plafond : la part attendue (0,12 % du montant échangé, +5 % de marge). Un gros virement ajouté à la transaction
+      // ne gonfle plus le classement « gagné avec Chill ».
+      const cap = baseMint === feeMint ? (baseRaw * BigInt(CHILL_SHARE_BPS) * 105n) / 1_000_000n : got;
+      const amount = got < cap ? got : cap;
+      if (amount > 0n) ref = { post: post.id, wallet: post.author, amount };
     }
   }
 

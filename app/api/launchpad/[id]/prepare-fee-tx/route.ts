@@ -13,13 +13,12 @@ import { solanaConnection } from "@/lib/solana/rpc";
 import { NextResponse } from "next/server";
 import {
   Connection,
-  Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import bs58 from "bs58";
+import { platformPubkey } from "@/lib/solana/dbc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 
@@ -31,10 +30,9 @@ function getConnection(): Connection {
   return solanaConnection();
 }
 
-function getPlatformWallet(): Keypair {
-  const secret = process.env.PLATFORM_WALLET_SECRET;
-  if (!secret) throw new Error("PLATFORM_WALLET_SECRET is not set");
-  return Keypair.fromSecretKey(bs58.decode(secret));
+/** Seule l'adresse publique sert ici : on ne charge pas la clé privée dans une route publique. */
+function getPlatformWallet(): { publicKey: PublicKey } {
+  return { publicKey: platformPubkey() };
 }
 
 export async function POST(req: Request, { params }: RouteParams) {

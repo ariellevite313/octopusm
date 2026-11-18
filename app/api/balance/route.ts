@@ -69,8 +69,9 @@ export async function GET() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mutuelUsdc = (mutuelRes.data ?? []).filter((b: any) => isUsdc(b.token ?? "usdc"))
+    // 5 % de frais de retrait sur les gains de pools (même calcul que /api/withdraw et /api/pools/winnings)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
+    .reduce((s: number, b: any) => s + Math.floor(Number(b.payout_amount ?? 0) * 0.95 * 1_000_000) / 1_000_000, 0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const withdrawnUsdc = (withdrawnRes.data ?? []).filter((w: any) => w.token === "usdc")

@@ -70,6 +70,16 @@ export function getPlatformWallet(): Keypair {
   return Keypair.fromSecretKey(bs58.decode(secret));
 }
 
+/**
+ * Adresse publique du wallet de la plateforme, sans charger la clé privée quand c'est possible.
+ * PLATFORM_WALLET_PUBKEY (optionnelle) évite de décoder PLATFORM_WALLET_SECRET dans les routes publiques.
+ */
+export function platformPubkey(): PublicKey {
+  const pub = process.env.PLATFORM_WALLET_PUBKEY;
+  if (pub) return new PublicKey(pub);
+  return getPlatformWallet().publicKey;
+}
+
 export type SolFeeTier = "standard" | "low";
 /** Niveau "low" disponible seulement si DBC_CONFIG_KEY_LOW est défini. */
 export const lowFeeTierEnabled = () => !!process.env.DBC_CONFIG_KEY_LOW;

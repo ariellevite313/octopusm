@@ -1,3 +1,6 @@
+import { rateHit } from "@/lib/rate-limit";
+import { isBanned } from "@/lib/moderation";
+import { claimPayment, releasePayment } from "@/lib/payments/used";
 import { isPausedDuration } from "@/lib/updown-pause";
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -22,6 +25,8 @@ export async function POST(req: Request) {
   if (!sessionWallet) {
     return NextResponse.json({ error: "No wallet in session" }, { status: 401 });
   }
+  if (await isBanned(sessionWallet, true)) return NextResponse.json({ error: "This account is suspended" }, { status: 403 });
+  if (!(await rateHit(`bet:${sessionWallet}`, 30, 600_000))) return NextResponse.json({ error: "Too many bets, slow down" }, { status: 429 });
 
   const body = await req.json() as {
     market_id:      string;
@@ -104,6 +109,10 @@ export async function POST(req: Request) {
   // 4. Insert bet (tx_signature unique prevents double-submit)
   // BUG-UD-4 FIX: insérer en "pending" — l'admin approuve via /api/admin/updown/bets.
   // Le pool est incrémenté à l'approbation (cohérent avec les autres marchés).
+  // Une transaction ne paie qu'une seule chose, tous flux confondus
+  if (!(await claimPayment(tx_signature, "updown", wallet_address))) {
+    return NextResponse.json({ error: "This transaction has already been used" }, { status: 409 });
+  }
   const { error: betErr } = await admin.from("updown_bets").insert({
     id:             crypto.randomUUID(),
     market_id,
@@ -115,6 +124,7 @@ export async function POST(req: Request) {
   });
 
   if (betErr) {
+    if (betErr.code !== "23505") await releasePayment(tx_signature);
     if (betErr.code === "23505") {
       return NextResponse.json({ error: "Transaction already submitted" }, { status: 409 });
     }

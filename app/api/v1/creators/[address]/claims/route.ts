@@ -15,11 +15,11 @@ export async function OPTIONS() { return corsOk(); }
 
 export async function GET(
   req: Request,
-  { params }: { params: { address: string } },
+  { params }: { params: Promise<{ address: string }> },
 ) {
   if (!checkRateLimit(getIp(req))) return err("Too Many Requests", 429);
 
-  const raw      = params.address;
+  const raw      = (await params).address;
   const addrType = detectAddrType(raw);
   if (addrType === "invalid") return err("Invalid address", 400);
   const address = addrType === "evm" ? raw.toLowerCase() : raw;

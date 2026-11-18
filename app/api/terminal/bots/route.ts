@@ -3,6 +3,8 @@
  * Robots probables parmi les plus gros holders : snipers et rythmes de machine. Estimation mise en cache 10 min.
  * Les wallets d'IA d'OM (connexions MCP) et le créateur du token sont exclus.
  */
+import { selfUrl } from "@/lib/self-url";
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { classify, summarizeBots, type BotHit } from "@/lib/bots";
@@ -33,6 +35,7 @@ async function openedAt(mint: string): Promise<number | null> {
 }
 
 export async function GET(req: Request) {
+  { const lim = await limited(req, "term-bots", 20); if (lim) return lim; }
   const u = new URL(req.url);
   const mint = (u.searchParams.get("mint") ?? "").trim();
   if (!BASE58_RE.test(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
@@ -42,7 +45,7 @@ export async function GET(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = createAdminClient() as any;
     const [hj, opened, ai, tok] = await Promise.all([
-      fetch(`${u.origin}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(`${selfUrl()}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       openedAt(mint),
       db.from("agent_wallets").select("sol_address").limit(5000),
       db.from("launchpad_tokens").select("creator_wallet, created_at").eq("mint_address", mint).maybeSingle(),

@@ -114,7 +114,7 @@ export async function getTokenCard(origin: string, ticker: string, wallet: strin
     .from("launchpad_tokens")
     .select("id, name, ticker, logo_url, chain, mint_address, pool_address, arc_launch_id, market_cap_usd, price_usd, status, stock_symbol, quote_asset")
     .ilike("ticker", ticker).in("status", ["active", "graduating", "graduated"]).maybeSingle();
-  if (!t) { cache.set(key, { at: Date.now(), v: null }); return null; }
+  if (!t) { cache.set(key, { at: Date.now(), v: null }); if (cache.size > 500) { const k = cache.keys().next().value; if (k !== undefined) cache.delete(k); } return null; }
 
   const chain: "solana" | "arc" = t.chain === "arc" ? "arc" : "solana";
   let series: Series = { "1H": [], "1D": [], "1W": [], ALL: [] };
@@ -153,5 +153,6 @@ export async function getTokenCard(origin: string, ticker: string, wallet: strin
     profit_usd: profit, return_pct: profit != null && basis > 0 ? (profit / basis) * 100 : null,
   };
   cache.set(key, { at: Date.now(), v });
+  if (cache.size > 500) { const k = cache.keys().next().value; if (k !== undefined) cache.delete(k); }
   return v;
 }

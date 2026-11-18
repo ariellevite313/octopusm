@@ -3,6 +3,7 @@
  * Recherche dans les tokens OMdotfun (nom, $TICKER), les posts (texte, #hashtag) et les comptes (@nom).
  * Requêtes courtes et limitées : pas de recherche plein texte lourde (serveur modeste).
  */
+import { getIp } from "@/lib/v1/helpers";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getProfiles } from "@/lib/profiles";
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const raw = (url.searchParams.get("q") ?? "").trim();
   const type = url.searchParams.get("type") ?? "all";
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+  const ip = getIp(req); // dernier saut, pas le premier (falsifiable par le client)
   if (!(await rateHit(`search:${ip}`, 60, 60_000))) return NextResponse.json({ error: "Too many searches, slow down" }, { status: 429 });
 
   const isTag = raw.startsWith("#");

@@ -1,4 +1,5 @@
 /** Création d'un marché pari mutuel (pool) : paiement des frais vérifié sur la chaîne, champs validés, statut « pending » (revue admin). */
+import { claimPayment, releasePayment } from "@/lib/payments/used";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -63,6 +64,17 @@ export async function createPoolMarket(wallet: string, body: any, opts: { mandat
   const admin = createAdminClient() as any;
   if (!opts.mandateId) {
 
+  // Limite quotidienne (2 pools gratuits par jour, au-delà il faut 500 OCTO) : appliquée ici, plus seulement affichée
+  {
+    const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+    const [{ count: today }, { data: txns }] = await Promise.all([
+      admin.from("mutuel_markets").select("id", { count: "exact", head: true }).eq("creator_wallet", wallet).gte("created_at", dayStart.toISOString()),
+      admin.from("octo_transactions").select("amount").eq("wallet_address", wallet),
+    ]);
+    const octo = ((txns ?? []) as { amount: number }[]).reduce((n, t) => n + Number(t.amount), 0);
+    if ((today ?? 0) >= 2 && octo < 500) return NextResponse.json({ error: "Daily limit reached: 2 pools per day, or hold 500 OCTO" }, { status: 429 });
+  }
+
   // ── Validate creation payment ─────────────────────────────────────────────
   if (!creation_tx || typeof creation_tx !== "string") {
     return NextResponse.json({ error: "Creation fee transaction required" }, { status: 400 });
@@ -97,6 +109,9 @@ export async function createPoolMarket(wallet: string, body: any, opts: { mandat
     .select("id", { count: "exact", head: true })
     .eq("creation_tx", creation_tx);
   if ((txUsed ?? 0) > 0) {
+    return NextResponse.json({ error: "This transaction has already been used." }, { status: 409 });
+  }
+  if (!(await claimPayment(creation_tx, "pool_creation", wallet))) {
     return NextResponse.json({ error: "This transaction has already been used." }, { status: 409 });
   }
   }
@@ -180,7 +195,10 @@ export async function createPoolMarket(wallet: string, body: any, opts: { mandat
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (creation_tx && !opts.mandateId) await releasePayment(creation_tx);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json(inserted, { status: 201 });
 }

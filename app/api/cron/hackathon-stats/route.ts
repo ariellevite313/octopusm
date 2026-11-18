@@ -3,6 +3,7 @@
  * Recalcule pour chaque projet : votes, volume net, et (par petits lots) holders, concentration, bundle.
  * Sécurisé par CRON_SECRET (bearer).
  */
+import { selfUrl } from "@/lib/self-url";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { HACKATHON, hackathonPhase } from "@/lib/hackathon/config";
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   const win = { startMs: Date.parse(HACKATHON.startsAt), endMs: Date.parse(HACKATHON.endsAt) };
-  const origin = new URL(req.url).origin;
+  const origin = selfUrl();
 
   // Volume de départ : une seule fois, pour les tokens déjà lancés à l'ouverture
   await db.from("launchpad_tokens").update({ hackathon_baseline_volume: 0 }).is("hackathon_baseline_volume", null).gte("created_at", HACKATHON.startsAt);

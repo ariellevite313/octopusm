@@ -20,6 +20,7 @@ import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { getPlatformWallet } from "@/lib/solana/dbc";
+import { ensureLaunchFeePaid } from "@/lib/launch/fee-check";
 
 // Programmes que certains wallets (Phantom : Lighthouse) ajoutent eux-mêmes comme garde-fous.
 // Ajoutés par les wallets (Phantom : Lighthouse, et frais de priorité / limite de calcul) : sans effet sur les comptes du token.
@@ -71,6 +72,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (token.creator_wallet !== body.walletAddress || body.walletAddress !== sess.wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     if (token.status !== "pending") return NextResponse.json({ error: "Token is not pending" }, { status: 409 });
     if (!token.vanity_secret_key) return NextResponse.json({ error: "Mint key missing — click Retry" }, { status: 409 });
+    // Pas de pool sans frais de création payés (vérifié sur la chaîne)
+    if (!(await ensureLaunchFeePaid(admin, id))) return NextResponse.json({ error: "Launch fee not found on-chain yet. Wait a few seconds and retry." }, { status: 402 });
 
     const tx = Transaction.from(Buffer.from(body.signedTransactionBase64, "base64"));
 

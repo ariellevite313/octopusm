@@ -59,6 +59,7 @@ export function AuthorizeCard() {
       <div className="flex justify-center"><AssistantLogo name={app.name} size={64} /></div>
       <h1 className="mt-4 text-center text-2xl font-bold tracking-tight text-foreground">{tr("Connect {name}", { name: app.name })}</h1>
       <p className="mt-1 text-center text-sm text-muted-foreground">{tr("to your OMdotfun account")}</p>
+      <p className="mx-auto mt-3 w-fit rounded-full border border-border bg-muted/50 px-3 py-1 text-center text-xs font-semibold text-foreground">{tr("App website: {host}", { host: app.redirect_host })}</p>
 
       <ul className="mt-6 space-y-2">
         {PERMS.map((p) => (

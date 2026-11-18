@@ -67,26 +67,33 @@ export async function arcHolding(holder: `0x${string}`, token: `0x${string}`) {
 }
 
 /**
- * Relit une transaction du routeur : réussie, envoyée par `taker`, vers le routeur d'OM, sur `token`.
+ * Relit une transaction du routeur faite depuis un post « sac » : réussie, récente (moins d'1 h), vers le routeur d'OM, sur `token`,
+ * et portant à la fin de ses données la marque du post (arcChillTag). Le trader est l'expéditeur de la transaction.
  * Renvoie le montant en USDC échangé (18 décimales) : la valeur envoyée pour un achat ; pour une vente, la cotation du routeur
  * au bloc précédent (on ne se fie jamais à un montant donné par le navigateur).
  */
-export async function arcTradeUsdc(hash: `0x${string}`, taker: string, token: string): Promise<{ ok: true; usdc: bigint } | { ok: false; error: string; retry?: boolean }> {
-  if (!ARC_DIRECT_ROUTER_ADDRESS) return { ok: false, error: "Arc router not configured" };
+export async function arcTradeUsdc(hash: `0x${string}`, token: string, tag: string): Promise<{ ok: true; usdc: bigint; taker: string } | { ok: false; error: string; retry?: boolean }> {
+  const router = ARC_DIRECT_ROUTER_ADDRESS;
+  if (!router) return { ok: false, error: "Arc router not configured" };
   const c = arcClient();
   const [tx, rc] = await Promise.all([c.getTransaction({ hash }).catch(() => null), c.getTransactionReceipt({ hash }).catch(() => null)]);
   if (!tx || !rc) return { ok: false, error: "Transaction not found yet", retry: true };
   if (rc.status !== "success") return { ok: false, error: "Transaction failed" };
-  if (tx.from.toLowerCase() !== taker.toLowerCase() || (tx.to ?? "").toLowerCase() !== ARC_DIRECT_ROUTER_ADDRESS.toLowerCase()) return { ok: false, error: "Transaction does not match" };
+  if ((tx.to ?? "").toLowerCase() !== router.toLowerCase()) return { ok: false, error: "Transaction does not match" };
+  const input = tx.input.toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(tag) || !input.endsWith(tag)) return { ok: false, error: "Transaction does not match" };
+  const block = await c.getBlock({ blockNumber: rc.blockNumber }).catch(() => null);
+  if (!block || Date.now() / 1000 - Number(block.timestamp) > 3600) return { ok: false, error: "Transaction too old" };
   let call;
-  try { call = decodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, data: tx.input }); } catch { return { ok: false, error: "Transaction does not match" }; }
+  try { call = decodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, data: input.slice(0, -32) as `0x${string}` }); } catch { return { ok: false, error: "Transaction does not match" }; }
   const args = call.args as readonly unknown[];
   if (String(args[0]).toLowerCase() !== token.toLowerCase()) return { ok: false, error: "Transaction does not match" };
-  if (call.functionName === "buy") return tx.value > 0n ? { ok: true, usdc: tx.value } : { ok: false, error: "Empty trade" };
+  const taker = tx.from.toLowerCase();
+  if (call.functionName === "buy") return tx.value > 0n ? { ok: true, usdc: tx.value, taker } : { ok: false, error: "Empty trade" };
   if (call.functionName === "sell") {
     try {
-      const { result } = await c.simulateContract({ address: ARC_DIRECT_ROUTER_ADDRESS, abi: ARC_DIRECT_ROUTER_ABI, functionName: "quoteSell", args: [token as `0x${string}`, Number(args[1]), args[2] as bigint], blockNumber: rc.blockNumber - 1n });
-      return (result as bigint) > 0n ? { ok: true, usdc: result as bigint } : { ok: false, error: "Empty trade" };
+      const { result } = await c.simulateContract({ address: router, abi: ARC_DIRECT_ROUTER_ABI, functionName: "quoteSell", args: [token as `0x${string}`, Number(args[1]), args[2] as bigint], blockNumber: rc.blockNumber - 1n });
+      return (result as bigint) > 0n ? { ok: true, usdc: result as bigint, taker } : { ok: false, error: "Empty trade" };
     } catch { return { ok: false, error: "Could not price this sale" }; }
   }
   return { ok: false, error: "Transaction does not match" };

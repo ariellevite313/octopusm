@@ -6,7 +6,7 @@ import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
 export type ArcVerifyResult = "ok" | "mismatch" | "unverified";
 
 export async function verifyArcTransfer(p: {
-  hash: string; from: string; minUsdc: number; memoIncludes?: string[]; retries?: number;
+  hash: string; from: string; minUsdc: number; memoIncludes?: string[]; retries?: number; maxAgeSec?: number;
 }): Promise<ArcVerifyResult> {
   if (!/^0x[0-9a-fA-F]{64}$/.test(p.hash)) return "mismatch";
   if (!Number.isFinite(p.minUsdc) || p.minUsdc <= 0 || p.minUsdc > 1e9) return "mismatch";
@@ -20,6 +20,13 @@ export async function verifyArcTransfer(p: {
         (tx.to ?? "").toLowerCase() === ARC_BETS_ADDRESS.toLowerCase() &&
         tx.value >= parseUnits(Number(p.minUsdc).toFixed(6), 18);
       if (!okBasic) return "mismatch";
+      // La transaction doit être minée ET réussie : une tx échouée, annulée ou encore en attente porte quand même un `value`
+      const rc = await client.getTransactionReceipt({ hash: p.hash as `0x${string}` }).catch(() => null);
+      if (!rc) continue;
+      if (rc.status !== "success") return "mismatch";
+      const block = await client.getBlock({ blockNumber: rc.blockNumber }).catch(() => null);
+      if (!block) continue;
+      if (Date.now() / 1000 - Number(block.timestamp) > (p.maxAgeSec ?? 6 * 3600)) return "mismatch";
       if (p.memoIncludes?.length) {
         let memo = "";
         try { memo = hexToString(tx.input); } catch { /* ignore */ }

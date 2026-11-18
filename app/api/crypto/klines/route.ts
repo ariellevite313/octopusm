@@ -1,3 +1,4 @@
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 
 export const runtime = "edge";
@@ -14,6 +15,7 @@ const COINGECKO_IDS: Record<string, string> = {
 };
 
 export async function GET(req: Request) {
+  { const lim = await limited(req, "klines", 60); if (lim) return lim; }
   const { searchParams } = new URL(req.url);
   const symbol    = searchParams.get("symbol")?.toUpperCase();
   const interval  = searchParams.get("interval") ?? "1s";
@@ -23,6 +25,12 @@ export async function GET(req: Request) {
 
   if (!symbol || !VALID_SYMBOLS.includes(symbol)) {
     return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
+  }
+  // Paramètres stricts avant de les mettre dans l'URL de Binance (pas d'ajout de paramètres, pas de « limit » énorme)
+  const INTERVALS = ["1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"];
+  if (!INTERVALS.includes(interval) || !/^\d{1,4}$/.test(limit) || Number(limit) < 1 || Number(limit) > 1000
+    || (startTime && !/^\d{1,15}$/.test(startTime)) || (endTime && !/^\d{1,15}$/.test(endTime))) {
+    return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
   }
 
   // Primary: proxy Binance klines (real-time, accurate)
@@ -34,6 +42,7 @@ export async function GET(req: Request) {
     const res = await fetch(binanceUrl, {
       headers: { "Accept": "application/json" },
       next: { revalidate: 0 },
+      signal: AbortSignal.timeout(8000),
     });
     if (res.ok) {
       const data: [number, string, string, string, string, ...unknown[]][] = await res.json();

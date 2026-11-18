@@ -4,6 +4,8 @@
  * (hors créateur) et part du supply qu'ils détiennent encore.
  * Réponse : { available, wallets, pct } — available=false si l'historique est trop long ou illisible.
  */
+import { selfUrl } from "@/lib/self-url";
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { detectBundle, bundleFromFirstSlots, type EarlyTx } from "@/lib/holders-analysis";
@@ -29,6 +31,7 @@ async function rpc(method: string, params: unknown[]) {
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ mint: string }> }) {
+  { const lim = await limited(req, "bundle", 30); if (lim) return lim; }
   const { mint } = await params;
   if (!BASE58_RE.test(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
   const none = { available: false, wallets: [] as string[], pct: 0 };
@@ -59,7 +62,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
     }
     if (!reachedStart || !oldest.length) {
       // Mint trop ancien ou trop actif : premier slot d'acquisition des plus gros holders
-      const origin0 = new URL(req.url).origin;
+      const origin0 = selfUrl();
       const hj0 = await fetch(`${origin0}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const top = ((hj0?.holders ?? []) as { owner: string; pct: number; isProgram: boolean }[]).filter((h) => !h.isProgram).slice(0, 25);
       if (!top.length) return NextResponse.json(none, cache);
@@ -97,7 +100,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
     }))).filter(Boolean) as EarlyTx[];
 
     // Part du supply encore détenue par ces portefeuilles (via l'API holders, déjà en cache)
-    const origin = new URL(req.url).origin;
+    const origin = selfUrl();
     const hj = await fetch(`${origin}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const balances = new Map<string, number>((hj?.holders ?? []).map((h: { owner: string; pct: number }) => [h.owner, h.pct]));
     const { wallets, pct } = detectBundle(txs, creator, balances);

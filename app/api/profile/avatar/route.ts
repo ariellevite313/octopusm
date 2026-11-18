@@ -1,7 +1,10 @@
+import { sniffImage } from "@/lib/moderation";
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "avatar", 10, 600_000); if (lim) return lim; }
   try {
   // Verify session
   const supabase = await createClient();
@@ -28,9 +31,12 @@ export async function POST(req: Request) {
   // Use admin client to bypass RLS on storage
   const admin = createAdminClient() as any;
   const arrayBuffer = await file.arrayBuffer();
+  // Type réel lu dans les octets du fichier (le type annoncé par le navigateur peut mentir)
+  const realType = sniffImage(new Uint8Array(await file.arrayBuffer()));
+  if (!realType) return NextResponse.json({ error: "Invalid image file" }, { status: 400 });
   const { error } = await admin.storage
     .from("avatars")
-    .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
+    .upload(path, arrayBuffer, { contentType: realType, upsert: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

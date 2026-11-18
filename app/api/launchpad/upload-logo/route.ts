@@ -1,3 +1,5 @@
+import { sniffImage } from "@/lib/moderation";
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
@@ -11,6 +13,7 @@ const VALID_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "imag
  * puisse être écrite sur la chaîne (imageUri). Renvoie { url }.
  */
 export async function POST(req: Request) {
+  { const lim = await limited(req, "upload-logo", 10, 600_000); if (lim) return lim; }
   const sess = await requireWallet();
   if ("error" in sess) return sess.error;
   try {
@@ -24,7 +27,10 @@ export async function POST(req: Request) {
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
-    const { error } = await admin.storage.from("market-images").upload(path, await file.arrayBuffer(), { contentType: file.type, upsert: false });
+    // Type réel lu dans les octets du fichier (le type annoncé par le navigateur peut mentir)
+    const realType = sniffImage(new Uint8Array(await file.arrayBuffer()));
+    if (!realType) return NextResponse.json({ error: "Invalid image file" }, { status: 400 });
+    const { error } = await admin.storage.from("market-images").upload(path, await file.arrayBuffer(), { contentType: realType, upsert: false });
     if (error) return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     const { data } = admin.storage.from("market-images").getPublicUrl(path);
     return NextResponse.json({ url: data.publicUrl });

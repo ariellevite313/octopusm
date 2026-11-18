@@ -5,6 +5,7 @@
  * Sécurisé par CRON_SECRET. (La logique est dans lib/arc-stats.ts.)
  */
 
+import { selfUrl } from "@/lib/self-url";
 import { NextResponse } from "next/server";
 import { refreshArcStats } from "@/lib/arc-stats";
 import { cronDenied } from "@/lib/auth/cron";
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
   if (denied) return denied;
 
   try {
-    const r = await refreshArcStats(new URL(req.url).origin);
+    const r = await refreshArcStats(selfUrl());
     console.log(`[update-arc-stats] updated=${r.updated} failed=${r.failed}/${r.total}`);
     return NextResponse.json(r);
   } catch (err) {

@@ -148,8 +148,9 @@ export async function getLaunchpadTokens({
   if (category) q = q.eq("category", category);
   // Full-text search on name and ticker (case-insensitive)
   if (search && search.trim()) {
-    const s = search.trim();
-    q = q.or(`name.ilike.%${s}%,ticker.ilike.%${s}%`);
+    // Caractères du filtre PostgREST (, ( ) . : %) et jokers retirés : la recherche ne peut pas ajouter ses propres conditions
+    const s = search.trim().replace(/[^\p{L}\p{N} $_-]/gu, "").replace(/[_]/g, "").slice(0, 40);
+    if (s) q = q.or(`name.ilike.%${s}%,ticker.ilike.%${s}%`);
   }
 
   // "verified" sort = only verified tokens, newest first

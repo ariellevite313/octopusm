@@ -7,10 +7,10 @@ node_modules/
 .next/
 out/
 
-# Environment
+# Environment (tous les fichiers .env, sauf les exemples)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env*.example
 
 # Build
 build/
@@ -31,3 +31,10 @@ next-env.d.ts
 
 # Supabase CLI (référence du projet, email du compte)
 supabase/.temp/
+
+# Clés privées générées (adresses vanity) : ne jamais les versionner
+scripts/vanity-grind/**/*.json
+scripts/**/PEPE/
+scripts/**/CLT/
+scripts/**/DoGE*/
+*keypair*.json

@@ -11,7 +11,7 @@
  *
  * Query params:
  *   pool      — Meteora DBC pool address (from /tokens → pool field)
- *   receiver  — (optional) SOL destination. Defaults to {address}.
+ *   receiver  — (optional) must equal {address}; fees always go to the creator.
  *               Pass an Aido vault address to redirect fees there.
  *
  * Response:
@@ -47,11 +47,11 @@ function getSolanaConnection() {
 
 export async function GET(
   req: Request,
-  { params }: { params: { address: string } },
+  { params }: { params: Promise<{ address: string }> },
 ) {
   if (!checkRateLimit(getIp(req))) return err("Too Many Requests", 429);
 
-  const creatorAddress = params.address;
+  const creatorAddress = (await params).address;
   if (!isValidSolana(creatorAddress)) return err("Invalid Solana address", 400);
 
   const { searchParams } = new URL(req.url);
@@ -61,6 +61,8 @@ export async function GET(
   if (!poolParam)                  return err("Missing ?pool param", 400);
   if (!isValidSolana(poolParam))   return err("Invalid pool address", 400);
   if (!isValidSolana(receiverParam)) return err("Invalid receiver address", 400);
+  // Les frais ne partent que vers le créateur lui-même : un lien piégé ne peut pas les détourner vers une autre adresse
+  if (receiverParam !== creatorAddress) return err("Fees can only be sent to the creator wallet", 400);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;

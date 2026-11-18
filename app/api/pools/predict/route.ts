@@ -1,3 +1,6 @@
+import { rateHit } from "@/lib/rate-limit";
+import { isBanned } from "@/lib/moderation";
+import { claimPayment, releasePayment } from "@/lib/payments/used";
 import { NextResponse } from "next/server";
 import { recordAttribution } from "@/lib/social/share-rewards";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
@@ -21,6 +24,8 @@ export async function POST(req: Request) {
   if (!sessionWallet) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  if (await isBanned(sessionWallet, true)) return NextResponse.json({ error: "This account is suspended" }, { status: 403 });
+  if (!(await rateHit(`bet:${sessionWallet}`, 30, 600_000))) return NextResponse.json({ error: "Too many bets, slow down" }, { status: 429 });
 
   let body: {
     payment_request_id: string;
@@ -96,6 +101,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid selection" }, { status: 400 });
   }
 
+  // Un marché = une seule monnaie. Sans colonne dédiée, la monnaie est celle de la première mise (payée ou approuvée) :
+  // sinon une mise en CLT gonflerait un pool USDC et les gagnants retireraient des USDC qui n'existent pas.
+  // bet_token est lu à part : si la colonne n'existe pas, la requête échoue sans bloquer le pari
+  const [{ data: tokRow }, { data: firstBet }, { data: firstPay }] = await Promise.all([
+    admin.from("mutuel_markets").select("bet_token").eq("id", body.market_id).maybeSingle(),
+    admin.from("mutuel_bets").select("token").eq("market_id", body.market_id).limit(1).maybeSingle(),
+    admin.from("payments").select("token").eq("market_id", body.market_id).eq("flow", "pool_prediction").neq("status", "rejected").limit(1).maybeSingle(),
+  ]);
+  const marketToken = (tokRow?.bet_token ?? firstBet?.token ?? firstPay?.token) as string | undefined;
+  if (marketToken && marketToken !== body.token) {
+    return NextResponse.json({ error: `This market takes ${marketToken === "usdc" ? "USDC" : "CLT"} only` }, { status: 400 });
+  }
+
+  // Une transaction ne paie qu'une seule chose, tous flux confondus
+  if (!(await claimPayment(body.tx_signature, "pool_prediction", body.wallet_address))) {
+    return NextResponse.json({ error: "This transaction has already been used" }, { status: 409 });
+  }
   const { error } = await admin.from("payments").insert({
     id:                 crypto.randomUUID(),
     payment_request_id: body.payment_request_id,
@@ -118,6 +140,7 @@ export async function POST(req: Request) {
   });
 
   if (error) {
+    if (error.code !== "23505") await releasePayment(body.tx_signature);
     if (error.code === "23505") {
       return NextResponse.json({ error: "Transaction already submitted" }, { status: 409 });
     }

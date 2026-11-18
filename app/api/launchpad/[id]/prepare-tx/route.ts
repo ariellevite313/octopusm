@@ -41,6 +41,29 @@ import {
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+/**
+ * Enregistre l'adresse du token et sa clé, une seule fois (deux appels simultanés ne réservent pas deux clés).
+ * Renvoie une réponse d'erreur si l'enregistrement échoue : on ne renvoie jamais une transaction dont la base n'a pas la clé.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function saveMint(admin: any, id: string, kp: Keypair): Promise<NextResponse | null> {
+  const { data, error } = await admin.from("launchpad_tokens")
+    .update({ mint_address: kp.publicKey.toBase58(), vanity_secret_key: Buffer.from(kp.secretKey).toString("base64") })
+    .eq("id", id).is("vanity_secret_key", null).select("id");
+  if (error) { console.error("[prepare-tx] save mint:", error.message); return NextResponse.json({ error: "Could not save the token address, retry." }, { status: 500 }); }
+  if (!data?.length) return NextResponse.json({ error: "This launch is already being prepared, retry in a few seconds." }, { status: 409 });
+  return null;
+}
+
+/** Limite les adresses réservées sans frais payés : sinon on vidait la réserve DoGE / PEPE / CLT sans rien payer. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function tooManyReserved(admin: any, creator: string): Promise<boolean> {
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const { count } = await admin.from("launchpad_tokens").select("id", { count: "exact", head: true })
+    .eq("creator_wallet", creator).eq("status", "pending").is("fee_paid_at", null).not("vanity_secret_key", "is", null).gte("created_at", since);
+  return (count ?? 0) >= 3;
+}
+
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
 
@@ -114,42 +137,34 @@ export async function POST(req: Request, { params }: RouteParams) {
     } else if (isDogeQuote(token.quote_asset as string | null)) {
       // DSOL-20 (paire DOGE) : adresse commençant par « DoGE », prise dans la réserve de clés pré-générées
       if (!dogeLaunchEnabled()) return NextResponse.json({ error: "DOGE launches are not available yet" }, { status: 503 });
-      const { data: claimed } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: DSOL_PREFIX });
+      if (await tooManyReserved(admin, token.creator_wallet as string)) return NextResponse.json({ error: "Too many unfinished launches. Finish or delete one first." }, { status: 429 });
+      const { data: claimed, error: claimErr } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: DSOL_PREFIX });
       const row = (Array.isArray(claimed) ? claimed[0] : claimed) as { pub_key?: string; sec_key?: string } | null;
-      if (row?.sec_key) {
-        mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
-        if (mintKeypair.publicKey.toBase58() !== row.pub_key || !row.pub_key!.startsWith(DSOL_PREFIX)) {
-          return NextResponse.json({ error: "Invalid DoGE address in the pool" }, { status: 500 });
-        }
-      } else {
-        // Réserve DoGE vide : adresse normale finissant par « om », le lancement ne bloque pas
-        try { mintKeypair = await generateOmKeypair(); } catch {
-          return NextResponse.json({ error: "Génération de l'adresse trop longue, réessaie." }, { status: 503 });
-        }
+      // Plus de repli silencieux vers une adresse « om » : le lancement DoGE promet une adresse DoGE
+      if (claimErr) { console.error("[prepare-tx] claim DoGE:", claimErr.message); return NextResponse.json({ error: "Could not reserve a DoGE address, retry in a moment." }, { status: 503 }); }
+      if (!row?.sec_key) return NextResponse.json({ error: "No DoGE address left right now. Try again later." }, { status: 503 });
+      mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
+      if (mintKeypair.publicKey.toBase58() !== row.pub_key || !row.pub_key!.startsWith(DSOL_PREFIX)) {
+        return NextResponse.json({ error: "Invalid DoGE address in the pool" }, { status: 500 });
       }
-      await admin.from("launchpad_tokens")
-        .update({ mint_address: mintKeypair.publicKey.toBase58(), vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
-        .eq("id", id);
+      const saved = await saveMint(admin, id, mintKeypair);
+      if (saved) return saved;
     } else if (pairQuoteByMint(token.quote_asset as string | null)) {
       // Paire PEPE ou CLT : adresse finissant par « PEPE » ou commençant par « CLT », prise dans la réserve de clés pré-générées
       const pq = pairQuoteByMint(token.quote_asset as string | null)!;
       if (!pairLaunchEnabled(pq.key)) return NextResponse.json({ error: `${pq.symbol} launches are not available yet` }, { status: 503 });
-      const { data: claimed } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: pq.prefix });
+      if (await tooManyReserved(admin, token.creator_wallet as string)) return NextResponse.json({ error: "Too many unfinished launches. Finish or delete one first." }, { status: 429 });
+      const { data: claimed, error: claimErr } = await admin.rpc("claim_vanity_keypair_label", { p_token_id: id, p_label: pq.prefix });
       const row = (Array.isArray(claimed) ? claimed[0] : claimed) as { pub_key?: string; sec_key?: string } | null;
-      if (row?.sec_key) {
-        mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
-        if (mintKeypair.publicKey.toBase58() !== row.pub_key || !hasPairMark(pq, row.pub_key!)) {
-          return NextResponse.json({ error: `Invalid ${pq.prefix} address in the pool` }, { status: 500 });
-        }
-      } else {
-        // Réserve vide (les clés PEPE sont longues à générer) : adresse normale finissant par « om », le lancement ne bloque pas
-        try { mintKeypair = await generateOmKeypair(); } catch {
-          return NextResponse.json({ error: "Génération de l'adresse trop longue, réessaie." }, { status: 503 });
-        }
+      // Plus de repli silencieux vers une adresse « om » : une paire PEPE ou CLT promet son adresse
+      if (claimErr) { console.error(`[prepare-tx] claim ${pq.prefix}:`, claimErr.message); return NextResponse.json({ error: `Could not reserve a ${pq.prefix} address, retry in a moment.` }, { status: 503 }); }
+      if (!row?.sec_key) return NextResponse.json({ error: `No ${pq.prefix} address left right now. Try again later.` }, { status: 503 });
+      mintKeypair = Keypair.fromSecretKey(bs58.decode(row.sec_key));
+      if (mintKeypair.publicKey.toBase58() !== row.pub_key || !hasPairMark(pq, row.pub_key!)) {
+        return NextResponse.json({ error: `Invalid ${pq.prefix} address in the pool` }, { status: 500 });
       }
-      await admin.from("launchpad_tokens")
-        .update({ mint_address: mintKeypair.publicKey.toBase58(), vanity_secret_key: Buffer.from(mintKeypair.secretKey).toString("base64") })
-        .eq("id", id);
+      const saved = await saveMint(admin, id, mintKeypair);
+      if (saved) return saved;
     } else {
       // L'adresse du token se termine toujours par « om » (générée à la volée)
       try {
@@ -157,11 +172,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       } catch {
         return NextResponse.json({ error: "Génération de l'adresse trop longue, réessaie." }, { status: 503 });
       }
-      const mintSecret  = Buffer.from(mintKeypair.secretKey).toString("base64");
-      const mintAddress = mintKeypair.publicKey.toBase58();
-      await admin.from("launchpad_tokens")
-        .update({ mint_address: mintAddress, vanity_secret_key: mintSecret })
-        .eq("id", id);
+      const saved = await saveMint(admin, id, mintKeypair);
+      if (saved) return saved;
     }
 
     // Paire DOGE, PEPE ou CLT avec premier achat : le créateur doit avoir assez de cette monnaie,

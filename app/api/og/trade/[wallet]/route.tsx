@@ -3,6 +3,7 @@
  * Carte de partage d'un trade (1080×1240) : cadre en verre incolore, OMDOTFUN, courbe avec les achats (B) et ventes (S),
  * gain réalisé + latent et pourcentage. N'importe qui peut partager la carte de n'importe quel wallet (activité publique).
  */
+import { limited } from "@/lib/limit";
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -36,6 +37,7 @@ const axis = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ?
 const day = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 export async function GET(req: Request, { params }: { params: Promise<{ wallet: string }> }) {
+  { const lim = await limited(req, "og-trade", 30); if (lim) return lim; }
   const { wallet } = await params;
   const url = new URL(req.url);
   const mint = (url.searchParams.get("mint") ?? "").trim();

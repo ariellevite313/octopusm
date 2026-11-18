@@ -12,6 +12,7 @@
  * Verified tokens always appear first within each sort (except sort=verified
  * which filters to verified-only tokens).
  */
+import { selfUrl } from "@/lib/self-url";
 import { NextResponse } from "next/server";
 import { getLaunchpadTokens, type SortOption } from "@/services/launchpad-service";
 import { refreshArcStats } from "@/lib/arc-stats";
@@ -65,7 +66,7 @@ export async function GET(req: Request) {
     const blank = tokens.filter((t) => t.chain === "arc" && t.market_cap_usd == null).map((t) => t.id);
     if (blank.length > 0) {
       try {
-        await Promise.race([refreshArcStats(new URL(req.url).origin, blank.slice(0, 10)), new Promise((r) => setTimeout(r, 6000))]);
+        await Promise.race([refreshArcStats(selfUrl(), blank.slice(0, 10)), new Promise((r) => setTimeout(r, 6000))]);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: fresh } = await (createAdminClient() as any).from("launchpad_tokens").select("id, price_usd, market_cap_usd, volume_24h_usd").in("id", blank);
         const byId = new Map<string, { price_usd: number | null; market_cap_usd: number | null; volume_24h_usd: number | null }>((fresh ?? []).map((f: { id: string }) => [f.id, f as never]));

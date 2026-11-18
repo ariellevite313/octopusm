@@ -7,6 +7,8 @@
  * Body: { signedTransactionBase64: string }
  * Response: { signature: string }
  */
+import { SystemInstruction, SystemProgram } from "@solana/web3.js";
+import { platformPubkey } from "@/lib/solana/dbc";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, Transaction } from "@solana/web3.js";
@@ -57,6 +59,22 @@ export async function POST(req: Request, { params }: RouteParams) {
     const connection = getConnection();
     const txBuffer   = Buffer.from(body.signedTransactionBase64, "base64");
     const tx         = Transaction.from(txBuffer);
+
+    // Relais limité à la TX « a » (frais de création) : uniquement des virements de SOL du créateur vers la plateforme
+    // (+ réglages de calcul ajoutés par les wallets). Ce n'est plus un relais ouvert pour n'importe quelle transaction.
+    {
+      const platform = platformPubkey().toBase58();
+      const ok = tx.instructions.length > 0 && tx.instructions.every((ix) => {
+        const prog = ix.programId.toBase58();
+        if (prog === "ComputeBudget111111111111111111111111111111") return true;
+        if (!ix.programId.equals(SystemProgram.programId)) return false;
+        try {
+          const t = SystemInstruction.decodeTransfer(ix);
+          return t.fromPubkey.toBase58() === body.walletAddress && t.toPubkey.toBase58() === platform;
+        } catch { return false; }
+      });
+      if (!ok) return NextResponse.json({ error: "Only the launch fee transaction can be sent here" }, { status: 400 });
+    }
 
     const signature = await connection.sendRawTransaction(tx.serialize(), {
       skipPreflight:       true, // tx pre-verified by SDK; preflight can reject valid txs under RPC lag

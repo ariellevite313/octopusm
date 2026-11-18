@@ -30,6 +30,8 @@ vi.mock("@/lib/social/session", () => ({
 }));
 
 vi.mock("@/lib/launch/verify-creator", () => ({ verifyTokenCreator: mockVerifyTokenCreator }));
+// Tickers réservés : aucun dans ces tests (lu en base sinon)
+vi.mock("@/lib/launch/reserved-tickers", () => ({ reservedTicker: async () => ({ reserved: false }), normTicker: (t: string) => String(t ?? "").trim().replace(/^\$+/, "").toUpperCase() }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient:      vi.fn(),

@@ -11,6 +11,7 @@
  *  2. Updates the token status to "active" (or leaves "pending" if scheduled)
  *  3. Clears the stored vanity secret key (no longer needed)
  */
+import { ensureLaunchFeePaid } from "@/lib/launch/fee-check";
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -205,6 +206,11 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
+    // Pas de token actif (ni de récompense) sans frais de création payés, vérifiés sur la chaîne
+    if (!(await ensureLaunchFeePaid(admin, id))) {
+      return NextResponse.json({ error: "Launch fee not found on-chain. Pay the launch fee to go live." }, { status: 402 });
+    }
+
     const { data: flipped } = await admin
       .from("launchpad_tokens")
       .update({
@@ -226,6 +232,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       .eq("status", "pending") // une seule confirmation gagne (pas de double récompense en parallèle)
       .select("id");
     if (!flipped?.length) return NextResponse.json({ error: "Already confirmed" }, { status: 409 });
+    // La clé privée du token ne sert plus : on l'efface aussi de la réserve vanity
+    try { await admin.rpc("clear_vanity_secret", { p_token_id: id }); } catch { /* non bloquant */ }
 
     // Award 500 Omero to the creator — fire-and-forget, never blocks the response
     awardOcto(body.walletAddress, OMERO_PER_LAUNCH, "launch").catch((e) =>

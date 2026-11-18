@@ -63,7 +63,8 @@ export class SupaMockBuilder {
         }),
       },
       rpc: vi.fn((fn: string) =>
-        Promise.resolve({ data: self._rpcMap[fn] ?? null, error: null })
+        // rl_hit (limite de requêtes) : autorisé par défaut dans les tests
+        Promise.resolve({ data: fn in self._rpcMap ? self._rpcMap[fn] : fn === "rl_hit" ? true : null, error: null })
       ),
       from: vi.fn((table: string) => {
         const result: SupaTableMock = self.tableMap[table] ?? { data: [], error: null };
@@ -80,6 +81,12 @@ export class SupaMockBuilder {
         chain.not      = vi.fn(chainFn);
         chain.is       = vi.fn(chainFn);
         chain.limit    = vi.fn(chainFn);
+        chain.gte      = vi.fn(chainFn);
+        chain.lte      = vi.fn(chainFn);
+        chain.gt       = vi.fn(chainFn);
+        chain.lt       = vi.fn(chainFn);
+        chain.ilike    = vi.fn(chainFn);
+        chain.range    = vi.fn(chainFn);
         chain.order    = vi.fn(chainFn);
         chain.single   = vi.fn(() =>
           Promise.resolve({ data: Array.isArray(result.data) ? (result.data[0] ?? null) : result.data, error: result.error })

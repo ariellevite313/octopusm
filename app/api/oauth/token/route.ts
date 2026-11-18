@@ -45,7 +45,12 @@ export async function POST(req: Request) {
   if (b.grant_type === "refresh_token") {
     if (!b.refresh_token) return fail("invalid_request");
     const { data: t } = await admin.from("oauth_tokens").select("*").eq("refresh_hash", sha256(b.refresh_token)).maybeSingle();
-    if (!t || t.revoked || new Date(t.refresh_expires_at).getTime() < Date.now() || (b.client_id && b.client_id !== t.client_id)) return fail("invalid_grant");
+    if (t?.revoked) {
+      // Un refresh token déjà utilisé qui revient = jeton volé : on coupe toutes les sessions de cette app pour ce wallet
+      await admin.from("oauth_tokens").update({ revoked: true }).eq("wallet", t.wallet).eq("client_id", t.client_id);
+      return fail("invalid_grant");
+    }
+    if (!t || new Date(t.refresh_expires_at).getTime() < Date.now() || (b.client_id && b.client_id !== t.client_id)) return fail("invalid_grant");
     // Rotation : l'ancien jeton est révoqué
     const { data: rot } = await admin.from("oauth_tokens").update({ revoked: true }).eq("id", t.id).eq("revoked", false).select("id");
     if (!rot?.length) return fail("invalid_grant");

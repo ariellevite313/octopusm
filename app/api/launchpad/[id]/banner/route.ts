@@ -5,6 +5,7 @@
  * The previous banner file is deleted from storage before uploading the new one.
  */
 
+import { sniffImage } from "@/lib/moderation";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
@@ -83,9 +84,12 @@ export async function POST(
 
     // Upload new file
     const arrayBuffer = await file.arrayBuffer();
+    // Type réel lu dans les octets du fichier (le type annoncé par le navigateur peut mentir)
+    const realType = sniffImage(new Uint8Array(await file.arrayBuffer()));
+    if (!realType) return NextResponse.json({ error: "Invalid image file" }, { status: 400 });
     const { error: uploadErr } = await admin.storage
       .from(BUCKET)
-      .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
+      .upload(path, arrayBuffer, { contentType: realType, upsert: true });
 
     if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 });
 

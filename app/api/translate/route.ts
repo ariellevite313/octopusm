@@ -3,6 +3,7 @@
  * Traduit un post ou une réponse du fil. Le texte est relu en base (jamais envoyé par le client),
  * donc cette route ne sert pas de traducteur gratuit pour n'importe quel texte. Résultat mis en cache.
  */
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { TRANSLATE_LANGS, translateText, translationConfigured } from "@/lib/social/translate";
@@ -10,6 +11,7 @@ import { TRANSLATE_LANGS, translateText, translationConfigured } from "@/lib/soc
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "translate", 30); if (lim) return lim; }
   try {
     const b = await req.json().catch(() => ({})) as { kind?: string; id?: string; lang?: string };
     const kind = b.kind === "reply" ? "reply" : b.kind === "post" ? "post" : null;

@@ -9,9 +9,9 @@ import { createHash } from "node:crypto";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import { recoverMessageAddress } from "viem";
+import { useOnce } from "@/lib/used-once";
 
 const MAX_AGE_MS = 5 * 60_000;
-const used = new Map<string, number>();
 
 export const isEvm = (w: string) => /^0x[0-9a-fA-F]{40}$/.test(w);
 export const isSolana = (w: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w);
@@ -49,10 +49,7 @@ export async function verifyWalletSignature(wallet: string, timestamp: number, m
     if (sig.length !== 64 || pub.length !== 32) return "invalid signature or wallet encoding";
     if (!nacl.sign.detached.verify(new TextEncoder().encode(message), sig, pub)) return "signature does not match the wallet";
   }
-  const now = Date.now();
-  if (used.has(signature)) return "signature already used";
-  used.set(signature, now);
-  if (used.size > 2000) for (const [k, t] of used) if (now - t > MAX_AGE_MS) used.delete(k);
+  if (!(await useOnce("mcp-action", wallet, message))) return "signature already used";
   return null;
 }
 

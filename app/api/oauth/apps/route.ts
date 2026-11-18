@@ -27,6 +27,9 @@ export async function DELETE(req: Request) {
   const id = new URL(req.url).searchParams.get("client_id");
   if (!id) return NextResponse.json({ error: "client_id required" }, { status: 400 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (createAdminClient() as any).from("oauth_tokens").update({ revoked: true }).eq("wallet", s.wallet).eq("client_id", id);
+  const admin = createAdminClient() as any;
+  await admin.from("oauth_tokens").update({ revoked: true }).eq("wallet", s.wallet).eq("client_id", id);
+  // Les codes d'autorisation pas encore échangés ne doivent plus donner de jeton
+  await admin.from("oauth_codes").update({ used: true }).eq("wallet", s.wallet).eq("client_id", id).eq("used", false);
   return NextResponse.json({ ok: true });
 }

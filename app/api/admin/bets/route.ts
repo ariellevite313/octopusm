@@ -139,6 +139,8 @@ export async function POST(req: Request) {
     // Use payment.token — mutuel_markets has no bet_token column (only creation_fee_token)
     const token: string = (payment.token ?? "usdc") as string;
     const amount = Number(payment.amount_usdc);
+    const { data: otherBet } = await admin.from("mutuel_bets").select("token").eq("market_id", payment.market_id).eq("status", "approved").neq("token", token).limit(1).maybeSingle();
+    if (otherBet) return NextResponse.json({ error: "This market already has bets in another token" }, { status: 409 });
 
     const { data: existingBet } = await admin
       .from("mutuel_bets")

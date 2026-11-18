@@ -1,7 +1,10 @@
+import { sniffImage } from "@/lib/moderation";
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "upload-image", 10, 600_000); if (lim) return lim; }
   try {
   // Any authenticated user can upload a market icon (not admin-only)
   const supabase = await createClient();
@@ -25,9 +28,12 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient() as any;
   const arrayBuffer = await file.arrayBuffer();
+  // Type réel lu dans les octets du fichier (le type annoncé par le navigateur peut mentir)
+  const realType = sniffImage(new Uint8Array(await file.arrayBuffer()));
+  if (!realType) return NextResponse.json({ error: "Invalid image file" }, { status: 400 });
   const { error } = await admin.storage
     .from("market-images")
-    .upload(path, arrayBuffer, { contentType: file.type, upsert: false });
+    .upload(path, arrayBuffer, { contentType: realType, upsert: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

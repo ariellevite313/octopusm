@@ -11,8 +11,8 @@
  */
 import { NextResponse } from "next/server";
 import { solanaConnection } from "@/lib/solana/rpc";
-import { Connection, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import bs58 from "bs58";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { platformPubkey } from "@/lib/solana/dbc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
@@ -47,10 +47,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const secret = process.env.PLATFORM_WALLET_SECRET;
-    const rpc = process.env.SOLANA_RPC_URL;
-    if (!secret || !rpc) return NextResponse.json({ error: "Server not configured" }, { status: 500 });
-    const platform = Keypair.fromSecretKey(bs58.decode(secret)).publicKey.toBase58();
+    let platform: string;
+    try { platform = platformPubkey().toBase58(); } catch { return NextResponse.json({ error: "Server not configured" }, { status: 500 }); }
     const due = Math.floor(PLATFORM_FEE_SOL * LAMPORTS_PER_SOL) + (token.is_scheduled ? Math.floor(SCHEDULED_FEE_SOL * LAMPORTS_PER_SOL) : 0);
 
     // La tx vient d'être diffusée : on laisse quelques secondes pour la confirmation.

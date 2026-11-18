@@ -1,3 +1,5 @@
+import { rateHit } from "@/lib/rate-limit";
+import { isBanned } from "@/lib/moderation";
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
@@ -30,6 +32,7 @@ export async function DELETE(req: Request) {
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   let body: { id: string };
+  if (!(await rateHit(`withdraw-cancel:${wallet}`, 10, 3600_000))) return NextResponse.json({ error: "Too many requests, try again later" }, { status: 429 });
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
@@ -65,6 +68,8 @@ export async function POST(req: Request) {
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   // Parse body
+  if (await isBanned(wallet, true)) return NextResponse.json({ error: "This account is suspended" }, { status: 403 });
+  if (!(await rateHit(`withdraw:${wallet}`, 5, 3600_000))) return NextResponse.json({ error: "Too many withdrawal requests, try again later" }, { status: 429 });
   let body: { token: string; amount: number };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
@@ -152,7 +157,8 @@ export async function POST(req: Request) {
   const mutuelGains = (mutuelRes.data ?? []).filter((b: any) =>
     isUsdc ? b.token === "usdc" || !b.token : isClt(b.token ?? "")
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ).reduce((s: number, b: any) => s + (b.payout_amount ?? 0), 0);
+  // 5 % de frais de retrait sur les gains de pools (affichés nets dans /api/pools/winnings)
+  ).reduce((s: number, b: any) => s + Math.floor(Number(b.payout_amount ?? 0) * 0.95 * 1_000_000) / 1_000_000, 0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const withdrawn = (withdrawnRes.data ?? []).filter((w: any) =>

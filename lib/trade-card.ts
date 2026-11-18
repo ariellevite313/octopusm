@@ -76,7 +76,7 @@ export async function loadTokenTrades(db: any, chain: "solana" | "arc", mint: st
     for (const t of l.slice(-max)) out.push({ wallet: t.wallet, side: t.side, usd: t.usd, tokens: t.tokenAmount, tsMs: t.tsMs });
   }
   let q = db.from("swaps").select("wallet, side, in_amount, out_amount, volume_usd, created_at, input_mint, output_mint").eq("traded_mint", mint);
-  if (onlyWallet) q = q.ilike("wallet", onlyWallet);
+  if (onlyWallet) q = /^0x/i.test(onlyWallet) ? q.ilike("wallet", onlyWallet.replace(/[%_\\]/g, "")) : q.eq("wallet", onlyWallet);
   const { data: sw } = await q.order("created_at", { ascending: false }).limit(Math.min(max, 1000));
   if (sw?.length) {
     const dec = await decimalsOf(chain, mint);
@@ -94,6 +94,8 @@ export async function loadTokenTrades(db: any, chain: "solana" | "arc", mint: st
 }
 
 export async function getTradeCard(walletIn: string, mint: string): Promise<TradeCard | null> {
+  // Adresse valide uniquement : « % » ou « _ » feraient correspondre tous les wallets dans les filtres ilike
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(walletIn) && !/^0x[0-9a-fA-F]{40}$/.test(walletIn)) return null;
   const chain: "solana" | "arc" = isEvm(mint) ? "arc" : "solana";
   const wallet = isEvm(walletIn) ? walletIn.toLowerCase() : walletIn;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

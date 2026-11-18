@@ -2,6 +2,7 @@
  * GET /api/launchpad/holders/[mint]
  * Top 100 holders d'un token SPL (regroupés par propriétaire), avec le nom OMdotfun quand le holder a un profil.
  */
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -32,6 +33,7 @@ async function rpc(method: string, params: unknown) {
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ mint: string }> }) {
+  { const lim = await limited(req, "holders", 60); if (lim) return lim; }
   const { mint } = await params;
   if (!BASE58_RE.test(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
 

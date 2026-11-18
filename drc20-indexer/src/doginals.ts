@@ -46,8 +46,14 @@ export function inscriptionsOf(tx: Tx, partials: Map<string, Partial>): Inscript
       cur.next = readPieces(p, 3, cur.next, cur.chunks);
     }
     if (!cur) continue;
+    // Un DRC-20 tient en 1 Ko : inutile de garder en mémoire de grosses inscriptions en plusieurs morceaux (déni de service)
+    if (cur.chunks.reduce((n, c) => n + c.length, 0) > 4096) break;
     if (cur.next < 0) out.push({ id: `${tx.txid}i0`, txid: tx.txid, contentType: cur.contentType, body: Buffer.concat(cur.chunks) });
-    else partials.set(`${tx.txid}:0`, cur);
+    else {
+      partials.set(`${tx.txid}:0`, cur);
+      // Plafond : on oublie les plus anciens morceaux en attente
+      if (partials.size > 50_000) { const k = partials.keys().next().value; if (k !== undefined) partials.delete(k); }
+    }
     break; // une seule inscription par transaction (première entrée qui en porte)
   }
   return out;

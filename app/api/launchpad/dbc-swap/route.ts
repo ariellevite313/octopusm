@@ -12,6 +12,7 @@
  *   Sell: estimatedOut = lamports
  */
 
+import { limited } from "@/lib/limit";
 import { DOGE_MINT } from "@/lib/solana/doge";
 import { pairQuoteByMint } from "@/lib/solana/quotes";
 import { NextResponse } from "next/server";
@@ -47,6 +48,7 @@ async function poolQuoteMint(client: any, pool: PublicKey): Promise<string> {
 }
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "dbc-swap", 60); if (lim) return lim; }
   try {
     const body = await req.json() as {
       poolAddress?:      string;
@@ -63,9 +65,11 @@ export async function POST(req: Request) {
       poolAddress,
       walletAddress,
       amountIn,
-      slippageBps      = 100,
+      slippageBps: rawSlippage = 100,
       swapBaseForQuote = false,
     } = body;
+    // Glissement borné entre 0,1 % et 10 %
+    const slippageBps = Math.min(1000, Math.max(10, Math.floor(Number(rawSlippage) || 100)));
 
     // ── Input validation ────────────────────────────────────────────────────────
     if (!poolAddress || !walletAddress || !amountIn) {
@@ -152,8 +156,11 @@ export async function POST(req: Request) {
       estimatedOut     = parseInt(quote.outputAmount.toString(), 10);
       minimumAmountOut = quote.minimumAmountOut ?? new BN(0);
     } catch (e) {
+      // Sans devis, pas de prix plancher : on refuse au lieu d'envoyer un swap sans protection (attaque sandwich)
       console.warn("[dbc-swap] quote estimation failed:", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: "Could not get a price right now, retry in a few seconds" }, { status: 502 });
     }
+    if (minimumAmountOut.isZero()) return NextResponse.json({ error: "Amount too small" }, { status: 400 });
 
     // ── Build swap transaction ───────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

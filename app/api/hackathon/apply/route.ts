@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { verifyWalletSignature } from "@/lib/launch/wallet-signature";
+import { useOnce } from "@/lib/used-once";
 import { verifyTokenCreator } from "@/lib/launch/verify-creator";
 import { applicationsOpen } from "@/lib/hackathon/config";
 import { validateApplication, siteIsReachable, type ApplicationInput } from "@/lib/hackathon/apply";
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
     issuedAt: body.issuedAt, signature: body.signature,
   });
   if (!sig.ok) return NextResponse.json({ error: "Invalid or expired signature" }, { status: 403 });
+  if (!(await useOnce("hackathon-apply", who.wallet, `${body.mintAddress.trim()}:${body.issuedAt}`))) return NextResponse.json({ error: "This signature was already used, sign again" }, { status: 403 });
 
   // Créateur relu sur la chaîne (les tokens lancés avant la vérification sont vérifiés ici)
   if (!token.creator_verified) {

@@ -2,6 +2,7 @@
  * Récupération d'un lancement Solana resté "pending" : cherche la pool DBC du token sur la chaîne
  * et, si elle existe, active le token. Utilisé par /check-pool (page du token) et par le cron de rattrapage.
  */
+import { ensureLaunchFeePaid } from "@/lib/launch/fee-check";
 import { DOGE_MINT } from "@/lib/solana/doge";
 import { PAIR_QUOTES } from "@/lib/solana/quotes";
 import { solanaConnection } from "@/lib/solana/rpc";
@@ -148,8 +149,14 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
     pool_address: poolAddress,
     creator_wallet: token.creator_wallet,
   });
-  if (verdict === "mismatch") {
-    console.error(`[recover-pool] creator mismatch for token ${token.id}`);
+  // Comme /confirm : seul un créateur vérifié sur la chaîne active le token (une lecture RPC ratée ne suffit plus).
+  if (verdict !== "ok") {
+    if (verdict === "mismatch") console.error(`[recover-pool] creator mismatch for token ${token.id}`);
+    return null;
+  }
+  // Pas de token actif sans frais de création payés
+  if (!(await ensureLaunchFeePaid(admin, token.id))) {
+    console.warn(`[recover-pool] launch fee not found for token ${token.id}`);
     return null;
   }
 
@@ -166,6 +173,8 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
     ...(token.stock_symbol ? { dbc_config_secret: null } : {}),
   }).eq("id", token.id).eq("status", "pending").select("id");
 
+  // La clé privée du token ne sert plus : on l'efface aussi de la réserve vanity
+  if (flipped?.length) { try { await admin.rpc("clear_vanity_secret", { p_token_id: token.id }); } catch { /* non bloquant */ } }
   // Même récompense que /confirm, une seule fois (seul l'appel qui a fait passer le token en actif la donne).
   if (flipped?.length && token.creator_wallet && verdict === "ok") {
     awardOcto(token.creator_wallet, OMERO_PER_LAUNCH, "launch").catch((e) => console.warn("[recover-pool] awardOcto:", e));

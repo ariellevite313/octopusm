@@ -83,7 +83,8 @@ function setupPrediction(wallet: string | null, insertError: { message: string; 
   const userMock  = wallet ? authedMock(wallet) : unauthedMock();
   const adminMock = new SupaMockBuilder()
     .setUser(wallet ? { wallet_address: wallet } : null)
-    .returnFor("payments", { data: null, error: insertError });
+    .returnFor("payments", { data: null, error: insertError })
+    .returnFor("prediction_markets", { data: [{ options: [{ id: "sel-yes", oddsMultiplier: 2 }], is_resolved: false, is_active: true, event_start_at: null }], error: null });
 
   mockCreateClient.mockImplementation(userMock.buildAsyncFactory());
   mockCreateAdminClient.mockImplementation(adminMock.buildSyncFactory());

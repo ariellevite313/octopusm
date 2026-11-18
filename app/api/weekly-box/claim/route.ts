@@ -2,6 +2,7 @@
  * POST /api/weekly-box/claim { week } : le gagnant réclame sa box SOL.
  * La demande part dans la file admin ; l'équipe paie à la main puis la marque payée.
  */
+import { isBanned } from "@/lib/moderation";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
@@ -9,6 +10,7 @@ import { getWalletAddress } from "@/lib/auth/get-wallet";
 export async function POST(req: Request) {
   const wallet = await getWalletAddress();
   if (!wallet) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (await isBanned(wallet, true)) return NextResponse.json({ error: "This account is suspended" }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as { week?: unknown };
   const week = typeof body.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.week) ? body.week : null;
   if (!week) return NextResponse.json({ error: "Invalid week" }, { status: 400 });

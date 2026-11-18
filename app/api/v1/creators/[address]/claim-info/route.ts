@@ -56,11 +56,11 @@ export async function OPTIONS() { return corsOk(); }
 
 export async function GET(
   req: Request,
-  { params }: { params: { address: string } },
+  { params }: { params: Promise<{ address: string }> },
 ) {
   if (!checkRateLimit(getIp(req))) return err("Too Many Requests", 429);
 
-  const creatorAddress = params.address.toLowerCase();
+  const creatorAddress = (await params).address.toLowerCase();
   if (!isValidEvm(creatorAddress)) return err("Invalid Arc address", 400);
 
   const { searchParams } = new URL(req.url);

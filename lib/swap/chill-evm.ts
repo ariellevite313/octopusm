@@ -47,7 +47,16 @@ export async function evmHolding(chain: EvmChain, holder: string, token: string)
   return { amount, price, usd: price != null ? amount * price : null, meta };
 }
 
-function key() { return process.env.CHILL_REF_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dev-only"; }
+/**
+ * Clé des jetons Chill : CHILL_REF_SECRET si défini, sinon une clé DÉRIVÉE de la clé serveur (jamais la clé elle-même).
+ * Plus de valeur publique par défaut : sans secret, aucun jeton n'est émis.
+ */
+function key() {
+  if (process.env.CHILL_REF_SECRET) return process.env.CHILL_REF_SECRET;
+  const base = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY;
+  if (!base) throw new Error("CHILL_REF_SECRET is not set");
+  return createHash("sha256").update(`om-chill-ref:${base}`).digest("hex");
+}
 export const dataHash = (data: string) => createHash("sha256").update(data.toLowerCase()).digest("hex");
 const payload = (p: { postId: string; chain: string; taker: string; to: string; data: string; feeNative: string; holder: string }) =>
   [p.postId, p.chain, p.taker.toLowerCase(), p.to.toLowerCase(), dataHash(p.data), p.feeNative, p.holder.toLowerCase()].join("|");

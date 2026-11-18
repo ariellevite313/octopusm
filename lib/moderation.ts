@@ -9,7 +9,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 const banCache = new Map<string, { at: number; banned: boolean }>();
 const norm = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w);
 
-export async function isBanned(walletRaw: string): Promise<boolean> {
+/** strict : en cas d'erreur de lecture, on considère le compte comme banni (pour les actions qui touchent à l'argent). */
+export async function isBanned(walletRaw: string, strict = false): Promise<boolean> {
   const wallet = norm(walletRaw);
   const c = banCache.get(wallet);
   if (c && Date.now() - c.at < 30_000) return c.banned;
@@ -20,7 +21,7 @@ export async function isBanned(walletRaw: string): Promise<boolean> {
     banCache.set(wallet, { at: Date.now(), banned });
     if (banCache.size > 5000) banCache.clear();
     return banned;
-  } catch { return false; }
+  } catch { return strict; }
 }
 export const forgetBan = (w: string) => banCache.delete(norm(w));
 

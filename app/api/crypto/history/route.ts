@@ -24,11 +24,15 @@ export async function GET(req: NextRequest) {
   const from   = Number(searchParams.get("from"));
   const to     = Number(searchParams.get("to") ?? Date.now());
 
-  if (!symbol) {
+  if (!symbol || !/^[A-Z0-9]{2,20}$/.test(symbol)) {
     return NextResponse.json({ error: "symbol required" }, { status: 400 });
   }
   if (!from || isNaN(from)) {
     return NextResponse.json({ error: "from required (ms timestamp)" }, { status: 400 });
+  }
+
+  if (!Number.isFinite(to) || to - from > 6 * 3600_000 || to < from) {
+    return NextResponse.json({ error: "Invalid range" }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -43,7 +47,8 @@ export async function GET(req: NextRequest) {
     .limit(3600); // max 1h de secondes
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[crypto/history]", error.message);
+    return NextResponse.json({ error: "Could not load history" }, { status: 500 });
   }
 
   // Format compatible avec PricePoint du LiveChart

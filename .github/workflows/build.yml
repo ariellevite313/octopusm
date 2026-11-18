@@ -27,6 +27,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Garde-fous : rien ne part en production si les types ou les tests sont cassés
+      - name: Vérification des types
+        run: NODE_OPTIONS=--max-old-space-size=6144 npx tsc --noEmit -p .
+      - name: Tests
+        run: npm test
       - name: Variables d'environnement
         env:
           ENV_FILE: ${{ secrets.ENV_FILE }}

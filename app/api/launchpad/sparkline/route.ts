@@ -5,6 +5,7 @@
  * Petite série de prix (≈ 24 points) pour la mini-courbe des listes.
  * Mis en cache 5 min côté serveur pour ne pas surcharger les sources.
  */
+import { selfUrl } from "@/lib/self-url";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fetchSnapshots } from "@/lib/launch/snapshot-store";
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
 
   let points: number[] = [];
   try {
-    if (chain === "arc" && curve) points = await arcPoints(url.origin, curve);
+    if (chain === "arc" && curve) points = await arcPoints(selfUrl(), curve);
     else if (pool || mint)        points = await solanaPoints(pool, mint);
   } catch { /* courbe plate côté client */ }
 

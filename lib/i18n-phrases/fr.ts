@@ -369,6 +369,7 @@ const p: Record<string, string> = {
   "Connected wallet": "Wallet connecté",
   "Allow": "Autoriser",
   "You will be sent back to {host}": "Tu seras renvoyé vers {host}",
+  "App website: {host}": "Site de l'application : {host}",
   "AI assistants you allowed to use your OMdotfun account.": "Les assistants IA que tu as autorisés à utiliser ton compte OMdotfun.",
   "Connect an assistant": "Connecter un assistant",
   "In Claude, ChatGPT or any assistant that supports connectors, add this address, then click Connect.": "Dans Claude, ChatGPT ou tout assistant qui accepte les connecteurs, ajoute cette adresse puis clique sur Connecter.",

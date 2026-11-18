@@ -68,6 +68,7 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
@@ -84,6 +85,9 @@ const nextConfig: NextConfig = {
               "connect-src 'self' https://auth.privy.io https://*.privy.io wss://*.privy.io https://*.privy.systems https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://*.supabase.co wss://*.supabase.co https://db.omdot.fun wss://db.omdot.fun https://api.binance.com wss://stream.binance.com:9443 https://mainnet.helius-rpc.com https://*.solana.com https://solana-rpc.publicnode.com https://rpc.ankr.com https://solana.drpc.org https://1rpc.io https://api.dexscreener.com https://api.geckoterminal.com https://api.mainnet-beta.solana.com https://quote-api.jup.ag https://*.jup.ag https://rpc.mainnet.arc.io https://*.walletconnect.org wss://*.walletconnect.org https://*.walletconnect.com wss://*.walletconnect.com https://*.reown.com wss://*.reown.com",
               "frame-src https://auth.privy.io https://*.privy.io https://dexscreener.com https://verify.walletconnect.org https://verify.walletconnect.com https://secure.walletconnect.org https://secure.walletconnect.com",
               "frame-ancestors 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
             ].join("; "),
           },
         ],

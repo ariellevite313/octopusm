@@ -2,6 +2,8 @@
  * GET /api/terminal/links?mint=…  (Solana)
  * Liens entre les plus gros holders : qui a financé qui (premier SOL reçu par le wallet). Mis en cache 30 min.
  */
+import { selfUrl } from "@/lib/self-url";
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { linksFrom, type Funding } from "@/lib/wallet-links";
 
@@ -48,12 +50,13 @@ async function funderOf(owner: string): Promise<string | null> {
 }
 
 export async function GET(req: Request) {
+  { const lim = await limited(req, "term-links", 20); if (lim) return lim; }
   const u = new URL(req.url);
   const mint = (u.searchParams.get("mint") ?? "").trim();
   if (!BASE58_RE.test(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
   const cache = { headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" } };
   try {
-    const hj = await fetch(`${u.origin}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const hj = await fetch(`${selfUrl()}/api/launchpad/holders/${mint}`, { signal: AbortSignal.timeout(20000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const top = ((hj?.holders ?? []) as { owner: string; isProgram: boolean }[]).filter((h) => !h.isProgram).slice(0, MAX_HOLDERS);
     const list: Funding[] = await Promise.all(top.map(async (h) => ({ owner: h.owner, funder: await funderOf(h.owner).catch(() => null) })));
     return NextResponse.json({ links: linksFrom(list) }, cache);

@@ -256,7 +256,10 @@ describe("POST /api/launchpad/[id]/prepare-tx — validation", () => {
   });
 
   it("generates and stores a mint keypair when none exists yet", async () => {
-    const updateSpy = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    // Enregistrement conditionnel de la clé : .update().eq().is().select() → une ligne mise à jour
+    const select = vi.fn().mockResolvedValue({ data: [{ id: "x" }], error: null });
+    const eq = vi.fn(() => Object.assign(Promise.resolve({ error: null }), { is: vi.fn(() => ({ select })) }));
+    const updateSpy = vi.fn().mockReturnValue({ eq });
     mockCreateAdminClient.mockReturnValue(
       buildPrepareTxClient({ ...PENDING_TX_TOKEN, mint_address: null, vanity_secret_key: null }, updateSpy)
     );

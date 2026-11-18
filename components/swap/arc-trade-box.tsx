@@ -10,6 +10,7 @@ import { Loader2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { createPublicClient, encodeFunctionData, http, parseAbi } from "viem";
 import { useAuth } from "@/providers/auth-provider";
+import { arcChillTag } from "@/lib/swap/chill-arc-tag";
 import { useT } from "@/lib/i18n";
 import { arc } from "@/lib/arc-chain";
 import { ARC_DIRECT_ROUTER_ABI, ARC_DIRECT_ROUTER_ADDRESS } from "@/lib/arc-launchpad";
@@ -51,14 +52,11 @@ async function waitReceipt(hash: string) {
   }
 }
 
-/** Après un trade lancé depuis un post « sac » : prouve l'origine (arc-ref) puis enregistre la part du détenteur (arc-record). Silencieux en cas d'échec. */
-async function recordChill(hash: string, postId: string, taker: string, token: string) {
+/** Après un trade lancé depuis un post « sac » : enregistre la part du détenteur (arc-record). Silencieux en cas d'échec. */
+async function recordChill(hash: string, postId: string) {
   try {
-    const rr = await fetch("/api/chill/arc-ref", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId, taker, token }) });
-    const rj = await rr.json();
-    if (!rr.ok || !rj.ref) return;
     for (let i = 0; i < 4; i++) {
-      const r = await fetch("/api/chill/arc-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hash, postId, taker, token, refToken: rj.ref.refToken }) });
+      const r = await fetch("/api/chill/arc-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hash, postId }) });
       if (r.status !== 202) return;
       await new Promise((x) => setTimeout(x, 3000));
     }
@@ -157,7 +155,7 @@ export function ArcTradeBox({ token, symbol, refPost }: { token: string; symbol:
       let hash: string;
       if (side === "buy") {
         setBusy(tr("Confirm in your wallet"));
-        const data = encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "buy", args: [tok, fee, minOut, addr] });
+        const data = encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "buy", args: [tok, fee, minOut, addr] }) + (refPost ? arcChillTag(refPost) : "");
         hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: router, data, value: `0x${raw.toString(16)}` }] })) as string;
       } else {
         const allowance = (await client().readContract({ address: tok, abi: ERC20, functionName: "allowance", args: [addr, router] })) as bigint;
@@ -167,12 +165,12 @@ export function ArcTradeBox({ token, symbol, refPost }: { token: string; symbol:
           await waitReceipt(h);
         }
         setBusy(tr("Confirm in your wallet"));
-        const data = encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "sell", args: [tok, fee, raw, minOut, addr] });
+        const data = encodeFunctionData({ abi: ARC_DIRECT_ROUTER_ABI, functionName: "sell", args: [tok, fee, raw, minOut, addr] }) + (refPost ? arcChillTag(refPost) : "");
         hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: router, data }] })) as string;
       }
       setBusy(tr("Waiting for confirmation"));
       await waitReceipt(hash);
-      if (refPost) void recordChill(hash, refPost, addr, token);
+      if (refPost) void recordChill(hash, refPost);
       toast.success(side === "buy" ? tr("Bought {symbol}", { symbol }) : tr("Sold {symbol}", { symbol }), { action: { label: tr("Explorer"), onClick: () => window.open(`https://explorer.arc.io/tx/${hash}`, "_blank", "noopener") } });
       setAmount("");
       setTimeout(() => void loadBal(), 3000);

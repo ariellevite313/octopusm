@@ -177,6 +177,10 @@ export async function POST(req: Request) {
     // mutuel_markets has no bet_token column — derive token from the bets themselves.
     // All bets in a single market use the same token (enforced at bet placement).
     const token: string = (bets[0]?.token ?? "usdc") as string;
+    // Sécurité : jamais de résolution d'un marché aux mises en monnaies mélangées (les montants ne s'additionnent pas)
+    if (bets.some((b: { token?: string | null }) => (b.token ?? "usdc") !== token)) {
+      return NextResponse.json({ error: "This market has bets in several tokens. Reject the odd ones before resolving." }, { status: 409 });
+    }
     const totalPool: number = bets.reduce((s: number, b: { amount: number }) => s + Number(b.amount), 0);
 
     const winningBets = bets.filter((b: { option_id: string }) => b.option_id === winning_option_id);
@@ -197,6 +201,41 @@ export async function POST(req: Request) {
     // Fairness rule: if nobody bet against the winner, no losers fund the pool,
     // so commission would come out of winners' own pockets. Refund everyone instead.
     const allBetOnWinner = losingBets.length === 0 && winningBets.length > 0;
+
+    // Le marché passe en « resolved » AVANT les gains et les frais : un second appel simultané s'arrête ici.
+    const userClient = await (await import("@/lib/supabase/server")).createClient();
+    const { data: { user: adminUser } } = await userClient.auth.getUser();
+    const adminWallet: string | null = (adminUser as { app_metadata?: { wallet_address?: string } } | null)?.app_metadata?.wallet_address ?? null;
+
+    // Store applied rates on the market for frontend transparency (BUG-23 fix)
+    const ratesNote = allBetOnWinner
+      ? "REFUND: all bettors chose the winning option, no commission taken"
+      : `RATES:${JSON.stringify({
+          creator_pct: CREATOR_RATE,
+          house_on_losers_pct: HOUSE_LOSER_RATE,
+          withdrawal_fee_pct: 0.05,
+          losing_pool: losingTotal,
+          creator_share: creatorShare,
+          house_share: commission,
+          winners_pool: winnersPool,
+        })}`;
+
+    const { data: resolvedRows, error: resolveErr } = await sb
+      .from("mutuel_markets")
+      .update({
+        status: "resolved",
+        winning_option_id,
+        resolved_at: new Date().toISOString(),
+        resolved_by_wallet: adminWallet,
+        is_refund: allBetOnWinner,
+        admin_notes: ratesNote,
+      })
+      .eq("id", marketId)
+      .eq("status", "closed") // verrou : une seule résolution, même avec deux clics simultanés
+      .select("id");
+
+    if (resolveErr) return NextResponse.json({ error: resolveErr.message }, { status: 500 });
+    if (!resolvedRows?.length) return NextResponse.json({ error: "Market already resolved" }, { status: 409 });
 
     // M-02 fix: log errors on individual payout updates so partial failures are visible
     const resolveErrors: string[] = [];
@@ -223,36 +262,6 @@ export async function POST(req: Request) {
       console.error("[pools/resolve] Some payout updates failed:", resolveErrors);
     }
 
-    const userClient = await (await import("@/lib/supabase/server")).createClient();
-    const { data: { user: adminUser } } = await userClient.auth.getUser();
-    const adminWallet: string | null = (adminUser as { app_metadata?: { wallet_address?: string } } | null)?.app_metadata?.wallet_address ?? null;
-
-    // Store applied rates on the market for frontend transparency (BUG-23 fix)
-    const ratesNote = allBetOnWinner
-      ? "REFUND: all bettors chose the winning option, no commission taken"
-      : `RATES:${JSON.stringify({
-          creator_pct: CREATOR_RATE,
-          house_on_losers_pct: HOUSE_LOSER_RATE,
-          withdrawal_fee_pct: 0.05,
-          losing_pool: losingTotal,
-          creator_share: creatorShare,
-          house_share: commission,
-          winners_pool: winnersPool,
-        })}`;
-
-    const { error: resolveErr } = await sb
-      .from("mutuel_markets")
-      .update({
-        status: "resolved",
-        winning_option_id,
-        resolved_at: new Date().toISOString(),
-        resolved_by_wallet: adminWallet,
-        is_refund: allBetOnWinner,
-        admin_notes: ratesNote,
-      })
-      .eq("id", marketId);
-
-    if (resolveErr) return NextResponse.json({ error: resolveErr.message }, { status: 500 });
 
     if (allBetOnWinner) {
       return NextResponse.json({

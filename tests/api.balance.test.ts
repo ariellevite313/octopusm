@@ -168,6 +168,6 @@ describe("GET /api/balance", () => {
 
     const res  = await GET();
     const body = await json(res);
-    expect(body.usdcBalance).toBe(22); // 10+15+5-8
+    expect(body.usdcBalance).toBe(21.75); // 10+15+5×0,95 (frais de retrait des pools)-8
   });
 });

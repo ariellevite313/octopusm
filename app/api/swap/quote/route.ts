@@ -1,4 +1,5 @@
 /** POST /api/swap/quote { inputMint, outputMint, amount, slippageBps } : prix, minimum reçu et frais (sans transaction). */
+import { limited } from "@/lib/limit";
 import { NextResponse } from "next/server";
 import { checkSwapInput } from "@/lib/swap/core";
 import { swapQuote, SwapError } from "@/lib/swap/jupiter";
@@ -9,6 +10,7 @@ import { resolveRef } from "@/lib/swap/chill-server";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "swap-quote", 60); if (lim) return lim; }
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const c = checkSwapInput(body);
   if (!c.ok) return NextResponse.json({ error: c.error }, { status: 400 });

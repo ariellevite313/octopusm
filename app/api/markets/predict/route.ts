@@ -1,9 +1,13 @@
+import { rateHit } from "@/lib/rate-limit";
+import { isBanned } from "@/lib/moderation";
+import { claimPayment, releasePayment } from "@/lib/payments/used";
 import { NextResponse } from "next/server";
 import { recordAttribution } from "@/lib/social/share-rewards";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { ARC_BETS_ADDRESS } from "@/lib/arc-bets";
 import { verifyArcTransfer } from "@/lib/arc-verify";
 import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
+import { computeReward, MAX_STAKE_USDC, MIN_STAKE_CLT, MIN_STAKE_USDC } from "@/lib/market/betting";
 
 /**
  * POST /api/markets/predict
@@ -19,6 +23,8 @@ export async function POST(req: Request) {
   if (!sessionWallet) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  if (await isBanned(sessionWallet, true)) return NextResponse.json({ error: "This account is suspended" }, { status: 403 });
+  if (!(await rateHit(`bet:${sessionWallet}`, 30, 600_000))) return NextResponse.json({ error: "Too many bets, slow down" }, { status: 429 });
 
   let body: {
     payment_request_id: string;
@@ -52,6 +58,7 @@ export async function POST(req: Request) {
 
   const isArc = body.chain === "arc";
 
+
   // Montants : finis, positifs, cohérents entre eux (le client ne décide pas de la mise créditée)
   const nums = [body.amount_usdc, body.reserve_fee_usdc ?? 0, body.total_paid_usdc];
   if (!nums.every((n) => typeof n === "number" && Number.isFinite(n)) || body.amount_usdc <= 0 || (body.reserve_fee_usdc ?? 0) < 0 || body.total_paid_usdc <= 0 || body.total_paid_usdc > 1e9) {
@@ -69,6 +76,26 @@ export async function POST(req: Request) {
     : body.wallet_address === sessionWallet;
   if (!sameWallet) {
     return NextResponse.json({ error: "Wallet mismatch" }, { status: 403 });
+  }
+
+  // Le marché doit exister, être ouvert et non résolu ; l'option doit lui appartenir.
+  // La mise est bornée et les frais (1 %) sont recalculés ici : le client ne choisit ni l'un ni l'autre.
+  {
+    const adminCheck = createAdminClient() as any;
+    const { data: m } = await adminCheck.from("prediction_markets").select("options, is_resolved, is_active, event_start_at").eq("id", body.market_id).maybeSingle();
+    if (!m) return NextResponse.json({ error: "Market not found" }, { status: 404 });
+    if (m.is_resolved || m.is_active === false) return NextResponse.json({ error: "Market is not accepting bets" }, { status: 400 });
+    if (m.event_start_at && new Date(m.event_start_at).getTime() <= Date.now()) return NextResponse.json({ error: "Betting window has closed" }, { status: 400 });
+    const opts = (typeof m.options === "string" ? JSON.parse(m.options) : m.options) ?? [];
+    if (!opts.some((o: { id: string }) => o.id === body.selection_id)) return NextResponse.json({ error: "Invalid selection" }, { status: 400 });
+    if (typeof body.amount_usdc !== "number" || !Number.isFinite(body.amount_usdc)) return NextResponse.json({ error: "Invalid amounts" }, { status: 400 });
+    const isClt = body.token === "clawdtrust";
+    if (!isClt && (body.amount_usdc < MIN_STAKE_USDC || body.amount_usdc > MAX_STAKE_USDC)) return NextResponse.json({ error: `Stake must be between ${MIN_STAKE_USDC} and ${MAX_STAKE_USDC} USDC` }, { status: 400 });
+    if (isClt && body.amount_usdc < MIN_STAKE_CLT) return NextResponse.json({ error: "Amount below minimum stake" }, { status: 400 });
+    const { reserveFee, totalCharged } = computeReward(body.amount_usdc, 1);
+    body.reserve_fee_usdc = reserveFee;
+    if (typeof body.total_paid_usdc !== "number" || body.total_paid_usdc + 1e-6 < totalCharged) return NextResponse.json({ error: "Amounts do not add up" }, { status: 400 });
+    body.total_paid_usdc = totalCharged;
   }
 
   // Arc : seulement en USDC, et la transaction doit réellement avoir payé l'adresse des paris
@@ -95,6 +122,10 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient() as any;
 
+  // Une transaction ne paie qu'une seule chose, tous flux confondus
+  if (!(await claimPayment(body.tx_signature!, "prediction", body.wallet_address))) {
+    return NextResponse.json({ error: "This transaction has already been used" }, { status: 409 });
+  }
   const { error } = await admin.from("payments").insert({
     id:                 crypto.randomUUID(),
     payment_request_id: body.payment_request_id,
@@ -117,6 +148,7 @@ export async function POST(req: Request) {
   });
 
   if (error) {
+    if (error.code !== "23505") await releasePayment(body.tx_signature!);
     if (error.code === "23505") {
       return NextResponse.json({ error: "Transaction already submitted" }, { status: 409 });
     }
