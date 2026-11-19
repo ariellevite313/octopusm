@@ -42,8 +42,11 @@ export async function GET(req: Request) {
     const anns = await currentAnnouncements(admin, me).catch(() => []);
     return NextResponse.json({ unread: (count ?? 0) + anns.filter((a) => !a.read).length });
   }
-  const { data } = await admin.from("notifications").select("id, kind, actor, post_id, read, created_at").eq("wallet", me).order("created_at", { ascending: false }).limit(50);
-  const rows = (data ?? []) as { id: string; kind: string; actor: string; post_id: string | null; read: boolean; created_at: string }[];
+  // Colonne « data » (alertes du Terminal) : si la migration n'est pas encore passée, on relit sans elle
+  const sel = (cols: string) => admin.from("notifications").select(cols).eq("wallet", me).order("created_at", { ascending: false }).limit(50);
+  let res = await sel("id, kind, actor, post_id, read, created_at, data");
+  if (res.error) res = await sel("id, kind, actor, post_id, read, created_at");
+  const rows = (res.data ?? []) as { id: string; kind: string; actor: string; post_id: string | null; read: boolean; created_at: string; data?: Record<string, unknown> | null }[];
   const postIds = [...new Set(rows.map((r) => r.post_id).filter(Boolean))] as string[];
   const [profiles, posts] = await Promise.all([
     getProfiles(admin, rows.map((r) => r.actor)),

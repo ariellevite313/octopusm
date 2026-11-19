@@ -4,7 +4,7 @@ import { VersionedTransaction } from "@solana/web3.js";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 import { currentPath, feePayerOf, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 
-export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number; ref?: string };
+export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number; ref?: string; priority?: "auto" | "fast" | "turbo" };
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

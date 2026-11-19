@@ -57,7 +57,9 @@ export function createAtaIdempotent(payer: PublicKey, owner: PublicKey, mint: Pu
   });
 }
 
-export type SwapInput = { inputMint: string; outputMint: string; amount: string; slippageBps: number };
+/** priority : frais de priorité choisis dans le Terminal (auto = ceux de Jupiter) */
+export type SwapPriority = "auto" | "fast" | "turbo";
+export type SwapInput = { inputMint: string; outputMint: string; amount: string; slippageBps: number; priority?: SwapPriority };
 
 /** Contrôle des paramètres envoyés par le navigateur. */
 export function checkSwapInput(b: Record<string, unknown>): { ok: true; v: SwapInput } | { ok: false; error: string } {
@@ -69,5 +71,6 @@ export function checkSwapInput(b: Record<string, unknown>): { ok: true; v: SwapI
   if (!/^[1-9]\d{0,19}$/.test(amount)) return { ok: false, error: "Invalid amount" };
   const slip = Number(b.slippageBps ?? 100);
   if (!Number.isInteger(slip) || slip < SLIPPAGE_MIN_BPS || slip > SLIPPAGE_MAX_BPS) return { ok: false, error: "Slippage must be between 0.1% and 20%" };
-  return { ok: true, v: { inputMint, outputMint, amount, slippageBps: slip } };
+  const priority: SwapPriority = b.priority === "fast" || b.priority === "turbo" ? b.priority : "auto";
+  return { ok: true, v: { inputMint, outputMint, amount, slippageBps: slip, priority } };
 }

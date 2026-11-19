@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Activity, AlertTriangle, ArrowDownUp, BadgeCheck, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -30,6 +30,13 @@ const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium
 import { executeSwap, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
 import { DevAlert } from "./dev-alert";
+import { LiveTrades } from "./live-trades";
+import { SecurityCard } from "./security-card";
+import { PulseView } from "./pulse";
+import { Positions } from "./positions";
+import { AlertSheet } from "./alert-sheet";
+import { LimitSheet } from "./limit-sheet";
+import { AdvFiltersForm, useAdvFilters } from "./advanced-filters";
 import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
 import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
 
@@ -137,10 +144,10 @@ function EmptyPick() {
 function Home({ selected, favs, active, onList, initialQ }: { selected: TerminalChain[]; favs: ReturnType<typeof useFavs>; active: string; onList: (l: TerminalToken[]) => void; initialQ: string }) {
   const { tr } = useT();
   const router = useRouter();
-  const [tab, setTab] = useState<"favs" | "tokens" | "updown">("tokens");
-  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20">("trending");
-  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
-  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20" || f === "psol20" || f === "clt20") setFilterRaw(f); } catch { /* ignore */ } }, []);
+  const [tab, setTab] = useState<"favs" | "tokens" | "positions" | "updown">("tokens");
+  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20" | "pulse">("trending");
+  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20" | "pulse") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
+  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20" || f === "psol20" || f === "clt20" || f === "pulse") setFilterRaw(f); } catch { /* ignore */ } }, []);
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
@@ -149,11 +156,13 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const [fDex, setFDex] = useState(false);
   const [fSocial, setFSocial] = useState(false);
   const [fSite, setFSite] = useState(false);
+  const adv = useAdvFilters();
+  const [advSheet, setAdvSheet] = useState(false);
   const extra = `${fDex ? "&dex=paid" : ""}${fSocial ? "&social=1" : ""}${fSite ? "&site=1" : ""}`;
   const chainsQ = selected.length ? selected.join(",") : "all";
 
   useEffect(() => {
-    if (tab !== "tokens") return;
+    if (tab !== "tokens" || (filter === "pulse" && !q.trim())) return;
     let live = true;
     setList(null); setErr(false);
     const query = q.trim().replace(/^\$/, "");
@@ -179,7 +188,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     const c = t?.chain ?? "solana";
     router.push(`/terminal?${c !== "solana" ? `chain=${c}&` : ""}mint=${m}`, { scroll: true });
   };
-  const rows = tab === "favs" ? favs.favs : list;
+  const rows = tab === "favs" ? favs.favs : list && list.filter(adv.pass);
 
   return (
     <div className="px-4 pt-3 lg:px-0 lg:pt-0">
@@ -193,6 +202,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             <Star className="size-4" />{tr("Favorites")}
           </button>
           <button onClick={() => setTab("tokens")} className={`flex-1 border-b-2 py-3 text-[16px] font-bold ${tab === "tokens" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{tr("Tokens")}</button>
+          <button onClick={() => setTab("positions")} className={`flex-1 border-b-2 py-3 text-[16px] font-bold ${tab === "positions" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{tr("Positions")}</button>
           <button onClick={() => setTab("updown")} className={`flex-1 border-b-2 py-3 text-[16px] font-bold ${tab === "updown" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>Up/Down</button>
         </div>
       </div>
@@ -208,7 +218,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
         ) : (
           <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
             <button onClick={() => setSearching(true)} aria-label={tr("Search")} className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground"><Search className="size-[18px]" /></button>
-            {([["trending", tr("Trending")], ["crypto", tr("Crypto")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
+            {([["trending", tr("Trending")], ["pulse", "Pulse"], ["crypto", tr("Crypto")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setFilter(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
             <button onClick={() => setFilter("dsol20")} className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[15px] font-semibold ${filter === "dsol20" ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
@@ -236,7 +246,10 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
 
       {tab === "tokens" && (
         <div className="mt-2 flex gap-2 overflow-x-auto [scrollbar-width:none]">
-          {([[fDex, setFDex, tr("Dex paid")], [fSocial, setFSocial, tr("Social networks")], [fSite, setFSite, tr("Website")]] as const).map(([on, set, label]) => (
+          <button onClick={() => setAdvSheet(true)} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold ${adv.count ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+            <SlidersHorizontal className="size-3.5" />{tr("Filters")}{adv.count > 0 && <span className="num">{adv.count}</span>}
+          </button>
+          {filter !== "pulse" && ([[fDex, setFDex, tr("Dex paid")], [fSocial, setFSocial, tr("Social networks")], [fSite, setFSite, tr("Website")]] as const).map(([on, set, label]) => (
             <button key={label} onClick={() => set(!on)} aria-pressed={on} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${on ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
           ))}
         </div>
@@ -247,8 +260,11 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
       )}
 
       {tab === "updown" && <div className="mt-4"><UpDownSection compact /></div>}
+      {tab === "positions" && <Positions onOpen={(m, c) => router.push(`/terminal?${c !== "solana" ? `chain=${c}&` : ""}mint=${m}`, { scroll: true })} />}
 
-      <div className={`mt-1 ${tab === "updown" ? "hidden" : ""}`}>
+      {tab === "tokens" && filter === "pulse" && !q.trim() && <PulseView onOpen={(t) => open(t.mint, t)} pass={adv.pass} />}
+
+      <div className={`mt-1 ${tab === "updown" || tab === "positions" || (tab === "tokens" && filter === "pulse" && !q.trim()) ? "hidden" : ""}`}>
         {rows === null ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="my-2 h-14 animate-pulse rounded-2xl bg-muted/40" />)
           : rows.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">
@@ -273,6 +289,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             </button>
           ))}
       </div>
+      {advSheet && <Sheet title={tr("Filters")} onClose={() => setAdvSheet(false)}><AdvFiltersForm value={adv.f} onApply={(v) => { adv.save(v); setAdvSheet(false); }} /></Sheet>}
       {netSheet && <NetworkSheet selected={selected} onClose={() => setNetSheet(false)} list={filter} onPickList={(k) => { setFilter(k); setNetSheet(false); }} />}
     </div>
   );
@@ -416,9 +433,9 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const toggleTrades = () => setShowTrades((v) => { try { localStorage.setItem("om_chart_trades", v ? "0" : "1"); } catch { /* ignore */ } return !v; });
   const toggleMode = () => setMode((m) => { const n = m === "line" ? "candle" : "line"; try { localStorage.setItem("om_chart_mode", n); } catch { /* ignore */ } return n; });
   const [move, setMove] = useState<{ first: number; last: number } | null>(null);
-  const [tab, setTab] = useState<"holders" | "feed" | "about">("holders");
+  const [tab, setTab] = useState<"trades" | "holders" | "feed" | "about">("trades");
   const [shareCard, setShareCard] = useState<{ wallet: string | null } | null>(null);
-  const [sheet, setSheet] = useState<"swap" | "quick" | null>(null);
+  const [sheet, setSheet] = useState<"swap" | "quick" | "alert" | "limit" | null>(null);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -522,6 +539,9 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             <button onClick={() => favs.toggle(t)} aria-label={tr("Favorites")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground">
               <Star className={`size-[22px] ${fav ? "fill-foreground text-foreground" : ""}`} />
             </button>
+            {GT_NET[chain] && chain !== "arc" && mint !== SOL_MINT && (
+              <button onClick={() => (isAuthenticated ? setSheet("alert") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))} aria-label={tr("Price alert")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><Bell className="size-[21px]" /></button>
+            )}
             <button onClick={share} aria-label={tr("Share")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><Share2 className="size-[21px]" /></button>
           </div>
         )}
@@ -547,6 +567,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
 
           {/* Graphique */}
           {isSol && <DevAlert mint={mint} />}
+          {mint !== SOL_MINT && <SecurityCard chain={chain} mint={mint} />}
           <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
           <div className="flex items-center justify-center gap-1 px-4 py-2">
             {T_RANGES.map((r) => (
@@ -567,11 +588,12 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
 
           {/* Détenteurs | Fil | À propos */}
           <div className="mt-2 flex border-b border-border px-4">
-            {([["holders", tr("Holders")], ["feed", tr("Feed")], ["about", tr("About")]] as const).map(([k, label]) => (
+            {([["trades", tr("Trades")], ["holders", tr("Holders")], ["feed", tr("Feed")], ["about", tr("About")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setTab(k)} className={`flex-1 border-b-2 py-3 text-[15px] font-bold ${tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{label}</button>
             ))}
           </div>
           <div className="px-4 pt-3">
+            {tab === "trades" && <LiveTrades chain={chain} pool={t.pool} mint={mint} />}
             {tab === "holders" && (mint === SOL_MINT
               ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">{tr("SOL is the native coin of Solana: millions of wallets hold it, so there is no top holders list.")}</p>
               : isSol || EVM_HOLDERS.includes(chain) ? <Holders mint={mint} chain={chain} price={live} />
@@ -585,7 +607,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         {/* Ordinateur : boîte de swap à droite */}
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
-            {isSol ? <><SwapBox mint={mint} /><Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
+            {isSol ? <><SwapBox mint={mint} />{mint !== SOL_MINT && <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-muted text-[15px] font-semibold text-foreground hover:bg-muted/70"><Crosshair className="size-4" />{tr("Limit order")}</button>}<Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
           </div>
         </aside>
       </div>
@@ -600,10 +622,14 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           <button onClick={() => setSheet("swap")} className="h-14 flex-1 rounded-2xl bg-foreground text-[17px] font-bold text-background">{tr("Buy")} / {tr("Sell")}</button>
           <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("quick") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
             aria-label={tr("Quick buy")} className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground"><Zap className="size-6 fill-current" /></button>
+          {mint !== SOL_MINT && <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
+            aria-label={tr("Limit order")} className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground"><Crosshair className="size-6" /></button>}
         </div>
       </div>)}
 
       {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SwapBox mint={mint} onSwapped={() => setSheet(null)} />}</Sheet>}
+      {sheet === "limit" && walletType && <Sheet title={`${tr("Limit order")} $${t.symbol}`} onClose={() => setSheet(null)}><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} /></Sheet>}
+      {sheet === "alert" && <Sheet title={tr("Price alert")} onClose={() => setSheet(null)}><AlertSheet chain={chain} mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} /></Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}
     </div>
   );
@@ -627,16 +653,30 @@ function Verified({ info }: { info: SwapToken | null }) {
     : <p className="flex items-center justify-center gap-1.5 text-[13px] text-muted-foreground"><AlertTriangle className="size-4" />{tr("Unverified token, trade carefully")}</p>;
 }
 
-const QUICK = ["0.1", "0.25", "0.5", "1"];
+// Achat rapide : montants, glissement et frais de priorité choisis par l'utilisateur (gardés sur l'appareil)
+type QuickCfg = { amounts: string[]; slippagePct: number; priority: "auto" | "fast" | "turbo" };
+const QUICK_KEY = "om_quick_buy_v1";
+const QUICK_DEFAULT: QuickCfg = { amounts: ["0.1", "0.25", "0.5", "1"], slippagePct: 3, priority: "auto" };
+function readQuick(): QuickCfg {
+  try {
+    const v = JSON.parse(localStorage.getItem(QUICK_KEY) ?? "null") as QuickCfg | null;
+    if (v && Array.isArray(v.amounts) && v.amounts.length === 4) return { ...QUICK_DEFAULT, ...v };
+  } catch { /* stockage indisponible */ }
+  return QUICK_DEFAULT;
+}
 function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; symbol: string; feeBps: number; walletType: NonNullable<ReturnType<typeof useAuth>["walletType"]>; onDone: () => void }) {
   const { tr } = useT();
   const [busy, setBusy] = useState<string | null>(null);
+  const [cfg, setCfg] = useState<QuickCfg>(QUICK_DEFAULT);
+  const [edit, setEdit] = useState(false);
+  useEffect(() => { setCfg(readQuick()); }, []);
+  const save = (v: QuickCfg) => { setCfg(v); try { localStorage.setItem(QUICK_KEY, JSON.stringify(v)); } catch { /* ignore */ } };
   async function buy(sol: string) {
     const raw = toRaw(sol, 9);
     if (!raw) return;
     setBusy(sol);
     try {
-      const sig = await executeSwap({ inputMint: SOL_MINT, outputMint: mint, amount: raw, slippageBps: 300 }, walletType);
+      const sig = await executeSwap({ inputMint: SOL_MINT, outputMint: mint, amount: raw, slippageBps: Math.round(cfg.slippagePct * 100), priority: cfg.priority }, walletType);
       toast.success(tr("Bought {symbol}", { symbol }), { action: { label: "Solscan", onClick: () => window.open(`https://solscan.io/tx/${sig}`, "_blank", "noopener") } });
       onDone();
     } catch (e) {
@@ -645,12 +685,16 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
     }
     setBusy(null);
   }
+  if (edit) return <QuickSettings cfg={cfg} onSave={(v) => { save(v); setEdit(false); }} />;
   return (
     <div>
-      <p className="text-sm text-muted-foreground">{tr("One tap, then confirm in your wallet. Slippage 3%.")}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">{tr("One tap, then confirm in your wallet.")} {tr("Slippage {pct}%", { pct: cfg.slippagePct })} · {tr(cfg.priority === "auto" ? "Auto fee" : cfg.priority === "fast" ? "Fast" : "Turbo")}</p>
+        <button onClick={() => setEdit(true)} aria-label={tr("Settings")} className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"><SlidersHorizontal className="size-4" /></button>
+      </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {QUICK.map((a) => (
-          <button key={a} disabled={!!busy} onClick={() => buy(a)} className="flex h-16 items-center justify-center gap-2 rounded-2xl bg-muted text-[18px] font-bold text-foreground hover:bg-muted/70 disabled:opacity-50">
+        {cfg.amounts.map((a, i) => (
+          <button key={`${i}-${a}`} disabled={!!busy} onClick={() => buy(a)} className="flex h-16 items-center justify-center gap-2 rounded-2xl bg-muted text-[18px] font-bold text-foreground hover:bg-muted/70 disabled:opacity-50">
             {busy === a ? <Loader2 className="size-5 animate-spin" /> : <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/solana.png" alt="" className="size-5 rounded-full" />{a} SOL</>}
@@ -658,6 +702,39 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
         ))}
       </div>
       <p className="mt-3 text-center text-xs text-muted-foreground">{feeBps > 0 ? tr("OM fee {pct}% included", { pct: feeBps / 100 }) : tr("0% OM fee (OM token)")}</p>
+    </div>
+  );
+}
+
+function QuickSettings({ cfg, onSave }: { cfg: QuickCfg; onSave: (v: QuickCfg) => void }) {
+  const { tr } = useT();
+  const [amounts, setAmounts] = useState(cfg.amounts);
+  const [slip, setSlip] = useState(String(cfg.slippagePct));
+  const [priority, setPriority] = useState(cfg.priority);
+  const ok = amounts.every((a) => /^\d+(\.\d{1,9})?$/.test(a) && Number(a) > 0 && Number(a) <= 1000) && Number(slip) >= 0.1 && Number(slip) <= 20;
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="mb-2 text-[13px] font-semibold text-muted-foreground">{tr("Amounts (SOL)")}</p>
+        <div className="grid grid-cols-4 gap-2">
+          {amounts.map((a, i) => <input key={i} inputMode="decimal" value={a} onChange={(e) => setAmounts(amounts.map((x, j) => (j === i ? e.target.value.replace(",", ".") : x)))} className="num h-11 rounded-xl bg-muted px-2 text-center text-[15px] font-semibold outline-none" />)}
+        </div>
+      </div>
+      <div>
+        <p className="mb-2 text-[13px] font-semibold text-muted-foreground">{tr("Slippage")}</p>
+        <div className="flex gap-2">
+          {["1", "3", "5", "10"].map((v) => <button key={v} onClick={() => setSlip(v)} className={`h-10 flex-1 rounded-xl text-[14px] font-semibold ${slip === v ? "bg-foreground text-background" : "bg-muted text-foreground"}`}>{v}%</button>)}
+          <input inputMode="decimal" value={slip} onChange={(e) => setSlip(e.target.value.replace(",", "."))} className="num h-10 w-20 rounded-xl bg-muted px-2 text-center text-[14px] outline-none" aria-label={tr("Slippage")} />
+        </div>
+      </div>
+      <div>
+        <p className="mb-2 text-[13px] font-semibold text-muted-foreground">{tr("Priority fee")}</p>
+        <div className="flex gap-2">
+          {(["auto", "fast", "turbo"] as const).map((v) => <button key={v} onClick={() => setPriority(v)} className={`h-10 flex-1 rounded-xl text-[14px] font-semibold ${priority === v ? "bg-foreground text-background" : "bg-muted text-foreground"}`}>{tr(v === "auto" ? "Auto fee" : v === "fast" ? "Fast" : "Turbo")}</button>)}
+        </div>
+        <p className="mt-1.5 text-[12px] text-muted-foreground">{tr("Fast and Turbo pay more to land faster (about 0.00004 and 0.0002 SOL).")}</p>
+      </div>
+      <button disabled={!ok} onClick={() => onSave({ amounts, slippagePct: Number(slip), priority })} className="h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{tr("Save")}</button>
     </div>
   );
 }

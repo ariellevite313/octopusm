@@ -50,13 +50,13 @@ const SKIP = new Set([SOL_MINT, USDC_MINT, "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe
 /** Adresses jamais listées comme token à échanger (SOL, USDC, USDT, natifs enveloppés...) */
 export const isSkipped = (a: string) => SKIP.has(a) || SKIP.has(a.toLowerCase()) || isRemovedToken(a);
 
-type GtPool = {
+export type GtPool = {
   attributes: {
     address: string; base_token_price_usd?: string | null; fdv_usd?: string | null; market_cap_usd?: string | null;
     reserve_in_usd?: string | null; pool_created_at?: string | null;
     price_change_percentage?: { h1?: string | null; h24?: string | null }; volume_usd?: { h24?: string | null };
   };
-  relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } } };
+  relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } }; dex?: { data?: { id?: string } } };
 };
 type GtToken = { id: string; attributes: { address: string; name: string; symbol: string; image_url?: string | null } };
 

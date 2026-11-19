@@ -129,7 +129,11 @@ export async function swapTransaction(input: SwapInput, feeBps: number, taker: s
     ...(isBuy ? [] : refIx),
     ...j.otherInstructions.map(toIx),
   ];
-  const price = j.computeBudgetInstructions.map(toIx);
+  // Frais de priorité : ceux de Jupiter (auto), ou un prix fixe par unité de calcul (rapide / turbo), plafonné
+  const PRIORITY_MICRO = { fast: 100_000, turbo: 500_000 } as const;
+  const price = input.priority === "fast" || input.priority === "turbo"
+    ? [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICRO[input.priority] })]
+    : j.computeBudgetInstructions.map(toIx).filter((ix) => !(ix.programId.equals(ComputeBudgetProgram.programId) && ix.data[0] === 2));
   const compile = (units: number) => new VersionedTransaction(new TransactionMessage({
     payerKey: user, recentBlockhash, instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units }), ...price, ...body],
   }).compileToV0Message(alts));
