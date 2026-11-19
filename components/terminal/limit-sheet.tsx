@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { VersionedTransaction } from "@solana/web3.js";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Minus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
@@ -56,21 +56,69 @@ export function LimitSheet({ mint, symbol, mcap, walletType }: { mint: string; s
   );
 }
 
-function LimitForm({ mint, symbol, mcap, walletType }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType }) {
+type BookRow = { mcap: number; sol: number; om: boolean };
+type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[] };
+const SOL_RESERVE = 0.01;
+const amt = (n: number) => (n >= 1e9 ? `${+(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(1)}K` : n >= 1 ? `${+n.toFixed(2)}` : `${+n.toPrecision(3)}`);
+/** Arrondi lisible d'une capitalisation (3 chiffres significatifs) */
+const round3 = (n: number) => { const p = 10 ** (Math.floor(Math.log10(n)) - 2); return Math.round(n / p) * p; };
+
+/** Une ligne du carnet : capitalisation, SOL, barre de profondeur. Le point marque un ordre limité placé sur OM. */
+function BookLine({ r, ask, max, onPick }: { r: BookRow; ask: boolean; max: number; onPick: () => void }) {
+  return (
+    <button onClick={onPick} className="relative flex w-full items-center justify-between py-[5px] pl-1.5 pr-1 text-left text-[12.5px] hover:bg-muted/60">
+      <span className={`absolute inset-y-0 right-0 rounded-l ${ask ? "bg-down/12" : "bg-up/12"}`} style={{ width: `${max > 0 ? Math.max(4, (r.sol / max) * 100) : 0}%` }} />
+      <span className={`num relative font-semibold ${ask ? "text-down" : "text-up"}`}>{money(r.mcap)}</span>
+      <span className="num relative flex items-center gap-1 text-foreground">{r.om && <span className="size-1.5 rounded-full bg-foreground" />}{amt(r.sol)}</span>
+    </button>
+  );
+}
+
+function LimitForm({ mint, symbol, mcap: mcap0, walletType }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType }) {
   const { tr } = useT();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [book, setBook] = useState<Book | null>(null);
+  const [bal, setBal] = useState<{ sol: number; token: number } | null>(null);
   const load = () => fetch(`/api/terminal/limit?mint=${mint}`).then((r) => r.json()).then((j) => setOrders(j.orders ?? [])).catch(() => setOrders([]));
-  useEffect(() => { load(); }, [mint]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadBook = () => fetch(`/api/terminal/book?mint=${mint}`).then((r) => (r.ok ? r.json() : null)).then((j) => j && setBook(j)).catch(() => {});
+  const loadBal = () => fetch(`/api/swap/token?mint=${mint}`, { cache: "no-store" }).then((r) => r.json()).then((j) => {
+    if (j.balances) setBal({ sol: Number(j.balances.sol) / 1e9, token: Number(j.balances.token) / 10 ** (j.token?.decimals ?? 6) });
+  }).catch(() => {});
+  useEffect(() => {
+    load(); loadBook(); loadBal();
+    const id = setInterval(loadBook, 10_000);
+    return () => clearInterval(id);
+  }, [mint]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const mcap = book?.mcap ?? mcap0;
   const t = parse(target), a = Number(amount.replace(",", "."));
+  const avail = bal ? (side === "buy" ? Math.max(0, bal.sol - SOL_RESERVE) : bal.token) : null;
   // Un ordre limité s'exécute dès que le prix est meilleur que la cible : acheter sous le prix actuel, vendre au-dessus.
   // (Un « stop » sous le prix actuel serait vendu tout de suite : on ne le propose pas.)
   const wrongSide = mcap != null && t > 0 && (side === "buy" ? t >= mcap : t <= mcap);
-  const ok = a > 0 && t > 0 && mcap != null && !wrongSide;
+  const tooMuch = avail != null && a > avail;
+  const ok = a > 0 && t > 0 && mcap != null && !wrongSide && !tooMuch;
+  // Ce que l'ordre rapporte s'il est exécuté à la cible
+  const atTarget = book && t > 0 ? book.price * (t / book.mcap) : 0;
+  const receive = !book || !atTarget || !(a > 0) ? null : side === "buy" ? (a * book.solUsd) / atTarget : (a * atTarget) / book.solUsd;
+  const maxAsk = Math.max(0, ...(book?.asks ?? []).map((r) => r.sol));
+  const maxBid = Math.max(0, ...(book?.bids ?? []).map((r) => r.sol));
+
+  function nudge(dir: 1 | -1) {
+    const base = t > 0 ? t : mcap ?? 0;
+    if (base > 0) setTarget(String(round3(base * (1 + dir * 0.02))));
+  }
+  function pick(r: BookRow, ask: boolean) { setSide(ask ? "sell" : "buy"); setTarget(String(round3(r.mcap))); }
+  function setPct(p: number) {
+    if (avail == null) return;
+    const v = (avail * p) / 100;
+    setAmount(v > 0 ? String(side === "buy" ? +v.toFixed(4) : +v.toPrecision(6)) : "");
+  }
+
   async function create() {
     setBusy(true);
     try {
@@ -78,7 +126,7 @@ function LimitForm({ mint, symbol, mcap, walletType }: { mint: string; symbol: s
       await signAndSend(r.transaction, r.requestId, walletType, !!r.direct);
       toast.success(tr("Limit order placed"));
       setAmount(""); setTarget("");
-      setTimeout(load, 2500);
+      setTimeout(() => { load(); loadBook(); loadBal(); }, 2500);
     } catch (e) {
       const m = (e as Error).message ?? "";
       if (!/reject|cancel|denied|declined/i.test(m)) toast.error(tr(m) || tr("Limit order failed"));
@@ -90,30 +138,71 @@ function LimitForm({ mint, symbol, mcap, walletType }: { mint: string; symbol: s
       const r = await post<{ transaction: string; requestId: string }>({ action: "cancel", order });
       await signAndSend(r.transaction, r.requestId, walletType);
       toast.success(tr("Order cancelled"));
-      setTimeout(load, 2500);
+      setTimeout(() => { load(); loadBook(); }, 2500);
     } catch (e) {
       const m = (e as Error).message ?? "";
       if (!/reject|cancel|denied|declined/i.test(m)) toast.error(tr(m) || tr("Limit order failed"));
     }
   }
   const hint = wrongSide ? tr(side === "buy" ? "For a limit buy, the target must be below the current market cap." : "For a limit sell, the target must be above the current market cap.")
-    : !ok ? "" : side === "buy"
-    ? tr("Buy {sym} with {a} SOL when the market cap reaches {t}.", { sym: `$${symbol}`, a, t: money(t) })
-    : tr("Take profit: sell {a} {sym} when the market cap reaches {t}.", { sym: `$${symbol}`, a, t: money(t) });
+    : tooMuch ? tr("Insufficient {symbol} balance", { symbol: side === "buy" ? "SOL" : symbol }) : "";
 
   return (
     <div>
-      <div className="flex gap-1 rounded-xl bg-muted p-1">
-        {(["buy", "sell"] as const).map((k) => <button key={k} onClick={() => setSide(k)} className={`flex-1 rounded-lg py-2 text-[14px] font-semibold ${side === k ? "bg-background text-foreground" : "text-muted-foreground"}`}>{tr(k === "buy" ? "Limit buy" : "Limit sell")}</button>)}
+      <div className="flex gap-2.5">
+        {/* Formulaire */}
+        <div className="min-w-0 flex-[1.15]">
+          <div className="flex gap-1 rounded-xl bg-muted p-1">
+            {(["buy", "sell"] as const).map((k) => <button key={k} onClick={() => { setSide(k); setAmount(""); }} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${side === k ? "bg-foreground text-background" : "text-muted-foreground"}`}>{tr(k === "buy" ? "Buy" : "Sell")}</button>)}
+          </div>
+          <div className="mt-2 flex justify-between text-[12px]"><span className="text-muted-foreground">{tr("Available")}</span><span className="num font-semibold">{avail == null ? "-" : side === "buy" ? `${amt(avail)} SOL` : amt(avail)}</span></div>
+
+          <div className="mt-2 flex h-12 items-center justify-between rounded-xl bg-muted pl-3 pr-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold text-muted-foreground">{tr("Target MC")}</p>
+              <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder={mcap ? money(round3(mcap * (side === "buy" ? 0.9 : 1.5))).slice(1) : "500k"} className="num w-full bg-transparent text-[14px] font-bold outline-none" />
+            </div>
+            <div className="flex items-center text-muted-foreground">
+              <button onClick={() => nudge(-1)} aria-label="-" className="p-1 hover:text-foreground"><Minus className="size-4" /></button>
+              <span className="mx-1 h-4 w-px bg-border" />
+              <button onClick={() => nudge(1)} aria-label="+" className="p-1 hover:text-foreground"><Plus className="size-4" /></button>
+            </div>
+          </div>
+
+          <div className="mt-2 flex h-12 items-center justify-between rounded-xl bg-muted px-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold text-muted-foreground">{tr("Amount")}</p>
+              <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={side === "buy" ? "0.5" : "100000"} className="num w-full bg-transparent text-[14px] font-bold outline-none" />
+            </div>
+            <span className="ml-2 max-w-[70px] truncate text-[13px] font-semibold">{side === "buy" ? "SOL" : symbol}</span>
+          </div>
+          <div className="mt-2 flex justify-between">
+            {[25, 50, 75, 100].map((p) => <button key={p} onClick={() => setPct(p)} disabled={avail == null} className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40">{p === 100 ? tr("Max") : `${p}%`}</button>)}
+          </div>
+
+          <div className="mt-2 space-y-1 text-[12px]">
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("Receive")}</span><span className="num font-semibold">{receive == null ? "-" : side === "buy" ? amt(receive) : `${amt(receive)} SOL`}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("Fee")}</span><span className="num font-semibold">0.3%</span></div>
+          </div>
+          {hint && <p className="mt-2 text-[12px] text-down">{hint}</p>}
+          <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr(side === "buy" ? "Place limit buy" : "Place limit sell")}</button>
+        </div>
+
+        {/* Carnet : profondeur de la pool + ordres limités placés sur OM */}
+        <div className="min-w-0 flex-1">
+          <div className="flex justify-between px-1 text-[10.5px] font-semibold text-muted-foreground"><span>{tr("Market cap")}</span><span>SOL</span></div>
+          {!book ? <div className="mt-1 space-y-1">{Array.from({ length: 12 }, (_, i) => <div key={i} className="h-[24px] animate-pulse rounded bg-muted" />)}</div> : <>
+            <div className="mt-1">{book.asks.map((r, i) => <BookLine key={`a${i}`} r={r} ask max={maxAsk} onPick={() => pick(r, true)} />)}</div>
+            <div className="my-1.5 text-center">
+              <p className="num text-[17px] font-bold">{money(book.mcap)}</p>
+              <p className="num text-[11px] text-muted-foreground">${book.price < 0.01 ? book.price.toPrecision(4) : book.price.toFixed(4)}</p>
+            </div>
+            <div>{book.bids.map((r, i) => <BookLine key={`b${i}`} r={r} ask={false} max={maxBid} onPick={() => pick(r, false)} />)}</div>
+          </>}
+          <p className="mt-2 flex items-start gap-1.5 px-1 text-[10.5px] leading-tight text-muted-foreground"><span className="mt-1 size-1.5 shrink-0 rounded-full bg-foreground" />{tr("OM limit orders. Other rows: SOL needed to move the pool to that level.")}</p>
+        </div>
       </div>
-      <p className="num mt-3 text-[13px] text-muted-foreground">{tr("Market cap now")}: <span className="font-semibold text-foreground">{mcap != null ? money(mcap) : "-"}</span></p>
-      <label className="mt-3 block text-[13px] font-semibold text-muted-foreground">{side === "buy" ? tr("Amount (SOL)") : tr("Amount ({sym})", { sym: symbol })}</label>
-      <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={side === "buy" ? "0.5" : "100000"} className="num mt-1 h-12 w-full rounded-2xl bg-muted px-4 text-[16px] outline-none" />
-      <label className="mt-3 block text-[13px] font-semibold text-muted-foreground">{tr("Target market cap")}</label>
-      <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="500k" className="num mt-1 h-12 w-full rounded-2xl bg-muted px-4 text-[16px] outline-none" />
-      {hint && <p className="mt-2 text-[13px] text-foreground">{hint}</p>}
-      <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Place order")}</button>
-      <p className="mt-2 text-[12px] text-muted-foreground">{tr("Orders are held and filled by Jupiter, even when you are away. Minimum about $5. OM fee 0.3%, taken in SOL when the order is placed.")}</p>
+      <p className="mt-3 text-[12px] text-muted-foreground">{tr("Orders are held and filled by Jupiter, even when you are away. Minimum about $5. OM fee 0.3%, taken in SOL when the order is placed.")}</p>
 
       {orders && orders.length > 0 && (
         <div className="mt-4">

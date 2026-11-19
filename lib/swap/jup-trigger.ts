@@ -99,7 +99,7 @@ export async function createLimitOrder(maker: string, b: { side: "buy" | "sell";
   // Frais OM : 0,3 % du montant en SOL (achat : SOL dépensés ; vente : SOL attendus). Un virement de plus dans la même transaction.
   const solSide = b.side === "buy" ? making : taking;
   const fee = await withFee(res.transaction, maker, (solSide * BigInt(LIMIT_FEE_BPS)) / 10_000n);
-  return { ...res, transaction: fee.tx, feeLamports: fee.fee.toString(), direct: fee.fee > 0n, targetPrice: target };
+  return { ...res, transaction: fee.tx, feeLamports: fee.fee.toString(), direct: fee.fee > 0n, targetPrice: target, amountSol: b.side === "buy" ? b.amount : Number(taking) / 1e9 };
 }
 
 /** Envoie une transaction d'ordre déjà signée par le maker (celle qui contient les frais OM, que Jupiter n'a pas construite telle quelle). */

@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { limited } from "@/lib/limit";
+import { createAdminClient } from "@/lib/supabase/server";
 import { activeOrders, cancelOrder, createLimitOrder, executeOrder, sendSigned, TriggerError } from "@/lib/swap/jup-trigger";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,14 @@ export async function POST(req: Request) {
     if (b.action === "create") {
       const side = b.side === "sell" ? "sell" : "buy", mint = String(b.mint ?? ""), amount = Number(b.amount), targetMcap = Number(b.targetMcap);
       if (!MINT.test(mint) || !(amount > 0) || !(targetMcap > 0) || targetMcap > 1e13) return NextResponse.json({ error: "Invalid order" }, { status: 400 });
-      return NextResponse.json(await createLimitOrder(w.wallet, { side, mint, amount, targetMcap }));
+      const res = await createLimitOrder(w.wallet, { side, mint, amount, targetMcap });
+      // Gardé pour le carnet d'ordres (« pending » jusqu'à ce que Jupiter le montre actif ; aucun wallet affiché)
+      if (res.order) {
+         
+        await (createAdminClient() as any).from("om_limit_orders").upsert({ order_key: res.order, maker: w.wallet, mint, side, amount_sol: res.amountSol, target_mcap: targetMcap, status: "pending" })
+          .then(() => null, () => null);
+      }
+      return NextResponse.json(res);
     }
     if (b.action === "cancel") {
       if (!MINT.test(String(b.order ?? ""))) return NextResponse.json({ error: "Invalid order" }, { status: 400 });

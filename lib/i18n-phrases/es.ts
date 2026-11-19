@@ -1681,5 +1681,11 @@ const p: Record<string, string> = {
   "The signature expired, sign again": "La firma expiró, vuelve a firmar",
   "No Aido profile for this wallet. Create your profile in Aido first.": "No hay perfil de Aido para esta billetera. Crea primero tu perfil en Aido.",
   "Could not reach Arc right now, try again": "No se pudo conectar con Arc ahora, inténtalo de nuevo",
+  "Target MC": "MC objetivo",
+  "Receive": "Recibir",
+  "Fee": "Comisión",
+  "Place limit buy": "Colocar compra límite",
+  "Place limit sell": "Colocar venta límite",
+  "OM limit orders. Other rows: SOL needed to move the pool to that level.": "Órdenes límite de OM. Otras filas: SOL necesarios para llevar el pool a ese nivel.",
 };
 export default p;

@@ -1681,5 +1681,11 @@ const p: Record<string, string> = {
   "The signature expired, sign again": "انتهت صلاحية التوقيع، وقّع مجددًا",
   "No Aido profile for this wallet. Create your profile in Aido first.": "لا يوجد ملف Aido لهذه المحفظة. أنشئ ملفك في Aido أولًا.",
   "Could not reach Arc right now, try again": "تعذر الوصول إلى Arc الآن، حاول مجددًا",
+  "Target MC": "القيمة السوقية المستهدفة",
+  "Receive": "ستحصل على",
+  "Fee": "الرسوم",
+  "Place limit buy": "ضع أمر شراء محدد",
+  "Place limit sell": "ضع أمر بيع محدد",
+  "OM limit orders. Other rows: SOL needed to move the pool to that level.": "أوامر OM المحددة. الصفوف الأخرى: كمية SOL اللازمة لتحريك المجمع إلى هذا المستوى.",
 };
 export default p;

@@ -2399,5 +2399,11 @@ const p: Record<string, string> = {
   "Price not available for this token": "Prix indisponible pour ce token",
   "For a limit buy, the target must be below the current market cap.": "Pour un achat limité, la cible doit être sous la capitalisation actuelle.",
   "For a limit sell, the target must be above the current market cap.": "Pour une vente limitée, la cible doit être au-dessus de la capitalisation actuelle.",
+  "Target MC": "MC cible",
+  "Receive": "Recevoir",
+  "Fee": "Frais",
+  "Place limit buy": "Placer l'achat limité",
+  "Place limit sell": "Placer la vente limitée",
+  "OM limit orders. Other rows: SOL needed to move the pool to that level.": "Ordres limités OM. Autres lignes : SOL nécessaires pour amener la pool à ce niveau.",
 };
 export default p;
