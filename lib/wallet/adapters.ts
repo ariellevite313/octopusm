@@ -123,8 +123,7 @@ export const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
   {
     type: "brume",
     name: "Brume",
-    // Logo fourni par l'extension (Wallet Standard) quand elle est installée ; sinon ce repli
-    icon: "/wallets/brume.svg",
+    icon: "/wallets/brume.png",
     downloadUrl: "https://brume.cash",
     // Extension Chrome seulement (pas d'app mobile ni de lien d'ouverture)
     mobileDeepLink: null,
@@ -169,12 +168,6 @@ function startStdListening() {
   try { window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api })); } catch { /* ignore */ }
 }
 startStdListening();
-
-/** Icône (data URI) annoncée par un wallet Wallet Standard. */
-function stdIcon(re: RegExp): string | null {
-  const w = findStdWallet(re) as (StdWallet & { icon?: string }) | null;
-  return w?.icon && /^data:image\//.test(w.icon) ? w.icon : null;
-}
 
 function findStdWallet(re: RegExp): StdWallet | null {
   startStdListening();
@@ -349,8 +342,6 @@ export function getProviderByType(type: WalletType): SolanaProvider | null {
 export function getAvailableWallets(): WalletInfo[] {
   return WALLET_CATALOG.map((w) => ({
     ...w,
-    // Brume : logo officiel annoncé par l'extension (Wallet Standard)
-    icon: w.type === "brume" ? (stdIcon(/brume/i) ?? w.icon) : w.icon,
     detected: getProviderByType(w.type) !== null,
   })).sort((a, b) => (b.detected ? 1 : 0) - (a.detected ? 1 : 0));
 }

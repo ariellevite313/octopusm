@@ -132,7 +132,7 @@ const WALLET_CONFIGS: WalletConfig[] = [
     id: "brume",
     name: "Brume",
     icon: "",
-    iconUrl: "/wallets/brume.svg",
+    iconUrl: "/wallets/brume.png",
     get: () => byType("brume"),
     installUrl: "https://brume.cash",
   },

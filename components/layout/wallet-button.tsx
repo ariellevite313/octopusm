@@ -27,7 +27,7 @@ const WALLET_ICONS: Record<WalletType, string> = {
   backpack:    "/backpack-logo.png",
   trustwallet: "https://trustwallet.com/assets/images/media/assets/TWT.png",
   robinhood:   "/robinhood-logo.png",
-  brume:       "/wallets/brume.svg",
+  brume:       "/wallets/brume.png",
   metamask:    "/logo-metamask.jpeg",
 };
 import {
