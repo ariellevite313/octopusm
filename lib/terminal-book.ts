@@ -5,6 +5,7 @@
  * On y ajoute les ordres limités placés depuis OM (niveau et montant seulement, jamais le wallet).
  */
 import { SOL_MINT } from "@/lib/swap/core";
+import { jupMarket } from "@/lib/swap/jup-market";
 import { activeOrders } from "@/lib/swap/jup-trigger";
 
 export type BookRow = { mcap: number; sol: number; om: boolean };
@@ -39,9 +40,10 @@ async function pair(mint: string): Promise<{ price: number; mcap: number; liq: n
   try {
     const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, { signal: AbortSignal.timeout(8000), next: { revalidate: 15 } });
     const p = ((r.ok ? await r.json() : []) as Ds[]).filter((x) => x.baseToken?.address === mint).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
-    const mcap = p?.marketCap ?? p?.fdv ?? 0;
-    return p && Number(p.priceUsd) > 0 && mcap > 0 ? { price: Number(p.priceUsd), mcap, liq: p.liquidity?.usd ?? 0 } : null;
-  } catch { return null; }
+    const mcap = p?.marketCap || p?.fdv || 0;
+    if (p && Number(p.priceUsd) > 0 && mcap > 0) return { price: Number(p.priceUsd), mcap, liq: p.liquidity?.usd ?? 0 };
+  } catch { /* repli Jupiter */ }
+  return jupMarket(mint);
 }
 
 /**

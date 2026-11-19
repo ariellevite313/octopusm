@@ -4,6 +4,7 @@
  */
 import { SOL_MINT, SWAP_FEE_BPS, SWAP_FEE_WALLET, USDC_MINT } from "@/lib/swap/core";
 import { solanaConnection } from "@/lib/solana/rpc";
+import { jupMarket } from "@/lib/swap/jup-market";
 import { AddressLookupTableAccount, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 
 const BASE = process.env.JUP_API_KEY ? "https://api.jup.ag/trigger/v1" : "https://lite-api.jup.ag/trigger/v1";
@@ -60,8 +61,12 @@ export async function bestPair(mint: string): Promise<{ price: number; mcap: num
     const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, { signal: AbortSignal.timeout(8000), next: { revalidate: 15 } });
     const pairs = ((r.ok ? await r.json() : []) as Ds[]).filter((p) => p.baseToken?.address === mint).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
     const p = pairs[0];
-    return p && Number(p.priceUsd) > 0 ? { price: Number(p.priceUsd), mcap: p.marketCap ?? p.fdv ?? null } : null;
-  } catch { return null; }
+    const mcap = p?.marketCap || p?.fdv || null;
+    if (p && Number(p.priceUsd) > 0 && mcap) return { price: Number(p.priceUsd), mcap };
+  } catch { /* repli Jupiter */ }
+  // Tout ce que Jupiter sait échanger : prix et capitalisation de Jupiter
+  const j = await jupMarket(mint);
+  return j ? { price: j.price, mcap: j.mcap } : null;
 }
 
 export async function decimals(mint: string): Promise<number> {

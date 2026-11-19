@@ -5,7 +5,7 @@ const SOL = "So11111111111111111111111111111111111111112", USDC = "EPjFWdd5AufqS
 
 function mockFetch(sent: unknown[]) {
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.includes("dexscreener")) return new Response(JSON.stringify([{ baseToken: { address: SOL }, priceUsd: "72.4", liquidity: { usd: 1e7 } }]));
+    if (url.includes("dexscreener")) return new Response(JSON.stringify([{ baseToken: { address: SOL }, priceUsd: "72.4", marketCap: 4e10, liquidity: { usd: 1e7 } }]));
     sent.push(JSON.parse(String(init?.body)));
     return new Response(JSON.stringify({ order: "ord", transaction: "AAAA", requestId: "r" }));
   }));
