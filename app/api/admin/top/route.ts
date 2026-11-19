@@ -25,5 +25,5 @@ export async function POST(req: Request) {
   if (rows.length === 0) return NextResponse.json({ error: "No token found for this list right now" }, { status: 404 });
   const { data, error } = await db.from("top_lists").insert({ source, kind, period, rows }).select("id").single();
   if (error) return NextResponse.json({ error: "Could not save the list" }, { status: 500 });
-  return NextResponse.json({ id: data.id, count: rows.length });
+  return NextResponse.json({ id: data.id, count: rows.length, symbols: rows.map((r: { symbol: string }) => r.symbol) });
 }

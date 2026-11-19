@@ -40,6 +40,8 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
   const [busy, setBusy] = useState(false);
   const [id, setId] = useState<string | null>(null);
   const [share, setShare] = useState(false);
+  // Texte qui accompagne l'image (modifiable), avec les tickers du classement
+  const [caption, setCaption] = useState("");
   if (!isAdmin) return null;
 
   const reset = () => setId(null);
@@ -50,6 +52,8 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "Could not build the list, try again");
       setId(j.id);
+      const syms = ((j.symbols ?? []) as string[]).map((x, i) => `${i + 1}. $${x.replace(/^\$+/, "")}`);
+      setCaption(syms.length ? `${text}\n\n${syms.join("\n")}` : text);
     } catch (e) { toast.error(tr((e as Error).message)); }
     setBusy(false);
   }
@@ -95,6 +99,9 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/og/top/${id}`} alt="" className="mt-4 w-full rounded-2xl bg-muted" style={{ aspectRatio: "1080 / 1350" }} />
+                <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Text")}</p>
+                <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 1000))} rows={7}
+                  className="mt-1.5 w-full resize-y rounded-2xl bg-muted px-3.5 py-3 text-[14px] leading-snug text-foreground outline-none" />
                 <div className="mt-3 flex gap-2">
                   <button onClick={create} disabled={busy} className="h-12 flex-1 rounded-2xl bg-muted text-[15px] font-semibold text-foreground">{busy ? <Mirage className="mx-auto size-4" /> : tr("Refresh")}</button>
                   <button onClick={() => setShare(true)} className="h-12 flex-[2] rounded-2xl bg-foreground text-[15px] font-bold text-background">{tr("Publish")}</button>
@@ -111,7 +118,7 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
       )}
       {id && (
         <ShareSheet open={share} onClose={() => setShare(false)} portrait images={[`/api/og/top/${id}`]} url={`/share/top/${id}`}
-          text={text} perks={[]} fileName={`omdot-top10-${source}-${kind}.png`} />
+          text={caption.trim() || text} perks={[]} fileName={`omdot-top10-${source}-${kind}.png`} />
       )}
     </>
   );
