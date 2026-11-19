@@ -10,7 +10,7 @@
  */
 
 import { BagsPanel } from "./bags-panel";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -178,6 +178,16 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   }, [walletAddress, isArc]);
 
   useEffect(() => { refresh(); }, [refresh]);
+  // Arrivée depuis « Réclamer » du dashboard (?claim=1) : on lance tout de suite « Tout réclamer » (Solana)
+  const autoClaim = useRef(false);
+  useEffect(() => {
+    if (autoClaim.current || loading || !pending || isArc) return;
+    if (typeof window === "undefined" || new URLSearchParams(window.location.search).get("claim") !== "1") return;
+    autoClaim.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (pending.total > 0) void handleClaimAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, pending, isArc]);
 
   // ── Claim a single token ──────────────────────────────────────────────────
 

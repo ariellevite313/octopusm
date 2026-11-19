@@ -78,10 +78,11 @@ function ActivityRow({ label, sub, amount, date, direction = "in" }: {
 // ─── USDC accordion ───────────────────────────────────────────────────────────
 
 function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
+  /** absent : pas de bouton de retrait (le retrait passe par « Réclamer » du dashboard) */
   stats: TokenStats;
   activity: TokenActivity[];
   balance: number;
-  onWithdraw: () => void;
+  onWithdraw?: () => void;
 }) {
   const { tr, lang } = useT();
   return (
@@ -112,7 +113,7 @@ function UsdcDropdown({ stats, activity, balance, onWithdraw }: {
       ) : (
         <p className="text-xs text-muted-foreground">{tr("No activity yet.")}</p>
       )}
-      {balance >= 2 ? (
+      {!onWithdraw ? null : balance >= 2 ? (
         <button
           type="button"
           onClick={onWithdraw}
@@ -136,7 +137,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
   stats: TokenStats;
   activity: TokenActivity[];
   balance: number;
-  onWithdraw: () => void;
+  onWithdraw?: () => void;
 }) {
   const { tr, lang } = useT();
   return (
@@ -167,7 +168,7 @@ function CltDropdown({ stats, activity, balance, onWithdraw }: {
       ) : (
         <p className="text-xs text-muted-foreground">{tr("No activity yet.")}</p>
       )}
-      {balance >= 500_000 ? (
+      {!onWithdraw ? null : balance >= 500_000 ? (
         <button
           type="button"
           onClick={onWithdraw}
@@ -275,7 +276,10 @@ export function TokenBalances({
   usdcActivity: initialUsdcActivity,
   cltActivity: initialCltActivity,
   octoActivity: initialOctoActivity,
+  withdraw = true,
 }: {
+  /** false : soldes et historique seulement, sans bouton de retrait */
+  withdraw?: boolean;
   usdcBalance: number;
   cltBalance: number;
   octoBalance: number;
@@ -394,7 +398,7 @@ export function TokenBalances({
             stats={usdcStats}
             activity={usdcActivity}
             balance={usdcBalance}
-            onWithdraw={() => setWithdrawToken("usdc")}
+            onWithdraw={withdraw ? () => setWithdrawToken("usdc") : undefined}
           />
         </TokenRow>
 
@@ -410,7 +414,7 @@ export function TokenBalances({
             stats={cltStats}
             activity={cltActivity}
             balance={cltBalance}
-            onWithdraw={() => setWithdrawToken("clawdtrust")}
+            onWithdraw={withdraw ? () => setWithdrawToken("clawdtrust") : undefined}
           />
         </TokenRow>
 

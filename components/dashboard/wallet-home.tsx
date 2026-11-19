@@ -2,14 +2,14 @@
 
 /**
  * En-tête du dashboard unifié (wallet, prédictions, lancements) :
- * identité avec le badge de niveau, solde du wallet sur 24 h, quatre tuiles (Acheter/Vendre, Swap, Déposer, Réclamer)
+ * identité avec le badge de niveau, solde du wallet sur 24 h, trois tuiles (Trader, Déposer, Réclamer)
  * et les onglets en texte. Les gains OM ne sont visibles que par la tuile Réclamer.
  */
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowDownToLine, ArrowLeftRight, Check, Copy, HandCoins, Landmark, RefreshCw, Share2, X } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, Check, Copy, HandCoins, RefreshCw, Share2, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
@@ -147,8 +147,7 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
 
       {/* Actions */}
       <div className="relative mt-6 flex gap-2">
-        <Tile label={tr("Buy/Sell")} onClick={() => router.push("/terminal")}><Landmark className="size-6" /></Tile>
-        <Tile label={tr("Swap")} onClick={() => router.push("/terminal")}><ArrowLeftRight className="size-6" /></Tile>
+        <Tile label={tr("Trade")} onClick={() => router.push("/terminal")}><ArrowLeftRight className="size-6" /></Tile>
         <Tile label={tr("Deposit")} onClick={() => setSheet("deposit")}><ArrowDownToLine className="size-6" /></Tile>
         <Tile label={tr("Claim")} badge={claimBadge} onClick={() => setSheet("claim")}><HandCoins className="size-6" /></Tile>
       </div>
@@ -194,7 +193,7 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
             </button>
           )}
           {pendingFees > 0 && (
-            <button onClick={() => { setSheet(null); router.push("/dashboard/launchpad"); }} className="mt-2.5 h-14 w-full rounded-full bg-muted text-[17px] font-bold text-foreground">
+            <button onClick={() => { setSheet(null); router.push("/dashboard/launchpad?claim=1"); }} className="mt-2.5 h-14 w-full rounded-full bg-muted text-[17px] font-bold text-foreground">
               {tr("Claim {amount} SOL creator fees", { amount: String(Number(pendingFees.toFixed(4))) })}
             </button>
           )}

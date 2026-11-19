@@ -48,6 +48,8 @@ export function SearchButton({ className = "" }: { className?: string }) {
   );
 }
 
+const CHAIN_NAME: Record<string, string> = { solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB", hyperliquid: "HyperEVM", ethereum: "Ethereum", arbitrum: "Arbitrum", polygon: "Polygon", avalanche: "Avalanche" };
+
 export function SearchOverlay() {
   const { tr } = useT();
   const pathname = usePathname();
@@ -143,10 +145,10 @@ export function SearchOverlay() {
                       {t.logo ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={t.logo} alt="" className="size-11 rounded-xl object-cover" />
-                      ) : <span className="flex size-11 items-center justify-center rounded-xl bg-muted font-bold">{t.ticker[0]}</span>}
+                      ) : <span className="flex size-11 items-center justify-center rounded-xl bg-muted font-bold">{(t.ticker || "?")[0]}</span>}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-bold"><Hl text={t.name} q={q} /></span>
-                        <span className="block text-[13px] text-muted-foreground">${t.ticker} · {t.chain === "arc" ? "Arc" : "Solana"}</span>
+                        <span className="block text-[13px] text-muted-foreground">${t.ticker} · {CHAIN_NAME[t.chain] ?? t.chain}</span>
                       </span>
                       <span className="text-right">
                         <span className="block text-[15px] font-bold">{price(t.price_usd)}</span>
