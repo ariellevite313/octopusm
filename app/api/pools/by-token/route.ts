@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   await ensureTokenPool(admin, chain, mint).catch(() => null);
   const { data, error } = await admin
     .from("mutuel_markets")
-    .select("id, slug, title, options, status, bet_token, betting_closes_at, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, cover_image_src, auto_target, auto_level")
+    .select("id, slug, title, options, category, match_key, status, bet_token, betting_closes_at, total_pool_usdc, total_pool_clt, bet_count, winning_option_id, cover_image_src, auto_target, auto_level")
     .eq("token_mint", mint)
     .in("status", ["active", "closed", "resolved"])
     .order("created_at", { ascending: false })
