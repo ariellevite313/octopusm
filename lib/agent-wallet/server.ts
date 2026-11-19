@@ -128,11 +128,13 @@ export async function createWallet(owner: string, clientId: string): Promise<Age
 
 export async function updateWallet(owner: string, id: string, patch: Record<string, number | boolean>) {
   await walletOfOwner(owner, id);
-  const { error } = await db().from("agent_wallets").update(patch).eq("id", id).eq("owner", owner);
+  const { error } = await db().from("agent_wallets").update({ ...patch, last_seen_at: new Date().toISOString() }).eq("id", id).eq("owner", owner);
   if (error) throw new AgentWalletError(error.message.includes("check") ? "Invalid limits" : "Could not save");
 }
 
 export async function listForOwner(owner: string) {
+  // L'humain ouvre ses wallets d'IA : c'est une activité (le délai de 30 jours repart)
+  await db().from("agent_wallets").update({ last_seen_at: new Date().toISOString() }).eq("owner", owner).then(() => null, () => null);
   const { data } = await db().from("agent_wallets").select(PUBLIC_COLS).eq("owner", owner).order("created_at");
   const rows = (data ?? []) as Omit<AgentWallet, "sol_secret" | "evm_secret">[];
   return Promise.all(rows.map(async (w) => {

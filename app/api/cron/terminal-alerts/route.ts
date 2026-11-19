@@ -12,6 +12,7 @@ import { solanaConnection } from "@/lib/solana/rpc";
 import { PublicKey } from "@solana/web3.js";
 import { runRugAlerts } from "@/lib/rug-alerts";
 import { runTokenPools, seedOmTokenPools } from "@/lib/market/token-pools";
+import { sweepIdleWallets } from "@/lib/agent-wallet/idle";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -127,5 +128,8 @@ export async function GET(req: Request) {
   ]);
   // Toutes les 10 minutes : pools automatiques pour les tokens OM qui n'en ont pas
   const seeded = new Date().getUTCMinutes() % 10 === 0 ? await seedOmTokenPools(db, deadline).catch(() => -1) : 0;
-  return NextResponse.json({ alerts, trades, rug, pools, seeded });
+  // Une fois par jour (vers 03:00 UTC) : les wallets d'IA inactifs depuis 30 jours renvoient leurs fonds à leur humain
+  const now = new Date();
+  const idle = now.getUTCHours() === 3 && now.getUTCMinutes() < 2 ? await sweepIdleWallets(db, deadline).catch(() => null) : null;
+  return NextResponse.json({ alerts, trades, rug, pools, seeded, idle });
 }
