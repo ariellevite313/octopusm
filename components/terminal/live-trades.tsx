@@ -24,6 +24,7 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const seen = useRef<Set<string>>(new Set());
   const [, tick] = useState(0);
+  const [failed, setFailed] = useState(false);
   const network = GT_NET[chain];
 
   useEffect(() => {
@@ -35,7 +36,9 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
       if (document.visibilityState !== "visible") return;
       fetch(`/api/terminal/live-trades?network=${network}${pool ? `&pool=${encodeURIComponent(pool)}` : ""}&mint=${encodeURIComponent(mint)}`)
         .then((r) => (r.ok ? r.json() : null)).then((j: { trades?: LiveTrade[] } | null) => {
-          if (off || !j?.trades) { if (!off) setRows((r) => r ?? []); return; }
+          // Source occupée : on réessaie au prochain tour sans afficher « aucun trade » à tort
+          if (off || !j?.trades) { if (!off) setFailed(true); return; }
+          setFailed(false);
           const first = seen.current.size === 0;
           const added = new Set(j.trades.filter((x) => !seen.current.has(x.tx)).map((x) => x.tx));
           j.trades.forEach((x) => seen.current.add(x.tx));
@@ -45,7 +48,7 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
             return [...by.values()].sort((a, b) => b.t - a.t).slice(0, 120);
           });
           if (!first && added.size) { setFresh(added); setTimeout(() => !off && setFresh(new Set()), 1500); }
-        }).catch(() => { if (!off) setRows((r) => r ?? []); });
+        }).catch(() => { if (!off) setFailed(true); });
     };
     load();
     const every = setInterval(load, 5000);
@@ -70,6 +73,7 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
   }, [chain, mint]);
 
   if (!network) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Live trades not available on this network yet.")}</p>;
+  if (!rows && failed) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Trades are slow to load, retrying...")}</p>;
   if (!rows) return <div className="space-y-2 py-2">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-9 animate-pulse rounded-lg bg-muted" />)}</div>;
 
   const base = chain === "solana" ? "https://solscan.io" : isEvmChain(chain) ? EVM_CHAINS[chain].explorer : EXTRA_EXPLORERS[chain] ?? null;

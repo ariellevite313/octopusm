@@ -1688,5 +1688,6 @@ const p: Record<string, string> = {
   "Place limit sell": "Лимитная продажа",
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "Лимитные ордера OM. Остальные строки: сколько SOL нужно, чтобы довести пул до этого уровня.",
   "Currency": "Валюта",
+  "Trades are slow to load, retrying...": "Сделки загружаются медленно, повторяем...",
 };
 export default p;

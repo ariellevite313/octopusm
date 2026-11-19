@@ -2422,5 +2422,6 @@ const p: Record<string, string> = {
   "Could not build the list, try again": "Impossible de créer le classement, réessaie",
   "Team sales are only tracked on Solana": "Les ventes de l'équipe ne sont suivies que sur Solana",
   "Currency": "Monnaie",
+  "Trades are slow to load, retrying...": "Les trades chargent lentement, nouvel essai...",
 };
 export default p;

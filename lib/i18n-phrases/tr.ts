@@ -1688,5 +1688,6 @@ const p: Record<string, string> = {
   "Place limit sell": "Limit satış ver",
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "OM limit emirleri. Diğer satırlar: havuzu o seviyeye taşımak için gereken SOL.",
   "Currency": "Para birimi",
+  "Trades are slow to load, retrying...": "İşlemler yavaş yükleniyor, tekrar deneniyor...",
 };
 export default p;

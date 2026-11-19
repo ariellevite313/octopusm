@@ -1688,5 +1688,6 @@ const p: Record<string, string> = {
   "Place limit sell": "ضع أمر بيع محدد",
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "أوامر OM المحددة. الصفوف الأخرى: كمية SOL اللازمة لتحريك المجمع إلى هذا المستوى.",
   "Currency": "العملة",
+  "Trades are slow to load, retrying...": "تحميل الصفقات بطيء، جارٍ إعادة المحاولة...",
 };
 export default p;

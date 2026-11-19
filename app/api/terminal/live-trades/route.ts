@@ -21,7 +21,10 @@ const GT = "https://api.geckoterminal.com/api/v2";
 
 async function poolTrades(network: string, pool: string, m: string): Promise<{ trades: LiveTrade[]; ok: boolean }> {
   try {
-    const r = await fetch(`${GT}/networks/${network}/pools/${pool}/trades`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 4 } });
+    const get = () => fetch(`${GT}/networks/${network}/pools/${pool}/trades`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 4 } });
+    let r = await get();
+    // GeckoTerminal limite les appels (429) : un seul nouvel essai après une courte pause
+    if (r.status === 429) { await new Promise((x) => setTimeout(x, 700)); r = await get(); }
     if (!r.ok) return { trades: [], ok: r.status === 404 };
     const j = (await r.json()) as { data?: GtTrade[] };
     const trades: LiveTrade[] = [];
@@ -50,6 +53,10 @@ async function otherPools(network: string, mint: string, skip: string): Promise<
   } catch { return []; }
 }
 
+/** Derniers trades connus par token : servis si GeckoTerminal est occupé, au lieu d'afficher « aucun trade » à tort. */
+const last = new Map<string, { at: number; trades: LiveTrade[] }>();
+const STALE_MS = 10 * 60_000;
+
 export async function GET(req: Request) {
   { const lim = await limited(req, "live-trades", 120); if (lim) return lim; }
   const u = new URL(req.url);
@@ -58,6 +65,7 @@ export async function GET(req: Request) {
   const mint = (u.searchParams.get("mint") ?? "").trim();
   if (!NETS.has(network) || (pool && !ADDR.test(pool)) || !ADDR.test(mint)) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const m = mint.toLowerCase();
+  const key = `${network}:${pool}:${m}`;
   const first = pool ? await poolTrades(network, pool, m) : { trades: [] as LiveTrade[], ok: false };
   let all = first.trades;
   // Pas de pool connue, ou presque rien dedans : on regarde les autres pools du token (nouveau token, migration, plusieurs DEX)
@@ -65,9 +73,16 @@ export async function GET(req: Request) {
     const extra = await otherPools(network, mint, pool);
     const more = await Promise.all(extra.map((p) => poolTrades(network, p, m)));
     all = all.concat(more.flatMap((x) => x.trades));
+    if (!all.length && !first.ok && more.every((x) => !x.ok)) {
+      // Les sources n'ont pas répondu (trop d'appels, panne) : derniers trades connus, sinon une erreur que le client sait relire
+      const old = last.get(key);
+      if (old && Date.now() - old.at < STALE_MS) return NextResponse.json({ trades: old.trades }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ error: "busy" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
   }
   const seen = new Set<string>();
   const trades = all.filter((t) => { const k = `${t.tx}:${t.side}:${t.wallet}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => b.t - a.t).slice(0, 80);
+  if (trades.length) { last.set(key, { at: Date.now(), trades }); if (last.size > 300) last.delete(last.keys().next().value as string); }
   return NextResponse.json({ trades }, { headers: { "Cache-Control": "public, max-age=3, s-maxage=4" } });
 }
