@@ -9,9 +9,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { snapshotsToBars } from "@/lib/launch/price-snapshots";
 import { useTheme } from "next-themes";
-import { Loader2, CandlestickChart, TrendingUp } from "lucide-react";
+import { CandlestickChart, TrendingUp } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -607,7 +608,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
             {tf.label}
           </button>
         ))}
-        {loading && <Loader2 className="size-3.5 animate-spin text-muted-foreground ml-1" />}
+        {loading && <Mirage className="size-3.5 text-muted-foreground ml-1" />}
       </div>
 
       {showType && chartType === "line" && !loading && (
@@ -627,7 +628,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
         <Header />
         {!embedReady && (
           <div className="flex items-center justify-center" style={{ height: 260 }}>
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <Mirage className="size-5 text-muted-foreground" />
           </div>
         )}
         <iframe
@@ -657,7 +658,7 @@ export function TokenChart({ mintAddress, arcCurveAddress, isV4 = false, name, t
 
       {status === "loading" && (
         <div className="flex items-center justify-center" style={{ height: 260 }}>
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <Mirage className="size-5 text-muted-foreground" />
         </div>
       )}
       {status === "error" && (

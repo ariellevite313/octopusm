@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Loader2, ShieldCheck } from "lucide-react";
+import { Check, ShieldCheck } from "lucide-react";
 import { AssistantLogo } from "./assistant-logo";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { shortAddress } from "@/lib/format";
+import { Mirage } from "@/components/shared/mirage";
 
 const PERMS = [
   { id: "read", label: T("Read markets, tokens, profiles and the feed"), locked: true },
@@ -91,10 +92,10 @@ export function AuthorizeCard() {
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <button onClick={() => decide(false)} disabled={!!busy} className="rounded-full border border-border py-3 text-sm font-bold text-foreground hover:bg-muted">
-              {busy === "deny" ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Cancel")}
+              {busy === "deny" ? <Mirage className="mx-auto size-4" /> : tr("Cancel")}
             </button>
             <button onClick={() => decide(true)} disabled={!!busy} className="rounded-full bg-foreground py-3 text-sm font-bold text-background">
-              {busy === "allow" ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Allow")}
+              {busy === "allow" ? <Mirage className="mx-auto size-4" /> : tr("Allow")}
             </button>
           </div>
         </>

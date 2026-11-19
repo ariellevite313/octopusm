@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/social/posts";
 import { PostCard } from "./post-card";
 import { PostReplies } from "./post-replies";
+import { Mirage } from "@/components/shared/mirage";
 
 /** Page d'un seul post (lien de partage). */
 export function PostView({ id }: { id: string }) {
@@ -31,7 +32,7 @@ export function PostView({ id }: { id: string }) {
         <Link href="/" aria-label={tr("Feed")} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><ArrowLeft className="size-5" /></Link>
         <h1 className="text-lg font-extrabold">{tr("Post")}</h1>
       </div>
-      {state === "loading" && <div className="flex justify-center py-16"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>}
+      {state === "loading" && <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div>}
       {state === "missing" && <p className="py-16 text-center text-sm text-muted-foreground">{tr("This post is not available.")}</p>}
       {state === "ok" && post && (
         <>

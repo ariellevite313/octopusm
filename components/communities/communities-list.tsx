@@ -3,12 +3,13 @@
 /** Page /communities : recherche, populaires / récentes / les miennes, bouton Créer (100 OMERO). */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { compactCount } from "@/lib/social/tips";
 import type { Community } from "@/lib/social/communities-shared";
 import { CommunityForm, categoryLabel } from "./community-form";
+import { Mirage } from "@/components/shared/mirage";
 
 type Row = Community & { joined?: boolean; role?: string };
 
@@ -60,7 +61,7 @@ export function CommunitiesList() {
         </div>
       </div>
 
-      {!rows ? <div className="flex justify-center py-16"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+      {!rows ? <div className="flex justify-center py-16"><Mirage className="size-6 text-muted-foreground" /></div>
         : rows.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <Users className="mx-auto size-10 text-muted-foreground" />

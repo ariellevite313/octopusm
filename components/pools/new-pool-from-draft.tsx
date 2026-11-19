@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { CreatePoolModal, type PoolDraft } from "./create-pool-modal";
+import { Mirage } from "@/components/shared/mirage";
 
 /** Marché proposé par une IA : ouvre le formulaire normal prérempli. L'humain relit, paie les frais avec son wallet et crée le marché. */
 export function NewPoolFromDraft({ id }: { id: string }) {
@@ -31,6 +31,6 @@ export function NewPoolFromDraft({ id }: { id: string }) {
   }, [id]);
 
   if (error) return <p className="py-24 text-center text-sm text-muted-foreground">{tr(error)}</p>;
-  if (!draft) return <div className="flex justify-center py-24"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!draft) return <div className="flex justify-center py-24"><Mirage className="size-5 text-muted-foreground" /></div>;
   return <CreatePoolModal initial={draft} onClose={() => router.push("/pools")} onCreated={(m) => router.push(`/pools/${m.slug ?? m.id}`)} />;
 }

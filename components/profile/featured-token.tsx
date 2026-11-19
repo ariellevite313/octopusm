@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { TokenPill } from "@/components/social/token-pill";
 import type { FeaturedToken } from "@/lib/social/featured-token";
 import { useIsMine } from "./profile-social";
+import { Mirage } from "@/components/shared/mirage";
 
 type Hit = { id: string; name: string; ticker: string; logo_url: string | null };
 
@@ -89,7 +90,7 @@ function Picker({ hasToken, onClose }: { hasToken: boolean; onClose: () => void 
         </div>
         <div className="-mx-2 min-h-[120px] flex-1 overflow-y-auto">
           {loading && hits.length === 0 ? (
-            <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+            <div className="flex justify-center py-8"><Mirage className="size-5 text-muted-foreground" /></div>
           ) : hits.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">{tr("No tokens found")}</p>
           ) : hits.map((t) => (
@@ -102,13 +103,13 @@ function Picker({ hasToken, onClose }: { hasToken: boolean; onClose: () => void 
                 <span className="block truncate font-semibold text-foreground">{t.name}</span>
                 <span className="block text-xs text-muted-foreground">${t.ticker}</span>
               </span>
-              {saving === t.id && <Loader2 className="size-4 animate-spin" />}
+              {saving === t.id && <Mirage className="size-4" />}
             </button>
           ))}
         </div>
         {hasToken && (
           <button onClick={() => save(null)} disabled={!!saving} className="mt-3 rounded-full border border-border py-3 text-sm font-bold text-foreground hover:bg-muted">
-            {saving === "remove" ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Remove featured token")}
+            {saving === "remove" ? <Mirage className="mx-auto size-4" /> : tr("Remove featured token")}
           </button>
         )}
       </div>

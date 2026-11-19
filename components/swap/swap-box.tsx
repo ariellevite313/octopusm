@@ -5,12 +5,13 @@
  * minimum reçu garanti par le slippage. Le portefeuille de l'utilisateur est le seul à signer.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, Settings2 } from "lucide-react";
+import { ExternalLink, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { SOL_MINT, USDC_MINT } from "@/lib/swap/core";
 import { executeSwap, fromRaw, toRaw } from "@/lib/swap/client";
+import { Mirage } from "@/components/shared/mirage";
 
 type Token = { mint: string; decimals: number; symbol: string; name: string; logo: string | null; price: number | null; om_id: string | null; fee_bps: number };
 type Balances = { token: string; sol: string; usdc: string } | null;
@@ -187,7 +188,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy", refPost }: { min
         <div className="text-xs text-muted-foreground">{tr("You receive")}</div>
         <div className="mt-2 flex items-center gap-2">
           <span className={`num min-w-0 flex-1 truncate text-[28px] font-bold ${quote ? "text-foreground" : "text-muted-foreground/50"}`}>
-            {quoting ? <Loader2 className="size-6 animate-spin text-muted-foreground" /> : quote ? fmt(outUi) : "0"}
+            {quoting ? <Mirage className="size-6 text-muted-foreground" /> : quote ? fmt(outUi) : "0"}
           </span>
           {side === "sell" ? <BasePick base={base} setBase={setBase} /> : <span className="flex items-center gap-1.5 rounded-xl bg-background px-2.5 py-1.5 text-sm font-bold"><Logo src={token.logo} sym={token.symbol} />{token.symbol}</span>}
         </div>
@@ -208,7 +209,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy", refPost }: { min
 
       <button onClick={solWallet ? swap : () => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} disabled={disabled}
         className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[16px] font-bold text-background transition-opacity disabled:opacity-40">
-        {busy && <Loader2 className="size-4 animate-spin" />}{label}
+        {busy && <Mirage className="size-4" />}{label}
       </button>
       {token.om_id && (
         <a href={`/launchpad/${token.om_id}`} className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground">{tr("OM token page")}<ExternalLink className="size-3" /></a>

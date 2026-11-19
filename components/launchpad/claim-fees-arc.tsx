@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { CoinsIcon, Loader2, CheckCircle2, TrendingUpIcon } from "lucide-react";
+import { CoinsIcon, CheckCircle2, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 import { ARC_DIRECT_VAULT_ABI, ARC_FACTORY_DIRECT_ADDRESS } from "@/lib/arc-launchpad";
+import { Mirage } from "@/components/shared/mirage";
 
 type Props = {
   curveAddress:  string;  // arc_launch_id = adresse du BondingCurveArcV2
@@ -211,7 +212,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
           className={`w-full rounded-full py-3 text-[14px] font-bold transition-colors ${claiming ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-foreground hover:opacity-90 text-background"}`}
         >
           {claiming ? (
-            <span className="flex items-center justify-center gap-2"><Loader2 className="size-4 animate-spin" />{t.collecting}</span>
+            <span className="flex items-center justify-center gap-2"><Mirage className="size-4" />{t.collecting}</span>
           ) : tr("Collect fees now")}
         </button>
       </div>
@@ -276,7 +277,7 @@ export function ClaimFeesArc({ curveAddress, creatorWallet, vaultAddress }: Prop
       >
         {claiming ? (
           <span className="flex items-center justify-center gap-2">
-            <Loader2 className="size-4 animate-spin" />
+            <Mirage className="size-4" />
             {graduated ? t.collecting : t.claiming}
           </span>
         ) : buttonLabel}

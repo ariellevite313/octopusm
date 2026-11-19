@@ -8,13 +8,14 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link2, Copy, Loader2, Users, Coins, Flame, MessageSquare, Share, Download } from "lucide-react";
+import { Link2, Copy, Users, Coins, Flame, MessageSquare, Share, Download } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { ComposeModal } from "@/components/social/compose-modal";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { Rich } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 type Perk = { icon: "users" | "coins"; text: string };
 
@@ -190,7 +191,7 @@ export function ShareSheet({
             onScroll={(e) => { const el = e.currentTarget; setIdx(Math.round(el.scrollLeft / (el.clientWidth * 0.9))); }}>
             {images.map((src) => (
               <div key={src} className={`relative ${portrait ? "mx-auto aspect-[1080/1240] w-[68%] max-w-[320px] rounded-[22px] bg-[#0b0b0f] shadow-[0_18px_44px_-18px_rgba(0,0,0,0.6)]" : `aspect-[1200/630] ${images.length > 1 ? "w-[90%]" : "w-full"} rounded-2xl bg-white shadow-[0_14px_40px_-16px_rgba(255,122,26,0.6)] ring-1 ring-black/5`} shrink-0 snap-center overflow-hidden`}>
-                {!loaded[src] && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="size-6 animate-spin text-[#ff7a1a]" /></div>}
+                {!loaded[src] && <div className="absolute inset-0 flex items-center justify-center"><Mirage className="size-6 text-[#ff7a1a]" /></div>}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="" onLoad={() => setLoaded(l => ({ ...l, [src]: true }))} onError={() => setLoaded(l => ({ ...l, [src]: true }))}
                   className={`size-full object-cover transition-opacity ${loaded[src] ? "opacity-100" : "opacity-0"}`} />
@@ -234,7 +235,7 @@ export function ShareSheet({
           {images.length > 0 && <button onClick={shareImage} disabled={busy} className={circle} aria-label={tr("Share image")} title={tr("Share image")}><Share className="size-6" /></button>}
           {images.length > 0 && <button onClick={downloadImage} className={circle} aria-label={tr("Download image")} title={tr("Download image")}><Download className="size-6" /></button>}
           {images.length > 0 && <button onClick={copyImage} disabled={busy} className={circle} aria-label={tr("Copy image")}>
-            {busy ? <Loader2 className="size-6 animate-spin" /> : <Copy className="size-6" />}
+            {busy ? <Mirage className="size-6" /> : <Copy className="size-6" />}
           </button>}
         </div>
       </div>

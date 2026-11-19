@@ -3,7 +3,7 @@
 /** Page d'une communauté (/c/[slug]) : en-tête, rejoindre, épingler sur le profil, onglets Top / Récents / Médias / À propos. */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Loader2, Pin, PinOff, Settings, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Pin, PinOff, Settings, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -15,6 +15,7 @@ import { PostCard } from "@/components/social/post-card";
 import { ComposeModal } from "@/components/social/compose-modal";
 import { CommunityForm, categoryLabel } from "./community-form";
 import { CommunityLogo } from "./communities-list";
+import { Mirage } from "@/components/shared/mirage";
 
 type Viewer = { role: CommunityRole; status: string; pinned: boolean } | null;
 type Tab = "top" | "latest" | "media" | "about";
@@ -99,7 +100,7 @@ export function CommunityView({ slug }: { slug: string }) {
       <Link href="/communities" className="mt-4 inline-block rounded-full bg-foreground px-5 py-2.5 text-sm font-bold text-background">{tr("See communities")}</Link>
     </div>
   );
-  if (!c) return <div className="flex justify-center py-24"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+  if (!c) return <div className="flex justify-center py-24"><Mirage className="size-6 text-muted-foreground" /></div>;
 
   return (
     <div className="mx-auto max-w-xl pb-32 lg:border-x lg:border-border">
@@ -141,7 +142,7 @@ export function CommunityView({ slug }: { slug: string }) {
               : viewer?.role === "admin" ? <span className="rounded-full border border-border px-4 py-2 text-[14px] font-bold text-foreground">Admin</span>
               : (
                 <button onClick={join} disabled={busy} className={`group flex h-10 items-center gap-1.5 rounded-full px-5 text-[14px] font-bold disabled:opacity-50 ${member ? "border border-border text-foreground" : "bg-foreground text-background"}`}>
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : member ? <><Check className="size-4 group-hover:hidden" /><span className="group-hover:hidden">{tr("Joined")}</span><span className="hidden group-hover:inline">{tr("Leave")}</span></> : tr("Join")}
+                  {busy ? <Mirage className="size-4" /> : member ? <><Check className="size-4 group-hover:hidden" /><span className="group-hover:hidden">{tr("Joined")}</span><span className="hidden group-hover:inline">{tr("Leave")}</span></> : tr("Join")}
                 </button>
               )}
           </div>
@@ -184,7 +185,7 @@ export function CommunityView({ slug }: { slug: string }) {
             </ul>
           </div>
         </div>
-      ) : !posts ? <div className="flex justify-center py-16"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+      ) : !posts ? <div className="flex justify-center py-16"><Mirage className="size-6 text-muted-foreground" /></div>
         : posts.length === 0 ? <p className="px-6 py-16 text-center text-sm text-muted-foreground">{member ? tr("No post yet. Be the first to post.") : tr("No post yet. Join to post.")}</p>
         : (
           <div className="divide-y divide-border">

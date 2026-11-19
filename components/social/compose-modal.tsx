@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import type { FeedPost, QuotedPost } from "@/lib/social/posts";
@@ -10,6 +10,7 @@ import { MarketCard } from "./market-card";
 import type { SharedMarket } from "@/lib/social/posts";
 import { extractMarketRef } from "@/lib/social/rich";
 import { MAX_BODY, MAX_IMAGES, MAX_IMAGE_BYTES, IMAGE_TYPES } from "@/lib/social/posts";
+import { Mirage } from "@/components/shared/mirage";
 
 type Suggest = { wallet: string; username: string; name: string | null; avatar: string | null };
 
@@ -172,7 +173,7 @@ export function ComposeModal({ onClose, onPosted, initialBody = "", quote = null
           </button>
           <span className="num ml-auto text-xs text-muted-foreground">{body.length}/{MAX_BODY}</span>
           <button onClick={submit} disabled={!canPost} className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-bold text-background disabled:opacity-40">
-            {sending && <Loader2 className="size-4 animate-spin" />}{tr("Post")}
+            {sending && <Mirage className="size-4" />}{tr("Post")}
           </button>
         </div>
       </div>

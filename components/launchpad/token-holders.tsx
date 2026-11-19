@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { concentration } from "@/lib/holders-analysis";
 import { HoldersBubbles } from "@/components/launchpad/holders-bubbles";
+import { Mirage } from "@/components/shared/mirage";
 
 type Holder = { rank: number; owner: string; amount: number; pct: number; isProgram: boolean; name?: string | null; avatar?: string | null };
 
@@ -45,7 +46,7 @@ export function TokenHolders({ mint, chain = "solana", curve }: { mint: string; 
   }, [mint, chain, curve]);
 
   if (err) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p>;
-  if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!rows) return <div className="flex justify-center py-10"><Mirage className="size-5 text-muted-foreground" /></div>;
   if (rows.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("No holders yet.")}</p>;
 
   const conc = concentration(rows);

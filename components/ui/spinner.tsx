@@ -1,16 +1,10 @@
-import { Loader2Icon } from "lucide-react"
+import { Mirage } from "@/components/shared/mirage"
 
 import { cn } from "@/lib/utils"
 
-function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
-  return (
-    <Loader2Icon
-      role="status"
-      aria-label="Loading"
-      className={cn("size-4 animate-spin", className)}
-      {...props}
-    />
-  )
+/** Indicateur de chargement : style « Mirage » partout sur OM */
+function Spinner({ className }: { className?: string }) {
+  return <Mirage className={cn("size-4", className)} />
 }
 
 export { Spinner }

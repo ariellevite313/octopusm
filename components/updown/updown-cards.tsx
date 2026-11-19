@@ -4,12 +4,13 @@ import { isPausedDuration } from "@/lib/updown-pause";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Loader2, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { formatVolume } from "@/lib/market/utils";
 import { useFakeLiveBets, FakeBetOverlay } from "@/components/market/market-fake-bets";
 import { useT } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
 import { EmptyIcon } from "@/components/shared/empty-icon";
+import { Mirage } from "@/components/shared/mirage";
 
 export interface UpDownMarket {
   id: string;
@@ -118,7 +119,7 @@ export function UpDownCard({ market }: { market: UpDownMarket }) {
             <div className="flex flex-col items-end gap-0.5">
               {liveCountdown === "Termine" ? (
                 <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                  <Loader2 className="size-3 animate-spin" />
+                  <Mirage className="size-3" />
                   {tr("Resolving")}
                 </span>
               ) : (

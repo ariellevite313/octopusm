@@ -2,12 +2,13 @@
 
 /** Badge Aido sur le profil, et pour le propriétaire du profil : relier / retirer son compte Aido (signature MetaMask). */
 import { useEffect, useState } from "react";
-import { Link2, Loader2 } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { aidoLinkMessage, aidoProfileUrl } from "@/lib/aido-link";
 import { prefetchWalletConnect, signWithWalletConnect, toHex } from "@/lib/wallet/walletconnect";
+import { Mirage } from "@/components/shared/mirage";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 
@@ -68,7 +69,7 @@ export function AidoBadge({ wallet, aido, handle }: { wallet: string; aido: stri
   if (!mine) return null;
   return (
     <button onClick={link} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[12px] font-bold text-foreground disabled:opacity-50">
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}{tr("Link my Aido account")}
+      {busy ? <Mirage className="size-3.5" /> : <Link2 className="size-3.5" />}{tr("Link my Aido account")}
     </button>
   );
 }

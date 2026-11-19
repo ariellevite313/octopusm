@@ -12,11 +12,12 @@
 import { useState, useEffect } from "react";
 import Image                   from "next/image";
 import Link                    from "next/link";
-import { Loader2, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useAuth }             from "@/providers/auth-provider";
 import { useT }               from "@/lib/i18n";
 import type { Lang }           from "@/lib/i18n";
 import { LOCALES }             from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 function fmtBalance(raw: string, lang: Lang): string {
   const n = Number(BigInt(raw)) / 1e18;
@@ -70,7 +71,7 @@ export function ArcHolderHoldings() {
 
   if (loading) return (
     <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" /> {t.loadingPositions}
+      <Mirage className="size-4" /> {t.loadingPositions}
     </div>
   );
 

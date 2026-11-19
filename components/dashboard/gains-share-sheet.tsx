@@ -8,10 +8,11 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Share, Link2, Copy, Loader2 } from "lucide-react";
+import { X, Share, Link2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 type Period = "24h" | "7d" | "30d" | "all";
 const PERIODS: { id: Period; label: string; ms: number | null }[] = [
@@ -143,7 +144,7 @@ export function GainsShareSheet({
         <div className="relative overflow-hidden rounded-[24px] p-[2px] shadow-[0_20px_60px_-20px_rgba(255,122,26,0.55)]">
           <div className="gains-frame absolute inset-[-60%]" />
           <div className="relative aspect-[1200/630] overflow-hidden rounded-[22px] bg-white">
-            {!imgReady && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="size-6 animate-spin text-[#ff7a1a]" /></div>}
+            {!imgReady && <div className="absolute inset-0 flex items-center justify-center"><Mirage className="size-6 text-[#ff7a1a]" /></div>}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img key={imgUrl} src={imgUrl} alt={tr("Creator gains")} onLoad={() => setImgReady(true)} className={`size-full object-cover transition-opacity ${imgReady ? "opacity-100" : "opacity-0"}`} />
           </div>
@@ -181,7 +182,7 @@ function ShareAction({ label, onClick, busy, children }: { label: string; onClic
   return (
     <button onClick={onClick} disabled={busy} className="group flex flex-col items-center gap-2 disabled:opacity-60">
       <span className="flex size-16 items-center justify-center rounded-full bg-black/[0.05] ring-1 ring-black/5 transition-colors group-hover:bg-black/[0.09]">
-        {busy ? <Loader2 className="size-6 animate-spin" /> : children}
+        {busy ? <Mirage className="size-6" /> : children}
       </span>
       <span className="text-[15px] font-medium">{tr(label)}</span>
     </button>

@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, Loader2 } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
+import { Mirage } from "@/components/shared/mirage";
 
 type Person = { wallet: string; name: string | null; avatar: string | null; amount?: number };
 
@@ -67,7 +68,7 @@ export function SupportersSheet({ postId, initialTab = "tips", onClose }: { post
 
         <div className="min-h-[120px] overflow-y-auto">
           {!cur ? (
-            <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+            <div className="flex justify-center py-10"><Mirage className="size-5 text-muted-foreground" /></div>
           ) : cur.people.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">{tab === "tips" ? tr("No tips yet. Be the first.") : tr("No likes yet.")}</p>
           ) : (

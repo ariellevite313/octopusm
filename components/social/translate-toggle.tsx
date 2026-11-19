@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Languages, Loader2 } from "lucide-react";
+import { Languages } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 /**
  * Traduction d'un post ou d'une réponse vers la langue de l'utilisateur.
@@ -43,7 +44,7 @@ export function useContentTranslation(kind: "post" | "reply", id: string) {
       disabled={busy}
       className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
     >
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Languages className="size-3.5" />}
+      {busy ? <Mirage className="size-3.5" /> : <Languages className="size-3.5" />}
       {text !== null ? tr("Show original") : tr("Translate")}
     </button>
   );

@@ -8,11 +8,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { GiftSvg } from "@/components/dashboard/weekly-box";
+import { Mirage } from "@/components/shared/mirage";
 
 type Last = {
   week: string;
@@ -104,7 +105,7 @@ export function WeeklyBoxPopup() {
           {stage === "closed" && <button onClick={open} className="h-12 w-full rounded-full bg-foreground text-[16px] font-bold text-background">{tr("Open my box")}</button>}
           {stage === "open" && hasSol && status === "won" && (
             <button onClick={claim} disabled={busy} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background disabled:opacity-50">
-              {busy && <Loader2 className="size-4 animate-spin" />}{tr("Claim")}
+              {busy && <Mirage className="size-4" />}{tr("Claim")}
             </button>
           )}
           {stage === "open" && hasSol && status === "claimed" && (

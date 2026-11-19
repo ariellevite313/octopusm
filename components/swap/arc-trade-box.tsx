@@ -6,7 +6,7 @@
  * même quand on est connecté à OM avec un wallet Solana.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { createPublicClient, encodeFunctionData, http, parseAbi } from "viem";
 import { useAuth } from "@/providers/auth-provider";
@@ -16,6 +16,7 @@ import { arc } from "@/lib/arc-chain";
 import { ARC_DIRECT_ROUTER_ABI, ARC_DIRECT_ROUTER_ADDRESS } from "@/lib/arc-launchpad";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { prepareEvmWallet, connectEvmTrader, disconnectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
+import { Mirage } from "@/components/shared/mirage";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 const ERC20 = parseAbi([
@@ -225,7 +226,7 @@ export function ArcTradeBox({ token, symbol, refPost }: { token: string; symbol:
       <div className="mt-2 rounded-2xl bg-muted/50 p-3">
         <div className="text-xs text-muted-foreground">{tr("You receive")}</div>
         <div className="mt-2 flex items-center gap-2">
-          <span className={`num min-w-0 flex-1 truncate text-[28px] font-bold ${out ? "text-foreground" : "text-muted-foreground/50"}`}>{quoting ? <Loader2 className="size-6 animate-spin text-muted-foreground" /> : out ? fmt(fromRaw(out, outDec)) : "0"}</span>
+          <span className={`num min-w-0 flex-1 truncate text-[28px] font-bold ${out ? "text-foreground" : "text-muted-foreground/50"}`}>{quoting ? <Mirage className="size-6 text-muted-foreground" /> : out ? fmt(fromRaw(out, outDec)) : "0"}</span>
           <span className="rounded-xl bg-background px-2.5 py-1.5 text-sm font-bold">{outSym}</span>
         </div>
       </div>
@@ -237,7 +238,7 @@ export function ArcTradeBox({ token, symbol, refPost }: { token: string; symbol:
       )}
       <button onClick={addr ? swap : isAuthenticated ? connect : () => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} disabled={disabled}
         className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">
-        {busy && <Loader2 className="size-4 animate-spin" />}{label}
+        {busy && <Mirage className="size-4" />}{label}
       </button>
       {!evm && trader && (
         <p className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">

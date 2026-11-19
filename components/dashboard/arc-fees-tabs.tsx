@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -24,6 +24,7 @@ import { getProviderByType } from "@/lib/wallet/adapters";
 type EthProvider = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } & Record<string, unknown>;
 import { BONDING_CURVE_V2_ABI, OM_TOKEN_ABI } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -370,7 +371,7 @@ export function ArcFeesTabs() {
         <div className="space-y-2 pt-3">
           {creatorLoading ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> {t.loading}
+              <Mirage className="size-4" /> {t.loading}
             </div>
           ) : creatorTokens.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">{t.noArcTokens}</p>
@@ -409,7 +410,7 @@ export function ArcFeesTabs() {
                 {selectedChain !== "arc" ? (
                   <span className="text-[10px] text-muted-foreground text-right shrink-0 whitespace-pre-line">{t.connectWallet}</span>
                 ) : token.accrued === null ? (
-                  <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
+                  <Mirage className="size-4 text-muted-foreground shrink-0" />
                 ) : token.accrued === 0n ? (
                   <span className="text-xs text-muted-foreground shrink-0">—</span>
                 ) : (
@@ -418,7 +419,7 @@ export function ArcFeesTabs() {
                     disabled={token.claiming}
                     className="rounded-full px-4 py-2 text-xs font-bold shrink-0 bg-foreground hover:opacity-90 text-background disabled:opacity-60 transition-colors btn-primary"
                   >
-                    {token.claiming ? <Loader2 className="size-3.5 animate-spin" /> : t.claim}
+                    {token.claiming ? <Mirage className="size-3.5" /> : t.claim}
                   </button>
                 )}
               </div>
@@ -432,7 +433,7 @@ export function ArcFeesTabs() {
         <div className="space-y-2 pt-3">
           {divLoading ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> {t.loadingDividends}
+              <Mirage className="size-4" /> {t.loadingDividends}
             </div>
           ) : visibleDiv.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">{t.noDividends}</p>
@@ -459,7 +460,7 @@ export function ArcFeesTabs() {
 
                     {isLoading ? (
                       <div className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                        <Loader2 className="size-3 animate-spin text-primary" /> {t.reading}
+                        <Mirage className="size-3 text-primary" /> {t.reading}
                       </div>
                     ) : (
                       <div className={`mt-0.5 flex items-center gap-1 text-[12px] ${hasBalance ? "font-semibold text-primary" : "text-muted-foreground"}`}>
@@ -487,7 +488,7 @@ export function ArcFeesTabs() {
                     <span className="shrink-0 text-right text-[10px] text-muted-foreground whitespace-pre-line">{t.connectWallet}</span>
                   ) : isLoading ? (
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                      <Mirage className="size-3.5 text-primary" />
                     </div>
                   ) : (
                     <button
@@ -499,7 +500,7 @@ export function ArcFeesTabs() {
                           : "cursor-not-allowed bg-muted text-muted-foreground"
                       }`}
                     >
-                      {token.claiming ? <Loader2 className="size-3.5 animate-spin" /> : t.claim}
+                      {token.claiming ? <Mirage className="size-3.5" /> : t.claim}
                     </button>
                   )}
                 </div>

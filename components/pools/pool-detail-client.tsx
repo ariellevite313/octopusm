@@ -4,7 +4,7 @@ import { MatchStrip } from "@/components/sports/match-strip";
 import { captureVia } from "@/lib/social/share-via";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Clock, Loader2, Share2, Trophy } from "lucide-react";
+import { ArrowLeft, Check, Clock, Share2, Trophy } from "lucide-react";
 import { MutuelMarketRow, MutuelOption } from "@/lib/supabase/types";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { CommentsSection } from "@/components/shared/comments-section";
@@ -21,6 +21,7 @@ import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { ListPager } from "@/components/profile/list-pager";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 // ─── Option color palette ─────────────────────────────────────────────────────
 // Used for progress bars and selected-option highlights (cycles through options)
@@ -294,7 +295,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
 
       {isBusy && (
         <div className="mb-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-xs text-foreground">
-          <Loader2 className="size-3.5 animate-spin" />
+          <Mirage className="size-3.5" />
           {tr("Approve in wallet and waiting for confirmation...")}
         </div>
       )}
@@ -304,7 +305,7 @@ function PredictForm({ market, options, pcts, onRequestConnect }: PredictFormPro
         disabled={isBusy}
         className="w-full rounded-[14px] bg-foreground py-2.5 text-sm font-bold text-background hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 btn-primary"
       >
-        {isBusy && <Loader2 className="size-4 animate-spin" />}
+        {isBusy && <Mirage className="size-4" />}
         {isBusy ? tr("Approving...") : tr("Predict")}
       </button>
 

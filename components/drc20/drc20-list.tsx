@@ -3,9 +3,10 @@
 /** Liste des tokens DRC-20 (Dogecoin) indexés par OM : détenteurs, progression du mint, recherche. */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Loader2, Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { drcAmount, type Drc20Token } from "@/lib/drc20";
+import { Mirage } from "@/components/shared/mirage";
 
 type MarketRow = { holders?: number | null; id: string; symbol: string; name: string; image: string | null; price: number | null; mcap: number | null; volume: number | null; change24h: number | null };
 
@@ -51,7 +52,7 @@ export function Drc20List() {
         ))}
       </div>
 
-      {!data ? <div className="flex justify-center py-16"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+      {!data ? <div className="flex justify-center py-16"><Mirage className="size-6 text-muted-foreground" /></div>
         : !data.tokens.length && data.market?.length ? (
           <>
             <ul className="mt-3 divide-y divide-border">

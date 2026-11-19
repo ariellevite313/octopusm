@@ -2,7 +2,7 @@
 
 /** Achat / vente d'un token sur Base, BNB Chain ou HyperEVM (0x, frais OM 0,3 %), signé dans le portefeuille EVM. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { encodeFunctionData, erc20Abi, toHex } from "viem";
 import { useAuth } from "@/providers/auth-provider";
@@ -12,6 +12,7 @@ import { toRaw, fromRaw } from "@/lib/swap/client";
 import { EVM_CHAINS, type EvmChain } from "@/lib/swap/evm";
 import { prefetchWalletConnect } from "@/lib/wallet/walletconnect";
 import { prepareEvmWallet, connectEvmTrader, disconnectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
+import { Mirage } from "@/components/shared/mirage";
 
 type Eth = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
 type Info = { token: { address: string; decimals: number; symbol: string }; balances: { native: string; token: string } | null };
@@ -182,7 +183,7 @@ export function EvmSwapBox({ chain, token, refPost }: { chain: EvmChain; token: 
       <div className="mt-2 rounded-2xl bg-muted/50 p-3">
         <div className="text-xs text-muted-foreground">{tr("You receive")}</div>
         <div className="mt-2 flex items-center gap-2">
-          <span className={`num min-w-0 flex-1 truncate text-[28px] font-bold ${quote ? "text-foreground" : "text-muted-foreground/50"}`}>{quoting ? <Loader2 className="size-6 animate-spin text-muted-foreground" /> : quote ? fmt(fromRaw(quote.buyAmount, outDec)) : "0"}</span>
+          <span className={`num min-w-0 flex-1 truncate text-[28px] font-bold ${quote ? "text-foreground" : "text-muted-foreground/50"}`}>{quoting ? <Mirage className="size-6 text-muted-foreground" /> : quote ? fmt(fromRaw(quote.buyAmount, outDec)) : "0"}</span>
           <span className="rounded-xl bg-background px-2.5 py-1.5 text-sm font-bold">{outSym}</span>
         </div>
       </div>
@@ -196,7 +197,7 @@ export function EvmSwapBox({ chain, token, refPost }: { chain: EvmChain; token: 
       )}
       <button onClick={addr ? swap : isAuthenticated ? connect : () => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} disabled={disabled}
         className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">
-        {busy && <Loader2 className="size-4 animate-spin" />}{label}
+        {busy && <Mirage className="size-4" />}{label}
       </button>
       {!evm && trader && (
         <p className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">

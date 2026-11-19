@@ -7,8 +7,9 @@
  * Données GeckoTerminal (OHLCV), même source que le graphique mobile.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, MousePointer2, Minus, TrendingUp, Trash2 } from "lucide-react";
+import { MousePointer2, Minus, TrendingUp, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 export type ProTf = "1m" | "5m" | "15m" | "1H" | "4H" | "1D";
 export const PRO_TFS: ProTf[] = ["1m", "5m", "15m", "1H", "4H", "1D"];
@@ -289,7 +290,7 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
           )}
           {state !== "ok" && (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              {state === "load" ? <Loader2 className="size-5 animate-spin" /> : tr("Chart unavailable")}
+              {state === "load" ? <Mirage className="size-5" /> : tr("Chart unavailable")}
             </div>
           )}
         </div>

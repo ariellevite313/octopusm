@@ -3,9 +3,10 @@
 /** Page d'un token DRC-20 : offre, progression du mint, plus gros holders et derniers mouvements. */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink, Loader2 } from "lucide-react";
+import { ChevronLeft, ExternalLink } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { DOGE_EXPLORER, drcAmount, type Drc20Event, type Drc20Holder, type Drc20Token } from "@/lib/drc20";
+import { Mirage } from "@/components/shared/mirage";
 
 const short = (a: string | null) => (a ? `${a.slice(0, 5)}…${a.slice(-4)}` : "-");
 
@@ -15,7 +16,7 @@ export function Drc20TokenView({ tick }: { tick: string }) {
   const [tab, setTab] = useState<"holders" | "activity">("holders");
   useEffect(() => { fetch(`/api/drc20/${encodeURIComponent(tick)}`).then((r) => (r.ok ? r.json() : null)).then((j) => setD(j?.token ? j : "none")).catch(() => setD("none")); }, [tick]);
 
-  if (d === null) return <div className="flex justify-center py-24"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+  if (d === null) return <div className="flex justify-center py-24"><Mirage className="size-6 text-muted-foreground" /></div>;
   if (d === "none") return (
     <main className="mx-auto max-w-2xl px-4 pt-10 text-center">
       <p className="text-[17px] font-bold text-foreground">{tr("Token not found")}</p>

@@ -6,8 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type Props = {
   mintAddress: string;
@@ -99,7 +99,7 @@ export function TokenSwapJupiter({ mintAddress }: Props) {
       {/* Loading overlay — shown until Jupiter signals it's ready */}
       {!ready && (
         <div className="flex items-center justify-center gap-2 py-12 text-white/30">
-          <Loader2 className="size-4 animate-spin" />
+          <Mirage className="size-4" />
           <span className="text-[13px]">{tr("Loading swap…")}</span>
         </div>
       )}

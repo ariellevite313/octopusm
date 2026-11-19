@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Loader2 } from "lucide-react";
+import { Copy } from "lucide-react";
 import { AssistantLogo, ASSISTANTS } from "./assistant-logo";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { AiWalletCreate, AiWalletPanel, type AiWallet } from "./ai-wallet-panel";
 import { TwoFactorCard, TwoFactorPrompt } from "@/components/security/two-factor";
+import { Mirage } from "@/components/shared/mirage";
 
 type App = { client_id: string; name: string; scopes: string[]; connected_at: string; last_used_at: string | null };
 
@@ -80,7 +81,7 @@ export function ConnectedApps({ janus = false }: { janus?: boolean } = {}) {
                 <p className="text-xs text-muted-foreground">{a.scopes.join(" · ")}</p>
               </div>
               <button onClick={() => revoke(a.client_id)} disabled={busy === a.client_id} className="rounded-full border border-border px-4 py-2 text-sm font-bold text-foreground hover:bg-muted">
-                {busy === a.client_id ? <Loader2 className="size-4 animate-spin" /> : tr("Disconnect")}
+                {busy === a.client_id ? <Mirage className="size-4" /> : tr("Disconnect")}
               </button>
               </div>
               {(() => {

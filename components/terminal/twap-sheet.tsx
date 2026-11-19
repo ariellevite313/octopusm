@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import type { WalletType } from "@/lib/wallet/adapters";
 import { SOL_MINT } from "@/lib/swap/core";
 import { post, signAndSend } from "./limit-sheet";
+import { Mirage } from "@/components/shared/mirage";
 
 const TWAP_URL = "/api/terminal/twap";
 type Order = { orderKey: string; inputMint: string; outputMint: string; createdAt: string };
@@ -87,7 +88,7 @@ export function TwapPanel({ mint, symbol, walletType }: { mint: string; symbol: 
             { sym: `$${symbol}`, per, unit, every: dur(interval), n: parts, total: dur(interval * (parts - 1)) })}
         </p>
       )}
-      <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Place TWAP order")}</button>
+      <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Mirage className="mx-auto size-4" /> : tr("Place TWAP order")}</button>
       <p className="mt-2 text-[12px] text-muted-foreground">{tr("Jupiter fills each part on time, even when you are away. Minimum $100 in total and $50 per part. OM fee 0.3%, taken in SOL when the order is placed.")}</p>
 
       {orders && orders.length > 0 && (

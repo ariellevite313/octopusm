@@ -8,8 +8,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type Stats = {
   priceUsd:    number | null;
@@ -194,14 +194,14 @@ export function TokenMarketStats({
     if (variant === "bar") {
       return (
         <div className="flex items-center gap-2 py-3 px-4 md:px-6 border-y border-border">
-          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+          <Mirage className="size-3.5 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">{tr("Loading…")}</span>
         </div>
       );
     }
     return (
       <div className="flex items-center gap-2 py-6">
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <Mirage className="size-4 text-muted-foreground" />
         <span className="text-xs text-muted-foreground">{tr("Loading market data…")}</span>
       </div>
     );

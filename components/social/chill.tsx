@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { SwapBox } from "@/components/swap/swap-box";
@@ -22,6 +22,7 @@ import { GT_NET } from "@/lib/terminal";
 import { useAuth } from "@/providers/auth-provider";
 import { connectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
 import { refMessage } from "@/lib/swap/chill-evm-msg";
+import { Mirage } from "@/components/shared/mirage";
 
 const MIN_USD = 1;
 const TokenSwapDBC = dynamic(() => import("@/components/launchpad/token-swap-dbc").then((m) => m.TokenSwapDBC), { ssr: false });
@@ -43,7 +44,7 @@ function BagTrade({ mint, symbol, logo, side, postId, chain, onDone }: { mint: s
       <EvmSwapBox chain={chain} token={mint} refPost={postId} />
     </div>
   );
-  if (curve === undefined) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (curve === undefined) return <div className="flex justify-center py-10"><Mirage className="size-5 text-muted-foreground" /></div>;
   if (curve) return (
     <div>
       {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
@@ -181,7 +182,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
               <p className="text-sm text-muted-foreground">{tr("Connect an EVM wallet to show a token from {chain}", { chain: netName(net) })}</p>
               <button onClick={connect} className="mt-3 h-11 rounded-2xl bg-foreground px-6 text-[15px] font-bold text-background">{tr("Connect an EVM wallet")}</button>
             </div>
-          ) : bags === null ? <div className="flex justify-center py-8"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+          ) : bags === null ? <div className="flex justify-center py-8"><Mirage className="size-5 text-muted-foreground" /></div>
             : (
               <>
                 {bags.length === 0 && !manual && <p className="py-8 text-center text-sm text-muted-foreground">{err ?? tr("No eligible token: hold at least $1 of a Solana token.")}</p>}
@@ -200,7 +201,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
                     <p className="mb-1.5 text-xs text-muted-foreground">{bags.length ? tr("Not in the list? Paste the token address") : tr("Paste the address of the token you hold")}</p>
                     <div className="flex gap-2">
                       <input value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="0x..." className="h-11 min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 font-mono text-[14px] outline-none placeholder:text-muted-foreground" />
-                      <button onClick={findPasted} disabled={busy} className="h-11 rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background disabled:opacity-50">{busy ? <Loader2 className="size-4 animate-spin" /> : tr("Find")}</button>
+                      <button onClick={findPasted} disabled={busy} className="h-11 rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background disabled:opacity-50">{busy ? <Mirage className="size-4" /> : tr("Find")}</button>
                     </div>
                     {err && <p className="mt-2 text-xs font-semibold text-down">{err}</p>}
                   </div>
@@ -218,7 +219,7 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
           <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 1000))} rows={4} placeholder={tr("Why do you hold it?")}
             className="mt-3 w-full resize-none rounded-2xl bg-muted/50 p-3 text-[15px] outline-none placeholder:text-muted-foreground" />
           <button onClick={post} disabled={busy} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground font-bold text-background disabled:opacity-50">
-            {busy && <Loader2 className="size-4 animate-spin" />}{tr("Post my bag")}
+            {busy && <Mirage className="size-4" />}{tr("Post my bag")}
           </button>
         </div>
       )}

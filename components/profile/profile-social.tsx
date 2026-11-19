@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Coins, Copy, Link2, Loader2, MoreHorizontal, Share2 } from "lucide-react";
+import { Camera, Coins, Copy, Link2, MoreHorizontal, Share2 } from "lucide-react";
 import { ProfileShareSheet } from "@/components/profile/profile-share";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type FollowInfo = { followers: number; following: number; is_following: boolean };
 
@@ -117,7 +118,7 @@ export function BannerCamera({ wallet }: { wallet: string }) {
         aria-label={tr("Change banner")}
         className="absolute bottom-3 right-3 z-20 flex size-9 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/75"
       >
-        {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+        {busy ? <Mirage className="size-4" /> : <Camera className="size-4" />}
       </button>
     </>
   );

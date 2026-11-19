@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftRight, ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Copy, Globe, Loader2, Minus, Plus, RefreshCw, Search, Send, Share2, ShoppingCart, Star, X } from "lucide-react";
+import { ArrowLeftRight, ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Copy, Globe, Minus, Plus, RefreshCw, Search, Send, Share2, ShoppingCart, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -18,6 +18,7 @@ import { SwapBox } from "@/components/swap/swap-box";
 import { TerminalLineChart, T_RANGES, type TRange } from "@/components/terminal/line-chart";
 import { WaveTexture } from "./creator-fees-dashboard";
 import type { Bag } from "@/lib/bags";
+import { Mirage } from "@/components/shared/mirage";
 
 type Data = { chain: "solana" | "arc"; main: Bag[]; small: Bag[]; total: number; change24h: number };
 
@@ -153,7 +154,7 @@ export function BagsPanel({ tabs, embedded = false, octo }: { tabs?: React.React
       </>)}
       <div className={embedded ? "" : "mt-2"}>
         {loading && !data ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />{tr("Loading")}</div>
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Mirage className="size-4" />{tr("Loading")}</div>
         ) : error && !data ? (
           <p className="py-6 text-sm text-muted-foreground">{tr("Could not read the wallet right now")}</p>
         ) : data && data.main.length + data.small.length === 0 ? (

@@ -4,7 +4,7 @@ import { isPausedDuration } from "@/lib/updown-pause";
 import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2, Hourglass, ChevronLeft, ChevronUp, ChevronDown, Share2, Scale, X, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, ArrowLeft, Hourglass, ChevronLeft, ChevronUp, ChevronDown, Share2, Scale, X, Plus } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -21,6 +21,7 @@ import { TREASURY_ADDRESS, USDC_MINT } from "@/lib/market/betting";
 import type { WalletType } from "@/lib/wallet/adapters";
 import { useT, Rich } from "@/lib/i18n";
 import { T, LOCALES } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 interface UpDownMarket {
   id: string; symbol: string; duration_min: number; strike_price: number;
@@ -509,7 +510,7 @@ const LiveChart = memo(function LiveChart({ ticker, strikePrice, durationMin, op
           <p className="num mt-1 flex items-center justify-end gap-1.5 text-[19px] font-bold tracking-tight text-foreground lg:justify-start lg:text-[26px]">
             {marketStatus === "open" ? (
               liveCountdownChart === "Termine"
-                ? <><Loader2 className="size-4 animate-spin text-primary" /><span className="text-base">{tr("Resolving")}</span></>
+                ? <><Mirage className="size-4 text-primary" /><span className="text-base">{tr("Resolving")}</span></>
                 : <><Hourglass className="size-[18px] text-primary" strokeWidth={2.25} />{liveCountdownChart}</>
             ) : (
               <span className="text-base capitalize text-muted-foreground">{MARKET_STATUS_LABEL[marketStatus] ? tr(MARKET_STATUS_LABEL[marketStatus]) : marketStatus}</span>
@@ -944,7 +945,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
       </div>
     ) : isOpen && bettingClosed ? (
       <div className="py-8 text-center">
-        <Loader2 className="mx-auto mb-2 size-5 animate-spin text-primary" />
+        <Mirage className="mx-auto mb-2 size-5 text-primary" />
         <p className="text-sm font-semibold text-foreground">{tr("Resolving…")}</p>
         <p className="text-xs text-muted-foreground">{tr("Betting is closed. Awaiting outcome.")}</p>
       </div>
@@ -1020,7 +1021,7 @@ export function UpDownDetail({ marketId }: { marketId: string }) {
 
         <button type="button" onClick={() => void handleBet(selDir)} disabled={submitting}
           className="mt-4 h-[52px] w-full rounded-2xl bg-foreground text-base font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60">
-          {submitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{tr("Confirming…")}</span>
+          {submitting ? <span className="inline-flex items-center gap-2"><Mirage className="size-4" />{tr("Confirming…")}</span>
             : !walletAddress ? tr("Connect wallet") : (selDir === "up" ? tr("Buy Up") : tr("Buy Down"))}
         </button>
         <p className="mt-2 text-center text-[11px] text-muted-foreground">{tr("Min ${min} · USDC · Multiple predictions allowed", { min: MIN_AMOUNT })}</p>

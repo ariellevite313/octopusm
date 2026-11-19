@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPublicClient, http, encodeFunctionData, parseAbi } from "viem";
-import { Loader2, CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
+import { CheckCircle2, ExternalLink, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT, Rich } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
@@ -32,6 +32,7 @@ import {
 } from "@/lib/arc-launchpad";
 import { arc } from "@/lib/arc-chain";
 import { SwapKeypad } from "@/components/launchpad/swap-keypad";
+import { Mirage } from "@/components/shared/mirage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -670,7 +671,7 @@ export function TokenSwapArc({ launchId, tokenAddress, ticker, logoUrl }: Props)
           >
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
+                <Mirage className="size-4" />
                 {direction === "buy" ? tr("Buying…") : tr("Selling…")}
               </span>
             ) : locked

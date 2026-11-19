@@ -7,11 +7,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
-import { Loader2, Settings2, CheckCircle2, RotateCcw } from "lucide-react";
+import { Settings2, CheckCircle2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { currentPath, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -243,7 +244,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
           <p className="text-[12px] text-white/40 font-medium">{tr("Buy")}</p>
           <div className="min-h-[40px] flex items-center">
             {quoteLoading ? (
-              <Loader2 className="size-5 animate-spin text-white/40" />
+              <Mirage className="size-5 text-white/40" />
             ) : quoteError ? (
               <span className="text-[18px] text-white/30">{t.noLiquidity}</span>
             ) : outFormatted ? (
@@ -375,7 +376,7 @@ export function TokenSwap({ mintAddress, ticker }: { mintAddress: string; ticker
           >
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
+                <Mirage className="size-4" />
                 {t.swapping}
               </span>
             ) : !solAmount ? t.enterAmount : highImpact ? t.buyAnyway : t.buyToken(ticker)}

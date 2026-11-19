@@ -9,9 +9,9 @@
  */
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type Props = {
   tokenId:       string;
@@ -66,7 +66,7 @@ export function PoolRecoveryPrompt({ tokenId, walletAddress }: Props) {
         disabled={checking}
         className="inline-flex items-center gap-2 rounded-full bg-foreground hover:opacity-90 disabled:opacity-60 text-background text-[13px] font-bold px-5 py-2.5 transition-colors btn-primary"
       >
-        {checking && <Loader2 className="size-3.5 animate-spin" />}
+        {checking && <Mirage className="size-3.5" />}
         {checking ? tr("Searching…") : tr("Find my pool")}
       </button>
     </div>

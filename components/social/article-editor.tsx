@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft, Bold, ChevronDown, ImagePlus, Italic, Link2, List, ListOrdered, Loader2, MoreHorizontal, Quote, Strikethrough, Trash2, X,
+  ArrowLeft, Bold, ChevronDown, ImagePlus, Italic, Link2, List, ListOrdered, MoreHorizontal, Quote, Strikethrough, Trash2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
@@ -18,6 +18,7 @@ import { getWalletProfile } from "@/services/wallet-service";
 import { shortAddress } from "@/lib/format";
 import { ARTICLE_MAX_CHARS, ARTICLE_MIN_CHARS, ARTICLE_TITLE_MAX } from "@/lib/social/article";
 import { domToArticle, type MiniNode } from "@/lib/social/article-dom";
+import { Mirage } from "@/components/shared/mirage";
 
 async function upload(file: File): Promise<string> {
   const f = new FormData();
@@ -162,7 +163,7 @@ export function ArticleEditor() {
           </span>
           <button onClick={publish} disabled={!ready}
             className="ml-auto flex h-9 shrink-0 items-center gap-2 rounded-full bg-foreground px-4 text-[14px] font-bold text-background disabled:opacity-40">
-            {busy === "publish" && <Loader2 className="size-4 animate-spin" />}{tr("Publish")}
+            {busy === "publish" && <Mirage className="size-4" />}{tr("Publish")}
           </button>
           <div className="relative shrink-0">
             <button onClick={() => setMenu((v) => !v)} aria-label={tr("More")} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><MoreHorizontal className="size-5" /></button>
@@ -192,7 +193,7 @@ export function ArticleEditor() {
           <button type="button" onMouseDown={keep} onClick={() => cmd("insertOrderedList")} aria-label={tr("Numbered list")} className={tb}><ListOrdered className="size-[18px]" /></button>
           <button type="button" onMouseDown={keep} onClick={link} aria-label={tr("Link")} className={tb}><Link2 className="size-[18px]" /></button>
           <button type="button" onMouseDown={keep} onClick={() => imageInput.current?.click()} aria-label={tr("Image")} className={tb}>
-            {busy === "image" ? <Loader2 className="size-[18px] animate-spin" /> : <ImagePlus className="size-[18px]" />}
+            {busy === "image" ? <Mirage className="size-[18px]" /> : <ImagePlus className="size-[18px]" />}
           </button>
           <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(e) => { pick("image", e.target.files?.[0]); e.target.value = ""; }} />
           <span className="mx-1 h-6 w-px shrink-0 bg-border" />
@@ -211,7 +212,7 @@ export function ArticleEditor() {
         ) : (
           <button onClick={() => coverInput.current?.click()} className="flex aspect-[5/2] w-full flex-col items-center justify-center gap-3 bg-muted/70 px-6 text-center text-muted-foreground hover:bg-muted">
             <span className="flex size-14 items-center justify-center rounded-full bg-background/70 text-foreground">
-              {busy === "cover" ? <Loader2 className="size-6 animate-spin" /> : <ImagePlus className="size-6" />}
+              {busy === "cover" ? <Mirage className="size-6" /> : <ImagePlus className="size-6" />}
             </span>
             <span className="text-[14px]">{tr("We recommend a 5:2 image for the best result.")}</span>
           </button>

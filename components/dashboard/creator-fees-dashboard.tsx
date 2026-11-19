@@ -14,7 +14,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, RefreshCw, Copy, Check, HandCoins, Plus, ArrowLeftRight, Send, ChevronRight } from "lucide-react";
+import { RefreshCw, Copy, Check, HandCoins, Plus, ArrowLeftRight, Send, ChevronRight } from "lucide-react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -28,6 +28,7 @@ import { T }                from "@/lib/i18n-mark";
 import { GainsShareSheet }   from "@/components/dashboard/gains-share-sheet";
 import { TradeGainsPanel }  from "@/components/dashboard/trade-gains-panel";
 import { MyVotesView }      from "@/components/hackathon/my-votes-view";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ function TokenFeeRow({
               disabled={claiming || disabled}
               className="num flex items-center gap-1 font-semibold text-primary disabled:opacity-50"
             >
-              {claiming && <Loader2 className="size-3 animate-spin" />}
+              {claiming && <Mirage className="size-3" />}
               {claiming ? tr("Claiming…") : `+${fmtAmount(token.pending, currency)}`}
             </button>
           )}
@@ -348,7 +349,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
           </div>
           <button onClick={handleClaimAll} disabled={claimingAll}
             className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-foreground px-5 text-[15px] font-bold text-background disabled:opacity-60">
-            {claimingAll && <Loader2 className="size-4 animate-spin" />}{tr("Claim all")}
+            {claimingAll && <Mirage className="size-4" />}{tr("Claim all")}
           </button>
         </div>
       )}
@@ -398,7 +399,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
           disabled={!isArc && (claimingAll || hasPendingTokens.length === 0)}
           highlight={!isArc && hasPending}
         >
-          {claimingAll ? <Loader2 className="size-6 animate-spin" /> : <HandCoins className="size-6" />}
+          {claimingAll ? <Mirage className="size-6" /> : <HandCoins className="size-6" />}
         </ActionCircle>
         <ActionCircle label={T("Launch")} href="/launchpad/create"><Plus className="size-6" /></ActionCircle>
         <ActionCircle label={T("Trade")} href="/launchpad"><ArrowLeftRight className="size-6" /></ActionCircle>

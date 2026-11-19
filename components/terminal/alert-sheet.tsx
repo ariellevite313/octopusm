@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type Alert = { id: string; kind: "mcap_above" | "mcap_below"; value: number };
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
@@ -49,11 +50,11 @@ export function AlertSheet({ chain, mint, symbol, mcap }: { chain: string; mint:
       )}
       <div className="mt-2 flex gap-2">
         <input inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="1m" className="num h-12 min-w-0 flex-1 rounded-2xl bg-muted px-4 text-[16px] outline-none" />
-        <button disabled={!ok || busy} onClick={add} className="h-12 shrink-0 rounded-2xl bg-foreground px-5 text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="size-4 animate-spin" /> : tr("Add")}</button>
+        <button disabled={!ok || busy} onClick={add} className="h-12 shrink-0 rounded-2xl bg-foreground px-5 text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Mirage className="size-4" /> : tr("Add")}</button>
       </div>
       {ok && <p className="mt-1.5 text-[12px] text-muted-foreground">{tr(kind === "mcap_above" ? "Alert when it goes above {v}" : "Alert when it falls below {v}", { v: money(target) })}</p>}
       <div className="mt-4">
-        {list === null ? <Loader2 className="mx-auto size-4 animate-spin text-muted-foreground" />
+        {list === null ? <Mirage className="mx-auto size-4 text-muted-foreground" />
           : list.map((a) => (
             <div key={a.id} className="flex items-center justify-between border-b border-border py-2.5 text-[14px]">
               <span className="text-foreground">{tr(a.kind === "mcap_above" ? "Above {v}" : "Below {v}", { v: money(Number(a.value)) })}</span>

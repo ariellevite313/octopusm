@@ -3,12 +3,12 @@
 /** Page /ambassadors : le programme, les places restantes et le formulaire de candidature. */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import { IconBadge, IconCommunity, IconFlag, IconGift, IconLink, IconSeek, IconShare, IconTiers, WorldDots } from "./amb-icons";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { AMBASSADOR_MAX, AMBASSADOR_MIN_FOLLOWERS, AMBASSADOR_SHARE_PCT, AMBASSADOR_WELCOME_OMERO, NORMAL_REFERRAL_PCT } from "@/lib/ambassadors";
+import { Mirage } from "@/components/shared/mirage";
 
 type Status = { taken: number; max: number; application: { status: string } | null; ambassador: boolean; apply_until: string | null; results_at: string | null };
 
@@ -131,7 +131,7 @@ export function AmbassadorsPage() {
           <H>{tr("Ready to be an OMdotfun ambassador?")}</H>
           <p className="text-[15px] text-muted-foreground">{tr("Apply below and we will get back to you.")}{open && st?.apply_until ? ` ${tr("until {date}", { date: fmtDate(st.apply_until) })}` : ""}</p>
         </div>
-      {!st ? <div className="flex justify-center py-8"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+      {!st ? <div className="flex justify-center py-8"><Mirage className="size-6 text-muted-foreground" /></div>
         : st.ambassador ? (
           <div className="rounded-3xl bg-muted/50 p-5 text-center">
             <p className="text-[17px] font-bold text-foreground">{tr("You are an OMdotfun ambassador")}</p>
@@ -172,7 +172,7 @@ export function AmbassadorsPage() {
               <span>{tr("I am 18 or older. I will not promise gains, create fake volume or refer myself, and I follow the OMdotfun policy.")}</span>
             </label>
             <button onClick={apply} disabled={busy || (isAuthenticated && !accept)} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-bold text-background disabled:opacity-50">
-              {busy && <Loader2 className="size-4 animate-spin" />}{isAuthenticated ? tr("Send my application") : tr("Connect to apply")}
+              {busy && <Mirage className="size-4" />}{isAuthenticated ? tr("Send my application") : tr("Connect to apply")}
             </button>
           </div>
         )}

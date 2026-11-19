@@ -21,11 +21,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { toast } from "sonner";
-import { Loader2, Rocket, CheckCircle2, Clock, Wallet } from "lucide-react";
+import { Rocket, CheckCircle2, Clock, Wallet } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType, normalizeSolanaProvider, type SolanaProvider, type WalletType } from "@/lib/wallet/adapters";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -709,7 +710,7 @@ export function LaunchButton({ tokenId, walletAddress, isScheduled, autoStart = 
         onClick={handleLaunch}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
-        {busy ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
+        {busy ? <Mirage className="size-4" /> : <Rocket className="size-4" />}
         {labels[phase]}
       </button>
 

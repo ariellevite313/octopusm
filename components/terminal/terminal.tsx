@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { getWalletProfile } from "@/services/wallet-service";
@@ -44,6 +44,7 @@ import { TokenPredictions } from "./token-predictions";
 import { AdvFiltersForm, useAdvFilters } from "./advanced-filters";
 import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
 import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Formats ───────────────────────────────────────────────────────────────────
 const compact = (n: number | null, d = 1) => n == null ? "-" : n >= 1e9 ? `$${(n / 1e9).toFixed(d)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(d)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(d)}K` : `$${n.toFixed(2)}`;
@@ -788,7 +789,7 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
       <div className="mt-4 grid grid-cols-2 gap-2">
         {cfg.amounts.map((a, i) => (
           <button key={`${i}-${a}`} disabled={!!busy} onClick={() => buy(a)} className="flex h-16 items-center justify-center gap-2 rounded-2xl bg-muted text-[18px] font-bold text-foreground hover:bg-muted/70 disabled:opacity-50">
-            {busy === a ? <Loader2 className="size-5 animate-spin" /> : <>
+            {busy === a ? <Mirage className="size-5" /> : <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/solana.png" alt="" className="size-5 rounded-full" />{a} SOL</>}
           </button>
@@ -885,7 +886,7 @@ function Holders({ mint, chain, price: p }: { mint: string; chain: TerminalChain
   }, [mint, chain]);
   const total = count != null ? <p className="mb-1 text-sm font-bold text-foreground">{count.toLocaleString("en-US")} {tr("holders")}</p> : null;
   if (err) return <div className="py-8 text-center">{total}<p className="text-sm text-muted-foreground">{tr("Holders unavailable right now.")}</p></div>;
-  if (!rows) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!rows) return <div className="flex justify-center py-10"><Mirage className="size-5 text-muted-foreground" /></div>;
   if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("No holders yet.")}</p>;
   const people = rows.filter((h) => !h.isProgram);
   const bundleSet = new Set(bundle?.wallets ?? []);
@@ -948,7 +949,7 @@ function TokenFeed({ symbol }: { symbol: string }) {
     if (!ok) { setPosts([]); return; }
     fetch(`/api/posts?cashtag=${symbol.toUpperCase()}&limit=15`).then((r) => r.json()).then((j) => setPosts(j.posts ?? [])).catch(() => setPosts([]));
   }, [symbol, ok]);
-  if (!posts) return <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!posts) return <div className="flex justify-center py-10"><Mirage className="size-5 text-muted-foreground" /></div>;
   if (!posts.length) return (
     <div className="py-10 text-center">
       <p className="text-sm text-muted-foreground">{tr("No post about ${symbol} yet", { symbol: symbol.toUpperCase() })}</p>

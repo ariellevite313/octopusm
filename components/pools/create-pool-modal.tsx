@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, X, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Camera, X, Plus, Trash2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { TokenLogo } from "@/components/shared/token-logo";
 import { MutuelMarketRow } from "@/lib/supabase/types";
@@ -11,6 +11,7 @@ import { submitPoolCreation } from "@/lib/market/pool-betting";
 import { useT } from "@/lib/i18n";
 import { MatchPicker } from "./match-picker";
 import type { ScoreRow } from "@/components/sports/live-scores";
+import { Mirage } from "@/components/shared/mirage";
 
 type Category = CategorySlug;
 
@@ -85,7 +86,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
               </button>
             </>
           ) : uploading ? (
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <Mirage className="size-5 text-muted-foreground" />
           ) : (
             <Camera className="size-5 text-muted-foreground" />
           )}
@@ -459,13 +460,13 @@ export function CreatePoolModal({ onClose, onCreated, initial }: Props) {
           {/* Step feedback */}
           {step === "paying" && (
             <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-sm text-amber-500">
-              <Loader2 className="size-4 animate-spin" />
+              <Mirage className="size-4" />
               {tr("Waiting for payment confirmation…")}
             </div>
           )}
           {step === "sending" && (
             <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 px-3 py-2.5 text-sm text-blue-500">
-              <Loader2 className="size-4 animate-spin" />
+              <Mirage className="size-4" />
               {tr("Submitting market…")}
             </div>
           )}

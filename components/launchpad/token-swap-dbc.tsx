@@ -8,7 +8,7 @@
 import { SolanaMark } from "@/components/shared/solana-mark";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
-import { Loader2, Settings2, CheckCircle2, ArrowUpDown } from "lucide-react";
+import { Settings2, CheckCircle2, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { currentPath, signWithoutProvider } from "@/lib/wallet/sign-fallback";
@@ -18,6 +18,7 @@ import { useT, Rich } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
 import { DOGE_MINT } from "@/lib/solana/doge";
 import { pairQuoteByMint } from "@/lib/solana/quotes";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -692,7 +693,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           </div>
           <div className="mt-3 flex h-6 items-center text-sm text-muted-foreground">
             {quoteLoading ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Mirage className="size-4" />
             ) : quoteError ? (
               <span>{tr("No quote available")}</span>
             ) : outFormatted ? (
@@ -872,7 +873,7 @@ export function TokenSwapDBC({ poolAddress, mintAddress, ticker, logoUrl, stockS
           >
             {swapping ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
+                <Mirage className="size-4" />
                 {stepMsg ?? (isBuy ? tr("Buying…") : tr("Selling…"))}
               </span>
             ) : ctaLabel}

@@ -641,3 +641,14 @@ html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary:hover { background-posit
   animation: om-dots-sweep 5.5s ease-in-out infinite, om-dots-drift 4s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) { .om-dots, .om-dots-wave { animation: none; } }
+
+/* Chargement « Mirage » (components/shared/mirage.tsx) */
+@keyframes om-mirage {
+  0%   { transform: translateX(-18px) scale(0.1); }
+  25%  { transform: translateX(-9px) scale(0.6); }
+  50%  { transform: translateX(0) scale(1.2); }
+  75%  { transform: translateX(9px) scale(0.6); }
+  100% { transform: translateX(18px) scale(0.1); }
+}
+.om-mirage-dot { transform-box: fill-box; transform-origin: center; animation: om-mirage 1.2s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .om-mirage-dot { animation-duration: 3s; } }

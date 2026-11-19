@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { Transaction, PublicKey } from "@solana/web3.js";
 import { createWalletClient, custom, type WalletClient } from "viem";
 import { toast } from "sonner";
-import { Loader2, CoinsIcon } from "lucide-react";
+import { CoinsIcon } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { getProviderByType } from "@/lib/wallet/adapters";
 import { arc } from "@/lib/arc-chain";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── ABI minimal BondingCurve Arc ──────────────────────────────────────────────
 const CLAIM_FEES_ABI = [
@@ -292,7 +293,7 @@ export function ClaimFeesButton({
         onClick={handleClaim}
         className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50 transition-colors"
       >
-        {busy && <Loader2 className="size-3.5 animate-spin" />}
+        {busy && <Mirage className="size-3.5" />}
         {label}
       </button>
     </div>

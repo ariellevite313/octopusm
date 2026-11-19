@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import { renderAnnouncement } from "@/lib/hackathon/announcements";
+import { Mirage } from "@/components/shared/mirage";
 
 type Ann = { id: string; template: string; vars: Record<string, string | number>; href: string | null; publish_at: string; read: boolean };
 
@@ -71,7 +71,7 @@ export function NotificationsView() {
       {!isAuthenticated ? (
         <p className="py-16 text-center text-sm text-muted-foreground">{tr("Connect your wallet to see your notifications.")}</p>
       ) : list === null ? (
-        <div className="flex justify-center py-16"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+        <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div>
       ) : list.length === 0 && anns.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">{tr("Nothing yet.")}</p>
       ) : (

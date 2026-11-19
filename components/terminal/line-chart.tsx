@@ -2,8 +2,8 @@
 
 /** Graphique en ligne du Terminal (style épuré : pas d'axes, ligne du dernier prix, étiquette du prix). Données GeckoTerminal. */
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 export type TRange = "LIVE" | "1H" | "4H" | "1D" | "7D" | "ALL";
 export const T_RANGES: TRange[] = ["LIVE", "1H", "4H", "1D", "7D", "ALL"];
@@ -148,7 +148,7 @@ export function TerminalLineChart({ onHover, pool, range, onChange, heightClass 
       )}
       {state !== "ok" && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-          {state === "load" ? <Loader2 className="size-5 animate-spin" /> : tr("Chart unavailable")}
+          {state === "load" ? <Mirage className="size-5" /> : tr("Chart unavailable")}
         </div>
       )}
     </div>

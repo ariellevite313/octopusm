@@ -3,10 +3,11 @@
 /** Création (100 OMERO) ou modification d'une communauté : nom, adresse, description, catégorie, hashtags, logo, bannière. */
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { COMMUNITY_CATEGORIES, COMMUNITY_COST_OMERO, type Community } from "@/lib/social/communities-shared";
+import { Mirage } from "@/components/shared/mirage";
 
 const CAT_LABEL: Record<string, string> = {
   crypto: "Cryptocurrency", memecoins: "Memecoins", trading: "Trading", predictions: "Predictions", builders: "Builders",
@@ -103,7 +104,7 @@ export function CommunityForm({ onClose, edit = null, onSaved }: { onClose: () =
           </select>
           <input value={tags} onChange={(e) => setTags(e.target.value.slice(0, 200))} placeholder={tr("Hashtags, e.g. #OMdotfun #Solana")} className={input} />
           <button onClick={submit} disabled={!ok} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-bold text-background disabled:opacity-40">
-            {busy && <Loader2 className="size-4 animate-spin" />}
+            {busy && <Mirage className="size-4" />}
             {edit ? tr("Save") : tr("Create for {n} OMERO", { n: COMMUNITY_COST_OMERO })}
           </button>
           {!edit && <p className="text-center text-xs text-muted-foreground">{tr("You become the admin. You can name moderators later.")}</p>}

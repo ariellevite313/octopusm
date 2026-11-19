@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Hash, Loader2, X } from "lucide-react";
+import { ArrowUp, Hash, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
@@ -11,6 +11,7 @@ import { PostCard } from "./post-card";
 import { CreateMenu } from "./create-menu";
 import { WhoToFollowInline } from "./feed-right-rail";
 import { FeedPromoCarousel } from "./feed-promo-carousel";
+import { Mirage } from "@/components/shared/mirage";
 
 type Tab = "foryou" | "following";
 
@@ -163,7 +164,7 @@ export function FeedClient() {
       {/* Défilement continu : la suite se charge toute seule en approchant du bas, sans bouton */}
       {next && !loading && (
         <div ref={sentinelRef} className="flex justify-center py-6" aria-hidden={!more}>
-          {more && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+          {more && <Mirage className="size-5 text-muted-foreground" />}
         </div>
       )}
 

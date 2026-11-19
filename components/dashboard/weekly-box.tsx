@@ -6,13 +6,14 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { shortAddress } from "@/lib/format";
 import { ShareSheet } from "@/components/shared/share-sheet";
 import type { Activity } from "@/lib/weekly-box";
+import { Mirage } from "@/components/shared/mirage";
 
 type Person = { wallet: string; name: string | null; avatar: string | null };
 type Data = {
@@ -114,7 +115,7 @@ function PrizeBox({ week, box, onClaimed }: { week: string; box: NonNullable<Non
         {stage === "closed" && <button onClick={open} className="h-12 w-full rounded-full bg-foreground text-[16px] font-bold text-background">{tr("Open my box")}</button>}
         {stage === "open" && box.status === "won" && (
           <button onClick={claim} disabled={busy} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background disabled:opacity-50">
-            {busy && <Loader2 className="size-4 animate-spin" />}{tr("Claim")}
+            {busy && <Mirage className="size-4" />}{tr("Claim")}
           </button>
         )}
         {stage === "open" && box.status === "claimed" && (
@@ -145,7 +146,7 @@ export function WeeklyBox() {
   const left = useCountdown(d?.week.end);
 
   if (err) return <p className="py-12 text-center text-sm text-muted-foreground">{tr("Could not load the weekly box")}</p>;
-  if (!d) return <div className="flex justify-center py-12"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!d) return <div className="flex justify-center py-12"><Mirage className="size-5 text-muted-foreground" /></div>;
 
   const c = d.me?.counts ?? {};
   const traded = (c.trade ?? 0) + (c.bet ?? 0) > 0;

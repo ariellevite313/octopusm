@@ -6,9 +6,10 @@
  */
 import { fetch2fa } from "@/components/security/two-factor";
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Loader2, Pause, Play, X } from "lucide-react";
+import { Copy, Pause, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 export type AiWallet = {
   id: string; client_id: string; name: string; sol_address: string; evm_address: string;
@@ -98,7 +99,7 @@ function Exits({ id }: { id: string }) {
             </label>
           </div>
           <button onClick={add} disabled={busy || !f.mint.trim()} className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[13px] font-bold text-background disabled:opacity-50">
-            {busy && <Loader2 className="size-4 animate-spin" />}{tr("Save")}
+            {busy && <Mirage className="size-4" />}{tr("Save")}
           </button>
         </div>
       )}
@@ -137,7 +138,7 @@ export function AiWalletCreate({ clientId, onDone }: { clientId: string; onDone:
     <div className="mt-3 rounded-xl bg-muted/50 p-3">
       <p className="text-[13px] text-muted-foreground">{tr("Activate Janus: this AI gets its own wallet and can trade, launch tokens, bet and create markets alone, within the limits you set. Withdrawals only go back to you.")}</p>
       <button onClick={create} disabled={busy} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-bold text-background disabled:opacity-50">
-        {busy && <Loader2 className="size-4 animate-spin" />}{tr("Activate Janus")}
+        {busy && <Mirage className="size-4" />}{tr("Activate Janus")}
       </button>
     </div>
   );
@@ -204,7 +205,7 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
         </div>
         <button onClick={() => patch({ max_action_usd: Number(perAction), max_day_usd: Number(perDay) }, "limits")} disabled={busy === "limits"}
           className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[13px] font-bold text-background disabled:opacity-50">
-          {busy === "limits" && <Loader2 className="size-4 animate-spin" />}{tr("Save limits")}
+          {busy === "limits" && <Mirage className="size-4" />}{tr("Save limits")}
         </button>
         <div className="mt-2 divide-y divide-border">
           <Toggle on={w.allow_trade} label={tr("Trade (Terminal and OM tokens)")} onChange={(v) => patch({ allow_trade: v }, "t")} />
@@ -220,7 +221,7 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
           {w.paused ? <Play className="size-4" /> : <Pause className="size-4" />}{w.paused ? tr("Resume") : tr("Pause")}
         </button>
         <button onClick={withdraw} disabled={busy === "withdraw"} className="flex h-11 items-center justify-center gap-2 rounded-full bg-muted text-[14px] font-bold text-foreground disabled:opacity-50">
-          {busy === "withdraw" && <Loader2 className="size-4 animate-spin" />}{tr("Withdraw all")}
+          {busy === "withdraw" && <Mirage className="size-4" />}{tr("Withdraw all")}
         </button>
       </div>
       <p className="text-[11px] text-muted-foreground">{ownerIsEvm ? tr("Withdraw sends the Arc USDC back to your wallet. To get Solana funds back, connect with your Solana wallet.") : tr("Withdraw sends SOL and USDC back to your Solana wallet. To get Arc funds back, connect with your Arc wallet.")}</p>

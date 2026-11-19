@@ -3,11 +3,12 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, User, AtSign, Check, ArrowRight, Loader2 } from "lucide-react";
+import { Camera, User, AtSign, Check, ArrowRight } from "lucide-react";
 import { AppIcon } from "@/components/shared/app-icon";
 import Image from "next/image";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Validation helpers ────────────────────────────────────────────────────────
 
@@ -244,7 +245,7 @@ export function UsernameSetupModal({ onSetupComplete }: { onSetupComplete?: () =
             className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-all hover:brightness-105 disabled:opacity-40 disabled:shadow-none"
           >
             {isLoading
-              ? <><Loader2 className="size-5 animate-spin" />{uploading ? tr("Uploading photo…") : tr("Saving…")}</>
+              ? <><Mirage className="size-5" />{uploading ? tr("Uploading photo…") : tr("Saving…")}</>
               : <>{tr("Continue")}<ArrowRight className="size-5" /></>}
           </button>
         </form>

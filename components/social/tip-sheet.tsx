@@ -4,11 +4,11 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
 import { TIP_DAILY_CAP, TIP_MIN_ACCOUNT_DAYS, type TipErrorCode } from "@/lib/social/tips";
+import { Mirage } from "@/components/shared/mirage";
 
 const QUICK = [10, 50, 100];
 
@@ -122,7 +122,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
 
         <button onClick={send} disabled={!valid || busy}
           className="flex h-[52px] w-full items-center justify-center rounded-full bg-foreground text-base font-extrabold text-background disabled:opacity-40">
-          {busy ? <Loader2 className="size-5 animate-spin" /> : tr("Confirm")}
+          {busy ? <Mirage className="size-5" /> : tr("Confirm")}
         </button>
         <p className="mt-3 text-center text-xs text-muted-foreground">{tr("Up to {n} OMERO per 24 hours. OMERO are platform points for now.", { n: TIP_DAILY_CAP })}</p>
       </div>

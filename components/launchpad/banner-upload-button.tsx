@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type Props = {
   tokenId: string;
@@ -50,7 +51,7 @@ export function BannerUploadButton({ tokenId }: Props) {
         disabled={loading}
         className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-colors backdrop-blur-sm border border-white/20"
       >
-        {loading ? <Loader2 className="size-3 animate-spin" /> : <ImagePlus className="size-3" />}
+        {loading ? <Mirage className="size-3" /> : <ImagePlus className="size-3" />}
         {loading ? tr("Uploading…") : tr("Edit banner")}
       </button>
     </>

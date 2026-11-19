@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { VersionedTransaction } from "@solana/web3.js";
-import { Loader2, Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 import { currentPath, feePayerOf, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 import { SOL_MINT } from "@/lib/swap/core";
 import { TwapPanel } from "./twap-sheet";
+import { Mirage } from "@/components/shared/mirage";
 
 type Order = { orderKey: string; inputMint: string; outputMint: string; makingAmount: string; takingAmount: string; createdAt: string };
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
@@ -194,7 +195,7 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset }: { mint: st
             <div className="flex justify-between"><span className="text-muted-foreground">{tr("Fee")}</span><span className="num font-semibold">0.3%</span></div>
           </div>
           {hint && <p className="mt-2 text-[12px] text-down">{hint}</p>}
-          <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr(side === "buy" ? "Place limit buy" : "Place limit sell")}</button>
+          <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Mirage className="mx-auto size-4" /> : tr(side === "buy" ? "Place limit buy" : "Place limit sell")}</button>
         </div>
 
         {/* Carnet : profondeur de la pool + ordres limités placés sur OM */}

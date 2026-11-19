@@ -6,9 +6,10 @@
  *  - TwoFactorPrompt + fetch2fa : quand une action sensible demande le code, une fenêtre le demande puis la requête repart
  */
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Loader2, ShieldCheck } from "lucide-react";
+import { Check, Copy, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 // ── Demande du code pour une action sensible ─────────────────────────────────
 let ask: ((reason: string) => Promise<string | null>) | null = null;
@@ -111,7 +112,7 @@ export function TwoFactorCard() {
 
       {!st.enabled && !setup && !codes && (
         <button onClick={start} disabled={busy} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-bold text-background disabled:opacity-50">
-          {busy && <Loader2 className="size-4 animate-spin" />}{tr("Turn on")}
+          {busy && <Mirage className="size-4" />}{tr("Turn on")}
         </button>
       )}
 
@@ -125,7 +126,7 @@ export function TwoFactorCard() {
           <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" className={input} />
           <div className="flex gap-2">
             <button onClick={() => setSetup(null)} className="h-11 flex-1 rounded-full bg-muted text-[14px] font-semibold text-foreground">{tr("Cancel")}</button>
-            <button onClick={confirm} disabled={busy || code.length !== 6} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-bold text-background disabled:opacity-40">{busy && <Loader2 className="size-4 animate-spin" />}{tr("Turn on")}</button>
+            <button onClick={confirm} disabled={busy || code.length !== 6} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-bold text-background disabled:opacity-40">{busy && <Mirage className="size-4" />}{tr("Turn on")}</button>
           </div>
         </div>
       )}
@@ -135,7 +136,7 @@ export function TwoFactorCard() {
           <p className="text-[13px] text-muted-foreground">{tr("{n} recovery codes left.", { n: st.recoveryLeft })} {tr("To turn it off, enter a code from your app or a recovery code.")}</p>
           <div className="flex gap-2">
             <input value={code} onChange={(e) => setCode(e.target.value.slice(0, 12))} placeholder="123456" autoComplete="one-time-code" className={`${input} text-[16px]`} />
-            <button onClick={off} disabled={busy || !code.trim()} className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-muted px-5 text-[14px] font-semibold text-foreground disabled:opacity-40">{busy && <Loader2 className="size-4 animate-spin" />}{tr("Turn off")}</button>
+            <button onClick={off} disabled={busy || !code.trim()} className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-muted px-5 text-[14px] font-semibold text-foreground disabled:opacity-40">{busy && <Mirage className="size-4" />}{tr("Turn off")}</button>
           </div>
         </div>
       )}

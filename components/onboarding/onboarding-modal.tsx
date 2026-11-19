@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Check, ArrowUpRight, Loader2, Gift } from "lucide-react";
+import { X, Check, ArrowUpRight, Gift } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -9,6 +9,7 @@ import { getTasksWithCompletion } from "@/services/task-service";
 import type { TaskWithCompletion } from "@/lib/supabase/types";
 import { useT } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 // ─── Logo helpers (same logic as tasks-section) ───────────────────────────────
 
@@ -221,7 +222,7 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
                       onClick={() => void handleClaim(task)}
                       className="flex min-w-[72px] items-center justify-center rounded-full bg-foreground px-4 py-2 text-[13px] font-bold text-background transition-all hover:brightness-105 disabled:opacity-60"
                     >
-                      {claiming_ ? <Loader2 className="size-4 animate-spin" /> : tr("Claim")}
+                      {claiming_ ? <Mirage className="size-4" /> : tr("Claim")}
                     </button>
                   )}
                 </div>

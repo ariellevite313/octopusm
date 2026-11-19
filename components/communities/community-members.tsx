@@ -3,12 +3,13 @@
 /** /c/[slug]/members : Tous / Modérateurs, recherche, rôles, et actions de modération (nommer, retirer). */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, MoreHorizontal, Search } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import type { CommunityRole } from "@/lib/social/communities-shared";
+import { Mirage } from "@/components/shared/mirage";
 
 type M = { wallet: string; role: CommunityRole; name: string | null; avatar: string | null; username: string | null };
 
@@ -76,7 +77,7 @@ export function CommunityMembers({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {!rows ? <div className="flex justify-center py-16"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div> : (
+      {!rows ? <div className="flex justify-center py-16"><Mirage className="size-6 text-muted-foreground" /></div> : (
         <ul>
           {shown.map((m) => (
             <li key={m.wallet} className="relative flex items-center gap-3 px-4 py-3">

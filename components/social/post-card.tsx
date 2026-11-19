@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Download, EyeOff, Flag, Heart, Loader2, MessageCircle, MoreVertical, Eye, Send, Trash2, Repeat2, Quote, Pin, Users,
+  Download, EyeOff, Flag, Heart, MessageCircle, MoreVertical, Eye, Send, Trash2, Repeat2, Quote, Pin, Users,
 } from "lucide-react";
 import { ComposeModal } from "./compose-modal";
 import { QuotedCard } from "./quoted-card";
@@ -30,6 +30,7 @@ import { compactCount } from "@/lib/social/tips";
 import { ArticleCard } from "./article-card";
 import { BagCard } from "./chill";
 import { ProfileHoverCard } from "./profile-hover-card";
+import { Mirage } from "@/components/shared/mirage";
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -426,7 +427,7 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments, hi
               aria-label={tr("More")}
               className="absolute right-3 top-3 z-10 flex size-9 items-center justify-center rounded-full bg-white/80 text-neutral-900 backdrop-blur"
             >
-              {busy ? <Loader2 className="size-[18px] animate-spin" /> : <MoreVertical className="size-[18px]" strokeWidth={2.6} />}
+              {busy ? <Mirage className="size-[18px]" /> : <MoreVertical className="size-[18px]" strokeWidth={2.6} />}
             </button>
             {menu && <div onMouseLeave={() => setMenu(false)}>{menuItems}</div>}
             {/* Barre : encoche en bas à gauche, avatars + likes en bas à droite */}

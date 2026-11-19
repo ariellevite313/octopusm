@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { X, ArrowUpRight, Loader2, CheckCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { X, ArrowUpRight, CheckCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT, Rich } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
+import { Mirage } from "@/components/shared/mirage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
         {/* Loading state */}
         {step === "checking" && (
           <div className="flex items-center justify-center py-10">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <Mirage className="size-6 text-muted-foreground" />
           </div>
         )}
 
@@ -218,7 +219,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
                 disabled={cancelling}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors"
               >
-                {cancelling ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                {cancelling ? <Mirage className="size-4" /> : <Trash2 className="size-4" />}
                 {tr("Cancel pending request")}
               </button>
             )}
@@ -304,7 +305,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <Mirage className="size-4" />
                   {tr("Submitting…")}
                 </>
               ) : (

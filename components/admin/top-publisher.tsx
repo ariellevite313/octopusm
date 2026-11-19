@@ -7,12 +7,13 @@
  */
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { BarChart3, Loader2, X } from "lucide-react";
+import { BarChart3, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/providers/auth-provider";
 import { CHAINS, GT_NET } from "@/lib/terminal";
 import { ShareSheet } from "@/components/shared/share-sheet";
+import { Mirage } from "@/components/shared/mirage";
 
 type Kind = "mcap" | "volume" | "gainers" | "losers" | "dev_sold";
 type Period = "day" | "week" | "month";
@@ -95,13 +96,13 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/og/top/${id}`} alt="" className="mt-4 w-full rounded-2xl bg-muted" style={{ aspectRatio: "1080 / 1350" }} />
                 <div className="mt-3 flex gap-2">
-                  <button onClick={create} disabled={busy} className="h-12 flex-1 rounded-2xl bg-muted text-[15px] font-semibold text-foreground">{busy ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Refresh")}</button>
+                  <button onClick={create} disabled={busy} className="h-12 flex-1 rounded-2xl bg-muted text-[15px] font-semibold text-foreground">{busy ? <Mirage className="mx-auto size-4" /> : tr("Refresh")}</button>
                   <button onClick={() => setShare(true)} className="h-12 flex-[2] rounded-2xl bg-foreground text-[15px] font-bold text-background">{tr("Publish")}</button>
                 </div>
               </>
             ) : (
               <button onClick={create} disabled={busy} className="mt-4 h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-60">
-                {busy ? <span className="flex items-center justify-center gap-2"><Loader2 className="size-4 animate-spin" />{tr("Reading the markets…")}</span> : tr("Create the image")}
+                {busy ? <span className="flex items-center justify-center gap-2"><Mirage className="size-4" />{tr("Reading the markets…")}</span> : tr("Create the image")}
               </button>
             )}
           </div>

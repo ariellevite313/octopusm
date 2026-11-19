@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { Mirage } from "@/components/shared/mirage";
 
 type W = { id: string; address: string; label: string | null };
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
@@ -38,7 +39,7 @@ export function TrackedWallets() {
         <input value={addr} onChange={(e) => setAddr(e.target.value)} placeholder={tr("Solana wallet address")} className="h-11 w-full rounded-2xl bg-muted px-4 font-mono text-[13px] outline-none placeholder:font-sans" />
         <div className="flex gap-2">
           <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={24} placeholder={tr("Name (optional)")} className="h-11 min-w-0 flex-1 rounded-2xl bg-muted px-4 text-[14px] outline-none" />
-          <button disabled={!valid || busy} onClick={add} className="h-11 shrink-0 rounded-2xl bg-foreground px-5 text-[14px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="size-4 animate-spin" /> : tr("Track")}</button>
+          <button disabled={!valid || busy} onClick={add} className="h-11 shrink-0 rounded-2xl bg-foreground px-5 text-[14px] font-bold text-background disabled:opacity-40">{busy ? <Mirage className="size-4" /> : tr("Track")}</button>
         </div>
       </div>
       <div className="mt-2">

@@ -7,7 +7,6 @@
  */
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { TfStats, TradeStatsResponse } from "@/app/api/launchpad/trade-stats/[mint]/route";
 
