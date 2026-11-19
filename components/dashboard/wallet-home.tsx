@@ -9,7 +9,12 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowDownToLine, ArrowLeftRight, Check, Copy, HandCoins, RefreshCw, Share2, X } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, Check, Copy, HandCoins, LogOut, RefreshCw, Share2, X } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/providers/auth-provider";
+import { disconnectWallet } from "@/lib/wallet/auth";
+import { useFiat } from "@/lib/use-fiat";
+import { FIAT } from "@/lib/fiat";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
@@ -68,6 +73,8 @@ function Tile({ label, badge, onClick, children }: { label: string; badge?: stri
 export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: string; name: string; avatar: string | null; octo: number; active?: string }) {
   const { tr } = useT();
   const router = useRouter();
+  const { walletType, setWalletType } = useAuth();
+  const { code: fiatCode, setFiat, money } = useFiat();
   const currentPath = usePathname();
   const pathname = active ?? currentPath;
   const [bags, setBags] = useState<Bags | null>(null);
@@ -94,6 +101,12 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
   }, [wallet]);
   useEffect(() => { void load(); }, [load]);
 
+  async function disconnect() {
+    await disconnectWallet(walletType);
+    setWalletType(null);
+    toast.success(tr("Disconnected"));
+    router.push("/");
+  }
   const refresh = () => { void load(true); window.dispatchEvent(new Event(BAGS_REFRESH)); };
   const copy = () => navigator.clipboard.writeText(wallet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
 
@@ -130,16 +143,24 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
           <RefreshCw className={`size-[22px] ${loading ? "animate-spin" : ""}`} />
         </button>
         <button onClick={() => setShare(true)} aria-label={tr("Share")} className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted"><Share2 className="size-[22px]" /></button>
+        <button onClick={disconnect} aria-label={tr("Disconnect")} className="flex size-10 items-center justify-center rounded-full text-destructive hover:bg-muted"><LogOut className="size-[22px]" /></button>
       </div>
 
       {/* Solde du wallet */}
       {bags ? (
         <>
-          <p className="num relative mt-7 text-[48px] font-bold leading-none tracking-tight text-foreground">${Number(i).toLocaleString("en-US")}<span className="text-muted-foreground">.{d}</span></p>
+          <p className="num relative mt-7 text-[48px] font-bold leading-none tracking-tight text-foreground">{fiatCode === "USD" ? <>${Number(i).toLocaleString("en-US")}<span className="text-muted-foreground">.{d}</span></> : money(total)}</p>
           <p className="num relative mt-2.5 flex items-center gap-1.5 text-[15px] text-muted-foreground">
             <span className={`text-[11px] ${ch >= 0 ? "text-up" : "text-down"}`}>{ch >= 0 ? "▲" : "▼"}</span>
-            {usd2(Math.abs(ch))} ({Math.abs(chPct).toFixed(2)}%)
+            {money(Math.abs(ch))} ({Math.abs(chPct).toFixed(2)}%)
           </p>
+          <label className="relative mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            {tr("Currency")}
+            <select value={fiatCode} onChange={(e) => setFiat(e.target.value)} aria-label={tr("Currency")}
+              className="rounded-lg border border-border bg-background px-1.5 py-0.5 text-xs font-bold text-foreground">
+              {FIAT.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
+            </select>
+          </label>
         </>
       ) : (
         <div className="relative mt-7 space-y-2.5"><div className="h-12 w-56 animate-pulse rounded-xl bg-muted" /><div className="h-4 w-32 animate-pulse rounded bg-muted" /></div>

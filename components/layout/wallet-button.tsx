@@ -542,14 +542,14 @@ function WalletButtonInner() {
 
   useEffect(() => {
     const handler = () => setShowDialog(true);
-    const openProfile = () => setShowProfile(true);
+    const openProfile = () => router.push("/dashboard"); // le wallet s'ouvre directement sur le dashboard
     window.addEventListener("open-wallet-connect", handler);
     window.addEventListener("open-wallet-profile", openProfile);
     return () => {
       window.removeEventListener("open-wallet-connect", handler);
       window.removeEventListener("open-wallet-profile", openProfile);
     };
-  }, []);
+  }, [router]);
 
   async function handleSelectWallet(type: WalletType) {
     setShowDialog(false);
@@ -595,7 +595,7 @@ function WalletButtonInner() {
       <>
         <button
           type="button"
-          onClick={() => setShowProfile(true)}
+          onClick={() => router.push("/dashboard")}
           className="hidden items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           {walletIcon ? (
