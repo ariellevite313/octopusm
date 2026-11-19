@@ -1687,5 +1687,6 @@ const p: Record<string, string> = {
   "Place limit buy": "挂限价买单",
   "Place limit sell": "挂限价卖单",
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "OM 限价单。其他行：把池子推到该价位所需的 SOL。",
+  "Currency": "货币",
 };
 export default p;

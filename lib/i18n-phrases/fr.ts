@@ -2421,5 +2421,6 @@ const p: Record<string, string> = {
   "No token found for this list right now": "Aucun token pour ce classement pour le moment",
   "Could not build the list, try again": "Impossible de créer le classement, réessaie",
   "Team sales are only tracked on Solana": "Les ventes de l'équipe ne sont suivies que sur Solana",
+  "Currency": "Monnaie",
 };
 export default p;

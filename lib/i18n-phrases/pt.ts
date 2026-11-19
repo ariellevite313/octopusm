@@ -1687,5 +1687,6 @@ const p: Record<string, string> = {
   "Place limit buy": "Colocar compra limite",
   "Place limit sell": "Colocar venda limite",
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "Ordens limite da OM. Outras linhas: SOL necessários para levar a pool a esse nível.",
+  "Currency": "Moeda",
 };
 export default p;

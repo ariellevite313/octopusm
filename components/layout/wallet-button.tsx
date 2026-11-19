@@ -14,6 +14,8 @@ import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import Image from "next/image";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
+import { useFiat } from "@/lib/use-fiat";
+import { FIAT } from "@/lib/fiat";
 import { connectWalletAndAuth, disconnectWallet } from "@/lib/wallet/auth";
 import { XLoginFlow } from "@/components/auth/x-login";
 import type { SocialMethod } from "@/components/auth/x-login-flow";
@@ -52,9 +54,6 @@ function shortAddr(addr: string) {
   return addr.slice(0, 4) + "..." + addr.slice(-4);
 }
 
-function fmtUsd(n: number) {
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 function fmtClt(n: number) {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n.toLocaleString();
 }
@@ -109,6 +108,7 @@ export function ProfileDrawer({
   const isDark = theme === "dark";
 
   const qc = useQueryClient();
+  const { code: fiatCode, setFiat, money } = useFiat();
   const fileRef = useRef<HTMLInputElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
@@ -297,12 +297,19 @@ export function ProfileDrawer({
           {/* Solde total + variation sur 24 h */}
           {!editing && (
             <div>
-              <p className="text-[44px] font-extrabold leading-none tracking-tight text-foreground">{fmtUsd(totalUsd)}</p>
+              <p className="text-[44px] font-extrabold leading-none tracking-tight text-foreground">{money(totalUsd)}</p>
               <div className="mt-2 flex items-center gap-2 text-[15px] font-bold">
-                <span className={change >= 0 ? "text-up" : "text-down"}>{change >= 0 ? "+" : "-"}{fmtUsd(Math.abs(change))}</span>
+                <span className={change >= 0 ? "text-up" : "text-down"}>{change >= 0 ? "+" : "-"}{money(Math.abs(change))}</span>
                 <span className={`rounded-lg px-1.5 py-0.5 text-[13px] text-white ${change >= 0 ? "bg-up" : "bg-down"}`}>{change >= 0 ? "+" : "-"}{changePct.toFixed(2)}%</span>
                 <span className="text-xs font-medium text-muted-foreground">{tr("24h")}</span>
               </div>
+              <label className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                {tr("Currency")}
+                <select value={fiatCode} onChange={(e) => setFiat(e.target.value)} aria-label={tr("Currency")}
+                  className="rounded-lg border border-border bg-background px-1.5 py-0.5 text-xs font-bold text-foreground">
+                  {FIAT.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
+                </select>
+              </label>
             </div>
           )}
 
@@ -335,14 +342,14 @@ export function ProfileDrawer({
             <div>
               <p className="mb-2 flex items-center gap-1 text-lg font-extrabold text-foreground">{tr("Balances")}</p>
               <div className="space-y-2">
-                <BalanceRow logo={<TokenLogo token="usdc" className="size-11" />} name="USDC" sub={`${balances.usdc.toFixed(2)} USDC`} value={fmtUsd(balances.usdc)} note={tr("Available")} />
+                <BalanceRow logo={<TokenLogo token="usdc" className="size-11" />} name="USDC" sub={`${balances.usdc.toFixed(2)} USDC`} value={money(balances.usdc)} note={tr("Available")} />
                 {/* OMUSD : stablecoin de la plateforme, pas encore disponible (grisé) */}
                 <div aria-disabled="true" className="pointer-events-none select-none opacity-40 grayscale">
                   <BalanceRow logo={<Image src="/omusd.png" alt="OMUSD" width={44} height={44} className="size-11 rounded-full" unoptimized />}
                     name="OMUSD" sub={tr("OM stablecoin")} value="0.00" />
                 </div>
                 <BalanceRow logo={<TokenLogo token="clawdtrust" className="size-11" />} name="ClawdTrust" sub={`${fmtClt(balances.clt)} CLT`}
-                  value={cltPrice > 0 ? fmtUsd(cltUsd) : fmtClt(balances.clt)} note={tr("Available")} />
+                  value={cltPrice > 0 ? money(cltUsd) : fmtClt(balances.clt)} note={tr("Available")} />
                 <BalanceRow logo={<Image src="/octo-coin.png" alt="OMERO" width={44} height={44} className="size-11 rounded-full object-cover" unoptimized />}
                   name="OMERO" sub={`${octoBalance.toLocaleString()} ${tr("points")}`}
                   value={currentTier ? currentTier.label : "—"}
@@ -357,9 +364,9 @@ export function ProfileDrawer({
               <p className="mb-2 text-lg font-extrabold text-foreground">{tr("Earnings")}</p>
               <div className="space-y-2">
                 <BalanceRow logo={<RowIcon icon={Trophy} />} name={tr("Winnings")} sub={`${tr("{n} won", { n: drawerStats?.win_count ?? 0 })} · ${drawerStats?.win_rate ?? 0}%`}
-                  value={fmtUsd(winningsUsd)} />
+                  value={money(winningsUsd)} />
                 <BalanceRow logo={<RowIcon icon={UserPlus} />} name={tr("Referral")} sub={tr("{n} friends", { n: drawerStats?.referral_count ?? 0 })}
-                  value={fmtUsd(referralUsd)} note={`${(drawerStats?.referral_octo ?? 0).toLocaleString()} OMERO`} href={isAdmin ? "/admin/account" : "/dashboard/referrals"} onNavigate={onClose} />
+                  value={money(referralUsd)} note={`${(drawerStats?.referral_octo ?? 0).toLocaleString()} OMERO`} href={isAdmin ? "/admin/account" : "/dashboard/referrals"} onNavigate={onClose} />
                 <BalanceRow logo={<RowIcon icon={Gift} />} name={tr("Weekly box")} sub={tr("Top 10 earn OMERO every week")}
                   value={tr("Open")} href="/dashboard/box" onNavigate={onClose} />
                 <BalanceRow logo={<RowIcon icon={Rocket} />} name={tr("Creator fees")} sub={tr("{n} launched", { n: drawerStats?.tokens_launched ?? 0 })}
