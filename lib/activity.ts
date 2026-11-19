@@ -3,6 +3,7 @@
  * (actions du wallet IA, sorties automatiques). Filtrable par token, par date et par auteur.
  * On n'affiche que les 90 dernières entrées (après filtres) : la base n'est pas vidée.
  */
+const SOL_MINT_ID = "So11111111111111111111111111111111111111112";
 export const ACTIVITY_MAX = 90;
 export type ActivityItem = {
   at: string; who: "you" | "janus"; kind: string; label: string; mint: string | null;
@@ -31,7 +32,9 @@ export async function getActivity(db: any, owner: string, q: ActivityQuery): Pro
       const { data } = await range(x);
       for (const r of data ?? []) out.push({
         at: r.created_at, who: "you", kind: "limit", mint: r.mint, side: r.side, usd: null,
-        label: `Limit ${r.side} at ${fmt(Number(r.target_mcap))} cap · ${Number(r.amount_sol)} ${r.side === "buy" ? "SOL" : "tokens"}`,
+        // SOL contre USDC : la cible est un prix ; sinon une capitalisation
+        label: r.mint === SOL_MINT_ID ? `Limit ${r.side} SOL at $${Number(r.target_mcap)} · ${+Number(r.amount_sol).toFixed(4)} SOL`
+          : `Limit ${r.side} at ${fmt(Number(r.target_mcap))} cap · ${Number(r.amount_sol)} ${r.side === "buy" ? "SOL" : "tokens"}`,
         status: r.status === "closed" ? "closed" : "open", tx: null, error: null,
       });
     })());

@@ -7,7 +7,8 @@ import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { limited } from "@/lib/limit";
 import { createAdminClient } from "@/lib/supabase/server";
-import { activeOrders, cancelOrder, createLimitOrder, executeOrder, sendSigned, assertOrderTx, TriggerError } from "@/lib/swap/jup-trigger";
+import { activeOrders, cancelOrder, createLimitOrder, createSolLimitOrder, isSolUsdc, executeOrder, sendSigned, assertOrderTx, TriggerError } from "@/lib/swap/jup-trigger";
+import { SOL_MINT } from "@/lib/swap/core";
 
 export const dynamic = "force-dynamic";
 const MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -24,7 +25,8 @@ export async function GET(req: Request) {
   if ("error" in w) return NextResponse.json({ orders: [] });
   const mint = new URL(req.url).searchParams.get("mint");
   try {
-    const orders = (await activeOrders(w.wallet)).filter((o) => !mint || o.inputMint === mint || o.outputMint === mint);
+    // SOL : seulement les ordres SOL/USDC (tous les autres ordres ont aussi SOL d'un côté)
+    const orders = (await activeOrders(w.wallet)).filter((o) => !mint || (mint === SOL_MINT ? isSolUsdc(o) : o.inputMint === mint || o.outputMint === mint));
     return NextResponse.json({ orders });
   } catch { return NextResponse.json({ orders: [] }); }
 }
@@ -35,6 +37,17 @@ export async function POST(req: Request) {
   if ("error" in w) return w.error;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   try {
+    if (b.action === "create" && b.mint === SOL_MINT) {
+      // SOL contre USDC, prix cible en dollars
+      const side = b.side === "sell" ? "sell" : "buy", amount = Number(b.amount), targetPrice = Number(b.targetPrice);
+      if (!(amount > 0) || !(targetPrice > 0) || targetPrice > 1e7) return NextResponse.json({ error: "Invalid order" }, { status: 400 });
+      const res = await createSolLimitOrder(w.wallet, { side, amount, targetPrice });
+      if (res.order) {
+        await (createAdminClient() as any).from("om_limit_orders").upsert({ order_key: res.order, maker: w.wallet, mint: SOL_MINT, side, amount_sol: res.amountSol, target_mcap: targetPrice, status: "pending" })
+          .then(() => null, () => null);
+      }
+      return NextResponse.json(res);
+    }
     if (b.action === "create") {
       const side = b.side === "sell" ? "sell" : "buy", mint = String(b.mint ?? ""), amount = Number(b.amount), targetMcap = Number(b.targetMcap);
       if (!MINT.test(mint) || !(amount > 0) || !(targetMcap > 0) || targetMcap > 1e13) return NextResponse.json({ error: "Invalid order" }, { status: 400 });

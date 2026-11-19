@@ -1741,5 +1741,7 @@ const p: Record<string, string> = {
   "Your limit orders and swaps, and everything your Janus did or could not do.": "أوامرك المحددة وعمليات التبادل، وكل ما فعله Janus أو لم يستطع فعله.",
   "open": "مفتوح",
   "pending": "قيد الانتظار",
+  "For a limit buy, the target must be below the current price.": "في الشراء المحدد يجب أن يكون الهدف أقل من السعر الحالي.",
+  "For a limit sell, the target must be above the current price.": "في البيع المحدد يجب أن يكون الهدف أعلى من السعر الحالي.",
 };
 export default p;

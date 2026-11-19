@@ -2,7 +2,7 @@
  * Serveur : ordres limités via l'API Trigger de Jupiter. Jupiter garde l'ordre et l'exécute quand le prix est atteint :
  * OM n'a rien à surveiller. On fixe le prix par une capitalisation cible (comme les alertes).
  */
-import { SOL_MINT, SWAP_FEE_BPS, SWAP_FEE_WALLET } from "@/lib/swap/core";
+import { SOL_MINT, SWAP_FEE_BPS, SWAP_FEE_WALLET, USDC_MINT } from "@/lib/swap/core";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { AddressLookupTableAccount, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 
@@ -101,6 +101,38 @@ export async function createLimitOrder(maker: string, b: { side: "buy" | "sell";
   const fee = await withFee(res.transaction, maker, (solSide * BigInt(LIMIT_FEE_BPS)) / 10_000n);
   return { ...res, transaction: fee.tx, feeLamports: fee.fee.toString(), direct: fee.fee > 0n, targetPrice: target, amountSol: b.side === "buy" ? b.amount : Number(taking) / 1e9 };
 }
+
+/**
+ * Ordre limité sur SOL lui-même, contre USDC, avec un prix cible en dollars.
+ * side=buy : `amount` USDC dépensés quand SOL descend à `targetPrice`. side=sell : `amount` SOL vendus quand il monte à `targetPrice`.
+ * Frais OM : 0,3 % du SOL de l'ordre (SOL reçus à l'achat, SOL vendus à la vente), virés dans la même transaction.
+ */
+export async function createSolLimitOrder(maker: string, b: { side: "buy" | "sell"; amount: number; targetPrice: number }) {
+  const sol = await bestPair(SOL_MINT);
+  if (!sol) throw new TriggerError("Price not available for this token");
+  if (!(b.targetPrice > 0)) throw new TriggerError("Invalid target");
+  if (b.side === "buy" ? b.targetPrice >= sol.price : b.targetPrice <= sol.price) {
+    throw new TriggerError(b.side === "buy" ? "For a limit buy, the target must be below the current price." : "For a limit sell, the target must be above the current price.");
+  }
+  const making = b.side === "buy" ? raw(b.amount, 6) : raw(b.amount, 9);
+  const taking = b.side === "buy" ? raw(b.amount / b.targetPrice, 9) : raw(b.amount * b.targetPrice, 6);
+  if (making <= 0n || taking <= 0n) throw new TriggerError("Amount too small");
+  const res = await jup<{ order: string; transaction: string; requestId: string }>("/createOrder", {
+    method: "POST",
+    body: JSON.stringify({
+      inputMint: b.side === "buy" ? USDC_MINT : SOL_MINT, outputMint: b.side === "buy" ? SOL_MINT : USDC_MINT,
+      maker, payer: maker, params: { makingAmount: making.toString(), takingAmount: taking.toString() },
+      computeUnitPrice: "auto", wrapAndUnwrapSol: true,
+    }),
+  });
+  const solSide = b.side === "buy" ? taking : making;
+  const fee = await withFee(res.transaction, maker, (solSide * BigInt(LIMIT_FEE_BPS)) / 10_000n);
+  return { ...res, transaction: fee.tx, feeLamports: fee.fee.toString(), direct: fee.fee > 0n, targetPrice: b.targetPrice, amountSol: Number(solSide) / 1e9 };
+}
+
+/** Ordre SOL/USDC (dans un sens ou dans l'autre) */
+export const isSolUsdc = (o: { inputMint: string; outputMint: string }) =>
+  (o.inputMint === SOL_MINT && o.outputMint === USDC_MINT) || (o.inputMint === USDC_MINT && o.outputMint === SOL_MINT);
 
 /**
  * Garde-fou de l'envoi direct : n'accepte que la transaction d'ordre faite par OM, c'est-à-dire signée par le wallet connecté

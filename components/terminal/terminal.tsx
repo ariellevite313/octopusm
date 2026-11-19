@@ -691,14 +691,12 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
             {isSol ? <>
-              {mint !== SOL_MINT && (
-                <div className="flex rounded-xl bg-muted p-1">
-                  {(["swap", "limit"] as const).map((k) => (
-                    <button key={k} onClick={() => setDeskTab(k)} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${deskTab === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>{k === "swap" ? tr("Swap") : tr("Limit and TWAP")}</button>
-                  ))}
-                </div>
-              )}
-              {deskTab === "limit" && mint !== SOL_MINT
+              <div className="flex rounded-xl bg-muted p-1">
+                {(["swap", "limit"] as const).map((k) => (
+                  <button key={k} onClick={() => setDeskTab(k)} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${deskTab === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>{k === "swap" ? tr("Swap") : mint === SOL_MINT ? tr("Limit") : tr("Limit and TWAP")}</button>
+                ))}
+              </div>
+              {deskTab === "limit"
                 ? (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") && walletType
                     ? <div className="rounded-2xl border border-border p-4"><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} preset={preset} activity /></div>
                     : <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background">{tr("Connect a Solana wallet")}</button>)
@@ -719,8 +717,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           <button onClick={() => setSheet("swap")} className="h-14 flex-1 rounded-2xl bg-foreground text-[17px] font-bold text-background">{tr("Buy")} / {tr("Sell")}</button>
           <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("quick") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
             aria-label={tr("Quick buy")} className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground"><Zap className="size-6 fill-current" /></button>
-          {mint !== SOL_MINT && <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
-            aria-label={tr("Limit order")} className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground"><Crosshair className="size-6" /></button>}
+          <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
+            aria-label={tr("Limit order")} className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground"><Crosshair className="size-6" /></button>
         </div>
       </div>)}
 

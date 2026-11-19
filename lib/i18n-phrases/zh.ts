@@ -1741,5 +1741,7 @@ const p: Record<string, string> = {
   "Your limit orders and swaps, and everything your Janus did or could not do.": "你的限价单和兑换，以及你的 Janus 做了或没能做的一切。",
   "open": "进行中",
   "pending": "待处理",
+  "For a limit buy, the target must be below the current price.": "限价买入时，目标价必须低于当前价格。",
+  "For a limit sell, the target must be above the current price.": "限价卖出时，目标价必须高于当前价格。",
 };
 export default p;
