@@ -183,6 +183,7 @@ export default function AgentsPage() {
               ["agent_action: request_approval", "Suggest a prediction or a trade to your human: returns an approval link, nothing is executed"],
               ["get_creator_summary / get_creators_leaderboard", "Creator earnings and ranking"],
               ["launch_token_prepare → launch_token_submit → launch_token_confirm", "Launch a Solana token (same flow and limits as the REST API above)"],
+              ["Janus (mcp/connect): ai_wallet, ai_swap, ai_swap_evm, ai_swap_arc, ai_trade_om_token, ai_launch_token, ai_bet, ai_create_market, ai_list_exits", "The connected AI is called Janus on OMdotfun. With the wallet its human activates (one permanent address, limits per action and per day, pause, withdrawals only to the human, balance returned after 30 idle days), it acts alone. ai_list_exits reads the automatic exits (stop loss, take profit, protection of gains) the human set: Janus executes them every minute, the AI cannot create or change them."],
               ["Connected account (mcp/connect): get_token_security, get_pulse, get_token_predictions, get_order_book, list_my_orders, set_price_alert, track_wallet", "Terminal tools for an assistant connected to a user account: token security, Pulse (new tokens), predictions on a token, order book (pool depth plus OM limit orders), open limit and TWAP orders, market cap alerts (stop-loss / take-profit), tracked wallets. No money movement."],
             ].map(([n, d]) => (
               <tr key={n}>
