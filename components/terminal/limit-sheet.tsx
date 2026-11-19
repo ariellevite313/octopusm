@@ -10,6 +10,7 @@ import { currentPath, feePayerOf, signWithoutProvider } from "@/lib/wallet/sign-
 import { SOL_MINT } from "@/lib/swap/core";
 import { TwapPanel } from "./twap-sheet";
 import { Mirage } from "@/components/shared/mirage";
+import { ActivityList } from "./activity";
 
 type Order = { orderKey: string; inputMint: string; outputMint: string; makingAmount: string; takingAmount: string; createdAt: string };
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
@@ -45,7 +46,8 @@ export async function signAndSend(txB64: string, requestId: string, walletType: 
 /** Ordre préparé depuis le graphique (niveau Fibonacci ou ligne) : sens, capitalisation cible, libellé ; n change à chaque clic */
 export type LimitPreset = { side: "buy" | "sell"; mcap: number; label: string; n: number };
 
-export function LimitSheet({ mint, symbol, mcap, walletType, preset }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset?: LimitPreset | null }) {
+/** activity : liste d'activité (moi et Janus) sous le formulaire, sur ordinateur */
+export function LimitSheet({ mint, symbol, mcap, walletType, preset, activity = false }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset?: LimitPreset | null; activity?: boolean }) {
   const { tr } = useT();
   const [mode, setMode] = useState<"limit" | "twap">("limit");
   useEffect(() => { if (preset) setMode("limit"); }, [preset]);
@@ -56,7 +58,7 @@ export function LimitSheet({ mint, symbol, mcap, walletType, preset }: { mint: s
           <button key={m} onClick={() => setMode(m)} className={`text-[16px] font-semibold ${mode === m ? "text-foreground" : "text-muted-foreground"}`}>{m === "limit" ? tr("Limit") : "TWAP"}</button>
         ))}
       </div>
-      {mode === "limit" ? <LimitForm mint={mint} symbol={symbol} mcap={mcap} walletType={walletType} preset={preset ?? null} /> : <TwapPanel mint={mint} symbol={symbol} walletType={walletType} />}
+      {mode === "limit" ? <LimitForm mint={mint} symbol={symbol} mcap={mcap} walletType={walletType} preset={preset ?? null} activity={activity} /> : <TwapPanel mint={mint} symbol={symbol} walletType={walletType} />}
     </div>
   );
 }
@@ -79,7 +81,7 @@ function BookLine({ r, ask, max, onPick }: { r: BookRow; ask: boolean; max: numb
   );
 }
 
-function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset: LimitPreset | null }) {
+function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = false }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset: LimitPreset | null; activity?: boolean }) {
   const { tr } = useT();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
@@ -196,6 +198,7 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset }: { mint: st
           </div>
           {hint && <p className="mt-2 text-[12px] text-down">{hint}</p>}
           <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Mirage className="mx-auto size-4" /> : tr(side === "buy" ? "Place limit buy" : "Place limit sell")}</button>
+          {activity && <div className="mt-4 min-w-0"><ActivityList mint={mint} compact bare /></div>}
         </div>
 
         {/* Carnet : profondeur de la pool + ordres limités placés sur OM */}

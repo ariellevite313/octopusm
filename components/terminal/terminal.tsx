@@ -700,7 +700,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
               )}
               {deskTab === "limit" && mint !== SOL_MINT
                 ? (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") && walletType
-                    ? <div className="rounded-2xl border border-border p-4"><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} preset={preset} /></div>
+                    ? <div className="rounded-2xl border border-border p-4"><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} preset={preset} activity /></div>
                     : <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background">{tr("Connect a Solana wallet")}</button>)
                 : <SwapBox mint={mint} />}
               <Verified info={info} />

@@ -1729,5 +1729,17 @@ const p: Record<string, string> = {
   "Send the whole balance of Janus back to your wallet?": "将 Janus 的全部余额退回你的钱包？",
   "Stocks": "股票",
   "Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.": "来自 xStocks、Ondo 和 Backpack 的代币化股票和 ETF，价格跟随真实股票。不向美国人士提供。股市休市时流动性可能较低。",
+  "You": "你",
+  "Why": "原因",
+  "Open all activity in a new window": "在新窗口中打开全部动态",
+  "From": "从",
+  "To": "到",
+  "All tokens": "全部代币",
+  "Connect to see your activity": "连接后查看你的动态",
+  "No activity yet": "暂无动态",
+  "The 90 most recent entries are shown.": "显示最近 90 条记录。",
+  "Your limit orders and swaps, and everything your Janus did or could not do.": "你的限价单和兑换，以及你的 Janus 做了或没能做的一切。",
+  "open": "进行中",
+  "pending": "待处理",
 };
 export default p;

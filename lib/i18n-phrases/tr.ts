@@ -1729,5 +1729,17 @@ const p: Record<string, string> = {
   "Send the whole balance of Janus back to your wallet?": "Janus'un tüm bakiyesi cüzdanınıza geri gönderilsin mi?",
   "Stocks": "Hisseler",
   "Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.": "xStocks, Ondo ve Backpack'ten tokenize hisseler ve ETF'ler. Fiyatları gerçek hisseyi izler. ABD'deki kişiler için uygun değildir. Borsa kapalıyken likidite düşük olabilir.",
+  "You": "Siz",
+  "Why": "Neden",
+  "Open all activity in a new window": "Tüm etkinliği yeni pencerede aç",
+  "From": "Başlangıç",
+  "To": "Bitiş",
+  "All tokens": "Tüm tokenler",
+  "Connect to see your activity": "Etkinliğinizi görmek için bağlanın",
+  "No activity yet": "Henüz etkinlik yok",
+  "The 90 most recent entries are shown.": "En son 90 kayıt gösterilir.",
+  "Your limit orders and swaps, and everything your Janus did or could not do.": "Limit emirleriniz ve swap'larınız, Janus'unuzun yaptığı veya yapamadığı her şey.",
+  "open": "açık",
+  "pending": "beklemede",
 };
 export default p;

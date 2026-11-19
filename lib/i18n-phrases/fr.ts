@@ -2463,5 +2463,17 @@ const p: Record<string, string> = {
   "Send the whole balance of Janus back to your wallet?": "Renvoyer tout le solde de Janus vers votre wallet ?",
   "Stocks": "Actions",
   "Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.": "Actions et ETF tokenisés de xStocks, Ondo et Backpack. Leur prix suit l'action réelle. Non disponibles pour les personnes aux États-Unis. La liquidité peut être faible quand la bourse est fermée.",
+  "You": "Vous",
+  "Why": "Pourquoi",
+  "Open all activity in a new window": "Ouvrir toute l'activité dans une nouvelle fenêtre",
+  "From": "Du",
+  "To": "Au",
+  "All tokens": "Tous les tokens",
+  "Connect to see your activity": "Connectez-vous pour voir votre activité",
+  "No activity yet": "Aucune activité pour l'instant",
+  "The 90 most recent entries are shown.": "Les 90 entrées les plus récentes sont affichées.",
+  "Your limit orders and swaps, and everything your Janus did or could not do.": "Vos ordres limites et swaps, et tout ce que votre Janus a fait ou n'a pas pu faire.",
+  "open": "ouvert",
+  "pending": "en attente",
 };
 export default p;
