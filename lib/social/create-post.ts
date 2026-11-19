@@ -45,6 +45,12 @@ export async function createPost(wallet: string, bodyIn: string, files: PostFile
     const sym = TICKER_ALIASES[m[1].toUpperCase()] ?? m[1];
     const { data: t } = await admin.from("launchpad_tokens").select("id, ticker").ilike("ticker", sym).in("status", ["active", "graduating", "graduated"]).maybeSingle();
     if (t) { ticker = t.ticker; tokenId = t.id; }
+    // Lien de partage vers un token précis (Terminal) : si ce n'est pas le token OM du même ticker, on ne l'y rattache pas
+    const link = body.match(/omdot\.fun\/(?:share\/token\/|terminal\?(?:chain=[a-z]+&)?mint=)([1-9A-HJ-NP-Za-km-z]{32,44}|0x[0-9a-fA-F]{40})/);
+    if (link && tokenId) {
+      const { data: own } = await admin.from("launchpad_tokens").select("mint_address").eq("id", tokenId).maybeSingle();
+      if ((own?.mint_address ?? "").toLowerCase() !== link[1].toLowerCase()) { ticker = null; tokenId = null; }
+    }
   }
 
   // #hashtags, @mentions (comptes existants uniquement), marché OMdotfun partagé par lien

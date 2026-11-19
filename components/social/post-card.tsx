@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import type { FeedPost } from "@/lib/social/posts";
 import { TokenCardView } from "./token-card";
+import { SharedTokenCard, sharedTokenOf } from "./shared-token-card";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { TokenPill } from "./token-pill";
 import { MarketCard } from "./market-card";
@@ -151,6 +152,7 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments, hi
   // Crypto mentionnée ($BTC…) qui n'est pas un token OMdotfun : prix en temps réel
   // 1 crypto : carte avec graphique ; 2 ou plus : pastilles compactes
   const cashtags = cashtagsOf(post.body, 15);
+  const shared = sharedTokenOf(post.body);
 
   // Une vue est comptée quand la publication est réellement affichée à l'écran
   useEffect(() => {
@@ -451,7 +453,10 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments, hi
         <span className="flex items-center gap-1"><Eye className="size-3.5" /><span className="num">{post.view_count}</span></span>
       </div>
 
-      {post.ticker ? (
+      {shared ? (
+        // Token partagé par lien : pris à son adresse exacte (un ticker peut appartenir à plusieurs tokens)
+        <div className="px-1"><SharedTokenCard mint={shared.mint} chain={shared.chain} /></div>
+      ) : post.ticker ? (
         <div className="px-1"><TokenCardView ticker={post.ticker} author={post.author} postId={post.id} /></div>
       ) : cashtags.length && !post.market?.price_ticker && !post.bag ? (
         <div className="px-1">{cashtags.length === 1 ? <LivePrice symbol={cashtags[0]} /> : <TickerPills symbols={cashtags} />}</div>

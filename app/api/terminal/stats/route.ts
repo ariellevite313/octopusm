@@ -16,12 +16,12 @@ const DS: Partial<Record<TerminalChain, string>> = {
   arbitrum: "arbitrum", polygon: "polygon", avalanche: "avalanche",
 };
 
-type Stats = { price: number | null; mcap: number | null; volume24h: number | null; liquidity: number | null; change24h: number | null; createdAt: string | null; pool: string | null; dex?: { paid: boolean | null; boost: number; website: string | null; socials: { type: string; url: string }[] } };
+type Stats = { symbol?: string | null; name?: string | null; logo?: string | null; price: number | null; mcap: number | null; volume24h: number | null; liquidity: number | null; change24h: number | null; createdAt: string | null; pool: string | null; dex?: { paid: boolean | null; boost: number; website: string | null; socials: { type: string; url: string }[] } };
 const num = (v: unknown) => { const n = Number(v); return v != null && v !== "" && Number.isFinite(n) ? n : null; };
 const cap = (v: unknown) => { const n = num(v); return n != null && n > 0 ? n : null; };
 
 type DsPair = {
-  pairAddress?: string; baseToken?: { address?: string }; priceUsd?: string; marketCap?: number; fdv?: number;
+  pairAddress?: string; baseToken?: { address?: string; symbol?: string; name?: string }; info?: { imageUrl?: string }; priceUsd?: string; marketCap?: number; fdv?: number;
   volume?: { h24?: number }; liquidity?: { usd?: number }; priceChange?: { h24?: number }; pairCreatedAt?: number;
 };
 
@@ -42,6 +42,7 @@ async function fromDex(chain: TerminalChain, mint: string): Promise<Stats | null
   const info = dexInfoOf(mine as DsFull[]);
   const paid = await dexPaidCheck(chain, mint).catch(() => null);
   return {
+    symbol: best.baseToken?.symbol ?? null, name: best.baseToken?.name ?? null, logo: mine.find((p) => p.info?.imageUrl)?.info?.imageUrl ?? null,
     dex: { paid: paid ?? (info.paid || null), boost: info.boost, website: info.website, socials: info.socials },
     price: num(best.priceUsd), mcap: cap(best.marketCap) ?? cap(best.fdv), volume24h: volume || null, liquidity: liquidity || null,
     change24h: num(best.priceChange?.h24), createdAt: oldest ? new Date(oldest).toISOString() : null, pool: best.pairAddress ?? null,
@@ -56,6 +57,8 @@ async function fromGecko(chain: TerminalChain, mint: string): Promise<Stats | nu
   const a = ((await r.json()) as { data?: { attributes?: Record<string, unknown> } }).data?.attributes;
   if (!a) return null;
   return {
+    symbol: typeof a.symbol === "string" ? a.symbol : null, name: typeof a.name === "string" ? a.name : null,
+    logo: typeof a.image_url === "string" && a.image_url.startsWith("http") ? a.image_url : null,
     price: num(a.price_usd), mcap: cap(a.market_cap_usd) ?? cap(a.fdv_usd), volume24h: num((a.volume_usd as { h24?: string } | undefined)?.h24),
     liquidity: num(a.total_reserve_in_usd), change24h: null, createdAt: null, pool: null,
   };
@@ -69,6 +72,7 @@ export async function GET(req: Request) {
   const [dex, gecko] = await Promise.all([fromDex(chain, mint).catch(() => null), fromGecko(chain, mint).catch(() => null)]);
   if (!dex && !gecko) return NextResponse.json({ stats: null });
   const s: Stats = {
+    symbol: dex?.symbol ?? gecko?.symbol ?? null, name: dex?.name ?? gecko?.name ?? null, logo: dex?.logo ?? gecko?.logo ?? null,
     price: dex?.price ?? gecko?.price ?? null,
     mcap: dex?.mcap ?? gecko?.mcap ?? null,
     volume24h: dex?.volume24h ?? gecko?.volume24h ?? null,
