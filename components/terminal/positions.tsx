@@ -1,5 +1,6 @@
 "use client";
 
+import { logoFor } from "@/lib/terminal";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/providers/auth-provider";
@@ -33,8 +34,8 @@ export function Positions({ onOpen }: { onOpen: (mint: string, chain: "solana" |
       <p className="px-1 pb-1 text-[13px] text-muted-foreground">{tr("Total P&L")} <span className={`num font-bold ${total >= 0 ? "text-up" : "text-down"}`}>{total >= 0 ? "+" : ""}{usd(total)}</span></p>
       {rows.map((p) => (
         <button key={p.mint} onClick={() => onOpen(p.mint, p.chain)} className="flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left hover:bg-muted/40">
-          {p.logo
-            ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" />
+          {logoFor(p.mint, p.logo)
+            ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={logoFor(p.mint, p.logo) ?? ""} alt="" className="size-11 shrink-0 rounded-full object-cover" />
             : <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-[13px] font-bold text-muted-foreground">{p.symbol.slice(0, 2).toUpperCase()}</span>}
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-[16px] font-bold text-foreground"><span className="truncate">{p.symbol}</span>

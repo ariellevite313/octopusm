@@ -22,7 +22,7 @@ import { ArcTradeBox } from "@/components/swap/arc-trade-box";
 import { EVM_CHAINS, isEvmChain } from "@/lib/swap/evm";
 import { PostCard } from "@/components/social/post-card";
 import type { FeedPost } from "@/lib/social/posts";
-import { CHAINS, EXTRA_EXPLORERS, GT_NET, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { CHAINS, EXTRA_EXPLORERS, GT_NET, logoFor, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { SOL_MINT } from "@/lib/swap/core";
 import { UpDownSection } from "@/components/updown/updown-cards";
 
@@ -281,7 +281,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             <button key={`${t.chain ?? "solana"}:${t.mint}`} onClick={() => open(t.mint, t)}
               className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
               <span className="relative shrink-0">
-                <Logo src={t.logo} sym={t.symbol} />
+                <Logo src={logoFor(t.mint, t.logo)} sym={t.symbol} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {selected.length !== 1 && <img src={`/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full ring-2 ring-background" />}
               </span>
@@ -532,7 +532,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       {/* En-tête */}
       <div className="sticky top-16 z-20 flex items-center gap-2 bg-background/95 px-3 py-2 backdrop-blur lg:top-0">
         <button onClick={() => router.push("/terminal")} aria-label={tr("Back")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground lg:hidden"><ChevronLeft className="size-6" /></button>
-        <Logo src={t.logo ?? info?.logo ?? null} sym={t.symbol} size="size-11" />
+        <Logo src={logoFor(t.mint, t.logo ?? info?.logo ?? null)} sym={t.symbol} size="size-11" />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-[18px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{(t.verified || info?.verified) && <Tick className="size-5" />}{isRug(t) && <span className="shrink-0 rounded-md bg-[#dc2626] px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide text-white">RUG</span>}</p>
           <button onClick={() => navigator.clipboard.writeText(mint).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
@@ -611,7 +611,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
               : chain === "arc" ? <TokenHolders mint={mint} chain="arc" />
               : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders list not available on this network yet.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
-            {tab === "predict" && <TokenPredictions mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} logo={t.logo} chain={chain} />}
+            {tab === "predict" && <TokenPredictions mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} logo={logoFor(t.mint, t.logo)} chain={chain} />}
             {tab === "about" && <About t={t} info={info} />}
           </div>
         </div>

@@ -25,6 +25,12 @@ export type TerminalChain = "solana" | "arc" | "base" | "bnb" | "hyperliquid" | 
 export const GT_NET: Record<TerminalChain, string | null> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", ethereum: "eth", arbitrum: "arbitrum", polygon: "polygon_pos", avalanche: "avax", arc: null, elysium: "elysium", robinhood: "robinhood" };
 /** Explorateurs des reseaux suivis dans le Terminal mais pas encore tradables (0x ne les gere pas) */
 export const EXTRA_EXPLORERS: Partial<Record<TerminalChain, string>> = { robinhood: "https://robinhoodchain.blockscout.com" };
+/** Logos choisis par OM pour certains tokens (prioritaires sur ceux des sources) */
+export const LOGO_OVERRIDES: Record<string, string> = {
+  ANTBTZQ1EUuTxUs3tfeampxdqTWPHmwyJmcWj4xoAyNe: "/tokens/ant.png", // ANT, Anthropic (Backpack Securities)
+};
+export const logoFor = (mint: string, logo: string | null | undefined): string | null => LOGO_OVERRIDES[mint] ?? logo ?? null;
+
 export const CHAINS: { id: TerminalChain; name: string; logo: string; ready: boolean }[] = [
   { id: "solana", name: "Solana", logo: "/chains/solana.png", ready: true },
   { id: "arc", name: "Arc", logo: "/chains/arc.png", ready: true },

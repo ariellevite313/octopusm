@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { CHAINS, GT_NET, type TerminalChain } from "@/lib/terminal";
+import { CHAINS, GT_NET, logoFor, type TerminalChain } from "@/lib/terminal";
 import type { Pulse, PulseToken } from "@/lib/terminal-pulse";
 import { onNewToken, onTokenTrade, solUsd } from "@/lib/pumpportal";
 
@@ -32,8 +32,8 @@ function Row({ t, onOpen, flash }: { t: PulseToken; onOpen: (t: PulseToken) => v
   const dex = t.dexId !== "om" && t.mint.endsWith("BAGS") ? "bags" : t.dexId;
   return (
     <button onClick={() => onOpen(t)} className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors duration-700 hover:bg-muted/50 ${flash ? "bg-up/10" : ""}`}>
-      {t.logo
-        ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={t.logo} alt="" className="size-10 shrink-0 rounded-lg bg-muted object-cover" />
+      {logoFor(t.mint, t.logo)
+        ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={logoFor(t.mint, t.logo) ?? ""} alt="" className="size-10 shrink-0 rounded-lg bg-muted object-cover" />
         : <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-[12px] font-bold text-muted-foreground">{t.symbol.slice(0, 2).toUpperCase()}</span>}
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 text-[14px] font-bold text-foreground"><span className="truncate">{t.symbol}</span><span className="num shrink-0 text-[12px] font-medium text-muted-foreground">{age(t.createdAt)}</span></p>
