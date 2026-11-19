@@ -87,6 +87,7 @@ function fmtAddr(addr: string): string {
 /** Libellé d'une ligne de referral_commissions : parrainage, achat de token (trade:…) ou partage (share:…). */
 function commLabel(ref: string | null): string {
   if (ref?.startsWith("trade:post:")) return "Post trade reward";
+  if (ref?.startsWith("trade:cashback:")) return "Cashback on your trade";
   if (ref?.startsWith("trade:")) return "Referral · token buy";
   if (ref?.startsWith("share:")) return "Feed share reward";
   return "Referral commission";

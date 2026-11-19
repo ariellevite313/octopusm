@@ -65,10 +65,11 @@ function Tile({ label, badge, onClick, children }: { label: string; badge?: stri
   );
 }
 
-export function WalletHome({ wallet, name, avatar, octo }: { wallet: string; name: string; avatar: string | null; octo: number }) {
+export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: string; name: string; avatar: string | null; octo: number; active?: string }) {
   const { tr } = useT();
   const router = useRouter();
-  const pathname = usePathname();
+  const currentPath = usePathname();
+  const pathname = active ?? currentPath;
   const [bags, setBags] = useState<Bags | null>(null);
   const [bal, setBal] = useState<Bal | null>(null);
   const [fees, setFees] = useState<Fees | null>(null);

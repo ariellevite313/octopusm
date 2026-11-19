@@ -331,14 +331,16 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
       {isArc && <div id="arc-fees"><ArcFeesTabs /></div>}
       {isArc && <ArcHolderHoldings />}
       {hasPending && !isArc && (
-        <button onClick={handleClaimAll} disabled={claimingAll}
-          className="flex w-full items-center justify-between rounded-2xl bg-muted px-4 py-3.5 text-left disabled:opacity-60">
-          <span className="text-[15px] text-muted-foreground">{tr("Creator fees to claim")}</span>
-          <span className="num flex items-center gap-2 text-[15px] font-bold text-foreground">
-            {claimingAll && <Loader2 className="size-4 animate-spin" />}+{fmt(pending.total)}
-            <span className="rounded-full bg-foreground px-3 py-1 text-[13px] text-background">{tr("Claim all")}</span>
-          </span>
-        </button>
+        <div className="flex items-center justify-between gap-3 rounded-[22px] bg-muted px-4 py-3.5">
+          <div className="min-w-0">
+            <p className="text-[13px] text-muted-foreground">{tr("Creator fees to claim")}</p>
+            <p className="num text-[19px] font-bold text-foreground">{Number(pending.total.toFixed(4))} {currency}</p>
+          </div>
+          <button onClick={handleClaimAll} disabled={claimingAll}
+            className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-foreground px-5 text-[15px] font-bold text-background disabled:opacity-60">
+            {claimingAll && <Loader2 className="size-4 animate-spin" />}{tr("Claim all")}
+          </button>
+        </div>
       )}
       {tabsRow}
       </>) : (<>
