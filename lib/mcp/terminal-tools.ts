@@ -10,6 +10,7 @@ import { pulse } from "@/lib/terminal-pulse";
 import { GT_NET, type TerminalChain } from "@/lib/terminal";
 import { activeOrders } from "@/lib/swap/jup-trigger";
 import { activeTwaps } from "@/lib/swap/jup-recurring";
+import { getBook } from "@/lib/terminal-book";
 
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
 const ADDR = /^([1-9A-HJ-NP-Za-km-z]{32,44}|0x[0-9a-fA-F]{40})$/;
@@ -145,6 +146,20 @@ export const TERMINAL_TOOLS: McpTool[] = [
       if (!/^[0-9a-f-]{36}$/i.test(String(a.id ?? ""))) throw new ToolError("Invalid id");
       await db().from("tracked_wallets").delete().eq("id", a.id).eq("owner", w);
       return { ok: true };
+    },
+  },
+  {
+    name: "get_order_book",
+    description: "Order book of a Solana token as shown in the OMdotfun Terminal (Limit mode): for each market cap level above and below the current one, the SOL needed to move the pool there (pool depth), plus limit orders placed on OMdotfun (marked om: true; amounts and levels only, never wallets). It is an estimate from pool depth, not a real exchange order book. Not investment advice.",
+    readOnly: true,
+    inputSchema: S({ mint: { type: "string", description: "Solana token mint address" } }, ["mint"]),
+    run: async (a) => {
+      const mint = String(a.mint ?? "").trim();
+      if (!SOL.test(mint)) throw new ToolError("mint must be a Solana token address");
+      const b = await getBook(db(), mint).catch(() => null);
+      if (!b) throw new ToolError("Price not available for this token");
+      const r = (x: { mcap: number; sol: number; om: boolean }) => ({ market_cap_usd: Math.round(x.mcap), sol: Number(x.sol.toPrecision(3)), om: x.om });
+      return { market_cap_usd: Math.round(b.mcap), price_usd: b.price, asks: b.asks.map(r), bids: b.bids.map(r) };
     },
   },
   {

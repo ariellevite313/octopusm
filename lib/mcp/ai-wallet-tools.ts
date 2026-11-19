@@ -28,7 +28,7 @@ const slip = (v: unknown) => (v === undefined ? undefined : Math.min(1000, Math.
 export const AI_WALLET_TOOLS: McpTool[] = [
   {
     name: "ai_wallet",
-    description: "Your own OMdotfun wallet (created by your human): Solana address and EVM address (same address on Arc, Base, BNB Chain, HyperEVM, Ethereum, Arbitrum, Polygon, Avalanche), balances on every chain, limits per action and per day, what you are allowed to do, and whether it is paused.",
+    description: "Your own OMdotfun wallet (created by your human; one permanent wallet per human, its address never changes, even if you are reconnected): Solana address and EVM address (same address on Arc, Base, BNB Chain, HyperEVM, Ethereum, Arbitrum, Polygon, Avalanche), balances on every chain, limits per action and per day, what you are allowed to do, and whether it is paused.",
     readOnly: true,
     inputSchema: S({}),
     run: async (_a, ctx) => {
@@ -37,7 +37,8 @@ export const AI_WALLET_TOOLS: McpTool[] = [
         solana_address: w.sol_address, arc_address: w.evm_address, balances: await balances(w),
         limits: { per_action_usd: Number(w.max_action_usd), per_day_usd: Number(w.max_day_usd) },
         allowed: { trade: w.allow_trade, launch: w.allow_launch, bet_and_markets: w.allow_bet }, paused: w.paused,
-        note: "These tools act as YOUR account (your own profile), not your human's. Withdrawals can only go back to your human.",
+        idle_return_days: 30,
+        note: "These tools act as YOUR account (your own profile), not your human's. Withdrawals can only go back to your human. If there is no activity for 30 days (no action by you, and your human does not connect to OMdotfun or open your wallet), the whole balance is sent back to your human automatically: keep acting, or tell your human, if you need the funds to stay.",
       };
     },
   },
