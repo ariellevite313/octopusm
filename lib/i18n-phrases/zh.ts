@@ -1689,5 +1689,18 @@ const p: Record<string, string> = {
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "OM 限价单。其他行：把池子推到该价位所需的 SOL。",
   "Currency": "货币",
   "Trades are slow to load, retrying...": "交易加载较慢，正在重试...",
+  "Cursor": "光标",
+  "Horizontal line": "水平线",
+  "Trend line": "趋势线",
+  "Fib retracement": "斐波那契回撤",
+  "Clear drawings": "清除绘图",
+  "Click the chart to place the line": "点击图表放置线条",
+  "Click the second point": "点击第二个点",
+  "Click the low, then the high": "先点击最低点，再点击最高点",
+  "Click the first point": "点击第一个点",
+  "Click a Fibonacci level or a line to set your limit order there.": "点击斐波那契水平或线条，在该处设置限价单。",
+  "Line": "线",
+  "Limit orders are available on Solana tokens.": "限价单仅适用于 Solana 代币。",
+  "Market cap not available for this token.": "该代币暂无市值。",
 };
 export default p;

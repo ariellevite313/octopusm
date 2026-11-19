@@ -41,9 +41,13 @@ export async function signAndSend(txB64: string, requestId: string, walletType: 
  * Ordres limités : acheter quand la capitalisation descend à un niveau, ou vendre (prise de profit ou stop) quand elle l'atteint.
  * Jupiter garde l'ordre et l'exécute tout seul, même si l'utilisateur n'est plus sur OM.
  */
-export function LimitSheet({ mint, symbol, mcap, walletType }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType }) {
+/** Ordre préparé depuis le graphique (niveau Fibonacci ou ligne) : sens, capitalisation cible, libellé ; n change à chaque clic */
+export type LimitPreset = { side: "buy" | "sell"; mcap: number; label: string; n: number };
+
+export function LimitSheet({ mint, symbol, mcap, walletType, preset }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset?: LimitPreset | null }) {
   const { tr } = useT();
   const [mode, setMode] = useState<"limit" | "twap">("limit");
+  useEffect(() => { if (preset) setMode("limit"); }, [preset]);
   return (
     <div>
       <div className="mb-3 flex gap-5">
@@ -51,7 +55,7 @@ export function LimitSheet({ mint, symbol, mcap, walletType }: { mint: string; s
           <button key={m} onClick={() => setMode(m)} className={`text-[16px] font-semibold ${mode === m ? "text-foreground" : "text-muted-foreground"}`}>{m === "limit" ? tr("Limit") : "TWAP"}</button>
         ))}
       </div>
-      {mode === "limit" ? <LimitForm mint={mint} symbol={symbol} mcap={mcap} walletType={walletType} /> : <TwapPanel mint={mint} symbol={symbol} walletType={walletType} />}
+      {mode === "limit" ? <LimitForm mint={mint} symbol={symbol} mcap={mcap} walletType={walletType} preset={preset ?? null} /> : <TwapPanel mint={mint} symbol={symbol} walletType={walletType} />}
     </div>
   );
 }
@@ -74,11 +78,16 @@ function BookLine({ r, ask, max, onPick }: { r: BookRow; ask: boolean; max: numb
   );
 }
 
-function LimitForm({ mint, symbol, mcap: mcap0, walletType }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType }) {
+function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset: LimitPreset | null }) {
   const { tr } = useT();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [target, setTarget] = useState("");
+  const [tag, setTag] = useState<string | null>(null);
+  useEffect(() => {
+    if (!preset || !(preset.mcap > 0)) return;
+    setSide(preset.side); setTarget(String(round3(preset.mcap))); setTag(preset.label); setAmount("");
+  }, [preset]);
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [book, setBook] = useState<Book | null>(null);
@@ -159,8 +168,8 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType }: { mint: string; sy
 
           <div className="mt-2 flex h-12 items-center justify-between rounded-xl bg-muted pl-3 pr-2">
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold text-muted-foreground">{tr("Target MC")}</p>
-              <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder={mcap ? money(round3(mcap * (side === "buy" ? 0.9 : 1.5))).slice(1) : "500k"} className="num w-full bg-transparent text-[14px] font-bold outline-none" />
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">{tr("Target MC")}{tag && <span className="rounded bg-foreground px-1.5 py-px text-[9px] font-bold text-background">{tag}</span>}</p>
+              <input inputMode="decimal" value={target} onChange={(e) => { setTarget(e.target.value); setTag(null); }} placeholder={mcap ? money(round3(mcap * (side === "buy" ? 0.9 : 1.5))).slice(1) : "500k"} className="num w-full bg-transparent text-[14px] font-bold outline-none" />
             </div>
             <div className="flex items-center text-muted-foreground">
               <button onClick={() => nudge(-1)} aria-label="-" className="p-1 hover:text-foreground"><Minus className="size-4" /></button>

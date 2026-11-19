@@ -2423,5 +2423,18 @@ const p: Record<string, string> = {
   "Team sales are only tracked on Solana": "Les ventes de l'équipe ne sont suivies que sur Solana",
   "Currency": "Monnaie",
   "Trades are slow to load, retrying...": "Les trades chargent lentement, nouvel essai...",
+  "Cursor": "Curseur",
+  "Horizontal line": "Ligne horizontale",
+  "Trend line": "Ligne de tendance",
+  "Fib retracement": "Retracement de Fibonacci",
+  "Clear drawings": "Effacer les tracés",
+  "Click the chart to place the line": "Cliquez sur le graphique pour placer la ligne",
+  "Click the second point": "Cliquez sur le deuxième point",
+  "Click the low, then the high": "Cliquez sur le plus bas, puis sur le plus haut",
+  "Click the first point": "Cliquez sur le premier point",
+  "Click a Fibonacci level or a line to set your limit order there.": "Cliquez sur un niveau de Fibonacci ou une ligne pour y placer votre ordre limite.",
+  "Line": "Ligne",
+  "Limit orders are available on Solana tokens.": "Les ordres limites sont disponibles sur les tokens Solana.",
+  "Market cap not available for this token.": "Capitalisation indisponible pour ce token.",
 };
 export default p;

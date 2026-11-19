@@ -1689,5 +1689,18 @@ const p: Record<string, string> = {
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "Лимитные ордера OM. Остальные строки: сколько SOL нужно, чтобы довести пул до этого уровня.",
   "Currency": "Валюта",
   "Trades are slow to load, retrying...": "Сделки загружаются медленно, повторяем...",
+  "Cursor": "Курсор",
+  "Horizontal line": "Горизонтальная линия",
+  "Trend line": "Линия тренда",
+  "Fib retracement": "Коррекция Фибоначчи",
+  "Clear drawings": "Очистить рисунки",
+  "Click the chart to place the line": "Нажмите на график, чтобы поставить линию",
+  "Click the second point": "Нажмите на вторую точку",
+  "Click the low, then the high": "Нажмите на минимум, затем на максимум",
+  "Click the first point": "Нажмите на первую точку",
+  "Click a Fibonacci level or a line to set your limit order there.": "Нажмите на уровень Фибоначчи или линию, чтобы поставить там лимитный ордер.",
+  "Line": "Линия",
+  "Limit orders are available on Solana tokens.": "Лимитные ордера доступны для токенов Solana.",
+  "Market cap not available for this token.": "Капитализация для этого токена недоступна.",
 };
 export default p;

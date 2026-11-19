@@ -35,7 +35,8 @@ import { SecurityCard } from "./security-card";
 import { PulseView } from "./pulse";
 import { Positions } from "./positions";
 import { AlertSheet } from "./alert-sheet";
-import { LimitSheet } from "./limit-sheet";
+import { LimitSheet, type LimitPreset } from "./limit-sheet";
+import { ProChart } from "./pro-chart";
 import { TopPublisher } from "@/components/admin/top-publisher";
 import { TokenPredictions } from "./token-predictions";
 import { AdvFiltersForm, useAdvFilters } from "./advanced-filters";
@@ -423,7 +424,10 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const { walletAddress, walletType, isAuthenticated } = useAuth();
   const [t, setT] = useState<TerminalToken | null>(fromList);
   const [info, setInfo] = useState<SwapToken | null>(null);
-  const [range, setRange] = useState<TRange>("1D");
+  const [range, setRangeRaw] = useState<TRange>("1D");
+  // Les réglages du graphique restent après un rafraîchissement ou une reconnexion
+  useEffect(() => { try { const v = localStorage.getItem("om_chart_range") as TRange | null; if (v && T_RANGES.includes(v)) setRangeRaw(v); } catch { /* ignore */ } }, []);
+  const setRange = (v: TRange) => { setRangeRaw(v); try { localStorage.setItem("om_chart_range", v); } catch { /* ignore */ } };
   // Ligne par défaut ; le choix de l'utilisateur (ligne ou chandeliers) est retenu
   const [mode, setMode] = useState<ChartMode>("line");
   useEffect(() => { try { if (localStorage.getItem("om_chart_mode") === "candle") setMode("candle"); } catch { /* ignore */ } }, []);
@@ -443,6 +447,23 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const [tab, setTab] = useState<"trades" | "holders" | "predict" | "feed" | "about">("trades");
   const [shareCard, setShareCard] = useState<{ wallet: string | null } | null>(null);
   const [sheet, setSheet] = useState<"swap" | "quick" | "alert" | "limit" | null>(null);
+  const [preset, setPresetRaw] = useState<LimitPreset | null>(null);
+  // Ordre préparé depuis le graphique : gardé 30 min (rafraîchissement, connexion du wallet)
+  const PKEY = `om_limit_preset:${mint}`;
+  const setPreset = (v: LimitPreset | null) => { setPresetRaw(v); try { if (v) localStorage.setItem(PKEY, JSON.stringify(v)); else localStorage.removeItem(PKEY); } catch { /* ignore */ } };
+  useEffect(() => {
+    try { const v = JSON.parse(localStorage.getItem(`om_limit_preset:${mint}`) ?? "null") as LimitPreset | null; setPresetRaw(v && Date.now() - v.n < 30 * 60_000 ? v : null); } catch { setPresetRaw(null); }
+  }, [mint]);
+  const [waitLimit, setWaitLimit] = useState(false);
+  useEffect(() => { if (waitLimit && isAuthenticated && walletAddress && !walletAddress.startsWith("0x")) { setWaitLimit(false); setSheet("limit"); } }, [waitLimit, isAuthenticated, walletAddress]);
+  // Ordinateur : graphique pro avec outils de dessin (le téléphone garde le graphique simple)
+  const [desk, setDesk] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 1024px)");
+    const on = () => setDesk(m.matches);
+    on(); m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   // Lien « vendre » (alerte stop-loss / take-profit) : ouvre directement la vente
@@ -579,8 +600,21 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           {/* Graphique */}
           {isSol && <DevAlert mint={mint} />}
           {mint !== SOL_MINT && <SecurityCard chain={chain} mint={mint} />}
-          <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>
-          <div className="flex items-center justify-center gap-1 px-4 py-2">
+          {desk && t.pool ? (
+            <div className="mt-4 h-[560px] overflow-hidden rounded-2xl border border-border">
+              <ProChart mint={mint} pool={t.pool} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
+                onLevel={(p, label) => {
+                  if (!isSol || mint === SOL_MINT) { toast.error(tr("Limit orders are available on Solana tokens.")); return; }
+                  const k = t.mcap && t.price ? t.mcap / t.price : 0, cur = live ?? t.price ?? 0;
+                  if (!(k > 0) || !(cur > 0)) { toast.error(tr("Market cap not available for this token.")); return; }
+                  setPreset({ side: p < cur ? "buy" : "sell", mcap: p * k, label, n: Date.now() });
+                  // Pas connecté : l'ordre préparé est gardé et la fiche s'ouvre après la connexion
+                  if (!(isAuthenticated && walletAddress && !walletAddress.startsWith("0x"))) { setWaitLimit(true); window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
+                  setSheet("limit");
+                }} />
+            </div>
+          ) : <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>}
+          <div className={`items-center justify-center gap-1 px-4 py-2 ${desk && t.pool ? "hidden" : "flex"}`}>
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 {r === "LIVE" ? <span className="flex items-center gap-1">LIVE<span className="size-1.5 rounded-full bg-up" /></span> : r}
@@ -640,7 +674,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       </div>)}
 
       {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SwapBox mint={mint} initialSide={sellOpen ? "sell" : "buy"} onSwapped={() => setSheet(null)} />}</Sheet>}
-      {sheet === "limit" && walletType && <Sheet title={`${tr("Orders")} $${t.symbol}`} onClose={() => setSheet(null)}><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} /></Sheet>}
+      {sheet === "limit" && walletType && <Sheet title={`${tr("Orders")} $${t.symbol}`} onClose={() => { setSheet(null); setPreset(null); }}><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} preset={preset} /></Sheet>}
       {sheet === "alert" && <Sheet title={tr("Price alert")} onClose={() => setSheet(null)}><AlertSheet chain={chain} mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} /></Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}
     </div>

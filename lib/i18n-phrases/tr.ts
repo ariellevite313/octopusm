@@ -1689,5 +1689,18 @@ const p: Record<string, string> = {
   "OM limit orders. Other rows: SOL needed to move the pool to that level.": "OM limit emirleri. Diğer satırlar: havuzu o seviyeye taşımak için gereken SOL.",
   "Currency": "Para birimi",
   "Trades are slow to load, retrying...": "İşlemler yavaş yükleniyor, tekrar deneniyor...",
+  "Cursor": "İmleç",
+  "Horizontal line": "Yatay çizgi",
+  "Trend line": "Trend çizgisi",
+  "Fib retracement": "Fibonacci düzeltmesi",
+  "Clear drawings": "Çizimleri temizle",
+  "Click the chart to place the line": "Çizgiyi yerleştirmek için grafiğe tıklayın",
+  "Click the second point": "İkinci noktaya tıklayın",
+  "Click the low, then the high": "Önce dibe, sonra tepeye tıklayın",
+  "Click the first point": "İlk noktaya tıklayın",
+  "Click a Fibonacci level or a line to set your limit order there.": "Limit emrinizi oraya koymak için bir Fibonacci seviyesine veya çizgiye tıklayın.",
+  "Line": "Çizgi",
+  "Limit orders are available on Solana tokens.": "Limit emirleri Solana tokenlerinde kullanılabilir.",
+  "Market cap not available for this token.": "Bu token için piyasa değeri mevcut değil.",
 };
 export default p;
