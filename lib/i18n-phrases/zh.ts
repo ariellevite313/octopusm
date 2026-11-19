@@ -1743,5 +1743,12 @@ const p: Record<string, string> = {
   "pending": "待处理",
   "For a limit buy, the target must be below the current price.": "限价买入时，目标价必须低于当前价格。",
   "For a limit sell, the target must be above the current price.": "限价卖出时，目标价必须高于当前价格。",
+  "Black": "黑色",
+  "White": "白色",
+  "Blue": "蓝色",
+  "Orange": "橙色",
+  "Yellow": "黄色",
+  "Green": "绿色",
+  "Pink": "粉色",
 };
 export default p;

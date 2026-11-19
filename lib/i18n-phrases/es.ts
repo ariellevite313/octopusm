@@ -1743,5 +1743,12 @@ const p: Record<string, string> = {
   "pending": "pendiente",
   "For a limit buy, the target must be below the current price.": "Para una compra límite, el objetivo debe estar por debajo del precio actual.",
   "For a limit sell, the target must be above the current price.": "Para una venta límite, el objetivo debe estar por encima del precio actual.",
+  "Black": "Negro",
+  "White": "Blanco",
+  "Blue": "Azul",
+  "Orange": "Naranja",
+  "Yellow": "Amarillo",
+  "Green": "Verde",
+  "Pink": "Rosa",
 };
 export default p;

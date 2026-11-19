@@ -23,6 +23,11 @@ const KINDS: { id: Kind; label: string }[] = [
 ];
 const PERIODS: { id: Period; label: string }[] = [{ id: "day", label: "Day" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }];
 const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, { id: "stocks", name: "Stocks", logo: "/chains/solana.png" }, ...CHAINS.filter((c) => GT_NET[c.id]).map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
+/** Couleurs de l'image (même liste que lib/og/top-card.tsx) */
+const COLORS: { id: string; label: string; bg: string }[] = [
+  { id: "dark", label: "Black", bg: "#050505" }, { id: "white", label: "White", bg: "#fafaf8" }, { id: "blue", label: "Blue", bg: "#1747c9" },
+  { id: "orange", label: "Orange", bg: "#f26a12" }, { id: "yellow", label: "Yellow", bg: "#ffd21f" }, { id: "green", label: "Green", bg: "#0f9b55" }, { id: "pink", label: "Pink", bg: "#e93a8c" },
+];
 const hasPeriod = (k: Kind) => k === "volume" || k === "gainers" || k === "losers";
 const devOk = (s: string) => s === "om" || s === "solana";
 
@@ -42,6 +47,8 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
   const [share, setShare] = useState(false);
   // Texte qui accompagne l'image (modifiable), avec les tickers du classement
   const [caption, setCaption] = useState("");
+  const [color, setColor] = useState("dark");
+  const q = color === "dark" ? "" : `?theme=${color}`;
   if (!isAdmin) return null;
 
   const reset = () => setId(null);
@@ -98,7 +105,14 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
             {id ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/og/top/${id}`} alt="" className="mt-4 w-full rounded-2xl bg-muted" style={{ aspectRatio: "1080 / 1350" }} />
+                <img src={`/api/og/top/${id}${q}`} alt="" className="mt-4 w-full rounded-2xl bg-muted" style={{ aspectRatio: "1080 / 1350" }} />
+                <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Color")}</p>
+                <div className="mt-1.5 flex gap-2">
+                  {COLORS.map((c) => (
+                    <button key={c.id} onClick={() => setColor(c.id)} aria-label={tr(c.label)} title={tr(c.label)}
+                      className={`size-9 rounded-full border border-border ${color === c.id ? "ring-2 ring-foreground ring-offset-2 ring-offset-background" : ""}`} style={{ background: c.bg }} />
+                  ))}
+                </div>
                 <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Text")}</p>
                 <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 1000))} rows={7}
                   className="mt-1.5 w-full resize-y rounded-2xl bg-muted px-3.5 py-3 text-[14px] leading-snug text-foreground outline-none" />
@@ -117,8 +131,8 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
         document.body,
       )}
       {id && (
-        <ShareSheet open={share} onClose={() => setShare(false)} portrait images={[`/api/og/top/${id}`]} url={`/share/top/${id}`}
-          text={caption.trim() || text} perks={[]} fileName={`omdot-top10-${source}-${kind}.png`} />
+        <ShareSheet open={share} onClose={() => setShare(false)} portrait images={[`/api/og/top/${id}${q}`]} url={`/share/top/${id}${q}`}
+          text={caption.trim() || text} perks={[]} fileName={`omdot-top10-${source}-${kind}-${color}.png`} />
       )}
     </>
   );

@@ -1743,5 +1743,12 @@ const p: Record<string, string> = {
   "pending": "beklemede",
   "For a limit buy, the target must be below the current price.": "Limit alımda hedef mevcut fiyatın altında olmalı.",
   "For a limit sell, the target must be above the current price.": "Limit satışta hedef mevcut fiyatın üstünde olmalı.",
+  "Black": "Siyah",
+  "White": "Beyaz",
+  "Blue": "Mavi",
+  "Orange": "Turuncu",
+  "Yellow": "Sarı",
+  "Green": "Yeşil",
+  "Pink": "Pembe",
 };
 export default p;

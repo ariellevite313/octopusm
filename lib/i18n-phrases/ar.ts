@@ -1743,5 +1743,12 @@ const p: Record<string, string> = {
   "pending": "قيد الانتظار",
   "For a limit buy, the target must be below the current price.": "في الشراء المحدد يجب أن يكون الهدف أقل من السعر الحالي.",
   "For a limit sell, the target must be above the current price.": "في البيع المحدد يجب أن يكون الهدف أعلى من السعر الحالي.",
+  "Black": "أسود",
+  "White": "أبيض",
+  "Blue": "أزرق",
+  "Orange": "برتقالي",
+  "Yellow": "أصفر",
+  "Green": "أخضر",
+  "Pink": "وردي",
 };
 export default p;

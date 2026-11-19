@@ -2477,5 +2477,12 @@ const p: Record<string, string> = {
   "pending": "en attente",
   "For a limit buy, the target must be below the current price.": "Pour un achat limité, la cible doit être sous le prix actuel.",
   "For a limit sell, the target must be above the current price.": "Pour une vente limitée, la cible doit être au-dessus du prix actuel.",
+  "Black": "Noir",
+  "White": "Blanc",
+  "Blue": "Bleu",
+  "Orange": "Orange",
+  "Yellow": "Jaune",
+  "Green": "Vert",
+  "Pink": "Rose",
 };
 export default p;
