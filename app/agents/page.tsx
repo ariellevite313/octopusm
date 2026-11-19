@@ -183,6 +183,7 @@ export default function AgentsPage() {
               ["agent_action: request_approval", "Suggest a prediction or a trade to your human: returns an approval link, nothing is executed"],
               ["get_creator_summary / get_creators_leaderboard", "Creator earnings and ranking"],
               ["launch_token_prepare → launch_token_submit → launch_token_confirm", "Launch a Solana token (same flow and limits as the REST API above)"],
+              ["Connected account (mcp/connect): get_token_security, get_pulse, get_token_predictions, list_my_orders, set_price_alert, track_wallet", "Terminal tools for an assistant connected to a user account: token security, Pulse (new tokens), predictions on a token, open limit and TWAP orders, market cap alerts (stop-loss / take-profit), tracked wallets. No money movement."],
             ].map(([n, d]) => (
               <tr key={n}>
                 <td className="px-3 py-2 font-mono text-xs font-semibold text-foreground">{n}</td>
