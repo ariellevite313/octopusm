@@ -39,7 +39,8 @@ async function fetchDexStats(mint: string): Promise<TokenStats | null> {
     if (!pair) return null;
     return {
       priceUsd:  pair.priceUsd   != null ? parseFloat(pair.priceUsd)   : null,
-      marketCap: pair.marketCap  != null ? parseFloat(pair.marketCap)  : null,
+      // Capitalisation, sinon FDV (sinon une ancienne valeur, parfois fausse, n'est jamais remplacée)
+      marketCap: pair.marketCap != null ? parseFloat(pair.marketCap) : pair.fdv != null ? parseFloat(pair.fdv) : null,
       volume24h: pair.volume?.h24 != null ? parseFloat(pair.volume.h24) : null,
     };
   } catch {
@@ -61,7 +62,7 @@ async function fetchGeckoStats(mint: string): Promise<TokenStats | null> {
     if (!a) return null;
     return {
       priceUsd:  a.price_usd       != null ? parseFloat(a.price_usd)       : null,
-      marketCap: a.market_cap_usd  != null ? parseFloat(a.market_cap_usd)  : null,
+      marketCap: a.market_cap_usd != null ? parseFloat(a.market_cap_usd) : a.fdv_usd != null ? parseFloat(a.fdv_usd) : null,
       volume24h: a.volume_usd?.h24 != null ? parseFloat(a.volume_usd.h24)  : null,
     };
   } catch {

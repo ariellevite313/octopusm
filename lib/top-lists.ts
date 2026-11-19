@@ -9,6 +9,7 @@
 import { CHAINS, GT_NET, isSkipped, mapPools, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { analyzeDev } from "@/lib/terminal-dev";
 import { loadTokenTrades } from "@/lib/trade-card";
+import { refreshArcStats } from "@/lib/arc-stats";
 
 export type TopKind = "mcap" | "volume" | "gainers" | "losers" | "dev_sold";
 export type TopPeriod = "day" | "week" | "month";
@@ -69,12 +70,12 @@ async function candidates(chain: TerminalChain): Promise<TerminalToken[]> {
   return out;
 }
 
-/** Bougies journalières d'une pool : [temps ms, ouverture, clôture, volume $], gardées une heure. */
+/** Bougies journalières d'une pool : [temps ms, ouverture, clôture, volume $], gardées 10 minutes. */
 const candleCache = new Map<string, { at: number; v: [number, number, number, number][] }>();
 async function daily(chain: TerminalChain, poolAddr: string): Promise<[number, number, number, number][]> {
   const key = `${chain}:${poolAddr}`;
   const hit = candleCache.get(key);
-  if (hit && Date.now() - hit.at < 3_600_000) return hit.v;
+  if (hit && Date.now() - hit.at < 600_000) return hit.v;
   const j = await gt<{ data?: { attributes?: { ohlcv_list?: number[][] } } }>(`${GT}/networks/${GT_NET[chain]}/pools/${poolAddr}/ohlcv/day?aggregate=1&limit=31&currency=usd`);
   const v = (j?.data?.attributes?.ohlcv_list ?? []).map((c) => [c[0] * 1000, c[1], c[4], c[5]] as [number, number, number, number]).filter((c) => c[2] > 0).sort((a, b) => a[0] - b[0]);
   if (j) candleCache.set(key, { at: Date.now(), v });
@@ -123,40 +124,79 @@ async function chainTop(chain: TerminalChain, kind: TopKind, period: TopPeriod):
 
 type Lt = { id: string; name: string; ticker: string; logo_url: string | null; chain: string | null; mint_address: string | null; creator_wallet: string | null; arc_launch_id: string | null; market_cap_usd: number | null; volume_24h_usd: number | null; price_usd: number | null };
 
- 
+type Live = { price: number | null; mcap: number | null; vol: number | null; pool: string | null };
+/** Chiffres en direct des tokens Solana (GeckoTerminal, 30 adresses par appel) : prix, capitalisation (sinon FDV), volume 24 h, pool principale */
+async function liveSolana(mints: string[]): Promise<Map<string, Live>> {
+  const out = new Map<string, Live>();
+  const n = (v?: string | null) => (v != null && Number.isFinite(Number(v)) ? Number(v) : null);
+  for (let i = 0; i < mints.length; i += 30) {
+    const j = await gt<{ data?: { attributes: { address: string; price_usd?: string | null; market_cap_usd?: string | null; fdv_usd?: string | null; volume_usd?: { h24?: string | null } }; relationships?: { top_pools?: { data?: { id: string }[] } } }[] }>(
+      `${GT}/networks/solana/tokens/multi/${mints.slice(i, i + 30).join(",")}`);
+    for (const d of j?.data ?? []) {
+      const a = d.attributes;
+      out.set(a.address, { price: n(a.price_usd), mcap: n(a.market_cap_usd) ?? n(a.fdv_usd), vol: n(a.volume_usd?.h24), pool: d.relationships?.top_pools?.data?.[0]?.id?.replace(/^solana_/, "") ?? null });
+    }
+  }
+  return out;
+}
+
+/**
+ * Launchpad OM (toutes chaînes). Chiffres pris au moment de la création : Solana en direct (GeckoTerminal),
+ * Arc rafraîchi juste avant. Volume et variation sur la période : le plus complet entre les bougies de la pool
+ * (tous les trades, y compris hors d'OM) et les trades passés par OM.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function omTop(db: any, kind: TopKind, period: TopPeriod, origin: string): Promise<TopRow[]> {
+  // Arc : chiffres rafraîchis avant de lire (20 s au plus)
+  await Promise.race([refreshArcStats(origin).catch(() => null), new Promise((ok) => setTimeout(ok, 20_000))]);
   const { data } = await db.from("launchpad_tokens")
     .select("id, name, ticker, logo_url, chain, mint_address, creator_wallet, arc_launch_id, market_cap_usd, volume_24h_usd, price_usd")
-    .in("status", ["active", "graduating", "graduated"]).eq("is_tradeable", true).not("is_hidden", "is", true)
-    .order("market_cap_usd", { ascending: false, nullsFirst: false }).limit(60);
-  const toks = ((data ?? []) as Lt[]).filter((t) => t.mint_address);
+    .in("status", ["active", "graduating", "graduated"]).eq("is_tradeable", true).not("is_hidden", "is", true).not("mint_address", "is", null).limit(200);
+  const all = (data ?? []) as Lt[];
+  const live = await liveSolana(all.filter((t) => t.chain !== "arc").map((t) => t.mint_address!));
+  for (const t of all) {
+    const l = t.chain !== "arc" ? live.get(t.mint_address!) : null;
+    if (!l) continue;
+    if (l.price != null) t.price_usd = l.price;
+    if (l.mcap != null) t.market_cap_usd = l.mcap;
+    if (l.vol != null) t.volume_24h_usd = Math.max(l.vol, Number(t.volume_24h_usd ?? 0));
+  }
+  const toks = all.sort((a, b) => Number(b.market_cap_usd ?? 0) - Number(a.market_cap_usd ?? 0));
   const r = (t: Lt, value: number): TopRow => ({
-    name: t.name, symbol: t.ticker.replace(/^\$/, ""), logo: t.logo_url ? (t.logo_url.startsWith("/") ? origin + t.logo_url : t.logo_url) : null,
+    name: t.name, symbol: t.ticker.replace(/^\$+/, ""), logo: t.logo_url ? (t.logo_url.startsWith("/") ? origin + t.logo_url : t.logo_url) : null,
     chain: t.chain === "arc" ? "arc" : "solana", mcap: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, value,
   });
-  if (kind === "mcap") return toks.slice(0, 10).map((t) => r(t, Number(t.market_cap_usd ?? 0)));
-  if (kind === "volume" && period === "day") return [...toks].sort((a, b) => Number(b.volume_24h_usd ?? 0) - Number(a.volume_24h_usd ?? 0)).filter((t) => Number(t.volume_24h_usd ?? 0) > 0).slice(0, 10).map((t) => r(t, Number(t.volume_24h_usd)));
+  if (kind === "mcap") return toks.filter((t) => Number(t.market_cap_usd ?? 0) > 0).slice(0, 10).map((t) => r(t, Number(t.market_cap_usd)));
   if (kind === "dev_sold") {
     const sol = toks.filter((t) => t.chain !== "arc").slice(0, 30);
     const devs = await pool(sol, 4, (t) => analyzeDev(t.mint_address!, t.creator_wallet).catch(() => null));
     return sol.map((t, i) => ({ t, d: devs[i] })).filter((x) => x.d && (x.d.status === "sold_all" || x.d.status === "selling") && x.d.soldPct > 0)
       .sort((a, b) => b.d!.soldPct - a.d!.soldPct).slice(0, 10).map((x) => r(x.t, x.d!.status === "sold_all" ? 100 : x.d!.soldPct));
   }
-  // Volume sur la période et variation du prix : trades connus d'OM
   const from = Date.now() - DAYS[period] * 86_400_000;
   const stats = await pool(toks.slice(0, 40), 4, async (t) => {
     const tr = await loadTokenTrades(db, t.chain === "arc" ? "arc" : "solana", t.mint_address!, { id: t.id, chain: t.chain, arc_launch_id: t.arc_launch_id }, undefined, 2000).catch(() => []);
-    const volume = tr.filter((x) => x.tsMs >= from).reduce((s, x) => s + x.usd, 0);
+    let volume = tr.filter((x) => x.tsMs >= from).reduce((s, x) => s + x.usd, 0);
     const before = [...tr].reverse().find((x) => x.tsMs < from) ?? tr.find((x) => x.tsMs >= from);
     const p0 = before && before.tokens > 0 ? before.usd / before.tokens : 0;
     const p1 = Number(t.price_usd ?? 0);
-    return { t, volume, change: p0 > 0 && p1 > 0 ? (p1 / p0 - 1) * 100 : null };
+    let change = p0 > 0 && p1 > 0 ? (p1 / p0 - 1) * 100 : null;
+    if (period === "day") volume = Math.max(volume, Number(t.volume_24h_usd ?? 0));
+    // Bougies de la pool (Solana) : comptent aussi les trades passés hors d'OM
+    const poolAddr = t.chain !== "arc" ? live.get(t.mint_address!)?.pool : null;
+    if (poolAddr && period !== "day") {
+      const c = fromCandles(await daily("solana", poolAddr), DAYS[period]);
+      volume = Math.max(volume, c.volume);
+      if (c.change != null) change = c.change;
+    }
+    return { t, volume, change };
   });
   if (kind === "volume") return stats.filter((x) => x.volume > 0).sort((a, b) => b.volume - a.volume).slice(0, 10).map((x) => r(x.t, x.volume));
   return stats.filter((x) => x.change != null && (kind === "gainers" ? x.change > 0 : x.change < 0))
     .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.change ?? 0) - (a.change ?? 0))).slice(0, 10).map((x) => r(x.t, x.change ?? 0));
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  
 export async function buildTop(db: any, source: TopSource, kind: TopKind, period: TopPeriod, origin: string): Promise<TopRow[]> {
   if (kind === "dev_sold" && !devSoldOk(source)) return [];

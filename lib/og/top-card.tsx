@@ -41,7 +41,8 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
   const chainLogo = new Map(chainLogos);
   const [t1, t2] = topTitle(p.kind, p.period);
   const date = new Date(p.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
-  const sub = [om ? "OM Launchpad · All chains" : chainName(p.source), date].join(" · ");
+  const time = new Date(p.at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
+  const sub = [om ? "OM Launchpad · All chains" : chainName(p.source), `${date}, ${time} UTC`].join(" · ");
   const col2 = om ? "Chain" : "Market cap";
   const col3 = p.kind === "mcap" ? "Market cap" : p.kind === "volume" ? `Volume ${PERIOD[p.period]}` : p.kind === "dev_sold" ? "Team" : `Change ${PERIOD[p.period]}`;
   const max = Math.max(1e-9, ...rows.map((r) => Math.abs(r.value)));
