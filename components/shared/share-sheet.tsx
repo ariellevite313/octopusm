@@ -204,8 +204,8 @@ export function ShareSheet({
           )}
         </div>
 
-        {/* ── Gains de parrainage ─────────────────────────────────────── */}
-        <div className="px-6 pt-6">
+        {/* ── Gains de parrainage (aucun quand perks est vide) ─────────── */}
+        {perks.length > 0 && <div className="px-6 pt-6">
           <Flame className="size-9 fill-[#ff7a1a] text-[#ff7a1a]" />
           <h2 className="mt-3 text-[28px] font-extrabold leading-[1.1] tracking-tight">
             {tr("Share & earn")}<br />{tr("when your friends trade")}
@@ -218,7 +218,7 @@ export function ShareSheet({
               </li>
             ))}
           </ul>
-        </div>
+        </div>}
 
         {/* ── Actions ─────────────────────────────────────────────────── */}
         <div className="flex gap-3 overflow-x-auto px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 [scrollbar-width:none]">

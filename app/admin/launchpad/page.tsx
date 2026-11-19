@@ -3,6 +3,7 @@ import { requireAdmin } from "@/services/admin-service";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { AdminLaunchpadClient } from "@/components/admin/admin-launchpad-client";
+import { TopPublisher } from "@/components/admin/top-publisher";
 
 export const metadata: Metadata = { title: "Launchpad — Admin" };
 export const revalidate = 0;
@@ -56,7 +57,7 @@ export default async function AdminLaunchpadPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">Launchpad Tokens</h1>
+        <div className="flex items-center justify-between gap-3"><h1 className="text-xl font-bold">Launchpad Tokens</h1><TopPublisher defaultSource="om" /></div>
         <p className="text-sm text-muted-foreground mt-1">
           {rows.length} tokens · {pending} pending · {active} active · {graduated} graduated
         </p>

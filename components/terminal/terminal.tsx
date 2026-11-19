@@ -36,6 +36,7 @@ import { PulseView } from "./pulse";
 import { Positions } from "./positions";
 import { AlertSheet } from "./alert-sheet";
 import { LimitSheet } from "./limit-sheet";
+import { TopPublisher } from "@/components/admin/top-publisher";
 import { TokenPredictions } from "./token-predictions";
 import { AdvFiltersForm, useAdvFilters } from "./advanced-filters";
 import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
@@ -198,6 +199,8 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     <div className="px-4 pt-3 lg:px-0 lg:pt-0">
       <BalanceCard />
       <TopTraders />
+      {/* Admin seulement : publier un Top 10 */}
+      <div className="mt-3 flex justify-end empty:hidden"><TopPublisher /></div>
 
       {/* Favoris | Tokens | Up/Down */}
       <div className="sticky top-16 z-20 -mx-4 mt-4 border-b border-border bg-background px-4 lg:top-0 lg:mx-0 lg:px-0">
