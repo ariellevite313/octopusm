@@ -5,8 +5,8 @@
  * mettre en pause, tout retirer vers mon wallet, voir le journal des actions.
  */
 import { fetch2fa } from "@/components/security/two-factor";
-import { useState } from "react";
-import { Copy, Loader2, Pause, Play } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Copy, Loader2, Pause, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 
@@ -40,6 +40,82 @@ function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange:
         <span className={`absolute top-0.5 size-5 rounded-full bg-background shadow transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
       </span>
     </button>
+  );
+}
+
+type Exit = { id: string; mint: string; symbol: string | null; entry_price: number; sl_pct: number | null; tp_x: number | null; tp_sell_pct: number; trail_pct: number | null; tp_done: boolean };
+
+/** Sorties automatiques : l'humain fixe, Janus exécute (Solana) */
+function Exits({ id }: { id: string }) {
+  const { tr } = useT();
+  const [rows, setRows] = useState<Exit[]>([]);
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ mint: "", sl: "", tp: "", tps: "50", trail: "" });
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => { fetch(`/api/agent-wallets/${id}/exits`).then((r) => r.json()).then((j) => setRows(j.exits ?? [])).catch(() => {}); }, [id]);
+  useEffect(() => { load(); }, [load]);
+  async function add() {
+    setBusy(true);
+    try {
+      const r = await fetch2fa(`/api/agent-wallets/${id}/exits`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mint: f.mint.trim(), stop_loss_pct: f.sl, take_profit_x: f.tp, take_profit_sell_pct: f.tps, trailing_pct: f.trail }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Could not save");
+      toast.success(tr("Saved"));
+      setF({ mint: "", sl: "", tp: "", tps: "50", trail: "" }); setOpen(false); load();
+    } catch (e) { toast.error(tr((e as Error).message)); }
+    setBusy(false);
+  }
+  async function cancel(rule: string) {
+    await fetch(`/api/agent-wallets/${id}/exits?rule=${rule}`, { method: "DELETE" }).catch(() => {});
+    load();
+  }
+  const inp = "mt-1 h-10 w-full rounded-lg border border-border bg-background px-2 text-[14px] text-foreground";
+  return (
+    <div className="rounded-xl bg-card p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-bold">{tr("Automatic exits")}</p>
+        <button onClick={() => setOpen(!open)} className="text-[13px] font-bold underline">{open ? tr("Close") : tr("Add")}</button>
+      </div>
+      <p className="mt-1 text-[12px] text-muted-foreground">{tr("You decide, Janus only executes. For a Solana token held by this wallet. Checked every minute, and it sells nothing while the wallet is paused.")}</p>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <label className="block text-[12px] font-semibold text-muted-foreground">{tr("Token address")}
+            <input value={f.mint} onChange={(e) => setF({ ...f, mint: e.target.value })} className={inp} />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-[12px] font-semibold text-muted-foreground">{tr("Stop loss (% drop)")}
+              <input value={f.sl} onChange={(e) => setF({ ...f, sl: e.target.value })} inputMode="decimal" placeholder="25" className={inp} />
+            </label>
+            <label className="text-[12px] font-semibold text-muted-foreground">{tr("Protect gains (% drop from peak)")}
+              <input value={f.trail} onChange={(e) => setF({ ...f, trail: e.target.value })} inputMode="decimal" placeholder="20" className={inp} />
+            </label>
+            <label className="text-[12px] font-semibold text-muted-foreground">{tr("Take profit (x entry)")}
+              <input value={f.tp} onChange={(e) => setF({ ...f, tp: e.target.value })} inputMode="decimal" placeholder="2" className={inp} />
+            </label>
+            <label className="text-[12px] font-semibold text-muted-foreground">{tr("Sell at take profit (%)")}
+              <input value={f.tps} onChange={(e) => setF({ ...f, tps: e.target.value })} inputMode="decimal" className={inp} />
+            </label>
+          </div>
+          <button onClick={add} disabled={busy || !f.mint.trim()} className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[13px] font-bold text-background disabled:opacity-50">
+            {busy && <Loader2 className="size-4 animate-spin" />}{tr("Save")}
+          </button>
+        </div>
+      )}
+      {rows.length > 0 && (
+        <ul className="mt-2 divide-y divide-border">
+          {rows.map((r) => (
+            <li key={r.id} className="flex items-center justify-between gap-2 py-2 text-[12px]">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{r.symbol || `${r.mint.slice(0, 5)}...${r.mint.slice(-4)}`}</p>
+                <p className="text-muted-foreground">{[r.sl_pct != null && `SL -${r.sl_pct}%`, r.tp_x != null && `TP x${r.tp_x}${r.tp_done ? " (done)" : ""}`, r.trail_pct != null && `${tr("Trailing")} -${r.trail_pct}%`].filter(Boolean).join(" · ")}</p>
+              </div>
+              <button onClick={() => cancel(r.id)} aria-label={tr("Cancel")} className="shrink-0 rounded-full bg-muted p-1.5"><X className="size-3.5" /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -136,6 +212,8 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
           <Toggle on={w.allow_bet} label={tr("Bet and create markets")} onChange={(v) => patch({ allow_bet: v }, "b")} />
         </div>
       </div>
+
+      {!ownerIsEvm && <Exits id={w.id} />}
 
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => patch({ paused: !w.paused }, "pause")} disabled={busy === "pause"} className="flex h-11 items-center justify-center gap-2 rounded-full bg-muted text-[14px] font-bold text-foreground">

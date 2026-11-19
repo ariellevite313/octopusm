@@ -53,7 +53,7 @@ export async function walletForConnection(owner: string, _clientId?: string): Pr
   const { data } = await db().from("agent_wallets").select("*").eq("owner", owner).order("created_at", { ascending: true }).limit(1).maybeSingle();
   return (data as AgentWallet) ?? null;
 }
-async function walletOfOwner(owner: string, id: string): Promise<AgentWallet> {
+export async function walletOfOwner(owner: string, id: string): Promise<AgentWallet> {
   const { data } = await db().from("agent_wallets").select("*").eq("owner", owner).eq("id", id).maybeSingle();
   if (!data) throw new AgentWalletError("AI wallet not found");
   return data as AgentWallet;
@@ -229,7 +229,7 @@ async function json(res: Response): Promise<Record<string, unknown>> {
 // ── Actions de l'IA ──────────────────────────────────────────────────────────
 
 /** Swap Terminal (n'importe quel token Solana contre SOL ou USDC), avec les frais OM habituels. */
-export async function aiSwap(w: AgentWallet, p: { mint: string; side: "buy" | "sell"; amount: number; pay_with?: "SOL" | "USDC"; slippage_bps?: number }) {
+export async function aiSwap(w: AgentWallet, p: { mint: string; side: "buy" | "sell"; amount: number; pay_with?: "SOL" | "USDC"; slippage_bps?: number; /** vente : montant exact en unités entières du token (sorties automatiques) */ rawAmount?: bigint; /** texte ajouté au journal */ reason?: string }) {
   if (!Number.isFinite(p.amount) || p.amount <= 0) throw new AgentWalletError("amount must be positive");
   const quote = p.pay_with === "USDC" ? USDC_MINT : SOL_MINT;
   const conn = solanaConnection();
@@ -239,10 +239,10 @@ export async function aiSwap(w: AgentWallet, p: { mint: string; side: "buy" | "s
     usd = quote === SOL_MINT ? await solToUsd(p.amount) : p.amount;
   } else {
     const dec = (await conn.getTokenSupply(new PublicKey(p.mint)).catch(() => { throw new AgentWalletError("Unknown token"); })).value.decimals;
-    raw = BigInt(Math.floor(p.amount * 10 ** dec));
+    raw = p.rawAmount ?? BigInt(Math.floor(p.amount * 10 ** dec));
   }
   const inputMint = p.side === "buy" ? quote : p.mint, outputMint = p.side === "buy" ? p.mint : quote;
-  return guarded(w, "swap", usd, `${p.side} ${p.amount} ${p.side === "buy" ? (quote === SOL_MINT ? "SOL" : "USDC") : "tokens"} of ${p.mint}`, async () => {
+  return guarded(w, "swap", usd, `${p.reason ? `${p.reason}: ` : ""}${p.side} ${p.amount} ${p.side === "buy" ? (quote === SOL_MINT ? "SOL" : "USDC") : "tokens"} of ${p.mint}`, async () => {
     const built = await runAsAgent(w.sol_address, async () => json(await swapTxRoute(internal("/api/swap/tx", { inputMint, outputMint, amount: raw.toString(), slippageBps: p.slippage_bps ?? 100 }))));
     const sig = await sendSolana(signSolana(String(built.tx), solKeypair(w.sol_secret)));
     await runAsAgent(w.sol_address, async () => swapRecordRoute(internal("/api/swap/record", { signature: sig, inputMint, outputMint }))).catch(() => {});

@@ -13,6 +13,7 @@ import { PublicKey } from "@solana/web3.js";
 import { runRugAlerts } from "@/lib/rug-alerts";
 import { runTokenPools, seedOmTokenPools } from "@/lib/market/token-pools";
 import { sweepIdleWallets } from "@/lib/agent-wallet/idle";
+import { runAgentExits } from "@/lib/agent-wallet/exits";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -122,14 +123,14 @@ export async function GET(req: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   const deadline = Date.now() + 45_000;
-  const [alerts, trades, rug, pools] = await Promise.all([
+  const [alerts, trades, rug, pools, exits] = await Promise.all([
     runAlerts(db).catch(() => -1), runTracked(db, deadline).catch(() => -1), runRugAlerts(db, deadline).catch(() => -1),
-    runTokenPools(db, deadline).catch(() => null),
+    runTokenPools(db, deadline).catch(() => null), runAgentExits(db, deadline).catch(() => null),
   ]);
   // Toutes les 10 minutes : pools automatiques pour les tokens OM qui n'en ont pas
   const seeded = new Date().getUTCMinutes() % 10 === 0 ? await seedOmTokenPools(db, deadline).catch(() => -1) : 0;
   // Une fois par jour (vers 03:00 UTC) : les wallets d'IA inactifs depuis 30 jours renvoient leurs fonds à leur humain
   const now = new Date();
   const idle = now.getUTCHours() === 3 && now.getUTCMinutes() < 2 ? await sweepIdleWallets(db, deadline).catch(() => null) : null;
-  return NextResponse.json({ alerts, trades, rug, pools, seeded, idle });
+  return NextResponse.json({ alerts, trades, rug, pools, seeded, idle, exits });
 }

@@ -6,6 +6,7 @@
 import { ToolError, type McpTool, type ToolCtx } from "@/lib/mcp/tools";
 import { AgentWalletError, aiBet, aiCreateMarket, aiLaunch, aiSwap, aiSwapArc, aiSwapEvm, aiTradeOm, balances, walletForConnection, type AgentWallet } from "@/lib/agent-wallet/server";
 import { AgentKeyError } from "@/lib/agent-wallet/keys";
+import { listExits } from "@/lib/agent-wallet/exits";
 
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -75,6 +76,17 @@ export const AI_WALLET_TOOLS: McpTool[] = [
       if (!/^0x[0-9a-fA-F]{40}$/.test(token)) throw new ToolError("token must be an Arc contract address");
       const w = await mine(ctx);
       return run(() => aiSwapArc(w, { token, side: side(a.side), amount: amt(a.amount), slippage_bps: slip(a.slippage_bps) }));
+    },
+  },
+  {
+    name: "ai_list_exits",
+    description: "The automatic exit rules (stop loss, take profit, protection of gains) your human set for your wallet. You do not create or change them: Janus only executes what the human decided, on its own, even when nobody is watching. Active ones, or all recent ones with how they ended (include_closed).",
+    readOnly: true,
+    inputSchema: S({ include_closed: { type: "boolean" } }),
+    run: async (a, ctx) => {
+      const w = await mine(ctx);
+      const rows = await run(() => listExits(w, a.include_closed === true));
+      return { exits: rows.map((r) => ({ id: r.id, mint: r.mint, symbol: r.symbol, entry_price_usd: Number(r.entry_price), highest_price_usd: Number(r.peak_price), stop_loss_pct: r.sl_pct, take_profit_x: r.tp_x, take_profit_sell_pct: r.tp_x ? Number(r.tp_sell_pct) : null, take_profit_done: r.tp_done, trailing_pct: r.trail_pct, status: r.status, ended_because: r.close_reason, last_error: r.last_error })) };
     },
   },
   {
