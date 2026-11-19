@@ -44,8 +44,13 @@ const MARKET_FEE_USDC = 0.5;
 
 // ── Lecture ──────────────────────────────────────────────────────────────────
 
-export async function walletForConnection(owner: string, clientId: string): Promise<AgentWallet | null> {
-  const { data } = await db().from("agent_wallets").select("*").eq("owner", owner).eq("client_id", clientId).maybeSingle();
+/**
+ * Le wallet de l'IA d'un humain : un seul par adresse humaine, toujours le même (le plus ancien), quelle que soit l'application IA
+ * (Claude, Grok…) ou la reconnexion : reconnecter l'IA avec une nouvelle inscription ne crée jamais une autre adresse.
+ * Les wallets d'IA ne sont jamais supprimés.
+ */
+export async function walletForConnection(owner: string, _clientId?: string): Promise<AgentWallet | null> {
+  const { data } = await db().from("agent_wallets").select("*").eq("owner", owner).order("created_at", { ascending: true }).limit(1).maybeSingle();
   return (data as AgentWallet) ?? null;
 }
 async function walletOfOwner(owner: string, id: string): Promise<AgentWallet> {
