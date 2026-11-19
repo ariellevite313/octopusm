@@ -10,17 +10,18 @@ import { CHAINS, GT_NET, isSkipped, mapPools, type TerminalChain, type TerminalT
 import { analyzeDev } from "@/lib/terminal-dev";
 import { loadTokenTrades } from "@/lib/trade-card";
 import { refreshArcStats } from "@/lib/arc-stats";
+import { stocksList } from "@/lib/terminal-stocks";
 
 export type TopKind = "mcap" | "volume" | "gainers" | "losers" | "dev_sold";
 export type TopPeriod = "day" | "week" | "month";
-export type TopSource = "om" | TerminalChain;
+export type TopSource = "om" | "stocks" | TerminalChain;
 export type TopRow = { name: string; symbol: string; logo: string | null; chain: string; mcap: number | null; value: number };
 
 export const TOP_KINDS: TopKind[] = ["mcap", "volume", "gainers", "losers", "dev_sold"];
 export const TOP_PERIODS: TopPeriod[] = ["day", "week", "month"];
 /** Chaînes du Terminal disponibles (celles que GeckoTerminal couvre) */
 export const TOP_CHAINS = CHAINS.filter((c) => GT_NET[c.id]).map((c) => c.id);
-export const isSource = (s: string): s is TopSource => s === "om" || (TOP_CHAINS as string[]).includes(s);
+export const isSource = (s: string): s is TopSource => s === "om" || s === "stocks" || (TOP_CHAINS as string[]).includes(s);
 /** Le classement par capitalisation et « vendus par l'équipe » n'ont pas de période */
 export const hasPeriod = (k: TopKind) => k === "volume" || k === "gainers" || k === "losers";
 /** « Vendus par l'équipe » : lecture des ventes du dev, possible sur Solana (et les tokens OM sur Solana) */
@@ -196,9 +197,35 @@ async function omTop(db: any, kind: TopKind, period: TopPeriod, origin: string):
     .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.change ?? 0) - (a.change ?? 0))).slice(0, 10).map((x) => r(x.t, x.change ?? 0));
 }
 
+/**
+ * Actions tokenisées (Solana, émetteurs reconnus : xStocks, Ondo, Backpack). Jour : chiffres de Jupiter ;
+ * semaine et mois : bougies journalières de la pool principale (GeckoTerminal) des 20 plus échangées.
+ */
+async function stocksTop(kind: TopKind, period: TopPeriod): Promise<TopRow[]> {
+  const list = (await stocksList("")).filter((t) => (t.liquidity ?? 0) >= 1_000);
+  const byVol = [...list].sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0));
+  if (kind === "mcap") return list.filter((t) => (t.mcap ?? 0) > 0).sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0)).slice(0, 10).map((t) => row(t, t.mcap ?? 0));
+  if (kind === "dev_sold") return [];
+  if (period === "day") {
+    if (kind === "volume") return byVol.filter((t) => (t.volume24h ?? 0) > 0).slice(0, 10).map((t) => row(t, t.volume24h ?? 0));
+    return list.filter((t) => t.change24h != null && (kind === "gainers" ? t.change24h > 0 : t.change24h < 0))
+      .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.change24h ?? 0) - (a.change24h ?? 0))).slice(0, 10).map((t) => row(t, t.change24h ?? 0));
+  }
+  const pick = byVol.slice(0, 20);
+  const live = await liveSolana(pick.map((t) => t.mint));
+  const stats = await pool(pick, 4, async (t) => {
+    const p = live.get(t.mint)?.pool;
+    return p ? fromCandles(await daily("solana", p), DAYS[period]) : { change: null, volume: 0 };
+  });
+  const all = pick.map((t, i) => ({ t, s: stats[i] }));
+  if (kind === "volume") return all.filter((x) => x.s.volume > 0).sort((a, b) => b.s.volume - a.s.volume).slice(0, 10).map((x) => row(x.t, x.s.volume));
+  return all.filter((x) => x.s.change != null && (kind === "gainers" ? x.s.change > 0 : x.s.change < 0))
+    .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.s.change ?? 0) - (a.s.change ?? 0)))
+    .slice(0, 10).map((x) => row(x.t, x.s.change ?? 0));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
- 
 export async function buildTop(db: any, source: TopSource, kind: TopKind, period: TopPeriod, origin: string): Promise<TopRow[]> {
   if (kind === "dev_sold" && !devSoldOk(source)) return [];
-  return source === "om" ? omTop(db, kind, period, origin) : chainTop(source, kind, period);
+  return source === "om" ? omTop(db, kind, period, origin) : source === "stocks" ? stocksTop(kind, period) : chainTop(source, kind, period);
 }

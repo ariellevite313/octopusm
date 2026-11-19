@@ -22,7 +22,7 @@ const KINDS: { id: Kind; label: string }[] = [
   { id: "losers", label: "Losers" }, { id: "dev_sold", label: "Sold by the team" },
 ];
 const PERIODS: { id: Period; label: string }[] = [{ id: "day", label: "Day" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }];
-const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, ...CHAINS.filter((c) => GT_NET[c.id]).map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
+const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, { id: "stocks", name: "Stocks", logo: "/chains/solana.png" }, ...CHAINS.filter((c) => GT_NET[c.id]).map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
 const hasPeriod = (k: Kind) => k === "volume" || k === "gainers" || k === "losers";
 const devOk = (s: string) => s === "om" || s === "solana";
 
@@ -79,7 +79,7 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
               {SOURCES.map((s) => (
                 <Chip key={s.id} on={source === s.id} onClick={() => { setSource(s.id); if (kind === "dev_sold" && !devOk(s.id)) setKind("mcap"); reset(); }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.logo} alt="" className="size-4 rounded-full object-cover" />{s.id === "om" ? tr("OM Launchpad") : s.name}
+                  <img src={s.logo} alt="" className="size-4 rounded-full object-cover" />{s.id === "om" ? tr("OM Launchpad") : s.id === "stocks" ? tr("Stocks") : s.name}
                 </Chip>
               ))}
             </div>

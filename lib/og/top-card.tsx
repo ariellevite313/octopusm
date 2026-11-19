@@ -11,7 +11,7 @@ import type { TopKind, TopPeriod, TopRow, TopSource } from "@/lib/top-lists";
 
 const W = 1080, H = 1350, WW = 1200, WH = 630;
 const UP = "#3ddc84", DOWN = "#ff5d4d";
-const chainName = (c: string) => CHAINS.find((x) => x.id === c)?.name ?? c;
+const chainName = (c: string) => (c === "stocks" ? "Tokenized stocks · Solana" : CHAINS.find((x) => x.id === c)?.name ?? c);
 const PERIOD: Record<TopPeriod, string> = { day: "24h", week: "7 days", month: "30 days" };
 const PERIOD_OF: Record<TopPeriod, string> = { day: "of the day", week: "of the week", month: "of the month" };
 
@@ -36,7 +36,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
     ogFonts(),
     localImage("og-logo.png"),
     Promise.all(rows.map((r) => remoteImage(r.logo, p.origin))),
-    Promise.all([...new Set(rows.map((r) => r.chain).concat(om ? [] : [p.source]))].map(async (c) => [c, await localImage(`chains/${c}.png`)] as const)),
+    Promise.all([...new Set(rows.map((r) => r.chain).concat(om || p.source === "stocks" ? [] : [p.source]))].map(async (c) => [c, await localImage(`chains/${c}.png`)] as const)),
   ]);
   const chainLogo = new Map(chainLogos);
   const [t1, t2] = topTitle(p.kind, p.period);
