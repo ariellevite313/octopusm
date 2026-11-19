@@ -4,6 +4,7 @@
  */
 import { PAIR_QUOTES } from "@/lib/solana/quotes";
 import { DOGE_MINT } from "@/lib/solana/doge";
+import { stocksList } from "@/lib/terminal-stocks";
 import { NextResponse } from "next/server";
 import { arcList, dsolList, pairList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
@@ -57,6 +58,11 @@ export async function GET(req: Request) {
   if (l === "psol20" || l === "clt20") {
     const tokens = await pairList(createAdminClient(), PAIR_QUOTES[l === "psol20" ? "pepe" : "clt"].mint, q, l === "psol20" ? "/pepe.png" : "/clawdtrust-coin.png").catch(() => [] as TerminalToken[]);
     return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
+  }
+  // Stocks : actions et ETF tokenisés (xStocks, Ondo, Backpack), Solana
+  if (l === "stocks") {
+    const tokens = await stocksList(q).catch(() => [] as TerminalToken[]);
+    return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=20, stale-while-revalidate=60" } });
   }
   if (l === "dsol20") {
     const tokens = await dsolList(createAdminClient(), q).catch(() => [] as TerminalToken[]);

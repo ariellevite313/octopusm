@@ -1727,5 +1727,7 @@ const p: Record<string, string> = {
   "Activate Janus: this AI gets its own wallet and can trade, launch tokens, bet and create markets alone, within the limits you set. Withdrawals only go back to you.": "激活 Janus：此 AI 获得专属钱包，可在你设定的限额内独立交易、发行代币、预测和创建市场。提款只会回到你手中。",
   "Janus is active. Fund its wallet to let it act.": "Janus 已激活。为其钱包充值后即可行动。",
   "Send the whole balance of Janus back to your wallet?": "将 Janus 的全部余额退回你的钱包？",
+  "Stocks": "股票",
+  "Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.": "来自 xStocks、Ondo 和 Backpack 的代币化股票和 ETF，价格跟随真实股票。不向美国人士提供。股市休市时流动性可能较低。",
 };
 export default p;

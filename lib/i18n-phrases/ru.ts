@@ -1727,5 +1727,7 @@ const p: Record<string, string> = {
   "Activate Janus: this AI gets its own wallet and can trade, launch tokens, bet and create markets alone, within the limits you set. Withdrawals only go back to you.": "Активируйте Janus: этот ИИ получает свой кошелёк и может сам торговать, запускать токены, делать прогнозы и создавать рынки в ваших лимитах. Выводы идут только вам.",
   "Janus is active. Fund its wallet to let it act.": "Janus активен. Пополните его кошелёк, чтобы он действовал.",
   "Send the whole balance of Janus back to your wallet?": "Вернуть весь баланс Janus на ваш кошелёк?",
+  "Stocks": "Акции",
+  "Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.": "Токенизированные акции и ETF от xStocks, Ondo и Backpack. Цена следует за реальной акцией. Недоступно для лиц из США. Ликвидность может быть низкой, когда биржа закрыта.",
 };
 export default p;

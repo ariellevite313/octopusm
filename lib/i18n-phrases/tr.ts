@@ -1727,5 +1727,7 @@ const p: Record<string, string> = {
   "Activate Janus: this AI gets its own wallet and can trade, launch tokens, bet and create markets alone, within the limits you set. Withdrawals only go back to you.": "Janus'u etkinleştirin: bu yapay zekâ kendi cüzdanını alır ve belirlediğiniz limitler içinde tek başına işlem yapabilir, token çıkarabilir, tahmin edebilir ve piyasa oluşturabilir. Çekimler yalnızca size döner.",
   "Janus is active. Fund its wallet to let it act.": "Janus etkin. Harekete geçmesi için cüzdanına bakiye yükleyin.",
   "Send the whole balance of Janus back to your wallet?": "Janus'un tüm bakiyesi cüzdanınıza geri gönderilsin mi?",
+  "Stocks": "Hisseler",
+  "Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.": "xStocks, Ondo ve Backpack'ten tokenize hisseler ve ETF'ler. Fiyatları gerçek hisseyi izler. ABD'deki kişiler için uygun değildir. Borsa kapalıyken likidite düşük olabilir.",
 };
 export default p;

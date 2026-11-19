@@ -14,6 +14,8 @@ export type TerminalToken = {
   chain?: TerminalChain; href?: string | null;
   /** Petit logo posé sur l'icône à la place de celui du réseau : monnaie de paire (DSOL-20 : Dogecoin, PSOL-20 : Pepe, CLT-20 : ClawdTrust) */
   badge?: string | null;
+  /** Émetteur d'une action tokenisée (xStocks, Ondo, Backpack) : affiché sous le nom */
+  issuer?: string | null;
   /** vérifié par Jupiter (Solana) ou lancé sur OM : pastille bleue */
   verified?: boolean;
   /** Infos DexScreener : profil payé (Enhanced Token Info) ou boosté, site web, réseaux sociaux */

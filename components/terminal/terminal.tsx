@@ -168,9 +168,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
   const { tr } = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"favs" | "tokens" | "positions" | "updown">("tokens");
-  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20" | "pulse">("trending");
-  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20" | "pulse") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
-  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20" || f === "psol20" || f === "clt20" || f === "pulse") setFilterRaw(f); } catch { /* ignore */ } }, []);
+  const [filter, setFilterRaw] = useState<"trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20" | "pulse" | "stocks">("trending");
+  const setFilter = (f: "trending" | "crypto" | "new" | "volume" | "dsol20" | "psol20" | "clt20" | "pulse" | "stocks") => { setFilterRaw(f); try { localStorage.setItem(FILTER_KEY, f); } catch { /* ignore */ } };
+  useEffect(() => { try { const f = localStorage.getItem(FILTER_KEY); if (f === "trending" || f === "crypto" || f === "new" || f === "volume" || f === "dsol20" || f === "psol20" || f === "clt20" || f === "pulse" || f === "stocks") setFilterRaw(f); } catch { /* ignore */ } }, []);
   const [q, setQ] = useState(initialQ);
   const [searching, setSearching] = useState(!!initialQ);
   const [list, setList] = useState<TerminalToken[] | null>(null);
@@ -189,7 +189,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     let live = true;
     setList(null); setErr(false);
     const query = q.trim().replace(/^\$/, "");
-    const url = filter === "dsol20" || filter === "psol20" || filter === "clt20" ? `/api/terminal?list=${filter}${query.length >= 2 ? `&q=${encodeURIComponent(query)}` : ""}`
+    const url = filter === "dsol20" || filter === "psol20" || filter === "clt20" || filter === "stocks" ? `/api/terminal?list=${filter}${query.length >= 2 ? `&q=${encodeURIComponent(query)}` : ""}`
       : query.length >= 2 ? `/api/terminal?chains=${chainsQ}&q=${encodeURIComponent(query)}${extra}` : `/api/terminal?chains=${chainsQ}&list=${filter}${extra}`;
     // silent = rafraîchissement automatique : la liste se met à jour sans clignoter ni se vider
     const load = async (silent: boolean) => {
@@ -244,7 +244,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
         ) : (
           <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
             <button onClick={() => setSearching(true)} aria-label={tr("Search")} className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground"><Search className="size-[18px]" /></button>
-            {([["trending", tr("Trending")], ["pulse", "Pulse"], ["crypto", tr("Crypto")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
+            {([["trending", tr("Trending")], ["pulse", "Pulse"], ["crypto", tr("Crypto")], ["stocks", tr("Stocks")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setFilter(k)} className={`h-10 shrink-0 rounded-xl px-4 text-[15px] font-semibold ${filter === k ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
             ))}
             <button onClick={() => setFilter("dsol20")} className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[15px] font-semibold ${filter === "dsol20" ? "bg-muted text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
@@ -290,6 +290,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
 
       {tab === "tokens" && filter === "pulse" && !q.trim() && <PulseView onOpen={(t) => open(t.mint, t)} pass={adv.pass} />}
 
+      {tab === "tokens" && filter === "stocks" && (
+        <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2 text-[12px] leading-snug text-muted-foreground">{tr("Tokenized stocks and ETFs from xStocks, Ondo and Backpack. Their price follows the real share. Not available to US persons. Liquidity can be low when the stock market is closed.")}</p>
+      )}
       <div className={`mt-1 ${tab === "updown" || tab === "positions" || (tab === "tokens" && filter === "pulse" && !q.trim()) ? "hidden" : ""}`}>
         {rows === null ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="my-2 h-14 animate-pulse rounded-2xl bg-muted/40" />)
           : rows.length === 0 ? (
@@ -306,7 +309,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               </span>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[17px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{t.verified && <Tick />}{isRug(t) && <span className="shrink-0 rounded-md bg-[#dc2626] px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide text-white">RUG</span>}</p>
-                <p className="num truncate text-[14px] text-muted-foreground">{compact(t.mcap)} {tr("cap.")}{t.dex?.paid && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Dex paid")}</span>}{(t.dex?.boost ?? 0) > 0 && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Boost")}</span>}</p>
+                <p className="num truncate text-[14px] text-muted-foreground">{t.issuer && <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{t.issuer}</span>}{t.issuer && t.name ? <span className="mr-1.5">{t.name}</span> : null}{compact(t.mcap)} {tr("cap.")}{t.dex?.paid && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Dex paid")}</span>}{(t.dex?.boost ?? 0) > 0 && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Boost")}</span>}</p>
               </div>
               <div className="shrink-0 text-right">
                 <p className="num text-[17px] font-bold text-foreground">{price(t.price)}</p>
