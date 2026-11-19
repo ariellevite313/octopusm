@@ -5,6 +5,7 @@
  *  - /api/og/profile/[wallet] : les gains d'un profil
  * Avec `wide`, la même carte est posée au centre d'une image 1200×630 (aperçu des liens sur X, Telegram, etc.).
  */
+import React from "react";
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -42,6 +43,8 @@ const axisLabel = (n: number) => {
   return `${sign}$${s}`;
 };
 const day = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+/** Heure (période courte) ou date (période longue), comme l'axe du temps des plateformes d'échange */
+const tick = (ms: number, span: number) => span <= 2 * 86_400_000 ? `${String(new Date(ms).getUTCHours()).padStart(2, "0")}:00` : day(ms);
 
 export type PnlCardProps = {
   name: string;
@@ -53,7 +56,7 @@ export type PnlCardProps = {
   /** Vraies bougies (capitalisation) : si fournies, elles remplacent la courbe et l'échelle s'ajuste aux prix */
   candles?: { t: number; o: number; h: number; l: number; c: number }[];
   /** Marqueurs sur la courbe : vert (achat, gain) ou rouge (vente, perte), lettre B / S par défaut. */
-  marks: { t: number; side: "buy" | "sell"; label?: string }[];
+  marks: { t: number; side: "buy" | "sell"; label?: string; usd?: number }[];
   /** Encadré du bas : logo (facultatif), titre, gain et pourcentage, détails (facultatifs). */
   box: { logo?: string | null; title: string; verified?: boolean; amount: number; pct: number | null; details?: { label: string; value: string }[] };
 };
@@ -95,15 +98,18 @@ function PnlCard({ name, avatar, badge, dateMs, chainLogos, series: rawSeries, c
   const tone = good ? UP : DOWN;
 
   // Marqueurs B / S (on fusionne ceux qui se chevauchent)
-  const marks: { x: number; y: number; side: "buy" | "sell"; label?: string }[] = [];
+  const marks: { x: number; y: number; side: "buy" | "sell"; label?: string; usd?: number }[] = [];
   for (const m0 of rawMarks) {
-    const m = { x: x(m0.t), y: y(valueAt(m0.t)), side: m0.side, label: m0.label };
+    const m = { x: x(m0.t), y: y(valueAt(m0.t)), side: m0.side, label: m0.label, usd: m0.usd };
     const prev = marks[marks.length - 1];
     if (prev && prev.side === m.side && Math.abs(prev.x - m.x) < 14 && Math.abs(prev.y - m.y) < 14) continue;
     marks.push(m);
   }
   const shown = marks.slice(-60);
-  const ticks = [0, 0.5, 1].map((f) => t0 + (t1 - t0) * f);
+  // Montant affiché au-dessus des plus gros trades (3 au plus), comme « $541 » sur les cartes des plateformes
+  const big = new Set(shown.map((m, i) => [m.usd ?? 0, i] as const).filter(([u]) => u >= 1).sort((a, b) => b[0] - a[0]).slice(0, 3).map(([, i]) => i));
+  const ticks = [0.08, 0.36, 0.64, 0.92].map((f) => t0 + (t1 - t0) * f);
+  const grid = [1, 2 / 3, 1 / 3].map((f) => lo + (hi - lo) * f);
   const glass = "linear-gradient(150deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.10) 22%, rgba(255,255,255,0.03) 48%, rgba(255,255,255,0.09) 72%, rgba(255,255,255,0.26) 100%)";
   const logos = chainLogos.filter(Boolean) as string[];
 
@@ -132,6 +138,7 @@ function PnlCard({ name, avatar, badge, dateMs, chainLogos, series: rawSeries, c
           {/* Courbe + marqueurs */}
           <div style={{ display: "flex", position: "relative", width: CW + 200, height: CH + 70, marginTop: 34 }}>
             <svg width={CW} height={CH} viewBox={`0 0 ${CW} ${CH}`} style={{ position: "absolute", left: 0, top: 10 }}>
+              {grid.map((g, i) => <path key={i} d={`M0 ${y(g).toFixed(1)} H${CW}`} stroke="rgba(255,255,255,0.07)" strokeWidth={1.5} />)}
               <path d={`M0 ${y(last.v).toFixed(1)} H${CW}`} stroke="rgba(255,255,255,0.35)" strokeWidth={2} strokeDasharray="10 10" />
               {lo < 0 && <path d={`M0 ${y(0).toFixed(1)} H${CW}`} stroke="rgba(255,255,255,0.12)" strokeWidth={2} />}
               {candles ? candles.map((c, i) => {
@@ -148,11 +155,14 @@ function PnlCard({ name, avatar, badge, dateMs, chainLogos, series: rawSeries, c
             {shown.map((m, i) => (
               <div key={i} style={{ display: "flex", position: "absolute", left: m.x - 22, top: 10 + m.y - 22, width: 44, height: 44, borderRadius: 44, alignItems: "center", justifyContent: "center", background: m.side === "buy" ? UP : DOWN, border: "3px solid #07070a", fontSize: 20, fontWeight: 800, color: "#07070a" }}>{m.label ?? (m.side === "buy" ? "B" : "S")}</div>
             ))}
+            {shown.map((m, i) => big.has(i) && m.usd ? (
+              <div key={`u${i}`} style={{ display: "flex", position: "absolute", left: Math.min(CW - 60, Math.max(0, m.x - 40)), top: Math.max(0, 10 + m.y - (m.side === "buy" ? -30 : 62)), fontSize: 24, fontWeight: 800, color: "#fff", textShadow: "0 2px 6px #000" }}>{m.usd >= 100 ? `$${Math.round(m.usd).toLocaleString("en-US")}` : money(m.usd)}</div>
+            ) : null)}
             <div style={{ display: "flex", position: "absolute", left: CW + 14, top: 10 + y(last.v) - 26, padding: "6px 14px", borderRadius: 12, background: tone, color: "#07070a", fontSize: 28, fontWeight: 800 }}>{axisLabel(last.v)}</div>
-            <div style={{ display: "flex", position: "absolute", left: CW + 30, top: 10 + CH - 24, fontSize: 26, color: "rgba(255,255,255,0.3)" }}>{axisLabel(lo)}</div>
-            {candles && <div style={{ display: "flex", position: "absolute", left: CW + 30, top: 10, fontSize: 26, color: "rgba(255,255,255,0.3)" }}>{axisLabel(hi)}</div>}
-            <div style={{ display: "flex", position: "absolute", left: 0, top: CH + 32, width: CW, justifyContent: "space-between", fontSize: 26, color: "rgba(255,255,255,0.4)" }}>
-              {ticks.map((t, i) => <span key={i}>{day(t)}</span>)}
+            <div style={{ display: "flex", position: "absolute", left: CW + 30, top: 10 + CH - 24, fontSize: 24, color: "rgba(255,255,255,0.3)" }}>{axisLabel(lo)}</div>
+            {grid.filter((g) => Math.abs(y(g) - y(last.v)) > 40).map((g, i) => <div key={i} style={{ display: "flex", position: "absolute", left: CW + 30, top: 10 + y(g) - 16, fontSize: 24, color: "rgba(255,255,255,0.3)" }}>{axisLabel(g)}</div>)}
+            <div style={{ display: "flex", position: "absolute", left: 0, top: CH + 32, width: CW, justifyContent: "space-between", fontSize: 24, color: "rgba(255,255,255,0.4)" }}>
+              {ticks.map((t, i) => <span key={i}>{tick(t, t1 - t0)}</span>)}
             </div>
           </div>
 

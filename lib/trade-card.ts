@@ -18,6 +18,8 @@ export type TradeCard = {
   open: boolean; held: number; bought: number; sold: number; value: number; pnl: number; pct: number;
   price: number | null; mcap: number | null;
   series: { t: number; v: number }[]; // capitalisation (ou prix) dans le temps
+  /** Vraies bougies de capitalisation du premier trade à maintenant (vide si la pool est inconnue) */
+  candles: Candle[];
   lastAt: number;
 };
 
@@ -35,8 +37,28 @@ async function dsToken(chain: string, mint: string): Promise<{ price: number | n
     const own = j.filter((p) => p.baseToken?.address?.toLowerCase() === mint.toLowerCase()).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
     const p = own[0];
     if (!p) return { price: null, mcap: null, symbol: null, logo: null, pool: null };
-    return { price: Number(p.priceUsd) || null, mcap: p.marketCap ?? p.fdv ?? null, symbol: p.baseToken?.symbol ?? null, logo: p.info?.imageUrl ?? null, pool: p.pairAddress ?? null };
+    return { price: Number(p.priceUsd) || null, mcap: (p.marketCap && p.marketCap > 0 ? p.marketCap : null) ?? (p.fdv && p.fdv > 0 ? p.fdv : null), symbol: p.baseToken?.symbol ?? null, logo: p.info?.imageUrl ?? null, pool: p.pairAddress ?? null };
   } catch { return { price: null, mcap: null, symbol: null, logo: null, pool: null }; }
+}
+
+
+/** GeckoTerminal limite les appels (429) : nouvel essai avec pause, et cache 10 min par adresse pour ne pas redemander les mêmes bougies */
+const gtCache = new Map<string, { at: number; body: unknown }>();
+async function gtJson<T>(url: string): Promise<T | null> {
+  const hit = gtCache.get(url);
+  if (hit && Date.now() - hit.at < 600_000) return hit.body as T;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000), cache: "no-store" });
+      if (r.status === 429) { await new Promise((x) => setTimeout(x, 900 * (i + 1))); continue; }
+      if (!r.ok) return null;
+      const body = await r.json();
+      gtCache.set(url, { at: Date.now(), body });
+      if (gtCache.size > 400) gtCache.delete(gtCache.keys().next().value as string);
+      return body as T;
+    } catch { return null; }
+  }
+  return null;
 }
 
 /** Décimales d'un token (Solana : RPC ; Arc : decimals()). */
@@ -60,9 +82,8 @@ async function priceSeries(chain: string, pool: string | null, fromMs: number): 
   const span = Date.now() - fromMs;
   const [tf, agg] = span > 20 * 86_400_000 ? ["day", 1] : span > 3 * 86_400_000 ? ["hour", 4] : span > 6 * 3_600_000 ? ["hour", 1] : ["minute", 15];
   try {
-    const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/${chain}/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=300&currency=usd`, { signal: AbortSignal.timeout(7000), next: { revalidate: 300 } });
-    if (!r.ok) return [];
-    const j = await r.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
+    const j = await gtJson<{ data?: { attributes?: { ohlcv_list?: number[][] } } }>(`https://api.geckoterminal.com/api/v2/networks/${chain}/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=300&currency=usd`);
+    if (!j) return [];
     return (j.data?.attributes?.ohlcv_list ?? []).map((c) => ({ t: c[0] * 1000, v: c[4] })).filter((p) => p.t >= fromMs - 3_600_000 && p.v > 0).sort((a, b) => a.t - b.t);
   } catch { return []; }
 }
@@ -73,9 +94,8 @@ export type Candle = { t: number; o: number; h: number; l: number; c: number };
 async function candlesOf(net: string | null, pool: string | null, tf: "day" | "hour" | "minute", agg: number, count: number): Promise<Candle[]> {
   if (!net || !pool || !/^[A-Za-z0-9]{20,64}$/.test(pool)) return [];
   try {
-    const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/${net}/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=${count}&currency=usd`, { signal: AbortSignal.timeout(8000), next: { revalidate: 300 } });
-    if (!r.ok) return [];
-    const j = await r.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
+    const j = await gtJson<{ data?: { attributes?: { ohlcv_list?: number[][] } } }>(`https://api.geckoterminal.com/api/v2/networks/${net}/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=${count}&currency=usd`);
+    if (!j) return [];
     return (j.data?.attributes?.ohlcv_list ?? []).map((c) => ({ t: c[0] * 1000, o: c[1], h: c[2], l: c[3], c: c[4] })).filter((c) => c.c > 0 && c.h > 0).sort((a, b) => a.t - b.t);
   } catch { return []; }
 }
@@ -85,9 +105,8 @@ async function gtToken(net: string | null, mint: string): Promise<{ price: numbe
   const none = { price: null, mcap: null, symbol: null, name: null, logo: null, pool: null };
   if (!net) return none;
   try {
-    const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/${net}/tokens/${mint}?include=top_pools`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 120 } });
-    if (!r.ok) return none;
-    const j = await r.json() as { data?: { attributes?: Record<string, unknown>; relationships?: { top_pools?: { data?: { id: string }[] } } } };
+    const j = await gtJson<{ data?: { attributes?: Record<string, unknown>; relationships?: { top_pools?: { data?: { id: string }[] } } } }>(`https://api.geckoterminal.com/api/v2/networks/${net}/tokens/${mint}?include=top_pools`);
+    if (!j) return none;
     const a = j.data?.attributes ?? {};
     const n = (v: unknown) => { const x = Number(v); return v != null && v !== "" && Number.isFinite(x) && x > 0 ? x : null; };
     const poolId = j.data?.relationships?.top_pools?.data?.[0]?.id ?? null;
@@ -159,11 +178,21 @@ export async function getTradeCard(walletIn: string, mint: string): Promise<Trad
   if (series.length < 2) series = trades.map((t) => ({ t: t.tsMs, v: t.usd / t.tokens })).concat(price ? [{ t: Date.now(), v: price }] : []);
   const k = mcap && price ? mcap / price : 1;
   series = series.map((p) => ({ t: p.t, v: p.v * k }));
+  // Vraies bougies : unité choisie pour couvrir la position (un peu avant le premier trade) en 40 à 150 bougies
+  const gtNet = chain === "arc" ? null : "solana"; // Arc : pas de bougies GeckoTerminal
+  const span = Math.max(3_600_000, Date.now() - trades[0].tsMs) * 1.15;
+  const [tf, agg, ms] = span <= 12 * 3_600_000 ? ["minute", 5, 300_000] as const : span <= 36 * 3_600_000 ? ["minute", 15, 900_000] as const
+    : span <= 6 * 86_400_000 ? ["hour", 1, 3_600_000] as const : span <= 25 * 86_400_000 ? ["hour", 4, 14_400_000] as const : ["day", 1, 86_400_000] as const;
+  const startMs = Date.now() - span;
+  let candles = (await candlesOf(gtNet, ds.pool, tf, agg, Math.min(300, Math.ceil(span / ms) + 2))).filter((c) => c.t >= startMs - ms);
+  candles = candles.map((c) => ({ t: c.t, o: c.o * k, h: c.h * k, l: c.l * k, c: c.c * k }));
+  if (candles.length && mcap && price) { const c = candles[candles.length - 1]; c.c = mcap; c.h = Math.max(c.h, mcap); c.l = Math.min(c.l, mcap); }
+  if (candles.length >= 6) series = candles.map((c) => ({ t: c.t, v: c.c }));
 
   return {
     wallet: walletIn, name: prof?.name ?? `${walletIn.slice(0, 4)}…${walletIn.slice(-4)}`, avatar: prof?.avatar_src ?? null,
     chain, mint, symbol: (lt?.ticker ?? ds.symbol ?? "TOKEN").replace(/^\$/, "").slice(0, 14), logo: lt?.logo_url ?? ds.logo, verified: !!lt,
-    trades, open, held, bought, sold, value, pnl, pct, price, mcap: mcap && price ? mcap : null, series, lastAt: trades[trades.length - 1].tsMs,
+    trades, open, held, bought, sold, value, pnl, pct, price, mcap: mcap && price ? mcap : null, series, candles, lastAt: trades[trades.length - 1].tsMs,
   };
 }
 

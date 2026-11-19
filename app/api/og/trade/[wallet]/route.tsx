@@ -6,7 +6,7 @@
  */
 import { limited } from "@/lib/limit";
 import { getTradeCard } from "@/lib/trade-card";
-import { localImage, pnlCardResponse, remoteImage } from "@/lib/og/pnl-card";
+import { localImage, money, pnlCardResponse, remoteImage } from "@/lib/og/pnl-card";
 
 export async function GET(req: Request, { params }: { params: Promise<{ wallet: string }> }) {
   { const lim = await limited(req, "og-trade", 30); if (lim) return lim; }
@@ -24,7 +24,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ wallet: 
     dateMs: card?.lastAt ?? Date.now(),
     chainLogos: [chainLogo],
     series: card?.series ?? [],
-    marks: (card?.trades ?? []).map((t) => ({ t: t.tsMs, side: t.side })),
-    box: { logo: tokenLogo, title: card?.symbol ?? "TOKEN", verified: card?.verified, amount: card?.pnl ?? 0, pct: card ? card.pct : 0 },
+    candles: card?.candles,
+    marks: (card?.trades ?? []).map((t) => ({ t: t.tsMs, side: t.side, usd: t.usd })),
+    box: {
+      logo: tokenLogo, title: card?.symbol ?? "TOKEN", verified: card?.verified, amount: card?.pnl ?? 0, pct: card ? card.pct : 0,
+      // Comme les cartes des plateformes d'échange : montant investi, entrée moyenne (capitalisation), capitalisation actuelle
+      details: card ? [
+        { label: "Invested", value: money(card.bought) },
+        ...(card.mcap && card.price ? (() => {
+          const boughtTok = card.trades.filter((t) => t.side === "buy").reduce((s, t) => s + t.tokens, 0);
+          const avg = boughtTok > 0 ? (card.bought / boughtTok) * (card.mcap / card.price) : null;
+          return [...(avg ? [{ label: "Avg. entry", value: money(avg) }] : []), { label: "Current", value: money(card.mcap) }];
+        })() : []),
+      ] : undefined,
+    },
   }, { wide: url.searchParams.get("wide") === "1" });
 }
