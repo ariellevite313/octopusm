@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftRight, ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Copy, Globe, Loader2, Minus, Plus, RefreshCw, Send, Share2, ShoppingCart, Star, X } from "lucide-react";
+import { ArrowLeftRight, ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, Copy, Globe, Loader2, Minus, Plus, RefreshCw, Search, Send, Share2, ShoppingCart, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -21,9 +21,10 @@ import type { Bag } from "@/lib/bags";
 
 type Data = { chain: "solana" | "arc"; main: Bag[]; small: Bag[]; total: number; change24h: number };
 
-const usd = (n: number) => n >= 1000 ? `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : n >= 0.01 ? `$${n.toFixed(2)}` : "<$0.01";
+const usd = (n: number) => n === 0 ? "$0.00" : n >= 1000 ? `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : n >= 0.01 ? `$${n.toFixed(2)}` : "<$0.01";
 const big = (n: number | null) => n == null ? "-" : `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 function qty(n: number): string {
+  if (n === 0) return "0";
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -36,6 +37,7 @@ function price(n: number | null): string {
   if (n >= 0.0001) return `$${n.toFixed(6).replace(/0+$/, "")}`;
   return `$${n.toPrecision(3)}`;
 }
+const match = (b: { name: string; symbol: string }, q: string) => !q.trim() || `${b.name} ${b.symbol}`.toLowerCase().includes(q.trim().toLowerCase());
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const swappable = (b: Bag) => b.chain === "solana" && b.id !== "native" && !(b.href ?? "").startsWith("/launchpad/");
 
@@ -61,7 +63,8 @@ function TokenLogo({ b, size = "size-12" }: { b: Pick<Bag, "logo" | "symbol">; s
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground`}>{b.symbol.slice(0, 1)}</span>;
 }
 
-export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
+/** embedded : dans le dashboard unifié (l'en-tête affiche déjà le solde et les actions) ; octo : points OMERO affichés en fin de liste */
+export function BagsPanel({ tabs, embedded = false, octo }: { tabs?: React.ReactNode; embedded?: boolean; octo?: number }) {
   const { tr } = useT();
   const router = useRouter();
   // Clic sur un actif : on ouvre le Terminal pour le trader (page OM pour les tokens Arc)
@@ -91,6 +94,13 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
+  // Bouton « rafraîchir » de l'en-tête du dashboard
+  useEffect(() => {
+    const on = () => void load(true);
+    window.addEventListener("om-bags-refresh", on);
+    return () => window.removeEventListener("om-bags-refresh", on);
+  }, [load]);
+  const [q, setQ] = useState("");
 
   const name = me?.display_name ?? me?.username ?? (walletAddress ? short(walletAddress) : "");
   const initials = (name || "OM").replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "OM";
@@ -99,12 +109,13 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
   const ch = data?.change24h ?? 0;
   const chPct = total - ch > 0 ? (ch / (total - ch)) * 100 : 0;
   const isSol = data?.chain !== "arc";
-  const sellable = (data?.main ?? []).filter(swappable);
+  const sellable = (data?.main ?? []).filter((b) => swappable(b) && b.amount > 0);
 
   const copy = () => walletAddress && navigator.clipboard.writeText(walletAddress).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
 
   return (
     <section>
+      {!embedded && (<>
       {/* Carte solde */}
       <div className="relative overflow-hidden rounded-[28px] bg-card p-5 ring-1 ring-border">
         <WaveTexture />
@@ -139,7 +150,8 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
       {/* Actifs */}
       <h2 className="mt-8 flex items-center gap-1 text-[28px] font-bold tracking-tight text-foreground">{tr("Assets")}<ChevronRight className="size-6" strokeWidth={2.5} /></h2>
       <p className="text-[15px] text-muted-foreground">{data ? `${data.chain === "arc" ? "Arc" : "Solana"} · ${tr("{count} tokens", { count: data.main.length + data.small.length })}` : " "}</p>
-      <div className="mt-2">
+      </>)}
+      <div className={embedded ? "" : "mt-2"}>
         {loading && !data ? (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />{tr("Loading")}</div>
         ) : error && !data ? (
@@ -148,8 +160,18 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
           <p className="py-6 text-sm text-muted-foreground">{tr("No token in this wallet yet.")}</p>
         ) : data && (
           <>
-            {data.main.map((b) => <Row key={`${b.chain}:${b.id}`} b={b} onOpen={toTerminal} />)}
-            {data.small.length > 0 && (
+            {data.main.filter((b) => match(b, q)).map((b) => <Row key={`${b.chain}:${b.id}`} b={b} onOpen={toTerminal} />)}
+            {embedded && octo != null && match({ name: "OMERO", symbol: "OMERO" }, q) && (
+              <div className="flex w-full items-center gap-3 px-1 py-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/octo-coin.png" alt="" className="size-11 shrink-0 rounded-full object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[16px] font-bold text-foreground">OMERO</p>
+                  <p className="num truncate text-[13px] text-muted-foreground">{octo.toLocaleString("en-US")} {tr("points")}</p>
+                </div>
+              </div>
+            )}
+            {data.small.length > 0 && !q && (
               <>
                 <button onClick={() => setShowSmall((v) => !v)}
                   className="mt-2 flex w-full items-center justify-between rounded-2xl bg-muted/50 px-4 py-3 text-[14px] font-semibold text-muted-foreground hover:text-foreground">
@@ -177,6 +199,16 @@ export function BagsPanel({ tabs }: { tabs?: React.ReactNode }) {
           {sellable.map((b) => <Row key={b.id} b={b} onOpen={(x) => { setSheet(null); setOpen(x); }} />)}
         </BottomSheet>
       )}
+      {/* Dashboard unifié : recherche dans les actifs + Swap, au-dessus du menu du bas */}
+      {embedded && (
+        <div className="fixed inset-x-0 bottom-[92px] z-30 mx-auto flex max-w-2xl gap-3 px-4 md:bottom-6">
+          <label className="flex h-14 min-w-0 flex-1 items-center gap-2.5 rounded-full border border-border bg-background/95 px-5 shadow-sm backdrop-blur">
+            <Search className="size-5 shrink-0 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search")} className="min-w-0 flex-1 bg-transparent text-[17px] text-foreground outline-none placeholder:text-muted-foreground" />
+          </label>
+          <button onClick={() => router.push("/terminal")} className="h-14 shrink-0 rounded-full bg-foreground px-8 text-[17px] font-bold text-background">{tr("Swap")}</button>
+        </div>
+      )}
       {open && <BagDetail b={open} onClose={() => setOpen(null)} onSwapped={() => setTimeout(() => void load(true), 4000)} />}
     </section>
   );
@@ -202,7 +234,7 @@ function Row({ b, onOpen }: { b: Bag; onOpen: (b: Bag) => void }) {
       </div>
       <div className="shrink-0 text-right">
         <p className="num text-[16px] font-bold text-foreground">{b.value != null ? usd(b.value) : "-"}</p>
-        {c != null && <p className={`num text-[12px] font-semibold ${c >= 0 ? "text-up" : "text-down"}`}>{c >= 0 ? "+" : ""}{c.toFixed(2)}%</p>}
+        {c != null && <p className="num flex items-center justify-end gap-1 text-[13px] text-muted-foreground"><span className={`text-[9px] ${c >= 0 ? "text-up" : "text-down"}`}>{c >= 0 ? "▲" : "▼"}</span>{Math.abs(c).toFixed(2)}%</p>}
       </div>
     </button>
   );

@@ -199,6 +199,7 @@ export function SwapBox({ mint, onSwapped, initialSide = "buy", refPost }: { min
         <div className="mt-3 space-y-1.5 px-1 text-[13px]">
           <Line k={tr("Minimum received")} v={`${fmt(minUi)} ${outSym}`} />
           <Line k={tr("OM fee")} v={quote.feeBps > 0 ? `${quote.feeBps / 100}% · ${fmt(feeUi)} ${feeSym}` : tr("0% (OM token)")} />
+          {quote.feeBps > 0 && <Line k={tr("Your cashback")} v={`20% · ${fmt(feeUi * 0.2)} ${feeSym}`} />}
           {!!quote.refBps && quote.ref && <Line k={tr("Holder share")} v={tr("40% of the fee to {who}", { who: `${quote.ref.slice(0, 4)}…${quote.ref.slice(-4)}` })} />}
           {quote.priceImpactPct != null && <Line k={tr("Price impact")} v={`${quote.priceImpactPct < 0.01 ? "<0.01" : quote.priceImpactPct.toFixed(2)}%`} warn={impactHigh} />}
           {quote.route.length > 0 && <Line k={tr("Route")} v={quote.route.join(" › ")} />}

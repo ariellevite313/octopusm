@@ -51,12 +51,16 @@ export function TradeGainsPanel() {
           <p className="num text-xl font-bold text-foreground">{usd(data.fromReferrals)}</p>
           <p className="text-[13px] text-muted-foreground">{tr("referrals")}</p>
         </div>
+        <div>
+          <p className="num text-xl font-bold text-foreground">{usd(data.fromCashback ?? 0)}</p>
+          <p className="text-[13px] text-muted-foreground">{tr("cashback")}</p>
+        </div>
       </div>
 
       <div className="mt-4">
         {data.rows.length === 0 ? (
           <p className="py-6 text-sm text-muted-foreground">
-            {tr("No gains yet. You earn when someone buys a token from one of your posts, or when someone you referred buys.")}
+            {tr("No gains yet. You earn when someone buys a token from one of your posts, when someone you referred buys, and 20% of OM fees back on your own trades.")}
           </p>
         ) : data.rows.map((r) => (
           <div key={r.id} className="flex items-center gap-3.5 py-3">
@@ -68,9 +72,9 @@ export function TradeGainsPanel() {
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[17px] font-semibold text-foreground">{r.token?.name ?? "-"}</p>
+              <p className="truncate text-[17px] font-semibold text-foreground">{r.token?.name ?? (r.kind === "cashback" ? tr("Terminal trade") : "-")}</p>
               <p className="truncate text-[13px] text-muted-foreground">
-                {r.kind === "post" ? tr("Purchase from your post") : tr("Purchase by someone you referred")} · {timeAgo(r.createdAt, tr, lang)}
+                {r.kind === "post" ? tr("Purchase from your post") : r.kind === "cashback" ? tr("Cashback on your trade") : tr("Purchase by someone you referred")} · {timeAgo(r.createdAt, tr, lang)}
               </p>
             </div>
             <p className="num shrink-0 text-[16px] font-bold text-up">+{usd(r.amount)}</p>

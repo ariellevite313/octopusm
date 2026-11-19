@@ -51,6 +51,25 @@ export function splitBags(list: Bag[]): { main: Bag[]; small: Bag[]; total: numb
   return { main, small, total, change24h };
 }
 
+/** ClawdTrust (CLT, Solana) : toujours en tête des actifs, même sans en détenir */
+export const CLT_BAG_MINT = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
+
+/** Place CLT en premier des actifs (Solana). S'il n'est pas détenu, une ligne à 0 est ajoutée pour pouvoir l'acheter. */
+export function pinClt(v: { main: Bag[]; small: Bag[]; total: number; change24h: number }, price: number | null) {
+  const isClt = (b: Bag) => b.chain === "solana" && b.id === CLT_BAG_MINT;
+  const held = v.main.find(isClt) ?? v.small.find(isClt);
+  const clt: Bag = held
+    ? { ...held, name: "ClawdTrust", symbol: "CLT", logo: held.logo ?? "/clawdtrust-coin.png", price: held.price ?? price }
+    : { chain: "solana", id: CLT_BAG_MINT, symbol: "CLT", name: "ClawdTrust", logo: "/clawdtrust-coin.png", amount: 0, price, value: 0, change24h: null, href: null };
+  const wasSmall = !!held && v.small.some(isClt);
+  return {
+    ...v,
+    main: [clt, ...v.main.filter((b) => !isClt(b))],
+    small: v.small.filter((b) => !isClt(b)),
+    total: v.total + (wasSmall ? held!.value ?? 0 : 0),
+  };
+}
+
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
 

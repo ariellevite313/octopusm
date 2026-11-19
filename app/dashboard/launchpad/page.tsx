@@ -26,6 +26,7 @@ export default async function DashboardLaunchpadPage() {
   return (
     <div className="space-y-10">
       <CreatorFeesDashboard
+        embedded
         walletAddress={wallet}
         displayName={p?.display_name ?? p?.username ?? null}
         avatarSrc={p?.avatar_src ?? null}

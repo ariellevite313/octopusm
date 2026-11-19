@@ -18,6 +18,8 @@ export const REFERRER_SHARE_OF_FEE = 0.1;
 /** Parrain ambassadeur (programme sur candidature, 20 places) : 20 % des frais de la plateforme */
 export const AMBASSADOR_SHARE_OF_FEE = 0.2;
 export const POST_SHARE_OF_FEE = 0.01;
+/** Cashback : part des frais OM de chaque trade rendue au trader lui-même (achats et ventes) */
+export const CASHBACK_SHARE_OF_FEE = 0.2;
 /**
  * Part du volume que la plateforme encaisse réellement.
  *  - Arc    : lu sur la courbe du token (platformBps de son niveau : 0,25 / 0,30 / 0,40 / 0,50 %). 0,25 % (Standard, le plus bas) si la lecture échoue.
@@ -74,6 +76,25 @@ export async function registerTradeAttribution(db: Db, postId: unknown, traderRa
   } catch (e) { console.error("[trade-rewards] attribution:", e); return false; }
 }
 
+/**
+ * Cashback d'un trade vérifié : 20 % des frais OM payés reviennent au trader (solde USDC, même retrait que le parrainage).
+ * Idempotent (une fois par trade). Rendre une part des frais ne rend jamais un faux trade rentable.
+ */
+export async function awardCashback(db: Db, t: { chain: string; txId: string; trader: string; volumeUsd: number; feeUsd: number; tokenId?: string | null }): Promise<number> {
+  try {
+    if (!(t.feeUsd > 0) || !(t.volumeUsd >= MIN_VOLUME_USD)) return 0;
+    const trader = normWallet(t.trader);
+    const amount = round6(t.feeUsd * CASHBACK_SHARE_OF_FEE);
+    if (amount <= 0 || await isBanned(trader)) return 0;
+    const { data, error } = await db.rpc("award_trade_reward", {
+      p_kind: "cashback", p_tx: t.txId, p_beneficiary: trader, p_trader: trader, p_token: t.tokenId ?? null,
+      p_chain: t.chain, p_volume: t.volumeUsd, p_fee: t.feeUsd, p_amount: amount,
+    });
+    if (error) { console.error("[trade-rewards] cashback:", error.message); return 0; }
+    return data === true ? amount : 0;
+  } catch (e) { console.error("[trade-rewards] cashback:", e); return 0; }
+}
+
 export type Buy = { chain: Chain; tokenId: string; txId: string; trader: string; volumeUsd: number; tsMs: number; feeRate?: number };
 
 /** Verse les gains d'un achat vérifié. Idempotent. Ne lève jamais d'erreur. Retourne les montants versés. */
@@ -100,6 +121,8 @@ export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: n
       if (error) { console.error("[trade-rewards] rpc:", error.message); return 0; }
       return data === true ? amount : 0;
     };
+    // Cashback du trader sur les frais OM de cet achat
+    await awardCashback(db, { chain: buy.chain, txId: buy.txId, trader, volumeUsd: buy.volumeUsd, feeUsd: r.fee, tokenId: buy.tokenId });
     if (referrer) out.referral = await pay("referral", referrer, r.referral);
     if (postOk && att) out.post = await pay("post", att.sharer, r.post);
   } catch (e) { console.error("[trade-rewards] award:", e); }
@@ -151,9 +174,17 @@ export async function processArcRewards(db: Db = createAdminClient(), sinceHours
     const referred = new Set(refs.filter(Boolean) as string[]);
     const attKey = new Set(((atts ?? []) as { trader: string; token_id: string }[]).map((a) => `${a.trader}|${a.token_id}`));
 
+    // Achats dont le cashback est déjà versé : sautés s'ils n'ont rien d'autre à payer (évite de tout relire à chaque passage)
+    const done = new Set<string>();
+    const ids = rows.map((b) => `${b.tx_hash}:${b.log_index}`);
+    for (let i = 0; i < ids.length; i += 300) {
+      const { data: got } = await db.from("trade_rewards").select("tx_id").eq("kind", "cashback").in("tx_id", ids.slice(i, i + 300));
+      for (const g of (got ?? []) as { tx_id: string }[]) done.add(g.tx_id);
+    }
+
     for (const b of rows) {
       const tokenId = byCurve.get(b.curve.toLowerCase())!;
-      if (!referred.has(b.trader) && !attKey.has(`${b.trader}|${tokenId}`)) continue;
+      if (done.has(`${b.tx_hash}:${b.log_index}`) && !referred.has(b.trader) && !attKey.has(`${b.trader}|${tokenId}`)) continue;
       // Les horodatages de arc_trades sont interpolés : pour une attribution par post on lit l'heure exacte du bloc.
       let tsMs = b.ts * 1000;
       if (attKey.has(`${b.trader}|${tokenId}`)) {

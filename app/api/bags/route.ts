@@ -5,7 +5,8 @@
 import { NextResponse } from "next/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
-import { arcBags, solanaBags, splitBags, type Bag } from "@/lib/bags";
+import { arcBags, pinClt, solanaBags, splitBags, type Bag } from "@/lib/bags";
+import { getCltPriceUsd } from "@/services/profile-service";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,9 @@ export async function GET(req: Request) {
         return out;
       });
     }
-    const v = { chain: (isArc ? "arc" : "solana") as "solana" | "arc", ...splitBags(bags) };
+    const split = splitBags(bags);
+    // ClawdTrust toujours en tête des actifs Solana, même à 0
+    const v = { chain: (isArc ? "arc" : "solana") as "solana" | "arc", ...(isArc ? split : pinClt(split, await getCltPriceUsd().catch(() => 0) || null)) };
     cache.set(wallet, { at: Date.now(), v });
     if (cache.size > 2000) cache.delete(cache.keys().next().value as string);
     return NextResponse.json(v);

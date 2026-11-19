@@ -24,7 +24,7 @@ export async function GET() {
 
     admin
       .from("referral_commissions")
-      .select("amount_usdc, amount_clt")
+      .select("amount_usdc, amount_clt, referred_wallet")
       .eq("referrer_wallet", wallet),
 
     admin
@@ -131,9 +131,15 @@ export async function GET() {
     for (const b of (u24.data ?? []) as any[]) change24hUsd += usd(Number(b.payout ?? 0), b.token ?? "usdc");
   } catch { change24hUsd = 0; }
 
+  // Cashback des trades (même solde que le parrainage, affiché à part)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cashbackUsdc = (commRes.data ?? []).filter((r: any) => String(r.referred_wallet ?? "").startsWith("trade:cashback:"))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .reduce((s: number, r: any) => s + (r.amount_usdc ?? 0), 0);
+
   return NextResponse.json({
     usdcBalance, cltBalance, octoBalance,
-    winningsUsdc, winningsClt, referralUsdc: commUsdc, referralClt: commClt,
+    winningsUsdc, winningsClt, referralUsdc: commUsdc - cashbackUsdc, referralClt: commClt, cashbackUsdc,
     cltPriceUsd, change24hUsd: Math.round(change24hUsd * 100) / 100,
   });
   } catch (err) {

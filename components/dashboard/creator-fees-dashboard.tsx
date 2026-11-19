@@ -140,7 +140,9 @@ function TokenFeeRow({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function CreatorFeesDashboard({ walletAddress, displayName = null, avatarSrc = null }: {
+/** embedded : dans le dashboard unifié (l'en-tête porte déjà l'identité et les actions ; BAGS et Gains ont leurs onglets) */
+export function CreatorFeesDashboard({ walletAddress, displayName = null, avatarSrc = null, embedded = false }: {
+  embedded?:     boolean;
   walletAddress: string;
   displayName?:  string | null;
   avatarSrc?:    string | null;
@@ -305,7 +307,7 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
 
   const tabsRow = (
       <div className="-mt-2 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {([["tokens", T("Tokens launched")], ["bags", "BAGS"], ["gains", T("Gains")], ["votes", T("My votes")]] as const).map(([id, label]) => (
+        {(embedded ? ([["tokens", T("Tokens launched")], ["votes", T("My votes")]] as const) : ([["tokens", T("Tokens launched")], ["bags", "BAGS"], ["gains", T("Gains")], ["votes", T("My votes")]] as const)).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setSection(id)}
@@ -325,7 +327,21 @@ export function CreatorFeesDashboard({ walletAddress, displayName = null, avatar
   return (
     <div className="space-y-8">
 
-      {section === "bags" ? <BagsPanel tabs={tabsRow} /> : (<>
+      {section === "bags" ? <BagsPanel tabs={tabsRow} /> : embedded ? (<>
+      {isArc && <div id="arc-fees"><ArcFeesTabs /></div>}
+      {isArc && <ArcHolderHoldings />}
+      {hasPending && !isArc && (
+        <button onClick={handleClaimAll} disabled={claimingAll}
+          className="flex w-full items-center justify-between rounded-2xl bg-muted px-4 py-3.5 text-left disabled:opacity-60">
+          <span className="text-[15px] text-muted-foreground">{tr("Creator fees to claim")}</span>
+          <span className="num flex items-center gap-2 text-[15px] font-bold text-foreground">
+            {claimingAll && <Loader2 className="size-4 animate-spin" />}+{fmt(pending.total)}
+            <span className="rounded-full bg-foreground px-3 py-1 text-[13px] text-background">{tr("Claim all")}</span>
+          </span>
+        </button>
+      )}
+      {tabsRow}
+      </>) : (<>
       {/* ── Carte solde ──────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-[28px] bg-card p-5 ring-1 ring-border">
         <WaveTexture />
