@@ -8,6 +8,7 @@ import { Connection } from "@solana/web3.js";
 import { POOL_CREATION_FEE_USDC, POOL_CREATION_FEE_CLT } from "@/lib/market/pool-fee";
 import { verifyArcTransfer } from "@/lib/arc-verify";
 import { checkSolanaTransfer } from "@/lib/solana/verify-transfer";
+import { seedPool } from "@/lib/market/pool-seed";
 
 async function verifyCreationTx(txSig: string, wallet: string): Promise<boolean> {
   const rpc = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
@@ -202,5 +203,7 @@ export async function createPoolMarket(wallet: string, body: any, opts: { mandat
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Moitié des frais versée dans le pool sur une option au hasard (pas pour un programme IA : frais offerts)
+  if (!opts.mandateId && inserted) await seedPool(admin, { id: inserted.id, options: safeOptions, bet_token });
   return NextResponse.json(inserted, { status: 201 });
 }

@@ -1,6 +1,6 @@
 /**
  * Création d'un marché de prédiction (pool) par un agent, non custodial :
- *  1. pool_fee_prepare  : le serveur construit la transaction des frais (0,5 USDC ou 500 000 CLT, mémo kind=pool_creation), l'agent la signe.
+ *  1. pool_fee_prepare  : le serveur construit la transaction des frais (1 USDC ou 500 000 CLT, mémo kind=pool_creation), l'agent la signe.
  *  2. pool_fee_submit   : relais optionnel de cette transaction signée (programmes limités : token, ATA, mémo).
  *  3. create_pool_market: crée le marché avec la signature de la transaction ; images par lien ou base64, stockées par le serveur.
  * Le marché est créé « pending » : il passe en revue par un admin comme sur le site. Solana seulement pour l'instant.
@@ -187,7 +187,7 @@ export async function requestPoolMarket(wallet: string, p: P, origin: string) {
   if (error) throw new PoolError("Could not create the draft");
   return {
     review_url: `${origin}/pools/new/${data.id}`, expires_at: data.expires_at,
-    note: "Nothing is created or paid yet. Send this link to your human: they review the market, pay the 0.5 USDC creation fee with their own wallet and create it. It then goes to admin review.",
+    note: "Nothing is created or paid yet. Send this link to your human: they review the market, pay the 1 USDC creation fee (half of it goes into the pool as a starting stake) with their own wallet and create it. It then goes to admin review.",
   };
 }
 

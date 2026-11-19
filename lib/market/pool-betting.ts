@@ -295,13 +295,13 @@ export type PoolCreationResult =
   | { success: false; error: string };
 
 /**
- * Sends the creation fee (0.5 USDC or 500K CLT) to treasury.
+ * Sends the creation fee (1 USDC or 500K CLT) to treasury.
  * Returns the tx signature on success.
  */
 export async function submitPoolCreation(params: PoolCreationParams): Promise<PoolCreationResult> {
   const { feeToken, walletAddress, walletType, title } = params;
 
-  // Wallet EVM (MetaMask) → frais de création de 0,5 USDC sur Arc
+  // Wallet EVM (MetaMask) → frais de création de 1 USDC sur Arc
   if (walletType === "metamask") {
     if (feeToken !== "usdc") return { success: false, error: "Pay the creation fee in USDC on Arc." };
     const { sendArcUsdc } = await import("@/lib/arc-payments");

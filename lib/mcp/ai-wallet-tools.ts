@@ -159,7 +159,7 @@ export const AI_WALLET_TOOLS: McpTool[] = [
   },
   {
     name: "ai_create_market",
-    description: "Create a prediction market (pool, 2 to 8 options) with your wallet: pays the 0.5 USDC fee (Solana) then sends it to review like any market.",
+    description: "Create a prediction market (pool, 2 to 8 options) with your wallet: pays the 1 USDC fee (half goes into the pool) (Solana) then sends it to review like any market.",
     readOnly: false,
     inputSchema: S({
       title: { type: "string", maxLength: 200 }, description: { type: "string", maxLength: 1000 }, category: { type: "string" },

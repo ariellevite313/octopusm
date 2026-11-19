@@ -1,3 +1,4 @@
+import { HOUSE_WALLET } from "@/lib/market/pool-seed";
 /**
  * GET /api/leaderboard/predictions
  *
@@ -95,6 +96,7 @@ export async function GET(req: Request) {
         .from("mutuel_bets")
         .select("wallet_address, amount, payout_amount, created_at")
         .eq("token", dbToken)
+        .neq("wallet_address", HOUSE_WALLET) // mise de départ de la maison : jamais au classement
         .not("payout_amount", "is", null);
 
       if (hours !== null) {

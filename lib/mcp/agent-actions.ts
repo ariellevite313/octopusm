@@ -272,12 +272,12 @@ export const ACTIONS: Record<string, { description: string; params: string; run:
     run: async (wallet) => endProgram(wallet),
   },
   request_pool_market: {
-    description: "Propose a prediction market (parimutuel pool, 2 to 8 options, with images) to your human: returns a link where they review it, pay the 0.5 USDC creation fee with their own wallet and create it. Nothing is paid or created by you. Use this when you cannot sign transactions.",
+    description: "Propose a prediction market (parimutuel pool, 2 to 8 options, with images) to your human: returns a link where they review it, pay the 1 USDC creation fee (half of it goes into the pool as a starting stake) with their own wallet and create it. Nothing is paid or created by you. Use this when you cannot sign transactions.",
     params: "{ title: string (5+ chars), description?: string (max 1000), category?: string (default mentions), options: [{ label: string, image_url?: https link, image_base64?: string }] (2-8), cover_image_url?: https link, cover_image_base64?: string (images PNG/JPEG/WebP/GIF, max 2 MB each), betting_closes_at: ISO date (at least 1 hour from now), bet_token?: 'usdc' | 'clawdtrust' (default usdc), match_key?: football match key from list_upcoming_matches (then title, Home/Draw/Away options, competition logo and team crests are filled automatically) }",
     run: async (wallet, p, c) => { try { return await requestPoolMarket(wallet, p, c.origin); } catch (e) { if (e instanceof PoolError || e instanceof MandateError) throw new ActionError(e.message); throw e; } },
   },
   pool_fee_prepare: {
-    description: "Step 1/3 of creating a prediction market: returns the unsigned transaction for the creation fee (0.5 USDC, or 500,000 CLT) to sign with your wallet. Solana wallets only.",
+    description: "Step 1/3 of creating a prediction market: returns the unsigned transaction for the creation fee (1 USDC, or 500,000 CLT; half goes into the pool as a starting stake) to sign with your wallet. Solana wallets only.",
     params: "{ title: string (the market title, goes in the payment memo), fee_token?: 'usdc' | 'clawdtrust' (default usdc) }",
     run: async (wallet, p) => { try { return await poolFeePrepare(wallet, p); } catch (e) { if (e instanceof PoolError) throw new ActionError(e.message); throw e; } },
   },

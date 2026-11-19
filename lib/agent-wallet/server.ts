@@ -4,6 +4,7 @@
  * puis signe avec la clé du wallet de l'IA (déchiffrée en mémoire le temps de la signature).
  * Les retraits ne partent que vers le wallet de l'humain qui a connecté l'IA.
  */
+import { POOL_CREATION_FEE_USDC } from "@/lib/market/pool-fee";
 import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction, VersionedTransaction, type Keypair } from "@solana/web3.js";
 import { createPublicClient, createWalletClient, defineChain, encodeFunctionData, erc20Abi, http, type Hex } from "viem";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -40,7 +41,7 @@ const ARC_RPC = "https://rpc.mainnet.arc.io";
 const MEMO_PROGRAM = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 const TREASURY = process.env.NEXT_PUBLIC_TREASURY_ADDRESS ?? "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ";
 const LAUNCH_COST_SOL = 0.02; // frais de lancement + comptes, estimation pour le plafond
-const MARKET_FEE_USDC = 0.5;
+const MARKET_FEE_USDC = POOL_CREATION_FEE_USDC;
 
 // ── Lecture ──────────────────────────────────────────────────────────────────
 
@@ -412,7 +413,7 @@ export async function aiBet(w: AgentWallet, p: { market_id: string; option_id: s
   });
 }
 
-/** Création d'un marché de prédiction : l'IA paie les 0,5 USDC de frais avec son wallet, puis le marché part en validation. */
+/** Création d'un marché de prédiction : l'IA paie le 1 USDC de frais avec son wallet, puis le marché part en validation. */
 export async function aiCreateMarket(w: AgentWallet, p: Record<string, unknown>, ctx: { origin: string; ip: string }) {
   const title = String(p.title ?? "").slice(0, 200);
   if (title.length < 5) throw new AgentWalletError("title must be at least 5 characters");
