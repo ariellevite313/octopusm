@@ -67,6 +67,8 @@ export type GtPool = {
 type GtToken = { id: string; attributes: { address: string; name: string; symbol: string; image_url?: string | null } };
 
 const num = (v: string | null | undefined) => { const n = Number(v); return v != null && Number.isFinite(n) ? n : null; };
+/** Capitalisation : 0 veut dire « inconnue » chez GeckoTerminal (offre totale absente) */
+const cap = (v: string | null | undefined) => { const n = num(v); return n != null && n > 0 ? n : null; };
 
 export function mapPools(json: { data?: GtPool[]; included?: GtToken[] }, chain: TerminalChain = "solana"): TerminalToken[] {
   const toks = new Map((json.included ?? []).map((t) => [t.id, t.attributes]));
@@ -81,7 +83,7 @@ export function mapPools(json: { data?: GtPool[]; included?: GtToken[] }, chain:
     out.push({
       mint: base.address, symbol: base.symbol.slice(0, 16), name: base.name.slice(0, 40), logo: img,
       price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), change1h: num(a.price_change_percentage?.h1), volume24h: num(a.volume_usd?.h24),
-      mcap: num(a.market_cap_usd) ?? num(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: a.address, createdAt: a.pool_created_at ?? null, chain,
+      mcap: cap(a.market_cap_usd) ?? cap(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: a.address, createdAt: a.pool_created_at ?? null, chain,
     });
   }
   return out;
@@ -114,7 +116,7 @@ async function cryptoList(chain: TerminalChain, net: string): Promise<TerminalTo
   if (chain === "solana") {
     const sol = await gtJson(`${GT}/networks/solana/pools/${SOL_USDC_POOL}`).catch(() => null) as { data?: GtPool } | null;
     const a = sol?.data?.attributes;
-    if (a) out.push({ mint: SOL_MINT, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), volume24h: num(a.volume_usd?.h24), mcap: num(a.market_cap_usd) ?? num(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: SOL_USDC_POOL, createdAt: null, chain, verified: true });
+    if (a) out.push({ mint: SOL_MINT, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), volume24h: num(a.volume_usd?.h24), mcap: cap(a.market_cap_usd) ?? cap(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: SOL_USDC_POOL, createdAt: null, chain, verified: true });
     seen.add(SOL_MINT);
   }
   for (const j of pages) for (const t of mapPools(j, chain)) {

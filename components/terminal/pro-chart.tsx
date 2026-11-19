@@ -137,7 +137,15 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
         setTimeout(redraw, 0);
       } catch (e) { console.error("[pro-chart]", e); if (!dead) setState("empty"); }
     })();
-    const ro = new ResizeObserver(() => { if (chart && box.current) { chart.applyOptions({ width: box.current.clientWidth, height: box.current.clientHeight }); redraw(); } });
+    let lastW = 0;
+    const ro = new ResizeObserver(() => {
+      if (!chart || !box.current) return;
+      const w = box.current.clientWidth;
+      chart.applyOptions({ width: w, height: box.current.clientHeight });
+      // Largeur changée (liste repliée, fenêtre) : le graphique reprend toute la place
+      if (Math.abs(w - lastW) > 40) { lastW = w; try { chart.timeScale().fitContent(); } catch { /* retiré */ } }
+      redraw();
+    });
     ro.observe(box.current);
     return () => { dead = true; ro.disconnect(); api.current = null; try { chart?.remove(); } catch { /* déjà retiré */ } };
   }, [pool, tf, network, redraw]);

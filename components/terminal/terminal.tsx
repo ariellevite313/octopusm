@@ -12,9 +12,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Loader2, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
+import { getWalletProfile } from "@/services/wallet-service";
+import { useQuery } from "@tanstack/react-query";
 import { useT } from "@/lib/i18n";
 import { SwapBox } from "@/components/swap/swap-box";
 import { EvmSwapBox } from "@/components/swap/evm-swap-box";
@@ -109,6 +111,7 @@ const FILTER_KEY = "om_terminal_filter";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function Terminal() {
+  const { tr } = useT();
   const sp = useSearchParams();
   const mint = sp.get("mint") ?? "";
   const cParam = sp.get("chain") ?? "solana";
@@ -128,9 +131,23 @@ export function Terminal() {
   }, [sp, mint, router]);
   // Ordinateur : sans token choisi, on montre Solana (SOL)
   const dflt = { mint: SOL_MINT };
+  // Ordinateur : la liste de gauche se replie à volonté (choix gardé) pour laisser toute la place au graphique
+  const [listOpen, setListOpenRaw] = useState(true);
+  useEffect(() => { try { if (localStorage.getItem("om_term_list") === "0") setListOpenRaw(false); } catch { /* ignore */ } }, []);
+  const setListOpen = (v: boolean) => { setListOpenRaw(v); try { localStorage.setItem("om_term_list", v ? "1" : "0"); } catch { /* ignore */ } };
   return (
-    <div className="mx-auto max-w-[1400px] pb-28 md:pb-10 lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6 lg:px-4 lg:pt-4">
-      <div className={`${mint ? "hidden lg:block" : ""} lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
+    <div className={`relative mx-auto pb-28 md:pb-10 lg:grid lg:gap-6 lg:px-4 lg:pt-4 ${listOpen ? "max-w-[1400px] lg:grid-cols-[400px_minmax(0,1fr)]" : "max-w-[1680px] lg:grid-cols-[minmax(0,1fr)] lg:pl-14"}`}>
+      {!listOpen && (
+        <button onClick={() => setListOpen(true)} title={tr("Show the token list")} aria-label={tr("Show the token list")}
+          className="absolute left-3 top-4 z-30 hidden size-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground lg:flex">
+          <PanelLeftOpen className="size-[18px]" />
+        </button>
+      )}
+      <div className={`${mint ? "hidden lg:block" : ""} ${listOpen ? "" : "lg:hidden"} relative lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
+        <button onClick={() => setListOpen(false)} title={tr("Hide the token list")} aria-label={tr("Hide the token list")}
+          className="absolute right-0 top-[64px] z-30 hidden size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground lg:flex">
+          <PanelLeftClose className="size-[18px]" />
+        </button>
         <Home key={sp.get("chains") ?? "all"} selected={(sp.get("chains") ?? "").split(",").filter((c) => CHAINS.some((x) => x.id === c && x.ready)) as TerminalChain[]} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
       </div>
       {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? opened.get(mint) ?? null} favs={favs} />
@@ -354,6 +371,9 @@ function BalanceCard() {
   const [total, setTotal] = useState<number | null>(null);
   const [dep, setDep] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Connecté : plus de bouton « Connect », on montre le nom du compte
+  const { data: me } = useQuery({ queryKey: ["wallet-profile", walletAddress], queryFn: () => getWalletProfile(walletAddress ?? ""), staleTime: 60_000, enabled: !!walletAddress && isAuthenticated });
+  const who = me?.display_name || (me?.username ? `@${me.username}` : walletAddress ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : "");
   useEffect(() => {
     if (!sol) { setTotal(null); return; }
     fetch("/api/bags").then((r) => (r.ok ? r.json() : null)).then((j) => setTotal(j?.total ?? null)).catch(() => {});
@@ -363,10 +383,13 @@ function BalanceCard() {
     <div className="flex items-start justify-between gap-3 py-2">
       <Link href="/dashboard/launchpad" className="min-w-0">
         <p className="num text-[40px] font-bold leading-none tracking-tight text-foreground">${Number(i).toLocaleString("en-US")}<span className="text-muted-foreground">.{d}</span></p>
-        <p className="mt-1.5 text-[14px] text-muted-foreground">{sol ? tr("Your bags") : tr("Connect to see your bags")}</p>
+        <p className="mt-1.5 truncate text-[14px] text-muted-foreground">{isAuthenticated ? <>{tr("Your bags")}{who && <> · <span className="font-semibold text-foreground">{who}</span></>}</> : tr("Connect to see your bags")}</p>
       </Link>
-      <button onClick={() => (sol ? setDep(true) : window.dispatchEvent(new CustomEvent("open-wallet-connect")))}
-        className="h-12 shrink-0 rounded-2xl bg-foreground px-6 text-[16px] font-bold text-background">{sol ? tr("Deposit") : tr("Connect")}</button>
+      {sol ? (
+        <button onClick={() => setDep(true)} className="h-12 shrink-0 rounded-2xl bg-foreground px-6 text-[16px] font-bold text-background">{tr("Deposit")}</button>
+      ) : !isAuthenticated && (
+        <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="h-12 shrink-0 rounded-2xl bg-foreground px-6 text-[16px] font-bold text-background">{tr("Connect")}</button>
+      )}
       {dep && walletAddress && (
         <Sheet title={tr("Deposit")} onClose={() => setDep(false)}>
           <p className="text-sm text-muted-foreground">{tr("Send SOL or USDC on Solana to your wallet address:")}</p>
@@ -455,7 +478,12 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
     try { const v = JSON.parse(localStorage.getItem(`om_limit_preset:${mint}`) ?? "null") as LimitPreset | null; setPresetRaw(v && Date.now() - v.n < 30 * 60_000 ? v : null); } catch { setPresetRaw(null); }
   }, [mint]);
   const [waitLimit, setWaitLimit] = useState(false);
-  useEffect(() => { if (waitLimit && isAuthenticated && walletAddress && !walletAddress.startsWith("0x")) { setWaitLimit(false); setSheet("limit"); } }, [waitLimit, isAuthenticated, walletAddress]);
+  // Ordinateur : colonne de trading à droite (Swap ou Limite), choix gardé
+  const [deskTab, setDeskTabRaw] = useState<"swap" | "limit">("swap");
+  useEffect(() => { try { if (localStorage.getItem("om_desk_trade_tab") === "limit") setDeskTabRaw("limit"); } catch { /* ignore */ } }, []);
+  const setDeskTab = (v: "swap" | "limit") => { setDeskTabRaw(v); try { localStorage.setItem("om_desk_trade_tab", v); } catch { /* ignore */ } };
+  const openLimit = () => { if (desk) setDeskTab("limit"); else setSheet("limit"); };
+  useEffect(() => { if (waitLimit && isAuthenticated && walletAddress && !walletAddress.startsWith("0x")) { setWaitLimit(false); openLimit(); } }, [waitLimit, isAuthenticated, walletAddress]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ordinateur : graphique pro avec outils de dessin (le téléphone garde le graphique simple)
   const [desk, setDesk] = useState(false);
   useEffect(() => {
@@ -499,7 +527,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       if (off || !s) return;
       setT((x) => x ? {
         ...x,
-        price: x.price ?? s.price, mcap: x.mcap ?? s.mcap, volume24h: x.volume24h ?? s.volume24h, change24h: x.change24h ?? s.change24h,
+        price: x.price ?? s.price, mcap: x.mcap || s.mcap, volume24h: x.volume24h ?? s.volume24h, change24h: x.change24h ?? s.change24h,
         liquidity: s.liquidity ?? x.liquidity, createdAt: s.createdAt ?? x.createdAt, pool: x.pool || s.pool || "",
         dex: s.dex ? { ...s.dex, paid: s.dex.paid ?? x.dex?.paid ?? false } : x.dex,
       } : x);
@@ -579,7 +607,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         )}
       </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+      <div className={`lg:grid lg:gap-5 ${isSol && mint !== SOL_MINT ? "lg:grid-cols-[minmax(0,1fr)_460px]" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
         <div className="min-w-0">
           {/* Prix */}
           <div className="flex items-start justify-between gap-3 px-4 pt-3">
@@ -597,6 +625,11 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             </div>
           </div>
 
+          <div className="mt-3 hidden gap-6 px-4 lg:flex">
+            {([[tr("24h change"), t.change24h == null ? "-" : `${t.change24h >= 0 ? "+" : "-"}${pct(t.change24h)}`], [tr("Volume 24h"), compact(t.volume24h, 2)], [tr("Liquidity"), compact(t.liquidity, 2)], [tr("Pool created"), t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "-"]] as const).map(([k, v]) => (
+              <div key={k}><p className="text-[12px] text-muted-foreground">{k}</p><p className={`num text-[14px] font-semibold ${k === tr("24h change") && t.change24h != null ? (t.change24h >= 0 ? "text-up" : "text-down") : "text-foreground"}`}>{v}</p></div>
+            ))}
+          </div>
           {/* Graphique */}
           {isSol && <DevAlert mint={mint} />}
           {mint !== SOL_MINT && <SecurityCard chain={chain} mint={mint} />}
@@ -610,7 +643,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
                   setPreset({ side: p < cur ? "buy" : "sell", mcap: p * k, label, n: Date.now() });
                   // Pas connecté : l'ordre préparé est gardé et la fiche s'ouvre après la connexion
                   if (!(isAuthenticated && walletAddress && !walletAddress.startsWith("0x"))) { setWaitLimit(true); window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
-                  setSheet("limit");
+                  openLimit();
                 }} />
             </div>
           ) : <div className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>}
@@ -653,7 +686,21 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         {/* Ordinateur : boîte de swap à droite */}
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
-            {isSol ? <><SwapBox mint={mint} />{mint !== SOL_MINT && <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-muted text-[15px] font-semibold text-foreground hover:bg-muted/70"><Crosshair className="size-4" />{tr("Limit and TWAP orders")}</button>}<Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
+            {isSol ? <>
+              {mint !== SOL_MINT && (
+                <div className="flex rounded-xl bg-muted p-1">
+                  {(["swap", "limit"] as const).map((k) => (
+                    <button key={k} onClick={() => setDeskTab(k)} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${deskTab === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>{k === "swap" ? tr("Swap") : tr("Limit and TWAP")}</button>
+                  ))}
+                </div>
+              )}
+              {deskTab === "limit" && mint !== SOL_MINT
+                ? (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") && walletType
+                    ? <div className="rounded-2xl border border-border p-4"><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} preset={preset} /></div>
+                    : <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background">{tr("Connect a Solana wallet")}</button>)
+                : <SwapBox mint={mint} />}
+              <Verified info={info} />
+            </> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
           </div>
         </aside>
       </div>

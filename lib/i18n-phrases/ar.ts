@@ -1702,5 +1702,8 @@ const p: Record<string, string> = {
   "Line": "خط",
   "Limit orders are available on Solana tokens.": "الأوامر المحددة متاحة لرموز سولانا.",
   "Market cap not available for this token.": "القيمة السوقية غير متاحة لهذا الرمز.",
+  "Limit and TWAP": "محدد و TWAP",
+  "Show the token list": "إظهار قائمة الرموز",
+  "Hide the token list": "إخفاء قائمة الرموز",
 };
 export default p;

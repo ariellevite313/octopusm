@@ -1702,5 +1702,8 @@ const p: Record<string, string> = {
   "Line": "Çizgi",
   "Limit orders are available on Solana tokens.": "Limit emirleri Solana tokenlerinde kullanılabilir.",
   "Market cap not available for this token.": "Bu token için piyasa değeri mevcut değil.",
+  "Limit and TWAP": "Limit ve TWAP",
+  "Show the token list": "Token listesini göster",
+  "Hide the token list": "Token listesini gizle",
 };
 export default p;

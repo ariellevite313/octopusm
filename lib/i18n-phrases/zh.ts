@@ -1702,5 +1702,8 @@ const p: Record<string, string> = {
   "Line": "线",
   "Limit orders are available on Solana tokens.": "限价单仅适用于 Solana 代币。",
   "Market cap not available for this token.": "该代币暂无市值。",
+  "Limit and TWAP": "限价和 TWAP",
+  "Show the token list": "显示代币列表",
+  "Hide the token list": "隐藏代币列表",
 };
 export default p;
