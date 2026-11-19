@@ -128,6 +128,14 @@ const WALLET_CONFIGS: WalletConfig[] = [
     get: () => byType("robinhood"),
     installUrl: "https://robinhood.com/us/en/support/articles/connect-to-dapps",
   },
+  {
+    id: "brume",
+    name: "Brume",
+    icon: "",
+    iconUrl: "/wallets/brume.svg",
+    get: () => byType("brume"),
+    installUrl: "https://brume.cash",
+  },
 ];
 
 function getInstalledWallets(): WalletConfig[] {

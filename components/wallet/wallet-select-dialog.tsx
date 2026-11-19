@@ -23,8 +23,9 @@ function isMobile(): boolean {
 export function WalletSelectDialog({ wallets, onSelect, onClose, onX }: Props) {
   const { tr } = useT();
   const installed = wallets.filter((w) => w.detected);
-  const notInstalled = wallets.filter((w) => !w.detected);
   const mobile = isMobile();
+  // Brume n'existe qu'en extension Chrome : pas proposé sur mobile s'il n'est pas déjà là
+  const notInstalled = wallets.filter((w) => !w.detected && !(mobile && w.type === "brume"));
 
   function handleSelect(wallet: WalletInfo) {
     if (wallet.detected) {

@@ -41,7 +41,7 @@ export const CHAINS: Record<ChainId, ChainDef> = {
     name: "Solana",
     icon: "/solana.png",
     nativeCurrency: "SOL",
-    walletTypes: ["phantom", "solflare", "backpack", "trustwallet", "robinhood"],
+    walletTypes: ["phantom", "solflare", "backpack", "trustwallet", "robinhood", "brume"],
     features: ["swap", "launch", "fees_sol", "dbc_progress"],
   },
   arc: {

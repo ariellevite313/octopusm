@@ -42,7 +42,7 @@ export type SolanaProvider = {
   ) => void;
 };
 
-export type WalletType = "phantom" | "solflare" | "backpack" | "trustwallet" | "robinhood" | "metamask";
+export type WalletType = "phantom" | "solflare" | "backpack" | "trustwallet" | "robinhood" | "brume" | "metamask";
 
 export type WalletInfo = {
   type: WalletType;
@@ -63,6 +63,7 @@ type WindowWithWallets = Window & {
   backpack?: SolanaProvider & { isBackpack?: boolean };
   trustwallet?: { solana?: SolanaProvider };
   robinhood?: { solana?: SolanaProvider };
+  brume?: SolanaProvider & { isBrume?: boolean };
   ethereum?: {
     isMetaMask?: boolean;
     isPhantom?: boolean;
@@ -120,6 +121,15 @@ export const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
     mobileDeepLink: null,
   },
   {
+    type: "brume",
+    name: "Brume",
+    // Logo fourni par l'extension (Wallet Standard) quand elle est installée ; sinon ce repli
+    icon: "/wallets/brume.svg",
+    downloadUrl: "https://brume.cash",
+    // Extension Chrome seulement (pas d'app mobile ni de lien d'ouverture)
+    mobileDeepLink: null,
+  },
+  {
     type: "metamask",
     name: "MetaMask",
     icon: "/logo-metamask.jpeg",
@@ -159,6 +169,12 @@ function startStdListening() {
   try { window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api })); } catch { /* ignore */ }
 }
 startStdListening();
+
+/** Icône (data URI) annoncée par un wallet Wallet Standard. */
+function stdIcon(re: RegExp): string | null {
+  const w = findStdWallet(re) as (StdWallet & { icon?: string }) | null;
+  return w?.icon && /^data:image\//.test(w.icon) ? w.icon : null;
+}
 
 function findStdWallet(re: RegExp): StdWallet | null {
   startStdListening();
@@ -312,6 +328,9 @@ function rawProviderByType(type: WalletType): SolanaProvider | null {
     case "robinhood":
       // Navigateur Web3 de l'app Robinhood Wallet : fournisseur injecté ou Wallet Standard
       return w.robinhood?.solana ?? (sol?.isRobinhood ? sol : null) ?? fromStd(/robinhood/i);
+    case "brume":
+      // Extension Brume (Solana) : window.brume, sinon Wallet Standard
+      return w.brume ?? fromStd(/brume/i);
     case "metamask":
       // EIP-6963 (MetaMask / Rabby / Coinbase) avec repli sur window.ethereum ; shim pour le test « detected »
       return getEvmProvider() as unknown as SolanaProvider | null;
@@ -330,6 +349,8 @@ export function getProviderByType(type: WalletType): SolanaProvider | null {
 export function getAvailableWallets(): WalletInfo[] {
   return WALLET_CATALOG.map((w) => ({
     ...w,
+    // Brume : logo officiel annoncé par l'extension (Wallet Standard)
+    icon: w.type === "brume" ? (stdIcon(/brume/i) ?? w.icon) : w.icon,
     detected: getProviderByType(w.type) !== null,
   })).sort((a, b) => (b.detected ? 1 : 0) - (a.detected ? 1 : 0));
 }
@@ -340,5 +361,6 @@ export const WALLET_COLORS: Record<WalletType, string> = {
   backpack:    "bg-[#e33e3f]",
   trustwallet: "bg-[#3375bb]",
   robinhood:   "bg-[#00c805]",
+  brume:       "bg-[#0b0b0f]",
   metamask:    "bg-[#e4761b]",
 };
