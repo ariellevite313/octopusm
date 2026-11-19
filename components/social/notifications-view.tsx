@@ -11,7 +11,7 @@ import { renderAnnouncement } from "@/lib/hackathon/announcements";
 type Ann = { id: string; template: string; vars: Record<string, string | number>; href: string | null; publish_at: string; read: boolean };
 
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(2)}`);
-type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip" | "chill" | "weekly_box" | "ambassador" | "price_alert" | "wallet_trade"; actor: string; data?: { symbol?: string | null; mcap?: number; value?: number; kind?: string; chain?: string; label?: string | null; side?: string; mint?: string; usd?: number | null; amount?: number } | null; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
+type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip" | "chill" | "weekly_box" | "ambassador" | "price_alert" | "wallet_trade" | "rug_alert"; actor: string; data?: { reason?: string; before?: number; now?: number; soldPct?: number; symbol?: string | null; mcap?: number; value?: number; kind?: string; chain?: string; label?: string | null; side?: string; mint?: string; usd?: number | null; amount?: number } | null; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -56,6 +56,10 @@ export function NotificationsView() {
     : n.kind === "weekly_box" ? tr("your weekly box result is in. Your OMERO is credited.")
     : n.kind === "price_alert" ? tr(n.data?.kind === "mcap_below" ? "fell below {v} market cap" : "went above {v} market cap", { v: money(n.data?.value ?? 0) })
     : n.kind === "wallet_trade" ? tr(n.data?.side === "buy" ? "bought {token}{usd}" : "sold {token}{usd}", { token: `$${n.data?.symbol ?? "token"}`, usd: n.data?.usd ? ` (${money(n.data.usd)})` : "" })
+    : n.kind === "rug_alert" ? (n.data?.reason === "liquidity" ? tr("Rug alert: liquidity fell from {a} to {b}. You hold this token.", { a: money(n.data?.before ?? 0), b: money(n.data?.now ?? 0) })
+      : n.data?.reason === "dev_sold_all" ? tr("Rug alert: the dev sold everything. You hold this token.")
+      : n.data?.reason === "dev_selling" ? tr("Rug alert: the dev is selling. You hold this token.")
+      : tr("Rug alert: flagged as rugged by RugCheck. You hold this token."))
     : n.kind === "ambassador" ? tr("you are now an OMdotfun ambassador. You earn 20% of the fees on your referrals.")
     : tr("liked your post");
 
@@ -87,10 +91,10 @@ export function NotificationsView() {
             );
           })}
           {list.map((n) => {
-            const box = n.kind === "weekly_box" || n.kind === "ambassador" || n.kind === "price_alert";
-            const term = n.kind === "price_alert" || n.kind === "wallet_trade";
-            const name = n.kind === "price_alert" ? `$${n.data?.symbol ?? "Token"}` : n.kind === "wallet_trade" ? (n.data?.label ?? shortAddress(n.actor)) : box ? "OMdotfun" : n.actor_name ?? shortAddress(n.actor);
-            const tmint = n.kind === "price_alert" ? n.actor : n.data?.mint ?? "";
+            const box = n.kind === "weekly_box" || n.kind === "ambassador" || n.kind === "price_alert" || n.kind === "rug_alert";
+            const term = n.kind === "price_alert" || n.kind === "wallet_trade" || n.kind === "rug_alert";
+            const name = n.kind === "price_alert" || n.kind === "rug_alert" ? `$${n.data?.symbol ?? "Token"}` : n.kind === "wallet_trade" ? (n.data?.label ?? shortAddress(n.actor)) : box ? "OMdotfun" : n.actor_name ?? shortAddress(n.actor);
+            const tmint = n.kind === "price_alert" || n.kind === "rug_alert" ? n.actor : n.data?.mint ?? "";
             const tchain = n.data?.chain && n.data.chain !== "solana" ? `chain=${n.data.chain}&` : "";
             const href = term ? `/terminal?${tchain}mint=${tmint}` : n.kind === "ambassador" ? "/ambassadors" : box ? "/dashboard/box" : n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
             return (
