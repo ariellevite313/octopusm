@@ -3,6 +3,7 @@
  * (ou &chain=… pour un seul réseau). Tokens pour le Terminal OM.
  */
 import { PAIR_QUOTES } from "@/lib/solana/quotes";
+import { DOGE_MINT } from "@/lib/solana/doge";
 import { NextResponse } from "next/server";
 import { arcList, dsolList, pairList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
@@ -30,6 +31,19 @@ async function pinnedPairs(): Promise<TerminalToken[]> {
   return out;
 }
 
+/** Monnaie de paire des tokens lancés sur OM (DOGE, PEPE, ClawdTrust) : leur pastille remplace celle de Solana partout dans le Terminal */
+const BADGE_OF: Record<string, string> = { [DOGE_MINT]: "/chains/dogecoin.png", [PAIR_QUOTES.pepe.mint]: "/pepe.png", [PAIR_QUOTES.clt.mint]: "/clawdtrust-coin.png" };
+async function pairBadges(tokens: TerminalToken[]) {
+  const mints = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.badge).map((t) => t.mint);
+  if (!mints.length) return;
+  try {
+    const { data } = await (createAdminClient() as unknown as { from: (t: string) => { select: (c: string) => { in: (k: string, v: string[]) => { in: (k: string, v: string[]) => Promise<{ data: { mint_address: string; quote_asset: string }[] | null }> } } } })
+      .from("launchpad_tokens").select("mint_address, quote_asset").in("mint_address", mints).in("quote_asset", Object.keys(BADGE_OF));
+    const by = new Map((data ?? []).map((r) => [r.mint_address, BADGE_OF[r.quote_asset]]));
+    for (const t of tokens) { const b = by.get(t.mint); if (b) t.badge = b; }
+  } catch { /* pastille de Solana par défaut */ }
+}
+
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const q = (u.searchParams.get("q") ?? "").trim().slice(0, 60);
@@ -41,7 +55,7 @@ export async function GET(req: Request) {
   // DSOL-20 : tokens lancés sur OM en paire DOGE (Solana), liste à part
   // PSOL-20 (paire PEPE) et CLT-20 (paire ClawdTrust)
   if (l === "psol20" || l === "clt20") {
-    const tokens = await pairList(createAdminClient(), PAIR_QUOTES[l === "psol20" ? "pepe" : "clt"].mint, q).catch(() => [] as TerminalToken[]);
+    const tokens = await pairList(createAdminClient(), PAIR_QUOTES[l === "psol20" ? "pepe" : "clt"].mint, q, l === "psol20" ? "/pepe.png" : "/clawdtrust-coin.png").catch(() => [] as TerminalToken[]);
     return NextResponse.json({ tokens }, { headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
   }
   if (l === "dsol20") {
@@ -83,5 +97,6 @@ export async function GET(req: Request) {
   const sol = tokens.filter((t) => (t.chain ?? "solana") === "solana" && !t.href);
   const ver = await jupVerified(sol.map((t) => t.mint)).catch(() => new Set<string>());
   for (const t of tokens) t.verified = t.verified || t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : isMajorEvm(t.chain ?? "", t.mint);
+  await pairBadges(tokens);
   return NextResponse.json({ tokens }, { status: tokens.length || chains.length === 0 ? 200 : 200, headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
 }

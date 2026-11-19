@@ -12,6 +12,8 @@ export type TerminalToken = {
   pool: string; createdAt: string | null;
   /** chaîne du token (solana par défaut) ; href : page OM à ouvrir à la place du Terminal (tokens Arc) */
   chain?: TerminalChain; href?: string | null;
+  /** Petit logo posé sur l'icône à la place de celui du réseau : monnaie de paire (DSOL-20 : Dogecoin, PSOL-20 : Pepe, CLT-20 : ClawdTrust) */
+  badge?: string | null;
   /** vérifié par Jupiter (Solana) ou lancé sur OM : pastille bleue */
   verified?: boolean;
   /** Infos DexScreener : profil payé (Enhanced Token Info) ou boosté, site web, réseaux sociaux */
@@ -204,13 +206,13 @@ export async function dsolList(db: any, q = ""): Promise<TerminalToken[]> {
       mint: t.mint_address as string, symbol: t.ticker.slice(0, 16), name: t.name.slice(0, 40), logo: t.logo_url,
       price: t.price_usd != null ? Number(t.price_usd) : null, change24h: null, volume24h: null,
       mcap: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, liquidity: null, pool: "", createdAt: t.created_at,
-      chain: "solana" as const, href: `/launchpad/${t.id}`, verified: true,
+      chain: "solana" as const, href: `/launchpad/${t.id}`, verified: true, badge: "/chains/dogecoin.png",
     }));
 }
 
 /** PSOL-20 (paire PEPE) et CLT-20 (paire ClawdTrust) : même liste que DSOL-20, pour leur monnaie de paire. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function pairList(db: any, quoteMint: string, q = ""): Promise<TerminalToken[]> {
+export async function pairList(db: any, quoteMint: string, q = "", badge: string | null = null): Promise<TerminalToken[]> {
   let qy = db.from("launchpad_tokens").select("id, name, ticker, logo_url, mint_address, price_usd, market_cap_usd, created_at")
     .eq("chain", "solana").eq("quote_asset", quoteMint).eq("hidden", false).in("status", ["active", "graduating", "graduated"]).limit(60);
   if (q) qy = qy.or(`ticker.ilike.%${q.replace(/[^\w$-]/g, "")}%,name.ilike.%${q.replace(/[^\w $-]/g, "")}%`);
@@ -221,7 +223,7 @@ export async function pairList(db: any, quoteMint: string, q = ""): Promise<Term
       mint: t.mint_address as string, symbol: t.ticker.slice(0, 16), name: t.name.slice(0, 40), logo: t.logo_url,
       price: t.price_usd != null ? Number(t.price_usd) : null, change24h: null, volume24h: null,
       mcap: t.market_cap_usd != null ? Number(t.market_cap_usd) : null, liquidity: null, pool: "", createdAt: t.created_at,
-      chain: "solana" as const, href: `/launchpad/${t.id}`, verified: true,
+      chain: "solana" as const, href: `/launchpad/${t.id}`, verified: true, badge,
     }));
 }
 

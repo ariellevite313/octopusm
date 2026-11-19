@@ -302,7 +302,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               <span className="relative shrink-0">
                 <Logo src={logoFor(t.mint, t.logo)} sym={t.symbol} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {selected.length !== 1 && <img src={`/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full ring-2 ring-background" />}
+                {(t.badge || selected.length !== 1) && <img src={t.badge ?? `/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full object-cover ring-2 ring-background" />}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[17px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{t.verified && <Tick />}{isRug(t) && <span className="shrink-0 rounded-md bg-[#dc2626] px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide text-white">RUG</span>}</p>
