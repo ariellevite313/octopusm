@@ -142,7 +142,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
       <div style={{ display: "flex", position: "absolute", left: 64, right: 64, bottom: 44, justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", fontSize: 28, fontWeight: 800 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {logo && <img src={logo} alt="" width={52} height={52} style={{ marginRight: 14 }} />}
+          {logo && <img src={logo} alt="" width={32} height={32} style={{ marginRight: 10 }} />}
           <span>OMDOT.FUN</span>
         </div>
         <span style={{ fontSize: 24, color: th.foot }}>{om ? "Launchpad" : "Terminal"}</span>
