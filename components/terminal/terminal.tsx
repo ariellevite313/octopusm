@@ -610,7 +610,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         {/* Ordinateur : boîte de swap à droite */}
         <aside className="hidden lg:block">
           <div className="sticky top-16 space-y-3">
-            {isSol ? <><SwapBox mint={mint} />{mint !== SOL_MINT && <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-muted text-[15px] font-semibold text-foreground hover:bg-muted/70"><Crosshair className="size-4" />{tr("Limit order")}</button>}<Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
+            {isSol ? <><SwapBox mint={mint} />{mint !== SOL_MINT && <button onClick={() => (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") ? setSheet("limit") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-muted text-[15px] font-semibold text-foreground hover:bg-muted/70"><Crosshair className="size-4" />{tr("Limit and TWAP orders")}</button>}<Verified info={info} /></> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
           </div>
         </aside>
       </div>
@@ -631,7 +631,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       </div>)}
 
       {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SwapBox mint={mint} onSwapped={() => setSheet(null)} />}</Sheet>}
-      {sheet === "limit" && walletType && <Sheet title={`${tr("Limit order")} $${t.symbol}`} onClose={() => setSheet(null)}><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} /></Sheet>}
+      {sheet === "limit" && walletType && <Sheet title={`${tr("Orders")} $${t.symbol}`} onClose={() => setSheet(null)}><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} /></Sheet>}
       {sheet === "alert" && <Sheet title={tr("Price alert")} onClose={() => setSheet(null)}><AlertSheet chain={chain} mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} /></Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}
     </div>

@@ -8,27 +8,28 @@ import { useT } from "@/lib/i18n";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 import { currentPath, feePayerOf, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 import { SOL_MINT } from "@/lib/swap/core";
+import { TwapPanel } from "./twap-sheet";
 
 type Order = { orderKey: string; inputMint: string; outputMint: string; makingAmount: string; takingAmount: string; createdAt: string };
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
 const parse = (s: string) => Number(s.replace(/[\s,$]/g, "").replace(/k$/i, "e3").replace(/m$/i, "e6").replace(/b$/i, "e9"));
 
-async function post<T>(body: unknown): Promise<T> {
-  const r = await fetch("/api/terminal/limit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+export async function post<T>(body: unknown, url = "/api/terminal/limit"): Promise<T> {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = (await r.json().catch(() => ({}))) as T & { error?: string };
   if (!r.ok) throw new Error(j.error ?? "Limit order failed");
   return j;
 }
 
 /** Fait signer la transaction préparée par Jupiter, puis la fait envoyer par Jupiter (ou directement par le wallet). */
-async function signAndSend(txB64: string, requestId: string, walletType: WalletType, direct = false): Promise<string> {
+export async function signAndSend(txB64: string, requestId: string, walletType: WalletType, direct = false, url = "/api/terminal/limit"): Promise<string> {
   const bytes = Buffer.from(txB64, "base64");
   const provider = getProviderByType(walletType);
   if (!provider) return signWithoutProvider(walletType, feePayerOf(bytes), bytes, { returnTo: currentPath(), records: [] });
   const vtx = VersionedTransaction.deserialize(bytes);
   if (provider.signTransaction) {
     const signed = (await provider.signTransaction(vtx)) as { serialize(): Uint8Array };
-    const r = await post<{ signature: string; status: string }>({ action: direct ? "send" : "execute", signedTransaction: Buffer.from(signed.serialize()).toString("base64"), requestId });
+    const r = await post<{ signature: string; status: string }>({ action: direct ? "send" : "execute", signedTransaction: Buffer.from(signed.serialize()).toString("base64"), requestId }, url);
     if (r.status && !/success/i.test(r.status)) throw new Error("Transaction failed");
     return r.signature;
   }
@@ -41,6 +42,21 @@ async function signAndSend(txB64: string, requestId: string, walletType: WalletT
  * Jupiter garde l'ordre et l'exécute tout seul, même si l'utilisateur n'est plus sur OM.
  */
 export function LimitSheet({ mint, symbol, mcap, walletType }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType }) {
+  const { tr } = useT();
+  const [mode, setMode] = useState<"limit" | "twap">("limit");
+  return (
+    <div>
+      <div className="mb-3 flex gap-5">
+        {(["limit", "twap"] as const).map((m) => (
+          <button key={m} onClick={() => setMode(m)} className={`text-[16px] font-semibold ${mode === m ? "text-foreground" : "text-muted-foreground"}`}>{m === "limit" ? tr("Limit") : "TWAP"}</button>
+        ))}
+      </div>
+      {mode === "limit" ? <LimitForm mint={mint} symbol={symbol} mcap={mcap} walletType={walletType} /> : <TwapPanel mint={mint} symbol={symbol} walletType={walletType} />}
+    </div>
+  );
+}
+
+function LimitForm({ mint, symbol, mcap, walletType }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType }) {
   const { tr } = useT();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");

@@ -16,7 +16,7 @@ export const LIMIT_FEE_BPS = SWAP_FEE_BPS;
  * Ajoute à la transaction de Jupiter un virement des frais OM (SOL) du maker vers la plateforme.
  * Renvoie la transaction d'origine si elle ne peut pas être modifiée sans risque (autre signataire que le maker).
  */
-async function withFee(txB64: string, maker: string, lamports: bigint): Promise<{ tx: string; fee: bigint }> {
+export async function withFee(txB64: string, maker: string, lamports: bigint): Promise<{ tx: string; fee: bigint }> {
   if (lamports <= 0n) return { tx: txB64, fee: 0n };
   try {
     const vtx = VersionedTransaction.deserialize(Buffer.from(txB64, "base64"));
@@ -55,7 +55,7 @@ async function jup<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 type Ds = { baseToken?: { address?: string }; priceUsd?: string; marketCap?: number; fdv?: number; liquidity?: { usd?: number } };
-async function bestPair(mint: string): Promise<{ price: number; mcap: number | null } | null> {
+export async function bestPair(mint: string): Promise<{ price: number; mcap: number | null } | null> {
   try {
     const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, { signal: AbortSignal.timeout(8000), next: { revalidate: 15 } });
     const pairs = ((r.ok ? await r.json() : []) as Ds[]).filter((p) => p.baseToken?.address === mint).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
@@ -64,7 +64,7 @@ async function bestPair(mint: string): Promise<{ price: number; mcap: number | n
   } catch { return null; }
 }
 
-async function decimals(mint: string): Promise<number> {
+export async function decimals(mint: string): Promise<number> {
   const s = await solanaConnection().getTokenSupply(new PublicKey(mint)).catch(() => null);
   if (!s) throw new TriggerError("Token not found");
   return s.value.decimals;
