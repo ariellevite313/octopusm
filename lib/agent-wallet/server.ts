@@ -68,7 +68,7 @@ async function solToUsd(sol: number): Promise<number> {
 
 const CG_NATIVE: Record<EvmChain, string> = { base: "ETH", ethereum: "ETH", arbitrum: "ETH", bnb: "BNB", polygon: "POL", avalanche: "AVAX", hyperliquid: "HYPE" };
 const evmChainDef = (c: EvmChain) => defineChain({ id: EVM_CHAINS[c].id, name: EVM_CHAINS[c].name, nativeCurrency: { name: EVM_CHAINS[c].native, symbol: EVM_CHAINS[c].native, decimals: 18 }, rpcUrls: { default: { http: [EVM_CHAINS[c].rpc] } } });
-async function nativeUsd(c: EvmChain): Promise<number> {
+export async function nativeUsd(c: EvmChain): Promise<number> {
   const sym = CG_NATIVE[c];
   try {
     const r = await fetch(`https://api.coinbase.com/v2/prices/${sym}-USD/spot`, { signal: AbortSignal.timeout(4000), cache: "no-store" });

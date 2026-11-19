@@ -118,11 +118,13 @@ export function EvmSwapBox({ chain, token, refPost }: { chain: EvmChain; token: 
       }
       setBusy(tr("Confirm in your wallet"));
       const r = await fetch("/api/swap/evm", { method: "POST", headers: { "Content-Type": "application/json" }, body: body("quote") });
-      const q = (await r.json()) as Quote & { error?: string; ref?: { postId: string; holder: string; feeNative: string; taker: string; token: string } };
+      const q = (await r.json()) as Quote & { error?: string; ref?: { postId: string; holder: string; feeNative: string; taker: string; token: string }; rec?: { side: string; sellAmount: string; buyAmount: string; feeNative: string; taker: string; token: string } };
       if (!r.ok || !q.tx) throw new Error(q.error ?? "Swap failed");
       const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: q.tx.to, data: q.tx.data, value: toHex(BigInt(q.tx.value || "0")), ...(q.tx.gas ? { gas: toHex(BigInt(q.tx.gas)) } : {}) }] })) as string;
       setBusy(tr("Waiting for confirmation"));
       await waitReceipt(eth, hash);
+      // Historique OM et cashback (jamais bloquant)
+      if (q.rec) void fetch("/api/swap/evm-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chain, hash, token, to: q.tx.to, data: q.tx.data, side: q.rec.side, sellAmount: q.rec.sellAmount, buyAmount: q.rec.buyAmount, feeNative: q.rec.feeNative, taker: q.rec.taker, rec: q.rec.token }) }).catch(() => {});
       // Swap lancé depuis un post « sac » : on enregistre la part du détenteur (jamais bloquant)
       if (q.ref) void fetch("/api/chill/evm-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chain, hash, postId: q.ref.postId, holder: q.ref.holder, feeNative: q.ref.feeNative, taker: q.ref.taker, token, to: q.tx.to, data: q.tx.data, refToken: q.ref.token }) }).catch(() => {});
       toast.success(side === "buy" ? tr("Bought {symbol}", { symbol: info.token.symbol }) : tr("Sold {symbol}", { symbol: info.token.symbol }), {

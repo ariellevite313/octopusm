@@ -1,6 +1,6 @@
 /**
- * Alertes rug (Solana) : pour les tokens que les utilisateurs détiennent (achetés par le Terminal OM, pas tout revendus),
- * on surveille la liquidité, les ventes du dev et le signalement « rugged » de RugCheck, et on notifie les détenteurs.
+ * Alertes rug : pour les tokens que les utilisateurs détiennent (achetés par le Terminal OM, pas tout revendus),
+ * on surveille la liquidité (tous réseaux), les ventes du dev et le signalement « rugged » de RugCheck (Solana), et on notifie les détenteurs.
  * Appelé par le cron des alertes du Terminal (chaque minute) ; chaque token est relu au plus toutes les 5 minutes.
  */
 import { analyzeDev } from "@/lib/terminal-dev";
@@ -14,14 +14,17 @@ const LIQ_DROP = 0.4, LIQ_MIN = 2_000;
 const RECHECK_MS = 5 * 60_000, DEV_RECHECK_MS = 15 * 60_000, MAX_DEV_PER_RUN = 8;
 
 type Liq = { liquidity: number | null; symbol: string | null };
-async function liquidity(mints: string[]): Promise<Map<string, Liq>> {
+const DS: Record<string, string> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", ethereum: "ethereum", arbitrum: "arbitrum", polygon: "polygon", avalanche: "avalanche" };
+async function liquidity(chain: string, mints: string[]): Promise<Map<string, Liq>> {
   const out = new Map<string, Liq>();
+  if (!DS[chain]) return out;
   for (let i = 0; i < mints.length; i += 30) {
     try {
-      const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mints.slice(i, i + 30).join(",")}`, { signal: AbortSignal.timeout(8000), cache: "no-store" });
+      const r = await fetch(`https://api.dexscreener.com/tokens/v1/${DS[chain]}/${mints.slice(i, i + 30).join(",")}`, { signal: AbortSignal.timeout(8000), cache: "no-store" });
       const pairs = (r.ok ? await r.json() : []) as { baseToken?: { address?: string; symbol?: string }; liquidity?: { usd?: number } }[];
       for (const p of pairs) {
-        const a = p.baseToken?.address; if (!a) continue;
+        const a0 = p.baseToken?.address; if (!a0) continue;
+        const a = chain === "solana" ? a0 : a0.toLowerCase();
         const cur = out.get(a);
         out.set(a, { liquidity: (cur?.liquidity ?? 0) + (p.liquidity?.usd ?? 0), symbol: p.baseToken?.symbol ?? cur?.symbol ?? null });
       }
@@ -30,14 +33,14 @@ async function liquidity(mints: string[]): Promise<Map<string, Liq>> {
   return out;
 }
 
-/** Détenteurs par token : achats moins ventes faits par le Terminal OM sur 30 jours. */
+/** Détenteurs par token (clé « réseau|token ») : achats moins ventes faits par le Terminal OM sur 30 jours. */
 async function holders(db: Db): Promise<Map<string, string[]>> {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const { data } = await db.from("swaps").select("wallet, traded_mint, side, in_amount, out_amount").eq("chain", "solana").gte("created_at", since).limit(10_000);
+  const { data } = await db.from("swaps").select("wallet, chain, traded_mint, side, in_amount, out_amount").neq("chain", "arc").gte("created_at", since).limit(10_000);
   const net = new Map<string, bigint>();
-  for (const s of (data ?? []) as { wallet: string; traded_mint: string; side: string; in_amount: string; out_amount: string }[]) {
+  for (const s of (data ?? []) as { wallet: string; chain: string; traded_mint: string; side: string; in_amount: string; out_amount: string }[]) {
     if (!s.traded_mint || QUOTES.has(s.traded_mint)) continue;
-    const k = `${s.wallet}|${s.traded_mint}`;
+    const k = `${s.wallet}|${s.chain}|${s.traded_mint}`;
     let v = 0n;
     try { v = BigInt(s.side === "buy" ? s.out_amount : s.in_amount); } catch { continue; }
     net.set(k, (net.get(k) ?? 0n) + (s.side === "buy" ? v : -v));
@@ -45,8 +48,8 @@ async function holders(db: Db): Promise<Map<string, string[]>> {
   const by = new Map<string, string[]>();
   for (const [k, v] of net) {
     if (v <= 0n) continue;
-    const [wallet, mint] = k.split("|");
-    by.set(mint, [...(by.get(mint) ?? []), wallet]);
+    const [wallet, chain, mint] = k.split("|");
+    by.set(`${chain}|${mint}`, [...(by.get(`${chain}|${mint}`) ?? []), wallet]);
   }
   return by;
 }
@@ -64,13 +67,18 @@ async function notify(db: Db, wallets: string[], mint: string, ref: string, data
 export async function runRugAlerts(db: Db, deadline: number): Promise<number> {
   const by = await holders(db);
   if (!by.size) return 0;
-  const mints = [...by.keys()];
+  const keys = [...by.keys()];
+  const mints = keys.map((k) => k.split("|")[1]);
+  const chainOf = new Map(keys.map((k) => [k.split("|")[1], k.split("|")[0]]));
   const { data: rows } = await db.from("token_watch").select("mint, liquidity, peak_liquidity, dev_status, rugged, checked_at, dev_checked_at").in("mint", mints.slice(0, 1000));
   const state = new Map(((rows ?? []) as { mint: string; liquidity: number | null; peak_liquidity: number | null; dev_status: string | null; rugged: boolean; checked_at: string | null; dev_checked_at: string | null }[]).map((r) => [r.mint, r]));
   const now = Date.now();
   const due = mints.filter((m) => !state.get(m)?.checked_at || now - Date.parse(state.get(m)!.checked_at!) > RECHECK_MS).slice(0, 300);
   if (!due.length) return 0;
-  const liq = await liquidity(due);
+  const liq = new Map<string, Liq>();
+  const byChain = new Map<string, string[]>();
+  for (const m of due) { const c = chainOf.get(m)!; byChain.set(c, [...(byChain.get(c) ?? []), m]); }
+  for (const [c, ms] of byChain) for (const [k, v] of await liquidity(c, ms)) liq.set(k, v);
   const today = new Date().toISOString().slice(0, 10);
   let sent = 0, devRuns = 0;
 
@@ -78,7 +86,8 @@ export async function runRugAlerts(db: Db, deadline: number): Promise<number> {
     if (Date.now() > deadline) break;
     const prev = state.get(mint);
     const cur = liq.get(mint);
-    const holdersOf = by.get(mint)!;
+    const chain = chainOf.get(mint)!;
+    const holdersOf = by.get(`${chain}|${mint}`)!;
     const symbol = cur?.symbol ?? null;
     const l = cur?.liquidity ?? null;
     const peak = Math.max(Number(prev?.peak_liquidity ?? 0), l ?? 0);
@@ -86,12 +95,13 @@ export async function runRugAlerts(db: Db, deadline: number): Promise<number> {
 
     // 1. Liquidité retirée
     if (l != null && peak >= LIQ_MIN && l < peak * LIQ_DROP) {
-      sent += await notify(db, holdersOf, mint, `${mint}:liq:${today}`, { reason: "liquidity", symbol, before: peak, now: l });
+      sent += await notify(db, holdersOf, mint, `${mint}:liq:${today}`, { reason: "liquidity", symbol, before: peak, now: l, chain });
       upd.peak_liquidity = l; // nouveau point de départ
     }
 
     // 2. Ventes du dev (lecture plus lourde : quelques tokens par passage)
-    const devDue = !prev?.dev_checked_at || now - Date.parse(prev.dev_checked_at) > DEV_RECHECK_MS;
+    // Dev et RugCheck : Solana seulement
+    const devDue = chain === "solana" && (!prev?.dev_checked_at || now - Date.parse(prev.dev_checked_at) > DEV_RECHECK_MS);
     if (devDue && devRuns < MAX_DEV_PER_RUN) {
       devRuns++;
       const dev = await analyzeDev(mint).catch(() => null);

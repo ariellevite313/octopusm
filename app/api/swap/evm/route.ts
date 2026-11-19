@@ -37,6 +37,16 @@ export async function POST(req: Request) {
       const holder = await resolveEvmRef(b.refPost, c.v.chain, c.v.token, taker);
       if (holder) return NextResponse.json({ ...q, ref: { postId: b.refPost, holder, feeNative: q.feeNative, taker, token: signRef({ postId: String(b.refPost), chain: c.v.chain, taker, to: q.tx.to, data: q.tx.data, feeNative: q.feeNative, holder }) } });
     }
+    // Jeton signé pour enregistrer ce swap après coup (historique, cashback) : lie la transaction à ce devis
+    if (q.tx && q.feeNative && taker && b.mode === "quote") {
+      const rec = { postId: `rec:${c.v.side}:${q.sellAmount}:${q.buyAmount}`, chain: c.v.chain, taker, to: q.tx.to, data: q.tx.data, feeNative: q.feeNative, holder: c.v.token };
+      const out = { ...q, rec: { side: c.v.side, sellAmount: q.sellAmount, buyAmount: q.buyAmount, feeNative: q.feeNative, taker, token: signRef(rec) } };
+      if (b.refPost) {
+        const holder = await resolveEvmRef(b.refPost, c.v.chain, c.v.token, taker);
+        if (holder) return NextResponse.json({ ...out, ref: { postId: b.refPost, holder, feeNative: q.feeNative, taker, token: signRef({ postId: String(b.refPost), chain: c.v.chain, taker, to: q.tx.to, data: q.tx.data, feeNative: q.feeNative, holder }) } });
+      }
+      return NextResponse.json(out);
+    }
     return NextResponse.json(q);
   } catch (e) {
     if (e instanceof EvmSwapError) return NextResponse.json({ error: e.message }, { status: e.status });
