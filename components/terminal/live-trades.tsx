@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n";
 import { EVM_CHAINS, isEvmChain } from "@/lib/swap/evm";
 import { EXTRA_EXPLORERS, GT_NET, type TerminalChain } from "@/lib/terminal";
 import type { LiveTrade } from "@/app/api/terminal/live-trades/route";
+import { onTokenTrade, solUsd } from "@/lib/pumpportal";
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const usd = (n: number) => (n > 0 && n < 0.01 ? "<$0.01" : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(n < 10 ? 2 : 0)}`);
@@ -26,19 +27,23 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
   const network = GT_NET[chain];
 
   useEffect(() => {
-    if (!network || !pool) return;
+    if (!network) return;
     let off = false;
     seen.current = new Set();
     setRows(null);
     const load = () => {
       if (document.visibilityState !== "visible") return;
-      fetch(`/api/terminal/live-trades?network=${network}&pool=${encodeURIComponent(pool)}&mint=${encodeURIComponent(mint)}`)
-        .then((r) => r.json()).then((j: { trades?: LiveTrade[] }) => {
-          if (off || !j.trades) return;
+      fetch(`/api/terminal/live-trades?network=${network}${pool ? `&pool=${encodeURIComponent(pool)}` : ""}&mint=${encodeURIComponent(mint)}`)
+        .then((r) => (r.ok ? r.json() : null)).then((j: { trades?: LiveTrade[] } | null) => {
+          if (off || !j?.trades) { if (!off) setRows((r) => r ?? []); return; }
           const first = seen.current.size === 0;
           const added = new Set(j.trades.filter((x) => !seen.current.has(x.tx)).map((x) => x.tx));
           j.trades.forEach((x) => seen.current.add(x.tx));
-          setRows(j.trades);
+          setRows((prev) => {
+            const by = new Map((prev ?? []).map((x) => [x.tx, x]));
+            for (const x of j.trades!) by.set(x.tx, x);
+            return [...by.values()].sort((a, b) => b.t - a.t).slice(0, 120);
+          });
           if (!first && added.size) { setFresh(added); setTimeout(() => !off && setFresh(new Set()), 1500); }
         }).catch(() => { if (!off) setRows((r) => r ?? []); });
     };
@@ -48,7 +53,23 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
     return () => { off = true; clearInterval(every); clearInterval(clock); };
   }, [network, pool, mint]);
 
-  if (!network || !pool) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Live trades not available on this network yet.")}</p>;
+  // Solana : trades pump.fun / PumpSwap / LetsBonk à la seconde (PumpPortal), avant même que GeckoTerminal les voie
+  useEffect(() => {
+    if (chain !== "solana") return;
+    let sol: number | null = null;
+    solUsd().then((v) => { sol = v; });
+    return onTokenTrade(mint, (m) => {
+      if (seen.current.has(m.signature) || !(m.tokenAmount > 0)) return;
+      seen.current.add(m.signature);
+      const usdV = sol ? m.solAmount * sol : 0;
+      const row: LiveTrade = { tx: m.signature, wallet: m.traderPublicKey, side: m.txType, usd: usdV, amount: m.tokenAmount, price: usdV / m.tokenAmount, t: Date.now() };
+      setRows((r) => [row, ...(r ?? [])].slice(0, 120));
+      setFresh(new Set([m.signature]));
+      setTimeout(() => setFresh(new Set()), 1500);
+    });
+  }, [chain, mint]);
+
+  if (!network) return <p className="py-8 text-center text-sm text-muted-foreground">{tr("Live trades not available on this network yet.")}</p>;
   if (!rows) return <div className="space-y-2 py-2">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-9 animate-pulse rounded-lg bg-muted" />)}</div>;
 
   const base = chain === "solana" ? "https://solscan.io" : isEvmChain(chain) ? EVM_CHAINS[chain].explorer : EXTRA_EXPLORERS[chain] ?? null;

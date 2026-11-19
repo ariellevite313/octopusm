@@ -6,6 +6,9 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getProfiles } from "@/lib/profiles";
 import { loadTrades } from "@/lib/hackathon/ledger";
+import { GT_NET, type TerminalChain } from "@/lib/terminal";
+
+export const TERMINAL_CHAINS = Object.keys(GT_NET) as TerminalChain[];
 
 export type CardTrade = { side: "buy" | "sell"; usd: number; tokens: number; tsMs: number };
 export type TradeCard = {
@@ -19,13 +22,15 @@ export type TradeCard = {
 };
 
 const isEvm = (s: string) => /^0x[0-9a-fA-F]{40}$/.test(s);
+/** Identifiant DexScreener de chaque réseau du Terminal */
+const DS_ID: Partial<Record<TerminalChain, string>> = { solana: "solana", base: "base", bnb: "bsc", hyperliquid: "hyperevm", ethereum: "ethereum", arbitrum: "arbitrum", polygon: "polygon", avalanche: "avalanche" };
 const USDC_SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wfGEPwvwyD1v";
 
 type DsPair = { pairAddress?: string; priceUsd?: string; marketCap?: number; fdv?: number; liquidity?: { usd?: number }; baseToken?: { address?: string; symbol?: string }; info?: { imageUrl?: string } };
 
 async function dsToken(chain: string, mint: string): Promise<{ price: number | null; mcap: number | null; symbol: string | null; logo: string | null; pool: string | null }> {
   try {
-    const r = await fetch(`https://api.dexscreener.com/tokens/v1/${chain}/${mint}`, { signal: AbortSignal.timeout(7000), next: { revalidate: 120 } });
+    const r = await fetch(`https://api.dexscreener.com/tokens/v1/${DS_ID[chain as TerminalChain] ?? chain}/${mint}`, { signal: AbortSignal.timeout(7000), next: { revalidate: 120 } });
     const j = (r.ok ? await r.json() : []) as DsPair[];
     const own = j.filter((p) => p.baseToken?.address?.toLowerCase() === mint.toLowerCase()).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
     const p = own[0];
@@ -60,6 +65,35 @@ async function priceSeries(chain: string, pool: string | null, fromMs: number): 
     const j = await r.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
     return (j.data?.attributes?.ohlcv_list ?? []).map((c) => ({ t: c[0] * 1000, v: c[4] })).filter((p) => p.t >= fromMs - 3_600_000 && p.v > 0).sort((a, b) => a.t - b.t);
   } catch { return []; }
+}
+
+export type Candle = { t: number; o: number; h: number; l: number; c: number };
+
+/** Bougies d'un token (GeckoTerminal), `count` bougies de `tf`/`agg`, du plus ancien au plus récent. */
+async function candlesOf(net: string | null, pool: string | null, tf: "day" | "hour" | "minute", agg: number, count: number): Promise<Candle[]> {
+  if (!net || !pool || !/^[A-Za-z0-9]{20,64}$/.test(pool)) return [];
+  try {
+    const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/${net}/pools/${pool}/ohlcv/${tf}?aggregate=${agg}&limit=${count}&currency=usd`, { signal: AbortSignal.timeout(8000), next: { revalidate: 300 } });
+    if (!r.ok) return [];
+    const j = await r.json() as { data?: { attributes?: { ohlcv_list?: number[][] } } };
+    return (j.data?.attributes?.ohlcv_list ?? []).map((c) => ({ t: c[0] * 1000, o: c[1], h: c[2], l: c[3], c: c[4] })).filter((c) => c.c > 0 && c.h > 0).sort((a, b) => a.t - b.t);
+  } catch { return []; }
+}
+
+/** Repli GeckoTerminal quand DexScreener ne connaît pas le token (pool récente, courbe de lancement) : prix, capitalisation, pool principale. */
+async function gtToken(net: string | null, mint: string): Promise<{ price: number | null; mcap: number | null; symbol: string | null; name: string | null; logo: string | null; pool: string | null }> {
+  const none = { price: null, mcap: null, symbol: null, name: null, logo: null, pool: null };
+  if (!net) return none;
+  try {
+    const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/${net}/tokens/${mint}?include=top_pools`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 120 } });
+    if (!r.ok) return none;
+    const j = await r.json() as { data?: { attributes?: Record<string, unknown>; relationships?: { top_pools?: { data?: { id: string }[] } } } };
+    const a = j.data?.attributes ?? {};
+    const n = (v: unknown) => { const x = Number(v); return v != null && v !== "" && Number.isFinite(x) && x > 0 ? x : null; };
+    const poolId = j.data?.relationships?.top_pools?.data?.[0]?.id ?? null;
+    const img = typeof a.image_url === "string" && a.image_url.startsWith("http") ? a.image_url : null;
+    return { price: n(a.price_usd), mcap: n(a.market_cap_usd) ?? n(a.fdv_usd), symbol: typeof a.symbol === "string" ? a.symbol : null, name: typeof a.name === "string" ? a.name : null, logo: img, pool: poolId ? poolId.split("_").slice(1).join("_") : null };
+  } catch { return none; }
 }
 
 type LaunchRef = { id: string; chain: string | null; arc_launch_id: string | null } | null;
@@ -135,38 +169,55 @@ export async function getTradeCard(walletIn: string, mint: string): Promise<Trad
 
 
 export type TokenCard = {
-  chain: "solana" | "arc"; mint: string; symbol: string; name: string | null; logo: string | null; verified: boolean;
+  chain: TerminalChain; mint: string; symbol: string; name: string | null; logo: string | null; verified: boolean;
   mcap: number | null; price: number | null; series: { t: number; v: number }[];
+  /** Vraies bougies (capitalisation) sur la période, si la pool est connue de GeckoTerminal */
+  candles: Candle[];
   change: number; pct: number | null; marks: { t: number; side: "buy" | "sell" }[];
 };
 
 /**
- * Carte de partage d'un token sans trade du wallet (Terminal) : capitalisation sur 30 jours, achats et ventes passés par OM
- * en marqueurs, variation de la capitalisation sur la période.
+ * Carte de partage d'un token sans trade du wallet (Terminal) : vraies bougies de capitalisation sur 30 jours, achats et ventes
+ * passés par OM en marqueurs, variation de la capitalisation sur la période. Tous les réseaux du Terminal.
+ * `chain` : réseau du token (sinon Solana, ou Arc pour une adresse 0x) ; `poolHint` : pool connue du Terminal.
  */
-export async function getTokenCard(mint: string): Promise<TokenCard | null> {
+export async function getTokenCard(mint: string, chainIn?: string | null, poolHint?: string | null): Promise<TokenCard | null> {
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) && !isEvm(mint)) return null;
-  const chain: "solana" | "arc" = isEvm(mint) ? "arc" : "solana";
+  const chain: TerminalChain = chainIn && (TERMINAL_CHAINS as string[]).includes(chainIn) ? (chainIn as TerminalChain) : isEvm(mint) ? "arc" : "solana";
+  const net = GT_NET[chain];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
-  const [{ data: lt }, ds] = await Promise.all([
-    db.from("launchpad_tokens").select("id, chain, arc_launch_id, name, ticker, logo_url, price_usd, market_cap_usd").ilike("mint_address", mint).maybeSingle(),
+  const ourChain = chain === "solana" || chain === "arc";
+  const [{ data: lt }, ds, gt] = await Promise.all([
+    ourChain ? db.from("launchpad_tokens").select("id, chain, arc_launch_id, name, ticker, logo_url, price_usd, market_cap_usd").ilike("mint_address", mint).maybeSingle() : Promise.resolve({ data: null }),
     dsToken(chain, mint),
+    gtToken(net, mint),
   ]);
-  if (!lt && !ds.pool) return null;
-  const price = ds.price ?? (lt?.price_usd != null ? Number(lt.price_usd) : null);
-  const mcap = ds.mcap ?? (lt?.market_cap_usd != null ? Number(lt.market_cap_usd) : null);
+  const pool = ds.pool ?? gt.pool ?? (poolHint && /^[A-Za-z0-9]{20,64}$/.test(poolHint) ? poolHint : null);
+  if (!lt && !pool && !gt.price) return null;
+  const price = ds.price ?? gt.price ?? (lt?.price_usd != null ? Number(lt.price_usd) : null);
+  const mcap = ds.mcap ?? gt.mcap ?? (lt?.market_cap_usd != null ? Number(lt.market_cap_usd) : null);
   const from = Date.now() - 30 * 86_400_000;
-  let series = await priceSeries(chain, ds.pool, from);
+  // Bougies de 12 h sur 30 jours ; si la pool est plus récente, des bougies plus fines pour que le graphique ait de la matière
+  let candles = await candlesOf(net, pool, "hour", 12, 60);
+  if (candles.length < 12) {
+    const fine = await candlesOf(net, pool, "hour", 1, 168);
+    if (fine.length > candles.length) candles = fine;
+    if (candles.length < 12) { const m = await candlesOf(net, pool, "minute", 15, 192); if (m.length > candles.length) candles = m; }
+  }
   const k = mcap && price ? mcap / price : 1;
-  series = series.map((p) => ({ t: p.t, v: p.v * k }));
+  candles = candles.map((c) => ({ t: c.t, o: c.o * k, h: c.h * k, l: c.l * k, c: c.c * k }));
+  // Dernière bougie recalée sur la capitalisation actuelle
+  if (candles.length && mcap) { const c = candles[candles.length - 1]; c.c = mcap; c.h = Math.max(c.h, mcap); c.l = Math.min(c.l, mcap); }
+  let series = candles.map((c) => ({ t: c.t, v: c.c }));
   if (series.length < 2 && mcap) series = [{ t: from, v: mcap }, { t: Date.now(), v: mcap }];
-  const first = series[0]?.v ?? 0, last = mcap ?? series[series.length - 1]?.v ?? 0;
-  const trades = await loadTokenTrades(db, chain, mint, lt, undefined, 80).catch(() => []);
+  const first = candles[0]?.o ?? series[0]?.v ?? 0, last = mcap ?? series[series.length - 1]?.v ?? 0;
+  const trades = ourChain ? await loadTokenTrades(db, chain as "solana" | "arc", mint, lt, undefined, 80).catch(() => []) : [];
+  const t0 = candles[0]?.t ?? series[0]?.t ?? from;
   return {
-    chain, mint, symbol: (lt?.ticker ?? ds.symbol ?? "TOKEN").replace(/^\$/, "").slice(0, 14), name: lt?.name ?? null,
-    logo: lt?.logo_url ?? ds.logo, verified: !!lt, mcap, price, series,
+    chain, mint, symbol: (lt?.ticker ?? ds.symbol ?? gt.symbol ?? "TOKEN").replace(/^\$/, "").slice(0, 14), name: lt?.name ?? gt.name ?? null,
+    logo: lt?.logo_url ?? ds.logo ?? gt.logo, verified: !!lt, mcap, price, series, candles,
     change: last - first, pct: first > 0 ? ((last - first) / first) * 100 : null,
-    marks: trades.filter((t) => t.tsMs >= (series[0]?.t ?? from)).map((t) => ({ t: t.tsMs, side: t.side })),
+    marks: trades.filter((t) => t.tsMs >= t0).map((t) => ({ t: t.tsMs, side: t.side })),
   };
 }

@@ -21,14 +21,14 @@ async function post<T>(body: unknown): Promise<T> {
 }
 
 /** Fait signer la transaction préparée par Jupiter, puis la fait envoyer par Jupiter (ou directement par le wallet). */
-async function signAndSend(txB64: string, requestId: string, walletType: WalletType): Promise<string> {
+async function signAndSend(txB64: string, requestId: string, walletType: WalletType, direct = false): Promise<string> {
   const bytes = Buffer.from(txB64, "base64");
   const provider = getProviderByType(walletType);
   if (!provider) return signWithoutProvider(walletType, feePayerOf(bytes), bytes, { returnTo: currentPath(), records: [] });
   const vtx = VersionedTransaction.deserialize(bytes);
   if (provider.signTransaction) {
     const signed = (await provider.signTransaction(vtx)) as { serialize(): Uint8Array };
-    const r = await post<{ signature: string; status: string }>({ action: "execute", signedTransaction: Buffer.from(signed.serialize()).toString("base64"), requestId });
+    const r = await post<{ signature: string; status: string }>({ action: direct ? "send" : "execute", signedTransaction: Buffer.from(signed.serialize()).toString("base64"), requestId });
     if (r.status && !/success/i.test(r.status)) throw new Error("Transaction failed");
     return r.signature;
   }
@@ -58,8 +58,8 @@ export function LimitSheet({ mint, symbol, mcap, walletType }: { mint: string; s
   async function create() {
     setBusy(true);
     try {
-      const r = await post<{ transaction: string; requestId: string }>({ action: "create", side, mint, amount: a, targetMcap: t });
-      await signAndSend(r.transaction, r.requestId, walletType);
+      const r = await post<{ transaction: string; requestId: string; direct?: boolean }>({ action: "create", side, mint, amount: a, targetMcap: t });
+      await signAndSend(r.transaction, r.requestId, walletType, !!r.direct);
       toast.success(tr("Limit order placed"));
       setAmount(""); setTarget("");
       setTimeout(load, 2500);
@@ -97,7 +97,7 @@ export function LimitSheet({ mint, symbol, mcap, walletType }: { mint: string; s
       <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="500k" className="num mt-1 h-12 w-full rounded-2xl bg-muted px-4 text-[16px] outline-none" />
       {hint && <p className="mt-2 text-[13px] text-foreground">{hint}</p>}
       <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="mx-auto size-4 animate-spin" /> : tr("Place order")}</button>
-      <p className="mt-2 text-[12px] text-muted-foreground">{tr("Orders are held and filled by Jupiter, even when you are away. Minimum about $5.")}</p>
+      <p className="mt-2 text-[12px] text-muted-foreground">{tr("Orders are held and filled by Jupiter, even when you are away. Minimum about $5. OM fee 0.3%, taken in SOL when the order is placed.")}</p>
 
       {orders && orders.length > 0 && (
         <div className="mt-4">

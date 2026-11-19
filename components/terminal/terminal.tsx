@@ -100,6 +100,8 @@ function Sheet({ onClose, children, title }: { onClose: () => void; children: Re
 }
 
 const NET_KEY = "om_terminal_chains";
+/** Tokens ouverts depuis une liste (Pulse, recherche…) : la page du token garde leur logo et leurs chiffres dès l'ouverture */
+const opened = new Map<string, TerminalToken>();
 const FILTER_KEY = "om_terminal_filter";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -128,7 +130,7 @@ export function Terminal() {
       <div className={`${mint ? "hidden lg:block" : ""} lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none]`}>
         <Home key={sp.get("chains") ?? "all"} selected={(sp.get("chains") ?? "").split(",").filter((c) => CHAINS.some((x) => x.id === c && x.ready)) as TerminalChain[]} favs={favs} active={mint} onList={setList} initialQ={sp.get("q") ?? ""} />
       </div>
-      {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? null} favs={favs} />
+      {mint ? <TokenView key={mint} mint={mint} chain={chain} fromList={list?.find((t) => t.mint === mint) ?? favs.favs.find((t) => t.mint === mint) ?? opened.get(mint) ?? null} favs={favs} />
         : dflt ? <div className="hidden lg:block"><TokenView key={dflt.mint} mint={dflt.mint} chain="solana" fromList={null} favs={favs} /></div>
         : <div className="hidden items-center justify-center text-muted-foreground lg:flex"><EmptyPick /></div>}
     </div>
@@ -185,6 +187,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
 
   const open = (m: string, t?: TerminalToken) => {
     if (t?.href) { router.push(t.href); return; }
+    if (t) opened.set(m, t);
     const c = t?.chain ?? "solana";
     router.push(`/terminal?${c !== "solana" ? `chain=${c}&` : ""}mint=${m}`, { scroll: true });
   };
@@ -407,7 +410,7 @@ function TopTraders() {
 }
 
 // ── Page d'un token ───────────────────────────────────────────────────────────
-type SwapToken = { verified: boolean | null; om_id: string | null; fee_bps: number };
+type SwapToken = { verified: boolean | null; om_id: string | null; fee_bps: number; logo?: string | null };
 
 function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: TerminalChain; fromList: TerminalToken | null; favs: ReturnType<typeof useFavs> }) {
   const isSol = chain === "solana";
@@ -454,7 +457,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
       const found = (j.tokens ?? []).find((x: TerminalToken) => x.mint.toLowerCase() === mint.toLowerCase());
       // SOL est presque toujours le token de cotation : on prend la grande pool SOL/USDC de Raydium pour son graphique
       const sol = mint === SOL_MINT ? { mint, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: SOL_USDC_POOL, createdAt: null, chain: "solana" as const, verified: true } : null;
-      setT(sol ? { ...sol, ...(found ?? {}), mcap: null, pool: SOL_USDC_POOL, logo: found?.logo ?? sol.logo } : found ?? { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
+      setT(sol ? { ...sol, ...(found ?? {}), mcap: null, pool: SOL_USDC_POOL, logo: found?.logo ?? sol.logo } : found ? { ...found, logo: found.logo ?? null } : { mint, symbol: short(mint), name: short(mint), logo: null, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null });
     }).catch(() => {});
   }, [mint, fromList]);
   // Chiffres complets (capitalisation, liquidité, volume, date de la pool) : DexScreener puis GeckoTerminal
@@ -511,17 +514,17 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         portrait
         fileName={`omdot-${t.symbol.toLowerCase()}.png`}
         // Carte de gains du wallet s'il a tradé ce token, sinon carte du token (même style) : jamais un simple lien
-        images={[shareCard?.wallet ? `/api/og/trade/${encodeURIComponent(shareCard.wallet)}?mint=${encodeURIComponent(mint)}` : `/api/og/token/${encodeURIComponent(mint)}`]}
+        images={[shareCard?.wallet ? `/api/og/trade/${encodeURIComponent(shareCard.wallet)}?mint=${encodeURIComponent(mint)}` : `/api/og/token/${encodeURIComponent(mint)}?chain=${chain}${t.pool ? `&pool=${encodeURIComponent(t.pool)}` : ""}`]}
         url={shareCard?.wallet
           ? `/share/trade/${encodeURIComponent(shareCard.wallet)}?mint=${encodeURIComponent(mint)}`
-          : `/share/token/${encodeURIComponent(mint)}`}
+          : `/share/token/${encodeURIComponent(mint)}?chain=${chain}`}
         text={shareCard?.wallet ? tr("My trade on ${symbol} on OMdotfun", { symbol: t.symbol }) : tr("${symbol} on OMdotfun", { symbol: t.symbol })}
         perks={TOKEN_PERKS}
       />
       {/* En-tête */}
       <div className="sticky top-16 z-20 flex items-center gap-2 bg-background/95 px-3 py-2 backdrop-blur lg:top-0">
         <button onClick={() => router.push("/terminal")} aria-label={tr("Back")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground lg:hidden"><ChevronLeft className="size-6" /></button>
-        <Logo src={t.logo} sym={t.symbol} size="size-11" />
+        <Logo src={t.logo ?? info?.logo ?? null} sym={t.symbol} size="size-11" />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-[18px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{(t.verified || info?.verified) && <Tick className="size-5" />}{isRug(t) && <span className="shrink-0 rounded-md bg-[#dc2626] px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide text-white">RUG</span>}</p>
           <button onClick={() => navigator.clipboard.writeText(mint).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}

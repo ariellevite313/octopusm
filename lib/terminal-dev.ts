@@ -62,12 +62,28 @@ async function findDeployer(mint: PublicKey): Promise<string | null> {
   return first ? first.toBase58() : null;
 }
 
+/** Vrai wallet (adresse sur la courbe ed25519). Un pool de liquidité, une courbe de lancement ou un coffre de programme
+ *  est une adresse dérivée (PDA), hors courbe : ce n'est jamais le dev ni « un wallet qui a reçu ses tokens ». */
+function isWallet(a: string): boolean {
+  try { return PublicKey.isOnCurve(new PublicKey(a).toBytes()); } catch { return false; }
+}
+
+/** Créateur selon RugCheck (fiable pour pump.fun, Meteora, LaunchLab…), si disponible. */
+async function rugcheckCreator(mint: string): Promise<string | null> {
+  try {
+    const r = await fetch(`https://api.rugcheck.xyz/v1/tokens/${mint}/report`, { signal: AbortSignal.timeout(8000), next: { revalidate: 600 } });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { creator?: string | null };
+    return j.creator && isWallet(j.creator) ? j.creator : null;
+  } catch { return null; }
+}
+
 function movement(tx: ParsedTransactionWithMeta, mint: string, dev: string) {
   const pre = tx.meta?.preTokenBalances ?? [], post = tx.meta?.postTokenBalances ?? [];
   const sum = (arr: typeof pre, owner: string) => arr.filter((b) => b.mint === mint && b.owner === owner).reduce((s, b) => s + (b.uiTokenAmount.uiAmount ?? 0), 0);
   const delta = sum(post, dev) - sum(pre, dev);
   const owners = new Set([...pre, ...post].filter((b) => b.mint === mint && b.owner && b.owner !== dev).map((b) => b.owner as string));
-  const recipients = [...owners].map((o) => ({ owner: o, amount: sum(post, o) - sum(pre, o) })).filter((r) => r.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 3);
+  const recipients = [...owners].map((o) => ({ owner: o, amount: sum(post, o) - sum(pre, o) })).filter((r) => r.amount > 0).sort((a, b) => b.amount - a.amount);
   return { delta, recipients };
 }
 
@@ -80,7 +96,9 @@ export async function analyzeDev(mintStr: string, creatorHint?: string | null): 
   const mint = new PublicKey(mintStr);
   const supplyRes = await conn.getTokenSupply(mint);
   const supply = supplyRes.value.uiAmount ?? 0;
-  const dev = creatorHint || (await findDeployer(mint));
+  // Le dev doit être un vrai wallet : jamais un pool de liquidité ni un compte de programme
+  let dev = creatorHint && isWallet(creatorHint) ? creatorHint : await rugcheckCreator(mintStr);
+  if (!dev) { const d = await findDeployer(mint).catch(() => null); dev = d && isWallet(d) ? d : null; }
   if (!dev) { const v = { ...empty, supply, note: "Developer wallet not found" }; cache.set(mintStr, { at: Date.now(), v }); return v; }
   const owner = new PublicKey(dev);
   const accounts = await conn.getParsedTokenAccountsByOwner(owner, { mint });
@@ -98,7 +116,12 @@ export async function analyzeDev(mintStr: string, creatorHint?: string | null): 
   txs.forEach((tx, i) => {
     if (!tx || tx.meta?.err) return;
     const m = movement(tx, mintStr, dev);
-    if (m.delta < 0) moves.push({ signature: uniq[i].signature, time: uniq[i].blockTime ?? null, amount: -m.delta, kind: isSwap(tx) ? "sale" : "transfer", recipients: isSwap(tx) ? [] : m.recipients });
+    if (m.delta >= 0) return;
+    if (isSwap(tx)) { moves.push({ signature: uniq[i].signature, time: uniq[i].blockTime ?? null, amount: -m.delta, kind: "sale", recipients: [] }); return; }
+    // Tokens partis vers un pool ou un programme (ajout de liquidité, lock, migration) : ni une vente ni un envoi à un wallet
+    const wallets = m.recipients.filter((r) => isWallet(r.owner));
+    if (!wallets.length) return;
+    moves.push({ signature: uniq[i].signature, time: uniq[i].blockTime ?? null, amount: wallets.reduce((n, r) => n + r.amount, 0), kind: "transfer", recipients: wallets.slice(0, 3) });
   });
   const soldTotal = moves.filter((m) => m.kind === "sale").reduce((s, m) => s + m.amount, 0);
   const sentTotal = moves.filter((m) => m.kind === "transfer").reduce((s, m) => s + m.amount, 0);

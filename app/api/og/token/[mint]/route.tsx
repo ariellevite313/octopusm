@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
   { const lim = await limited(req, "og-token", 30); if (lim) return lim; }
   const mint = decodeURIComponent((await params).mint).trim();
   const url = new URL(req.url);
-  const card = await getTokenCard(mint).catch(() => null);
+  const card = await getTokenCard(mint, url.searchParams.get("chain"), url.searchParams.get("pool")).catch(() => null);
   const [logo, chainLogo] = await Promise.all([remoteImage(card?.logo ?? null, url.origin), localImage(`chains/${card?.chain ?? "solana"}.png`)]);
   return pnlCardResponse({
     name: card ? (card.name || card.symbol).slice(0, 22) : "Token",
@@ -21,6 +21,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mint: st
     dateMs: Date.now(),
     chainLogos: [chainLogo],
     series: card?.series ?? [],
+    candles: card?.candles,
     marks: card?.marks ?? [],
     box: { logo, title: card?.symbol ?? "TOKEN", verified: card?.verified, amount: card?.change ?? 0, pct: card?.pct ?? null },
   }, { wide: url.searchParams.get("wide") === "1", cache: "public, max-age=300, s-maxage=300" });

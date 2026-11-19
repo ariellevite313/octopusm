@@ -2,12 +2,41 @@
  * Serveur : ordres limités via l'API Trigger de Jupiter. Jupiter garde l'ordre et l'exécute quand le prix est atteint :
  * OM n'a rien à surveiller. On fixe le prix par une capitalisation cible (comme les alertes).
  */
-import { SOL_MINT } from "@/lib/swap/core";
+import { SOL_MINT, SWAP_FEE_BPS, SWAP_FEE_WALLET } from "@/lib/swap/core";
 import { solanaConnection } from "@/lib/solana/rpc";
-import { PublicKey } from "@solana/web3.js";
+import { AddressLookupTableAccount, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 
 const BASE = process.env.JUP_API_KEY ? "https://api.jup.ag/trigger/v1" : "https://lite-api.jup.ag/trigger/v1";
 const headers = (): Record<string, string> => ({ "Content-Type": "application/json", ...(process.env.JUP_API_KEY ? { "x-api-key": process.env.JUP_API_KEY } : {}) });
+
+/** Frais OM sur un ordre limité : 0,3 %, en SOL, pris dans la même transaction (sans compte de parrainage Jupiter). */
+export const LIMIT_FEE_BPS = SWAP_FEE_BPS;
+
+/**
+ * Ajoute à la transaction de Jupiter un virement des frais OM (SOL) du maker vers la plateforme.
+ * Renvoie la transaction d'origine si elle ne peut pas être modifiée sans risque (autre signataire que le maker).
+ */
+async function withFee(txB64: string, maker: string, lamports: bigint): Promise<{ tx: string; fee: bigint }> {
+  if (lamports <= 0n) return { tx: txB64, fee: 0n };
+  try {
+    const vtx = VersionedTransaction.deserialize(Buffer.from(txB64, "base64"));
+    const need = vtx.message.header.numRequiredSignatures;
+    const keys = vtx.message.staticAccountKeys;
+    const makerPk = new PublicKey(maker);
+    // Une signature déjà posée par un autre que le maker serait invalidée par la modification
+    for (let i = 0; i < need; i++) {
+      if (keys[i].equals(makerPk)) continue;
+      if (vtx.signatures[i]?.some((b) => b !== 0)) return { tx: txB64, fee: 0n };
+    }
+    const conn = solanaConnection();
+    const luts = (await Promise.all(vtx.message.addressTableLookups.map((l) => conn.getAddressLookupTable(l.accountKey).then((r) => r.value)))).filter((x): x is AddressLookupTableAccount => !!x);
+    if (luts.length !== vtx.message.addressTableLookups.length) return { tx: txB64, fee: 0n };
+    const msg = TransactionMessage.decompile(vtx.message, { addressLookupTableAccounts: luts });
+    msg.instructions.push(SystemProgram.transfer({ fromPubkey: makerPk, toPubkey: new PublicKey(SWAP_FEE_WALLET), lamports }));
+    const out = new VersionedTransaction(msg.compileToV0Message(luts));
+    return { tx: Buffer.from(out.serialize()).toString("base64"), fee: lamports };
+  } catch { return { tx: txB64, fee: 0n }; }
+}
 
 export class TriggerError extends Error { constructor(msg: string, public status = 400) { super(msg); } }
 
@@ -67,7 +96,23 @@ export async function createLimitOrder(maker: string, b: { side: "buy" | "sell";
       computeUnitPrice: "auto", wrapAndUnwrapSol: true,
     }),
   });
-  return { ...res, targetPrice: target };
+  // Frais OM : 0,3 % du montant en SOL (achat : SOL dépensés ; vente : SOL attendus). Un virement de plus dans la même transaction.
+  const solSide = b.side === "buy" ? making : taking;
+  const fee = await withFee(res.transaction, maker, (solSide * BigInt(LIMIT_FEE_BPS)) / 10_000n);
+  return { ...res, transaction: fee.tx, feeLamports: fee.fee.toString(), direct: fee.fee > 0n, targetPrice: target };
+}
+
+/** Envoie une transaction d'ordre déjà signée par le maker (celle qui contient les frais OM, que Jupiter n'a pas construite telle quelle). */
+export async function sendSigned(signedTransaction: string): Promise<{ signature: string; status: string }> {
+  const conn = solanaConnection();
+  const raw = Buffer.from(signedTransaction, "base64");
+  const signature = await conn.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 3 }).catch((e: Error) => {
+    if (/insufficient/i.test(e.message)) throw new TriggerError("Insufficient SOL balance for this order");
+    throw new TriggerError("Could not place the order, try again");
+  });
+  const done = await conn.confirmTransaction(signature, "confirmed").catch(() => null);
+  if (done?.value?.err) throw new TriggerError("Could not place the order, try again");
+  return { signature, status: "Success" };
 }
 
 export const executeOrder = (signedTransaction: string, requestId: string) =>

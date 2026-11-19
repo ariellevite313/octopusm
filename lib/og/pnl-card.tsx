@@ -50,6 +50,8 @@ export type PnlCardProps = {
   dateMs: number;
   chainLogos: (string | null)[];   // data URIs
   series: { t: number; v: number }[];
+  /** Vraies bougies (capitalisation) : si fournies, elles remplacent la courbe et l'échelle s'ajuste aux prix */
+  candles?: { t: number; o: number; h: number; l: number; c: number }[];
   /** Marqueurs sur la courbe : vert (achat, gain) ou rouge (vente, perte), lettre B / S par défaut. */
   marks: { t: number; side: "buy" | "sell"; label?: string }[];
   /** Encadré du bas : logo (facultatif), titre, gain et pourcentage, détails (facultatifs). */
@@ -75,14 +77,15 @@ export async function pnlCardResponse(p: PnlCardProps, opts: { wide?: boolean; c
   );
 }
 
-function PnlCard({ name, avatar, badge, dateMs, chainLogos, series: rawSeries, marks: rawMarks, box, logo }: PnlCardProps & { logo: string | null }) {
+function PnlCard({ name, avatar, badge, dateMs, chainLogos, series: rawSeries, candles: rawCandles, marks: rawMarks, box, logo }: PnlCardProps & { logo: string | null }) {
   const CW = 640, CH = 400;
   const series = rawSeries.length >= 2 ? rawSeries : [{ t: Date.now() - 86_400_000, v: rawSeries[0]?.v ?? 0 }, { t: Date.now(), v: rawSeries[0]?.v ?? 0 }];
-  const t0 = Math.min(series[0].t, rawMarks[0]?.t ?? series[0].t), t1 = Math.max(series[series.length - 1].t, Date.now());
-  const vs = series.map((q) => q.v);
-  const vmin = Math.min(...vs, 0), vmax = Math.max(...vs, 0);
-  const pad = (vmax - vmin) * 0.08 || 1;
-  const lo = vmin < 0 ? vmin - pad : 0, hi = vmax + pad;
+  const candles = rawCandles && rawCandles.length >= 6 ? rawCandles : null;
+  const t0 = Math.min(series[0].t, rawMarks[0]?.t ?? series[0].t), t1 = candles ? series[series.length - 1].t + (candles[1].t - candles[0].t) : Math.max(series[series.length - 1].t, Date.now());
+  const vs = candles ? candles.flatMap((c) => [c.h, c.l]) : series.map((q) => q.v);
+  const vmin = candles ? Math.min(...vs) : Math.min(...vs, 0), vmax = candles ? Math.max(...vs) : Math.max(...vs, 0);
+  const pad = (vmax - vmin) * (candles ? 0.12 : 0.08) || 1;
+  const lo = candles ? Math.max(0, vmin - pad) : vmin < 0 ? vmin - pad : 0, hi = vmax + pad;
   const x = (t: number) => ((t - t0) / Math.max(t1 - t0, 1)) * CW;
   const y = (v: number) => CH - ((v - lo) / Math.max(hi - lo, 1e-12)) * CH;
   const valueAt = (t: number) => { let best = series[0]; for (const q of series) { if (q.t <= t) best = q; else break; } return best.v; };
@@ -131,13 +134,23 @@ function PnlCard({ name, avatar, badge, dateMs, chainLogos, series: rawSeries, m
             <svg width={CW} height={CH} viewBox={`0 0 ${CW} ${CH}`} style={{ position: "absolute", left: 0, top: 10 }}>
               <path d={`M0 ${y(last.v).toFixed(1)} H${CW}`} stroke="rgba(255,255,255,0.35)" strokeWidth={2} strokeDasharray="10 10" />
               {lo < 0 && <path d={`M0 ${y(0).toFixed(1)} H${CW}`} stroke="rgba(255,255,255,0.12)" strokeWidth={2} />}
-              <path d={line} fill="none" stroke={tone} strokeWidth={6} strokeLinejoin="round" strokeLinecap="round" />
+              {candles ? candles.map((c, i) => {
+                const cx = x(c.t) + (CW / candles.length) / 2, w = Math.max(3, (CW / candles.length) * 0.62), up = c.c >= c.o, col = up ? UP : DOWN;
+                const top = y(Math.max(c.o, c.c)), bot = y(Math.min(c.o, c.c));
+                return (
+                  <g key={i}>
+                    <path d={`M${cx.toFixed(1)} ${y(c.h).toFixed(1)} V${y(c.l).toFixed(1)}`} stroke={col} strokeWidth={2} />
+                    <rect x={(cx - w / 2).toFixed(1)} y={top.toFixed(1)} width={w.toFixed(1)} height={Math.max(2, bot - top).toFixed(1)} fill={col} />
+                  </g>
+                );
+              }) : <path d={line} fill="none" stroke={tone} strokeWidth={6} strokeLinejoin="round" strokeLinecap="round" />}
             </svg>
             {shown.map((m, i) => (
               <div key={i} style={{ display: "flex", position: "absolute", left: m.x - 22, top: 10 + m.y - 22, width: 44, height: 44, borderRadius: 44, alignItems: "center", justifyContent: "center", background: m.side === "buy" ? UP : DOWN, border: "3px solid #07070a", fontSize: 20, fontWeight: 800, color: "#07070a" }}>{m.label ?? (m.side === "buy" ? "B" : "S")}</div>
             ))}
             <div style={{ display: "flex", position: "absolute", left: CW + 14, top: 10 + y(last.v) - 26, padding: "6px 14px", borderRadius: 12, background: tone, color: "#07070a", fontSize: 28, fontWeight: 800 }}>{axisLabel(last.v)}</div>
             <div style={{ display: "flex", position: "absolute", left: CW + 30, top: 10 + CH - 24, fontSize: 26, color: "rgba(255,255,255,0.3)" }}>{axisLabel(lo)}</div>
+            {candles && <div style={{ display: "flex", position: "absolute", left: CW + 30, top: 10, fontSize: 26, color: "rgba(255,255,255,0.3)" }}>{axisLabel(hi)}</div>}
             <div style={{ display: "flex", position: "absolute", left: 0, top: CH + 32, width: CW, justifyContent: "space-between", fontSize: 26, color: "rgba(255,255,255,0.4)" }}>
               {ticks.map((t, i) => <span key={i}>{day(t)}</span>)}
             </div>

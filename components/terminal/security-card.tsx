@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, Minus, ShieldCheck, ShieldAlert, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, Minus, ShieldCheck, ShieldAlert, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { Security } from "@/lib/terminal-security";
 
-/** Fiche sécurité du token (Terminal) : autorités, LP, top 10, dev, insiders, taxes, puis les risques signalés. */
+/** Bouton « Important » : ouvre la fiche sécurité du token (autorités, LP, top 10, dev, insiders, taxes, risques signalés). */
 export function SecurityCard({ chain, mint }: { chain: string; mint: string }) {
   const { tr } = useT();
   const [s, setS] = useState<Security | null>(null);
@@ -23,46 +24,53 @@ export function SecurityCard({ chain, mint }: { chain: string; mint: string }) {
   const tone = s.rugged || bad >= 3 ? "#dc2626" : bad > 0 ? "#d97706" : "var(--color-up, #16a34a)";
   const Icon = bad ? ShieldAlert : ShieldCheck;
 
+  const label = s.rugged ? tr("Rugged") : bad ? tr("{n} warnings", { n: bad }) : tr("No issue found");
+
   return (
-    <section className="relative mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-      <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: tone }} />
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-        <span className="flex items-center gap-2">
-          <Icon className="size-4" style={{ color: tone }} />
-          <span className="text-[13px] font-semibold tracking-tight text-foreground">{tr("Security")}</span>
-          <span className="rounded-md px-1.5 py-[2px] text-[10px] font-bold uppercase tracking-wider" style={{ color: tone, background: `color-mix(in srgb, ${tone} 14%, transparent)` }}>
-            {s.rugged ? tr("Rugged") : bad ? tr("{n} warnings", { n: bad }) : tr("No issue found")}
-          </span>
-        </span>
-        <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+    <>
+      <button onClick={() => setOpen(true)} className="mx-4 mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-[13px] font-semibold text-foreground hover:bg-muted">
+        <Icon className="size-4" style={{ color: tone }} />
+        {tr("Important")}
+        <span className="rounded-md px-1.5 py-[2px] text-[10px] font-bold uppercase tracking-wider" style={{ color: tone, background: `color-mix(in srgb, ${tone} 14%, transparent)` }}>{label}</span>
       </button>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 pb-3 sm:grid-cols-3">
-        {s.checks.map((c) => (
-          <div key={c.key} className="min-w-0">
-            <p className="truncate text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{tr(c.label)}</p>
-            <p className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-foreground">
-              {c.ok === true ? <Check className="size-3.5 shrink-0 text-up" /> : c.ok === false ? <X className="size-3.5 shrink-0 text-down" /> : <Minus className="size-3.5 shrink-0 text-muted-foreground" />}
-              <span className="num truncate">{tr(c.value)}</span>
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {open && (
-        <div className="border-t border-border/70 px-4 py-2.5">
-          {s.risks.length === 0 ? <p className="py-1 text-[12.5px] text-muted-foreground">{tr("No other risk reported.")}</p> : s.risks.map((r) => (
-            <div key={r.name} className="flex items-start gap-2 py-1.5">
-              <span className="mt-1.5 size-1.5 shrink-0 rounded-full" style={{ background: r.level === "danger" ? "#dc2626" : r.level === "warn" ? "#d97706" : "var(--muted-foreground)" }} />
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-foreground">{r.name}</p>
-                <p className="text-[12px] text-muted-foreground">{r.description}</p>
-              </div>
+      {open && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-[2px] md:items-center" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <div role="dialog" aria-modal="true" className="relative max-h-[92vh] w-full max-w-md overflow-y-auto scrollbar-none rounded-t-[28px] border-t border-border bg-background px-4 pb-8 pt-2 md:rounded-[28px] md:border">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-[17px] font-bold">
+                <Icon className="size-5" style={{ color: tone }} />{tr("Security")}
+                <span className="rounded-md px-1.5 py-[2px] text-[10px] font-bold uppercase tracking-wider" style={{ color: tone, background: `color-mix(in srgb, ${tone} 14%, transparent)` }}>{label}</span>
+              </span>
+              <button onClick={() => setOpen(false)} aria-label={tr("Close")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-5" /></button>
             </div>
-          ))}
-          <p className="pt-1.5 text-[11px] text-muted-foreground">{tr("Data: {src}. Always do your own research.", { src: s.source === "rugcheck" ? "RugCheck" : "GoPlus" })}</p>
-        </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-border bg-card p-4">
+              {s.checks.map((c) => (
+                <div key={c.key} className="min-w-0">
+                  <p className="truncate text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{tr(c.label)}</p>
+                  <p className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-foreground">
+                    {c.ok === true ? <Check className="size-3.5 shrink-0 text-up" /> : c.ok === false ? <X className="size-3.5 shrink-0 text-down" /> : <Minus className="size-3.5 shrink-0 text-muted-foreground" />}
+                    <span className="num truncate">{tr(c.value)}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 px-1">
+              {s.risks.length === 0 ? <p className="py-1 text-[12.5px] text-muted-foreground">{tr("No other risk reported.")}</p> : s.risks.map((r) => (
+                <div key={r.name} className="flex items-start gap-2 py-1.5">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full" style={{ background: r.level === "danger" ? "#dc2626" : r.level === "warn" ? "#d97706" : "var(--muted-foreground)" }} />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-foreground">{r.name}</p>
+                    <p className="text-[12px] text-muted-foreground">{r.description}</p>
+                  </div>
+                </div>
+              ))}
+              <p className="pt-2 text-[11px] text-muted-foreground">{tr("Data: {src}. Always do your own research.", { src: s.source === "rugcheck" ? "RugCheck" : "GoPlus" })}</p>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
-    </section>
+    </>
   );
 }
