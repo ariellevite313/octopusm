@@ -442,6 +442,10 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const [sheet, setSheet] = useState<"swap" | "quick" | "alert" | "limit" | null>(null);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // Lien « vendre » (alerte stop-loss / take-profit) : ouvre directement la vente
+  const sp2 = useSearchParams();
+  const sellOpen = sp2.get("sell") === "1";
+  useEffect(() => { if (sellOpen && isSol) setSheet("swap"); }, [sellOpen, isSol]);
 
   // Token sans pool connue (onglet Crypto, BAGS) : on cherche sa pool pour le graphique
   const needPool = !!t && !t.pool && !t.href && chain !== "arc";
@@ -632,7 +636,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         </div>
       </div>)}
 
-      {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SwapBox mint={mint} onSwapped={() => setSheet(null)} />}</Sheet>}
+      {sheet === "swap" && <Sheet title={`$${t.symbol}`} onClose={() => setSheet(null)}>{isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SwapBox mint={mint} initialSide={sellOpen ? "sell" : "buy"} onSwapped={() => setSheet(null)} />}</Sheet>}
       {sheet === "limit" && walletType && <Sheet title={`${tr("Orders")} $${t.symbol}`} onClose={() => setSheet(null)}><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} /></Sheet>}
       {sheet === "alert" && <Sheet title={tr("Price alert")} onClose={() => setSheet(null)}><AlertSheet chain={chain} mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} /></Sheet>}
       {sheet === "quick" && walletType && <Sheet title={tr("Quick buy")} onClose={() => setSheet(null)}><QuickBuy mint={mint} symbol={t.symbol} feeBps={info?.fee_bps ?? 30} walletType={walletType} onDone={() => setSheet(null)} /></Sheet>}

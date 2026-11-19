@@ -96,7 +96,9 @@ export function NotificationsView() {
             const name = n.kind === "price_alert" || n.kind === "rug_alert" ? `$${n.data?.symbol ?? "Token"}` : n.kind === "wallet_trade" ? (n.data?.label ?? shortAddress(n.actor)) : box ? "OMdotfun" : n.actor_name ?? shortAddress(n.actor);
             const tmint = n.kind === "price_alert" || n.kind === "rug_alert" ? n.actor : n.data?.mint ?? "";
             const tchain = n.data?.chain && n.data.chain !== "solana" ? `chain=${n.data.chain}&` : "";
-            const href = term ? `/terminal?${tchain}mint=${tmint}` : n.kind === "ambassador" ? "/ambassadors" : box ? "/dashboard/box" : n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
+            // Alerte de prix ou rug sur Solana : le lien ouvre directement la vente (stop-loss / take-profit en un geste)
+            const sellQ = (n.kind === "price_alert" || n.kind === "rug_alert") && !tchain ? "&sell=1" : "";
+            const href = term ? `/terminal?${tchain}mint=${tmint}${sellQ}` : n.kind === "ambassador" ? "/ambassadors" : box ? "/dashboard/box" : n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
             return (
               <li key={n.id}>
                 <Link href={href} className={`flex gap-3 px-4 py-3.5 hover:bg-muted/40 ${n.read ? "" : "bg-muted/30"}`}>

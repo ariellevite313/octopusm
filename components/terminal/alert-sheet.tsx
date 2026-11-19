@@ -38,7 +38,15 @@ export function AlertSheet({ chain, mint, symbol, mcap }: { chain: string; mint:
   return (
     <div>
       <p className="text-sm text-muted-foreground">{tr("Get a notification when the market cap of ${symbol} crosses your target.", { symbol })}</p>
+      <p className="mt-1 text-[12px] text-muted-foreground">{tr("Stop-loss (SL) and take-profit (TP): the notification opens the sell screen in one tap. You confirm the sale with your wallet.")}</p>
       <p className="num mt-3 text-[13px] text-muted-foreground">{tr("Market cap now")}: <span className="font-semibold text-foreground">{mcap != null ? money(mcap) : "-"}</span></p>
+      {mcap != null && (
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {([["SL -20%", 0.8], ["SL -30%", 0.7], ["SL -50%", 0.5], ["TP x2", 2], ["TP x3", 3], ["TP x5", 5]] as const).map(([label, k]) => (
+            <button key={label} onClick={() => setV(String(Math.round(mcap * k)))} className="h-9 rounded-xl bg-muted text-[13px] font-semibold text-foreground hover:bg-muted/70">{label}</button>
+          ))}
+        </div>
+      )}
       <div className="mt-2 flex gap-2">
         <input inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="1m" className="num h-12 min-w-0 flex-1 rounded-2xl bg-muted px-4 text-[16px] outline-none" />
         <button disabled={!ok || busy} onClick={add} className="h-12 shrink-0 rounded-2xl bg-foreground px-5 text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Loader2 className="size-4 animate-spin" /> : tr("Add")}</button>
