@@ -190,6 +190,8 @@ export async function createPoolMarket(wallet: string, body: any, opts: { mandat
       bet_token,
       betting_closes_at: closesAtIso,
       match_key: matchKey,
+      // Prédiction sur un token (page du token dans le Terminal) : seulement si fourni (colonne ajoutée par 20261202_pool_token.sql)
+      ...(typeof body.token_mint === "string" && /^([1-9A-HJ-NP-Za-km-z]{32,44}|0x[0-9a-fA-F]{40})$/.test(body.token_mint) ? { token_mint: body.token_mint } : {}),
       status: opts.mandateId ? "active" : "pending",
     })
     .select()

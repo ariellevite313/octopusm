@@ -36,6 +36,7 @@ import { PulseView } from "./pulse";
 import { Positions } from "./positions";
 import { AlertSheet } from "./alert-sheet";
 import { LimitSheet } from "./limit-sheet";
+import { TokenPredictions } from "./token-predictions";
 import { AdvFiltersForm, useAdvFilters } from "./advanced-filters";
 import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
 import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
@@ -436,7 +437,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const toggleTrades = () => setShowTrades((v) => { try { localStorage.setItem("om_chart_trades", v ? "0" : "1"); } catch { /* ignore */ } return !v; });
   const toggleMode = () => setMode((m) => { const n = m === "line" ? "candle" : "line"; try { localStorage.setItem("om_chart_mode", n); } catch { /* ignore */ } return n; });
   const [move, setMove] = useState<{ first: number; last: number } | null>(null);
-  const [tab, setTab] = useState<"trades" | "holders" | "feed" | "about">("trades");
+  const [tab, setTab] = useState<"trades" | "holders" | "predict" | "feed" | "about">("trades");
   const [shareCard, setShareCard] = useState<{ wallet: string | null } | null>(null);
   const [sheet, setSheet] = useState<"swap" | "quick" | "alert" | "limit" | null>(null);
   const [copied, setCopied] = useState(false);
@@ -591,7 +592,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
 
           {/* Détenteurs | Fil | À propos */}
           <div className="mt-2 flex border-b border-border px-4">
-            {([["trades", tr("Trades")], ["holders", tr("Holders")], ["feed", tr("Feed")], ["about", tr("About")]] as const).map(([k, label]) => (
+            {([["trades", tr("Trades")], ["holders", tr("Holders")], ["predict", tr("Predict")], ["feed", tr("Feed")], ["about", tr("About")]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setTab(k)} className={`flex-1 border-b-2 py-3 text-[15px] font-bold ${tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{label}</button>
             ))}
           </div>
@@ -603,6 +604,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
               : chain === "arc" ? <TokenHolders mint={mint} chain="arc" />
               : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders list not available on this network yet.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
+            {tab === "predict" && <TokenPredictions mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} logo={t.logo} />}
             {tab === "about" && <About t={t} info={info} />}
           </div>
         </div>
