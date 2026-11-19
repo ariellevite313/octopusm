@@ -17,13 +17,13 @@ type Pool = MutuelMarketRow & { auto_target?: number | null; auto_level?: number
 
 const money = (n: number) => (n >= 1e9 ? `$${+(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${+(n / 1e3).toFixed(1)}K` : `$${Math.round(n)}`);
 
-/** Prochaine cible ronde : environ 2 fois la capitalisation actuelle (1, 2 ou 5 × 10^n). */
+/** Cible : environ 10 fois la capitalisation, arrondie au chiffre rond supérieur (1, 2 ou 5 × 10^n). 10 K$ → 100 K$, 70 K$ → 1 M$. */
 function nextTarget(mcap: number | null): number {
   if (!mcap || mcap <= 0) return 1_000_000;
-  const x = mcap * 2;
+  const x = mcap * 10;
   const p = 10 ** Math.floor(Math.log10(x));
   const m = x / p;
-  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+  return (m <= 1.0001 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
 }
 
 /** Date et heure locales au format d'un champ datetime-local, dans `days` jours. */
@@ -46,7 +46,7 @@ export function TokenPredictions({ mint, symbol, mcap, logo, chain = "solana" }:
   const others = (pools ?? []).filter((p) => p.id !== auto?.id);
   const progress = auto?.auto_target && mcap ? Math.min(100, (mcap / Number(auto.auto_target)) * 100) : null;
   const target = nextTarget(mcap);
-  const when = localIn(1);
+  const when = localIn(7);
   const whenLabel = new Date(when).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (

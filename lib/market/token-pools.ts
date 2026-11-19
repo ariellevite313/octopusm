@@ -1,5 +1,5 @@
 /**
- * Pools automatiques sur les tokens du Terminal : « $TOKEN atteindra X de capitalisation avant … ? » (Oui / Non),
+ * Pools automatiques sur les tokens du Terminal : « $TOKEN atteindra X (environ ×10) de capitalisation avant … (7 jours) ? » (Oui / Non),
  * avec le logo du token en image. Un seul pool automatique ouvert par token.
  *  - Objectif atteint avant la date : clôture, résolution Oui, puis un nouveau pool au palier suivant.
  *  - Date passée sans l'atteindre : clôture, résolution Non, puis un nouveau pool depuis la capitalisation actuelle.
@@ -13,7 +13,8 @@ import { SWAP_FEE_WALLET } from "@/lib/swap/core";
 type Db = any;
 /** Seuils pour qu'un token ait un pool automatique (évite les tokens morts ou manipulables trop facilement) */
 const MIN_MCAP = 10_000, MIN_LIQ = 3_000;
-const DURATION_MS = 24 * 3_600_000;
+/** Une semaine : un ×10 en 24 h serait presque toujours « Non » */
+const DURATION_MS = 7 * 24 * 3_600_000;
 const DS: Record<string, string> = { solana: "solana", base: "base", bnb: "bsc", ethereum: "ethereum", arbitrum: "arbitrum", polygon: "polygon", avalanche: "avalanche", hyperliquid: "hyperevm" };
 const creator = () => process.env.TOKEN_POOL_CREATOR_WALLET || SWAP_FEE_WALLET;
 
@@ -38,12 +39,12 @@ export async function tokenMarket(db: Db, chain: string, mint: string): Promise<
   } catch { return { mcap: null, liquidity: null, symbol: null, logo: null }; }
 }
 
-/** Prochaine cible ronde au-dessus de la capitalisation : environ ×2 (1, 2 ou 5 × 10^n). */
+/** Cible : environ 10 fois la capitalisation, arrondie au chiffre rond supérieur (1, 2 ou 5 × 10^n). 10 K$ → 100 K$, 70 K$ → 1 M$. */
 export function nextTarget(mcap: number): number {
-  const x = mcap * 2;
+  const x = mcap * 10;
   const p = 10 ** Math.floor(Math.log10(x));
   const m = x / p;
-  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+  return (m <= 1.0001 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
 }
 
 export const money = (n: number) => (n >= 1e9 ? `$${+(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${+(n / 1e3).toFixed(1)}K` : `$${Math.round(n)}`);
