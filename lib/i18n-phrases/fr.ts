@@ -257,6 +257,8 @@ const p: Record<string, string> = {
   "Disconnect": "Déconnecter",
   "referrals": "filleuls",
   "cashback": "cashback",
+  "Level {n}": "Palier {n}",
+  "When it resolves, a new level opens automatically.": "Une fois résolu, un nouveau palier s'ouvre automatiquement.",
   "MEV protection": "Protection anti-MEV",
   "Sends your swaps privately through Jito so bots cannot sandwich them. Costs a 0.00001 SOL tip.": "Envoie tes swaps en privé par Jito pour que les bots ne puissent pas les prendre en sandwich. Coûte un pourboire de 0,00001 SOL.",
   "Stop-loss (SL) and take-profit (TP): the notification opens the sell screen in one tap. You confirm the sale with your wallet.": "Stop-loss (SL) et take-profit (TP) : la notification ouvre l'écran de vente en un geste. Tu confirmes la vente avec ton wallet.",

@@ -2,6 +2,7 @@
  * GET /api/cron/terminal-alerts : à appeler chaque minute.
  * 1. Alertes de capitalisation : déclenche celles dont le seuil est franchi (prix DexScreener) et envoie une notification.
  * 2. Wallets suivis (Solana) : relit leurs nouvelles transactions et notifie chaque achat ou vente de token.
+ * 4. Pools automatiques des tokens (lib/market/token-pools) : résolution Oui / Non et palier suivant.
  * 3. Alertes rug : liquidité retirée, dev qui vend, token signalé « rugged », pour les tokens détenus (lib/rug-alerts).
  */
 import { NextResponse } from "next/server";
@@ -10,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { solanaConnection } from "@/lib/solana/rpc";
 import { PublicKey } from "@solana/web3.js";
 import { runRugAlerts } from "@/lib/rug-alerts";
+import { runTokenPools, seedOmTokenPools } from "@/lib/market/token-pools";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -119,6 +121,11 @@ export async function GET(req: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   const deadline = Date.now() + 45_000;
-  const [alerts, trades, rug] = await Promise.all([runAlerts(db).catch(() => -1), runTracked(db, deadline).catch(() => -1), runRugAlerts(db, deadline).catch(() => -1)]);
-  return NextResponse.json({ alerts, trades, rug });
+  const [alerts, trades, rug, pools] = await Promise.all([
+    runAlerts(db).catch(() => -1), runTracked(db, deadline).catch(() => -1), runRugAlerts(db, deadline).catch(() => -1),
+    runTokenPools(db, deadline).catch(() => null),
+  ]);
+  // Toutes les 10 minutes : pools automatiques pour les tokens OM qui n'en ont pas
+  const seeded = new Date().getUTCMinutes() % 10 === 0 ? await seedOmTokenPools(db, deadline).catch(() => -1) : 0;
+  return NextResponse.json({ alerts, trades, rug, pools, seeded });
 }

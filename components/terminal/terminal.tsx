@@ -608,7 +608,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
               : chain === "arc" ? <TokenHolders mint={mint} chain="arc" />
               : <p className="py-8 text-center text-sm text-muted-foreground">{tr("Holders list not available on this network yet.")}</p>)}
             {tab === "feed" && <TokenFeed symbol={t.symbol} />}
-            {tab === "predict" && <TokenPredictions mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} logo={t.logo} />}
+            {tab === "predict" && <TokenPredictions mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} logo={t.logo} chain={chain} />}
             {tab === "about" && <About t={t} info={info} />}
           </div>
         </div>
