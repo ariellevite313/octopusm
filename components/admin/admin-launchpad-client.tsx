@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck, Trash2, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, LoaderCircle, Ban, CoinsIcon, BadgeCheck, Trash2, Eye, EyeOff, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ type TokenRow = {
   vanity_job_id: string | null;
   created_at: string;
   is_hidden: boolean;
+  chain?: string | null;
   price_usd: number | null;
   market_cap_usd: number | null;
   volume_24h_usd: number | null;
@@ -174,6 +175,59 @@ function HideTokenToggle({ tokenId, initial }: { tokenId: string; initial: boole
 // ── Component ─────────────────────────────────────────────────────────────────
 
 type Filter = "all" | "pending" | "active" | "graduating" | "graduated" | "cancelled";
+
+/**
+ * Rachat et destruction d'un token (buyback & burn) : l'admin choisit le montant en SOL (5 SOL au plus), confirme,
+ * puis le wallet de la plateforme achète le token et détruit les tokens achetés. Irréversible.
+ */
+function BuybackButton({ tokenId, ticker }: { tokenId: string; ticker: string }) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("0.1");
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const sol = Number(amount.replace(",", "."));
+  const valid = sol > 0 && sol <= 5;
+
+  async function run() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/launchpad/buyback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tokenId, amountSol: sol }) });
+      const d = await res.json() as { error?: string; burned?: string; decimals?: number; burnSig?: string };
+      if (!res.ok) { toast.error(d.error ?? "Buyback failed"); return; }
+      const burned = Number(d.burned ?? 0) / 10 ** (d.decimals ?? 0);
+      toast.success(`${sol} SOL used: ${burned.toLocaleString("en-US", { maximumFractionDigits: 0 })} $${ticker} bought and burned`, {
+        action: d.burnSig ? { label: "View", onClick: () => window.open(`https://solscan.io/tx/${d.burnSig}`, "_blank") } : undefined,
+      });
+      setOpen(false); setConfirm(false);
+    } catch { toast.error("Network error"); }
+    finally { setBusy(false); }
+  }
+
+  if (!open) {
+    return (
+      <Button size="sm" variant="ghost" title="Buy back and burn" className="rounded-full px-2" onClick={() => setOpen(true)}>
+        <Flame className="size-3" />
+      </Button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1">
+      <input value={amount} onChange={(e) => { setAmount(e.target.value); setConfirm(false); }} inputMode="decimal"
+        className="w-14 bg-transparent text-right text-xs font-semibold outline-none" aria-label="SOL amount" />
+      <span className="text-xs text-muted-foreground">SOL</span>
+      {confirm ? (
+        <Button size="sm" disabled={busy || !valid} className="h-7 rounded-full px-3 text-xs" onClick={run}>
+          {busy ? <LoaderCircle className="size-3 animate-spin" /> : `Burn ${sol} SOL of $${ticker}?`}
+        </Button>
+      ) : (
+        <Button size="sm" variant="outline" disabled={!valid} className="h-7 rounded-full px-3 text-xs" onClick={() => setConfirm(true)}>
+          Buy back
+        </Button>
+      )}
+      <Button size="sm" variant="ghost" disabled={busy} className="h-7 rounded-full px-2 text-xs" onClick={() => { setOpen(false); setConfirm(false); }}>Cancel</Button>
+    </div>
+  );
+}
 
 export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
   const router                        = useRouter();
@@ -457,6 +511,11 @@ export function AdminLaunchpadClient({ tokens }: { tokens: TokenRow[] }) {
                             : <CoinsIcon className="size-3" />
                           }
                         </Button>
+                      )}
+
+                      {/* Rachat et destruction (Solana, token en circulation) */}
+                      {token.mint_address && (token.chain ?? "solana") === "solana" && ["active", "graduating", "graduated"].includes(token.status) && (
+                        <BuybackButton tokenId={token.id} ticker={token.ticker} />
                       )}
 
                       {/* Delete — for cancelled and pending tokens */}

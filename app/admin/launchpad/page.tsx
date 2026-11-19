@@ -27,7 +27,7 @@ export default async function AdminLaunchpadPage() {
     .select(
       "id, name, ticker, category, status, is_verified, is_tradeable, is_scheduled, scheduled_at, " +
       "mint_address, pool_address, creator_wallet, supply, vanity_job_id, created_at, " +
-      "price_usd, market_cap_usd, volume_24h_usd, stats_updated_at, is_hidden"
+      "price_usd, market_cap_usd, volume_24h_usd, stats_updated_at, is_hidden, chain"
     )
     .order("created_at", { ascending: false })
     .limit(500);
