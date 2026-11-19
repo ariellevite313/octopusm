@@ -257,6 +257,8 @@ const p: Record<string, string> = {
   "Disconnect": "Déconnecter",
   "referrals": "filleuls",
   "cashback": "cashback",
+  "MEV protection": "Protection anti-MEV",
+  "Sends your swaps privately through Jito so bots cannot sandwich them. Costs a 0.00001 SOL tip.": "Envoie tes swaps en privé par Jito pour que les bots ne puissent pas les prendre en sandwich. Coûte un pourboire de 0,00001 SOL.",
   "Stop-loss (SL) and take-profit (TP): the notification opens the sell screen in one tap. You confirm the sale with your wallet.": "Stop-loss (SL) et take-profit (TP) : la notification ouvre l'écran de vente en un geste. Tu confirmes la vente avec ton wallet.",
   "Rug alert: liquidity fell from {a} to {b}. You hold this token.": "Alerte rug : la liquidité est passée de {a} à {b}. Tu détiens ce token.",
   "Rug alert: the dev sold everything. You hold this token.": "Alerte rug : le dev a tout vendu. Tu détiens ce token.",

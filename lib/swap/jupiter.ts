@@ -4,10 +4,10 @@
  */
 import bs58 from "bs58";
 import {
-  AddressLookupTableAccount, ComputeBudgetProgram, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction,
+  AddressLookupTableAccount, ComputeBudgetProgram, PublicKey, SystemProgram, TransactionInstruction, TransactionMessage, VersionedTransaction,
 } from "@solana/web3.js";
 import { solanaConnection } from "@/lib/solana/rpc";
-import { SWAP_FEE_WALLET, ataOf, createAtaIdempotent, feeMintFor, type SwapInput } from "./core";
+import { JITO_TIP_ACCOUNTS, JITO_TIP_LAMPORTS, SWAP_FEE_WALLET, ataOf, createAtaIdempotent, feeMintFor, type SwapInput } from "./core";
 import { cutOf, feeSplit, refTransferIx } from "./chill";
 
 const JUP_BUILD = "https://api.jup.ag/swap/v2/build";
@@ -128,6 +128,8 @@ export async function swapTransaction(input: SwapInput, feeBps: number, taker: s
     ...(j.cleanupInstruction ? [toIx(j.cleanupInstruction)] : []),
     ...(isBuy ? [] : refIx),
     ...j.otherInstructions.map(toIx),
+    // Anti-MEV : pourboire Jito (la transaction sera envoyée au block engine de Jito, en bundle privé)
+    ...(input.mev ? [SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)]), lamports: JITO_TIP_LAMPORTS })] : []),
   ];
   // Frais de priorité : ceux de Jupiter (auto), ou un prix fixe par unité de calcul (rapide / turbo), plafonné
   const PRIORITY_MICRO = { fast: 100_000, turbo: 500_000 } as const;

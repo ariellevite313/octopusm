@@ -27,7 +27,7 @@ import { SOL_MINT } from "@/lib/swap/core";
 import { UpDownSection } from "@/components/updown/updown-cards";
 
 const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium SOL/USDC
-import { executeSwap, toRaw } from "@/lib/swap/client";
+import { executeSwap, mevOn, setMev, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
 import { DevAlert } from "./dev-alert";
 import { LiveTrades } from "./live-trades";
@@ -715,6 +715,22 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
   );
 }
 
+/** Protection anti-MEV (réglage de l'appareil, valable pour tous les swaps Solana) */
+function MevToggle() {
+  const { tr } = useT();
+  const [on, setOn] = useState(true);
+  useEffect(() => { setOn(mevOn()); }, []);
+  return (
+    <div>
+      <button onClick={() => { setMev(!on); setOn(!on); }} className="flex w-full items-center justify-between rounded-xl bg-muted px-3.5 py-3">
+        <span className="text-[14px] font-semibold text-foreground">{tr("MEV protection")}</span>
+        <span className={`relative h-6 w-11 rounded-full transition-colors ${on ? "bg-foreground" : "bg-border"}`}><span className={`absolute top-0.5 size-5 rounded-full bg-background transition-all ${on ? "left-[22px]" : "left-0.5"}`} /></span>
+      </button>
+      <p className="mt-1.5 text-[12px] text-muted-foreground">{tr("Sends your swaps privately through Jito so bots cannot sandwich them. Costs a 0.00001 SOL tip.")}</p>
+    </div>
+  );
+}
+
 function QuickSettings({ cfg, onSave }: { cfg: QuickCfg; onSave: (v: QuickCfg) => void }) {
   const { tr } = useT();
   const [amounts, setAmounts] = useState(cfg.amounts);
@@ -743,6 +759,7 @@ function QuickSettings({ cfg, onSave }: { cfg: QuickCfg; onSave: (v: QuickCfg) =
         </div>
         <p className="mt-1.5 text-[12px] text-muted-foreground">{tr("Fast and Turbo pay more to land faster (about 0.00004 and 0.0002 SOL).")}</p>
       </div>
+      <MevToggle />
       <button disabled={!ok} onClick={() => onSave({ amounts, slippagePct: Number(slip), priority })} className="h-12 w-full rounded-2xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{tr("Save")}</button>
     </div>
   );

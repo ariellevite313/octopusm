@@ -4,7 +4,11 @@ import { VersionedTransaction } from "@solana/web3.js";
 import { getProviderByType, type WalletType } from "@/lib/wallet/adapters";
 import { currentPath, feePayerOf, signWithoutProvider } from "@/lib/wallet/sign-fallback";
 
-export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number; ref?: string; priority?: "auto" | "fast" | "turbo" };
+export type SwapReq = { inputMint: string; outputMint: string; amount: string; slippageBps: number; ref?: string; priority?: "auto" | "fast" | "turbo"; mev?: boolean };
+
+/** Protection anti-MEV, réglage de l'appareil (activée par défaut) */
+export function mevOn(): boolean { try { return localStorage.getItem("om_mev") !== "0"; } catch { return true; } }
+export function setMev(on: boolean) { try { localStorage.setItem("om_mev", on ? "1" : "0"); } catch { /* ignore */ } }
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -28,7 +32,9 @@ export function fromRaw(raw: string | bigint, decimals: number): number {
 /** Signe et envoie ; renvoie la signature. Le serveur ne voit jamais la clé. */
 export async function executeSwap(req: SwapReq, walletType: WalletType): Promise<string> {
   const provider = getProviderByType(walletType);
-  const { tx } = await post<{ tx: string }>("/api/swap/tx", req);
+  // Anti-MEV : seulement si le wallet sait signer sans envoyer (on envoie nous-mêmes au block engine de Jito)
+  const mev = (req.mev ?? mevOn()) && !!provider?.signTransaction;
+  const { tx } = await post<{ tx: string }>("/api/swap/tx", { ...req, mev });
   const raw = Buffer.from(tx, "base64");
   // Pas de wallet injecté (mobile) : signature par lien profond ou ouverture dans le wallet
   if (!provider) {
@@ -39,7 +45,10 @@ export async function executeSwap(req: SwapReq, walletType: WalletType): Promise
   }
   const vtx = VersionedTransaction.deserialize(raw);
   let signature: string;
-  if (provider.signAndSendTransaction) {
+  if (mev && provider.signTransaction) {
+    const signed = await provider.signTransaction(vtx);
+    signature = (await post<{ signature: string }>("/api/swap/send", { tx: Buffer.from((signed as { serialize(): Uint8Array }).serialize()).toString("base64") })).signature;
+  } else if (provider.signAndSendTransaction) {
     signature = (await provider.signAndSendTransaction(vtx, { skipPreflight: false, maxRetries: 3 })).signature;
   } else if (provider.signTransaction) {
     const signed = await provider.signTransaction(vtx);

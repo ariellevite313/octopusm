@@ -9,7 +9,13 @@ const FEE = "EsR6usyjCzhgL6dZFqHRsw6pDh7CgvfHtkQzCybJMuCZ";
 
 describe("checkSwapInput", () => {
   it("accepts a SOL pair", () => {
-    expect(checkSwapInput({ inputMint: SOL_MINT, outputMint: BONK, amount: "1000000", slippageBps: 100 })).toEqual({ ok: true, v: { inputMint: SOL_MINT, outputMint: BONK, amount: "1000000", slippageBps: 100, priority: "auto" } });
+    expect(checkSwapInput({ inputMint: SOL_MINT, outputMint: BONK, amount: "1000000", slippageBps: 100 })).toEqual({ ok: true, v: { inputMint: SOL_MINT, outputMint: BONK, amount: "1000000", slippageBps: 100, priority: "auto", mev: false } });
+  });
+  it("turns on MEV protection only when asked", () => {
+    const m = (v: unknown) => { const r = checkSwapInput({ inputMint: SOL_MINT, outputMint: BONK, amount: "1", slippageBps: 100, mev: v }); return r.ok ? r.v.mev : null; };
+    expect(m(true)).toBe(true);
+    expect(m("true")).toBe(false);
+    expect(m(undefined)).toBe(false);
   });
   it("keeps the chosen priority fee and ignores unknown values", () => {
     const ok = (p: unknown) => { const r = checkSwapInput({ inputMint: SOL_MINT, outputMint: BONK, amount: "1", slippageBps: 100, priority: p }); return r.ok ? r.v.priority : null; };

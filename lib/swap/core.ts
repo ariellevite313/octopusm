@@ -59,7 +59,14 @@ export function createAtaIdempotent(payer: PublicKey, owner: PublicKey, mint: Pu
 
 /** priority : frais de priorité choisis dans le Terminal (auto = ceux de Jupiter) */
 export type SwapPriority = "auto" | "fast" | "turbo";
-export type SwapInput = { inputMint: string; outputMint: string; amount: string; slippageBps: number; priority?: SwapPriority };
+export type SwapInput = { inputMint: string; outputMint: string; amount: string; slippageBps: number; priority?: SwapPriority; mev?: boolean };
+
+/** Protection anti-MEV : petit pourboire Jito (0,00001 SOL) et envoi direct au block engine de Jito, hors du circuit public */
+export const JITO_TIP_LAMPORTS = 10_000;
+export const JITO_TIP_ACCOUNTS = [
+  "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5", "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe", "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY", "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49",
+  "DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh", "ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt", "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL", "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT",
+];
 
 /** Contrôle des paramètres envoyés par le navigateur. */
 export function checkSwapInput(b: Record<string, unknown>): { ok: true; v: SwapInput } | { ok: false; error: string } {
@@ -72,5 +79,5 @@ export function checkSwapInput(b: Record<string, unknown>): { ok: true; v: SwapI
   const slip = Number(b.slippageBps ?? 100);
   if (!Number.isInteger(slip) || slip < SLIPPAGE_MIN_BPS || slip > SLIPPAGE_MAX_BPS) return { ok: false, error: "Slippage must be between 0.1% and 20%" };
   const priority: SwapPriority = b.priority === "fast" || b.priority === "turbo" ? b.priority : "auto";
-  return { ok: true, v: { inputMint, outputMint, amount, slippageBps: slip, priority } };
+  return { ok: true, v: { inputMint, outputMint, amount, slippageBps: slip, priority, mev: b.mev === true } };
 }
