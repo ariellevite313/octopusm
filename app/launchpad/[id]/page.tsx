@@ -32,6 +32,7 @@ import { AppIcon } from "@/components/shared/app-icon";
 import { TokenHolders } from "@/components/launchpad/token-holders";
 import { creatorEarnLabel } from "@/lib/launch/fee-tiers";
 import { TokenDetailShell } from "@/components/launchpad/token-detail-shell";
+import { OmLimit } from "@/components/launchpad/om-limit";
 import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -490,6 +491,11 @@ export default async function TokenDetailPage({ params }: Props) {
                 quoteMintAddress={quoteOf(token, getXStockMint)?.mint}
                 quoteDecimalsHint={quoteOf(token, getXStockMint)?.decimals}
               />
+            )}
+
+            {/* ── Solana : ordres limités et TWAP (Jupiter), sur la courbe comme après la graduation ── */}
+            {!isArc && token.mint_address && (((isOnCurve || isGraduating) && token.is_tradeable && token.pool_address) || isGraduated) && (
+              <OmLimit mint={token.mint_address} ticker={token.ticker} mcap={token.market_cap_usd ?? null} />
             )}
 
             {/* ── Solana active but pool_address missing — recovery prompt ── */}
