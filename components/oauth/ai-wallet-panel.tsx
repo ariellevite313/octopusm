@@ -128,16 +128,16 @@ export function AiWalletCreate({ clientId, onDone }: { clientId: string; onDone:
       const r = await fetch2fa("/api/agent-wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clientId }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Could not create the wallet");
-      toast.success(tr("Wallet created. Fund it to let your AI act."));
+      toast.success(tr("Janus is active. Fund its wallet to let it act."));
       onDone();
     } catch (e) { toast.error(tr((e as Error).message)); }
     setBusy(false);
   }
   return (
     <div className="mt-3 rounded-xl bg-muted/50 p-3">
-      <p className="text-[13px] text-muted-foreground">{tr("Give this AI its own wallet: it can then trade, launch tokens, bet and create markets alone, within the limits you set. Withdrawals only go back to you.")}</p>
+      <p className="text-[13px] text-muted-foreground">{tr("Activate Janus: this AI gets its own wallet and can trade, launch tokens, bet and create markets alone, within the limits you set. Withdrawals only go back to you.")}</p>
       <button onClick={create} disabled={busy} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-bold text-background disabled:opacity-50">
-        {busy && <Loader2 className="size-4 animate-spin" />}{tr("Create a wallet for this AI")}
+        {busy && <Loader2 className="size-4 animate-spin" />}{tr("Activate Janus")}
       </button>
     </div>
   );
@@ -161,7 +161,7 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
     setBusy(null);
   }
   async function withdraw() {
-    if (!window.confirm(tr("Send the whole balance of this AI wallet back to your wallet?"))) return;
+    if (!window.confirm(tr("Send the whole balance of Janus back to your wallet?"))) return;
     setBusy("withdraw");
     try {
       const r = await fetch2fa(`/api/agent-wallets/${w.id}/withdraw`, { method: "POST" });
@@ -176,7 +176,7 @@ export function AiWalletPanel({ w, ownerIsEvm, onChange }: { w: AiWallet; ownerI
   return (
     <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-bold uppercase tracking-wide text-muted-foreground">{tr("AI wallet")}</span>
+        <span className="text-[13px] font-bold uppercase tracking-wide text-muted-foreground">{tr("Janus wallet")}</span>
         {w.paused && <span className="rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">{tr("Paused")}</span>}
       </div>
 

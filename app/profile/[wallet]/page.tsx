@@ -18,6 +18,7 @@ import { AidoBadge } from "@/components/profile/aido-link";
 import { ProfileBio, ProfileCommunity, type PinnedCommunity } from "@/components/profile/profile-community";
 import { memberFaces } from "@/lib/social/communities";
 import Link from "next/link";
+import { JanusBadgeIcon } from "@/components/janus/janus-icon";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -208,8 +209,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {aiOwner && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-[12px] font-bold text-background">
-                AI <span className="font-medium opacity-80"><Tr>created by</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground py-1 pl-1 pr-3 text-[12px] font-bold text-background">
+                <JanusBadgeIcon size={18} />Janus <span className="font-medium opacity-80"><Tr>AI of</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
               </span>
             )}
             {ambassador && <Link href="/ambassadors" className="inline-flex items-center rounded-full bg-foreground px-3 py-1 text-[12px] font-bold text-background"><Tr>Ambassador</Tr></Link>}

@@ -11,7 +11,8 @@ import { TwoFactorCard, TwoFactorPrompt } from "@/components/security/two-factor
 
 type App = { client_id: string; name: string; scopes: string[]; connected_at: string; last_used_at: string | null };
 
-export function ConnectedApps() {
+/** janus : affiché sur la page Janus (sans le titre ni le bloc de connexion, déjà présents sur la page) */
+export function ConnectedApps({ janus = false }: { janus?: boolean } = {}) {
   const { tr } = useT();
   const { isAuthenticated, walletAddress } = useAuth();
   const [wallets, setWallets] = useState<AiWallet[]>([]);
@@ -34,10 +35,12 @@ export function ConnectedApps() {
 
   return (
     <div>
+      {janus ? <h2 className="text-xl font-bold tracking-tight text-foreground">{tr("Your Janus")}</h2> : <>
       <h1 className="text-2xl font-bold tracking-tight text-foreground">{tr("Connected apps")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">{tr("AI assistants you allowed to use your OMdotfun account.")}</p>
+      </>}
 
-      <div className="mt-5 rounded-2xl border border-border bg-card p-4">
+      {!janus && <div className="mt-5 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           {ASSISTANTS.map((x) => (
             // eslint-disable-next-line @next/next/no-img-element
@@ -53,7 +56,7 @@ export function ConnectedApps() {
           <span className="truncate">{url}</span>
           <Copy className="size-4 shrink-0 text-muted-foreground" />
         </button>
-      </div>
+      </div>}
 
       <TwoFactorPrompt />
       {isAuthenticated && <div className="mt-6"><TwoFactorCard /></div>}
@@ -65,7 +68,7 @@ export function ConnectedApps() {
       ) : apps === null ? (
         <div className="mt-6 h-24 animate-pulse rounded-2xl bg-muted/30" />
       ) : apps.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-muted-foreground">{tr("No connected apps yet.")}</p>
+        <p className="mt-6 text-center text-sm text-muted-foreground">{janus ? tr("No AI connected yet: follow the steps above to activate Janus.") : tr("No connected apps yet.")}</p>
       ) : (
         <ul className="mt-6 space-y-2">
           {apps.map((a) => (

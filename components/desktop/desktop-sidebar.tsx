@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { JanusIcon } from "@/components/janus/janus-icon";
 import { LanguageSelectRail } from "@/components/shared/language-select";
 import { DogeSwitchRail, ThemeSwitchRail } from "@/components/shared/theme-switch";
 import { useT } from "@/lib/i18n";
@@ -30,6 +31,7 @@ function items(pathname: string) {
     { href: "/communities",            label: T("Communities"), icon: Users,      match: (p: string) => p.startsWith("/communities") || p.startsWith("/c/") },
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     { href: "/terminal",               label: T("Terminal"),    icon: CandlestickChart, match: (p: string) => p.startsWith("/terminal") },
+    { href: "/janus",                  label: T("Janus"),       icon: JanusIcon,  match: (p: string) => p.startsWith("/janus") },
     { href: "/ambassadors",            label: T("Ambassadors"), icon: Megaphone,      match: (p: string) => p.startsWith("/ambassadors") },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
     predict

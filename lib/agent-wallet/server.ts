@@ -108,8 +108,8 @@ export async function createWallet(owner: string, clientId: string): Promise<Age
   const admin = db();
   const { data: tok } = await admin.from("oauth_tokens").select("id").eq("wallet", owner).eq("client_id", clientId).eq("revoked", false).limit(1).maybeSingle();
   if (!tok) throw new AgentWalletError("This assistant is not connected to your account");
-  const { data: cl } = await admin.from("oauth_clients").select("client_name").eq("client_id", clientId).maybeSingle();
-  const name = String(cl?.client_name ?? "AI").slice(0, 30);
+  // Chaque IA connectée devient « Janus » (l'application d'origine reste visible dans les applications connectées)
+  const name = "Janus";
   const keys = newWallets();
   const { data, error } = await admin.from("agent_wallets").insert({ owner, client_id: clientId, name, ...keys }).select("*").single();
   if (error) throw new AgentWalletError("Could not create the wallet");
@@ -120,7 +120,7 @@ export async function createWallet(owner: string, clientId: string): Promise<Age
       address, role: "user", status: "active", first_connected_at: now, last_connected_at: now, connection_count: 1,
       latest_activity_at: now, latest_activity_label: "AI wallet created", payment_count: 0, approved_payment_count: 0,
       pending_payment_count: 0, rejected_payment_count: 0, total_paid_usdc: 0, total_won_usdc: 0, total_lost_usdc: 0, total_claimed_usdc: 0,
-      display_name: `${name} AI`.slice(0, 40), ai_owner: owner,
+      display_name: name, ai_owner: owner,
     }).then(() => {}, () => {});
   }
   return data as AgentWallet;
