@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { limited } from "@/lib/limit";
-import { sendSigned, TriggerError } from "@/lib/swap/jup-trigger";
+import { sendSigned, assertOrderTx, TriggerError } from "@/lib/swap/jup-trigger";
 import { activeTwaps, cancelTwap, createTwap, executeTwap } from "@/lib/swap/jup-recurring";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     if (b.action === "send") {
       const tx = String(b.signedTransaction ?? "");
       if (!tx || tx.length > 4000) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+      assertOrderTx(tx, w.wallet);
       return NextResponse.json(await sendSigned(tx));
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

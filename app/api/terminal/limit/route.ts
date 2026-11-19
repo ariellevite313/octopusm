@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { limited } from "@/lib/limit";
 import { createAdminClient } from "@/lib/supabase/server";
-import { activeOrders, cancelOrder, createLimitOrder, executeOrder, sendSigned, TriggerError } from "@/lib/swap/jup-trigger";
+import { activeOrders, cancelOrder, createLimitOrder, executeOrder, sendSigned, assertOrderTx, TriggerError } from "@/lib/swap/jup-trigger";
 
 export const dynamic = "force-dynamic";
 const MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -59,6 +59,7 @@ export async function POST(req: Request) {
     if (b.action === "send") {
       const tx = String(b.signedTransaction ?? "");
       if (!tx || tx.length > 4000) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+      assertOrderTx(tx, w.wallet);
       return NextResponse.json(await sendSigned(tx));
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

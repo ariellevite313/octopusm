@@ -102,6 +102,25 @@ export async function createLimitOrder(maker: string, b: { side: "buy" | "sell";
   return { ...res, transaction: fee.tx, feeLamports: fee.fee.toString(), direct: fee.fee > 0n, targetPrice: target, amountSol: b.side === "buy" ? b.amount : Number(taking) / 1e9 };
 }
 
+/**
+ * Garde-fou de l'envoi direct : n'accepte que la transaction d'ordre faite par OM, c'est-à-dire signée par le wallet connecté
+ * (payeur des frais) et contenant le virement des frais OM. Sinon la route servirait à envoyer n'importe quoi par notre RPC.
+ */
+export function assertOrderTx(signedB64: string, wallet: string): void {
+  let vtx: VersionedTransaction;
+  try { vtx = VersionedTransaction.deserialize(Buffer.from(signedB64, "base64")); } catch { throw new TriggerError("Invalid transaction"); }
+  const keys = vtx.message.staticAccountKeys;
+  if (!keys[0]?.equals(new PublicKey(wallet)) || !vtx.signatures[0]?.some((b) => b !== 0)) throw new TriggerError("Invalid transaction");
+  const feeWallet = new PublicKey(SWAP_FEE_WALLET);
+  const paid = vtx.message.compiledInstructions.some((ix) => {
+    if (!keys[ix.programIdIndex]?.equals(SystemProgram.programId) || ix.data.length < 12) return false;
+    const d = Buffer.from(ix.data);
+    // Transfer système : type 2, puis les lamports (u64) ; de : le wallet, vers : la plateforme
+    return d.readUInt32LE(0) === 2 && d.readBigUInt64LE(4) > 0n && keys[ix.accountKeyIndexes[0]]?.equals(keys[0]) && keys[ix.accountKeyIndexes[1]]?.equals(feeWallet);
+  });
+  if (!paid) throw new TriggerError("Invalid transaction");
+}
+
 /** Envoie une transaction d'ordre déjà signée par le maker (celle qui contient les frais OM, que Jupiter n'a pas construite telle quelle). */
 export async function sendSigned(signedTransaction: string): Promise<{ signature: string; status: string }> {
   const conn = solanaConnection();
