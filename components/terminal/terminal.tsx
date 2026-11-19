@@ -710,7 +710,7 @@ function QuickBuy({ mint, symbol, feeBps, walletType, onDone }: { mint: string; 
           </button>
         ))}
       </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">{feeBps > 0 ? tr("OM fee {pct}% included, 20% back to you as cashback", { pct: feeBps / 100 }) : tr("0% OM fee (OM token)")}</p>
+      <p className="mt-3 text-center text-xs text-muted-foreground">{feeBps > 0 ? tr("OM fee {pct}% included, +1 OMERO per $1 swapped", { pct: feeBps / 100 }) : tr("0% OM fee (OM token)")}</p>
     </div>
   );
 }

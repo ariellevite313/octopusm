@@ -18,7 +18,7 @@ import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import { WaveTexture } from "@/components/dashboard/creator-fees-dashboard";
 
 type Bags = { total: number; change24h: number };
-type Bal = { usdcBalance: number; cltBalance: number; winningsUsdc?: number; referralUsdc?: number; cashbackUsdc?: number };
+type Bal = { usdcBalance: number; cltBalance: number; winningsUsdc?: number; referralUsdc?: number };
 type Fees = { total: number; tokens: { pending: number }[] };
 
 /** Rafraîchit le solde et la liste des actifs (écouté par BagsPanel) */
@@ -106,7 +106,7 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
   const pendingFees = fees?.total ?? 0;
   const feeTokens = (fees?.tokens ?? []).filter((t) => t.pending > 0).length;
   const claimBadge = usdc >= 1 ? `$${Math.floor(usdc)}` : pendingFees > 0 ? `${pendingFees.toFixed(2)} SOL` : null;
-  const earned = (bal?.winningsUsdc ?? 0) + (bal?.referralUsdc ?? 0) + (bal?.cashbackUsdc ?? 0);
+  const earned = (bal?.winningsUsdc ?? 0) + (bal?.referralUsdc ?? 0);
   const [ei, ed] = earned.toFixed(2).split(".");
 
   return (
@@ -179,7 +179,6 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
             {([
               [tr("Predictions and pools"), usd2(bal?.winningsUsdc ?? 0)],
               [tr("Referrals and posts"), usd2(bal?.referralUsdc ?? 0)],
-              [tr("Cashback"), usd2(bal?.cashbackUsdc ?? 0)],
               ...(fees ? [[tr("Creator fees ({n} tokens)", { n: feeTokens }), `${Number(pendingFees.toFixed(4))} SOL`]] : []),
             ] as [string, string][]).map(([k, v]) => (
               <div key={k} className="flex items-center justify-between gap-3 py-3 text-[15px]"><span className="text-muted-foreground">{k}</span><span className="num font-semibold text-foreground">{v}</span></div>

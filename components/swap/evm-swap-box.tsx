@@ -123,7 +123,7 @@ export function EvmSwapBox({ chain, token, refPost }: { chain: EvmChain; token: 
       const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: addr, to: q.tx.to, data: q.tx.data, value: toHex(BigInt(q.tx.value || "0")), ...(q.tx.gas ? { gas: toHex(BigInt(q.tx.gas)) } : {}) }] })) as string;
       setBusy(tr("Waiting for confirmation"));
       await waitReceipt(eth, hash);
-      // Historique OM et cashback (jamais bloquant)
+      // Historique OM et OMERO (jamais bloquant)
       if (q.rec) void fetch("/api/swap/evm-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chain, hash, token, to: q.tx.to, data: q.tx.data, side: q.rec.side, sellAmount: q.rec.sellAmount, buyAmount: q.rec.buyAmount, feeNative: q.rec.feeNative, taker: q.rec.taker, rec: q.rec.token }) }).catch(() => {});
       // Swap lancé depuis un post « sac » : on enregistre la part du détenteur (jamais bloquant)
       if (q.ref) void fetch("/api/chill/evm-record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chain, hash, postId: q.ref.postId, holder: q.ref.holder, feeNative: q.ref.feeNative, taker: q.ref.taker, token, to: q.tx.to, data: q.tx.data, refToken: q.ref.token }) }).catch(() => {});

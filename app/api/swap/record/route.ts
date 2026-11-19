@@ -12,7 +12,7 @@ import { holderReceived, swapAmounts } from "@/lib/swap/record";
 import { CHILL_SHARE_BPS } from "@/lib/swap/chill";
 import { notify } from "@/lib/social/notify";
 import { isOmToken } from "@/lib/swap/server";
-import { awardCashback } from "@/lib/trade-rewards";
+import { awardSwapOmero } from "@/lib/trade-rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -100,10 +100,10 @@ export async function POST(req: Request) {
     ref_usd: ref ? toUsd(feeMint, ref.amount) : null,
   }, { onConflict: "signature", ignoreDuplicates: true }).select("id");
   if (error) { console.error("[swap/record]", error.message); return NextResponse.json({ error: "Could not record" }, { status: 500 }); }
-  // Cashback : 20 % des frais OM de ce swap reviennent au trader
+  // OMERO : 1 par dollar échangé (swaps aux frais OM pleins)
   const feeUsd = a.feeAmount > 0n ? toUsd(feeMint, a.feeAmount) : 0;
   const volUsd = toUsd(baseMint, baseRaw);
-  if (inserted?.length && feeUsd && volUsd) await awardCashback(db, { chain: "solana", txId: b.signature, trader: who.wallet, volumeUsd: volUsd, feeUsd });
+  if (inserted?.length && feeUsd && volUsd) await awardSwapOmero(db, { txId: b.signature, trader: who.wallet, volumeUsd: volUsd, feeUsd });
   if (ref && inserted?.length) await notify([{ wallet: ref.wallet, kind: "chill", actor: who.wallet, postId: ref.post }]);
   return NextResponse.json({ recorded: true, side, fee: a.feeAmount.toString(), ref: ref ? ref.amount.toString() : "0" });
 }

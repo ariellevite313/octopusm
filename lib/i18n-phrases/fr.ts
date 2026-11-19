@@ -257,6 +257,8 @@ const p: Record<string, string> = {
   "Disconnect": "Déconnecter",
   "referrals": "filleuls",
   "cashback": "cashback",
+  "OM fee {pct}% included, +1 OMERO per $1 swapped": "Frais OM {pct} % inclus, +1 OMERO par dollar échangé",
+  "+1 per $1 swapped": "+1 par dollar échangé",
   "Level {n}": "Palier {n}",
   "When it resolves, a new level opens automatically.": "Une fois résolu, un nouveau palier s'ouvre automatiquement.",
   "MEV protection": "Protection anti-MEV",

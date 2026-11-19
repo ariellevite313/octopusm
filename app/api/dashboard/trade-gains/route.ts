@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
 
 export type TradeGainRow = {
   id:        string;
-  kind:      "post" | "referral" | "cashback";
+  kind:      "post" | "referral";
   amount:    number;
   createdAt: string;
   token:     { name: string; ticker: string; logoUrl: string | null } | null;
 };
-export type TradeGainsResponse = { total: number; fromPosts: number; fromReferrals: number; fromCashback: number; rows: TradeGainRow[] };
+export type TradeGainsResponse = { total: number; fromPosts: number; fromReferrals: number; rows: TradeGainRow[] };
 
 export async function GET() {
   const who = await requireWallet();
@@ -32,7 +32,7 @@ export async function GET() {
     .limit(500);
   if (error) return NextResponse.json({ error: "Could not load gains" }, { status: 500 });
 
-  type R = { id: string; kind: "post" | "referral" | "cashback"; amount_usdc: number | string; created_at: string; token_id: string | null };
+  type R = { id: string; kind: "post" | "referral"; amount_usdc: number | string; created_at: string; token_id: string | null };
   const list = (data ?? []) as R[];
 
   const ids = [...new Set(list.map((r) => r.token_id).filter((x): x is string => !!x))];
@@ -46,17 +46,15 @@ export async function GET() {
 
   let fromPosts = 0;
   let fromReferrals = 0;
-  let fromCashback = 0;
   for (const r of list) {
     const a = Number(r.amount_usdc) || 0;
-    if (r.kind === "post") fromPosts += a; else if (r.kind === "cashback") fromCashback += a; else fromReferrals += a;
+    if (r.kind === "post") fromPosts += a; else fromReferrals += a;
   }
 
   const body: TradeGainsResponse = {
-    total: fromPosts + fromReferrals + fromCashback,
+    total: fromPosts + fromReferrals,
     fromPosts,
     fromReferrals,
-    fromCashback,
     rows: list.slice(0, 50).map((r) => ({
       id: r.id,
       kind: r.kind,

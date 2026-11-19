@@ -1,8 +1,8 @@
 /**
  * POST /api/swap/evm-record { chain, hash, token, to, data, side, sellAmount, buyAmount, feeNative, taker, rec }
- * Enregistre un swap EVM du Terminal (Base, BNB, Ethereum…) après confirmation : historique, alertes rug, cashback.
+ * Enregistre un swap EVM du Terminal (Base, BNB, Ethereum…) après confirmation : historique, alertes rug, OMERO.
  * Le jeton `rec`, signé avec le devis, prouve que la transaction vient de notre devis (frais OM inclus) ;
- * la transaction est relue sur la chaîne (expéditeur, contrat, données, succès). Cashback seulement pour le wallet connecté.
+ * la transaction est relue sur la chaîne (expéditeur, contrat, données, succès). OMERO seulement pour le wallet connecté.
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -10,7 +10,7 @@ import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { EVM_CHAINS, NATIVE, isAddr, isEvmChain, type EvmChain } from "@/lib/swap/evm";
 import { dataHash, verifyRef } from "@/lib/swap/chill-evm";
 import { nativeUsd } from "@/lib/agent-wallet/server";
-import { awardCashback } from "@/lib/trade-rewards";
+import { awardSwapOmero } from "@/lib/trade-rewards";
 import { limited } from "@/lib/limit";
 
 export const dynamic = "force-dynamic";
@@ -61,9 +61,9 @@ export async function POST(req: Request) {
   }, { onConflict: "signature", ignoreDuplicates: true }).select("id");
   if (error) { console.error("[swap/evm-record]", error.message); return NextResponse.json({ error: "Could not record" }, { status: 500 }); }
 
-  // Cashback : 20 % des frais OM, seulement si ce wallet EVM est celui de la session (le solde OM lui appartient)
+  // OMERO : 1 par dollar échangé, seulement si ce wallet EVM est celui de la session
   const session = (await getWalletAddress().catch(() => null))?.toLowerCase() ?? null;
-  let cashback = 0;
-  if (inserted?.length && session === wallet && feeUsd > 0 && volumeUsd) cashback = await awardCashback(db, { chain, txId: hash.toLowerCase(), trader: wallet, volumeUsd, feeUsd });
-  return NextResponse.json({ recorded: !!inserted?.length, cashback });
+  let omero = 0;
+  if (inserted?.length && session === wallet && feeUsd > 0 && volumeUsd) omero = await awardSwapOmero(db, { txId: hash.toLowerCase(), trader: wallet, volumeUsd, feeUsd });
+  return NextResponse.json({ recorded: !!inserted?.length, omero });
 }

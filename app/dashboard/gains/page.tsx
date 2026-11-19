@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 export const revalidate = 0;
 
-/** Onglet Gains : soldes OM (USDC, CLT, OMERO, avec historique et retrait) et gains sur les trades (posts, parrainage, cashback). */
+/** Onglet Gains : soldes OM (USDC, CLT, OMERO, avec historique et retrait) et gains sur les trades (posts, parrainage). */
 export default async function GainsPage() {
   const wallet = await getWalletAddress();
   if (!wallet) redirect("/");
