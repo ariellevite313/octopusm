@@ -34,6 +34,8 @@ function Inner() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; sig?: string } | null>(null);
   const [back, setBack] = useState("/");
+  // Lien vers le wallet pour signer le message de connexion : ouvert par un toucher de l'utilisateur (voir phantom-deeplink)
+  const [sign, setSign] = useState<{ url: string; wallet: string } | null>(null);
 
   useEffect(() => {
     if (ran.current) return;
@@ -77,10 +79,11 @@ function Inner() {
           const nonceBytes = new Uint8Array(16);
           crypto.getRandomValues(nonceBytes);
           const nonce = Array.from(nonceBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-          handleConnectResponse(params, (address, n) => new TextEncoder().encode(
+          const r = handleConnectResponse(params, (address, n) => new TextEncoder().encode(
             `Sign in to OMdotfun\nAddress: ${address}\nNonce: ${n}\nTimestamp: ${new Date().toISOString()}\nDomain: ${window.location.hostname}`,
           ), nonce);
-          return; // redirection vers Phantom pour la signature
+          setSign({ url: r.url, wallet: r.wallet === "solflare" ? "Solflare" : "Phantom" });
+          return; // le wallet s'ouvre quand l'utilisateur touche le bouton
         }
         const r = handleSignResponse(params);
         const supabase = createClient();
@@ -108,7 +111,13 @@ function Inner() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-8 text-center text-foreground">
-      <p className="text-lg font-bold">{error ? tr("Connection failed") : notice ? tr(notice.title) : tr("Connecting…")}</p>
+      <p className="text-lg font-bold">{error ? tr("Connection failed") : notice ? tr(notice.title) : sign ? tr("Wallet connected") : tr("Connecting…")}</p>
+      {sign && !error && !notice && (
+        <>
+          <p className="text-sm text-muted-foreground">{tr("One last step: sign the message to log in.")}</p>
+          <a href={sign.url} className="rounded-xl bg-foreground px-6 py-3 font-semibold text-background">{tr("Continue in {wallet}", { wallet: sign.wallet })}</a>
+        </>
+      )}
       {notice?.sig && (
         <a href={`https://solscan.io/tx/${notice.sig}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold underline">{tr("View on Solscan")}</a>
       )}
@@ -119,7 +128,7 @@ function Inner() {
           <p className="text-sm text-muted-foreground">{tr(error)}</p>
           <button onClick={() => { window.location.href = back; }} className="rounded-xl bg-foreground px-6 py-3 font-semibold text-background">{tr("Back")}</button>
         </>
-      ) : (
+      ) : sign ? null : (
         <div className="size-9 animate-spin rounded-full border-[3px] border-border border-t-primary" />
       )}
     </div>

@@ -1750,5 +1750,7 @@ const p: Record<string, string> = {
   "Yellow": "Amarillo",
   "Green": "Verde",
   "Pink": "Rosa",
+  "One last step: sign the message to log in.": "Último paso: firma el mensaje para iniciar sesión.",
+  "Continue in {wallet}": "Continuar en {wallet}",
 };
 export default p;

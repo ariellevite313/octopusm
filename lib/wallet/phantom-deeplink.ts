@@ -154,8 +154,12 @@ function decrypt<T>(secret: Uint8Array, data: string, nonce: string): T {
   return JSON.parse(new TextDecoder().decode(plain)) as T;
 }
 
-/** Étape 1 : réponse de connect → on demande la signature du message de connexion. */
-export function handleConnectResponse(params: URLSearchParams, buildMessage: (address: string, nonce: string) => Uint8Array, nonce: string): void {
+/**
+ * Étape 1 : réponse de connect → lien de signature du message de connexion.
+ * Le lien n'est PAS ouvert automatiquement : Android (Chrome) n'envoie un lien profond vers l'application du wallet
+ * que lors d'un vrai toucher de l'utilisateur. Une redirection automatique ouvre le site du wallet (page « installer l'application »).
+ */
+export function handleConnectResponse(params: URLSearchParams, buildMessage: (address: string, nonce: string) => Uint8Array, nonce: string): { url: string; wallet: DeeplinkWallet } {
   const s = load();
   const phantomPk = params.get("phantom_encryption_public_key") ?? params.get("solflare_encryption_public_key");
   const data = params.get("data");
@@ -179,7 +183,8 @@ export function handleConnectResponse(params: URLSearchParams, buildMessage: (ad
     redirect_link: `${window.location.origin}/phantom-callback?step=sign`,
     payload: bs58.encode(payload),
   });
-  window.location.href = `${BASE[s.wallet ?? "phantom"]}/signMessage?${q.toString()}`;
+  const wallet = s.wallet ?? "phantom";
+  return { url: `${BASE[wallet]}/signMessage?${q.toString()}`, wallet };
 }
 
 /** Étape 2 : réponse de signMessage → données pour l'Edge Function wallet-auth. */

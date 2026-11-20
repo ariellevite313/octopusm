@@ -87,3 +87,18 @@ describe("liens profonds : signature d'une transaction", () => {
     expect(() => m.handleSendResponse(new URLSearchParams({ nonce: bs58.encode(n), data: bs58.encode(forged) }))).toThrow();
   });
 });
+
+describe("liens profonds : connexion", () => {
+  it("après connect, le lien de signature est rendu sans redirection automatique (Android ouvre l'application seulement sur un toucher)", async () => {
+    const m = await import("@/lib/wallet/phantom-deeplink");
+    m.startDeeplinkConnect("solflare");
+    const connectUrl = loc.href;
+    expect(connectUrl.startsWith("https://solflare.com/ul/v1/connect?")).toBe(true);
+    loc.href = "";
+    const r = m.handleConnectResponse(walletConnects(connectUrl), (a, n) => new TextEncoder().encode(`${a} ${n}`), "abcd");
+    expect(loc.href).toBe(""); // aucune navigation toute seule
+    expect(r.wallet).toBe("solflare");
+    expect(r.url.startsWith("https://solflare.com/ul/v1/signMessage?")).toBe(true);
+    expect(new URL(r.url).searchParams.get("redirect_link")).toBe("https://omdot.fun/phantom-callback?step=sign");
+  });
+});
