@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromCandles, hasPeriod, isSource } from "@/lib/top-lists";
+import { fromCandles, hasPeriod, isSource, periodOk } from "@/lib/top-lists";
 
 const D = 86_400_000;
 describe("top 10", () => {
@@ -14,7 +14,10 @@ describe("top 10", () => {
   it("sources et périodes", () => {
     expect(isSource("om")).toBe(true);
     expect(isSource("solana")).toBe(true);
-    expect(isSource("arc")).toBe(false);
+    expect(isSource("arc")).toBe(true);
+    expect(periodOk("arc")).toBe(false);
+    expect(periodOk("solana")).toBe(true);
+    expect(isSource("nope")).toBe(false);
     expect(hasPeriod("mcap")).toBe(false);
     expect(hasPeriod("losers")).toBe(true);
   });
