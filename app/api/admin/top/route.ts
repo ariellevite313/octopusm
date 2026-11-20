@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/server";
-import { buildTop, devSoldOk, hasPeriod, isSource, TOP_KINDS, TOP_PERIODS, type TopKind, type TopPeriod } from "@/lib/top-lists";
+import { buildTop, devSoldOk, hasPeriod, isSource, periodOk, TOP_KINDS, TOP_PERIODS, type TopKind, type TopPeriod, type TopSource } from "@/lib/top-lists";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   if (denied) return denied;
   const b = (await req.json().catch(() => ({}))) as { source?: string; kind?: string; period?: string };
   const source = String(b.source ?? ""), kind = String(b.kind ?? "") as TopKind;
-  const period = (hasPeriod(kind) ? String(b.period ?? "day") : "day") as TopPeriod;
+  const period = (hasPeriod(kind) && periodOk(source as TopSource) ? String(b.period ?? "day") : "day") as TopPeriod;
   if (!isSource(source) || !TOP_KINDS.includes(kind) || !TOP_PERIODS.includes(period)) return NextResponse.json({ error: "Invalid list" }, { status: 400 });
   if (kind === "dev_sold" && !devSoldOk(source)) return NextResponse.json({ error: "Team sales are only tracked on Solana" }, { status: 400 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

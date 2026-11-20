@@ -22,13 +22,13 @@ const KINDS: { id: Kind; label: string }[] = [
   { id: "losers", label: "Losers" }, { id: "dev_sold", label: "Sold by the team" },
 ];
 const PERIODS: { id: Period; label: string }[] = [{ id: "day", label: "Day" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }];
-const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, { id: "stocks", name: "Stocks", logo: "/chains/solana.png" }, ...CHAINS.filter((c) => GT_NET[c.id]).map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
+const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, { id: "stocks", name: "Stocks", logo: "/chains/solana.png" }, ...CHAINS.filter((c) => GT_NET[c.id] || c.id === "arc").map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
 /** Couleurs de l'image (même liste que lib/og/top-card.tsx) */
 const COLORS: { id: string; label: string; bg: string }[] = [
   { id: "dark", label: "Black", bg: "#050505" }, { id: "white", label: "White", bg: "#fafaf8" }, { id: "blue", label: "Blue", bg: "#1747c9" },
   { id: "orange", label: "Orange", bg: "#f26a12" }, { id: "yellow", label: "Yellow", bg: "#ffd21f" }, { id: "green", label: "Green", bg: "#0f9b55" }, { id: "pink", label: "Pink", bg: "#e93a8c" },
 ];
-const hasPeriod = (k: Kind) => k === "volume" || k === "gainers" || k === "losers";
+const hasPeriod = (k: Kind, src = "") => (k === "volume" || k === "gainers" || k === "losers") && src !== "arc";
 const devOk = (s: string) => s === "om" || s === "solana";
 
 function Chip({ on, onClick, children, disabled }: { on: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
@@ -66,7 +66,7 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
   }
   const srcName = SOURCES.find((s) => s.id === source)?.name ?? source;
   const kindName = KINDS.find((k) => k.id === kind)?.label ?? "";
-  const text = `Top 10 ${kindName.toLowerCase()}${hasPeriod(kind) ? ` (${period === "day" ? "24h" : period === "week" ? "7 days" : "30 days"})` : ""} · ${srcName} · OMdotfun`;
+  const text = `Top 10 ${kindName.toLowerCase()}${hasPeriod(kind, source) || (source === "arc" && (kind === "volume" || kind === "gainers" || kind === "losers")) ? ` (${period === "day" || source === "arc" ? "24h" : period === "week" ? "7 days" : "30 days"})` : ""} · ${srcName} · OMdotfun`;
 
   return (
     <>
@@ -97,7 +97,7 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
             </div>
             {kind === "dev_sold" && <p className="mt-1.5 text-[12px] text-muted-foreground">{tr("Team sales are only tracked on Solana.")}</p>}
 
-            {hasPeriod(kind) && <>
+            {hasPeriod(kind, source) && <>
               <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Period")}</p>
               <div className="mt-1.5 flex gap-1.5">{PERIODS.map((p) => <Chip key={p.id} on={period === p.id} onClick={() => { setPeriod(p.id); reset(); }}>{tr(p.label)}</Chip>)}</div>
             </>}

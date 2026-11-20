@@ -11,6 +11,8 @@ import { analyzeDev } from "@/lib/terminal-dev";
 import { loadTokenTrades } from "@/lib/trade-card";
 import { refreshArcStats } from "@/lib/arc-stats";
 import { stocksList } from "@/lib/terminal-stocks";
+import { arcList } from "@/lib/terminal";
+import { arcMarket } from "@/lib/dexscreener";
 
 export type TopKind = "mcap" | "volume" | "gainers" | "losers" | "dev_sold";
 export type TopPeriod = "day" | "week" | "month";
@@ -21,7 +23,10 @@ export const TOP_KINDS: TopKind[] = ["mcap", "volume", "gainers", "losers", "dev
 export const TOP_PERIODS: TopPeriod[] = ["day", "week", "month"];
 /** Chaînes du Terminal disponibles (celles que GeckoTerminal couvre) */
 export const TOP_CHAINS = CHAINS.filter((c) => GT_NET[c.id]).map((c) => c.id);
-export const isSource = (s: string): s is TopSource => s === "om" || s === "stocks" || (TOP_CHAINS as string[]).includes(s);
+/** Arc n'est pas sur GeckoTerminal : ses tokens viennent d'OM et d'Uniswap (DexScreener) */
+export const isSource = (s: string): s is TopSource => s === "om" || s === "stocks" || s === "arc" || (TOP_CHAINS as string[]).includes(s);
+/** Arc : chiffres des dernières 24 h seulement (pas de bougies journalières) */
+export const periodOk = (s: TopSource) => s !== "arc";
 /** Le classement par capitalisation et « vendus par l'équipe » n'ont pas de période */
 export const hasPeriod = (k: TopKind) => k === "volume" || k === "gainers" || k === "losers";
 /** « Vendus par l'équipe » : lecture des ventes du dev, possible sur Solana (et les tokens OM sur Solana) */
@@ -224,8 +229,22 @@ async function stocksTop(kind: TopKind, period: TopPeriod): Promise<TopRow[]> {
     .slice(0, 10).map((x) => row(x.t, x.s.change ?? 0));
 }
 
+/** Arc : tokens lancés sur OM (capitalisation) et tokens d'Uniswap (volume, variation 24 h), sans doublon */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function arcTop(db: any, kind: TopKind): Promise<TopRow[]> {
+  if (kind === "dev_sold") return [];
+  const [om, dex] = await Promise.all([arcList(db, "trending").catch(() => [] as TerminalToken[]), arcMarket("volume").catch(() => [] as TerminalToken[])]);
+  const by = new Map<string, TerminalToken>();
+  for (const t of [...dex, ...om]) { const k = t.mint.toLowerCase(), o = by.get(k); by.set(k, o ? { ...o, logo: o.logo ?? t.logo, mcap: o.mcap ?? t.mcap } : t); }
+  const list = [...by.values()].filter((t) => !STABLE.test(t.symbol));
+  if (kind === "mcap") return list.filter((t) => (t.mcap ?? 0) > 0).sort((a, b) => (b.mcap ?? 0) - (a.mcap ?? 0)).slice(0, 10).map((t) => row(t, t.mcap ?? 0));
+  if (kind === "volume") return list.filter((t) => (t.volume24h ?? 0) > 0).sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0)).slice(0, 10).map((t) => row(t, t.volume24h ?? 0));
+  return list.filter((t) => t.change24h != null && (kind === "gainers" ? t.change24h > 0 : t.change24h < 0))
+    .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.change24h ?? 0) - (a.change24h ?? 0))).slice(0, 10).map((t) => row(t, t.change24h ?? 0));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function buildTop(db: any, source: TopSource, kind: TopKind, period: TopPeriod, origin: string): Promise<TopRow[]> {
   if (kind === "dev_sold" && !devSoldOk(source)) return [];
-  return source === "om" ? omTop(db, kind, period, origin) : source === "stocks" ? stocksTop(kind, period) : chainTop(source, kind, period);
+  return source === "om" ? omTop(db, kind, period, origin) : source === "stocks" ? stocksTop(kind, period) : source === "arc" ? arcTop(db, kind) : chainTop(source, kind, period);
 }
