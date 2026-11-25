@@ -155,14 +155,18 @@ export function Discover() {
 
           {!searching && (
             <Section title={tr("Recommended for you")}>
-              <div className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-0 lg:grid-cols-8">
-                {top!.slice(0, 8).map((a) => (
-                  <Link key={a.id} href={`/discover/${a.id}`} className="w-[104px] shrink-0 sm:w-auto">
-                    <AppIcon app={a} className="aspect-square w-full" />
-                    <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}</p>
-                    <Rating value={a.rating} count={a.ratings} className="text-[12px] text-muted-foreground" />
-                  </Link>
-                ))}
+              {/* Défile tout seul en boucle (pause au survol ou au toucher) */}
+              <div className="ticker-mask -mx-4 overflow-hidden sm:mx-0">
+                <div className="ticker-track flex w-max gap-3 px-4 sm:gap-4 sm:px-0" style={{ animationDuration: `${Math.max(top!.slice(0, 10).length * 4, 24)}s` }}
+                  onTouchStart={(e) => { e.currentTarget.style.animationPlayState = "paused"; }} onTouchEnd={(e) => { e.currentTarget.style.animationPlayState = ""; }}>
+                  {[...top!.slice(0, 10), ...top!.slice(0, 10)].map((a, n) => (
+                    <Link key={`${a.id}-${n}`} href={`/discover/${a.id}`} aria-hidden={n >= Math.min(top!.length, 10) || undefined} tabIndex={n >= Math.min(top!.length, 10) ? -1 : undefined} className="w-[104px] shrink-0 sm:w-[120px] lg:w-[132px]">
+                      <AppIcon app={a} className="aspect-square w-full" />
+                      <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}</p>
+                      <Rating value={a.rating} count={a.ratings} className="text-[12px] text-muted-foreground" />
+                    </Link>
+                  ))}
+                </div>
               </div>
             </Section>
           )}
