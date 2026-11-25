@@ -13,7 +13,7 @@ import { PLATFORM_FEE_SOL, SCHEDULED_FEE_SOL } from "@/lib/launch/platform-fee";
 const MAX_AGE_MS = 2 * 3600_000;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function ensureLaunchFeePaid(admin: any, tokenId: string, hintSig?: string | null): Promise<boolean> {
+export async function ensureLaunchFeePaid(admin: any, tokenId: string, hintSig?: string | null, anchor?: { signature: string; blockTime: number | null } | null): Promise<boolean> {
   const { data: t } = await admin.from("launchpad_tokens").select("creator_wallet, is_scheduled, fee_paid_at").eq("id", tokenId).maybeSingle();
   if (!t) return false;
   if (t.fee_paid_at) return true;
@@ -25,12 +25,16 @@ export async function ensureLaunchFeePaid(admin: any, tokenId: string, hintSig?:
 
   const sigs: string[] = [];
   if (hintSig && /^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(hintSig)) sigs.push(hintSig);
-  const recent = await conn.getSignaturesForAddress(creator, { limit: 25 }, "confirmed").catch(() => []);
-  for (const r of recent) if (!r.err && r.blockTime && Date.now() - r.blockTime * 1000 < MAX_AGE_MS && !sigs.includes(r.signature)) sigs.push(r.signature);
+  // Repère : la création de la pool (récupération plus tard) sinon maintenant. Le paiement doit précéder ce repère de moins de 2 h.
+  const ref = anchor?.blockTime ? anchor.blockTime * 1000 : Date.now();
+  const fresh = (t: number | null | undefined) => !!t && ref - t * 1000 < MAX_AGE_MS && t * 1000 <= ref + 60_000;
+  const recent = await conn.getSignaturesForAddress(creator, anchor ? { limit: 25, before: anchor.signature } : { limit: 25 }, "confirmed").catch(() => []);
+  if (anchor && !sigs.includes(anchor.signature)) sigs.push(anchor.signature); // frais payés dans la même transaction
+  for (const r of recent) if (!r.err && fresh(r.blockTime) && !sigs.includes(r.signature)) sigs.push(r.signature);
 
   for (const sig of sigs.slice(0, 26)) {
     const tx = await conn.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
-    if (!tx?.meta || tx.meta.err !== null || !tx.blockTime || Date.now() - tx.blockTime * 1000 > MAX_AGE_MS) continue;
+    if (!tx?.meta || tx.meta.err !== null || !fresh(tx.blockTime)) continue;
     const keys = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta.loadedAddresses });
     if (keys.get(0)?.toBase58() !== creator.toBase58()) continue;
     let idx = -1;

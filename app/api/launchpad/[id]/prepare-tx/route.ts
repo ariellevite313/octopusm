@@ -30,7 +30,7 @@ import { NextResponse } from "next/server";
 import { Keypair, Connection, PublicKey } from "@solana/web3.js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
-import { activateIfPoolExists, type PendingToken } from "@/lib/launch/recover-pool";
+import { recoverPendingToken, RECOVER_MESSAGES, type PendingToken } from "@/lib/launch/recover-pool";
 import {
   buildSplitPoolTransactions,
   buildStockPairedTransactions,
@@ -220,14 +220,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         const conn = solanaConnection();
         const mintInfo = await conn.getAccountInfo(new PublicKey(token.mint_address as string));
         if (mintInfo !== null) {
-          const pool = await activateIfPoolExists(admin, { id, ...token } as PendingToken);
-          if (pool) {
-            return NextResponse.json({ alreadyLaunched: true, mintAddress: token.mint_address, poolAddress: pool });
+          const r = await recoverPendingToken(admin, { id, ...token } as PendingToken);
+          if ("pool" in r) {
+            return NextResponse.json({ alreadyLaunched: true, mintAddress: token.mint_address, poolAddress: r.pool });
           }
-          return NextResponse.json(
-            { error: "This token already exists on chain but its pool was not found yet. Wait a minute and retry." },
-            { status: 409 },
-          );
+          return NextResponse.json({ error: RECOVER_MESSAGES[r.reason], reason: r.reason }, { status: 409 });
         }
       } catch (e) {
         console.warn("[prepare-tx] on-chain mint check failed:", e);

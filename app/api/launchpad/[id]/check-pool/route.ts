@@ -16,7 +16,7 @@
  */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { activateIfPoolExists } from "@/lib/launch/recover-pool";
+import { recoverPendingToken, RECOVER_MESSAGES } from "@/lib/launch/recover-pool";
 import { requireWallet } from "@/lib/social/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -55,8 +55,9 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
     if (!process.env.SOLANA_RPC_URL) return NextResponse.json({ found: false, reason: "no RPC" });
 
-    const poolAddress = await activateIfPoolExists(admin, { id, ...token });
-    if (!poolAddress) return NextResponse.json({ found: false });
+    const r = await recoverPendingToken(admin, { id, ...token });
+    if (!("pool" in r)) return NextResponse.json({ found: false, reason: r.reason, error: RECOVER_MESSAGES[r.reason] });
+    const poolAddress = r.pool;
     console.log(`[check-pool] pool found on-chain: ${poolAddress} for token ${id}`);
     return NextResponse.json({ found: true, poolAddress });
 

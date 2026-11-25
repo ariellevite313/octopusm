@@ -21,6 +21,75 @@ const BLOWFISH_SAFE = new Set([
   "ComputeBudget111111111111111111111111111111",
 ]);
 
+/** Discriminateur Anchor du compte VirtualPool de Meteora DBC, et position du base_mint dans ses données. */
+const POOL_DISCRIMINATOR = Buffer.from("d5e005d16245775c", "hex");
+const POOL_BASE_MINT_OFFSET = 136;
+
+/** Plus anciennes signatures d'une adresse (la création du token est la toute première). */
+export async function oldestSignatures(connection: Connection, address: string, count = 3): Promise<{ signature: string; blockTime: number | null }[]> {
+  let before: string | undefined;
+  let last: { signature: string; blockTime?: number | null }[] = [];
+  for (let page = 0; page < 6; page++) {
+    const batch = await connection.getSignaturesForAddress(new PublicKey(address), { limit: 1000, before }, "confirmed").catch(() => []);
+    if (!batch.length) break;
+    last = [...last, ...batch].slice(-count - 1000);
+    before = batch[batch.length - 1].signature;
+    if (batch.length < 1000) break;
+  }
+  return last.slice(-count).reverse().map((x) => ({ signature: x.signature, blockTime: x.blockTime ?? null }));
+}
+
+/**
+ * Trouve la pool sans deviner son adresse : lit la transaction de création du token et garde le compte
+ * du programme DBC dont les données disent « base_mint = ce token ». Marche quelle que soit la config utilisée
+ * (y compris une config créée pour ce lancement seulement).
+ */
+export async function findPoolFromHistory(connection: Connection, mintAddress: string, dbcProgramId: PublicKey): Promise<{ pool: string; signature: string; blockTime: number | null } | null> {
+  const mint = new PublicKey(mintAddress);
+  for (const s of await oldestSignatures(connection, mintAddress, 3)) {
+    const tx = await connection.getTransaction(s.signature, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }).catch(() => null);
+    if (!tx?.meta || tx.meta.err) continue;
+    const keys = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta.loadedAddresses });
+    const all: PublicKey[] = [];
+    for (let i = 0; i < keys.length; i++) { const k = keys.get(i); if (k) all.push(k); }
+    // Par paquets de 10 : certains RPC refusent plus de 10 comptes par requête
+    const infos: (Awaited<ReturnType<Connection["getAccountInfo"]>>)[] = [];
+    for (let k = 0; k < all.length; k += 10) {
+      const part = await connection.getMultipleAccountsInfo(all.slice(k, k + 10), "confirmed").catch(() => all.slice(k, k + 10).map(() => null));
+      infos.push(...part);
+    }
+    for (let i = 0; i < all.length; i++) {
+      const info = infos[i];
+      if (!info || !info.owner.equals(dbcProgramId) || info.data.length < POOL_BASE_MINT_OFFSET + 32) continue;
+      if (!info.data.subarray(0, 8).equals(POOL_DISCRIMINATOR)) continue;
+      if (!info.data.subarray(POOL_BASE_MINT_OFFSET, POOL_BASE_MINT_OFFSET + 32).equals(mint.toBuffer())) continue;
+      return { pool: all[i].toBase58(), signature: s.signature, blockTime: tx.blockTime ?? s.blockTime };
+    }
+  }
+  // Dernier recours (historique indisponible sur ce RPC) : recherche directe des pools DBC dont base_mint = ce token
+  try {
+    const found = await connection.getProgramAccounts(dbcProgramId, {
+      commitment: "confirmed",
+      dataSlice: { offset: 0, length: 0 },
+      filters: [{ memcmp: { offset: 0, bytes: bs58Encode(POOL_DISCRIMINATOR) } }, { memcmp: { offset: POOL_BASE_MINT_OFFSET, bytes: mint.toBase58() } }],
+    });
+    if (found[0]) {
+      const pool = found[0].pubkey.toBase58();
+      const first = (await oldestSignatures(connection, pool, 1))[0];
+      return { pool, signature: first?.signature ?? "", blockTime: first?.blockTime ?? null };
+    }
+  } catch { /* RPC sans getProgramAccounts */ }
+  return null;
+}
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function bs58Encode(buf: Buffer): string {
+  let n = BigInt("0x" + (buf.toString("hex") || "0")), out = "";
+  while (n > 0n) { out = B58[Number(n % 58n)] + out; n /= 58n; }
+  for (const b of buf) { if (b === 0) out = "1" + out; else break; }
+  return out;
+}
+
 export async function findPoolOnChain(
   connection: Connection,
   mintAddress: string,
@@ -29,7 +98,7 @@ export async function findPoolOnChain(
   xStockSymbol?: string | null,          // stock_symbol (xStock only)
 ): Promise<string | null> {
   const baseMint  = new PublicKey(mintAddress);
-  const solConfigs = [process.env.DBC_CONFIG_KEY, process.env.DBC_CONFIG_KEY_LOW].filter(Boolean).map((k) => new PublicKey(k as string));
+  const solConfigs = [process.env.DBC_CONFIG_KEY, process.env.DBC_CONFIG_KEY_LOW, xStockSymbol ? null : xStockConfigAddress].filter(Boolean).map((k) => new PublicKey(k as string));
 
   const seedSets: Buffer[][] = [];
 
@@ -113,12 +182,28 @@ export type PendingToken = {
   dbc_config_address: string | null;
 };
 
+export type RecoverReason = "no_pool" | "creator_mismatch" | "creator_unverified" | "fee_missing" | "no_rpc";
+export const RECOVER_MESSAGES: Record<RecoverReason, string> = {
+  no_pool: "The pool of this token was not found on chain yet. Wait a minute and retry.",
+  creator_mismatch: "The creator of this pool on chain is not the wallet that created the token.",
+  creator_unverified: "Could not read the pool on chain right now. Retry in a minute.",
+  fee_missing: "The launch fee payment was not found for this token. Contact support with your token address.",
+  no_rpc: "Could not read the blockchain right now. Retry in a minute.",
+};
+
 /** Renvoie l'adresse de la pool trouvée (et active le token), ou null si elle n'existe pas (encore). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function activateIfPoolExists(admin: any, token: PendingToken): Promise<string | null> {
-  if (!token.mint_address) return null;
+  const r = await recoverPendingToken(admin, token);
+  return "pool" in r ? r.pool : null;
+}
+
+/** Même chose, avec la raison exacte quand ça échoue (affichée au créateur). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function recoverPendingToken(admin: any, token: PendingToken): Promise<{ pool: string } | { reason: RecoverReason }> {
+  if (!token.mint_address) return { reason: "no_pool" };
   const rpc = process.env.SOLANA_RPC_URL;
-  if (!rpc) return null;
+  if (!rpc) return { reason: "no_rpc" };
   const connection = solanaConnection();
 
   let dbcProgramId: PublicKey | null = null;
@@ -140,7 +225,13 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
     poolAddress = await findPoolOnChain(connection, token.mint_address, prog, token.dbc_config_address, token.stock_symbol);
     if (poolAddress) break;
   }
-  if (!poolAddress) return null;
+  // Repli sûr : la transaction de création du token dit où est sa pool (config propre au lancement, etc.)
+  let created: { signature: string; blockTime: number | null } | null = null;
+  for (const prog of programsToTry) {
+    const h = await findPoolFromHistory(connection, token.mint_address, prog).catch(() => null);
+    if (h) { created = h; if (!poolAddress) { poolAddress = h.pool; console.log(`[recover-pool] pool found from creation tx: ${h.pool} (token ${token.id})`); } break; }
+  }
+  if (!poolAddress) return { reason: "no_pool" };
 
   // Même exigence que /confirm : le créateur lu sur la chaîne doit être celui du token.
   const verdict = await verifyTokenCreator({
@@ -152,12 +243,13 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
   // Comme /confirm : seul un créateur vérifié sur la chaîne active le token (une lecture RPC ratée ne suffit plus).
   if (verdict !== "ok") {
     if (verdict === "mismatch") console.error(`[recover-pool] creator mismatch for token ${token.id}`);
-    return null;
+    return { reason: verdict === "mismatch" ? "creator_mismatch" : "creator_unverified" };
   }
-  // Pas de token actif sans frais de création payés
-  if (!(await ensureLaunchFeePaid(admin, token.id))) {
+  // Pas de token actif sans frais de création payés. Le paiement est cherché juste avant la création de la pool,
+  // pas « dans les 2 dernières heures » : un lancement récupéré des jours plus tard est retrouvé aussi.
+  if (!(await ensureLaunchFeePaid(admin, token.id, null, created?.signature ? { signature: created.signature, blockTime: created.blockTime } : null))) {
     console.warn(`[recover-pool] launch fee not found for token ${token.id}`);
-    return null;
+    return { reason: "fee_missing" };
   }
 
   const isScheduled = Boolean(token.is_scheduled);
@@ -179,5 +271,5 @@ export async function activateIfPoolExists(admin: any, token: PendingToken): Pro
   if (flipped?.length && token.creator_wallet && verdict === "ok") {
     awardOcto(token.creator_wallet, OMERO_PER_LAUNCH, "launch").catch((e) => console.warn("[recover-pool] awardOcto:", e));
   }
-  return poolAddress;
+  return { pool: poolAddress };
 }
