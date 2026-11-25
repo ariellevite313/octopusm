@@ -2657,5 +2657,10 @@ const p: Record<string, string> = {
   "Your project is live on the OM Store": "Projen OM Store'da yayında",
   "OM Store listing": "OM Store sayfası",
   "OM Store page (optional)": "OM Store sayfası (isteğe bağlı)",
+  "Give blue badge": "Mavi rozet ver",
+  "Remove blue badge": "Mavi rozeti kaldır",
+  "Blue badge given": "Mavi rozet verildi",
+  "Blue badge removed": "Mavi rozet kaldırıldı",
+  "Could not update right now": "Şu anda güncellenemedi",
 };
 export default p;

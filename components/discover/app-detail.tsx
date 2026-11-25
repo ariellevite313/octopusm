@@ -3,7 +3,7 @@
 /** Fiche d'une app Discover : en-tête, bouton Ouvrir, paiement en token, images, à propos, notes et avis, apps similaires. */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Flag, MoreVertical, Rocket, Share2, Star, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Flag, MoreVertical, Rocket, Share2, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -13,7 +13,7 @@ import { LOCALES } from "@/lib/i18n-mark";
 import { ShareSheet, XIcon, TgIcon, DiscordIcon } from "@/components/shared/share-sheet";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { Mirage } from "@/components/shared/mirage";
-import { AppIcon, Rating, compact, visit, type AppCard } from "@/components/discover/app-bits";
+import { AppIcon, NameMarks, Rating, compact, visit, type AppCard } from "@/components/discover/app-bits";
 
 type Detail = {
   app: AppCard & { socials?: { x: string | null; telegram: string | null; discord: string | null }; description: string; screenshots: string[]; paymentNote: string | null; owner: { wallet: string; name: string | null } };
@@ -21,6 +21,7 @@ type Detail = {
   reviews: { wallet: string; name: string | null; avatar: string | null; rating: number; body: string | null; at: string }[];
   mine: { rating: number; body: string | null } | null;
   isOwner: boolean;
+  isAdmin?: boolean;
   similar: AppCard[];
 };
 
@@ -175,6 +176,19 @@ export function AppDetail({ id }: { id: string }) {
   }, [id]);
   useEffect(load, [load]);
 
+  /** Admin : donne ou retire la puce bleue du projet. */
+  async function toggleVerified() {
+    if (!d) return;
+    const next = !d.app.verified;
+    try {
+      const r = await fetch(`/api/discover/apps/${id}/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verified: next }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error ?? "Could not update right now");
+      toast.success(next ? tr("Blue badge given") : tr("Blue badge removed"));
+      load();
+    } catch (e) { toast.error(tr((e as Error).message)); }
+  }
+
   async function sendReview() {
     if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
     setBusy(true);
@@ -211,6 +225,7 @@ export function AppDetail({ id }: { id: string }) {
             {menu && (
               <div className="absolute right-0 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
                 <button onClick={() => { setMenu(false); setShare(true); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] hover:bg-muted"><Share2 className="size-4" />{tr("Share")}</button>
+                {d.isAdmin && <button onClick={() => { setMenu(false); toggleVerified(); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] hover:bg-muted"><BadgeCheck className="size-4 text-[#34a4f1]" />{a.verified ? tr("Remove blue badge") : tr("Give blue badge")}</button>}
                 {!d.isOwner && <button onClick={() => { setMenu(false); if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; } setReport(true); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] text-down hover:bg-muted"><Flag className="size-4" />{tr("Report")}</button>}
               </div>
             )}
@@ -224,7 +239,7 @@ export function AppDetail({ id }: { id: string }) {
         <div>
           <Link href={`/profile/${a.owner.wallet}`} className="text-[14px] font-semibold text-primary">{a.owner.name ?? shortAddress(a.owner.wallet)}</Link>
           <div className="mt-1 flex items-start gap-4">
-            <h1 className="min-w-0 flex-1 text-[32px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[40px] lg:text-[48px]">{a.name}</h1>
+            <h1 className="min-w-0 flex-1 text-[32px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[40px] lg:text-[48px]">{a.name} <NameMarks app={a} size="size-6 sm:size-7 lg:size-8" /></h1>
             <AppIcon app={a} className="size-20 sm:size-24 lg:hidden" />
           </div>
           <p className="mt-1 break-words text-[15px] text-muted-foreground">{a.tagline}</p>

@@ -2659,5 +2659,10 @@ const p: Record<string, string> = {
   "Your project is live on the OM Store": "你的项目已在 OM Store 上线",
   "OM Store listing": "OM Store 页面",
   "OM Store page (optional)": "OM Store 页面（可选）",
+  "Give blue badge": "授予蓝色徽章",
+  "Remove blue badge": "移除蓝色徽章",
+  "Blue badge given": "已授予蓝色徽章",
+  "Blue badge removed": "已移除蓝色徽章",
+  "Could not update right now": "暂时无法更新",
 };
 export default p;

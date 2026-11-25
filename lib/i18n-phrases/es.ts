@@ -2657,5 +2657,10 @@ const p: Record<string, string> = {
   "Your project is live on the OM Store": "Tu proyecto ya está en la OM Store",
   "OM Store listing": "Ficha en OM Store",
   "OM Store page (optional)": "Página de OM Store (opcional)",
+  "Give blue badge": "Dar insignia azul",
+  "Remove blue badge": "Quitar insignia azul",
+  "Blue badge given": "Insignia azul otorgada",
+  "Blue badge removed": "Insignia azul retirada",
+  "Could not update right now": "No se pudo actualizar ahora",
 };
 export default p;

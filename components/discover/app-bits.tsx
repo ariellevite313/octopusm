@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
-  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform?: boolean; boostedUntil?: string | null; noToken?: boolean; network?: string | null;
+  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform?: boolean; boostedUntil?: string | null; noToken?: boolean; network?: string | null; verified?: boolean;
   token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string; price?: number | null; mcap?: number | null; volume24h?: number | null; pool?: string | null; mint?: string | null; curve?: string | null };
 };
 
@@ -19,6 +19,25 @@ export function AppIcon({ app, className = "size-14" }: { app: Pick<AppCard, "ic
 export function Rating({ value, count, className = "" }: { value: number; count?: number; className?: string }) {
   if (!count) return null;
   return <span className={`num inline-flex items-center gap-0.5 ${className}`}>{value.toFixed(1)}<Star className="size-3 fill-current" />{count != null && <span className="ml-1 text-muted-foreground">({count})</span>}</span>;
+}
+
+/**
+ * Ce qui suit le nom d'un projet : la puce bleue (donnée par l'admin) puis l'icône du token
+ * (ou du réseau pour une fiche sans token), sans son nom.
+ */
+export function NameMarks({ app, size = "size-4" }: { app: Pick<AppCard, "token" | "platform" | "noToken" | "network" | "verified">; size?: string }) {
+  const net = (app.platform || app.noToken) && app.network && NET[app.network] ? app.network : null;
+  const src = app.platform || app.noToken ? (net ? `/chains/${net}.png` : null) : app.token?.logo ?? null;
+  const label = app.platform || app.noToken ? (net ? NET[net] : "") : `$${app.token?.ticker ?? ""}`;
+  if (!app.verified && !src) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 align-middle">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {app.verified && <img src="/verified.png" alt="Verified" title="Verified" className={`${size} shrink-0 select-none object-contain`} draggable={false} />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {src && <img src={src} alt={label} title={label} className={`${size} shrink-0 rounded-full object-cover`} />}
+    </span>
+  );
 }
 
 const NET: Record<string, string> = { solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" };

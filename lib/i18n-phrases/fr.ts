@@ -2830,5 +2830,10 @@ const p: Record<string, string> = {
   "Your project is live on the OM Store": "Ton projet est en ligne sur l'OM Store",
   "OM Store listing": "Fiche OM Store",
   "OM Store page (optional)": "Page OM Store (facultatif)",
+  "Give blue badge": "Donner la puce bleue",
+  "Remove blue badge": "Retirer la puce bleue",
+  "Blue badge given": "Puce bleue donnée",
+  "Blue badge removed": "Puce bleue retirée",
+  "Could not update right now": "Impossible de mettre à jour pour le moment",
 };
 export default p;

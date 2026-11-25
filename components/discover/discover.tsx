@@ -13,7 +13,7 @@ import { Mirage } from "@/components/shared/mirage";
 import { useT } from "@/lib/i18n";
 import { APP_CATEGORIES, APP_CATEGORY_LABEL } from "@/lib/discover";
 import { ListingPrice } from "./listing-price";
-import { AppIcon, PaysWith, Rating, type AppCard } from "@/components/discover/app-bits";
+import { AppIcon, NameMarks, Rating, type AppCard } from "@/components/discover/app-bits";
 
 const catLabel = (c: string) => APP_CATEGORY_LABEL[c as keyof typeof APP_CATEGORY_LABEL] ?? "Other";
 
@@ -51,8 +51,8 @@ function Hero({ list }: { list: AppCard[] }) {
         <Link href={`/discover/${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
           <AppIcon app={a} className="size-12" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-semibold text-foreground">{a.name}</p>
-            <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground"><PaysWith app={a} /><Rating value={a.rating} count={a.ratings} /></p>
+            <p className="flex min-w-0 items-center gap-1.5 text-[16px] font-semibold text-foreground"><span className="truncate">{a.name}</span><NameMarks app={a} /></p>
+            <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} /></p>
           </div>
         </Link>
         <DiscoverButton a={a} />
@@ -67,9 +67,9 @@ function RowItem({ a }: { a: AppCard }) {
     <Link href={`/discover/${a.id}`} className="flex min-w-0 items-center gap-3.5 rounded-2xl p-2 transition-colors hover:bg-muted/50">
       <AppIcon app={a} className="size-16 sm:size-[72px]" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
+        <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold text-foreground"><span className="truncate">{a.name}</span><NameMarks app={a} /></p>
         <p className="line-clamp-2 break-words text-[13px] leading-snug text-muted-foreground">{tr(catLabel(a.category))} · {a.tagline}</p>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} /></p>
       </div>
     </Link>
   );
@@ -79,7 +79,7 @@ function RecoTile({ a, copy = false }: { a: AppCard; copy?: boolean }) {
   return (
     <Link href={`/discover/${a.id}`} aria-hidden={copy || undefined} tabIndex={copy ? -1 : undefined} className="w-[104px] shrink-0 sm:w-[120px] lg:w-[132px]">
       <AppIcon app={a} className="aspect-square w-full" />
-      <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}</p>
+      <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}{a.verified && <> <NameMarks app={{ ...a, token: { ...a.token, logo: null }, network: null }} size="size-3.5" /></>}</p>
       <Rating value={a.rating} count={a.ratings} className="text-[12px] text-muted-foreground" />
     </Link>
   );
@@ -206,8 +206,8 @@ export function Discover() {
                       <Link href={`/discover/${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                         <AppIcon app={a} className="size-11" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px] font-semibold">{a.name}</span>
-                          <span className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</span>
+                          <span className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold"><span className="truncate">{a.name}</span><NameMarks app={a} /></span>
+                          <span className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} /></span>
                         </span>
                       </Link>
                       <DiscoverButton a={a} />

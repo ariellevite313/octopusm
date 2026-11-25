@@ -4,7 +4,7 @@ type Db = any;
 
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
-  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform: boolean; boostedUntil: string | null; noToken: boolean; network: string | null;
+  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform: boolean; boostedUntil: string | null; noToken: boolean; network: string | null; verified: boolean;
   token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string; price: number | null; mcap: number | null; volume24h: number | null; pool: string | null; mint: string | null; curve: string | null };
 };
 
@@ -28,12 +28,16 @@ export async function withTokens(db: Db, rows: Row[]) {
   const boosts = new Map<string, string | null>();
   const admins = new Set<string>();
   const nets = new Map<string, string | null>();
+  const verified = new Set<string>();
   if (rows.length) {
     const { data: b, error } = await db.from("discover_apps").select("id, boosted_until").in("id", rows.map((r) => r.id));
     if (!error) for (const x of (b ?? []) as { id: string; boosted_until: string | null }[]) boosts.set(x.id, x.boosted_until);
     // Réseau des fiches sans token (colonne de la migration 20261219)
     const { data: n, error: nErr } = await db.from("discover_apps").select("id, network").in("id", rows.map((r) => r.id));
     if (!nErr) for (const x of (n ?? []) as { id: string; network: string | null }[]) nets.set(x.id, x.network);
+    // Puce bleue donnée par l'admin (colonne de la migration 20261220)
+    const { data: vf, error: vErr } = await db.from("discover_apps").select("id").in("id", rows.map((r) => r.id)).eq("verified", true);
+    if (!vErr) for (const x of (vf ?? []) as { id: string }[]) verified.add(x.id);
     const { data: w } = await db.from("wallets").select("address").in("address", [...new Set(rows.map((r) => r.owner))]).eq("role", "admin");
     for (const x of (w ?? []) as { address: string }[]) admins.add(x.address);
   }
@@ -51,7 +55,7 @@ export async function withTokens(db: Db, rows: Row[]) {
       card: {
         id: r.id, name: r.name, tagline: r.tagline, category: r.category, icon: r.icon_url ?? own?.logo_url ?? null, banner: r.banner_url ?? r.screenshots?.[0] ?? null,
         rating: Number(r.rating_avg) || 0, ratings: Number(r.rating_count) || 0, visits: visits.get(r.id) ?? 0, siteUrl: r.site_url, createdAt: r.created_at,
-        platform, boostedUntil: boosts.get(r.id) ?? null, noToken, network,
+        platform, boostedUntil: boosts.get(r.id) ?? null, noToken, network, verified: verified.has(r.id),
         token: { id: r.token_id ?? "", ticker: t?.ticker ?? "", name: t?.name ?? "", logo: t?.logo_url ?? null, chain, slug: (chain === "arc" ? t?.mint_address ?? t?.arc_launch_id : t?.mint_address) ?? r.token_id ?? "",
           price: t?.price_usd != null ? Number(t.price_usd) : null, mcap: t?.market_cap_usd != null ? Number(t.market_cap_usd) : null,
           volume24h: t?.volume_24h_usd != null ? Number(t.volume_24h_usd) : null, pool: t?.pool_address ?? null, mint: t?.mint_address ?? null, curve: t?.arc_launch_id ?? null },

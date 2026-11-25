@@ -18,6 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!app) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const [{ card, row }] = await withTokens(db, [app]);
   const me = await getWalletAddress();
+  const { data: meRow } = me ? await db.from("wallets").select("role").eq("address", me).maybeSingle() : { data: null };
   // Réseaux sociaux : lus à part pour ne rien casser si la colonne manque encore
   const { data: soc } = await db.from("discover_apps").select("x_url, telegram_url, discord_url").eq("id", id).maybeSingle();
   const [{ data: all }, { data: similar }] = await Promise.all([
@@ -34,6 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     reviews: shown.map((r) => ({ wallet: r.wallet, name: profiles.get(r.wallet)?.name ?? null, avatar: profiles.get(r.wallet)?.avatar_src ?? null, rating: r.rating, body: r.body, at: r.created_at })),
     mine: mine ? { rating: mine.rating, body: mine.body } : null,
     isOwner: !!me && (/^0x/i.test(me) ? me.toLowerCase() === row.owner.toLowerCase() : me === row.owner),
+    isAdmin: meRow?.role === "admin",
     similar: (await withTokens(db, similar ?? [])).map((x) => x.card),
   });
 }

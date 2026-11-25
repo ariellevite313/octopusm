@@ -2657,5 +2657,10 @@ const p: Record<string, string> = {
   "Your project is live on the OM Store": "Ваш проект опубликован в OM Store",
   "OM Store listing": "Карточка в OM Store",
   "OM Store page (optional)": "Страница в OM Store (необязательно)",
+  "Give blue badge": "Выдать синюю галочку",
+  "Remove blue badge": "Убрать синюю галочку",
+  "Blue badge given": "Синяя галочка выдана",
+  "Blue badge removed": "Синяя галочка убрана",
+  "Could not update right now": "Сейчас не удалось обновить",
 };
 export default p;
