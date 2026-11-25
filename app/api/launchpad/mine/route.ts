@@ -6,6 +6,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { activateIfPoolExists } from "@/lib/launch/recover-pool";
 
 export async function GET() {
   try {
@@ -34,7 +35,22 @@ export async function GET() {
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 
-  return NextResponse.json(data ?? []);
+  // Lancements Solana restés « pending » alors que la pool existe déjà : activés ici, sans attendre le cron.
+  const rows = (data ?? []) as Array<{ id: string; status: string; chain?: string; mint_address?: string | null; created_at: string }>;
+  const stuck = rows.filter((t) => t.status === "pending" && (t.chain ?? "solana") === "solana" && t.mint_address && Date.now() - Date.parse(t.created_at) > 60_000).slice(0, 5);
+  if (stuck.length) {
+    const { data: full } = await admin
+      .from("launchpad_tokens")
+      .select("id, status, creator_wallet, mint_address, tx_base64, is_scheduled, stock_symbol, dbc_config_address")
+      .in("id", stuck.map((t) => t.id));
+    const fixed = await Promise.all((full ?? []).map(async (t: Parameters<typeof activateIfPoolExists>[1]) => {
+      try { return (await activateIfPoolExists(admin, t)) ? t.id : null; } catch { return null; }
+    }));
+    const ok = new Set(fixed.filter(Boolean));
+    if (ok.size) for (const r of rows) if (ok.has(r.id)) r.status = "active";
+  }
+
+  return NextResponse.json(rows);
   } catch (err) {
     console.error("[mine] error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
