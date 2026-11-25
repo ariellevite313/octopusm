@@ -14,6 +14,16 @@ import { TxButton, TxProgress, useTxSteps, type TxPhase } from "@/components/sha
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 
+/** Position des bonbons du bandeau (en % de la largeur pour suivre l'écran). */
+const CANDIES: { k: "o" | "w"; h: number; l: string; t: number; r: number; o?: number }[] = [
+  { k: "o", h: 84, l: "40%", t: 24, r: -8 },
+  { k: "w", h: 62, l: "17%", t: 44, r: 14 },
+  { k: "w", h: 40, l: "72%", t: 14, r: -20, o: 0.9 },
+  { k: "o", h: 48, l: "73%", t: 70, r: 18 },
+  { k: "o", h: 30, l: "5%", t: 10, r: -24, o: 0.85 },
+  { k: "w", h: 26, l: "32%", t: 96, r: 30, o: 0.8 },
+];
+
 export function TipSheet({ postId, recipientName, onClose, onSent }: {
   postId: string;
   recipientName: string;
@@ -89,6 +99,15 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
         <button onClick={onClose} aria-label={tr("Close")} className="mx-auto mb-3 flex h-6 w-full items-center justify-center">
           <span className="h-1.5 w-11 rounded-full bg-muted-foreground/30" />
         </button>
+
+        {/* Bandeau : bonbons qui flottent */}
+        <div aria-hidden className="tip-hero relative mb-4 h-[130px] overflow-hidden rounded-[22px]">
+          {CANDIES.map((c, n) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={n} src={c.k === "o" ? "/bonbon-orange.png" : "/bonbon-white.png"} alt="" className="tip-candy"
+              style={{ height: c.h, left: c.l, top: c.t, rotate: `${c.r}deg`, opacity: c.o ?? 1, animationDelay: `${n * -0.7}s`, animationDuration: `${4 + (n % 3) * 0.8}s` }} />
+          ))}
+        </div>
 
         <div className="mb-4 flex items-center gap-3">
           <Image src="/octo-coin.png" alt="" width={44} height={44} className="size-11 shrink-0 rounded-full object-cover" unoptimized />

@@ -724,3 +724,13 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 .hero-fade {
   background: linear-gradient(to top, var(--background) 0%, color-mix(in srgb, var(--background) 70%, transparent) 10%, color-mix(in srgb, var(--background) 30%, rgb(0 0 0 / 0.6)) 26%, rgb(0 0 0 / 0.55) 44%, rgb(0 0 0 / 0.22) 70%, transparent 100%);
 }
+
+/* Fenêtre de tip : bandeau où les bonbons flottent */
+.tip-hero { background: radial-gradient(120% 90% at 50% 100%, #ffe3cc 0%, #fff4ea 45%, #f6f6f8 100%); }
+.dark .tip-hero { background: radial-gradient(120% 90% at 50% 100%, #3a2414 0%, #1d1612 50%, #141416 100%); }
+.tip-candy { position: absolute; filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.18)); animation: candy-float 4.5s ease-in-out infinite; }
+@keyframes candy-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+@media (prefers-reduced-motion: reduce) { .tip-candy { animation: none; } }
