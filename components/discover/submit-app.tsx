@@ -162,7 +162,6 @@ export function SubmitApp() {
           <span className="text-[14px] font-semibold">{tr("My website accepts ${t} as payment", { t: tok?.ticker ?? "TOKEN" })}</span>
         </label>
         <input className={`${input} mt-3`} value={f.paymentNote} onChange={set("paymentNote")} maxLength={200} placeholder={tr("How is your token used to pay on your website?")} />
-        <p className="mt-2 text-[12px] text-muted-foreground">{tr("This is shown to every visitor of your project page.")}</p>
       </div>
 
       <button type="submit" disabled={busy || !!up} className="flex h-12 w-full items-center justify-center rounded-full bg-foreground text-[16px] font-bold text-background disabled:opacity-50">

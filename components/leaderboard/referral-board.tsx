@@ -49,7 +49,6 @@ export function ReferralBoard() {
             </Link>
           ))}
       </div>
-      <p className="mt-3 text-center text-[12px] text-muted-foreground">{tr("Earnings paid in USDC to referrers. Updated every minute.")}</p>
     </div>
   );
 }

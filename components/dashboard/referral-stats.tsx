@@ -41,7 +41,6 @@ export function ReferralStats() {
           <span className="text-[13px] text-muted-foreground">{tr("Next 30 days at the current pace")}</span>
           <span className="num text-[16px] font-extrabold text-foreground">≈ {usd(d.estimate30)}</span>
         </div>
-        <p className="mt-1.5 text-[11px] text-muted-foreground">{tr("An estimate based on the last 7 and 30 days, not a promise.")}</p>
       </div>
 
       <div className="rounded-3xl border border-border bg-card p-4">
