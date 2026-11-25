@@ -178,7 +178,7 @@ export function AppDetail({ id }: { id: string }) {
             <h1 className="min-w-0 flex-1 text-[32px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[40px] lg:text-[48px]">{a.name}</h1>
             <AppIcon app={a} className="size-20 sm:size-24 lg:hidden" />
           </div>
-          <p className="mt-1 text-[15px] text-muted-foreground">{a.tagline}</p>
+          <p className="mt-1 break-words text-[15px] text-muted-foreground">{a.tagline}</p>
           <div className="mt-4 flex divide-x divide-border text-center">
             <div className="flex-1 px-2 sm:flex-none sm:pr-6 sm:text-left"><p className="num flex items-center justify-center gap-1 text-[16px] font-bold sm:justify-start">{a.ratings ? a.rating.toFixed(1) : "-"}<Star className="size-3.5 fill-current" /></p><p className="text-[12px] text-muted-foreground">{tr("{n} reviews", { n: compact(a.ratings) })}</p></div>
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="num text-[16px] font-bold">{compact(a.visits)}</p><p className="text-[12px] text-muted-foreground">{tr("Visits")}</p></div>
@@ -211,7 +211,7 @@ export function AppDetail({ id }: { id: string }) {
 
       <section>
         <h2 className="text-[19px] font-bold">{tr("About this project")}</h2>
-        <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">{a.description}</p>
+        <p className="mt-2 whitespace-pre-line break-words text-[15px] leading-relaxed text-muted-foreground">{a.description}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{cat}</span>
           {a.network && a.network !== "other" && <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network]}</span>}

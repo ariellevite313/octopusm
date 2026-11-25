@@ -39,7 +39,7 @@ function Hero({ list }: { list: AppCard[] }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {a.banner && <img key={a.id} src={a.banner} alt="" className="size-full object-cover animate-in fade-in duration-700" />}
         <div className="hero-fade absolute inset-x-0 bottom-0 px-4 pb-12 pt-24 sm:px-6 sm:pb-12">
-          <p className="max-w-2xl text-[22px] font-bold leading-tight text-white sm:text-[28px] lg:text-[34px]">{a.tagline}</p>
+          <p className="max-w-2xl break-words text-[22px] font-bold leading-tight text-white sm:text-[28px] lg:text-[34px]">{a.tagline}</p>
         </div>
         {list.length > 1 && (
           <div className="absolute right-4 top-4 flex gap-1.5">
@@ -52,7 +52,7 @@ function Hero({ list }: { list: AppCard[] }) {
           <AppIcon app={a} className="size-12" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[16px] font-semibold text-foreground">{a.name}</p>
-            <p className="flex items-center gap-2 truncate text-[13px] text-muted-foreground"><PaysWith app={a} /><Rating value={a.rating} count={a.ratings} /></p>
+            <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground"><PaysWith app={a} /><Rating value={a.rating} count={a.ratings} /></p>
           </div>
         </Link>
         <DiscoverButton a={a} />
@@ -64,11 +64,11 @@ function Hero({ list }: { list: AppCard[] }) {
 function RowItem({ a }: { a: AppCard }) {
   const { tr } = useT();
   return (
-    <Link href={`/discover/${a.id}`} className="flex items-center gap-3.5 rounded-2xl p-2 transition-colors hover:bg-muted/50">
+    <Link href={`/discover/${a.id}`} className="flex min-w-0 items-center gap-3.5 rounded-2xl p-2 transition-colors hover:bg-muted/50">
       <AppIcon app={a} className="size-16 sm:size-[72px]" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
-        <p className="truncate text-[13px] text-muted-foreground">{tr(catLabel(a.category))} · {a.tagline}</p>
+        <p className="line-clamp-2 break-words text-[13px] leading-snug text-muted-foreground">{tr(catLabel(a.category))} · {a.tagline}</p>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</p>
       </div>
     </Link>
@@ -190,14 +190,14 @@ export function Discover() {
           )}
 
           <Section title={searching ? tr("Results") : tr("Top rated")}>
-            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">{top!.slice(0, searching ? 60 : 9).map((a) => <RowItem key={a.id} a={a} />)}</div>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">{top!.slice(0, searching ? 60 : 9).map((a) => <RowItem key={a.id} a={a} />)}</div>
           </Section>
 
           {!searching && fresh!.length > 0 && (
             <Section title={tr("New and noteworthy")}>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {fresh!.slice(0, 6).map((a) => (
-                  <div key={a.id} className="overflow-hidden rounded-[22px] border border-border bg-card">
+                  <div key={a.id} className="min-w-0 overflow-hidden rounded-[22px] border border-border bg-card">
                     <Link href={`/discover/${a.id}`} className="block aspect-[16/9] bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       {a.banner ? <img src={a.banner} alt="" className="size-full object-cover" /> : <span className="flex size-full items-center justify-center"><AppIcon app={a} className="size-20" /></span>}
@@ -207,7 +207,7 @@ export function Discover() {
                         <AppIcon app={a} className="size-11" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[15px] font-semibold">{a.name}</span>
-                          <span className="flex items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</span>
+                          <span className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</span>
                         </span>
                       </Link>
                       <DiscoverButton a={a} />
