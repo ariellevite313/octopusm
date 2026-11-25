@@ -1944,5 +1944,8 @@ const p: Record<string, string> = {
   "{n} reviews": "{n} 条评价",
   "{n} stars": "{n} 星",
   "Open website": "打开",
+  "Token value": "代币价值",
+  "Network": "网络",
+  "See the chart": "查看图表",
 };
 export default p;

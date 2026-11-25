@@ -2673,5 +2673,8 @@ const p: Record<string, string> = {
   "{n} reviews": "{n} avis",
   "{n} stars": "{n} étoiles",
   "Open website": "Ouvrir",
+  "Token value": "Valeur du token",
+  "Network": "Réseau",
+  "See the chart": "Voir le graphique",
 };
 export default p;

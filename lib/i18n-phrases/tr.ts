@@ -1944,5 +1944,8 @@ const p: Record<string, string> = {
   "{n} reviews": "{n} yorum",
   "{n} stars": "{n} yıldız",
   "Open website": "Aç",
+  "Token value": "Token değeri",
+  "Network": "Ağ",
+  "See the chart": "Grafiği gör",
 };
 export default p;

@@ -6,7 +6,7 @@ import { Star } from "lucide-react";
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
   rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string;
-  token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string };
+  token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string; price?: number | null; mcap?: number | null; volume24h?: number | null; pool?: string | null; mint?: string | null; curve?: string | null };
 };
 
 export function AppIcon({ app, className = "size-14" }: { app: Pick<AppCard, "icon" | "name">; className?: string }) {

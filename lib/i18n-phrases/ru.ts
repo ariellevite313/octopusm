@@ -1944,5 +1944,8 @@ const p: Record<string, string> = {
   "{n} reviews": "{n} отзывов",
   "{n} stars": "{n} звёзд",
   "Open website": "Открыть",
+  "Token value": "Стоимость токена",
+  "Network": "Сеть",
+  "See the chart": "Открыть график",
 };
 export default p;

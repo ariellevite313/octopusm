@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import { APP_CATEGORY_LABEL } from "@/lib/discover";
 import { ShareSheet } from "@/components/shared/share-sheet";
+import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { Mirage } from "@/components/shared/mirage";
 import { AppIcon, Rating, compact, visit, type AppCard } from "@/components/discover/app-bits";
 
@@ -21,6 +22,52 @@ type Detail = {
   isOwner: boolean;
   similar: AppCard[];
 };
+
+const usd = (n: number | null | undefined) => {
+  if (n == null || !Number.isFinite(n)) return "-";
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+};
+const price = (n: number | null | undefined) => {
+  if (n == null || !Number.isFinite(n) || n <= 0) return "-";
+  if (n >= 1) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+  // Petits prix : 0.0₅123 (zéros comptés), lisible en petit
+  const s = n.toFixed(20).split(".")[1] ?? "";
+  const zeros = s.match(/^0*/)?.[0].length ?? 0;
+  return zeros >= 4 ? `$0.0${String(zeros).split("").map((d) => "₀₁₂₃₄₅₆₇₈₉"[+d]).join("")}${s.slice(zeros, zeros + 3)}` : `$${n.toPrecision(3)}`;
+};
+
+/** Valeur du token du projet : prix, capitalisation, volume 24 h et courbe des dernières 24 h. */
+function TokenValue({ a }: { a: AppCard }) {
+  const { tr } = useT();
+  const [trend, setTrend] = useState<Trend>("flat");
+  const t = a.token;
+  return (
+    <section className="rounded-[24px] border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {t.logo ? <img src={t.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" /> : <span className="size-11 shrink-0 rounded-full bg-muted" />}
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold text-muted-foreground">{tr("Token value")}</p>
+          <p className="flex items-baseline gap-2"><span className="num text-[24px] font-extrabold leading-tight">{price(t.price)}</span><span className="text-[14px] font-bold">${t.ticker}</span></p>
+        </div>
+        <span className={`num shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold ${trend === "up" ? "bg-up/15 text-up" : trend === "down" ? "bg-down/15 text-down" : "bg-muted text-muted-foreground"}`}>24h</span>
+      </div>
+      <MiniPriceChart chain={t.chain === "arc" ? "arc" : "solana"} pool={t.pool} mint={t.mint} curve={t.curve} className="mt-3 h-20 w-full" onTrend={setTrend} />
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="rounded-2xl bg-muted/50 px-3 py-2.5"><p className="num text-[16px] font-bold">{usd(t.mcap)}</p><p className="text-[12px] text-muted-foreground">{tr("Market cap")}</p></div>
+        <div className="rounded-2xl bg-muted/50 px-3 py-2.5"><p className="num text-[16px] font-bold">{usd(t.volume24h)}</p><p className="text-[12px] text-muted-foreground">{tr("Volume 24h")}</p></div>
+        <div className="col-span-2 rounded-2xl bg-muted/50 px-3 py-2.5 sm:col-span-1"><p className="text-[16px] font-bold">{t.chain === "arc" ? "Arc" : "Solana"}</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-foreground text-[15px] font-bold text-background">{tr("Buy")} ${t.ticker}</Link>
+        <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-muted text-[15px] font-bold">{tr("See the chart")}</Link>
+      </div>
+    </section>
+  );
+}
 
 function Stars({ n, size = "size-4" }: { n: number; size?: string }) {
   return <span className="inline-flex gap-0.5">{[1, 2, 3, 4, 5].map((i) => <Star key={i} className={`${size} ${i <= Math.round(n) ? "fill-foreground text-foreground" : "text-muted-foreground/40"}`} />)}</span>;
@@ -123,6 +170,8 @@ export function AppDetail({ id }: { id: string }) {
         </div>
         <Link href={`/launchpad/${a.token.slug}`} className="shrink-0 rounded-full bg-muted px-3.5 py-2 text-[13px] font-bold">{tr("Buy")}</Link>
       </div>
+
+      <TokenValue a={a} />
 
       {/* Images */}
       {images.length > 0 && (
