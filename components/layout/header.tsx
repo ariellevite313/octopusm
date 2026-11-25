@@ -66,7 +66,7 @@ export function Header() {
             <span className="sr-only">OMdotfun</span>
           </Link>
 
-          <nav className="hidden items-center gap-1 rounded-2xl bg-muted/70 p-1 text-sm md:flex lg:hidden">
+          <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-2xl bg-muted/70 p-1 text-sm scrollbar-none md:flex lg:hidden">
             {links.map(({ href, label, badge, disabled, external }) =>
               disabled ? (
                 <span
@@ -86,7 +86,7 @@ export function Header() {
                   href={href}
                   target={external ? "_blank" : undefined}
                   rel={external ? "noopener noreferrer" : undefined}
-                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
+                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 font-semibold transition-colors hover:text-foreground ${
                     !external && isActive(href, pathname)
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground"
@@ -99,7 +99,7 @@ export function Header() {
             )}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/terminal"
               aria-label={tr("Terminal")}

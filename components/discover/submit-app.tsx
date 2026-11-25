@@ -11,7 +11,7 @@ import { ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
-import { APP_CATEGORIES, APP_CATEGORY_LABEL, MAX_SCREENSHOTS, validateApp } from "@/lib/discover";
+import { APP_CATEGORIES, APP_CATEGORY_LABEL, LISTING_FREE_NOW, LISTING_PRICE_USD, MAX_SCREENSHOTS, validateApp } from "@/lib/discover";
 import { Mirage } from "@/components/shared/mirage";
 
 type Tok = { id: string; ticker: string; name: string; logo_url: string | null; chain: string };
@@ -71,7 +71,7 @@ export function SubmitApp() {
       const r = await fetch("/api/discover/apps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "Could not save your app");
-      toast.success(tr("Your app is live on Discover"));
+      toast.success(tr("Your project is live on Discover"));
       router.push(`/discover/${j.id}`);
     } catch (err) { toast.error(tr((err as Error).message)); }
     setBusy(false);
@@ -80,7 +80,7 @@ export function SubmitApp() {
   if (isLoading) return <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div>;
   if (!isAuthenticated) return (
     <div className="rounded-[28px] border border-border bg-card p-6 text-center">
-      <p className="text-[18px] font-bold">{tr("List my app")}</p>
+      <p className="text-[18px] font-bold">{tr("List my project")}</p>
       <p className="mt-2 text-[14px] text-muted-foreground">{tr("Connect the wallet that launched your token.")}</p>
       <button onClick={() => window.dispatchEvent(new CustomEvent("open-wallet-connect"))} className="mt-4 h-12 rounded-full bg-foreground px-6 text-[15px] font-bold text-background">{tr("Connect Wallet")}</button>
     </div>
@@ -89,7 +89,7 @@ export function SubmitApp() {
   if (toks.length === 0) return (
     <div className="rounded-[28px] border border-border bg-card p-6 text-center">
       <p className="text-[18px] font-bold">{tr("Launch your token first")}</p>
-      <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Only apps with a token launched on OM can be listed. Your token will be the payment of your app, and every visitor will see it.")}</p>
+      <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Only projects with a token launched on OM can be listed. Your token will be the payment of your website, and every visitor will see it.")}</p>
       <Link href="/launchpad/create" className="mt-4 inline-flex h-12 items-center rounded-full bg-foreground px-6 text-[15px] font-bold text-background">{tr("Launch my token on OM")}</Link>
     </div>
   );
@@ -99,14 +99,24 @@ export function SubmitApp() {
   const label = "mb-1.5 block text-[13px] font-semibold text-muted-foreground";
   return (
     <form onSubmit={submit} className="space-y-4">
-      <h1 className="text-[28px] font-bold">{tr("List my app")}</h1>
+      <h1 className="text-[28px] font-bold">{tr("List my project")}</h1>
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+        <div>
+          <p className="text-[14px] font-semibold">{tr("Discover listing")}</p>
+          <p className="text-[12px] text-muted-foreground">{tr("Normal price, paid once a year")}</p>
+        </div>
+        <span className="flex items-baseline gap-2">
+          <span className="num text-[15px] text-muted-foreground line-through">${LISTING_PRICE_USD}/{tr("year")}</span>
+          {LISTING_FREE_NOW && <span className="rounded-full bg-up/15 px-2.5 py-1 text-[13px] font-bold text-up">{tr("Free for now")}</span>}
+        </span>
+      </div>
       <label className="block"><span className={label}>{tr("Your OM token")}</span>
         <select className={input} value={f.tokenId} onChange={(e) => pick(e.target.value)}>
           {toks.map((t) => <option key={t.id} value={t.id}>${t.ticker} · {t.name}</option>)}
         </select></label>
-      <label className="block"><span className={label}>{tr("App name")}</span><input className={input} value={f.name} onChange={set("name")} maxLength={40} /></label>
+      <label className="block"><span className={label}>{tr("Project name")}</span><input className={input} value={f.name} onChange={set("name")} maxLength={40} /></label>
       <label className="block"><span className={label}>{tr("Short description")}</span><input className={input} value={f.tagline} onChange={set("tagline")} maxLength={80} /></label>
-      <label className="block"><span className={label}>{tr("About this app")}</span><textarea className={`${input} h-32 py-3`} value={f.description} onChange={set("description")} maxLength={2000} /></label>
+      <label className="block"><span className={label}>{tr("About this project")}</span><textarea className={`${input} h-32 py-3`} value={f.description} onChange={set("description")} maxLength={2000} /></label>
       <label className="block"><span className={label}>{tr("Category")}</span>
         <select className={input} value={f.category} onChange={set("category")}>{APP_CATEGORIES.map((c) => <option key={c} value={c}>{tr(APP_CATEGORY_LABEL[c])}</option>)}</select></label>
       <label className="block"><span className={label}>{tr("Website (https)")}</span><input type="url" className={input} value={f.siteUrl} onChange={set("siteUrl")} placeholder="https://" /></label>
@@ -149,14 +159,14 @@ export function SubmitApp() {
       <div className="rounded-2xl border border-border p-4">
         <label className="flex items-start gap-3">
           <input type="checkbox" checked={f.acceptsToken} onChange={(e) => setF((x) => ({ ...x, acceptsToken: e.target.checked }))} className="mt-1 size-5" />
-          <span className="text-[14px] font-semibold">{tr("My app accepts ${t} as payment", { t: tok?.ticker ?? "TOKEN" })}</span>
+          <span className="text-[14px] font-semibold">{tr("My website accepts ${t} as payment", { t: tok?.ticker ?? "TOKEN" })}</span>
         </label>
-        <input className={`${input} mt-3`} value={f.paymentNote} onChange={set("paymentNote")} maxLength={200} placeholder={tr("How is your token used to pay in your app?")} />
-        <p className="mt-2 text-[12px] text-muted-foreground">{tr("This is shown to every visitor of your app page.")}</p>
+        <input className={`${input} mt-3`} value={f.paymentNote} onChange={set("paymentNote")} maxLength={200} placeholder={tr("How is your token used to pay on your website?")} />
+        <p className="mt-2 text-[12px] text-muted-foreground">{tr("This is shown to every visitor of your project page.")}</p>
       </div>
 
       <button type="submit" disabled={busy || !!up} className="flex h-12 w-full items-center justify-center rounded-full bg-foreground text-[16px] font-bold text-background disabled:opacity-50">
-        {busy ? <Mirage className="size-5" /> : apps.some((x) => x.token_id === f.tokenId) ? tr("Update my app") : tr("Publish my app")}
+        {busy ? <Mirage className="size-5" /> : apps.some((x) => x.token_id === f.tokenId) ? tr("Update my project") : tr("Publish my project")}
       </button>
     </form>
   );

@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "App", description: "An app built wit
 export default async function AppPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (
-    <div className="mx-auto max-w-xl px-4 pb-32 pt-4 lg:max-w-3xl lg:px-8">
+    <div className="mx-auto max-w-xl pb-32 sm:max-w-3xl md:max-w-4xl lg:max-w-5xl">
       <AppDetail id={id} />
     </div>
   );

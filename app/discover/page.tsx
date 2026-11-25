@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Discover", description: "Trending to
 
 export default function DiscoverPage() {
   return (
-    <div className="mx-auto max-w-xl px-4 pb-32 pt-6 lg:max-w-6xl lg:px-8">
+    <div className="mx-auto max-w-xl px-4 pb-32 pt-4 sm:max-w-3xl sm:px-6 md:max-w-4xl lg:max-w-6xl lg:px-8 lg:pt-6">
       <Discover />
     </div>
   );

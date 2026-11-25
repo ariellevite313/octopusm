@@ -9,7 +9,7 @@ const base = {
 describe("fiche Discover", () => {
   it("accepte une fiche complète", () => { expect(validateApp(base).ok).toBe(true); });
   it("exige le token comme moyen de paiement", () => {
-    expect(validateApp({ ...base, acceptsToken: false })).toEqual({ ok: false, error: "Your app must accept your token as payment" });
+    expect(validateApp({ ...base, acceptsToken: false })).toEqual({ ok: false, error: "Your website must accept your token as payment" });
     expect(validateApp({ ...base, paymentNote: "yes" }).ok).toBe(false);
   });
   it("refuse http, trop d'images et une mauvaise catégorie", () => {

@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "List my app", robots: { index: false
 
 export default function SubmitPage() {
   return (
-    <div className="mx-auto max-w-xl px-4 pb-32 pt-6">
+    <div className="mx-auto max-w-xl px-4 pb-32 pt-6 sm:max-w-2xl sm:px-6">
       <SubmitApp />
     </div>
   );

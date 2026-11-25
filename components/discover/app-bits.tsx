@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
-  rating: number; ratings: number; siteUrl: string; createdAt: string;
+  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string;
   token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string };
 };
 
@@ -29,4 +29,12 @@ export function PaysWith({ app, className = "" }: { app: Pick<AppCard, "token">;
       ${app.token.ticker}
     </span>
   );
+}
+
+/** 1234 → 1.2K, 2500000 → 2.5M */
+export const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K` : String(n));
+
+/** Ouvre le site du projet et compte la visite (sans bloquer l'ouverture). */
+export function visit(id: string) {
+  try { navigator.sendBeacon?.(`/api/discover/apps/${id}/visit`) || fetch(`/api/discover/apps/${id}/visit`, { method: "POST", keepalive: true }); } catch { /* sans effet */ }
 }

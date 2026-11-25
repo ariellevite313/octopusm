@@ -1,65 +1,102 @@
 "use client";
 
 /**
- * Discover : la vitrine des apps construites avec un token OM, comme un store.
- * Recherche, catégories, apps à la une, recommandées et nouveautés. Chaque app paie dans son propre token.
+ * Discover : la vitrine des sites construits avec un token OM, sur le modèle d'un store d'apps.
+ * Grande image à la une, recherche, catégories, recommandations et nouveautés. Le bouton « Discover » ouvre le site du projet.
+ * Adaptatif : téléphone (1 colonne), tablette (2 colonnes), ordinateur (3 colonnes et image plus large).
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Plus, Search } from "lucide-react";
 import { Mirage } from "@/components/shared/mirage";
 import { useT } from "@/lib/i18n";
-import { APP_CATEGORIES, APP_CATEGORY_LABEL } from "@/lib/discover";
-import { AppIcon, PaysWith, Rating, type AppCard } from "@/components/discover/app-bits";
+import { APP_CATEGORIES, APP_CATEGORY_LABEL, LISTING_FREE_NOW, LISTING_PRICE_USD } from "@/lib/discover";
+import { AppIcon, PaysWith, Rating, visit, type AppCard } from "@/components/discover/app-bits";
 
-function Featured({ a }: { a: AppCard }) {
+const catLabel = (c: string) => APP_CATEGORY_LABEL[c as keyof typeof APP_CATEGORY_LABEL] ?? "Other";
+
+function DiscoverButton({ a, className = "" }: { a: AppCard; className?: string }) {
   const { tr } = useT();
   return (
-    <Link href={`/discover/${a.id}`} className="block w-[86%] shrink-0 snap-start sm:w-[420px]">
-      <div className="relative aspect-[16/9] overflow-hidden rounded-[22px] bg-muted">
+    <a href={a.siteUrl} target="_blank" rel="noopener noreferrer" onClick={() => visit(a.id)}
+      className={`shrink-0 rounded-full bg-foreground px-4 py-2 text-center text-[14px] font-bold text-background transition-opacity hover:opacity-90 ${className}`}>
+      {tr("Discover")}
+    </a>
+  );
+}
+
+/** Grande image à la une (pleine largeur sur téléphone), puis la ligne du projet avec son bouton. */
+function Hero({ list }: { list: AppCard[] }) {
+  const [i, setI] = useState(0);
+  useEffect(() => { if (list.length < 2) return; const t = setInterval(() => setI((n) => (n + 1) % list.length), 6000); return () => clearInterval(t); }, [list.length]);
+  const a = list[i];
+  if (!a) return null;
+  return (
+    <section className="-mx-4 sm:mx-0">
+      <Link href={`/discover/${a.id}`} className="relative block aspect-[16/10] overflow-hidden bg-muted sm:aspect-[21/9] sm:rounded-[28px] lg:aspect-[3/1]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {a.banner && <img src={a.banner} alt="" className="size-full object-cover" />}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
-          <p className="line-clamp-2 text-[19px] font-bold leading-tight text-white">{a.tagline}</p>
+        {a.banner && <img key={a.id} src={a.banner} alt="" className="size-full object-cover animate-in fade-in duration-700" />}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-4 pb-4 pt-16 sm:px-6 sm:pb-6">
+          <p className="max-w-2xl text-[22px] font-bold leading-tight text-white sm:text-[28px] lg:text-[34px]">{a.tagline}</p>
         </div>
+        {list.length > 1 && (
+          <div className="absolute right-4 top-4 flex gap-1.5">
+            {list.map((x, n) => <span key={x.id} className={`h-1.5 rounded-full transition-all ${n === i ? "w-5 bg-white" : "w-1.5 bg-white/50"}`} />)}
+          </div>
+        )}
+      </Link>
+      <div className="flex items-center gap-3 border-b border-border bg-card px-4 py-3 sm:mt-3 sm:rounded-2xl sm:border sm:px-4">
+        <Link href={`/discover/${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <AppIcon app={a} className="size-12" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[16px] font-semibold text-foreground">{a.name}</p>
+            <p className="flex items-center gap-2 truncate text-[13px] text-muted-foreground"><PaysWith app={a} /><Rating value={a.rating} count={a.ratings} /></p>
+          </div>
+        </Link>
+        <DiscoverButton a={a} />
       </div>
-      <div className="mt-2.5 flex items-center gap-3">
-        <AppIcon app={a} className="size-11" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
-          <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">{tr(APP_CATEGORY_LABEL[a.category as keyof typeof APP_CATEGORY_LABEL] ?? "Other")}<Rating value={a.rating} count={a.ratings} /></p>
-        </div>
-        <span className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-bold text-background">{tr("Open")}</span>
-      </div>
-    </Link>
+    </section>
   );
 }
 
 function RowItem({ a }: { a: AppCard }) {
   const { tr } = useT();
   return (
-    <Link href={`/discover/${a.id}`} className="flex items-center gap-3.5 rounded-2xl px-1 py-2.5 transition-colors hover:bg-muted/40">
-      <AppIcon app={a} className="size-16" />
+    <Link href={`/discover/${a.id}`} className="flex items-center gap-3.5 rounded-2xl p-2 transition-colors hover:bg-muted/50">
+      <AppIcon app={a} className="size-16 sm:size-[72px]" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
-        <p className="line-clamp-2 text-[13px] leading-snug text-muted-foreground">{a.tagline}</p>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-          <Rating value={a.rating} count={a.ratings} /><span>{tr(APP_CATEGORY_LABEL[a.category as keyof typeof APP_CATEGORY_LABEL] ?? "Other")}</span><PaysWith app={a} />
-        </p>
+        <p className="truncate text-[13px] text-muted-foreground">{tr(catLabel(a.category))} · {a.tagline}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} /><PaysWith app={a} /></p>
       </div>
     </Link>
   );
 }
 
-function Section({ title, children, href }: { title: string; children: React.ReactNode; href?: string }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[19px] font-bold text-foreground">{title}</h2>
-        {href && <Link href={href} aria-label={title} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><ArrowRight className="size-5" /></Link>}
-      </div>
+      <h2 className="mb-2 flex items-center justify-between text-[20px] font-bold text-foreground sm:text-[22px]">{title}<ArrowRight className="size-5 text-muted-foreground" /></h2>
       {children}
     </section>
+  );
+}
+
+/** Carte « Mettre son site en vitrine » : prix normal barré, gratuit pour l'instant */
+function ListCta() {
+  const { tr } = useT();
+  return (
+    <Link href="/discover/submit" className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 rounded-[24px] border border-border bg-card p-4 sm:flex sm:p-5">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background"><Plus className="size-6" /></span>
+      <span className="min-w-0 sm:flex-1">
+        <span className="block text-[16px] font-bold">{tr("Showcase your project on Discover")}</span>
+        <span className="block text-[13px] text-muted-foreground">{tr("Your OM token must be the payment of your website.")}</span>
+      </span>
+      <span className="col-span-2 flex items-baseline gap-2 sm:col-span-1">
+        <span className="num text-[14px] text-muted-foreground line-through">${LISTING_PRICE_USD}/{tr("year")}</span>
+        {LISTING_FREE_NOW && <span className="rounded-full bg-up/15 px-2.5 py-1 text-[13px] font-bold text-up">{tr("Free for now")}</span>}
+      </span>
+    </Link>
   );
 }
 
@@ -83,68 +120,83 @@ export function Discover() {
   const loading = top === null || fresh === null;
   const empty = !loading && top!.length === 0;
   const featured = (top ?? []).filter((a) => a.banner).slice(0, 5);
+  const searching = !!q.trim() || cat !== "all";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7 sm:space-y-9">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <label className="flex h-12 flex-1 items-center gap-2.5 rounded-full bg-muted px-4">
             <Search className="size-5 shrink-0 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value.slice(0, 40))} placeholder={tr("Search apps")} className="min-w-0 flex-1 bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value.slice(0, 40))} placeholder={tr("Search projects")} className="min-w-0 flex-1 bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted-foreground" />
           </label>
-          <Link href="/discover/submit" aria-label={tr("List my app")} className="flex h-12 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-bold text-background"><Plus className="size-4" /><span className="hidden sm:inline">{tr("List my app")}</span></Link>
+          <Link href="/discover/submit" aria-label={tr("List my project")} className="flex h-12 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-bold text-background"><Plus className="size-4" /><span className="hidden sm:inline">{tr("List my project")}</span></Link>
         </div>
-        <div className="-mx-4 flex gap-2 overflow-x-auto scrollbar-none px-4">
+        <div className="-mx-4 flex gap-2 overflow-x-auto scrollbar-none px-4 sm:mx-0 sm:flex-wrap sm:px-0">
           {["all", ...APP_CATEGORIES].map((c) => (
-            <button key={c} onClick={() => setCat(c)} className={`h-9 shrink-0 rounded-full border px-4 text-[14px] font-semibold ${cat === c ? "border-foreground bg-foreground text-background" : "border-border text-foreground"}`}>
-              {c === "all" ? tr("All") : tr(APP_CATEGORY_LABEL[c as keyof typeof APP_CATEGORY_LABEL])}
+            <button key={c} onClick={() => setCat(c)} className={`h-9 shrink-0 rounded-full border px-4 text-[14px] font-semibold ${cat === c ? "border-foreground bg-foreground text-background" : "border-border text-foreground hover:bg-muted"}`}>
+              {c === "all" ? tr("All") : tr(catLabel(c))}
             </button>
           ))}
         </div>
       </div>
 
       {loading ? <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div> : empty ? (
-        <div className="rounded-[28px] border border-border bg-card p-6 text-center">
-          <p className="text-[18px] font-bold">{q || cat !== "all" ? tr("No app found") : tr("Be the first app on OM")}</p>
-          <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Launch your token on OM, make it the payment of your app, then list your app here with your site and images.")}</p>
-          <Link href="/discover/submit" className="mt-4 inline-flex h-12 items-center rounded-full bg-foreground px-6 text-[15px] font-bold text-background">{tr("List my app")}</Link>
+        <div className="space-y-4">
+          <div className="rounded-[28px] border border-border bg-card p-6 text-center">
+            <p className="text-[18px] font-bold">{searching ? tr("No project found") : tr("Be the first project on Discover")}</p>
+            <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Launch your token on OM, make it the payment of your website, then showcase it here with images.")}</p>
+          </div>
+          <ListCta />
         </div>
       ) : (
         <>
-          {featured.length > 0 && (
-            <div className="-mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scrollbar-none px-4">
-              {featured.map((a) => <Featured key={a.id} a={a} />)}
-            </div>
+          {!searching && featured.length > 0 && <Hero list={featured} />}
+
+          {!searching && (
+            <Section title={tr("Recommended for you")}>
+              <div className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-0 lg:grid-cols-8">
+                {top!.slice(0, 8).map((a) => (
+                  <Link key={a.id} href={`/discover/${a.id}`} className="w-[104px] shrink-0 sm:w-auto">
+                    <AppIcon app={a} className="aspect-square w-full" />
+                    <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}</p>
+                    <Rating value={a.rating} count={a.ratings} className="text-[12px] text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+            </Section>
           )}
 
-          <Section title={tr("Recommended for you")}>
-            <div className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4">
-              {top!.slice(0, 10).map((a) => (
-                <Link key={a.id} href={`/discover/${a.id}`} className="w-[104px] shrink-0">
-                  <AppIcon app={a} className="size-[104px]" />
-                  <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}</p>
-                  <Rating value={a.rating} count={a.ratings} className="text-[12px] text-muted-foreground" />
-                </Link>
-              ))}
-            </div>
+          <Section title={searching ? tr("Results") : tr("Top rated")}>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">{top!.slice(0, searching ? 60 : 9).map((a) => <RowItem key={a.id} a={a} />)}</div>
           </Section>
 
-          <Section title={tr("Top rated")}>
-            <div className="grid gap-x-6 lg:grid-cols-2">{top!.slice(0, 8).map((a) => <RowItem key={a.id} a={a} />)}</div>
-          </Section>
+          {!searching && fresh!.length > 0 && (
+            <Section title={tr("New and noteworthy")}>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {fresh!.slice(0, 6).map((a) => (
+                  <div key={a.id} className="overflow-hidden rounded-[22px] border border-border bg-card">
+                    <Link href={`/discover/${a.id}`} className="block aspect-[16/9] bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {a.banner ? <img src={a.banner} alt="" className="size-full object-cover" /> : <span className="flex size-full items-center justify-center"><AppIcon app={a} className="size-20" /></span>}
+                    </Link>
+                    <div className="flex items-center gap-3 p-3">
+                      <Link href={`/discover/${a.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                        <AppIcon app={a} className="size-11" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px] font-semibold">{a.name}</span>
+                          <span className="flex items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} /><PaysWith app={a} /></span>
+                        </span>
+                      </Link>
+                      <DiscoverButton a={a} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
 
-          <Section title={tr("New on OM")}>
-            <div className="grid gap-x-6 lg:grid-cols-2">{fresh!.slice(0, 8).map((a) => <RowItem key={a.id} a={a} />)}</div>
-          </Section>
-
-          <Link href="/discover/submit" className="flex items-center gap-4 rounded-[24px] border border-border bg-card p-4">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-foreground text-background"><Plus className="size-6" /></span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold">{tr("List your app on Discover")}</span>
-              <span className="block text-[13px] text-muted-foreground">{tr("Your OM token must be the payment of your app.")}</span>
-            </span>
-            <ArrowRight className="size-5" />
-          </Link>
+          <ListCta />
         </>
       )}
     </div>
