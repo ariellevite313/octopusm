@@ -2695,5 +2695,6 @@ const p: Record<string, string> = {
   "This animation unlocks with your level": "يُفتح هذا الرسم المتحرك بمستواك",
   "Could not buy right now": "تعذر الشراء الآن",
   "Invalid action": "إجراء غير صالح",
+  "Mark": "سعر العلامة",
 };
 export default p;

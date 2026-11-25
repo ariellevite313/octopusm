@@ -14,8 +14,6 @@ import { ActivityList } from "./activity";
 import { OrderBook } from "./order-book";
 
 type Order = { orderKey: string; inputMint: string; outputMint: string; makingAmount: string; takingAmount: string; createdAt: string };
-const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
-const parse = (s: string) => Number(s.replace(/[\s,$]/g, "").replace(/k$/i, "e3").replace(/m$/i, "e6").replace(/b$/i, "e9"));
 
 export async function post<T>(body: unknown, url = "/api/terminal/limit"): Promise<T> {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -70,8 +68,8 @@ type BookRow = { mcap: number; sol: number; om: boolean };
 type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[]; kind?: "sol" };
 const SOL_RESERVE = 0.01;
 const amt = (n: number) => (n >= 1e9 ? `${+(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(1)}K` : n >= 1 ? `${+n.toFixed(2)}` : `${+n.toPrecision(3)}`);
-/** Arrondi lisible d'une capitalisation (3 chiffres significatifs) */
-const round3 = (n: number) => { const p = 10 ** (Math.floor(Math.log10(n)) - 2); return Math.round(n / p) * p; };
+/** Prix lisible et modifiable : 4 chiffres significatifs, sans notation scientifique (0.000003461) */
+const fmtPrice = (n: number) => (!(n > 0) ? "" : n >= 1 ? String(+n.toFixed(n >= 100 ? 2 : 4)) : n.toFixed(Math.min(18, 3 - Math.floor(Math.log10(n)))).replace(/0+$/, ""));
 
 function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = false }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset: LimitPreset | null; activity?: boolean }) {
   const { tr } = useT();
@@ -79,9 +77,11 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
   const [amount, setAmount] = useState("");
   const [target, setTarget] = useState("");
   const [tag, setTag] = useState<string | null>(null);
+  // Niveau choisi sur le graphique : converti en prix dès que le carnet (prix et capitalisation) est connu
+  const [pending, setPending] = useState<LimitPreset | null>(null);
   useEffect(() => {
     if (!preset || !(preset.mcap > 0)) return;
-    setSide(preset.side); setTarget(String(round3(preset.mcap))); setTag(preset.label); setAmount("");
+    setSide(preset.side); setTag(preset.label); setAmount(""); setPending(preset);
   }, [preset]);
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[] | null>(null);
@@ -99,7 +99,14 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
   }, [mint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mcap = book?.mcap ?? mcap0;
-  const t = parse(target), a = Number(amount.replace(",", "."));
+  // On trade au prix : la cible saisie est un prix en $, convertie en capitalisation pour Jupiter (capitalisation = prix × k)
+  const k = book && book.price > 0 && book.mcap > 0 ? book.mcap / book.price : null;
+  useEffect(() => {
+    if (!pending || !k) return;
+    setTarget(fmtPrice(pending.mcap / k)); setPending(null);
+  }, [pending, k]);
+  const tp = Number(target.replace(/[\s,$]/g, ""));
+  const t = k && tp > 0 ? tp * k : 0, a = Number(amount.replace(",", "."));
   const avail = bal ? (side === "buy" ? Math.max(0, bal.sol - SOL_RESERVE) : bal.token) : null;
   // Un ordre limité s'exécute dès que le prix est meilleur que la cible : acheter sous le prix actuel, vendre au-dessus.
   // (Un « stop » sous le prix actuel serait vendu tout de suite : on ne le propose pas.)
@@ -111,10 +118,10 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
   const receive = !book || !atTarget || !(a > 0) ? null : side === "buy" ? (a * book.solUsd) / atTarget : (a * atTarget) / book.solUsd;
 
   function nudge(dir: 1 | -1) {
-    const base = t > 0 ? t : mcap ?? 0;
-    if (base > 0) setTarget(String(round3(base * (1 + dir * 0.02))));
+    const base = tp > 0 ? tp : book?.price ?? 0;
+    if (base > 0) setTarget(fmtPrice(base * (1 + dir * 0.02)));
   }
-  function pick(r: BookRow, ask: boolean) { setSide(ask ? "sell" : "buy"); setTarget(String(round3(r.mcap))); }
+  function pick(r: BookRow, ask: boolean) { setSide(ask ? "sell" : "buy"); if (k) setTarget(fmtPrice(r.mcap / k)); setTag(null); }
   function setPct(p: number) {
     if (avail == null) return;
     const v = (avail * p) / 100;
@@ -146,7 +153,7 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
       if (!/reject|cancel|denied|declined/i.test(m)) toast.error(tr(m) || tr("Limit order failed"));
     }
   }
-  const hint = wrongSide ? tr(side === "buy" ? "For a limit buy, the target must be below the current market cap." : "For a limit sell, the target must be above the current market cap.")
+  const hint = wrongSide ? tr(side === "buy" ? "For a limit buy, the target must be below the current price." : "For a limit sell, the target must be above the current price.")
     : tooMuch ? tr("Insufficient {symbol} balance", { symbol: side === "buy" ? "SOL" : symbol }) : "";
 
   return (
@@ -161,8 +168,8 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
 
           <div className="mt-2 flex h-12 items-center justify-between rounded-xl bg-muted pl-3 pr-2">
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">{tr("Target MC")}{tag && <span className="rounded bg-foreground px-1.5 py-px text-[9px] font-bold text-background">{tag}</span>}</p>
-              <input inputMode="decimal" value={target} onChange={(e) => { setTarget(e.target.value); setTag(null); }} placeholder={mcap ? money(round3(mcap * (side === "buy" ? 0.9 : 1.5))).slice(1) : "500k"} className="num w-full bg-transparent text-[14px] font-bold outline-none" />
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">{tr("Target price")} (USD){tag && <span className="rounded bg-foreground px-1.5 py-px text-[9px] font-bold text-background">{tag}</span>}</p>
+              <input inputMode="decimal" value={target} onChange={(e) => { setTarget(e.target.value); setTag(null); }} placeholder={book?.price ? fmtPrice(book.price * (side === "buy" ? 0.9 : 1.5)) : "0.0001"} className="num w-full bg-transparent text-[14px] font-bold outline-none" />
             </div>
             <div className="flex items-center text-muted-foreground">
               <button onClick={() => nudge(-1)} aria-label="-" className="p-1 hover:text-foreground"><Minus className="size-4" /></button>

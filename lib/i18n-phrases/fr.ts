@@ -2866,5 +2866,6 @@ const p: Record<string, string> = {
   "This animation unlocks with your level": "Cette animation se débloque avec ton niveau",
   "Could not buy right now": "Achat impossible pour le moment",
   "Invalid action": "Action invalide",
+  "Mark": "Marque",
 };
 export default p;

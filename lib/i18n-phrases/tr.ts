@@ -2693,5 +2693,6 @@ const p: Record<string, string> = {
   "This animation unlocks with your level": "Bu animasyon seviyenle açılır",
   "Could not buy right now": "Şu anda satın alınamadı",
   "Invalid action": "Geçersiz işlem",
+  "Mark": "İşaret",
 };
 export default p;

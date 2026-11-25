@@ -2695,5 +2695,6 @@ const p: Record<string, string> = {
   "This animation unlocks with your level": "此动画随等级解锁",
   "Could not buy right now": "暂时无法购买",
   "Invalid action": "无效操作",
+  "Mark": "标记价",
 };
 export default p;

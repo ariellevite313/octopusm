@@ -112,10 +112,10 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
       <div key={flash} className={`my-1 flex items-center gap-3 border-y border-border/70 px-1.5 py-2.5 ${flash ? (dir > 0 ? "ob-flash-up" : "ob-flash-down") : ""}`}>
         <RollingText value={usd(book.price)} className="text-[22px] font-bold tracking-tight text-foreground" />
         <span className="ml-auto flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {book.kind === "sol" ? tr("Mark") : tr("MCap")}
+          {tr("Mark")}
           <span className={`flex items-center gap-0.5 text-[13px] normal-case tracking-normal ${dir > 0 ? "text-up" : "text-down"}`}>
             <svg width="9" height="8" viewBox="0 0 10 8" className={dir > 0 ? "" : "rotate-180"} fill="currentColor"><path d="M5 0l5 8H0z" /></svg>
-            <RollingText value={book.kind === "sol" ? `$${book.price.toFixed(2)}` : money(book.mcap)} />
+            <RollingText value={book.kind === "sol" ? `$${book.price.toFixed(2)}` : usd(book.price)} />
           </span>
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
