@@ -78,16 +78,20 @@ export function isPrivateIp(ip: string): boolean {
   return true;
 }
 
-/** Le site répond-il ? Vérifie que l'adresse n'est pas interne, puis fait une requête courte. */
+/**
+ * Le site existe-t-il ? Refuse les adresses internes et les noms qui n'existent pas (DNS).
+ * Un site lent, protégé contre les robots ou en erreur serveur existe quand même : seuls un 404/410 et les vraies erreurs serveur sont refusés.
+ */
 export async function siteIsReachable(url: string): Promise<boolean> {
+  let u: URL;
   try {
-    const u = new URL(url);
+    u = new URL(url);
     if (u.protocol !== "https:" || net.isIP(u.hostname) || u.hostname === "localhost") return false;
     const addrs = await lookup(u.hostname, { all: true });
     if (addrs.length === 0 || addrs.some((a) => isPrivateIp(a.address))) return false;
-    const res = await fetch(u, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0 (compatible; OMdotfun-hackathon-check)" } });
-    // Le site existe s'il répond. Les protections anti-robots (Cloudflare, Vercel…) répondent 401/403/429/503 à un
-    // serveur : ce n'est pas une absence de site. Seuls « page introuvable » et les vraies erreurs serveur sont refusés.
-    return res.status < 500 ? ![404, 410].includes(res.status) : res.status === 503;
   } catch { return false; }
+  try {
+    const res = await fetch(u, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(8000), headers: { "User-Agent": "Mozilla/5.0 (compatible; OMdotfun-hackathon-check)" } });
+    return res.status < 500 ? ![404, 410].includes(res.status) : res.status === 503;
+  } catch { return true; } // le nom existe, la réponse est lente ou bloquée : on ne refuse pas
 }

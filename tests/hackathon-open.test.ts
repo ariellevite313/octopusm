@@ -16,6 +16,13 @@ describe("applicationsOpen", () => {
   });
 });
 
+describe("clôture au 15 décembre", () => {
+  it("ouvre jusqu'au 15 décembre, ferme après", () => {
+    expect(applicationsOpen(Date.parse("2026-12-15T12:00:00Z"))).toBe(true);
+    expect(applicationsOpen(Date.parse("2026-12-16T00:00:01Z"))).toBe(false);
+  });
+});
+
 describe("siteIsReachable", () => {
   afterEach(() => vi.unstubAllGlobals());
   const withStatus = (status: number) => vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status })));
@@ -27,6 +34,10 @@ describe("siteIsReachable", () => {
   it.each([404, 410, 500, 502])("refuses %i", async (s) => {
     withStatus(s);
     expect(await siteIsReachable("https://example.com")).toBe(false);
+  });
+  it("accepts a slow site (network error after DNS)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("timeout"); }));
+    expect(await siteIsReachable("https://example.com")).toBe(true);
   });
   it("refuses http and raw IPs without calling the site", async () => {
     const f = vi.fn(); vi.stubGlobal("fetch", f);
