@@ -7,9 +7,11 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { TIP_DAILY_CAP, TIP_MIN_ACCOUNT_DAYS, type TipErrorCode } from "@/lib/social/tips";
-import { Mirage } from "@/components/shared/mirage";
 import { BonbonIcon } from "@/components/shared/bonbon-icon";
 import { BONBON_ORANGE, BONBON_WHITE, bonbonsValue } from "@/lib/bonbons";
+import { TxButton, TxProgress, useTxSteps, type TxPhase } from "@/components/shared/tx-progress";
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 
 export function TipSheet({ postId, recipientName, onClose, onSent }: {
@@ -23,6 +25,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
   const [white, setWhite] = useState(1);
   const [orange, setOrange] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<TxPhase | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -51,21 +54,30 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
     }
   };
 
+  const STEPS = [tr("Checking your balance"), tr("Sending OMERO"), tr("Delivering the bonbons"), tr("Updating the post")];
+  const done = useTxSteps(phase, STEPS.length);
+
   async function send() {
     if (!valid || busy) return;
     setBusy(true);
+    setPhase("running");
+    const t0 = Date.now();
     try {
       const r = await fetch(`/api/posts/${postId}/tip`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: value, currency: "omero" }),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { toast.error(errorText(j.code, j.error ?? "Tip failed, try again")); return; }
-      toast.success(tr("{n} OMERO sent to {name}", { n: value.toLocaleString(), name: recipientName }));
-      onSent(Number(j.tip_total) || 0);
+      if (!r.ok) { setPhase(null); toast.error(errorText(j.code, j.error ?? "Tip failed, try again")); return; }
+      // Laisse les étapes défiler, puis la carte passe au vert
+      await wait(Math.max(0, 1700 - (Date.now() - t0)));
+      setPhase("success");
       window.dispatchEvent(new CustomEvent("omero-balance-changed"));
+      await wait(2300);
+      onSent(Number(j.tip_total) || 0);
       onClose();
     } catch {
+      setPhase(null);
       toast.error(tr("Tip failed, try again"));
     } finally { setBusy(false); }
   }
@@ -86,6 +98,20 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
           </div>
         </div>
 
+        {phase !== null ? (
+          <TxProgress
+            phase={phase}
+            done={done}
+            title={phase === "success" && done >= STEPS.length ? tr("Tip sent") : tr("Sending your tip")}
+            subtitle={tr("to {name}, for this post", { name: recipientName })}
+            steps={STEPS}
+            rows={[
+              { label: tr("To"), value: recipientName },
+              { label: tr("Bonbons"), value: <span className="inline-flex items-center gap-2">{white > 0 && <span className="inline-flex items-center gap-1"><BonbonIcon kind="white" className="h-5" />{white}</span>}{orange > 0 && <span className="inline-flex items-center gap-1"><BonbonIcon kind="orange" className="h-5" />{orange}</span>}</span> },
+              { label: tr("Total"), value: `${value.toLocaleString()} OMERO` },
+            ]}
+          />
+        ) : <>
         {/* Monnaie */}
         <div className="mb-3 grid grid-cols-2 gap-2.5">
           <div className="flex items-center gap-2.5 rounded-2xl border-2 border-foreground bg-muted/50 p-3">
@@ -130,10 +156,11 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
           <span className="num text-2xl font-extrabold">{value.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">OMERO</span></span>
         </p>
 
-        <button onClick={send} disabled={!valid || busy}
-          className="flex h-[52px] w-full items-center justify-center rounded-full bg-foreground text-base font-extrabold text-background disabled:opacity-40">
-          {busy ? <Mirage className="size-5" /> : tr("Confirm")}
-        </button>
+        </>}
+
+        <div className="mt-4">
+          <TxButton phase={phase} running={tr("Sending…")} success={tr("Sent")} onClick={send} disabled={!valid || busy}>{tr("Confirm")}</TxButton>
+        </div>
         <p className="mt-3 text-center text-xs text-muted-foreground">{tr("Up to {n} OMERO per 24 hours. OMERO are platform points for now.", { n: TIP_DAILY_CAP })}</p>
       </div>
     </div>,

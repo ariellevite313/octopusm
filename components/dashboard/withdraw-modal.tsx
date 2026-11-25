@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { X, ArrowUpRight, CheckCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { X, ArrowUpRight, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useT, Rich } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n-mark";
 import { Mirage } from "@/components/shared/mirage";
+import { TxButton, TxProgress, useTxSteps, type TxPhase } from "@/components/shared/tx-progress";
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,12 +58,16 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
   const [submitting, setSubmitting]   = useState(false);
   const [existing, setExisting]       = useState<WithdrawalRequest | null>(null);
   const [cancelling, setCancelling]   = useState(false);
+  const [phase, setPhase]             = useState<TxPhase | null>(null);
 
   const isUsdc  = token === "usdc";
   const logoSrc = isUsdc ? "/usdc-coin.png" : "/clawdtrust-coin.png";
   const symbol  = isUsdc ? "USDC" : "CLT";
   const accent  = isUsdc ? "orange" : "purple";
   const min     = MIN[token];
+
+  const STEPS = [tr("Checking your balance"), tr("Creating the request"), tr("Sending it to the team")];
+  const done = useTxSteps(phase, STEPS.length);
 
   const parsed = isUsdc ? parseFloat(rawAmount) : parseInt(rawAmount, 10);
   const valid  = Number.isFinite(parsed) && parsed >= min && parsed <= balance;
@@ -111,6 +118,8 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
     if (!valid) return;
 
     setSubmitting(true);
+    setPhase("running");
+    const t0 = Date.now();
     try {
       const res = await fetch("/api/withdraw", {
         method: "POST",
@@ -119,11 +128,16 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
+        setPhase(null);
         toast.error(tr(data.error ?? "Withdrawal request failed."));
         return;
       }
+      // Les étapes défilent, puis la carte passe au vert
+      await wait(Math.max(0, 1500 - (Date.now() - t0)));
+      setPhase("success");
       setStep("done");
     } catch {
+      setPhase(null);
       toast.error(tr("Network error, please try again."));
     } finally {
       setSubmitting(false);
@@ -172,30 +186,30 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
         )}
 
         {/* Done state */}
-        {step === "done" && (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
-              <CheckCircle className="size-7 text-up" />
+        {(phase !== null || step === "done") && (
+          <div>
+            <TxProgress
+              phase={phase ?? "success"}
+              done={phase === null ? STEPS.length : done}
+              title={phase === "running" ? tr("Requesting withdrawal") : tr("Request submitted!")}
+              steps={STEPS}
+              rows={[
+                { label: tr("Amount"), value: fmtAmount(token, parsed, lang) },
+                { label: tr("To"), value: tr("Your connected wallet") },
+                { label: tr("Processing time"), value: <span className="inline-flex items-center gap-1 text-amber-500"><Clock className="size-3.5" />24–48 h</span> },
+              ]}
+            />
+            <div className="mt-5 space-y-2">
+              <TxButton phase={phase} running={tr("Submitting…")} success={tr("Request sent")}>{tr("Request sent")}</TxButton>
+              {phase === "success" && (
+                <button onClick={onClose} className="tx-fade w-full rounded-full border border-border py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted">{tr("Close")}</button>
+              )}
             </div>
-            <p className="text-sm font-semibold text-foreground">{tr("Request submitted!")}</p>
-            <p className="text-xs text-muted-foreground max-w-xs [&_strong]:font-medium [&_strong]:text-foreground">
-              <Rich>{tr("Your withdrawal of <b>{amount}</b> has been sent to the team for review.", { amount: fmtAmount(token, parsed, lang) })}</Rich>
-            </p>
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-amber-500">
-              <Clock className="size-3.5" />
-              {tr("Usually processed within 24–48 hours")}
-            </div>
-            <button
-              onClick={onClose}
-              className="mt-3 w-full rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
-            >
-              {tr("Close")}
-            </button>
           </div>
         )}
 
         {/* Existing pending/approved request blocker */}
-        {step === "idle" && existing && (
+        {phase === null && step === "idle" && existing && (
           <div className="flex flex-col gap-4">
             <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 py-3 space-y-2">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
@@ -234,7 +248,7 @@ export function WithdrawModal({ token, balance, onClose }: Props) {
         )}
 
         {/* Normal form — no blocking request */}
-        {step === "idle" && !existing && (
+        {phase === null && step === "idle" && !existing && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Amount input */}
             <div className="flex flex-col gap-1.5">

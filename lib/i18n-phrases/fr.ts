@@ -1,5 +1,18 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Checking your balance": "Vérification du solde",
+  "Sending OMERO": "Envoi des OMERO",
+  "Delivering the bonbons": "Livraison des bonbons",
+  "Updating the post": "Mise à jour du post",
+  "Tip sent": "Tip envoyé",
+  "Sending your tip": "Envoi de ton tip",
+  "Bonbons": "Bonbons",
+  "Creating the request": "Création de la demande",
+  "Sending it to the team": "Envoi à l'équipe",
+  "Requesting withdrawal": "Demande de retrait",
+  "Your connected wallet": "Ton wallet connecté",
+  "Processing time": "Délai",
+  "Request sent": "Demande envoyée",
   "MCap": "Cap.",
   "Spread": "Écart",
   "OM limit order": "Ordre limité OM",

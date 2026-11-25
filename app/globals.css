@@ -694,3 +694,16 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 @keyframes ob-roll { 0% { transform: translateY(70%); opacity: 0; filter: blur(2px); } 100% { transform: none; opacity: 1; filter: none; } }
 .ob-roll { animation: ob-roll .45s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) { .ob-dot-fresh, .ob-roll { animation: none; } .ob-dot { transition: none; } }
+
+/* Suivi d'opération (tip, retrait) */
+@keyframes tx-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+.tx-in { animation: tx-in .45s cubic-bezier(.22,1,.36,1) both; }
+@keyframes tx-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.tx-fade { animation: tx-fade .35s ease both; }
+@keyframes tx-pop { 0% { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); } }
+.tx-pop { animation: tx-pop .45s cubic-bezier(.22,1,.36,1) both; }
+.tx-check-path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: tx-draw .4s .15s ease forwards; }
+@keyframes tx-draw { to { stroke-dashoffset: 0; } }
+@keyframes tx-glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 45%, transparent); } 40% { box-shadow: 0 0 36px 2px color-mix(in srgb, var(--up) 35%, transparent); } 100% { box-shadow: 0 0 18px 0 color-mix(in srgb, var(--up) 14%, transparent); } }
+.tx-glow { animation: tx-glow 1.4s ease both; }
+@media (prefers-reduced-motion: reduce) { .tx-in, .tx-fade, .tx-pop, .tx-glow { animation: none; } .tx-check-path { animation: none; stroke-dashoffset: 0; } }
