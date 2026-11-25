@@ -9,11 +9,11 @@ export { MAX_TEAM };
 
 export type ApplicationInput = {
   name?: unknown; description?: unknown; siteUrl?: unknown; githubUrl?: unknown;
-  xHandle?: unknown; videoUrl?: unknown; category?: unknown; teamWallets?: unknown;
+  xHandle?: unknown; videoUrl?: unknown; category?: unknown; teamWallets?: unknown; discoverUrl?: unknown;
 };
 export type ValidApplication = {
   name: string; description: string; siteUrl: string; githubUrl: string | null;
-  xHandle: string; videoUrl: string | null; category: Category; teamWallets: string[];
+  xHandle: string; videoUrl: string | null; category: Category; teamWallets: string[]; discoverUrl: string | null;
 };
 
 const SOL_ADDR = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -40,6 +40,14 @@ export function validateApplication(input: ApplicationInput, applicant: string):
     videoUrl = cleanHttpsUrl(input.videoUrl);
     if (!videoUrl) return { ok: false, error: "Invalid video link" };
   }
+  // Lien optionnel vers la fiche Discover du projet (omdot.fun/discover/…)
+  let discoverUrl: string | null = null;
+  if (input.discoverUrl != null && input.discoverUrl !== "") {
+    discoverUrl = cleanHttpsUrl(input.discoverUrl);
+    let okPath = false;
+    try { okPath = !!discoverUrl && /^\/discover\/[0-9a-f-]{36}\/?$/i.test(new URL(discoverUrl).pathname); } catch { okPath = false; }
+    if (!okPath) return { ok: false, error: "Invalid Discover link" };
+  }
   const xRaw = typeof input.xHandle === "string" ? input.xHandle.trim().replace(/^@/, "").replace(/^https:\/\/(x|twitter)\.com\//i, "") : "";
   if (!/^[A-Za-z0-9_]{1,15}$/.test(xRaw)) return { ok: false, error: "A valid X profile is required" };
   if (typeof input.category !== "string" || !(CATEGORIES as readonly string[]).includes(input.category)) return { ok: false, error: "Invalid category" };
@@ -54,7 +62,7 @@ export function validateApplication(input: ApplicationInput, applicant: string):
   }
   if (team.length > MAX_TEAM) return { ok: false, error: `A team has ${MAX_TEAM} members at most` };
 
-  return { ok: true, value: { name, description, siteUrl, githubUrl, xHandle: xRaw, videoUrl, category: input.category as Category, teamWallets: team } };
+  return { ok: true, value: { name, description, siteUrl, githubUrl, xHandle: xRaw, videoUrl, category: input.category as Category, teamWallets: team, discoverUrl } };
 }
 
 /** Adresse interne ou privée : jamais jointe par le serveur (protection contre le SSRF). */

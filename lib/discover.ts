@@ -10,6 +10,10 @@ export const MAX_SCREENSHOTS = 6;
 /** Prix normal d'une fiche Discover (par an). Gratuit pour l'instant : affiché barré avec la mention « Free ». */
 export const LISTING_PRICE_USD = 80;
 export const LISTING_FREE_NOW = true;
+
+/** Boost : mise en avant dans « Recommandés », payée uniquement en Omero. */
+export const BOOST_COST_OMERO = 500;
+export const BOOST_DAYS = 7;
 /** Raisons d'un signalement de projet */
 export const REPORT_REASONS = ["asks_seed", "scam", "fake", "no_token_payment", "other"] as const;
 export const REPORT_REASON_LABEL: Record<(typeof REPORT_REASONS)[number], string> = {

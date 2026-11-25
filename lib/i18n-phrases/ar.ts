@@ -1,5 +1,15 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Boost for {n} Omero · {d} days": "عزّز مقابل {n} Omero · {d} أيام",
+  "Boosted until {date} · extend for {n} Omero": "معزّز حتى {date} · مدّد مقابل {n} Omero",
+  "Boosted: your project is in Recommended": "تم التعزيز: مشروعك في المقترحات",
+  "Could not boost right now": "تعذّر التعزيز الآن",
+  "Not enough Omero": "Omero غير كافٍ",
+  "Only the owner can boost this project": "يمكن للمالك فقط تعزيز هذا المشروع",
+  "This project is hidden": "هذا المشروع مخفي",
+  "Project not found": "لم يتم العثور على المشروع",
+  "Discover page (optional)": "صفحة Discover (اختياري)",
+  "Invalid Discover link": "رابط Discover غير صالح",
   "On Solana, about 0.035 SOL: a 0.01 SOL platform fee plus about 0.025 SOL of network rent. A scheduled launch adds 0.10 SOL, and any first buy you choose is extra. On Arc there is no creation fee, only about 0.04 USDC of network gas.": "على Solana نحو 0.035 SOL: رسم المنصة 0.01 SOL بالإضافة إلى نحو 0.025 SOL إيجار الشبكة. يضيف الإطلاق المجدول 0.10 SOL، وأي شراء أول تختاره يُحتسب إضافيًا. على Arc لا توجد رسوم إنشاء، فقط نحو 0.04 USDC من غاز الشبكة.",
   "Yes, on Solana. The agent receives transactions to sign and signs them with its own key: OMdot.fun never holds your keys. The same fee (about 0.035 SOL), limits (3 launches per wallet and 6 per IP per hour) and rules as the website apply.": "نعم، على Solana. يتلقى الوكيل معاملات للتوقيع ويوقّعها بمفتاحه الخاص: OMdot.fun لا تحتفظ بمفاتيحك أبدًا. تنطبق الرسوم نفسها (نحو 0.035 SOL) والحدود (3 عمليات إطلاق لكل محفظة و6 لكل IP في الساعة) والقواعد نفسها كما في الموقع.",
   "Open Communities in the menu, then Create. It costs 100 Omero, taken from your balance. Choose a name, an address, a description, a category, hashtags, a logo and a banner. You become the admin. Each wallet can create up to 3 communities.": "في القائمة افتح المجتمعات ثم اضغط إنشاء. تكلفته 100 Omero تُخصم من رصيدك. اختر اسمًا وعنوانًا ووصفًا وفئة ووسومًا وشعارًا وبانرًا. ستكون المسؤول. يمكن لكل محفظة إنشاء حتى 3 مجتمعات.",

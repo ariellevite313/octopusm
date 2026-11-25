@@ -1,5 +1,15 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Boost for {n} Omero · {d} days": "{n} Omero ile öne çıkar · {d} gün",
+  "Boosted until {date} · extend for {n} Omero": "{date} tarihine kadar öne çıkarıldı · {n} Omero ile uzat",
+  "Boosted: your project is in Recommended": "Öne çıkarıldı: projen Önerilenler'de",
+  "Could not boost right now": "Şu anda öne çıkarılamıyor",
+  "Not enough Omero": "Yeterli Omero yok",
+  "Only the owner can boost this project": "Bu projeyi yalnızca sahibi öne çıkarabilir",
+  "This project is hidden": "Bu proje gizli",
+  "Project not found": "Proje bulunamadı",
+  "Discover page (optional)": "Discover sayfası (isteğe bağlı)",
+  "Invalid Discover link": "Geçersiz Discover bağlantısı",
   "Open Communities in the menu, then Create. It costs 100 Omero, taken from your balance. Choose a name, an address, a description, a category, hashtags, a logo and a banner. You become the admin. Each wallet can create up to 3 communities.": "Menüden Topluluklar'ı aç ve Oluştur'a dokun. Bakiyenden düşen 100 Omero'ya mal olur. Bir ad, adres, açıklama, kategori, hashtag'ler, logo ve banner seç. Yönetici olursun. Her cüzdan en fazla 3 topluluk oluşturabilir.",
   "Step 1/2: {ticker} to {q}": "Adım 1/2: {ticker} → {q}",
   "Step 2/2: {q} to SOL": "Adım 2/2: {q} → SOL",

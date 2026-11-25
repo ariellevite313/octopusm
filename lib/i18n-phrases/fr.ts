@@ -1,5 +1,15 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Boost for {n} Omero · {d} days": "Booster pour {n} Omero · {d} jours",
+  "Boosted until {date} · extend for {n} Omero": "Boosté jusqu'au {date} · prolonger pour {n} Omero",
+  "Boosted: your project is in Recommended": "Boosté : ton projet est dans Recommandés",
+  "Could not boost right now": "Boost impossible pour le moment",
+  "Not enough Omero": "Pas assez d'Omero",
+  "Only the owner can boost this project": "Seul le propriétaire peut booster ce projet",
+  "This project is hidden": "Ce projet est masqué",
+  "Project not found": "Projet introuvable",
+  "Discover page (optional)": "Page Discover (facultatif)",
+  "Invalid Discover link": "Lien Discover invalide",
   "1. Scan this QR code with your authenticator app (Google Authenticator, Authy…).": "1. Scanne ce QR code avec ton application d'authentification (Google Authenticator, Authy…).",
   "2. Enter the 6-digit code shown in the app.": "2. Saisis le code à 6 chiffres affiché dans l'application.",
   "About the program": "À propos du programme",

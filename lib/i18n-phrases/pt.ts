@@ -1,5 +1,15 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Boost for {n} Omero · {d} days": "Impulsionar por {n} Omero · {d} dias",
+  "Boosted until {date} · extend for {n} Omero": "Impulsionado até {date} · prolongar por {n} Omero",
+  "Boosted: your project is in Recommended": "Impulsionado: seu projeto está em Recomendados",
+  "Could not boost right now": "Não é possível impulsionar agora",
+  "Not enough Omero": "Omero insuficiente",
+  "Only the owner can boost this project": "Só o dono pode impulsionar este projeto",
+  "This project is hidden": "Este projeto está oculto",
+  "Project not found": "Projeto não encontrado",
+  "Discover page (optional)": "Página no Discover (opcional)",
+  "Invalid Discover link": "Link do Discover inválido",
   "Open Communities in the menu, then Create. It costs 100 Omero, taken from your balance. Choose a name, an address, a description, a category, hashtags, a logo and a banner. You become the admin. Each wallet can create up to 3 communities.": "Abra Comunidades no menu e toque em Criar. Custa 100 Omero, descontados do seu saldo. Escolha um nome, um endereço, uma descrição, uma categoria, hashtags, um logo e um banner. Você será o administrador. Cada wallet pode criar até 3 comunidades.",
   "Step 1/2: {ticker} to {q}": "Etapa 1/2: {ticker} para {q}",
   "Step 2/2: {q} to SOL": "Etapa 2/2: {q} para SOL",

@@ -1,5 +1,15 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Boost for {n} Omero · {d} days": "Продвинуть за {n} Omero · {d} дн.",
+  "Boosted until {date} · extend for {n} Omero": "Продвигается до {date} · продлить за {n} Omero",
+  "Boosted: your project is in Recommended": "Продвижение включено: ваш проект в «Рекомендуемых»",
+  "Could not boost right now": "Сейчас продвинуть не удалось",
+  "Not enough Omero": "Недостаточно Omero",
+  "Only the owner can boost this project": "Продвигать проект может только владелец",
+  "This project is hidden": "Этот проект скрыт",
+  "Project not found": "Проект не найден",
+  "Discover page (optional)": "Страница в Discover (необязательно)",
+  "Invalid Discover link": "Неверная ссылка Discover",
   "Open Communities in the menu, then Create. It costs 100 Omero, taken from your balance. Choose a name, an address, a description, a category, hashtags, a logo and a banner. You become the admin. Each wallet can create up to 3 communities.": "Откройте «Сообщества» в меню и нажмите «Создать». Это стоит 100 Omero, списываются с баланса. Выберите название, адрес, описание, категорию, хештеги, логотип и баннер. Вы станете администратором. Каждый кошелёк может создать до 3 сообществ.",
   "Step 1/2: {ticker} to {q}": "Шаг 1/2: {ticker} в {q}",
   "Step 2/2: {q} to SOL": "Шаг 2/2: {q} в SOL",

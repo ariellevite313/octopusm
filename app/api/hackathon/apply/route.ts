@@ -71,6 +71,7 @@ export async function POST(req: Request) {
   const { error } = await db.from("hackathon_projects").insert({
     token_id: token.id, applicant: who.wallet, name: v.name, description: v.description, site_url: v.siteUrl,
     github_url: v.githubUrl, x_handle: v.xHandle, video_url: v.videoUrl, category: v.category, team_wallets: v.teamWallets,
+    ...(v.discoverUrl ? { discover_url: v.discoverUrl } : {}),
   });
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "This token is already registered" }, { status: 409 });

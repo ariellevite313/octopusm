@@ -16,13 +16,15 @@ const same = (a: string, b: string) => (/^0x/i.test(a) ? a.toLowerCase() === b.t
 
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
-  const cat = sp.get("category"), q = (sp.get("q") ?? "").trim().slice(0, 40), sort = sp.get("sort") === "new" ? "new" : "top";
+  const cat = sp.get("category"), q = (sp.get("q") ?? "").trim().slice(0, 40), sort = sp.get("sort") === "new" ? "new" : sp.get("sort") === "boosted" ? "boosted" : "top";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   let query = db.from("discover_apps").select(APP_COLS).eq("status", "live").limit(60);
   if (cat && (APP_CATEGORIES as readonly string[]).includes(cat)) query = query.eq("category", cat);
   if (q) query = query.or(`name.ilike.%${q.replace(/[%_,().]/g, "")}%,tagline.ilike.%${q.replace(/[%_,().]/g, "")}%`);
-  query = sort === "new" ? query.order("created_at", { ascending: false }) : query.order("rating_avg", { ascending: false }).order("rating_count", { ascending: false });
+  // Recommandés : seulement les fiches dont le boost (payé en Omero) court encore
+  if (sort === "boosted") query = query.gt("boosted_until", new Date().toISOString()).order("boosted_until", { ascending: false });
+  else query = sort === "new" ? query.order("created_at", { ascending: false }) : query.order("rating_avg", { ascending: false }).order("rating_count", { ascending: false });
   const { data, error } = await query;
   if (error) return NextResponse.json({ apps: [] });
   return NextResponse.json({ apps: (await withTokens(db, data ?? [])).map((x) => x.card) });

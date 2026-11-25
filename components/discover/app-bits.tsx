@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
-  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string;
+  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform?: boolean; boostedUntil?: string | null;
   token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string; price?: number | null; mcap?: number | null; volume24h?: number | null; pool?: string | null; mint?: string | null; curve?: string | null };
 };
 
@@ -21,12 +21,12 @@ export function Rating({ value, count, className = "" }: { value: number; count?
   return <span className={`num inline-flex items-center gap-0.5 ${className}`}>{value.toFixed(1)}<Star className="size-3 fill-current" />{count != null && <span className="ml-1 text-muted-foreground">({count})</span>}</span>;
 }
 
-export function PaysWith({ app, className = "" }: { app: Pick<AppCard, "token">; className?: string }) {
+export function PaysWith({ app, className = "" }: { app: Pick<AppCard, "token" | "platform">; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-foreground ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {app.token.logo && <img src={app.token.logo} alt="" className="size-3.5 rounded-full object-cover" />}
-      ${app.token.ticker}
+      {app.platform ? app.token.name : `$${app.token.ticker}`}
     </span>
   );
 }

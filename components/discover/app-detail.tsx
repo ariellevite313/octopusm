@@ -3,12 +3,13 @@
 /** Fiche d'une app Discover : en-tête, bouton Ouvrir, paiement en token, images, à propos, notes et avis, apps similaires. */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Flag, MoreVertical, Share2, Star, X } from "lucide-react";
+import { ArrowLeft, Flag, MoreVertical, Rocket, Share2, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
-import { APP_CATEGORY_LABEL, REPORT_REASONS, REPORT_REASON_LABEL } from "@/lib/discover";
+import { APP_CATEGORY_LABEL, BOOST_COST_OMERO, BOOST_DAYS, REPORT_REASONS, REPORT_REASON_LABEL } from "@/lib/discover";
+import { LOCALES } from "@/lib/i18n-mark";
 import { ShareSheet } from "@/components/shared/share-sheet";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { Mirage } from "@/components/shared/mirage";
@@ -64,13 +65,36 @@ function TokenValue({ a, paymentNote }: { a: AppCard; paymentNote: string }) {
         <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-foreground text-[15px] font-bold text-background">{tr("Buy")} ${t.ticker}</Link>
         <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-muted text-[15px] font-bold">{tr("See the chart")}</Link>
       </div>
-      {/* Paiement dans le token, puis avertissements (en petit, visibles par tous) */}
+      {/* Paiement dans le token (les avertissements sont en bas de la page) */}
       <div className="mt-4 space-y-1.5 border-t border-border pt-3 text-[11.5px] leading-snug text-muted-foreground">
         <p><span className="font-semibold text-foreground">{tr("Payments on this website use ${t}", { t: t.ticker })}.</span> {paymentNote}</p>
-        <p>{tr("This project is run by its creator, not by OMdotfun. Its listing, rating and token price are never a guarantee and are not financial advice. Crypto can lose all its value: only use what you can afford to lose.")}</p>
-        <p className="font-semibold text-foreground">{tr("Never give your recovery phrase (12 or 24 words) to any website. No real project will ask for it. If this site asks for it, report it.")}</p>
       </div>
     </section>
+  );
+}
+
+/** Boost du propriétaire : sa fiche passe dans « Recommandés » pour quelques jours, payé en Omero uniquement. */
+function BoostButton({ id, until, onDone }: { id: string; until: string | null; onDone: () => void }) {
+  const { tr, lang } = useT();
+  const [busy, setBusy] = useState(false);
+  const active = until && new Date(until).getTime() > Date.now();
+  const go = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/discover/apps/${id}/boost`, { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(tr(j.error ?? "Could not boost right now")); return; }
+      toast.success(tr("Boosted: your project is in Recommended"));
+      onDone();
+    } finally { setBusy(false); }
+  };
+  return (
+    <button onClick={go} disabled={busy} className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border text-[15px] font-bold transition-colors hover:bg-muted disabled:opacity-50">
+      {busy ? <Mirage className="size-4" /> : <Rocket className="size-4" />}
+      {active
+        ? tr("Boosted until {date} · extend for {n} Omero", { date: new Date(until!).toLocaleDateString(LOCALES[lang], { day: "numeric", month: "short" }), n: BOOST_COST_OMERO })
+        : tr("Boost for {n} Omero · {d} days", { n: BOOST_COST_OMERO, d: BOOST_DAYS })}
+    </button>
   );
 }
 
@@ -159,16 +183,19 @@ export function AppDetail({ id }: { id: string }) {
             <div className="flex-1 px-2 sm:flex-none sm:pr-6 sm:text-left"><p className="num flex items-center justify-center gap-1 text-[16px] font-bold sm:justify-start">{a.ratings ? a.rating.toFixed(1) : "-"}<Star className="size-3.5 fill-current" /></p><p className="text-[12px] text-muted-foreground">{tr("{n} reviews", { n: compact(a.ratings) })}</p></div>
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="num text-[16px] font-bold">{compact(a.visits)}</p><p className="text-[12px] text-muted-foreground">{tr("Visits")}</p></div>
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="text-[16px] font-bold">{cat}</p><p className="text-[12px] text-muted-foreground">{tr("Category")}</p></div>
-            <Link href={`/launchpad/${a.token.slug}`} className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">${a.token.ticker}</p><p className="text-[12px] text-muted-foreground">{tr("Its token")}</p></Link>
+            {a.platform
+              ? <div className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">Solana</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div>
+              : <Link href={`/launchpad/${a.token.slug}`} className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">${a.token.ticker}</p><p className="text-[12px] text-muted-foreground">{tr("Its token")}</p></Link>}
           </div>
         </div>
         <div className="mt-5 lg:mt-0">
           <AppIcon app={a} className="mb-4 hidden size-28 lg:block" />
           <a href={a.siteUrl} target="_blank" rel="noopener noreferrer" onClick={() => visit(a.id)} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-opacity hover:opacity-90">{tr("Open website")}</a>
+          {d.isOwner && <BoostButton id={a.id} until={a.boostedUntil ?? null} onDone={load} />}
         </div>
       </div>
 
-      <TokenValue a={a} paymentNote={a.paymentNote} />
+      {!a.platform && <TokenValue a={a} paymentNote={a.paymentNote} />}
 
       {/* Images */}
       {images.length > 0 && (
@@ -256,9 +283,17 @@ export function AppDetail({ id }: { id: string }) {
         </section>
       )}
 
+      {/* Non-responsabilité d'OMdotfun, en bas de la page (pas pour l'app de la plateforme) */}
+      {!a.platform && (
+        <footer className="space-y-1.5 border-t border-border pb-2 pt-4 text-[11.5px] leading-snug text-muted-foreground">
+          <p>{tr("This project is run by its creator, not by OMdotfun. Its listing, rating and token price are never a guarantee and are not financial advice. Crypto can lose all its value: only use what you can afford to lose.")}</p>
+          <p className="font-semibold text-foreground">{tr("Never give your recovery phrase (12 or 24 words) to any website. No real project will ask for it. If this site asks for it, report it.")}</p>
+        </footer>
+      )}
+
       </div>
 
-      <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={`${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on OMdotfun Discover.`} images={a.banner ? [a.banner] : []} />
+      <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={a.platform ? `${a.name}: ${a.tagline}. On OMdotfun Discover.` : `${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on OMdotfun Discover.`} images={a.banner ? [a.banner] : []} />
 
       {report && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-[2px] sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) setReport(false); }}>

@@ -1,5 +1,15 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Boost for {n} Omero · {d} days": "花 {n} Omero 推广 · {d} 天",
+  "Boosted until {date} · extend for {n} Omero": "推广至 {date} · 花 {n} Omero 延长",
+  "Boosted: your project is in Recommended": "已推广：你的项目已进入推荐",
+  "Could not boost right now": "暂时无法推广",
+  "Not enough Omero": "Omero 不足",
+  "Only the owner can boost this project": "只有所有者才能推广此项目",
+  "This project is hidden": "此项目已隐藏",
+  "Project not found": "未找到项目",
+  "Discover page (optional)": "Discover 页面（可选）",
+  "Invalid Discover link": "无效的 Discover 链接",
   "On Solana, about 0.035 SOL: a 0.01 SOL platform fee plus about 0.025 SOL of network rent. A scheduled launch adds 0.10 SOL, and any first buy you choose is extra. On Arc there is no creation fee, only about 0.04 USDC of network gas.": "在 Solana 上约 0.035 SOL：0.01 SOL 平台费加约 0.025 SOL 网络租金。定时发行额外增加 0.10 SOL，你选择的首次买入另计。在 Arc 上没有创建费，仅需约 0.04 USDC 的网络 gas。",
   "Yes, on Solana. The agent receives transactions to sign and signs them with its own key: OMdot.fun never holds your keys. The same fee (about 0.035 SOL), limits (3 launches per wallet and 6 per IP per hour) and rules as the website apply.": "可以，在 Solana 上。代理接收待签名的交易并用自己的密钥签名：OMdot.fun 从不保管你的密钥。费用（约 0.035 SOL）、限制（每个钱包 3 次发行，每个 IP 每小时 6 次）和规则与网站相同。",
   "Step 1/2: {ticker} to {q}": "步骤 1/2：{ticker} 兑换 {q}",
