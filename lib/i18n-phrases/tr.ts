@@ -2647,5 +2647,9 @@ const p: Record<string, string> = {
   "You can't report your own project": "Kendi projeni bildiremezsin",
   "Too many reports, try again later": "Çok fazla bildirim, daha sonra dene",
   "Could not send the report": "Bildirim gönderilemedi",
+  "Socials (optional)": "Sosyal ağlar (isteğe bağlı)",
+  "Invalid X link": "Geçersiz X bağlantısı",
+  "Invalid Telegram link": "Geçersiz Telegram bağlantısı",
+  "Invalid Discord link": "Geçersiz Discord bağlantısı",
 };
 export default p;

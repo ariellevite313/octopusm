@@ -2820,5 +2820,9 @@ const p: Record<string, string> = {
   "You can't report your own project": "Tu ne peux pas signaler ton propre projet",
   "Too many reports, try again later": "Trop de signalements, réessaie plus tard",
   "Could not send the report": "Impossible d'envoyer le signalement",
+  "Socials (optional)": "Réseaux sociaux (facultatif)",
+  "Invalid X link": "Lien X invalide",
+  "Invalid Telegram link": "Lien Telegram invalide",
+  "Invalid Discord link": "Lien Discord invalide",
 };
 export default p;

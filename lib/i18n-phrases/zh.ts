@@ -2649,5 +2649,9 @@ const p: Record<string, string> = {
   "You can't report your own project": "你不能举报自己的项目",
   "Too many reports, try again later": "举报过多，请稍后再试",
   "Could not send the report": "无法发送举报",
+  "Socials (optional)": "社交账号（可选）",
+  "Invalid X link": "X 链接无效",
+  "Invalid Telegram link": "Telegram 链接无效",
+  "Invalid Discord link": "Discord 链接无效",
 };
 export default p;

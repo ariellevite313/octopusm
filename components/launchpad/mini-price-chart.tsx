@@ -14,7 +14,7 @@ export function useSparkline(ref: React.RefObject<HTMLElement | null>, { chain, 
   const [points, setPoints] = useState<number[] | null>(null);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !chain) return;
     let cancelled = false;
     const io = new IntersectionObserver(entries => {
       if (!entries.some(e => e.isIntersecting)) return;
@@ -34,13 +34,16 @@ export function useSparkline(ref: React.RefObject<HTMLElement | null>, { chain, 
   return points;
 }
 
-export function MiniPriceChart({ chain, pool, mint, curve, className = "", onTrend }: {
+export function MiniPriceChart({ chain, pool, mint, curve, className = "", onTrend, data }: {
   chain: string; pool?: string | null; mint?: string | null; curve?: string | null; className?: string;
   onTrend?: (t: Trend) => void;
+  /** Série déjà chargée (ex. SOL, USDC) : rien n'est demandé au serveur */
+  data?: number[] | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const uid = useId();
-  const points = useSparkline(ref, { chain, pool, mint, curve });
+  const fetched = useSparkline(ref, data !== undefined ? { chain: "" } : { chain, pool, mint, curve });
+  const points = data !== undefined ? data : fetched;
 
   const W = 100, H = 32;
   const pts = points && points.length >= 2 ? points : null;

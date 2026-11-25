@@ -32,3 +32,17 @@ describe("avis", () => {
     expect(b[4]).toEqual({ star: 1, count: 1, pct: 25 });
   });
 });
+
+describe("socialUrl", () => {
+  it("accepte les bons domaines et refuse les autres", async () => {
+    const { socialUrl } = await import("@/lib/discover");
+    expect(socialUrl("", "x")).toBeNull();
+    expect(socialUrl("https://x.com/omdotfun", "x")).toBe("https://x.com/omdotfun");
+    expect(socialUrl("https://www.twitter.com/a", "x")).toBe("https://www.twitter.com/a");
+    expect(socialUrl("https://t.me/omdot", "telegram")).toBe("https://t.me/omdot");
+    expect(socialUrl("https://discord.gg/abc", "discord")).toBe("https://discord.gg/abc");
+    expect(socialUrl("https://evil.com/x.com", "x")).toBe(false);
+    expect(socialUrl("http://t.me/omdot", "telegram")).toBe(false);
+    expect(socialUrl("https://t.me.evil.com/a", "telegram")).toBe(false);
+  });
+});

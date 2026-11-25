@@ -10,13 +10,13 @@ import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import { APP_CATEGORY_LABEL, BOOST_COST_OMERO, BOOST_DAYS, REPORT_REASONS, REPORT_REASON_LABEL } from "@/lib/discover";
 import { LOCALES } from "@/lib/i18n-mark";
-import { ShareSheet } from "@/components/shared/share-sheet";
+import { ShareSheet, XIcon, TgIcon, DiscordIcon } from "@/components/shared/share-sheet";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { Mirage } from "@/components/shared/mirage";
 import { AppIcon, Rating, compact, visit, type AppCard } from "@/components/discover/app-bits";
 
 type Detail = {
-  app: AppCard & { description: string; screenshots: string[]; paymentNote: string | null; owner: { wallet: string; name: string | null } };
+  app: AppCard & { socials?: { x: string | null; telegram: string | null; discord: string | null }; description: string; screenshots: string[]; paymentNote: string | null; owner: { wallet: string; name: string | null } };
   bars: { star: number; count: number; pct: number }[];
   reviews: { wallet: string; name: string | null; avatar: string | null; rating: number; body: string | null; at: string }[];
   mine: { rating: number; body: string | null } | null;
@@ -70,6 +70,54 @@ function TokenValue({ a, paymentNote }: { a: AppCard; paymentNote: string }) {
         <p><span className="font-semibold text-foreground">{tr("Payments on this website use ${t}", { t: t.ticker })}.</span> {paymentNote}</p>
       </div>
     </section>
+  );
+}
+
+/** Réseau d'une fiche sans token (ou de l'admin) : cours du SOL pour Solana, de l'USDC pour Arc, sur 24 h. */
+const NET_COIN: Record<string, { symbol: string; ticker: string; logo: string; label: string }> = {
+  solana: { symbol: "SOLUSDT", ticker: "SOL", logo: "/chains/solana.png", label: "Solana" },
+  arc: { symbol: "USDCUSDT", ticker: "USDC", logo: "/usdc-coin.png", label: "Arc" },
+};
+function NetworkValue({ network }: { network: string }) {
+  const { tr } = useT();
+  const c = NET_COIN[network];
+  const [pts, setPts] = useState<number[] | null>(null);
+  useEffect(() => {
+    if (!c) return;
+    let off = false;
+    fetch(`/api/crypto/klines?symbol=${c.symbol}&interval=1h&limit=24`).then((r) => (r.ok ? r.json() : [])).then((j: { price: number }[]) => { if (!off) setPts(Array.isArray(j) ? j.map((k) => k.price).filter((n) => n > 0) : []); }).catch(() => { if (!off) setPts([]); });
+    return () => { off = true; };
+  }, [c]);
+  if (!c) return null;
+  const last = pts?.length ? pts[pts.length - 1] : null;
+  const chg = pts && pts.length > 1 ? ((pts[pts.length - 1] - pts[0]) / pts[0]) * 100 : null;
+  const tone = chg == null || Math.abs(chg) < 0.005 ? "bg-muted text-muted-foreground" : chg > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down";
+  return (
+    <section className="rounded-[24px] border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={c.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline gap-2"><span className="num text-[26px] font-extrabold leading-tight">{last == null ? "-" : `$${last.toLocaleString(undefined, { minimumFractionDigits: last < 10 ? 4 : 2, maximumFractionDigits: last < 10 ? 4 : 2 })}`}</span><span className="text-[14px] font-bold">{c.ticker}</span></p>
+          <p className="text-[12px] text-muted-foreground">{tr("Network")}: {c.label}</p>
+        </div>
+        <span className={`num shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold ${tone}`}>{chg == null ? "24h" : `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`}</span>
+      </div>
+      <MiniPriceChart chain="" data={pts} className="mt-3 h-20 w-full" />
+    </section>
+  );
+}
+
+/** Liens X, Telegram et Discord du projet, s'il les a donnés. */
+function Socials({ s }: { s?: { x: string | null; telegram: string | null; discord: string | null } }) {
+  if (!s || (!s.x && !s.telegram && !s.discord)) return null;
+  const btn = "flex size-12 items-center justify-center rounded-full bg-muted text-foreground transition-colors hover:bg-muted/70";
+  return (
+    <div className="mt-3 flex justify-center gap-3 lg:justify-start">
+      {s.x && <a href={s.x} target="_blank" rel="noopener noreferrer nofollow" aria-label="X" className={btn}><XIcon /></a>}
+      {s.telegram && <a href={s.telegram} target="_blank" rel="noopener noreferrer nofollow" aria-label="Telegram" className={btn}><TgIcon /></a>}
+      {s.discord && <a href={s.discord} target="_blank" rel="noopener noreferrer nofollow" aria-label="Discord" className={btn}><DiscordIcon /></a>}
+    </div>
   );
 }
 
@@ -191,11 +239,13 @@ export function AppDetail({ id }: { id: string }) {
         <div className="mt-5 lg:mt-0">
           <AppIcon app={a} className="mb-4 hidden size-28 lg:block" />
           <a href={a.siteUrl} target="_blank" rel="noopener noreferrer" onClick={() => visit(a.id)} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-opacity hover:opacity-90">{tr("Open website")}</a>
+          <Socials s={a.socials} />
           {d.isOwner && <BoostButton id={a.id} until={a.boostedUntil ?? null} onDone={load} />}
         </div>
       </div>
 
       {!a.platform && !a.noToken && <TokenValue a={a} paymentNote={a.paymentNote ?? ""} />}
+      {(a.platform || a.noToken) && a.network && NET_COIN[a.network] && <NetworkValue network={a.network} />}
 
       {/* Images */}
       {images.length > 0 && (

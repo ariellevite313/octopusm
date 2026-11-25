@@ -2647,5 +2647,9 @@ const p: Record<string, string> = {
   "You can't report your own project": "Нельзя пожаловаться на свой проект",
   "Too many reports, try again later": "Слишком много жалоб, попробуйте позже",
   "Could not send the report": "Не удалось отправить жалобу",
+  "Socials (optional)": "Соцсети (необязательно)",
+  "Invalid X link": "Неверная ссылка на X",
+  "Invalid Telegram link": "Неверная ссылка на Telegram",
+  "Invalid Discord link": "Неверная ссылка на Discord",
 };
 export default p;

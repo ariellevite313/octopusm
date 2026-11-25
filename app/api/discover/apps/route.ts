@@ -49,6 +49,7 @@ export async function POST(req: Request) {
   const base = {
     owner: s.wallet, name: v.value.name, tagline: v.value.tagline, description: v.value.description, category: v.value.category,
     site_url: v.value.siteUrl, icon_url: v.value.iconUrl, banner_url: v.value.bannerUrl, screenshots: v.value.screenshots,
+    x_url: v.value.xUrl, telegram_url: v.value.telegramUrl, discord_url: v.value.discordUrl,
     updated_at: new Date().toISOString(),
   };
 

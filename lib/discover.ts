@@ -37,13 +37,26 @@ export type AppInput = {
   iconUrl?: unknown; bannerUrl?: unknown; screenshots?: unknown; paymentNote?: unknown; acceptsToken?: unknown;
   /** true : fiche sans token OM (payante, sauf pour l'admin) */
   noToken?: unknown; network?: unknown;
+  /** Réseaux sociaux, facultatifs */
+  xUrl?: unknown; telegramUrl?: unknown; discordUrl?: unknown;
 };
 export type ValidApp = {
   tokenId: string | null; name: string; tagline: string; description: string; category: AppCategory; siteUrl: string;
   iconUrl: string | null; bannerUrl: string | null; screenshots: string[]; paymentNote: string | null; network: Network | null;
+  xUrl: string | null; telegramUrl: string | null; discordUrl: string | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Lien social facultatif : vide = null, sinon https sur le bon domaine. */
+const SOCIAL_HOSTS = { x: ["x.com", "twitter.com"], telegram: ["t.me", "telegram.me"], discord: ["discord.gg", "discord.com"] } as const;
+export function socialUrl(v: unknown, kind: keyof typeof SOCIAL_HOSTS): string | null | false {
+  if (v == null || (typeof v === "string" && v.trim() === "")) return null;
+  const u = cleanHttpsUrl(v, 200);
+  if (!u) return false;
+  const host = new URL(u).hostname.replace(/^www\./, "");
+  return (SOCIAL_HOSTS[kind] as readonly string[]).includes(host) ? u : false;
+}
+
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 export function validateApp(i: AppInput): { ok: true; value: ValidApp } | { ok: false; error: string } {
@@ -77,7 +90,11 @@ export function validateApp(i: AppInput): { ok: true; value: ValidApp } | { ok: 
     paymentNote = str(i.paymentNote);
     if (paymentNote.length < 10 || paymentNote.length > 200) return { ok: false, error: "Explain in 10 to 200 characters how your token is used to pay" };
   }
-  return { ok: true, value: { tokenId, name, tagline, description, category: i.category as AppCategory, siteUrl, iconUrl, bannerUrl, screenshots, paymentNote, network } };
+  const xUrl = socialUrl(i.xUrl, "x"), telegramUrl = socialUrl(i.telegramUrl, "telegram"), discordUrl = socialUrl(i.discordUrl, "discord");
+  if (xUrl === false) return { ok: false, error: "Invalid X link" };
+  if (telegramUrl === false) return { ok: false, error: "Invalid Telegram link" };
+  if (discordUrl === false) return { ok: false, error: "Invalid Discord link" };
+  return { ok: true, value: { tokenId, name, tagline, description, category: i.category as AppCategory, siteUrl, iconUrl, bannerUrl, screenshots, paymentNote, network, xUrl, telegramUrl, discordUrl } };
 }
 
 export function validateReview(rating: unknown, body: unknown): { ok: true; rating: number; body: string | null } | { ok: false; error: string } {

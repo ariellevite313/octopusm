@@ -2649,5 +2649,9 @@ const p: Record<string, string> = {
   "You can't report your own project": "لا يمكنك الإبلاغ عن مشروعك",
   "Too many reports, try again later": "بلاغات كثيرة، حاول لاحقاً",
   "Could not send the report": "تعذر إرسال البلاغ",
+  "Socials (optional)": "الشبكات الاجتماعية (اختياري)",
+  "Invalid X link": "رابط X غير صالح",
+  "Invalid Telegram link": "رابط Telegram غير صالح",
+  "Invalid Discord link": "رابط Discord غير صالح",
 };
 export default p;

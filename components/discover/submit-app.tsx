@@ -17,7 +17,7 @@ import { ListingPrice } from "./listing-price";
 import { Mirage } from "@/components/shared/mirage";
 
 type Tok = { id: string; ticker: string; name: string; logo_url: string | null; chain: string };
-type Existing = { id: string; token_id: string | null; name: string; tagline: string; description: string; category: string; site_url: string; icon_url: string | null; banner_url: string | null; screenshots: string[]; payment_note: string | null; network?: string | null; listing_paid_until?: string | null };
+type Existing = { id: string; token_id: string | null; name: string; tagline: string; description: string; category: string; site_url: string; icon_url: string | null; banner_url: string | null; screenshots: string[]; payment_note: string | null; network?: string | null; listing_paid_until?: string | null; x_url?: string | null; telegram_url?: string | null; discord_url?: string | null };
 
 async function upload(file: File): Promise<string> {
   const fd = new FormData(); fd.append("image", file);
@@ -38,7 +38,7 @@ export function SubmitApp() {
   const [network, setNetwork] = useState<string>("solana");
   const [toks, setToks] = useState<Tok[] | null>(null);
   const [apps, setApps] = useState<Existing[]>([]);
-  const [f, setF] = useState({ tokenId: "", name: "", tagline: "", description: "", category: "tools", siteUrl: "", iconUrl: "", bannerUrl: "", paymentNote: "", acceptsToken: false });
+  const [f, setF] = useState({ tokenId: "", name: "", tagline: "", description: "", category: "tools", siteUrl: "", iconUrl: "", bannerUrl: "", paymentNote: "", acceptsToken: false, xUrl: "", telegramUrl: "", discordUrl: "" });
   const [shots, setShots] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [up, setUp] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export function SubmitApp() {
   function pick(tokenId: string, list = apps) {
     const e = list.find((x) => x.token_id === tokenId);
     if (e) {
-      setF({ tokenId, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: e.payment_note ?? "", acceptsToken: true });
+      setF({ tokenId, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: e.payment_note ?? "", acceptsToken: true, xUrl: e.x_url ?? "", telegramUrl: e.telegram_url ?? "", discordUrl: e.discord_url ?? "" });
       setShots(e.screenshots ?? []);
     } else setF((x) => ({ ...x, tokenId }));
   }
@@ -72,7 +72,7 @@ export function SubmitApp() {
     const e = apps.find((x) => x.id === id && !x.token_id);
     setAppId(e ? e.id : null);
     if (e) {
-      setF((x) => ({ ...x, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: "" }));
+      setF((x) => ({ ...x, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: "", xUrl: e.x_url ?? "", telegramUrl: e.telegram_url ?? "", discordUrl: e.discord_url ?? "" }));
       setShots(e.screenshots ?? []); setNetwork(e.network ?? "solana");
     }
   }
@@ -172,6 +172,12 @@ export function SubmitApp() {
       <label className="block"><span className={label}>{tr("Category")}</span>
         <select className={input} value={f.category} onChange={set("category")}>{APP_CATEGORIES.map((c) => <option key={c} value={c}>{tr(APP_CATEGORY_LABEL[c])}</option>)}</select></label>
       <label className="block"><span className={label}>{tr("Website (https)")}</span><input type="url" className={input} value={f.siteUrl} onChange={set("siteUrl")} placeholder="https://" /></label>
+      <div className="space-y-2">
+        <span className={label}>{tr("Socials (optional)")}</span>
+        <input type="url" className={input} value={f.xUrl} onChange={set("xUrl")} placeholder="https://x.com/..." aria-label="X" />
+        <input type="url" className={input} value={f.telegramUrl} onChange={set("telegramUrl")} placeholder="https://t.me/..." aria-label="Telegram" />
+        <input type="url" className={input} value={f.discordUrl} onChange={set("discordUrl")} placeholder="https://discord.gg/..." aria-label="Discord" />
+      </div>
 
       <div className="grid grid-cols-[96px_1fr] gap-3">
         <label className="block"><span className={label}>{tr("Icon")}</span>

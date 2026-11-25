@@ -19,10 +19,13 @@ export async function GET() {
   // Réseau et fin de période des fiches sans token (colonnes de la migration 20261219)
   const ids = ((apps ?? []) as { id: string }[]).map((a) => a.id);
   const { data: extra, error } = ids.length ? await db.from("discover_apps").select("id, network, listing_paid_until").in("id", ids) : { data: [], error: null };
+  // Réseaux sociaux (migration 20261220), lus à part
+  const { data: soc, error: e2 } = ids.length ? await db.from("discover_apps").select("id, x_url, telegram_url, discord_url").in("id", ids) : { data: [], error: null };
+  const sx = new Map<string, Record<string, string | null>>(e2 ? [] : ((soc ?? []) as { id: string }[]).map((x) => [x.id, x as unknown as Record<string, string | null>]));
   const ex = new Map<string, { network: string | null; listing_paid_until: string | null }>(error ? [] : ((extra ?? []) as { id: string; network: string | null; listing_paid_until: string | null }[]).map((x) => [x.id, x]));
   return NextResponse.json({
     tokens: toks ?? [],
-    apps: ((apps ?? []) as { id: string }[]).map((a) => ({ ...a, ...(ex.get(a.id) ?? {}) })),
+    apps: ((apps ?? []) as { id: string }[]).map((a) => ({ ...a, ...(sx.get(a.id) ?? {}), ...(ex.get(a.id) ?? {}) })),
     isAdmin: me?.role === "admin",
   });
 }

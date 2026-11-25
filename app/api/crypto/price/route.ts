@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-const VALID_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PEPEUSDT", "DOGEUSDT"];
+const VALID_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "PEPEUSDT", "DOGEUSDT", "USDCUSDT"];
 
 const COINGECKO_IDS: Record<string, string> = {
   BTCUSDT:  "bitcoin",
@@ -11,6 +11,7 @@ const COINGECKO_IDS: Record<string, string> = {
   BNBUSDT:  "binancecoin",
   PEPEUSDT: "pepe",
   DOGEUSDT: "dogecoin",
+  USDCUSDT: "usd-coin",
 };
 
 export async function GET(req: Request) {
