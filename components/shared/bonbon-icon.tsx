@@ -1,9 +1,9 @@
-/** Bonbon Omero : blanc (10 OMERO) ou orange (100 OMERO). Fond transparent, lisible en petit. */
+/** Bonbon Omero : blanc (10 OMERO) ou orange (100 OMERO). Vignette carrée sur fond blanc d'origine, coins arrondis. */
 import { splitBonbons } from "@/lib/bonbons";
 
 export function BonbonIcon({ kind, className = "h-5" }: { kind: "white" | "orange"; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={kind === "orange" ? "/bonbon-orange.png" : "/bonbon-white.png"} alt="" aria-hidden className={`${className} w-auto shrink-0 object-contain`} />;
+  return <img src={kind === "orange" ? "/bonbon-orange.png" : "/bonbon-white.png"} alt="" aria-hidden className={`${className} aspect-square w-auto shrink-0 rounded-[22%] bg-white object-cover ring-1 ring-black/5`} />;
 }
 
 /** Les bonbons d'un montant : icône + quantité pour chaque couleur donnée. */
