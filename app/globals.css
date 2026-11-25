@@ -668,3 +668,16 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 }
 .sidebar-label { animation: sidebar-label-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) { .sidebar-label { animation: none; } }
+
+/* Menu latéral : fond légèrement teinté, et l'onglet du lien choisi qui se fond dans la page */
+.om-rail {
+  background: color-mix(in srgb, var(--muted) 55%, var(--background));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--border) 70%, transparent);
+}
+.om-tab { background: var(--background); border-radius: 16px 0 0 16px; z-index: 0; }
+.om-tab::before, .om-tab::after {
+  content: ""; position: absolute; right: 0; width: 16px; height: 16px;
+}
+.om-tab::before { bottom: 100%; background: radial-gradient(circle at 0 0, transparent 15.5px, var(--background) 16px); }
+.om-tab::after  { top: 100%;    background: radial-gradient(circle at 0 100%, transparent 15.5px, var(--background) 16px); }
+.om-rail nav > a, .om-rail nav > span:not(.om-tab) { position: relative; z-index: 1; }

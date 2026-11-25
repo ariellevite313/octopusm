@@ -113,6 +113,7 @@ export function DesktopSidebar() {
   // Lien touché : la pastille glisse tout de suite, sans attendre la navigation
   const [pending, setPending] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
+  const asideRef = useRef<HTMLElement>(null);
   const itemRefs = useRef(new Map<string, HTMLElement>());
   const [pill, setPill] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
@@ -126,7 +127,10 @@ export function DesktopSidebar() {
   // Position de la pastille sous le lien actif
   const measure = useCallback(() => {
     const el = activeHref ? itemRefs.current.get(activeHref) : null;
-    setPill(el ? { top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight } : null);
+    const aside = asideRef.current;
+    // L'onglet part du lien et va jusqu'au bord droit du menu, où il se fond dans la page
+    const width = el && aside ? aside.getBoundingClientRect().right - el.getBoundingClientRect().left : 0;
+    setPill(el ? { top: el.offsetTop, left: el.offsetLeft, width: width || el.offsetWidth, height: el.offsetHeight } : null);
   }, [activeHref]);
   useLayoutEffect(() => { measure(); }, [measure, open]);
   useEffect(() => {
@@ -145,7 +149,7 @@ export function DesktopSidebar() {
   const setRef = (href: string) => (el: HTMLElement | null) => { if (el) itemRefs.current.set(href, el); else itemRefs.current.delete(href); };
 
   return (
-    <aside className={`sticky top-0 hidden h-screen w-[72px] shrink-0 flex-col items-center gap-2 overflow-y-auto scrollbar-none border-r border-border/60 bg-background py-4 transition-[width,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:flex ${wide ? "xl:w-[240px] xl:items-stretch xl:px-3" : ""}`}>
+    <aside ref={asideRef} className={`om-rail sticky top-0 hidden h-screen w-[72px] shrink-0 flex-col items-center gap-2 overflow-y-auto scrollbar-none py-4 transition-[width,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:flex ${wide ? "xl:w-[240px] xl:items-stretch xl:px-3" : ""}`}>
       <div className={`mb-3 flex items-center ${wide ? "xl:justify-between xl:px-1.5" : "flex-col gap-2"}`}>
         <Link href="/" aria-label="OMdotfun">
           <BrandLogo size={40} />
@@ -163,11 +167,11 @@ export function DesktopSidebar() {
       </div>
 
       <nav ref={navRef} className={`relative flex flex-col items-center gap-2 ${wide ? "xl:items-stretch" : ""}`}>
-        {/* Pastille translucide qui glisse vers le lien choisi */}
+        {/* Onglet qui glisse vers le lien choisi et se fond dans la page (coins courbés inversés) */}
         {pill && (
           <span
             aria-hidden
-            className="pointer-events-none absolute rounded-2xl bg-foreground/[0.06] ring-1 ring-inset ring-foreground/10 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            className="om-tab pointer-events-none absolute transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
             style={{ top: pill.top, left: pill.left, width: pill.width, height: pill.height }}
           />
         )}
