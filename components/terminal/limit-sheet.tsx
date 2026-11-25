@@ -53,7 +53,7 @@ export function LimitSheet({ mint, symbol, mcap, walletType, preset, activity = 
   const [mode, setMode] = useState<"limit" | "twap">("limit");
   useEffect(() => { if (preset) setMode("limit"); }, [preset]);
   // SOL : ordre limité contre USDC, avec un prix cible
-  if (mint === SOL_MINT) return <SolLimitForm walletType={walletType} activity={activity} />;
+  if (mint === SOL_MINT) return <SolLimitForm walletType={walletType} activity={activity} preset={preset} />;
   return (
     <div>
       <div className="mb-3 flex gap-5">
@@ -67,7 +67,7 @@ export function LimitSheet({ mint, symbol, mcap, walletType, preset, activity = 
 }
 
 type BookRow = { mcap: number; sol: number; om: boolean };
-type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[] };
+type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[]; kind?: "sol" };
 const SOL_RESERVE = 0.01;
 const amt = (n: number) => (n >= 1e9 ? `${+(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(1)}K` : n >= 1 ? `${+n.toFixed(2)}` : `${+n.toPrecision(3)}`);
 /** Arrondi lisible d'une capitalisation (3 chiffres significatifs) */
@@ -94,7 +94,7 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
   }).catch(() => {});
   useEffect(() => {
     load(); loadBook(); loadBal();
-    const id = setInterval(loadBook, 5_000);
+    const id = setInterval(() => { if (document.visibilityState === "visible") loadBook(); }, 3_000);
     return () => clearInterval(id);
   }, [mint]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -212,15 +212,24 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
 }
 
 /** SOL contre USDC : acheter du SOL avec des USDC quand le prix descend, ou vendre du SOL quand il monte. Prix cible en dollars. */
-function SolLimitForm({ walletType, activity = false }: { walletType: WalletType; activity?: boolean }) {
+function SolLimitForm({ walletType, activity = false, preset }: { walletType: WalletType; activity?: boolean; preset?: LimitPreset | null }) {
   const { tr } = useT();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[] | null>(null);
-  const [price, setPrice] = useState<number | null>(null);
+  const [price0, setPrice] = useState<number | null>(null);
+  // Niveau choisi sur le graphique : pour SOL, preset.mcap porte directement le prix cible
+  useEffect(() => {
+    if (!preset || !(preset.mcap > 0)) return;
+    setSide(preset.side); setTarget(String(+preset.mcap.toFixed(preset.mcap >= 100 ? 2 : 3))); setAmount("");
+  }, [preset]);
   const [bal, setBal] = useState<{ sol: number; usdc: number } | null>(null);
+  // Carnet animé du SOL (contre USDC) : même affichage que pour les tokens, rafraîchi toutes les 3 s
+  const [book, setBook] = useState<Book | null>(null);
+  const loadBook = () => fetch(`/api/terminal/book?mint=${SOL_MINT}`).then((r) => (r.ok ? r.json() : null)).then((j) => j && setBook(j)).catch(() => {});
+  const price = book?.price ?? price0;
   const load = () => fetch(`/api/terminal/limit?mint=${SOL_MINT}`).then((r) => r.json()).then((j) => setOrders(j.orders ?? [])).catch(() => setOrders([]));
   const loadPrice = () => fetch(`https://api.dexscreener.com/tokens/v1/solana/${SOL_MINT}`).then((r) => (r.ok ? r.json() : [])).then((j: { baseToken?: { address?: string }; priceUsd?: string; liquidity?: { usd?: number } }[]) => {
     const p = j.filter((x) => x.baseToken?.address === SOL_MINT).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
@@ -230,9 +239,10 @@ function SolLimitForm({ walletType, activity = false }: { walletType: WalletType
     if (j.balances) setBal({ sol: Number(j.balances.sol) / 1e9, usdc: Number(j.balances.token) / 1e6 });
   }).catch(() => {});
   useEffect(() => {
-    load(); loadPrice(); loadBal();
+    load(); loadPrice(); loadBal(); loadBook();
     const id = setInterval(loadPrice, 10_000);
-    return () => clearInterval(id);
+    const ib = setInterval(() => { if (document.visibilityState === "visible") loadBook(); }, 3_000);
+    return () => { clearInterval(id); clearInterval(ib); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const t = Number(target.replace(/[\s,$]/g, "")), a = Number(amount.replace(",", "."));
@@ -252,7 +262,7 @@ function SolLimitForm({ walletType, activity = false }: { walletType: WalletType
       await signAndSend(r.transaction, r.requestId, walletType, !!r.direct);
       toast.success(tr("Limit order placed"));
       setAmount(""); setTarget("");
-      setTimeout(() => { load(); loadBal(); }, 2500);
+      setTimeout(() => { load(); loadBal(); loadBook(); }, 2500);
     } catch (e) {
       const m = (e as Error).message ?? "";
       if (!/reject|cancel|denied|declined/i.test(m)) toast.error(tr(m) || tr("Limit order failed"));
@@ -276,7 +286,8 @@ function SolLimitForm({ walletType, activity = false }: { walletType: WalletType
 
   return (
     <div>
-      <div className="flex gap-1 rounded-xl bg-muted p-1">
+      <OrderBook book={book} onPick={(r, ask) => { setSide(ask ? "sell" : "buy"); setTarget(fix(r.mcap)); }} />
+      <div className="mt-4 flex gap-1 rounded-xl bg-muted p-1">
         {(["buy", "sell"] as const).map((k) => <button key={k} onClick={() => { setSide(k); setAmount(""); }} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${side === k ? "bg-foreground text-background" : "text-muted-foreground"}`}>{tr(k === "buy" ? "Buy" : "Sell")} SOL</button>)}
       </div>
       <div className="mt-2 flex justify-between text-[12px]"><span className="text-muted-foreground">{tr("Price")}</span><span className="num font-semibold">{price == null ? "-" : `$${price.toFixed(2)}`}</span></div>

@@ -638,8 +638,10 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             <div className="mt-4 h-[560px] overflow-hidden rounded-2xl border border-border">
               <ProChart mint={mint} pool={t.pool} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
                 onLevel={(p, label) => {
-                  if (!isSol || mint === SOL_MINT) { toast.error(tr("Limit orders are available on Solana tokens.")); return; }
-                  const k = t.mcap && t.price ? t.mcap / t.price : 0, cur = live ?? t.price ?? 0;
+                  if (!isSol) { toast.error(tr("Limit orders are available on Solana tokens.")); return; }
+                  const cur = live ?? t.price ?? 0;
+                  // SOL : ordre limité contre USDC à un prix cible (pas de capitalisation)
+                  const k = mint === SOL_MINT ? 1 : t.mcap && t.price ? t.mcap / t.price : 0;
                   if (!(k > 0) || !(cur > 0)) { toast.error(tr("Market cap not available for this token.")); return; }
                   setPreset({ side: p < cur ? "buy" : "sell", mcap: p * k, label, n: Date.now() });
                   // Pas connecté : l'ordre préparé est gardé et la fiche s'ouvre après la connexion

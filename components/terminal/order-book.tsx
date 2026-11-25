@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n";
  * les chiffres qui changent défilent, la ligne centrale montre la capitalisation, le prix et l'écart.
  */
 export type BookRow = { mcap: number; sol: number; om: boolean };
-export type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[] };
+export type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[]; kind?: "sol" };
 
 const COLS = 24;
 const DOTS = COLS * 3;
@@ -44,28 +44,32 @@ export function RollingText({ value, className = "" }: { value: string; classNam
 }
 
 /** Grille de points : remplie colonne par colonne ; les derniers points sont plus vifs ; les nouveaux s'allument. */
-function Dots({ fill, ask }: { fill: number; ask: boolean }) {
+function Dots({ fill, ask, row = 0 }: { fill: number; ask: boolean; row?: number }) {
   const [st, setSt] = useState({ f: fill, from: fill, gen: 0 });
   if (st.f !== fill) setSt({ f: fill, from: st.f, gen: st.gen + 1 });
   const { from, gen } = st;
   const lead = Math.max(0, fill - 4);
+  // Le dernier point allumé scintille en continu (décalé selon la ligne) : le carnet reste vivant entre deux mises à jour
   return (
     <span className="ob-dots grid shrink-0" style={{ gridTemplateColumns: `repeat(${COLS}, 4px)`, gridTemplateRows: "repeat(3, 4px)", gridAutoFlow: "column", gap: "2px" }} aria-hidden>
       {Array.from({ length: DOTS }, (_, i) => {
         const on = i < fill;
         const fresh = on && gen > 0 && i >= from;
-        const cls = !on ? "ob-dot-off" : `${ask ? "ob-dot-ask" : "ob-dot-bid"} ${i >= lead ? "ob-dot-lead" : ""} ${fresh ? "ob-dot-fresh" : ""}`;
-        return <span key={fresh ? `${i}-${gen}` : i} className={`ob-dot ${cls}`} />;
+        // Points qui disparaissent : ils s'éteignent au lieu de couper net
+        const gone = !on && gen > 0 && i < from;
+        const tip = on && i === fill - 1;
+        const cls = !on ? `ob-dot-off ${gone ? (ask ? "ob-dot-gone-ask" : "ob-dot-gone-bid") : ""}` : `${ask ? "ob-dot-ask" : "ob-dot-bid"} ${i >= lead ? "ob-dot-lead" : ""} ${fresh ? "ob-dot-fresh" : ""} ${tip && !fresh ? "ob-dot-tip" : ""}`;
+        return <span key={fresh || gone ? `${i}-${gen}` : i} className={`ob-dot ${cls}`} style={tip ? { animationDelay: `${(row % 7) * 0.23}s` } : undefined} />;
       })}
     </span>
   );
 }
 
-function Line({ r, ask, max, solUsd, unit, onPick }: { r: BookRow; ask: boolean; max: number; solUsd: number; unit: number; onPick: () => void }) {
+function Line({ r, ask, max, solUsd, unit, onPick, row }: { r: BookRow; ask: boolean; max: number; solUsd: number; unit: number; onPick: () => void; row: number }) {
   const fill = max > 0 ? Math.max(2, Math.round((r.sol / max) * DOTS)) : 0;
   return (
     <button onClick={onPick} className="flex w-full items-center gap-3 rounded-lg px-1.5 py-[7px] text-left text-[13px] transition-colors hover:bg-foreground/[0.04]">
-      <Dots fill={fill} ask={ask} />
+      <Dots fill={fill} ask={ask} row={row} />
       <RollingText value={usd(r.mcap * unit)} className={`ml-auto w-[74px] justify-end font-semibold ${ask ? "text-down" : "text-up"}`} />
       <span className="flex w-[64px] items-center justify-end gap-1">
         {r.om && <span className="size-1.5 rounded-full bg-foreground" />}
@@ -80,9 +84,11 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
   const { tr } = useT();
   const lastPrice = useRef<number | null>(null);
   const [dir, setDir] = useState<1 | -1>(1);
+  // Chaque changement de prix : la ligne centrale s'allume en vert ou en rouge
+  const [flash, setFlash] = useState(0);
   useEffect(() => {
     if (!book) return;
-    if (lastPrice.current != null && book.price !== lastPrice.current) setDir(book.price > lastPrice.current ? 1 : -1);
+    if (lastPrice.current != null && book.price !== lastPrice.current) { setDir(book.price > lastPrice.current ? 1 : -1); setFlash((f) => f + 1); }
     lastPrice.current = book.price;
   }, [book]);
 
@@ -102,14 +108,14 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
         <span className="w-[64px] text-right">SOL</span>
         <span className="hidden w-[56px] text-right min-[380px]:inline">{tr("Total")}</span>
       </div>
-      {book.asks.map((r, i) => <Line key={`a${i}`} r={r} ask max={max} solUsd={book.solUsd} unit={unit} onPick={() => onPick(r, true)} />)}
-      <div className="my-1 flex items-center gap-3 border-y border-border/70 px-1.5 py-2.5">
+      {book.asks.map((r, i) => <Line key={`a${i}`} row={i} r={r} ask max={max} solUsd={book.solUsd} unit={unit} onPick={() => onPick(r, true)} />)}
+      <div key={flash} className={`my-1 flex items-center gap-3 border-y border-border/70 px-1.5 py-2.5 ${flash ? (dir > 0 ? "ob-flash-up" : "ob-flash-down") : ""}`}>
         <RollingText value={usd(book.price)} className="text-[22px] font-bold tracking-tight text-foreground" />
         <span className="ml-auto flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {tr("MCap")}
+          {book.kind === "sol" ? tr("Mark") : tr("MCap")}
           <span className={`flex items-center gap-0.5 text-[13px] normal-case tracking-normal ${dir > 0 ? "text-up" : "text-down"}`}>
             <svg width="9" height="8" viewBox="0 0 10 8" className={dir > 0 ? "" : "rotate-180"} fill="currentColor"><path d="M5 0l5 8H0z" /></svg>
-            <RollingText value={money(book.mcap)} />
+            <RollingText value={book.kind === "sol" ? `$${book.price.toFixed(2)}` : money(book.mcap)} />
           </span>
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -117,7 +123,7 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
           <RollingText value={`${spread.toFixed(1)}%`} className="text-[13px] normal-case tracking-normal text-foreground" />
         </span>
       </div>
-      {book.bids.map((r, i) => <Line key={`b${i}`} r={r} ask={false} max={max} solUsd={book.solUsd} unit={unit} onPick={() => onPick(r, false)} />)}
+      {book.bids.map((r, i) => <Line key={`b${i}`} row={i + 3} r={r} ask={false} max={max} solUsd={book.solUsd} unit={unit} onPick={() => onPick(r, false)} />)}
       <p className="mt-2 flex items-center gap-1.5 px-1.5 text-[10.5px] leading-tight text-muted-foreground"><span className="size-1.5 shrink-0 rounded-full bg-foreground" />{tr("OM limit order")}</p>
     </div>
   );

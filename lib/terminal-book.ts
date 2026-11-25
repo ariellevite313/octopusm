@@ -9,22 +9,25 @@ import { jupMarket } from "@/lib/swap/jup-market";
 import { activeOrders } from "@/lib/swap/jup-trigger";
 
 export type BookRow = { mcap: number; sol: number; om: boolean };
-export type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[] };
+/** kind « sol » : carnet du SOL lui-même (contre USDC) ; les niveaux sont des prix (mcap = prix), comme ses ordres OM. */
+export type Book = { mcap: number; price: number; solUsd: number; asks: BookRow[]; bids: BookRow[]; kind?: "sol" };
 type Ds = { baseToken?: { address?: string }; priceUsd?: string; marketCap?: number; fdv?: number; liquidity?: { usd?: number } };
 export type OmOrder = { order_key: string; maker: string; side: "buy" | "sell"; amount_sol: number; target_mcap: number; status: string; checked_at: string | null; created_at: string };
 
 /** Écarts proposés (en %), de chaque côté du prix actuel */
 export const STEPS = [0.5, 1, 2, 5, 10, 20, 35];
+/** SOL bouge moins qu'un memecoin : niveaux plus serrés */
+export const SOL_STEPS = [0.1, 0.25, 0.5, 1, 2, 3, 5];
 const ROWS = 7;
 
 /** Profondeur de la pool : SOL nécessaires pour amener la capitalisation à chaque niveau. */
-export function depth(mcap: number, liqUsd: number, solUsd: number): { asks: BookRow[]; bids: BookRow[] } {
+export function depth(mcap: number, liqUsd: number, solUsd: number, steps: number[] = STEPS): { asks: BookRow[]; bids: BookRow[] } {
   const R = liqUsd > 0 && solUsd > 0 ? liqUsd / 2 / solUsd : 0;
   const row = (s: number, up: boolean): BookRow => {
     const r = up ? 1 + s / 100 : 1 - s / 100;
     return { mcap: mcap * r, sol: R * Math.abs(Math.sqrt(r) - 1), om: false };
   };
-  return { asks: STEPS.map((s) => row(s, true)), bids: STEPS.map((s) => row(s, false)) };
+  return { asks: steps.map((s) => row(s, true)), bids: steps.map((s) => row(s, false)) };
 }
 
 /** Mélange profondeur et ordres OM : les plus proches du prix actuel, asks du plus haut au plus bas, bids du plus haut au plus bas. */
@@ -38,7 +41,7 @@ export function merge(mcap: number, d: { asks: BookRow[]; bids: BookRow[] }, om:
 
 async function pair(mint: string): Promise<{ price: number; mcap: number; liq: number } | null> {
   try {
-    const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, { signal: AbortSignal.timeout(8000), next: { revalidate: 15 } });
+    const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, { signal: AbortSignal.timeout(8000), next: { revalidate: 5 } });
     const p = ((r.ok ? await r.json() : []) as Ds[]).filter((x) => x.baseToken?.address === mint).sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0];
     const mcap = p?.marketCap || p?.fdv || 0;
     if (p && Number(p.priceUsd) > 0 && mcap > 0) return { price: Number(p.priceUsd), mcap, liq: p.liquidity?.usd ?? 0 };
@@ -70,6 +73,12 @@ async function omOrders(db: any, mint: string): Promise<OmOrder[]> {
 
  
 export async function getBook(db: any, mint: string): Promise<Book | null> {
+  if (mint === SOL_MINT) {
+    // SOL : prix contre USDC, profondeur de sa plus grosse pool ; les ordres OM sur SOL gardent leur prix cible dans target_mcap
+    const [sol, om] = await Promise.all([pair(SOL_MINT), omOrders(db, mint).catch(() => [])]);
+    if (!sol) return null;
+    return { mcap: sol.price, price: sol.price, solUsd: sol.price, kind: "sol", ...merge(sol.price, depth(sol.price, sol.liq, sol.price, SOL_STEPS), om) };
+  }
   const [tok, sol, om] = await Promise.all([pair(mint), pair(SOL_MINT), omOrders(db, mint).catch(() => [])]);
   if (!tok || !sol) return null;
   return { mcap: tok.mcap, price: tok.price, solUsd: sol.price, ...merge(tok.mcap, depth(tok.mcap, tok.liq, sol.price), om) };

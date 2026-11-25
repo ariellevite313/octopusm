@@ -75,9 +75,10 @@ function TokenValue({ a, paymentNote }: { a: AppCard; paymentNote: string }) {
 }
 
 /** Réseau d'une fiche sans token (ou de l'admin) : cours du SOL pour Solana, de l'USDC pour Arc, sur 24 h. */
-const NET_COIN: Record<string, { symbol: string; ticker: string; logo: string; label: string }> = {
-  solana: { symbol: "SOLUSDT", ticker: "SOL", logo: "/chains/solana.png", label: "Solana" },
-  arc: { symbol: "USDCUSDT", ticker: "USDC", logo: "/usdc-coin.png", label: "Arc" },
+const NET_COIN: Record<string, { symbol: string; ticker: string; logo: string; label: string; href: string }> = {
+  // Un appui ouvre le Terminal pour trader (SOL : sa page avec swap et ordres limités ; Arc : la liste des tokens Arc)
+  solana: { symbol: "SOLUSDT", ticker: "SOL", logo: "/chains/solana.png", label: "Solana", href: "/terminal?mint=So11111111111111111111111111111111111111112" },
+  arc: { symbol: "USDCUSDT", ticker: "USDC", logo: "/usdc-coin.png", label: "Arc", href: "/terminal?chains=arc" },
 };
 function NetworkValue({ network }: { network: string }) {
   const { tr } = useT();
@@ -94,7 +95,7 @@ function NetworkValue({ network }: { network: string }) {
   const chg = pts && pts.length > 1 ? ((pts[pts.length - 1] - pts[0]) / pts[0]) * 100 : null;
   const tone = chg == null || Math.abs(chg) < 0.005 ? "bg-muted text-muted-foreground" : chg > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down";
   return (
-    <section className="rounded-[24px] border border-border bg-card p-4 sm:p-5">
+    <Link href={c.href} className="block rounded-[24px] border border-border bg-card p-4 transition-colors hover:bg-muted/40 sm:p-5">
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={c.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" />
@@ -105,7 +106,7 @@ function NetworkValue({ network }: { network: string }) {
         <span className={`num shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold ${tone}`}>{chg == null ? "24h" : `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`}</span>
       </div>
       <MiniPriceChart chain="" data={pts} className="mt-3 h-20 w-full" />
-    </section>
+    </Link>
   );
 }
 
