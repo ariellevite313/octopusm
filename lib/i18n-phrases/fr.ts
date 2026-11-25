@@ -2507,5 +2507,6 @@ const p: Record<string, string> = {
   "Remove one": "Retirer un",
   "Add one": "Ajouter un",
   "Total": "Total",
+  "Last week's results": "Résultats de la semaine passée",
 };
 export default p;

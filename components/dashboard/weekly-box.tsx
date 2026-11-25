@@ -164,7 +164,7 @@ export function WeeklyBox() {
 
       {d.last?.box && d.last.box.status !== "none" && <PrizeBox week={d.last.week} box={d.last.box} onClaimed={load} />}
 
-      {d.last?.mine && !d.last.box && (
+      {d.last?.mine && (
         <div className="rounded-[22px] border border-border bg-card p-4 text-[14px]">
           <span className="font-bold">{tr("Last week: rank #{n}", { n: d.last.mine.rank })}</span>
           <span className="text-muted-foreground"> · {tr("{n} OMERO credited", { n: d.last.mine.omero.toLocaleString() })}</span>
@@ -225,6 +225,33 @@ export function WeeklyBox() {
           </div>
         )}
       </div>
+
+      {/* Résultats de la semaine passée : OMERO gagnés par chacun du top 10, visibles par tout le monde (la box SOL reste pour le premier) */}
+      {d.last && d.last.top.length > 0 && (
+        <div className="rounded-[28px] border border-border bg-card p-5">
+          <p className="mb-2 text-[16px] font-bold">{tr("Last week's results")}</p>
+          <div className="space-y-1">
+            {d.last.top.map((p) => (
+              <Link key={p.wallet} href={`/profile/${p.wallet}`} className="flex items-center gap-3 rounded-2xl px-1 py-2 hover:bg-muted/50">
+                <span className="num w-6 text-center text-[14px] font-bold text-muted-foreground">{p.rank}</span>
+                <Avatar p={p} />
+                <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{p.name ?? shortAddress(p.wallet)}</span>
+                <span className="flex items-center gap-1.5 text-[15px] font-bold">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/octo-coin.png" alt="" className="size-[18px] rounded-full object-cover" />
+                  <span className="num">+{p.omero.toLocaleString()}</span>
+                </span>
+                {p.rank === 1 && (
+                  <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-[12px] font-bold">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/solana.png" alt="" className="size-3.5 rounded-full" />{d.rules.prizeSol} SOL
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {d.last?.winner && (
         <div className="flex items-center gap-3 rounded-[22px] border border-border bg-card p-4">

@@ -1773,5 +1773,6 @@ const p: Record<string, string> = {
   "Remove one": "减少一个",
   "Add one": "增加一个",
   "Total": "合计",
+  "Last week's results": "上周结果",
 };
 export default p;

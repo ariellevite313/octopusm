@@ -1773,5 +1773,6 @@ const p: Record<string, string> = {
   "Remove one": "Убрать одну",
   "Add one": "Добавить одну",
   "Total": "Итого",
+  "Last week's results": "Итоги прошлой недели",
 };
 export default p;
