@@ -1768,5 +1768,10 @@ const p: Record<string, string> = {
   "1. Enter your Aido wallet address. 2. Sign the message below with that wallet (personal_sign). 3. Paste the signature.": "1. Aido cüzdan adresinizi girin. 2. Aşağıdaki mesajı bu cüzdanla imzalayın (personal_sign). 3. İmzayı yapıştırın.",
   "Signature (0x…)": "İmza (0x…)",
   "The message is valid for 10 minutes.": "Mesaj 10 dakika geçerlidir.",
+  "White bonbon": "Beyaz şeker",
+  "Orange bonbon": "Turuncu şeker",
+  "Remove one": "Birini çıkar",
+  "Add one": "Bir tane ekle",
+  "Total": "Toplam",
 };
 export default p;

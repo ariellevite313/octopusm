@@ -6,11 +6,11 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
-import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
 import { TIP_DAILY_CAP, TIP_MIN_ACCOUNT_DAYS, type TipErrorCode } from "@/lib/social/tips";
 import { Mirage } from "@/components/shared/mirage";
+import { BonbonIcon } from "@/components/shared/bonbon-icon";
+import { BONBON_ORANGE, BONBON_WHITE, bonbonsValue } from "@/lib/bonbons";
 
-const QUICK = [10, 50, 100];
 
 export function TipSheet({ postId, recipientName, onClose, onSent }: {
   postId: string;
@@ -20,7 +20,8 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
 }) {
   const { tr } = useT();
   const [balance, setBalance] = useState<number | null>(null);
-  const [amount, setAmount] = useState("50");
+  const [white, setWhite] = useState(1);
+  const [orange, setOrange] = useState(0);
   const [busy, setBusy] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -33,7 +34,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
     return () => { off = true; };
   }, []);
 
-  const value = /^\d+$/.test(amount) ? parseInt(amount, 10) : 0;
+  const value = bonbonsValue(orange, white);
   const max = Math.min(TIP_DAILY_CAP, balance ?? 0);
   const valid = value >= 1 && value <= max;
 
@@ -78,7 +79,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
         </button>
 
         <div className="mb-4 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-full bg-muted"><OmeroHeadIcon filled className="size-6" /></span>
+          <span className="flex size-11 items-center justify-center rounded-full bg-muted"><BonbonIcon kind="orange" className="h-7" /></span>
           <div className="min-w-0">
             <p className="text-lg font-bold">{tr("Send a tip")}</p>
             <p className="truncate text-[13px] text-muted-foreground">{tr("to {name}, for this post", { name: recipientName })}</p>
@@ -103,22 +104,31 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
           </div>
         </div>
 
-        <label className="flex items-center justify-between rounded-2xl border-2 border-foreground px-4 py-3">
-          <input
-            inputMode="numeric" autoFocus value={amount} aria-label={tr("Amount")}
-            onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            className="w-full bg-transparent text-3xl font-extrabold outline-none"
-          />
-          <span className="shrink-0 pl-2 text-sm font-semibold text-muted-foreground">OMERO</span>
-        </label>
-
-        <div className="my-3 grid grid-cols-4 gap-2">
-          {QUICK.map((q) => (
-            <button key={q} type="button" onClick={() => setAmount(String(q))}
-              className={`rounded-xl border py-2.5 text-[15px] font-bold ${value === q ? "border-foreground" : "border-border"} bg-muted/40`}>{q}</button>
-          ))}
-          <button type="button" onClick={() => setAmount(String(max))} className={`rounded-xl border py-2.5 text-[15px] font-bold ${value === max && max > 0 ? "border-foreground" : "border-border"} bg-muted/40`}>{tr("Max")}</button>
+        {/* Bonbons : blanc = 10 OMERO, orange = 100 OMERO */}
+        <div className="space-y-2.5">
+          {([["white", BONBON_WHITE, white, setWhite], ["orange", BONBON_ORANGE, orange, setOrange]] as const).map(([kind, worth, n, set]) => {
+            const canAdd = value + worth <= max;
+            return (
+              <div key={kind} className="flex items-center gap-3 rounded-2xl border-2 border-border bg-muted/40 px-3 py-2.5">
+                <BonbonIcon kind={kind} className="h-12" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-bold">{kind === "white" ? tr("White bonbon") : tr("Orange bonbon")}</span>
+                  <span className="block text-xs text-muted-foreground">{worth} OMERO</span>
+                </span>
+                <button type="button" aria-label={tr("Remove one")} onClick={() => set(Math.max(0, n - 1))} disabled={n === 0}
+                  className="flex size-9 items-center justify-center rounded-full border border-border text-lg font-bold disabled:opacity-30">−</button>
+                <span className="num w-6 text-center text-xl font-extrabold">{n}</span>
+                <button type="button" aria-label={tr("Add one")} onClick={() => set(n + 1)} disabled={!canAdd}
+                  className="flex size-9 items-center justify-center rounded-full border border-border text-lg font-bold disabled:opacity-30">+</button>
+              </div>
+            );
+          })}
         </div>
+
+        <p className="my-3 flex items-center justify-between rounded-2xl border-2 border-foreground px-4 py-3">
+          <span className="text-sm font-semibold text-muted-foreground">{tr("Total")}</span>
+          <span className="num text-2xl font-extrabold">{value.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">OMERO</span></span>
+        </p>
 
         <button onClick={send} disabled={!valid || busy}
           className="flex h-[52px] w-full items-center justify-center rounded-full bg-foreground text-base font-extrabold text-background disabled:opacity-40">

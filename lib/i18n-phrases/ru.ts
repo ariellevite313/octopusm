@@ -1768,5 +1768,10 @@ const p: Record<string, string> = {
   "1. Enter your Aido wallet address. 2. Sign the message below with that wallet (personal_sign). 3. Paste the signature.": "1. Введите адрес кошелька Aido. 2. Подпишите сообщение ниже этим кошельком (personal_sign). 3. Вставьте подпись.",
   "Signature (0x…)": "Подпись (0x…)",
   "The message is valid for 10 minutes.": "Сообщение действительно 10 минут.",
+  "White bonbon": "Белая конфета",
+  "Orange bonbon": "Оранжевая конфета",
+  "Remove one": "Убрать одну",
+  "Add one": "Добавить одну",
+  "Total": "Итого",
 };
 export default p;

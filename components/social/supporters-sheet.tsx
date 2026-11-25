@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
 import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
 import { Mirage } from "@/components/shared/mirage";
+import { BonbonCount } from "@/components/shared/bonbon-icon";
 
 type Person = { wallet: string; name: string | null; avatar: string | null; amount?: number };
 
@@ -83,7 +84,10 @@ export function SupportersSheet({ postId, initialTab = "tips", onClose }: { post
                     ) : (
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">{(p.name ?? p.wallet)[0]?.toUpperCase()}</span>
                     )}
-                    <span className="truncate text-sm font-bold">{p.name ?? shortAddress(p.wallet)}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold">{p.name ?? shortAddress(p.wallet)}</span>
+                      {tab === "tips" && <BonbonCount amount={p.amount ?? 0} className="h-5" />}
+                    </span>
                   </Link>
                   {tab === "tips" && (
                     <span className="flex shrink-0 items-center gap-1.5 text-sm font-extrabold">
