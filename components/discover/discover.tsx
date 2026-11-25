@@ -10,7 +10,8 @@ import Link from "next/link";
 import { ArrowRight, Plus, Search } from "lucide-react";
 import { Mirage } from "@/components/shared/mirage";
 import { useT } from "@/lib/i18n";
-import { APP_CATEGORIES, APP_CATEGORY_LABEL, LISTING_FREE_NOW, LISTING_PRICE_USD } from "@/lib/discover";
+import { APP_CATEGORIES, APP_CATEGORY_LABEL } from "@/lib/discover";
+import { ListingPrice } from "./listing-price";
 import { AppIcon, PaysWith, Rating, visit, type AppCard } from "@/components/discover/app-bits";
 
 const catLabel = (c: string) => APP_CATEGORY_LABEL[c as keyof typeof APP_CATEGORY_LABEL] ?? "Other";
@@ -86,15 +87,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ListCta() {
   const { tr } = useT();
   return (
-    <Link href="/discover/submit" className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 rounded-[24px] border border-border bg-card p-4 sm:flex sm:p-5">
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background"><Plus className="size-6" /></span>
-      <span className="min-w-0 sm:flex-1">
-        <span className="block text-[16px] font-bold">{tr("Showcase your project on Discover")}</span>
-        <span className="block text-[13px] text-muted-foreground">{tr("Your OM token must be the payment of your website.")}</span>
+    <Link href="/discover/submit" className="group flex flex-col gap-4 rounded-[24px] border border-border bg-card p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:p-5">
+      <span className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background transition-transform group-hover:scale-105"><Plus className="size-6" /></span>
+        <span className="min-w-0">
+          <span className="block text-[16px] font-bold leading-tight">{tr("Showcase your project on Discover")}</span>
+          <span className="mt-0.5 block text-[13px] text-muted-foreground">{tr("Your OM token must be the payment of your website.")}</span>
+        </span>
       </span>
-      <span className="col-span-2 flex items-baseline gap-2 sm:col-span-1">
-        <span className="num text-[14px] text-muted-foreground line-through">${LISTING_PRICE_USD}/{tr("year")}</span>
-        {LISTING_FREE_NOW && <span className="rounded-full bg-up/15 px-2.5 py-1 text-[13px] font-bold text-up">{tr("Free for now")}</span>}
+      <span className="flex items-center justify-between border-t border-border pt-3 sm:border-0 sm:pt-0">
+        <span className="text-[13px] font-semibold text-muted-foreground sm:hidden">{tr("Price")}</span>
+        <ListingPrice />
       </span>
     </Link>
   );

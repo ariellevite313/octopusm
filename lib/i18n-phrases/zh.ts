@@ -1,5 +1,7 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Launch offer": "上线优惠",
+  "Free": "免费",
   "Signature received": "已收到签名",
   "Sending the payment": "正在发送付款",
   "Recording your prediction": "正在记录你的预测",

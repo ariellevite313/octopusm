@@ -11,7 +11,8 @@ import { ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
-import { APP_CATEGORIES, APP_CATEGORY_LABEL, LISTING_FREE_NOW, LISTING_PRICE_USD, MAX_SCREENSHOTS, validateApp } from "@/lib/discover";
+import { APP_CATEGORIES, APP_CATEGORY_LABEL, MAX_SCREENSHOTS, validateApp } from "@/lib/discover";
+import { ListingPrice } from "./listing-price";
 import { Mirage } from "@/components/shared/mirage";
 
 type Tok = { id: string; ticker: string; name: string; logo_url: string | null; chain: string };
@@ -100,15 +101,9 @@ export function SubmitApp() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <h1 className="text-[28px] font-bold">{tr("List my project")}</h1>
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-        <div>
-          <p className="text-[14px] font-semibold">{tr("Discover listing")}</p>
-          <p className="text-[12px] text-muted-foreground">{tr("Normal price, paid once a year")}</p>
-        </div>
-        <span className="flex items-baseline gap-2">
-          <span className="num text-[15px] text-muted-foreground line-through">${LISTING_PRICE_USD}/{tr("year")}</span>
-          {LISTING_FREE_NOW && <span className="rounded-full bg-up/15 px-2.5 py-1 text-[13px] font-bold text-up">{tr("Free for now")}</span>}
-        </span>
+      <div className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3.5">
+        <p className="text-[15px] font-bold">{tr("Discover listing")}</p>
+        <ListingPrice />
       </div>
       <label className="block"><span className={label}>{tr("Your OM token")}</span>
         <select className={input} value={f.tokenId} onChange={(e) => pick(e.target.value)}>
