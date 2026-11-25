@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { cronDenied } from "@/lib/auth/cron";
-import { activateIfPoolExists } from "@/lib/launch/recover-pool";
+import { recoverPendingToken } from "@/lib/launch/recover-pool";
 
 export async function GET(req: Request) {
   const denied = cronDenied(req);
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     const olderThan = new Date(Date.now() - 2 * 60_000).toISOString();
     const { data, error } = await admin
       .from("launchpad_tokens")
-      .select("id, status, creator_wallet, mint_address, tx_base64, is_scheduled, stock_symbol, dbc_config_address")
+      .select("id, ticker, status, creator_wallet, mint_address, tx_base64, is_scheduled, stock_symbol, dbc_config_address")
       .eq("status", "pending")
       .eq("chain", "solana")
       .not("mint_address", "is", null)
@@ -32,11 +32,16 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     let activated = 0;
+    // Raison par token quand il n'est pas activé (no_pool, fee_missing, creator_mismatch...), pour comprendre sans lire les logs.
+    const skipped: { ticker: string; reason: string }[] = [];
     for (const t of data ?? []) {
-      try { if (await activateIfPoolExists(admin, t)) activated++; } catch (e) { console.warn("[recover-pending-pools]", t.id, e); }
+      try {
+        const r = await recoverPendingToken(admin, t);
+        if ("pool" in r) activated++; else skipped.push({ ticker: t.ticker, reason: r.reason });
+      } catch (e) { console.warn("[recover-pending-pools]", t.id, e); skipped.push({ ticker: t.ticker, reason: "error" }); }
     }
     console.log(`[recover-pending-pools] checked=${data?.length ?? 0} activated=${activated}`);
-    return NextResponse.json({ checked: data?.length ?? 0, activated });
+    return NextResponse.json({ checked: data?.length ?? 0, activated, skipped });
   } catch (err) {
     console.error("[recover-pending-pools]", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
