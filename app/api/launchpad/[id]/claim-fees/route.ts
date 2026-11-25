@@ -15,6 +15,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { createPublicClient, http, encodeFunctionData } from "viem";
 import BN from "bn.js";
 import { createAdminClient } from "@/lib/supabase/server";
+import { ensurePoolForToken } from "@/lib/launch/ensure-pool";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -65,7 +66,7 @@ function bnToNumber(raw: unknown): number {
   if (!raw) return 0;
   if (typeof raw === "number") return raw;
   if (typeof raw === "object" && raw !== null && "toNumber" in raw) {
-    try { return (raw as BN).toNumber(); } catch { return Number(raw.toString()); }
+    return Number(raw.toString());
   }
   return Number(String(raw));
 }
@@ -74,7 +75,7 @@ function rawToBN(raw: unknown): BN {
   if (!raw) return new BN(0);
   if (raw instanceof BN) return raw;
   if (typeof raw === "number") return new BN(raw);
-  if (typeof raw === "object" && raw !== null && "toNumber" in raw) return new BN((raw as BN).toNumber());
+  if (typeof raw === "object" && raw !== null && "toNumber" in raw) return new BN(String(raw.toString()));
   const str = String(raw).trim();
   return str && str !== "0" ? new BN(str) : new BN(0);
 }
@@ -103,6 +104,12 @@ export async function GET(_req: Request, { params }: RouteParams) {
       .maybeSingle();
 
     if (error || !token) return NextResponse.json({ claimableSol: null });
+
+    // Token resté bloqué alors que sa pool existe : on la retrouve d'abord
+    if (!token.pool_address && token.chain !== "arc") {
+      const found = await ensurePoolForToken(admin, id);
+      if (found) token.pool_address = found;
+    }
 
     // ── Arc EVM V2 ────────────────────────────────────────────────────────────
     if (token.chain === "arc" && token.arc_launch_id) {
@@ -310,6 +317,10 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     // ── Solana DBC ────────────────────────────────────────────────────────────
     if (!token.pool_address) {
+      const found = await ensurePoolForToken(admin, id);
+      if (found) token.pool_address = found;
+    }
+    if (!token.pool_address) {
       return NextResponse.json({ error: "No pool address — token not yet launched" }, { status: 409 });
     }
 
@@ -340,7 +351,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         return NextResponse.json({ error: "Nothing to claim — no fees accumulated in this pool yet" }, { status: 409 });
       }
       const pqc = pairQuoteByMint(token.quote_asset as string | null);
-      claimableSol = maxQuoteAmount.toNumber() / (pqc ? 10 ** pqc.decimals : 1e9);
+      claimableSol = Number(maxQuoteAmount.toString()) / (pqc ? 10 ** pqc.decimals : 1e9);
     } catch (e) {
       return NextResponse.json({ error: `Could not fetch pool state: ${e instanceof Error ? e.message : "Unknown"}` }, { status: 503 });
     }

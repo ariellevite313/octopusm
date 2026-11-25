@@ -1,3 +1,4 @@
+import { avatarOr, DEFAULT_AVATAR } from "@/lib/default-avatar";
 /**
  * Profils publics lus en direct (nom, photo, niveau OMERO).
  * Source unique : évite d'afficher une copie figée au moment du post.
@@ -29,17 +30,17 @@ export async function getProfiles(admin: any, addresses: string[]): Promise<Map<
   for (const w of (walletsRes.data ?? []) as { address: string; username: string | null; display_name: string | null; avatar_src: string | null }[]) {
     map.set(w.address, {
       name: w.display_name?.trim() || w.username?.trim() || null,
-      avatar_src: w.avatar_src ?? null,
+      avatar_src: avatarOr(w.avatar_src),
       octo: 0,
     });
   }
   for (const o of (octoRes.data ?? []) as { wallet_address: string; total_octo: number }[]) {
-    const p = map.get(o.wallet_address) ?? { name: null, avatar_src: null, octo: 0 };
+    const p = map.get(o.wallet_address) ?? { name: null, avatar_src: DEFAULT_AVATAR, octo: 0 };
     p.octo = Number(o.total_octo ?? 0);
     map.set(o.wallet_address, p);
   }
   for (const [addr, t] of featured) {
-    const p = map.get(addr) ?? { name: null, avatar_src: null, octo: 0 };
+    const p = map.get(addr) ?? { name: null, avatar_src: DEFAULT_AVATAR, octo: 0 };
     p.token = t;
     map.set(addr, p);
   }

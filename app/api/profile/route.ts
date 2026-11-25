@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from "@/lib/default-avatar";
 import { isBanned } from "@/lib/moderation";
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
@@ -40,7 +41,8 @@ export async function PATCH(req: Request) {
     updates.twitter_handle = updates.twitter_handle.replace(/^@/, "");
     if (!/^[A-Za-z0-9_]{1,15}$/.test(updates.twitter_handle)) return NextResponse.json({ error: "Invalid X handle" }, { status: 400 });
   }
-  if (updates.avatar_src != null) {
+  if (updates.avatar_src === DEFAULT_AVATAR) { /* Omero par défaut, autorisé */ }
+  else if (updates.avatar_src != null) {
     // Seulement une image stockée chez nous (bucket avatars) : pas de pixel espion ni d'image d'un autre site
     const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
     if (!base || !updates.avatar_src.startsWith(`${base}/storage/v1/object/public/avatars/`)) {

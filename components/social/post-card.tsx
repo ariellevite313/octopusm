@@ -1,5 +1,6 @@
 "use client";
 
+import { avatarOr } from "@/lib/default-avatar";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -42,12 +43,10 @@ function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) =
 }
 
 function Avatar({ src, name, size = 44, ring = false }: { src: string | null; name: string; size?: number; ring?: boolean }) {
-  const inner = src ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" className="size-full rounded-full object-cover" />
-  ) : (
-    <div className="flex size-full items-center justify-center rounded-full bg-primary text-sm font-bold text-white">{name[0]?.toUpperCase()}</div>
-  );
+  void name;
+  // Sans photo : Omero par défaut
+  // eslint-disable-next-line @next/next/no-img-element
+  const inner = <img src={avatarOr(src)} alt="" className="size-full rounded-full object-cover" />;
   return (
     <div
       style={{ width: size, height: size }}

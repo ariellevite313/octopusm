@@ -125,7 +125,7 @@ function TokenFeeRow({
               className="num flex items-center gap-1 font-semibold text-primary disabled:opacity-50"
             >
               {claiming && <Mirage className="size-3" />}
-              {claiming ? tr("Claiming…") : `+${fmtAmount(token.pending, currency)}`}
+              {claiming ? tr("Claiming…") : `+${fmtAmount(token.pending, token.quoteSymbol ?? currency)}`}
             </button>
           )}
         </p>

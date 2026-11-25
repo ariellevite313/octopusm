@@ -26,6 +26,7 @@ import { ClaimFeesArc } from "@/components/launchpad/claim-fees-arc";
 import { StakeArc }     from "@/components/launchpad/stake-arc";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
+import { ensurePoolForToken } from "@/lib/launch/ensure-pool";
 import { getXStockMint } from "@/lib/solana/xstocks";
 import type { MarketCommentEnriched } from "@/lib/supabase/types";
 import { AppIcon } from "@/components/shared/app-icon";
@@ -218,11 +219,17 @@ function shortAddr(s: string, head = 4, tail = 4) {
 
 export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
-  const [token, walletAddress] = await Promise.all([
+  const [cachedToken, walletAddress] = await Promise.all([
     getCachedToken(id),   // reuses the same DB call as generateMetadata
     getWalletAddress(),
   ]);
-  if (!token) notFound();
+  if (!cachedToken) notFound();
+  let token = cachedToken;
+  // Token bloqué « pending » alors que sa pool existe : on l'active tout de suite (graphique et frais visibles)
+  if (token.status === "pending" && token.chain !== "arc") {
+    const pool = await ensurePoolForToken(createAdminClient(), token.id).catch(() => null);
+    if (pool) token = { ...token, status: "active", pool_address: pool, is_tradeable: !token.is_scheduled };
+  }
 
   const isCreator = !!walletAddress && walletAddress.toLowerCase() === token.creator_wallet?.toLowerCase();
 
