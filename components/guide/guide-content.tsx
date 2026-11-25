@@ -23,7 +23,7 @@ const GUIDE: Step[] = [
     steps: [
       T("Tap the + button, write your post and add up to 2 images."),
       T("Type $TICKER to attach a token, #hashtag to join a topic, @name to mention someone, or paste a market link to show it."),
-      T("Like, reply, repost or quote. You can tip a post you like with Omero."),
+      T("Like, reply, repost or quote. Tip a post you like with Omero bonbons: white = 10 OMERO, orange = 100 OMERO."),
       T("Chill your bag: show a token you hold. When someone trades it from your post, you earn 40% of the platform fee."),
     ],
     link: { href: "/", label: T("Open the feed") },
@@ -86,6 +86,16 @@ const GUIDE: Step[] = [
       T("Give it its own wallet if you want: it trades, predicts and launches alone, within the limits you set. Withdrawals only go back to you."),
     ],
     link: { href: "/agents", label: T("Connect an AI") },
+  },
+  {
+    title: T("9. Discover, NFT and Studio"),
+    steps: [
+      T("Discover shows trending tokens, new launches and hot predictions."),
+      T("NFT (Solana only) shows your NFTs and popular collections."),
+      T("Studio makes Omero memes and profile photos in your browser."),
+      T("The hackathon is open for applications until December 15."),
+    ],
+    link: { href: "/discover", label: T("Open Discover") },
   },
   {
     title: T("Stay safe"),

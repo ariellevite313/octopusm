@@ -215,6 +215,40 @@ const SECTIONS: Section[] = [
           T("Omero counts for your rank and the leaderboards, and you can already spend it: tip a post you like, or create a community (100 Omero). Omero does not expire. More uses will be announced."),
         ],
       },
+      {
+        q: T("What are bonbons?"),
+        a: [T("Tips are sent as Omero bonbons. A white bonbon is worth 10 OMERO and an orange bonbon is worth 100 OMERO. You choose how many of each to send, and the post shows who gave which bonbons.")],
+      },
+      {
+        q: T("What is the weekly box?"),
+        a: [T("Every action earns points during the week. On Monday, the top 10 receive their points as OMERO, and everyone can see the results. Number 1 also wins a box of 0.05 SOL to claim.")],
+      },
+    ],
+  },
+  {
+    title: T("Hackathon"),
+    items: [
+      {
+        q: T("Until when can I apply to the hackathon?"),
+        a: [T("Applications close on December 15. After that date, only registered projects compete. The hackathon ends on December 24, and a countdown on the hackathon page shows the time left.")],
+      },
+    ],
+  },
+  {
+    title: T("Discover, NFT and Studio"),
+    items: [
+      {
+        q: T("What is Discover?"),
+        a: [T("Discover shows what is moving on OMdot.fun right now: trending tokens, new launches and hot predictions, with shortcuts to the other sections.")],
+      },
+      {
+        q: T("What can I do in the NFT section?"),
+        a: [T("The NFT section is for Solana only. You can see the NFTs in your wallet and browse popular collections. Buying and selling happens on the marketplace linked from each card.")],
+      },
+      {
+        q: T("What is the Studio?"),
+        a: [T("The Studio lets you make Omero memes and profile photos right in your browser, and gives you prompt ideas for banners and stickers. Nothing is uploaded until you post it yourself.")],
+      },
     ],
   },
   {
