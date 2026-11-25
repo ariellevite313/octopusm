@@ -1834,5 +1834,9 @@ const p: Record<string, string> = {
   "NFT reading is not supported by the current RPC": "O RPC atual não suporta leitura de NFTs",
   "Could not read your NFTs right now": "Não foi possível ler seus NFTs agora",
   "NFT reading is not configured": "A leitura de NFTs não está configurada",
+  "People referred": "Pessoas indicadas",
+  "Ambassador since": "Embaixador desde",
+  "members": "membros",
+  "Community": "Comunidade",
 };
 export default p;

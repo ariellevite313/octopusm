@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Image from "next/image";
+import { Megaphone } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getPublicProfile } from "@/services/profile-service";
 import { ProfilePnlChart } from "@/components/profile/profile-pnl-chart";
@@ -132,14 +133,22 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   // Bio et communauté épinglée (colonnes ajoutées par la migration des communautés)
   let bio: string | null = null;
   let ambassador = false;
+  let ambInfo: { since: string | null; referred: number; community: { slug: string; name: string; members: number } | null } | null = null;
   let pinned: PinnedCommunity | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
     const { data: w } = await admin.from("wallets").select("bio, pinned_community_id").eq("address", wallet).maybeSingle();
     bio = w?.bio ?? null;
-    const { data: amb } = await admin.from("ambassadors").select("active").eq("wallet", wallet).maybeSingle();
+    const { data: amb } = await admin.from("ambassadors").select("active, approved_at, community_id").eq("wallet", wallet).maybeSingle();
     ambassador = !!amb?.active;
+    if (ambassador) {
+      const [{ count }, comm] = await Promise.all([
+        admin.from("referrals").select("referred_wallet", { count: "exact", head: true }).eq("referrer_wallet", wallet),
+        amb.community_id ? admin.from("communities").select("slug, name, member_count").eq("id", amb.community_id).eq("hidden", false).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
+      ambInfo = { since: amb.approved_at ?? null, referred: Number(count) || 0, community: comm.data ? { slug: comm.data.slug, name: comm.data.name, members: Number(comm.data.member_count) || 0 } : null };
+    }
     if (w?.pinned_community_id) {
       const { data: c } = await admin.from("communities").select("id, slug, name, logo_src, category, member_count").eq("id", w.pinned_community_id).eq("hidden", false).maybeSingle();
       if (c) pinned = { slug: c.slug, name: c.name, logo_src: c.logo_src, category: c.category, member_count: c.member_count, faces: await memberFaces(admin, c.id, 4) };
@@ -213,9 +222,19 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                 <JanusBadgeIcon size={18} />Janus <span className="font-medium opacity-80"><Tr>AI of</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
               </span>
             )}
-            {ambassador && <Link href="/ambassadors" className="inline-flex items-center rounded-full bg-foreground px-3 py-1 text-[12px] font-bold text-background"><Tr>Ambassador</Tr></Link>}
+            {ambassador && <Link href="/ambassadors" className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-[12px] font-bold text-background"><Megaphone className="size-3.5" /><Tr>Ambassador</Tr></Link>}
             {!aiOwner && <AidoBadge wallet={wallet} aido={aido} handle={aidoHandle} />}
           </div>
+
+          {ambassador && ambInfo && (
+            <div className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-border bg-border">
+              <div className="bg-card px-3 py-2.5"><p className="num text-[18px] font-extrabold text-foreground">{ambInfo.referred.toLocaleString()}</p><p className="text-[11px] text-muted-foreground"><Tr>People referred</Tr></p></div>
+              <div className="bg-card px-3 py-2.5"><p className="num text-[18px] font-extrabold text-foreground">{ambInfo.since ? new Date(ambInfo.since).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "-"}</p><p className="text-[11px] text-muted-foreground"><Tr>Ambassador since</Tr></p></div>
+              {ambInfo.community
+                ? <Link href={`/c/${ambInfo.community.slug}`} className="min-w-0 bg-card px-3 py-2.5 transition-colors hover:bg-muted/50"><p className="truncate text-[15px] font-extrabold text-foreground">{ambInfo.community.name}</p><p className="num text-[11px] text-muted-foreground">{ambInfo.community.members.toLocaleString()} <Tr>members</Tr></p></Link>
+                : <div className="bg-card px-3 py-2.5"><p className="text-[15px] font-extrabold text-foreground">-</p><p className="text-[11px] text-muted-foreground"><Tr>Community</Tr></p></div>}
+            </div>
+          )}
 
           <ProfileBio wallet={wallet} bio={bio} />
 
