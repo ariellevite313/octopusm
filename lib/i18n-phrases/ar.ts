@@ -2664,5 +2664,7 @@ const p: Record<string, string> = {
   "Blue badge given": "تم منح الشارة الزرقاء",
   "Blue badge removed": "تمت إزالة الشارة الزرقاء",
   "Could not update right now": "تعذر التحديث الآن",
+  "Style": "النمط",
+  "Table": "جدول",
 };
 export default p;

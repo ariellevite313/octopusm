@@ -2835,5 +2835,7 @@ const p: Record<string, string> = {
   "Blue badge given": "Puce bleue donnée",
   "Blue badge removed": "Puce bleue retirée",
   "Could not update right now": "Impossible de mettre à jour pour le moment",
+  "Style": "Style",
+  "Table": "Tableau",
 };
 export default p;

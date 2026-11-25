@@ -2662,5 +2662,7 @@ const p: Record<string, string> = {
   "Blue badge given": "Mavi rozet verildi",
   "Blue badge removed": "Mavi rozet kaldırıldı",
   "Could not update right now": "Şu anda güncellenemedi",
+  "Style": "Stil",
+  "Table": "Tablo",
 };
 export default p;

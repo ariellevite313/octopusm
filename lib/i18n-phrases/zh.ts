@@ -2664,5 +2664,7 @@ const p: Record<string, string> = {
   "Blue badge given": "已授予蓝色徽章",
   "Blue badge removed": "已移除蓝色徽章",
   "Could not update right now": "暂时无法更新",
+  "Style": "样式",
+  "Table": "表格",
 };
 export default p;

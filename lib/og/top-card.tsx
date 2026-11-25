@@ -67,7 +67,13 @@ function valueText(kind: TopKind, v: number, source?: TopSource) {
   return money(v);
 }
 
-export async function topCardResponse(p: { source: TopSource; kind: TopKind; period: TopPeriod; rows: TopRow[]; at: number; origin: string; wide?: boolean; theme?: TopTheme }) {
+/** Styles d'affichage : « table » (tableau d'origine) ou « cards » (une carte arrondie par token, gros classement). */
+export const TOP_STYLES = ["table", "cards"] as const;
+export type TopStyle = (typeof TOP_STYLES)[number];
+export const isTopStyle = (s: string | null): s is TopStyle => !!s && (TOP_STYLES as readonly string[]).includes(s);
+const ordinal = (n: number) => (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
+
+export async function topCardResponse(p: { source: TopSource; kind: TopKind; period: TopPeriod; rows: TopRow[]; at: number; origin: string; wide?: boolean; theme?: TopTheme; style?: TopStyle }) {
   const om = p.source === "om";
   const th = THEMES[p.theme ?? "dark"], UP = th.up, DOWN = th.down;
   const rows = p.rows.slice(0, 10);
@@ -96,7 +102,58 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
     </div>
   );
 
-  const card = (
+  // Style « cartes » : titre géant, une carte claire par token (rang, logo avec puce de chaîne, $TICKER, valeur à droite)
+  const light = p.theme === "white" || p.theme === "yellow";
+  const cardBg = p.theme === "white" ? "#ffffff" : "rgba(250,250,248,0.96)";
+  const cUp = "#16a34a", cDown = "#e5397f";
+  const vColor = p.kind === "gainers" || win ? cUp : p.kind === "losers" || p.kind === "dev_sold" ? cDown : "#0a0a0a";
+  const suffix = (r: TopRow) => win ? (WIN_SOURCE[r.chain] ?? "") : p.kind === "mcap" ? "mcap" : p.kind === "volume" ? `vol ${PERIOD[p.period]}` : p.kind === "dev_sold" ? "team" : PERIOD[p.period];
+  const cardsCard = (
+    <div style={{ display: "flex", flexDirection: "column", width: W, height: H, background: th.wide, color: th.text, fontFamily: "Inter", position: "relative", overflow: "hidden" }}>
+      {/* Grand mot en filigrane en bas, comme sur la référence */}
+      <div style={{ display: "flex", position: "absolute", left: -20, bottom: -150, fontSize: 420, fontWeight: 800, letterSpacing: -20, color: light ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.13)" }}>OMDOT</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {logo && <img src={logo} alt="" width={220} height={220} style={{ position: "absolute", left: -40, bottom: -60, transform: "rotate(-14deg)" }} />}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "44px 56px 0" }}>
+        <div style={{ display: "flex", fontSize: 96, fontWeight: 800, letterSpacing: -4, lineHeight: 1 }}>{win ? "Top 10 winners" : t1 === "Top 10" ? `Top 10 ${t2.replace(/^by /, "")}` : t1}</div>
+        <div style={{ display: "flex", marginTop: 14, fontSize: 28, fontWeight: 600, color: th.sub, textAlign: "center" }}>{(win || t1 === "Top 10" ? "" : `${t2[0].toUpperCase()}${t2.slice(1)} · `) + sub}</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", padding: "30px 56px 0" }}>
+        {rows.length === 0 && <div style={{ display: "flex", justifyContent: "center", padding: "80px 0", fontSize: 30, color: th.sub }}>No token to show right now</div>}
+        {rows.map((r, i) => {
+          const cl = win ? null : chainLogo.get(r.chain) ?? chainLogo.get(p.source) ?? null;
+          const name = win ? (r.name.length > 13 ? `${r.name.slice(0, 12).trim()}…` : r.name) : `$${r.symbol.replace(/^\$+/, "").slice(0, 12)}`;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", height: 84, marginBottom: 10, padding: "0 30px 0 22px", borderRadius: 26, background: cardBg, color: "#0a0a0a", boxShadow: "0 6px 18px rgba(0,0,0,0.10)" }}>
+              <div style={{ display: "flex", width: 104, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: -2, lineHeight: 1 }}>{i + 1}</span>
+                <span style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, marginTop: 2 }}>{ordinal(i + 1)}</span>
+              </div>
+              <div style={{ display: "flex", position: "relative", width: 58, height: 58 }}>
+                {logos[i]
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={logos[i]!} alt="" width={58} height={58} style={{ borderRadius: 29, objectFit: "cover", border: "3px solid #e4e4e0" }} />
+                  : <div style={{ display: "flex", width: 58, height: 58, borderRadius: 29, background: "#e9e9e5", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 800 }}>{(win ? r.name : r.symbol).replace(/^\$+/, "").slice(0, 1).toUpperCase()}</div>}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {cl && <img src={cl} alt="" width={24} height={24} style={{ position: "absolute", right: -4, bottom: -4, borderRadius: 6, border: "2px solid #ffffff", background: "#ffffff" }} />}
+              </div>
+              <span style={{ marginLeft: 20, fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{name}</span>
+              <div style={{ display: "flex", flex: 1 }} />
+              <span style={{ fontSize: 32, fontWeight: 800, color: vColor }}>{valueText(p.kind, r.value, p.source)}</span>
+              <span style={{ marginLeft: 10, fontSize: 26, fontWeight: 600, color: "#a3a3a0" }}>{suffix(r)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", position: "absolute", right: 56, bottom: 34, alignItems: "center", fontSize: 44, fontWeight: 800, letterSpacing: -1.5, color: th.text }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {logo && <img src={logo} alt="" width={50} height={50} style={{ marginRight: 12 }} />}
+        <span>omdot.fun</span>
+      </div>
+    </div>
+  );
+
+  const card = p.style === "cards" ? cardsCard : (
     <div style={{ display: "flex", flexDirection: "column", width: W, height: H, background: th.bg, color: th.text, fontFamily: "Inter", position: "relative" }}>
       <div style={{ display: "flex", position: "absolute", left: 0, top: 0, width: W, height: H, backgroundImage: th.glow }} />
       {/* eslint-disable-next-line @next/next/no-img-element */}

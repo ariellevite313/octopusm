@@ -48,7 +48,10 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
   // Texte qui accompagne l'image (modifiable), avec les tickers du classement
   const [caption, setCaption] = useState("");
   const [color, setColor] = useState("dark");
-  const q = color === "dark" ? "" : `?theme=${color}`;
+  // Style de l'image : tableau (d'origine) ou cartes arrondies
+  const [look, setLook] = useState<"table" | "cards">("table");
+  const qs = [color !== "dark" ? `theme=${color}` : "", look !== "table" ? `style=${look}` : ""].filter(Boolean).join("&");
+  const q = qs ? `?${qs}` : "";
   if (!isAdmin) return null;
 
   const reset = () => setId(null);
@@ -106,6 +109,11 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/og/top/${id}${q}`} alt="" className="mt-4 w-full rounded-2xl bg-muted" style={{ aspectRatio: "1080 / 1350" }} />
+                <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Style")}</p>
+                <div className="mt-1.5 flex gap-1.5">
+                  <Chip on={look === "table"} onClick={() => setLook("table")}>{tr("Table")}</Chip>
+                  <Chip on={look === "cards"} onClick={() => setLook("cards")}>{tr("Cards")}</Chip>
+                </div>
                 <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Color")}</p>
                 <div className="mt-1.5 flex gap-2">
                   {COLORS.map((c) => (
@@ -132,7 +140,7 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
       )}
       {id && (
         <ShareSheet open={share} onClose={() => setShare(false)} portrait images={[`/api/og/top/${id}${q}`]} url={`/share/top/${id}${q}`}
-          text={caption.trim() || text} perks={[]} fileName={`omdot-top10-${source}-${kind}-${color}.png`} />
+          text={caption.trim() || text} perks={[]} fileName={`omdot-top10-${source}-${kind}-${look}-${color}.png`} />
       )}
     </>
   );

@@ -2662,5 +2662,7 @@ const p: Record<string, string> = {
   "Blue badge given": "Insignia azul otorgada",
   "Blue badge removed": "Insignia azul retirada",
   "Could not update right now": "No se pudo actualizar ahora",
+  "Style": "Estilo",
+  "Table": "Tabla",
 };
 export default p;
