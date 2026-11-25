@@ -86,7 +86,7 @@ export function SupportersSheet({ postId, initialTab = "tips", onClose }: { post
                     )}
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-bold">{p.name ?? shortAddress(p.wallet)}</span>
-                      {tab === "tips" && <BonbonCount amount={p.amount ?? 0} className="h-5" />}
+                      {tab === "tips" && <BonbonCount amount={p.amount ?? 0} className="h-8" />}
                     </span>
                   </Link>
                   {tab === "tips" && (

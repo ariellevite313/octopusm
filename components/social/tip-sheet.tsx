@@ -79,7 +79,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
         </button>
 
         <div className="mb-4 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-full bg-muted"><BonbonIcon kind="orange" className="h-7" /></span>
+          <span className="flex size-11 items-center justify-center rounded-full bg-muted"><BonbonIcon kind="orange" className="h-10" /></span>
           <div className="min-w-0">
             <p className="text-lg font-bold">{tr("Send a tip")}</p>
             <p className="truncate text-[13px] text-muted-foreground">{tr("to {name}, for this post", { name: recipientName })}</p>
@@ -110,7 +110,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
             const canAdd = value + worth <= max;
             return (
               <div key={kind} className="flex items-center gap-3 rounded-2xl border-2 border-border bg-muted/40 px-3 py-2.5">
-                <BonbonIcon kind={kind} className="h-12" />
+                <BonbonIcon kind={kind} className="h-16" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-bold">{kind === "white" ? tr("White bonbon") : tr("Orange bonbon")}</span>
                   <span className="block text-xs text-muted-foreground">{worth} OMERO</span>
