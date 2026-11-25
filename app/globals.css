@@ -734,3 +734,45 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
   50% { translate: 0 -8px; }
 }
 @media (prefers-reduced-motion: reduce) { .tip-candy { animation: none; } }
+
+/* ── Animations de profil (débloquées par niveau ou achetées en Omero) ───────── */
+.om-frame { position: relative; display: inline-flex; border-radius: 9999px; }
+.om-frame::before {
+  content: ""; position: absolute; inset: -7px; border-radius: 9999px; pointer-events: none;
+  background: conic-gradient(from 0deg, var(--fa), var(--fb), var(--fc), var(--fb), var(--fa));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  animation: om-spin var(--fs, 4s) linear infinite;
+  filter: drop-shadow(0 0 var(--fg, 8px) var(--fgc, transparent));
+}
+.om-frame::after {
+  content: ""; position: absolute; inset: -12px; border-radius: 9999px; pointer-events: none;
+  box-shadow: 0 0 22px 2px var(--fgc, transparent);
+  animation: om-pulse 2.4s ease-in-out infinite;
+}
+.om-frame-blue    { --fa: #1d4ed8; --fb: #60a5fa; --fc: #dbeafe; --fgc: rgb(59 130 246 / .55); --fs: 5s; }
+.om-frame-green   { --fa: #15803d; --fb: #4ade80; --fc: #ecfccb; --fgc: rgb(34 197 94 / .5); --fs: 4.5s; }
+.om-frame-gold    { --fa: #a16207; --fb: #facc15; --fc: #fff7cc; --fgc: rgb(250 204 21 / .6); --fs: 3.5s; }
+.om-frame-flame   { --fa: #b91c1c; --fb: #f97316; --fc: #fde047; --fgc: rgb(249 115 22 / .65); --fs: 1.6s; }
+.om-frame-ruby    { --fa: #881337; --fb: #f43f5e; --fc: #fecdd3; --fgc: rgb(244 63 94 / .6); --fs: 3s; }
+.om-frame-ice     { --fa: #0e7490; --fb: #67e8f9; --fc: #ffffff; --fgc: rgb(103 232 249 / .55); --fs: 7s; }
+.om-frame-neon    { --fa: #db2777; --fb: #22d3ee; --fc: #a855f7; --fgc: rgb(236 72 153 / .6); --fs: 2.5s; }
+.om-frame-galaxy  { --fa: #1e1b4b; --fb: #7c3aed; --fc: #f0abfc; --fgc: rgb(124 58 237 / .6); --fs: 6s; }
+.om-frame-rainbow { --fa: #ef4444; --fb: #eab308; --fc: #3b82f6; --fgc: rgb(168 85 247 / .5); --fs: 3s; }
+.om-frame-neon::before, .om-frame-rainbow::before { animation: om-spin var(--fs) linear infinite, om-hue 6s linear infinite; }
+@keyframes om-spin { to { rotate: 360deg; } }
+@keyframes om-hue { to { filter: hue-rotate(360deg) drop-shadow(0 0 8px var(--fgc)); } }
+@keyframes om-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+
+/* Mascottes Omero qui dépassent du bas de la bannière */
+.om-buddy { display: block; transform-origin: 50% 100%; animation: om-buddy 2.8s ease-in-out infinite; }
+@keyframes om-buddy {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  20% { transform: translateY(-7px) rotate(-6deg); }
+  40% { transform: translateY(0) rotate(0deg); }
+  55% { transform: translateY(-3px) rotate(5deg); }
+  70% { transform: translateY(0) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .om-frame::before, .om-frame::after, .om-buddy { animation: none; }
+}

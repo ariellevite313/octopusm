@@ -20,6 +20,10 @@ import { ProfileBio, ProfileCommunity, type PinnedCommunity } from "@/components
 import { memberFaces } from "@/lib/social/communities";
 import Link from "next/link";
 import { JanusBadgeIcon } from "@/components/janus/janus-icon";
+import { BannerBuddies, FrameWrap } from "@/components/profile/profile-flair";
+import { LevelsButton } from "@/components/profile/levels-sheet";
+import { buddyCount, frameOf, levelIndex, type FrameId } from "@/lib/profile-cosmetics";
+import { OCTO_TIERS } from "@/components/leaderboard/octo-tier-badge";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
 
@@ -113,6 +117,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
 
   // Bannière lue hors cache (le profil public est mis en cache 60 s)
   let bannerSrc: string | null = null;
+  let frame: FrameId | null = null;
+  let buddies = true;
   let aiOwner: { wallet: string; name: string } | null = null;
   let aido: string | null = null;
   let aidoHandle: string | null = null;
@@ -121,6 +127,15 @@ async function ProfileContent({ wallet }: { wallet: string }) {
     const admin = createAdminClient() as any;
     const { data: b } = await admin.from("wallets").select("banner_src, ai_owner").eq("address", wallet).maybeSingle();
     bannerSrc = b?.banner_src ?? null;
+    // Animations de profil (colonnes ajoutées par 20261221_profile_cosmetics)
+    const { data: fx } = await admin.from("wallets").select("profile_frame, profile_buddies").eq("address", wallet).maybeSingle();
+    if (fx) {
+      const f = frameOf(fx.profile_frame);
+      // Un contour de niveau n'est plus porté si le niveau est redescendu
+      const lvlOk = !f || !("level" in f.unlock) || levelIndex(data.stats.octo_balance) >= OCTO_TIERS.findIndex((t) => t.label === (f.unlock as { level: string }).level);
+      frame = f && lvlOk ? f.id : null;
+      buddies = fx.profile_buddies !== false;
+    }
     if (b?.ai_owner) {
       const { data: o } = await admin.from("wallets").select("display_name, username").eq("address", b.ai_owner).maybeSingle();
       aiOwner = { wallet: b.ai_owner, name: o?.display_name || o?.username || shortAddress(b.ai_owner) };
@@ -165,6 +180,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
           className="profile-banner relative h-36 bg-cover bg-center sm:h-48"
           style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
         >
+          {buddies && <BannerBuddies count={buddyCount(data.stats.octo_balance)} />}
           <ProfileMenu wallet={wallet} hasFeatured={!!featured} name={displayName} />
           <BannerCamera wallet={wallet} />
         </div>
@@ -172,6 +188,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         <div className="px-5 pb-5">
           {/* Avatar — large, overlapping the banner */}
           <div className="relative z-10 -mt-[60px] mb-3 flex items-end justify-between">
+            <FrameWrap frame={frame}>
             {avatarSrc ? (
               <AvatarZoom src={avatarSrc} alt={displayName}>
                 <Image
@@ -187,6 +204,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
                 {displayName[0].toUpperCase()}
               </div>
             )}
+            </FrameWrap>
             <div className="flex items-center gap-2 pb-1">
               {data.wallet?.twitter_handle && (
                 <a
@@ -217,6 +235,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
           <p className="mt-1.5 font-mono text-[15px] text-muted-foreground">{shortAddress(wallet)}</p>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            <LevelsButton wallet={wallet} avatar={avatarSrc} />
             {aiOwner && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground py-1 pl-1 pr-3 text-[12px] font-bold text-background">
                 <JanusBadgeIcon size={18} />Janus <span className="font-medium opacity-80"><Tr>AI of</Tr></span> <Link href={`/profile/${aiOwner.wallet}`} className="underline">{aiOwner.name}</Link>
