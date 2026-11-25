@@ -2672,5 +2672,6 @@ const p: Record<string, string> = {
   "year": "an",
   "{n} reviews": "{n} avis",
   "{n} stars": "{n} étoiles",
+  "Open website": "Ouvrir",
 };
 export default p;

@@ -1943,5 +1943,6 @@ const p: Record<string, string> = {
   "year": "yıl",
   "{n} reviews": "{n} yorum",
   "{n} stars": "{n} yıldız",
+  "Open website": "Aç",
 };
 export default p;

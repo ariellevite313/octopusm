@@ -3,7 +3,7 @@
 /** Fiche d'une app Discover : en-tête, bouton Ouvrir, paiement en token, images, à propos, notes et avis, apps similaires. */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, MoreVertical, Share2, Star } from "lucide-react";
+import { ArrowLeft, MoreVertical, Share2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
@@ -108,7 +108,7 @@ export function AppDetail({ id }: { id: string }) {
         </div>
         <div className="mt-5 lg:mt-0">
           <AppIcon app={a} className="mb-4 hidden size-28 lg:block" />
-          <a href={a.siteUrl} target="_blank" rel="noopener noreferrer" onClick={() => visit(a.id)} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-opacity hover:opacity-90">{tr("Discover")}<ExternalLink className="size-4" /></a>
+          <a href={a.siteUrl} target="_blank" rel="noopener noreferrer" onClick={() => visit(a.id)} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-opacity hover:opacity-90">{tr("Open website")}</a>
           <p className="mt-1.5 text-center text-[12px] text-muted-foreground lg:text-left">{tr("Opens the project website")}</p>
         </div>
       </div>
