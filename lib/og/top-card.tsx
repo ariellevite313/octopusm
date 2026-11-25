@@ -104,9 +104,12 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
 
   // Style « cartes » : titre géant, une carte claire par token (rang, logo avec puce de chaîne, $TICKER, valeur à droite)
   const light = p.theme === "white" || p.theme === "yellow";
-  const cardBg = p.theme === "white" ? "#ffffff" : "rgba(250,250,248,0.96)";
+  // Fond noir : cartes sombres et texte blanc (pas de bulles blanches)
+  const dk = (p.theme ?? "dark") === "dark";
+  const cardBg = dk ? "#18181c" : p.theme === "white" ? "#ffffff" : "rgba(250,250,248,0.96)";
+  const cInk = dk ? "#ffffff" : "#0a0a0a", cMuted = dk ? "#8a8a90" : "#a3a3a0", cRing = dk ? "#2c2c33" : "#e4e4e0", cAvatar = dk ? "#26262c" : "#e9e9e5";
   const cUp = "#16a34a", cDown = "#e5397f";
-  const vColor = p.kind === "gainers" || win ? cUp : p.kind === "losers" || p.kind === "dev_sold" ? cDown : "#0a0a0a";
+  const vColor = p.kind === "gainers" || win ? (dk ? "#3ddc84" : cUp) : p.kind === "losers" || p.kind === "dev_sold" ? (dk ? "#ff5d8f" : cDown) : cInk;
   const suffix = (r: TopRow) => win ? (WIN_SOURCE[r.chain] ?? "") : p.kind === "mcap" ? "mcap" : p.kind === "volume" ? `vol ${PERIOD[p.period]}` : p.kind === "dev_sold" ? "team" : PERIOD[p.period];
   const cardsCard = (
     <div style={{ display: "flex", flexDirection: "column", width: W, height: H, background: th.wide, color: th.text, fontFamily: "Inter", position: "relative", overflow: "hidden" }}>
@@ -124,7 +127,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
           const cl = win ? null : chainLogo.get(r.chain) ?? chainLogo.get(p.source) ?? null;
           const name = win ? (r.name.length > 13 ? `${r.name.slice(0, 12).trim()}…` : r.name) : `$${r.symbol.replace(/^\$+/, "").slice(0, 12)}`;
           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", height: 84, marginBottom: 10, padding: "0 30px 0 22px", borderRadius: 26, background: cardBg, color: "#0a0a0a", boxShadow: "0 6px 18px rgba(0,0,0,0.10)" }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", height: 84, marginBottom: 10, padding: "0 30px 0 22px", borderRadius: 26, background: cardBg, color: cInk, boxShadow: dk ? "none" : "0 6px 18px rgba(0,0,0,0.10)", border: dk ? "1px solid #26262c" : "none" }}>
               <div style={{ display: "flex", width: 104, alignItems: "flex-start" }}>
                 <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: -2, lineHeight: 1 }}>{i + 1}</span>
                 <span style={{ fontSize: 20, fontWeight: 800, marginLeft: 2, marginTop: 2 }}>{ordinal(i + 1)}</span>
@@ -132,15 +135,15 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
               <div style={{ display: "flex", position: "relative", width: 58, height: 58 }}>
                 {logos[i]
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={logos[i]!} alt="" width={58} height={58} style={{ borderRadius: 29, objectFit: "cover", border: "3px solid #e4e4e0" }} />
-                  : <div style={{ display: "flex", width: 58, height: 58, borderRadius: 29, background: "#e9e9e5", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 800 }}>{(win ? r.name : r.symbol).replace(/^\$+/, "").slice(0, 1).toUpperCase()}</div>}
+                  ? <img src={logos[i]!} alt="" width={58} height={58} style={{ borderRadius: 29, objectFit: "cover", border: `3px solid ${cRing}` }} />
+                  : <div style={{ display: "flex", width: 58, height: 58, borderRadius: 29, background: cAvatar, alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 800 }}>{(win ? r.name : r.symbol).replace(/^\$+/, "").slice(0, 1).toUpperCase()}</div>}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {cl && <img src={cl} alt="" width={24} height={24} style={{ position: "absolute", right: -4, bottom: -4, borderRadius: 6, border: "2px solid #ffffff", background: "#ffffff" }} />}
+                {cl && <img src={cl} alt="" width={24} height={24} style={{ position: "absolute", right: -4, bottom: -4, borderRadius: 6, border: `2px solid ${cardBg}`, background: cardBg }} />}
               </div>
               <span style={{ marginLeft: 20, fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>{name}</span>
               <div style={{ display: "flex", flex: 1 }} />
               <span style={{ fontSize: 32, fontWeight: 800, color: vColor }}>{valueText(p.kind, r.value, p.source)}</span>
-              <span style={{ marginLeft: 10, fontSize: 26, fontWeight: 600, color: "#a3a3a0" }}>{suffix(r)}</span>
+              <span style={{ marginLeft: 10, fontSize: 26, fontWeight: 600, color: cMuted }}>{suffix(r)}</span>
             </div>
           );
         })}
