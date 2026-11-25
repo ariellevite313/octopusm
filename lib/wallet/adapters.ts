@@ -5,7 +5,7 @@
  */
 
 import bs58 from "bs58";
-import { getEvmProvider } from "@/lib/wallet/evm-provider";
+import { getEvmProvider, getBrumeProvider } from "@/lib/wallet/evm-provider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,8 +124,8 @@ export const WALLET_CATALOG: Omit<WalletInfo, "detected">[] = [
     type: "brume",
     name: "Brume",
     icon: "/wallets/brume.png",
-    downloadUrl: "https://brume.cash",
-    // Extension Chrome seulement (pas d'app mobile ni de lien d'ouverture)
+    downloadUrl: "https://github.com/brumewallet/wallet",
+    // Extension (Chrome, Firefox) seulement : pas d'app mobile ni de lien d'ouverture
     mobileDeepLink: null,
   },
   {
@@ -322,8 +322,8 @@ function rawProviderByType(type: WalletType): SolanaProvider | null {
       // Navigateur Web3 de l'app Robinhood Wallet : fournisseur injecté ou Wallet Standard
       return w.robinhood?.solana ?? (sol?.isRobinhood ? sol : null) ?? fromStd(/robinhood/i);
     case "brume":
-      // Extension Brume (Solana) : window.brume, sinon Wallet Standard
-      return w.brume ?? fromStd(/brume/i);
+      // Brume Wallet est un wallet Ethereum (EVM) : connexion comme MetaMask, sur Arc
+      return getBrumeProvider() as unknown as SolanaProvider | null;
     case "metamask":
       // EIP-6963 (MetaMask / Rabby / Coinbase) avec repli sur window.ethereum ; shim pour le test « detected »
       return getEvmProvider() as unknown as SolanaProvider | null;
@@ -335,7 +335,7 @@ function rawProviderByType(type: WalletType): SolanaProvider | null {
 /** Fournisseur du wallet choisi, toujours au format de Phantom (voir normalizeSolanaProvider). */
 export function getProviderByType(type: WalletType): SolanaProvider | null {
   const p = rawProviderByType(type);
-  if (!p || type === "metamask") return p;
+  if (!p || type === "metamask" || type === "brume") return p;
   return normalizeSolanaProvider(p);
 }
 

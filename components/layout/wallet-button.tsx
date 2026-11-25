@@ -563,7 +563,8 @@ function WalletButtonInner() {
     try {
       const result = await connectWalletAndAuth(type);
       if (result.success) {
-        setWalletType(type);
+        // Brume est un wallet EVM : le reste du site le traite comme MetaMask (Arc), son fournisseur reste celui de Brume
+        setWalletType(type === "brume" ? "metamask" : type);
         toast.success(tr("Wallet connected"));
         // Redirect to the page the user was trying to access
         const returnTo = searchParams.get("returnTo");

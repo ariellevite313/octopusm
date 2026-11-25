@@ -1,6 +1,6 @@
 "use client";
 
-import { getEvmProvider } from "@/lib/wallet/evm-provider";
+import { getEvmProvider, setPreferredEvm } from "@/lib/wallet/evm-provider";
 import { createClient } from "@/lib/supabase/client";
 import { getProviderByType, type WalletType } from "./adapters";
 import { clearPhantomDeeplink } from "./phantom-deeplink";
@@ -41,7 +41,7 @@ function getMetaMaskEthProvider(): {
 async function connectMetaMaskAndAuth(refCode?: string): Promise<WalletAuthResult> {
   const eth = getMetaMaskEthProvider();
   if (!eth) {
-    return { success: false, walletAddress: null, error: "MetaMask not detected. Please install the extension." };
+    return { success: false, walletAddress: null, error: "EVM wallet not detected. Please install the extension." };
   }
 
   try {
@@ -118,8 +118,9 @@ async function connectMetaMaskAndAuth(refCode?: string): Promise<WalletAuthResul
 export async function connectWalletAndAuth(
   walletType: WalletType
 ): Promise<WalletAuthResult> {
-  // MetaMask uses EVM signing — separate flow
-  if (walletType === "metamask") {
+  // MetaMask et Brume (wallets EVM) : signature EVM, flux séparé. Le choix sert ensuite à tous les envois sur Arc.
+  if (walletType === "metamask" || walletType === "brume") {
+    setPreferredEvm(walletType === "brume" ? "brume" : null);
     const refCode =
       typeof window !== "undefined"
         ? (sessionStorage.getItem("referral_code") ??
