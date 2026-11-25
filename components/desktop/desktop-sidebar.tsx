@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone } from "lucide-react";
+import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone, Shield } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { JanusIcon } from "@/components/janus/janus-icon";
 import { LanguageSelectRail } from "@/components/shared/language-select";
@@ -40,6 +40,7 @@ function items(pathname: string) {
     { href: "/prediction",             label: T("Predictions"), icon: BarChart2,  match: (p: string) => isPredictSection(p) && !p.startsWith("/leaderboard") },
     { href: "/live",                   label: T("Live scores"), icon: Radio,      match: (p: string) => p.startsWith("/live") },
     { href: "/dashboard/launchpad",    label: T("My tokens"),   icon: User,       match: (p: string) => p.startsWith("/dashboard"), auth: true },
+    { href: "/admin",                  label: T("Admin"),       icon: Shield,     match: (p: string) => p.startsWith("/admin"), admin: true },
   ];
 }
 
@@ -99,7 +100,7 @@ function MoreMenu({ onClose, wide }: { onClose: () => void; wide: boolean }) {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const { tr } = useT();
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => { setMoreOpen(false); }, [pathname]);
@@ -115,7 +116,7 @@ export function DesktopSidebar() {
         <BrandLogo size={40} />
       </Link>
 
-      {items(pathname).filter((i) => !i.auth || isAuthenticated).map(({ href, label, icon: Icon, match }) => {
+      {items(pathname).filter((i) => (!i.auth || isAuthenticated) && (!("admin" in i) || isAdmin)).map(({ href, label, icon: Icon, match }) => {
         const active = match(pathname);
         return (
           <Link

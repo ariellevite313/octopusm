@@ -67,10 +67,10 @@ export function WalletSelectDialog({ wallets, onSelect, onClose, onX }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-2xl">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto overscroll-contain rounded-3xl border border-border bg-card p-5 shadow-2xl">
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">{tr("Connect your wallet")}</h2>

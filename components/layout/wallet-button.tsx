@@ -551,6 +551,12 @@ function WalletButtonInner() {
     };
   }, [router]);
 
+  // Quelqu'un ouvre /admin sans être connecté : il arrive ici (middleware) et doit se connecter d'abord
+  const wantsAdmin = (searchParams.get("returnTo") ?? "").startsWith("/admin");
+  useEffect(() => {
+    if (wantsAdmin && !isLoading && !isAuthenticated) setShowDialog(true);
+  }, [wantsAdmin, isLoading, isAuthenticated]);
+
   async function handleSelectWallet(type: WalletType) {
     setShowDialog(false);
     setIsConnecting(true);

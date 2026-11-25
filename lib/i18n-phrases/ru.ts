@@ -1752,5 +1752,6 @@ const p: Record<string, string> = {
   "Pink": "Розовый",
   "One last step: sign the message to log in.": "Последний шаг: подпишите сообщение для входа.",
   "Continue in {wallet}": "Продолжить в {wallet}",
+  "Admin": "Админ",
 };
 export default p;

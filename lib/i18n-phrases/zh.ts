@@ -1752,5 +1752,6 @@ const p: Record<string, string> = {
   "Pink": "粉色",
   "One last step: sign the message to log in.": "最后一步：签名消息以登录。",
   "Continue in {wallet}": "在 {wallet} 中继续",
+  "Admin": "管理",
 };
 export default p;

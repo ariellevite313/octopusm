@@ -46,11 +46,13 @@ export function Header() {
     return () => window.removeEventListener("open-main-menu", openMenu);
   }, []);
   const pathname = usePathname();
-  const { isAuthenticated, walletAddress } = useAuth();
+  const { isAuthenticated, walletAddress, isAdmin } = useAuth();
   const { tr } = useT();
   const inLaunchpad = pathname.startsWith("/launchpad") || pathname.startsWith("/dashboard") || pathname.startsWith("/leaderboard/launchpad");
   type NavLink = { href: string; label: string; badge?: string; disabled: boolean; external?: boolean };
-  const links: NavLink[] = (NAV_LINKS as NavLink[]).map((l) => (l.label === T("Leaderboard") && inLaunchpad ? { ...l, href: "/leaderboard/launchpad" } : l));
+  const links: NavLink[] = (NAV_LINKS as NavLink[]).map((l) => (l.label === T("Leaderboard") && inLaunchpad ? { ...l, href: "/leaderboard/launchpad" } : l))
+    // Le lien Admin n'existe que pour l'admin connecté
+    .concat(isAdmin ? [{ href: "/admin", label: T("Admin"), disabled: false }] : []);
 
   return (
     <>
