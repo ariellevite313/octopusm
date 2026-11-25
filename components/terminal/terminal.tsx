@@ -31,9 +31,8 @@ import { UpDownSection } from "@/components/updown/updown-cards";
 const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium SOL/USDC
 import { executeSwap, mevOn, setMev, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
-import { DevAlert } from "./dev-alert";
 import { LiveTrades } from "./live-trades";
-import { SecurityCard } from "./security-card";
+import { ChartAlerts } from "./chart-alerts";
 import { PulseView } from "./pulse";
 import { Positions } from "./positions";
 import { AlertSheet } from "./alert-sheet";
@@ -635,8 +634,6 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             ))}
           </div>
           {/* Graphique */}
-          {isSol && <DevAlert mint={mint} />}
-          {mint !== SOL_MINT && <SecurityCard chain={chain} mint={mint} />}
           {desk && t.pool ? (
             <div className="mt-4 h-[560px] overflow-hidden rounded-2xl border border-border">
               <ProChart mint={mint} pool={t.pool} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
@@ -667,6 +664,9 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
               </button>
             )}
           </div>
+
+          {/* Un seul bouton sous le graphique : sécurité et activité du dev */}
+          <ChartAlerts chain={chain} mint={mint} withSecurity={mint !== SOL_MINT} withDev={isSol} />
 
           {/* Détenteurs | Fil | À propos */}
           <div className="mt-2 flex border-b border-border px-4">

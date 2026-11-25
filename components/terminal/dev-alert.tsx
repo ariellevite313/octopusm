@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { DevInfo } from "@/lib/terminal-dev";
+import type { AlertInfo } from "@/components/terminal/security-card";
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const num = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString("en-US", { maximumFractionDigits: 2 }));
@@ -29,7 +30,7 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
 }
 
 /** Activité du dev (Terminal uniquement) : ventes sur DEX et envois directs séparés, ce qu'il détient encore, destinataires. */
-export function DevAlert({ mint }: { mint: string }) {
+export function DevAlert({ mint, bare, onInfo }: { mint: string; bare?: boolean; onInfo?: (i: AlertInfo | null) => void }) {
   const { tr } = useT();
   const [d, setD] = useState<DevInfo | null>(null);
   useEffect(() => {
@@ -38,7 +39,12 @@ export function DevAlert({ mint }: { mint: string }) {
     fetch(`/api/terminal/dev?mint=${encodeURIComponent(mint)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (!off && j && !j.error && !j.exempt) setD(j); }).catch(() => {});
     return () => { off = true; };
   }, [mint]);
-  if (!d || !d.dev || (d.status !== "selling" && d.status !== "sold_all" && d.status !== "sending")) return null;
+  const shown = !!d && !!d.dev && (d.status === "selling" || d.status === "sold_all" || d.status === "sending");
+  const dSt = d?.status;
+  useEffect(() => {
+    onInfo?.(!shown ? null : { count: dSt === "sending" ? 0 : 1, tone: dSt === "sending" ? "var(--muted-foreground)" : "#dc2626", label: dSt === "sold_all" ? tr("Sold out") : dSt === "sending" ? tr("Transfers") : tr("Selling") });
+  }, [shown, dSt]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!d || !d.dev || !shown) return null;
 
   const sending = d.status === "sending";
   const tone = sending ? "var(--muted-foreground)" : RED;
@@ -62,7 +68,7 @@ export function DevAlert({ mint }: { mint: string }) {
   ].filter((s) => s.show);
 
   return (
-    <section className="relative mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+    <section className={`relative overflow-hidden rounded-2xl border border-border bg-card ${bare ? "mt-3" : "mx-4 mt-4"}`}>
       <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: tone }} />
 
       <header className="flex items-center justify-between gap-3 px-4 pb-3 pt-3.5">
