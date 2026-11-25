@@ -2664,5 +2664,6 @@ const p: Record<string, string> = {
   "Could not update right now": "Сейчас не удалось обновить",
   "Style": "Стиль",
   "Table": "Таблица",
+  "The Solana network is busy right now. Wait a minute, then tap Retry.": "Сеть Solana перегружена. Подождите минуту и нажмите «Повторить».",
 };
 export default p;

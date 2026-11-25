@@ -2666,5 +2666,6 @@ const p: Record<string, string> = {
   "Could not update right now": "تعذر التحديث الآن",
   "Style": "النمط",
   "Table": "جدول",
+  "The Solana network is busy right now. Wait a minute, then tap Retry.": "شبكة Solana مزدحمة الآن. انتظر دقيقة ثم اضغط إعادة المحاولة.",
 };
 export default p;

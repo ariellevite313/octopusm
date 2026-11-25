@@ -2837,5 +2837,6 @@ const p: Record<string, string> = {
   "Could not update right now": "Impossible de mettre à jour pour le moment",
   "Style": "Style",
   "Table": "Tableau",
+  "The Solana network is busy right now. Wait a minute, then tap Retry.": "Le réseau Solana est saturé. Attends une minute puis appuie sur Réessayer.",
 };
 export default p;

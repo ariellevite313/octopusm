@@ -478,6 +478,8 @@ export async function buildSplitPoolTransactions(params: DbcPoolParams): Promise
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // RPC saturé : message clair au lieu du JSON brut du fournisseur
+    if (/429|Too Many Requests|rate limit/i.test(msg)) throw new Error("The Solana network is busy right now. Wait a minute, then tap Retry.");
     throw new Error(`DBC SDK error: ${msg}`);
   }
 
