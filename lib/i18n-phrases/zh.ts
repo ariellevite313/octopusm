@@ -1,5 +1,8 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "MCap": "市值",
+  "Spread": "价差",
+  "OM limit order": "OM 限价单",
   "Something went wrong": "出错了",
   "An unexpected error occurred. Please try again or go back to the home page.": "发生了意外错误。请重试或返回首页。",
   "Try again": "重试",

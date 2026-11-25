@@ -1,5 +1,8 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "MCap": "القيمة",
+  "Spread": "الفارق",
+  "OM limit order": "أمر محدد OM",
   "Something went wrong": "حدث خطأ ما",
   "An unexpected error occurred. Please try again or go back to the home page.": "حدث خطأ غير متوقع. حاول مرة أخرى أو عد إلى الصفحة الرئيسية.",
   "Try again": "إعادة المحاولة",

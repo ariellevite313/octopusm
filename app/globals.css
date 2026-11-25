@@ -681,3 +681,16 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 .om-tab::before { bottom: 100%; background: radial-gradient(circle at 0 0, transparent 15.5px, var(--background) 16px); }
 .om-tab::after  { top: 100%;    background: radial-gradient(circle at 0 100%, transparent 15.5px, var(--background) 16px); }
 .om-rail nav > a, .om-rail nav > span:not(.om-tab) { position: relative; z-index: 1; }
+
+/* Carnet du mode Limit : matrice de points et chiffres qui défilent */
+.ob-dot { width: 4px; height: 4px; border-radius: 1.5px; transition: background-color .5s ease, opacity .5s ease; }
+.ob-dot-off { background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.ob-dot-ask { background: color-mix(in srgb, var(--down) 42%, transparent); }
+.ob-dot-bid { background: color-mix(in srgb, var(--up) 42%, transparent); }
+.ob-dot-ask.ob-dot-lead { background: var(--down); }
+.ob-dot-bid.ob-dot-lead { background: var(--up); }
+@keyframes ob-fresh { 0% { filter: brightness(2.2); transform: scale(1.35); } 100% { filter: none; transform: none; } }
+.ob-dot-fresh { animation: ob-fresh .9s cubic-bezier(.22,1,.36,1) both; }
+@keyframes ob-roll { 0% { transform: translateY(70%); opacity: 0; filter: blur(2px); } 100% { transform: none; opacity: 1; filter: none; } }
+.ob-roll { animation: ob-roll .45s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) { .ob-dot-fresh, .ob-roll { animation: none; } .ob-dot { transition: none; } }

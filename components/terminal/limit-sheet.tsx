@@ -11,6 +11,7 @@ import { SOL_MINT, USDC_MINT } from "@/lib/swap/core";
 import { TwapPanel } from "./twap-sheet";
 import { Mirage } from "@/components/shared/mirage";
 import { ActivityList } from "./activity";
+import { OrderBook } from "./order-book";
 
 type Order = { orderKey: string; inputMint: string; outputMint: string; makingAmount: string; takingAmount: string; createdAt: string };
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
@@ -72,17 +73,6 @@ const amt = (n: number) => (n >= 1e9 ? `${+(n / 1e9).toFixed(2)}B` : n >= 1e6 ? 
 /** Arrondi lisible d'une capitalisation (3 chiffres significatifs) */
 const round3 = (n: number) => { const p = 10 ** (Math.floor(Math.log10(n)) - 2); return Math.round(n / p) * p; };
 
-/** Une ligne du carnet : capitalisation, SOL, barre de profondeur. Le point marque un ordre limité placé sur OM. */
-function BookLine({ r, ask, max, onPick }: { r: BookRow; ask: boolean; max: number; onPick: () => void }) {
-  return (
-    <button onClick={onPick} className="relative flex w-full items-center justify-between py-[5px] pl-1.5 pr-1 text-left text-[12.5px] hover:bg-muted/60">
-      <span className={`absolute inset-y-0 right-0 rounded-l ${ask ? "bg-down/12" : "bg-up/12"}`} style={{ width: `${max > 0 ? Math.max(4, (r.sol / max) * 100) : 0}%` }} />
-      <span className={`num relative font-semibold ${ask ? "text-down" : "text-up"}`}>{money(r.mcap)}</span>
-      <span className="num relative flex items-center gap-1 text-foreground">{r.om && <span className="size-1.5 rounded-full bg-foreground" />}{amt(r.sol)}</span>
-    </button>
-  );
-}
-
 function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = false }: { mint: string; symbol: string; mcap: number | null; walletType: WalletType; preset: LimitPreset | null; activity?: boolean }) {
   const { tr } = useT();
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -104,7 +94,7 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
   }).catch(() => {});
   useEffect(() => {
     load(); loadBook(); loadBal();
-    const id = setInterval(loadBook, 10_000);
+    const id = setInterval(loadBook, 5_000);
     return () => clearInterval(id);
   }, [mint]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -119,8 +109,6 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
   // Ce que l'ordre rapporte s'il est exécuté à la cible
   const atTarget = book && t > 0 ? book.price * (t / book.mcap) : 0;
   const receive = !book || !atTarget || !(a > 0) ? null : side === "buy" ? (a * book.solUsd) / atTarget : (a * atTarget) / book.solUsd;
-  const maxAsk = Math.max(0, ...(book?.asks ?? []).map((r) => r.sol));
-  const maxBid = Math.max(0, ...(book?.bids ?? []).map((r) => r.sol));
 
   function nudge(dir: 1 | -1) {
     const base = t > 0 ? t : mcap ?? 0;
@@ -163,9 +151,9 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
 
   return (
     <div>
-      <div className="flex gap-2.5">
-        {/* Formulaire */}
-        <div className="min-w-0 flex-[1.15]">
+      {/* Carnet animé : profondeur de la pool + ordres limités placés sur OM */}
+      <OrderBook book={book} onPick={pick} />
+      <div className="mt-4 min-w-0">
           <div className="flex gap-1 rounded-xl bg-muted p-1">
             {(["buy", "sell"] as const).map((k) => <button key={k} onClick={() => { setSide(k); setAmount(""); }} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${side === k ? "bg-foreground text-background" : "text-muted-foreground"}`}>{tr(k === "buy" ? "Buy" : "Sell")}</button>)}
           </div>
@@ -202,21 +190,6 @@ function LimitForm({ mint, symbol, mcap: mcap0, walletType, preset, activity = f
           <button disabled={!ok || busy} onClick={create} className="mt-3 h-12 w-full rounded-xl bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{busy ? <Mirage className="mx-auto size-4" /> : tr(side === "buy" ? "Place limit buy" : "Place limit sell")}</button>
           {activity && <div className="mt-4 min-w-0"><ActivityList mint={mint} compact bare /></div>}
         </div>
-
-        {/* Carnet : profondeur de la pool + ordres limités placés sur OM */}
-        <div className="min-w-0 flex-1">
-          <div className="flex justify-between px-1 text-[10.5px] font-semibold text-muted-foreground"><span>{tr("Market cap")}</span><span>SOL</span></div>
-          {!book ? <div className="mt-1 space-y-1">{Array.from({ length: 12 }, (_, i) => <div key={i} className="h-[24px] animate-pulse rounded bg-muted" />)}</div> : <>
-            <div className="mt-1">{book.asks.map((r, i) => <BookLine key={`a${i}`} r={r} ask max={maxAsk} onPick={() => pick(r, true)} />)}</div>
-            <div className="my-1.5 text-center">
-              <p className="num text-[17px] font-bold">{money(book.mcap)}</p>
-              <p className="num text-[11px] text-muted-foreground">${book.price < 0.01 ? book.price.toPrecision(4) : book.price.toFixed(4)}</p>
-            </div>
-            <div>{book.bids.map((r, i) => <BookLine key={`b${i}`} r={r} ask={false} max={maxBid} onPick={() => pick(r, false)} />)}</div>
-          </>}
-          <p className="mt-2 flex items-start gap-1.5 px-1 text-[10.5px] leading-tight text-muted-foreground"><span className="mt-1 size-1.5 shrink-0 rounded-full bg-foreground" />{tr("OM limit orders. Other rows: SOL needed to move the pool to that level.")}</p>
-        </div>
-      </div>
       <p className="mt-3 text-[12px] text-muted-foreground">{tr("Orders are held and filled by Jupiter, even when you are away. Minimum about $5. OM fee 0.3%, taken in SOL when the order is placed.")}</p>
 
       {orders && orders.length > 0 && (
