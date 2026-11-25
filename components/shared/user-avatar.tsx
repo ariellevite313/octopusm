@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { avatarOr } from "@/lib/default-avatar";
-/** Photo de profil, ou Omero si absente. */
+/** Photo de profil, ou chien bleu si absente. */
 export function UserAvatar({ src, name, size = 20, className = "" }: {
   src?: string | null;
   name: string;

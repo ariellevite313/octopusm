@@ -44,7 +44,7 @@ function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) =
 
 function Avatar({ src, name, size = 44, ring = false }: { src: string | null; name: string; size?: number; ring?: boolean }) {
   void name;
-  // Sans photo : Omero par défaut
+  // Sans photo : chien bleu par défaut
   // eslint-disable-next-line @next/next/no-img-element
   const inner = <img src={avatarOr(src)} alt="" className="size-full rounded-full object-cover" />;
   return (

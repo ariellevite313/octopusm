@@ -41,7 +41,7 @@ export async function PATCH(req: Request) {
     updates.twitter_handle = updates.twitter_handle.replace(/^@/, "");
     if (!/^[A-Za-z0-9_]{1,15}$/.test(updates.twitter_handle)) return NextResponse.json({ error: "Invalid X handle" }, { status: 400 });
   }
-  if (updates.avatar_src === DEFAULT_AVATAR) { /* Omero par défaut, autorisé */ }
+  if (updates.avatar_src === DEFAULT_AVATAR) { /* photo par défaut, autorisée */ }
   else if (updates.avatar_src != null) {
     // Seulement une image stockée chez nous (bucket avatars) : pas de pixel espion ni d'image d'un autre site
     const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
