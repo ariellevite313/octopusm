@@ -2,6 +2,8 @@
 export const HACKATHON = {
   name: "OM Builders Hackathon",
   startsAt: "2026-11-24T00:00:00Z",
+  /** Dernier moment pour s'inscrire : après, seuls les projets déjà inscrits concourent */
+  applicationsCloseAt: "2026-12-15T23:59:59Z",
   endsAt: "2026-12-24T23:59:59Z",
   payoutAt: "2026-12-25T00:00:00Z",
   maxPrizeUsdc: 100_000,
@@ -18,11 +20,11 @@ export function hackathonPhase(now: number = Date.now()): HackathonPhase {
 }
 
 /**
- * Inscriptions : ouvertes dès maintenant et jusqu'à la fin du hackathon. Les projets inscrits avant le 24 novembre
- * apparaissent tout de suite ; le classement, les votes et le volume ne comptent qu'à partir du début.
+ * Inscriptions : ouvertes jusqu'au 15 décembre inclus. Après cette date, seuls les projets déjà inscrits concourent.
+ * Les projets inscrits avant le début apparaissent tout de suite ; le classement, les votes et le volume comptent dès le début.
  */
 export function applicationsOpen(now: number = Date.now()): boolean {
-  return now <= Date.parse(HACKATHON.endsAt);
+  return now <= Date.parse(HACKATHON.applicationsCloseAt);
 }
 
 /** Taille maximale d'une équipe (client et serveur). */

@@ -1753,5 +1753,16 @@ const p: Record<string, string> = {
   "One last step: sign the message to log in.": "最后一步：签名消息以登录。",
   "Continue in {wallet}": "在 {wallet} 中继续",
   "Admin": "管理",
+  "Applications close in": "报名截止倒计时",
+  "Hackathon ends in": "黑客松结束倒计时",
+  "Hackathon ended": "黑客松已结束",
+  "days": "天",
+  "hours": "时",
+  "min": "分",
+  "sec": "秒",
+  "Apply before December 15. After that date, only registered projects compete.": "请在 12 月 15 日前报名。此后只有已报名的项目参赛。",
+  "Applications are closed. Only registered projects compete.": "报名已截止。只有已报名的项目参赛。",
+  "Anyone. Applications stay open until December 15. After that, only registered projects compete. A team has {n} members at most.": "任何人都可以参加。报名开放至 12 月 15 日，之后只有已报名的项目参赛。每队最多 {n} 人。",
+  "Anyone can apply until December 15. After that date, only registered projects compete. A team has 4 members at most. Only the top 50 projects are rewarded, with $500 at least each.": "任何人都可在 12 月 15 日前报名。此后只有已报名的项目参赛。每队最多 4 人。仅奖励前 50 名项目，每个至少 500 美元。",
 };
 export default p;

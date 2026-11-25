@@ -8,6 +8,7 @@ import { T } from "@/lib/i18n-mark";
 import { HACKATHON, MAX_TEAM } from "@/lib/hackathon/config";
 import { RULES } from "@/lib/hackathon/rules";
 import { prizeTable } from "@/lib/hackathon/scoring";
+import { HackathonCountdown } from "@/components/hackathon/hackathon-countdown";
 
 const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -22,7 +23,7 @@ export function HackathonLanding() {
   const t = prizeTable(100_000);
   const [open, setOpen] = useState<number | null>(0);
   const faq = [
-    [T("Who can join?"), T("Anyone. Applications stay open until December 24. A team has {n} members at most.")],
+    [T("Who can join?"), T("Anyone. Applications stay open until December 15. After that, only registered projects compete. A team has {n} members at most.")],
     [T("Does my token need to be on OM?"), T("Yes. Launch it on OM before you apply. It must graduate by December 24 and stay healthy: real holders, no heavy concentration, no bundles.")],
     [T("How are prizes paid?"), T("In USDC on December 25. The prize pool comes from the trading fees of the hackathon tokens, so it grows with your volume.")],
     [T("What can get a project excluded?"), T("Fake volume, bundles, wallets linked to the team and organized sniping. OM decides and shows the reason on the page.")],
@@ -57,7 +58,9 @@ export function HackathonLanding() {
       </section>
 
       {/* Chiffres clés */}
-      <section className="grid grid-cols-2 border-y border-border md:grid-cols-4">
+      <HackathonCountdown />
+
+      <section className="grid grid-cols-2 border-b border-border md:grid-cols-4">
         {[
           [`${HACKATHON.maxPrizeUsdc.toLocaleString("en-US")}`, T("USDC prize pool")],
           ["50", T("rewarded projects")],

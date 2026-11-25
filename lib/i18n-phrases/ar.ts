@@ -1753,5 +1753,16 @@ const p: Record<string, string> = {
   "One last step: sign the message to log in.": "الخطوة الأخيرة: وقّع الرسالة لتسجيل الدخول.",
   "Continue in {wallet}": "المتابعة في {wallet}",
   "Admin": "المشرف",
+  "Applications close in": "ينتهي التسجيل خلال",
+  "Hackathon ends in": "ينتهي الهاكاثون خلال",
+  "Hackathon ended": "انتهى الهاكاثون",
+  "days": "أيام",
+  "hours": "ساعات",
+  "min": "د",
+  "sec": "ث",
+  "Apply before December 15. After that date, only registered projects compete.": "سجّل قبل 15 ديسمبر. بعد هذا التاريخ تشارك المشاريع المسجلة فقط.",
+  "Applications are closed. Only registered projects compete.": "أُغلق التسجيل. تشارك المشاريع المسجلة فقط.",
+  "Anyone. Applications stay open until December 15. After that, only registered projects compete. A team has {n} members at most.": "أي شخص. يبقى التسجيل مفتوحاً حتى 15 ديسمبر. بعدها تتنافس المشاريع المسجلة فقط. يضم الفريق {n} أعضاء كحد أقصى.",
+  "Anyone can apply until December 15. After that date, only registered projects compete. A team has 4 members at most. Only the top 50 projects are rewarded, with $500 at least each.": "يمكن لأي شخص التسجيل حتى 15 ديسمبر. بعد هذا التاريخ تتنافس المشاريع المسجلة فقط. يضم الفريق 4 أعضاء كحد أقصى. تُكافأ أفضل 50 مشروعاً فقط، بما لا يقل عن 500 دولار لكل منها.",
 };
 export default p;

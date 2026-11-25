@@ -33,7 +33,7 @@ export function InfosView() {
 
       {tab === "rules" && (<>
         <Block title={tr("Dates")}><p>{tr("From November 24 to December 24, 2026. Prizes are paid on December 25, in USDC.")}</p></Block>
-        <Block title={tr("Who can join")}><p>{tr("Anyone, with no limit on applications, until December 24. A team has 4 members at most. Only the top 50 projects are rewarded, with $500 at least each.")}</p></Block>
+        <Block title={tr("Who can join")}><p>{tr("Anyone can apply until December 15. After that date, only registered projects compete. A team has 4 members at most. Only the top 50 projects are rewarded, with $500 at least each.")}</p></Block>
         <Block title={tr("Your token")}><p>{tr("Your token must already exist on OM before you apply, and it must graduate by December 24. It must also be healthy: enough holders, no heavy concentration, no bundle, a real price and some volume, and frozen team tokens left untouched.")}</p></Block>
         <Block title={tr("The team")}>
           <p>{tr("The team can hold {pct}% of the supply at most, and must freeze it for at least a year, checkable on-chain. Selling frozen tokens means exclusion and loss of the prize.", { pct: RULES.team.maxSupplyPct })}</p>
