@@ -69,7 +69,7 @@ function RowItem({ a }: { a: AppCard }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
         <p className="truncate text-[13px] text-muted-foreground">{tr(catLabel(a.category))} · {a.tagline}</p>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && <PaysWith app={a} />}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</p>
       </div>
     </Link>
   );
@@ -103,7 +103,7 @@ function ListCta() {
         <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background transition-transform group-hover:scale-105"><Plus className="size-6" /></span>
         <span className="min-w-0">
           <span className="block text-[16px] font-bold leading-tight">{tr("Showcase your project on Discover")}</span>
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">{tr("Your OM token must be the payment of your website.")}</span>
+          <span className="mt-0.5 block text-[13px] text-muted-foreground">{tr("With your OM token: free until 2027, then ${n} a year. Without a token: ${n} a year.", { n: 80 })}</span>
         </span>
       </span>
       <span className="flex items-center justify-between border-t border-border pt-3 sm:border-0 sm:pt-0">
@@ -207,7 +207,7 @@ export function Discover() {
                         <AppIcon app={a} className="size-11" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[15px] font-semibold">{a.name}</span>
-                          <span className="flex items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && <PaysWith app={a} />}</span>
+                          <span className="flex items-center gap-2 text-[12px] text-muted-foreground"><Rating value={a.rating} count={a.ratings} />{!a.platform && !a.noToken && <PaysWith app={a} />}</span>
                         </span>
                       </Link>
                       <DiscoverButton a={a} />

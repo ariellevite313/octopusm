@@ -16,7 +16,7 @@ import { Mirage } from "@/components/shared/mirage";
 import { AppIcon, Rating, compact, visit, type AppCard } from "@/components/discover/app-bits";
 
 type Detail = {
-  app: AppCard & { description: string; screenshots: string[]; paymentNote: string; owner: { wallet: string; name: string | null } };
+  app: AppCard & { description: string; screenshots: string[]; paymentNote: string | null; owner: { wallet: string; name: string | null } };
   bars: { star: number; count: number; pct: number }[];
   reviews: { wallet: string; name: string | null; avatar: string | null; rating: number; body: string | null; at: string }[];
   mine: { rating: number; body: string | null } | null;
@@ -183,8 +183,8 @@ export function AppDetail({ id }: { id: string }) {
             <div className="flex-1 px-2 sm:flex-none sm:pr-6 sm:text-left"><p className="num flex items-center justify-center gap-1 text-[16px] font-bold sm:justify-start">{a.ratings ? a.rating.toFixed(1) : "-"}<Star className="size-3.5 fill-current" /></p><p className="text-[12px] text-muted-foreground">{tr("{n} reviews", { n: compact(a.ratings) })}</p></div>
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="num text-[16px] font-bold">{compact(a.visits)}</p><p className="text-[12px] text-muted-foreground">{tr("Visits")}</p></div>
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="text-[16px] font-bold">{cat}</p><p className="text-[12px] text-muted-foreground">{tr("Category")}</p></div>
-            {a.platform
-              ? <div className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">Solana</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div>
+            {a.platform || a.noToken
+              ? (a.network && a.network !== "other" ? <div className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network] ?? "-"}</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div> : null)
               : <Link href={`/launchpad/${a.token.slug}`} className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">${a.token.ticker}</p><p className="text-[12px] text-muted-foreground">{tr("Its token")}</p></Link>}
           </div>
         </div>
@@ -195,7 +195,7 @@ export function AppDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      {!a.platform && <TokenValue a={a} paymentNote={a.paymentNote} />}
+      {!a.platform && !a.noToken && <TokenValue a={a} paymentNote={a.paymentNote ?? ""} />}
 
       {/* Images */}
       {images.length > 0 && (
@@ -214,7 +214,7 @@ export function AppDetail({ id }: { id: string }) {
         <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">{a.description}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{cat}</span>
-          <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{a.token.chain === "arc" ? "Arc" : "Solana"}</span>
+          {a.network && a.network !== "other" && <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network]}</span>}
         </div>
       </section>
 
@@ -293,7 +293,7 @@ export function AppDetail({ id }: { id: string }) {
 
       </div>
 
-      <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={a.platform ? `${a.name}: ${a.tagline}. On OMdotfun Discover.` : `${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on OMdotfun Discover.`} images={a.banner ? [a.banner] : []} />
+      <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={a.platform || a.noToken ? `${a.name}: ${a.tagline}. On OMdotfun Discover.` : `${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on OMdotfun Discover.`} images={a.banner ? [a.banner] : []} />
 
       {report && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-[2px] sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) setReport(false); }}>

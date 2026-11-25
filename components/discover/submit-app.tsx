@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Lister mon app sur Discover. Il faut un token lancé sur OM (on choisit lequel) et l'app doit accepter ce token comme paiement.
- * Site web, icône, bannière et jusqu'à 6 images explicatives.
+ * Lister mon app sur Discover. Avec un token lancé sur OM (gratuit pour l'instant), l'app doit accepter ce token comme paiement.
+ * Sans token : 80 $ en USDC pour un an (gratuit pour l'admin). Site web, icône, bannière et jusqu'à 6 images explicatives.
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -11,12 +11,13 @@ import { ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
-import { APP_CATEGORIES, APP_CATEGORY_LABEL, MAX_SCREENSHOTS, validateApp } from "@/lib/discover";
+import { APP_CATEGORIES, APP_CATEGORY_LABEL, MAX_SCREENSHOTS, NETWORKS, NETWORK_LABEL, NO_TOKEN_PRICE_USD, validateApp } from "@/lib/discover";
+import { payUsdcToTreasury } from "@/lib/market/betting";
 import { ListingPrice } from "./listing-price";
 import { Mirage } from "@/components/shared/mirage";
 
 type Tok = { id: string; ticker: string; name: string; logo_url: string | null; chain: string };
-type Existing = { id: string; token_id: string; name: string; tagline: string; description: string; category: string; site_url: string; icon_url: string | null; banner_url: string | null; screenshots: string[]; payment_note: string };
+type Existing = { id: string; token_id: string | null; name: string; tagline: string; description: string; category: string; site_url: string; icon_url: string | null; banner_url: string | null; screenshots: string[]; payment_note: string | null; network?: string | null; listing_paid_until?: string | null };
 
 async function upload(file: File): Promise<string> {
   const fd = new FormData(); fd.append("image", file);
@@ -29,7 +30,12 @@ async function upload(file: File): Promise<string> {
 export function SubmitApp() {
   const { tr } = useT();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, walletAddress, walletType } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  // Avec mon token OM, ou sans token (payant sauf pour l'admin)
+  const [noToken, setNoToken] = useState(false);
+  const [appId, setAppId] = useState<string | null>(null);
+  const [network, setNetwork] = useState<string>("solana");
   const [toks, setToks] = useState<Tok[] | null>(null);
   const [apps, setApps] = useState<Existing[]>([]);
   const [f, setF] = useState({ tokenId: "", name: "", tagline: "", description: "", category: "tools", siteUrl: "", iconUrl: "", bannerUrl: "", paymentNote: "", acceptsToken: false });
@@ -39,14 +45,14 @@ export function SubmitApp() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    fetch("/api/discover/mine", { cache: "no-store" }).then((r) => r.json()).then((j) => { setToks(j.tokens ?? []); setApps(j.apps ?? []); if (j.tokens?.[0]) pick(j.tokens[0].id, j.apps ?? []); }).catch(() => setToks([]));
+    fetch("/api/discover/mine", { cache: "no-store" }).then((r) => r.json()).then((j) => { setToks(j.tokens ?? []); setApps(j.apps ?? []); setIsAdmin(!!j.isAdmin); if (j.tokens?.[0]) pick(j.tokens[0].id, j.apps ?? []); else setNoToken(true); }).catch(() => setToks([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   function pick(tokenId: string, list = apps) {
     const e = list.find((x) => x.token_id === tokenId);
     if (e) {
-      setF({ tokenId, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: e.payment_note, acceptsToken: true });
+      setF({ tokenId, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: e.payment_note ?? "", acceptsToken: true });
       setShots(e.screenshots ?? []);
     } else setF((x) => ({ ...x, tokenId }));
   }
@@ -62,14 +68,41 @@ export function SubmitApp() {
     } catch (e) { toast.error(tr((e as Error).message)); }
     setUp(null);
   }
+  function pickFree(id: string) {
+    const e = apps.find((x) => x.id === id && !x.token_id);
+    setAppId(e ? e.id : null);
+    if (e) {
+      setF((x) => ({ ...x, name: e.name, tagline: e.tagline, description: e.description, category: e.category, siteUrl: e.site_url, iconUrl: e.icon_url ?? "", bannerUrl: e.banner_url ?? "", paymentNote: "" }));
+      setShots(e.screenshots ?? []); setNetwork(e.network ?? "solana");
+    }
+  }
+  const freeApps = apps.filter((x) => !x.token_id);
+  const current = freeApps.find((x) => x.id === appId);
+  // À payer : fiche sans token, pas admin, et pas déjà payée pour la période en cours
+  const mustPay = noToken && !isAdmin && !(current?.listing_paid_until && new Date(current.listing_paid_until).getTime() > Date.now());
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const payload = { ...f, screenshots: shots };
+    const payload = noToken ? { ...f, tokenId: "", noToken: true, network, appId, screenshots: shots } : { ...f, screenshots: shots };
     const v = validateApp(payload);
     if (!v.ok) { toast.error(tr(v.error)); return; }
     setBusy(true);
     try {
-      const r = await fetch("/api/discover/apps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      let paymentTx: string | undefined;
+      if (mustPay) {
+        if (!walletAddress) throw new Error("Connect a Solana wallet to pay");
+        const paid = await payUsdcToTreasury({ amount: NO_TOKEN_PRICE_USD, walletAddress, walletType, memo: `om?v=1&kind=discover_listing&wallet=${walletAddress}` });
+        if ("error" in paid) throw new Error(paid.error);
+        paymentTx = paid.signature;
+      }
+      // Le paiement peut mettre quelques secondes à être lu : on réessaie
+      let r: Response | null = null;
+      for (let k = 0; k < (paymentTx ? 4 : 1); k++) {
+        if (k > 0) await new Promise((ok) => setTimeout(ok, 3000));
+        r = await fetch("/api/discover/apps", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, paymentTx }) });
+        if (r.status !== 402) break;
+      }
+      if (!r) throw new Error("Could not save your app");
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "Could not save your app");
       toast.success(tr("Your project is live on Discover"));
@@ -87,7 +120,7 @@ export function SubmitApp() {
     </div>
   );
   if (toks === null) return <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div>;
-  if (toks.length === 0) return (
+  if (toks.length === 0 && !noToken) return (
     <div className="rounded-[28px] border border-border bg-card p-6 text-center">
       <p className="text-[18px] font-bold">{tr("Launch your token first")}</p>
       <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Only projects with a token launched on OM can be listed. Your token will be the payment of your website, and every visitor will see it.")}</p>
@@ -101,14 +134,38 @@ export function SubmitApp() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <h1 className="text-[28px] font-bold">{tr("List my project")}</h1>
-      <div className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3.5">
-        <p className="text-[15px] font-bold">{tr("Discover listing")}</p>
-        <ListingPrice />
+      {!noToken && (
+        <div className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3.5">
+          <p className="text-[15px] font-bold">{tr("Discover listing")}</p>
+          <ListingPrice />
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
+        <button type="button" disabled={toks.length === 0} onClick={() => { setNoToken(false); if (toks[0]) pick(f.tokenId || toks[0].id); }} className={`h-10 rounded-full text-[14px] font-bold disabled:opacity-40 ${!noToken ? "bg-background shadow-sm" : "text-muted-foreground"}`}>{tr("With my OM token")}</button>
+        <button type="button" onClick={() => { setNoToken(true); pickFree(freeApps[0]?.id ?? ""); }} className={`h-10 rounded-full text-[14px] font-bold ${noToken ? "bg-background shadow-sm" : "text-muted-foreground"}`}>{tr("Without token")}</button>
       </div>
-      <label className="block"><span className={label}>{tr("Your OM token")}</span>
-        <select className={input} value={f.tokenId} onChange={(e) => pick(e.target.value)}>
-          {toks.map((t) => <option key={t.id} value={t.id}>${t.ticker} · {t.name}</option>)}
-        </select></label>
+      {noToken ? (
+        <>
+          <div className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3.5">
+            <p className="text-[15px] font-bold">{tr("Listing without token")}</p>
+            <span className="num text-[20px] font-extrabold">{isAdmin ? tr("Free") : mustPay ? <>${NO_TOKEN_PRICE_USD}<span className="text-[13px] font-semibold text-muted-foreground">/{tr("year")}</span></> : tr("Paid")}</span>
+          </div>
+          {freeApps.length > 0 && (
+            <label className="block"><span className={label}>{tr("Project")}</span>
+              <select className={input} value={appId ?? ""} onChange={(e) => pickFree(e.target.value)}>
+                <option value="">{tr("New project")}</option>
+                {freeApps.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select></label>
+          )}
+          <label className="block"><span className={label}>{tr("Network")}</span>
+            <select className={input} value={network} onChange={(e) => setNetwork(e.target.value)}>{NETWORKS.map((n) => <option key={n} value={n}>{tr(NETWORK_LABEL[n])}</option>)}</select></label>
+        </>
+      ) : (
+        <label className="block"><span className={label}>{tr("Your OM token")}</span>
+          <select className={input} value={f.tokenId} onChange={(e) => pick(e.target.value)}>
+            {toks.map((t) => <option key={t.id} value={t.id}>${t.ticker} · {t.name}</option>)}
+          </select></label>
+      )}
       <label className="block"><span className={label}>{tr("Project name")}</span><input className={input} value={f.name} onChange={set("name")} maxLength={40} /></label>
       <label className="block"><span className={label}>{tr("Short description")}</span><input className={input} value={f.tagline} onChange={set("tagline")} maxLength={80} /></label>
       <label className="block"><span className={label}>{tr("About this project")}</span><textarea className={`${input} h-32 py-3`} value={f.description} onChange={set("description")} maxLength={2000} /></label>
@@ -151,16 +208,16 @@ export function SubmitApp() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border p-4">
+      {!noToken && <div className="rounded-2xl border border-border p-4">
         <label className="flex items-start gap-3">
           <input type="checkbox" checked={f.acceptsToken} onChange={(e) => setF((x) => ({ ...x, acceptsToken: e.target.checked }))} className="mt-1 size-5" />
           <span className="text-[14px] font-semibold">{tr("My website accepts ${t} as payment", { t: tok?.ticker ?? "TOKEN" })}</span>
         </label>
         <input className={`${input} mt-3`} value={f.paymentNote} onChange={set("paymentNote")} maxLength={200} placeholder={tr("How is your token used to pay on your website?")} />
-      </div>
+      </div>}
 
       <button type="submit" disabled={busy || !!up} className="flex h-12 w-full items-center justify-center rounded-full bg-foreground text-[16px] font-bold text-background disabled:opacity-50">
-        {busy ? <Mirage className="size-5" /> : apps.some((x) => x.token_id === f.tokenId) ? tr("Update my project") : tr("Publish my project")}
+        {busy ? <Mirage className="size-5" /> : mustPay ? tr("Pay ${n} and publish", { n: NO_TOKEN_PRICE_USD }) : (noToken ? !!appId : apps.some((x) => x.token_id === f.tokenId)) ? tr("Update my project") : tr("Publish my project")}
       </button>
     </form>
   );

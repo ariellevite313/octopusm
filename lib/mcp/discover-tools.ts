@@ -6,7 +6,7 @@
 import { ToolError, type McpTool } from "@/lib/mcp/tools";
 import { createAdminClient } from "@/lib/supabase/server";
 import { APP_CATEGORIES, BOOST_COST_OMERO, BOOST_DAYS } from "@/lib/discover";
-import { APP_COLS, withTokens } from "@/lib/discover-server";
+import { APP_COLS, LIVE_LISTING, withTokens } from "@/lib/discover-server";
 
 const S = (properties: Record<string, unknown>, required: string[] = []): McpTool["inputSchema"] => ({ type: "object", properties, required });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,11 +15,11 @@ const db = () => createAdminClient() as any;
 const url = (id: string) => `https://omdot.fun/discover/${id}`;
 
 type Card = Awaited<ReturnType<typeof withTokens>>[number]["card"];
-/** Fiche lisible par une IA : l'app de la plateforme (OM) se paie en SOL, sans token de projet. */
+/** Fiche lisible par une IA. Les fiches de l'admin ou sans token n'ont pas de token de projet. */
 const shape = (c: Card) => ({
   id: c.id, name: c.name, tagline: c.tagline, category: c.category, rating: c.rating, ratings: c.ratings, visits: c.visits,
   website: c.siteUrl, discover_page: url(c.id), boosted_until: c.boostedUntil, official: c.platform,
-  pays_with: c.platform ? { network: "Solana", token: "SOL" } : { network: c.token.chain === "arc" ? "Arc" : "Solana", ticker: c.token.ticker, name: c.token.name, token_page: `https://omdot.fun/launchpad/${c.token.slug}`, price_usd: c.token.price, market_cap_usd: c.token.mcap },
+  pays_with: c.platform || c.noToken ? { network: c.network, token: null } : { network: c.token.chain === "arc" ? "Arc" : "Solana", ticker: c.token.ticker, name: c.token.name, token_page: `https://omdot.fun/launchpad/${c.token.slug}`, price_usd: c.token.price, market_cap_usd: c.token.mcap },
 });
 
 function user(ctx: { user?: { wallet: string; scopes: string[] } | null }, scope?: string): string {
@@ -43,6 +43,8 @@ export const DISCOVER_PUBLIC_TOOLS: McpTool[] = [
       const sort = a.sort === "new" ? "new" : a.sort === "recommended" ? "recommended" : "top";
       const limit = Math.min(30, Math.max(1, Number(a.limit) || 10));
       let q = db().from("discover_apps").select(APP_COLS).eq("status", "live").limit(limit);
+      const { error: colErr } = await db().from("discover_apps").select("listing_paid_until").limit(1);
+      if (!colErr) q = q.or(LIVE_LISTING());
       if (typeof a.category === "string" && (APP_CATEGORIES as readonly string[]).includes(a.category)) q = q.eq("category", a.category);
       const search = String(a.search ?? "").replace(/[%_,().]/g, "").trim().slice(0, 40);
       if (search) q = q.or(`name.ilike.%${search}%,tagline.ilike.%${search}%`);
@@ -66,7 +68,7 @@ export const DISCOVER_PUBLIC_TOOLS: McpTool[] = [
       const [{ card }] = await withTokens(db(), [row]);
       const { data: reviews } = await db().from("discover_reviews").select("rating, body, created_at").eq("app_id", id).eq("hidden", false).not("body", "is", null).order("created_at", { ascending: false }).limit(10);
       return {
-        ...shape(card), description: row.description, payment_note: card.platform ? null : row.payment_note,
+        ...shape(card), description: row.description, payment_note: card.platform || card.noToken ? null : row.payment_note,
         latest_reviews: reviews ?? [],
         disclaimer: "Run by its creator, not by OMdotfun. Not financial advice. Never give a recovery phrase to any website.",
       };

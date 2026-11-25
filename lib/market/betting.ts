@@ -319,3 +319,40 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
 
   return { success: true, reference, signature };
 }
+
+// ─── Paiement simple en USDC vers la trésorerie (fiche Discover sans token…) ───
+
+/** Envoie `amount` USDC (montant entier) à la trésorerie depuis le wallet connecté. Renvoie la signature, ou une erreur lisible. */
+export async function payUsdcToTreasury(p: { amount: number; walletAddress: string; walletType: WalletType | null; memo: string }): Promise<{ signature: string } | { error: string }> {
+  const adapters = await import("@/lib/wallet/adapters");
+  let provider = p.walletType ? adapters.getProviderByType(p.walletType) : null;
+  if (!provider && typeof window !== "undefined") {
+    const s = (window as unknown as { solana?: SolanaProvider }).solana;
+    if (s && (s.signAndSendTransaction || s.signTransaction)) provider = adapters.normalizeSolanaProvider(s);
+  }
+  if (!provider?.signAndSendTransaction && !provider?.signTransaction) return { error: "Connect a Solana wallet to pay" };
+  const web3 = await loadWeb3();
+  const { PublicKey, Transaction } = web3;
+  try {
+    const payerPK = new PublicKey(p.walletAddress), recipientPK = new PublicKey(TREASURY_ADDRESS), mintPK = new PublicKey(USDC_MINT);
+    const payerATA = findATA(web3, payerPK, mintPK), recipientATA = findATA(web3, recipientPK, mintPK);
+    const connection = solanaConnection();
+    const { blockhash } = await connection.getLatestBlockhash("confirmed");
+    const tx = new Transaction({ feePayer: payerPK, recentBlockhash: blockhash });
+    if (!(await connection.getAccountInfo(recipientATA, "confirmed"))) tx.add(createATAIx(web3, payerPK, recipientPK, mintPK, recipientATA));
+    tx.add(createMemoIx(web3, payerPK, p.memo.slice(0, 200)));
+    tx.add(createTransferCheckedIx(web3, payerATA, recipientATA, mintPK, payerPK, uiToBaseUnits(p.amount, 6), 6));
+    if (provider.signTransaction) {
+      const signed = await provider.signTransaction(tx);
+      const signature = await connection.sendRawTransaction((signed as unknown as { serialize(): Uint8Array }).serialize(), { maxRetries: 5, preflightCommitment: "confirmed" });
+      return { signature };
+    }
+    const res = await provider.signAndSendTransaction!(tx, { maxRetries: 3, preflightCommitment: "confirmed" });
+    return { signature: res.signature };
+  } catch (err) {
+    const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    if (msg.includes("cancel") || msg.includes("reject") || msg.includes("denied")) return { error: "Transaction cancelled." };
+    if (msg.includes("insufficient") || msg.includes("0x1") || msg.includes("not enough")) return { error: "Insufficient USDC balance." };
+    return { error: "Payment failed, try again" };
+  }
+}
