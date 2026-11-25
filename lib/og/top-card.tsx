@@ -7,7 +7,7 @@ import { ImageResponse } from "next/og";
 import { ogFonts } from "@/lib/og/brand";
 import { localImage, money, remoteImage } from "@/lib/og/pnl-card";
 import { CHAINS } from "@/lib/terminal";
-import type { TopKind, TopPeriod, TopRow, TopSource } from "@/lib/top-lists";
+import { WIN_SOURCE, type TopKind, type TopPeriod, type TopRow, type TopSource } from "@/lib/top-lists";
 
 const W = 1080, H = 1350, WW = 1200, WH = 630;
 /** Couleurs de l'image : fond, texte, barres, motif léger. « dark » est l'image d'origine. */
@@ -82,8 +82,8 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
   const [t1, t2] = topTitle(p.kind, p.period, p.source);
   const date = new Date(p.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
   const time = new Date(p.at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
-  const sub = [win ? "OMdotfun predictions · All time" : om ? "OM Launchpad · All chains" : chainName(p.source), `${date}, ${time} UTC`].join(" · ");
-  const col2 = win ? "Wins" : om ? "Chain" : "Market cap";
+  const sub = [win ? "OMdotfun · All time" : om ? "OM Launchpad · All chains" : chainName(p.source), `${date}, ${time} UTC`].join(" · ");
+  const col2 = win ? (p.rows.some((r) => WIN_SOURCE[r.chain]) ? "From" : "Wins") : om ? "Chain" : "Market cap";
   const col3 = win ? "Gains" : p.kind === "mcap" ? "Market cap" : p.kind === "volume" ? `Volume ${PERIOD[p.period]}` : p.kind === "dev_sold" ? "Team" : `Change ${PERIOD[p.period]}`;
   const max = Math.max(1e-9, ...rows.map((r) => Math.abs(r.value)));
   const color = p.kind === "gainers" ? UP : p.kind === "losers" || p.kind === "dev_sold" ? DOWN : th.text;
@@ -126,7 +126,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
                   </div>
                 </div>,
                 win
-                  ? <span style={{ fontSize: 24 }}>{r.mcap ?? 0}</span>
+                  ? <span style={{ fontSize: 24 }}>{WIN_SOURCE[r.chain] ?? r.mcap ?? 0}</span>
                   : om
                   ? <div style={{ display: "flex", alignItems: "center", fontSize: 24 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -6,6 +6,8 @@
  * Les hausses/baisses et volumes sur 7 ou 30 jours viennent des bougies journalières des pools (GeckoTerminal),
  * ou des trades connus d'OM pour les tokens du Launchpad.
  */
+import { loadEarnerRows, rankEarners } from "@/lib/top-earners";
+import { getProfiles } from "@/lib/profiles";
 import { CHAINS, GT_NET, isSkipped, mapPools, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { analyzeDev } from "@/lib/terminal-dev";
 import { loadTokenTrades } from "@/lib/trade-card";
@@ -243,23 +245,36 @@ async function arcTop(db: any, kind: TopKind): Promise<TopRow[]> {
     .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.change24h ?? 0) - (a.change24h ?? 0))).slice(0, 10).map((t) => row(t, t.change24h ?? 0));
 }
 
-/** Gagnants de la plateforme : les 10 premiers du classement des prédictions (gains nets en USDC, tout le temps). */
-async function winnersTop(origin: string): Promise<TopRow[]> {
+/** Source principale des gains d'un gagnant, mise dans `chain` (affichée dans la 2e colonne de l'image). */
+export const WIN_SOURCE: Record<string, string> = { chill: "Chill your bag", creator: "Creator fees", predict: "Predictions" };
+
+/**
+ * Gagnants de la plateforme : les mêmes que « Top traders » du Terminal (chill, frais créateur, prédictions, en $),
+ * lus directement en base. Avant, on lisait seulement les prédictions en USDC via une requête HTTP vers le site lui-même,
+ * d'où une liste vide.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function winnersTop(db: any): Promise<TopRow[]> {
   try {
-    const r = await fetch(`${origin}/api/leaderboard/predictions?token=usdc&period=all&limit=10`, { cache: "no-store", signal: AbortSignal.timeout(9000) });
-    if (!r.ok) return [];
-    const j = (await r.json()) as { entries?: { wallet_address: string; display_name?: string; avatar_src?: string; win_count: number; total_gains: number }[] };
-    return (j.entries ?? []).slice(0, 10).map((e) => {
-      const short = `${e.wallet_address.slice(0, 4)}…${e.wallet_address.slice(-4)}`;
-      // mcap porte le nombre de victoires (colonne « Wins » de l'image)
-      return { name: e.display_name || short, symbol: short, logo: e.avatar_src ?? null, chain: "solana", mcap: e.win_count, value: e.total_gains };
+    let sol = 0;
+    try {
+      const r = await fetch("https://api.coinbase.com/v2/prices/SOL-USD/spot", { signal: AbortSignal.timeout(4000) });
+      sol = Number(((await r.json()) as { data?: { amount?: string } }).data?.amount) || 0;
+    } catch { /* sans prix SOL, les frais créateur Solana comptent 0 */ }
+    const top = rankEarners(await loadEarnerRows(db, sol), 10);
+    const prof = await getProfiles(db, top.map((t) => t.wallet)).catch(() => new Map());
+    return top.map((t) => {
+      const short = `${t.wallet.slice(0, 4)}…${t.wallet.slice(-4)}`;
+      const main = (Object.entries(t.parts) as [string, number][]).sort((x, y) => y[1] - x[1])[0]?.[0] ?? "predict";
+      const p = prof.get(t.wallet);
+      return { name: p?.name || short, symbol: short, logo: p?.avatar_src ?? null, chain: main, mcap: null, value: Math.round(t.usd * 100) / 100 };
     });
-  } catch { return []; }
+  } catch (e) { console.error("[top-lists] winners", e); return []; }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function buildTop(db: any, source: TopSource, kind: TopKind, period: TopPeriod, origin: string): Promise<TopRow[]> {
   if (kind === "dev_sold" && !devSoldOk(source)) return [];
-  if (source === "winners") return winnersTop(origin);
+  if (source === "winners") return winnersTop(db);
   return source === "om" ? omTop(db, kind, period, origin) : source === "stocks" ? stocksTop(kind, period) : source === "arc" ? arcTop(db, kind) : chainTop(source, kind, period);
 }

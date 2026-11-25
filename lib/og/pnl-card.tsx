@@ -25,9 +25,21 @@ export async function remoteImage(url: string | null, origin: string) {
   try {
     const r = await fetch(url.startsWith("http") ? url : origin + url, { signal: AbortSignal.timeout(5000) });
     if (!r.ok) return null;
-    const type = r.headers.get("content-type") ?? "image/png";
-    if (!/^image\/(png|jpe?g|gif|webp)/.test(type)) return null;
-    return `data:${type};base64,${Buffer.from(await r.arrayBuffer()).toString("base64")}`;
+    const type = (r.headers.get("content-type") ?? "image/png").split(";")[0].trim();
+    if (!/^image\//.test(type)) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    // L'image OG (satori) ne lit que PNG et JPEG : un logo WebP, AVIF, SVG… faisait planter toute l'image.
+    // On le convertit en PNG 128 px ; s'il est illisible, on ne met pas de logo.
+    if (/^image\/(png|jpe?g)$/.test(type)) return `data:${type};base64,${buf.toString("base64")}`;
+    return await toPng(buf);
+  } catch { return null; }
+}
+
+async function toPng(buf: Buffer): Promise<string | null> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const png = await sharp(buf, { animated: false }).resize(128, 128, { fit: "cover" }).png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
   } catch { return null; }
 }
 
