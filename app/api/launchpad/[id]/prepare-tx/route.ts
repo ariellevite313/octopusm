@@ -230,7 +230,9 @@ export async function POST(req: Request, { params }: RouteParams) {
         // RPC saturé (429) ou injoignable : on ne sait pas si le token est déjà lancé. Construire une nouvelle
         // création de pool échouerait de toute façon (même RPC) et pourrait faire signer pour rien : on demande d'attendre.
         console.warn("[prepare-tx] on-chain mint check failed:", e);
-        return NextResponse.json({ error: "The Solana network is busy right now. Wait a minute, then tap Retry." }, { status: 503 });
+        if (/429|Too Many Requests|rate limit/i.test(String((e as Error)?.message ?? e))) {
+          return NextResponse.json({ error: "The Solana network is busy right now. Wait a minute, then tap Retry." }, { status: 503 });
+        }
       }
     }
 
