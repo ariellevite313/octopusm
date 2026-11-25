@@ -16,7 +16,7 @@ import { arcMarket } from "@/lib/dexscreener";
 
 export type TopKind = "mcap" | "volume" | "gainers" | "losers" | "dev_sold";
 export type TopPeriod = "day" | "week" | "month";
-export type TopSource = "om" | "stocks" | TerminalChain;
+export type TopSource = "om" | "stocks" | "winners" | TerminalChain;
 export type TopRow = { name: string; symbol: string; logo: string | null; chain: string; mcap: number | null; value: number };
 
 export const TOP_KINDS: TopKind[] = ["mcap", "volume", "gainers", "losers", "dev_sold"];
@@ -24,9 +24,9 @@ export const TOP_PERIODS: TopPeriod[] = ["day", "week", "month"];
 /** Chaînes du Terminal disponibles (celles que GeckoTerminal couvre) */
 export const TOP_CHAINS = CHAINS.filter((c) => GT_NET[c.id]).map((c) => c.id);
 /** Arc n'est pas sur GeckoTerminal : ses tokens viennent d'OM et d'Uniswap (DexScreener) */
-export const isSource = (s: string): s is TopSource => s === "om" || s === "stocks" || s === "arc" || (TOP_CHAINS as string[]).includes(s);
+export const isSource = (s: string): s is TopSource => s === "om" || s === "stocks" || s === "winners" || s === "arc" || (TOP_CHAINS as string[]).includes(s);
 /** Arc : chiffres des dernières 24 h seulement (pas de bougies journalières) */
-export const periodOk = (s: TopSource) => s !== "arc";
+export const periodOk = (s: TopSource) => s !== "arc" && s !== "winners";
 /** Le classement par capitalisation et « vendus par l'équipe » n'ont pas de période */
 export const hasPeriod = (k: TopKind) => k === "volume" || k === "gainers" || k === "losers";
 /** « Vendus par l'équipe » : lecture des ventes du dev, possible sur Solana (et les tokens OM sur Solana) */
@@ -243,8 +243,23 @@ async function arcTop(db: any, kind: TopKind): Promise<TopRow[]> {
     .sort((a, b) => (kind === "gainers" ? 1 : -1) * ((b.change24h ?? 0) - (a.change24h ?? 0))).slice(0, 10).map((t) => row(t, t.change24h ?? 0));
 }
 
+/** Gagnants de la plateforme : les 10 premiers du classement des prédictions (gains nets en USDC, tout le temps). */
+async function winnersTop(origin: string): Promise<TopRow[]> {
+  try {
+    const r = await fetch(`${origin}/api/leaderboard/predictions?token=usdc&period=all&limit=10`, { cache: "no-store", signal: AbortSignal.timeout(9000) });
+    if (!r.ok) return [];
+    const j = (await r.json()) as { entries?: { wallet_address: string; display_name?: string; avatar_src?: string; win_count: number; total_gains: number }[] };
+    return (j.entries ?? []).slice(0, 10).map((e) => {
+      const short = `${e.wallet_address.slice(0, 4)}…${e.wallet_address.slice(-4)}`;
+      // mcap porte le nombre de victoires (colonne « Wins » de l'image)
+      return { name: e.display_name || short, symbol: short, logo: e.avatar_src ?? null, chain: "solana", mcap: e.win_count, value: e.total_gains };
+    });
+  } catch { return []; }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function buildTop(db: any, source: TopSource, kind: TopKind, period: TopPeriod, origin: string): Promise<TopRow[]> {
   if (kind === "dev_sold" && !devSoldOk(source)) return [];
+  if (source === "winners") return winnersTop(origin);
   return source === "om" ? omTop(db, kind, period, origin) : source === "stocks" ? stocksTop(kind, period) : source === "arc" ? arcTop(db, kind) : chainTop(source, kind, period);
 }

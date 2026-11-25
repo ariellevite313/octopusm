@@ -1838,5 +1838,6 @@ const p: Record<string, string> = {
   "Ambassador since": "Амбассадор с",
   "members": "участников",
   "Community": "Сообщество",
+  "Platform winners": "Победители платформы",
 };
 export default p;

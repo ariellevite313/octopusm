@@ -51,7 +51,8 @@ const chainName = (c: string) => (c === "stocks" ? "Tokenized stocks · Solana" 
 const PERIOD: Record<TopPeriod, string> = { day: "24h", week: "7 days", month: "30 days" };
 const PERIOD_OF: Record<TopPeriod, string> = { day: "of the day", week: "of the week", month: "of the month" };
 
-export function topTitle(kind: TopKind, period: TopPeriod): [string, string] {
+export function topTitle(kind: TopKind, period: TopPeriod, source?: TopSource): [string, string] {
+  if (source === "winners") return ["Top 10", "platform winners"];
   if (kind === "mcap") return ["Top 10", "by market cap"];
   if (kind === "volume") return ["Top 10 by volume", PERIOD_OF[period]];
   if (kind === "gainers") return ["Top gainers", PERIOD_OF[period]];
@@ -59,7 +60,8 @@ export function topTitle(kind: TopKind, period: TopPeriod): [string, string] {
   return ["Top tokens", "sold by the team"];
 }
 
-function valueText(kind: TopKind, v: number) {
+function valueText(kind: TopKind, v: number, source?: TopSource) {
+  if (source === "winners") return `+$${v >= 1000 ? Math.round(v).toLocaleString("en-US") : v.toFixed(2)}`;
   if (kind === "gainers" || kind === "losers") return `${v > 0 ? "+" : ""}${Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1)}%`;
   if (kind === "dev_sold") return v >= 99.5 ? "Sold all" : `${Math.round(v)}% sold`;
   return money(v);
@@ -76,12 +78,13 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
     Promise.all([...new Set(rows.map((r) => r.chain).concat(om || p.source === "stocks" ? [] : [p.source]))].map(async (c) => [c, await localImage(`chains/${c}.png`)] as const)),
   ]);
   const chainLogo = new Map(chainLogos);
-  const [t1, t2] = topTitle(p.kind, p.period);
+  const win = p.source === "winners";
+  const [t1, t2] = topTitle(p.kind, p.period, p.source);
   const date = new Date(p.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
   const time = new Date(p.at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
-  const sub = [om ? "OM Launchpad · All chains" : chainName(p.source), `${date}, ${time} UTC`].join(" · ");
-  const col2 = om ? "Chain" : "Market cap";
-  const col3 = p.kind === "mcap" ? "Market cap" : p.kind === "volume" ? `Volume ${PERIOD[p.period]}` : p.kind === "dev_sold" ? "Team" : `Change ${PERIOD[p.period]}`;
+  const sub = [win ? "OMdotfun predictions · All time" : om ? "OM Launchpad · All chains" : chainName(p.source), `${date}, ${time} UTC`].join(" · ");
+  const col2 = win ? "Wins" : om ? "Chain" : "Market cap";
+  const col3 = win ? "Gains" : p.kind === "mcap" ? "Market cap" : p.kind === "volume" ? `Volume ${PERIOD[p.period]}` : p.kind === "dev_sold" ? "Team" : `Change ${PERIOD[p.period]}`;
   const max = Math.max(1e-9, ...rows.map((r) => Math.abs(r.value)));
   const color = p.kind === "gainers" ? UP : p.kind === "losers" || p.kind === "dev_sold" ? DOWN : th.text;
   const grid = (a: React.ReactNode, b: React.ReactNode, c: React.ReactNode, d: React.ReactNode, style: React.CSSProperties) => (
@@ -103,7 +106,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
           <span>{t1}</span><span>{t2}</span>
         </div>
         <div style={{ display: "flex", justifyContent: "center", marginTop: 18, fontSize: 24, color: th.sub }}>{sub}</div>
-        {grid(<span>#</span>, <span>Token</span>, <span>{col2}</span>, <span>{col3}</span>, { marginTop: 44, padding: "0 18px 18px", fontSize: 22, color: th.head, borderBottom: `1px solid ${th.head_line}` })}
+        {grid(<span>#</span>, <span>{win ? "Player" : "Token"}</span>, <span>{col2}</span>, <span>{col3}</span>, { marginTop: 44, padding: "0 18px 18px", fontSize: 22, color: th.head, borderBottom: `1px solid ${th.head_line}` })}
         {rows.length === 0 && <div style={{ display: "flex", justifyContent: "center", padding: "80px 0", fontSize: 28, color: th.sub }}>No token to show right now</div>}
         {rows.map((r, i) => {
           const w = Math.max(3, (Math.abs(r.value) / max) * 100) * 1.9;
@@ -119,10 +122,12 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
                     : <div style={{ display: "flex", width: 56, height: 56, borderRadius: 28, background: th.avatar, alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800 }}>{r.symbol.slice(0, 1)}</div>}
                   <div style={{ display: "flex", flexDirection: "column", marginLeft: 16 }}>
                     <span style={{ fontSize: 26, fontWeight: 600 }}>{r.name.length > 17 ? `${r.name.slice(0, 16).trim()}…` : r.name}</span>
-                    <span style={{ fontSize: 18, color: th.sym }}>${r.symbol.replace(/^\$+/, "").slice(0, 12)}</span>
+                    <span style={{ fontSize: 18, color: th.sym }}>{win ? r.symbol : `$${r.symbol.replace(/^\$+/, "").slice(0, 12)}`}</span>
                   </div>
                 </div>,
-                om
+                win
+                  ? <span style={{ fontSize: 24 }}>{r.mcap ?? 0}</span>
+                  : om
                   ? <div style={{ display: "flex", alignItems: "center", fontSize: 24 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       {cl && <img src={cl} alt="" width={40} height={40} style={{ borderRadius: 20, marginRight: 12 }} />}
@@ -131,7 +136,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
                   : <span style={{ fontSize: 24 }}>{r.mcap ? money(r.mcap) : "-"}</span>,
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <div style={{ display: "flex", width: w, height: 40, borderRadius: 3, backgroundImage: th.bar }} />
-                  <span style={{ marginLeft: 16, fontSize: 25, fontWeight: 800, color }}>{valueText(p.kind, r.value)}</span>
+                  <span style={{ marginLeft: 16, fontSize: 25, fontWeight: 800, color }}>{valueText(p.kind, r.value, p.source)}</span>
                 </div>,
                 { height: 86, padding: "0 18px", width: "100%", borderBottom: `1px solid ${th.line}`, background: i % 2 ? th.alt : "transparent" },
               )}
@@ -145,7 +150,7 @@ export async function topCardResponse(p: { source: TopSource; kind: TopKind; per
           {logo && <img src={logo} alt="" width={32} height={32} style={{ marginRight: 10 }} />}
           <span>OMDOT.FUN</span>
         </div>
-        <span style={{ fontSize: 24, color: th.foot }}>{om ? "Launchpad" : "Terminal"}</span>
+        <span style={{ fontSize: 24, color: th.foot }}>{win ? "Leaderboard" : om ? "Launchpad" : "Terminal"}</span>
       </div>
     </div>
   );

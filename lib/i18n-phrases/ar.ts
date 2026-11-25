@@ -1838,5 +1838,6 @@ const p: Record<string, string> = {
   "Ambassador since": "سفير منذ",
   "members": "عضو",
   "Community": "المجتمع",
+  "Platform winners": "فائزو المنصة",
 };
 export default p;

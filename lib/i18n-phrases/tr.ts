@@ -1838,5 +1838,6 @@ const p: Record<string, string> = {
   "Ambassador since": "Elçi olduğu tarih",
   "members": "üye",
   "Community": "Topluluk",
+  "Platform winners": "Platform kazananları",
 };
 export default p;

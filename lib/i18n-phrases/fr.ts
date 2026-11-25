@@ -2569,5 +2569,6 @@ const p: Record<string, string> = {
   "NFT reading is not configured": "La lecture des NFT n'est pas configurée",
   "People referred": "Personnes parrainées",
   "Ambassador since": "Ambassadeur depuis",
+  "Platform winners": "Gagnants de la plateforme",
 };
 export default p;

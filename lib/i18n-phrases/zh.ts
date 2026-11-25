@@ -1838,5 +1838,6 @@ const p: Record<string, string> = {
   "Ambassador since": "大使起始",
   "members": "成员",
   "Community": "社区",
+  "Platform winners": "平台赢家",
 };
 export default p;

@@ -22,13 +22,13 @@ const KINDS: { id: Kind; label: string }[] = [
   { id: "losers", label: "Losers" }, { id: "dev_sold", label: "Sold by the team" },
 ];
 const PERIODS: { id: Period; label: string }[] = [{ id: "day", label: "Day" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }];
-const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, { id: "stocks", name: "Stocks", logo: "/chains/solana.png" }, ...CHAINS.filter((c) => GT_NET[c.id] || c.id === "arc").map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
+const SOURCES = [{ id: "om", name: "OM Launchpad", logo: "/og-logo.png" }, { id: "winners", name: "Platform winners", logo: "/octo-coin.png" }, { id: "stocks", name: "Stocks", logo: "/chains/solana.png" }, ...CHAINS.filter((c) => GT_NET[c.id] || c.id === "arc").map((c) => ({ id: c.id as string, name: c.name, logo: c.logo }))];
 /** Couleurs de l'image (même liste que lib/og/top-card.tsx) */
 const COLORS: { id: string; label: string; bg: string }[] = [
   { id: "dark", label: "Black", bg: "#050505" }, { id: "white", label: "White", bg: "#fafaf8" }, { id: "blue", label: "Blue", bg: "#1747c9" },
   { id: "orange", label: "Orange", bg: "#f26a12" }, { id: "yellow", label: "Yellow", bg: "#ffd21f" }, { id: "green", label: "Green", bg: "#0f9b55" }, { id: "pink", label: "Pink", bg: "#e93a8c" },
 ];
-const hasPeriod = (k: Kind, src = "") => (k === "volume" || k === "gainers" || k === "losers") && src !== "arc";
+const hasPeriod = (k: Kind, src = "") => (k === "volume" || k === "gainers" || k === "losers") && src !== "arc" && src !== "winners";
 const devOk = (s: string) => s === "om" || s === "solana";
 
 function Chip({ on, onClick, children, disabled }: { on: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
@@ -59,14 +59,14 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "Could not build the list, try again");
       setId(j.id);
-      const syms = ((j.symbols ?? []) as string[]).map((x, i) => `${i + 1}. $${x.replace(/^\$+/, "")}`);
+      const syms = ((j.symbols ?? []) as string[]).map((x, i) => `${i + 1}. ${source === "winners" ? x : `$${x.replace(/^\$+/, "")}`}`);
       setCaption(syms.length ? `${text}\n\n${syms.join("\n")}` : text);
     } catch (e) { toast.error(tr((e as Error).message)); }
     setBusy(false);
   }
   const srcName = SOURCES.find((s) => s.id === source)?.name ?? source;
   const kindName = KINDS.find((k) => k.id === kind)?.label ?? "";
-  const text = `Top 10 ${kindName.toLowerCase()}${hasPeriod(kind, source) || (source === "arc" && (kind === "volume" || kind === "gainers" || kind === "losers")) ? ` (${period === "day" || source === "arc" ? "24h" : period === "week" ? "7 days" : "30 days"})` : ""} · ${srcName} · OMdotfun`;
+  const text = source === "winners" ? "Top 10 platform winners · OMdotfun" : `Top 10 ${kindName.toLowerCase()}${hasPeriod(kind, source) || (source === "arc" && (kind === "volume" || kind === "gainers" || kind === "losers")) ? ` (${period === "day" || source === "arc" ? "24h" : period === "week" ? "7 days" : "30 days"})` : ""} · ${srcName} · OMdotfun`;
 
   return (
     <>
@@ -84,15 +84,15 @@ export function TopPublisher({ defaultSource = "solana", className }: { defaultS
             <p className="mt-1 text-[13px] font-semibold text-muted-foreground">{tr("Where")}</p>
             <div className="-mx-4 mt-1.5 flex gap-1.5 overflow-x-auto scrollbar-none px-4">
               {SOURCES.map((s) => (
-                <Chip key={s.id} on={source === s.id} onClick={() => { setSource(s.id); if (kind === "dev_sold" && !devOk(s.id)) setKind("mcap"); reset(); }}>
+                <Chip key={s.id} on={source === s.id} onClick={() => { setSource(s.id); if ((kind === "dev_sold" && !devOk(s.id)) || s.id === "winners") setKind("mcap"); reset(); }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.logo} alt="" className="size-4 rounded-full object-cover" />{s.id === "om" ? tr("OM Launchpad") : s.id === "stocks" ? tr("Stocks") : s.name}
+                  <img src={s.logo} alt="" className="size-4 rounded-full object-cover" />{s.id === "om" ? tr("OM Launchpad") : s.id === "stocks" ? tr("Stocks") : s.id === "winners" ? tr("Platform winners") : s.name}
                 </Chip>
               ))}
             </div>
 
-            <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Ranking")}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {source !== "winners" && <p className="mt-3 text-[13px] font-semibold text-muted-foreground">{tr("Ranking")}</p>}
+            <div className={source === "winners" ? "hidden" : "mt-1.5 flex flex-wrap gap-1.5"}>
               {KINDS.map((k) => <Chip key={k.id} on={kind === k.id} disabled={k.id === "dev_sold" && !devOk(source)} onClick={() => { setKind(k.id); reset(); }}>{tr(k.label)}</Chip>)}
             </div>
             {kind === "dev_sold" && <p className="mt-1.5 text-[12px] text-muted-foreground">{tr("Team sales are only tracked on Solana.")}</p>}
