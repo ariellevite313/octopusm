@@ -19,6 +19,8 @@ import "./globals.css";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://omdot.fun";
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   viewportFit: "cover",
   // Barre du navigateur / statut Android : couleur du fond de la page (clair / sombre), plus d'orange
   themeColor: [

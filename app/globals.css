@@ -652,3 +652,11 @@ html:is(.mode-doge, .mode-pepe, .mode-clt) .btn-primary:hover { background-posit
 }
 .om-mirage-dot { transform-box: fill-box; transform-origin: center; animation: om-mirage 1.2s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .om-mirage-dot { animation-duration: 3s; } }
+
+/* Stabilité : pas de zoom automatique en touchant un bouton ou un champ (iOS zoome sous 16 px), pas de zoom au double toucher.
+   Le zoom au pincement reste possible pour la personne. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+a, button, [role="button"], input, select, textarea, label, summary { touch-action: manipulation; }
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(16px, 1em); }
+}
