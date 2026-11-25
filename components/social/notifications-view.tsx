@@ -11,7 +11,7 @@ import { Mirage } from "@/components/shared/mirage";
 type Ann = { id: string; template: string; vars: Record<string, string | number>; href: string | null; publish_at: string; read: boolean };
 
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(2)}`);
-type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip" | "chill" | "weekly_box" | "ambassador" | "price_alert" | "wallet_trade" | "rug_alert"; actor: string; data?: { reason?: string; before?: number; now?: number; soldPct?: number; symbol?: string | null; mcap?: number; value?: number; kind?: string; chain?: string; label?: string | null; side?: string; mint?: string; usd?: number | null; amount?: number } | null; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
+type N = { id: string; kind: "follow" | "mention" | "reply" | "like" | "repost" | "quote" | "reply_like" | "reply_reply" | "tip" | "chill" | "weekly_box" | "ambassador" | "price_alert" | "wallet_trade" | "rug_alert" | "referral_gain" | "referral_recap"; actor: string; data?: { reason?: string; before?: number; now?: number; soldPct?: number; symbol?: string | null; mcap?: number; value?: number; kind?: string; chain?: string; label?: string | null; side?: string; mint?: string; usd?: number | null; amount?: number; clt?: number; friends?: number } | null; actor_name: string | null; actor_avatar: string | null; post_id: string | null; excerpt: string | null; read: boolean; created_at: string };
 
 function ago(iso: string, tr: (s: string, v?: Record<string, string | number>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -60,6 +60,8 @@ export function NotificationsView() {
       : n.data?.reason === "dev_sold_all" ? tr("Rug alert: the dev sold everything. You hold this token.")
       : n.data?.reason === "dev_selling" ? tr("Rug alert: the dev is selling. You hold this token.")
       : tr("Rug alert: flagged as rugged by RugCheck. You hold this token."))
+    : n.kind === "referral_gain" ? (n.data?.clt ? tr("your referral earned you {v} CLT", { v: Number(n.data.clt).toLocaleString() }) : tr("your referral earned you {v}", { v: `$${Number(n.data?.usd ?? 0) >= 0.01 ? Number(n.data?.usd ?? 0).toFixed(2) : Number(n.data?.usd ?? 0).toFixed(4)}` }))
+    : n.kind === "referral_recap" ? tr("this week your referrals earned you {v} from {n} friends", { v: `$${Number(n.data?.usd ?? 0).toFixed(2)}`, n: n.data?.friends ?? 0 })
     : n.kind === "ambassador" ? tr("you are now an OMdotfun ambassador. You earn 20% of the fees on your referrals.")
     : tr("liked your post");
 
@@ -91,14 +93,14 @@ export function NotificationsView() {
             );
           })}
           {list.map((n) => {
-            const box = n.kind === "weekly_box" || n.kind === "ambassador" || n.kind === "price_alert" || n.kind === "rug_alert";
+            const box = n.kind === "weekly_box" || n.kind === "ambassador" || n.kind === "referral_recap" || n.kind === "price_alert" || n.kind === "rug_alert";
             const term = n.kind === "price_alert" || n.kind === "wallet_trade" || n.kind === "rug_alert";
             const name = n.kind === "price_alert" || n.kind === "rug_alert" ? `$${n.data?.symbol ?? "Token"}` : n.kind === "wallet_trade" ? (n.data?.label ?? shortAddress(n.actor)) : box ? "OMdotfun" : n.actor_name ?? shortAddress(n.actor);
             const tmint = n.kind === "price_alert" || n.kind === "rug_alert" ? n.actor : n.data?.mint ?? "";
             const tchain = n.data?.chain && n.data.chain !== "solana" ? `chain=${n.data.chain}&` : "";
             // Alerte de prix ou rug sur Solana : le lien ouvre directement la vente (stop-loss / take-profit en un geste)
             const sellQ = (n.kind === "price_alert" || n.kind === "rug_alert") && !tchain ? "&sell=1" : "";
-            const href = term ? `/terminal?${tchain}mint=${tmint}${sellQ}` : n.kind === "ambassador" ? "/ambassadors" : box ? "/dashboard/box" : n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
+            const href = term ? `/terminal?${tchain}mint=${tmint}${sellQ}` : n.kind === "ambassador" ? "/ambassadors" : n.kind === "referral_gain" || n.kind === "referral_recap" ? "/dashboard/referrals" : box ? "/dashboard/box" : n.post_id ? `/post/${n.post_id}` : `/profile/${n.actor}`;
             return (
               <li key={n.id}>
                 <Link href={href} className={`flex gap-3 px-4 py-3.5 hover:bg-muted/40 ${n.read ? "" : "bg-muted/30"}`}>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getDashboardData } from "@/services/dashboard-service";
 import { ReferralSection } from "@/components/dashboard/referral-section";
+import { ReferralStats } from "@/components/dashboard/referral-stats";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 
 export const metadata: Metadata = {
@@ -14,12 +15,15 @@ export const revalidate = 0;
 async function ReferralsContent({ wallet }: { wallet: string }) {
   const data = await getDashboardData(wallet);
   return (
+    <div className="space-y-5">
     <ReferralSection
       referralCode={data.referralCode}
       referralCount={data.referralCount}
       referrals={data.referrals}
       octoEarned={data.octoStats.referral}
     />
+    <ReferralStats />
+    </div>
   );
 }
 

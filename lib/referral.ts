@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { notifyReferralGain } from "@/lib/referrals/notify-gain";
 
 /** 1% of the bet amount goes to the referrer as commission */
 export const REFERRAL_COMMISSION_RATE = 0.01;
@@ -37,10 +38,11 @@ export async function awardReferralCommission(
 
   const isClt = token === "clawdtrust" || token === "clt";
 
-  await admin.from("referral_commissions").insert({
+  const { data: row, error } = await admin.from("referral_commissions").insert({
     referrer_wallet: referrerWallet,
     referred_wallet: walletAddress,
     amount_usdc:     isClt ? 0 : commission,
     amount_clt:      isClt ? commission : 0,
-  });
+  }).select("id").single();
+  if (!error && row?.id) await notifyReferralGain({ referrer: referrerWallet, referred: walletAddress, usd: isClt ? 0 : commission, clt: isClt ? commission : 0, ref: `bet:${row.id}`, source: "bet" });
 }

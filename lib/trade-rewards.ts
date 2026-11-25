@@ -14,6 +14,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { isBanned } from "@/lib/moderation";
 import { awardOcto } from "@/lib/octo";
+import { notifyReferralGain } from "@/lib/referrals/notify-gain";
 
 export const REFERRER_SHARE_OF_FEE = 0.1;
 /** Parrain ambassadeur (programme sur candidature, 20 places) : 20 % des frais de la plateforme */
@@ -123,7 +124,10 @@ export async function awardTradeRewards(db: Db, buy: Buy): Promise<{ referral: n
       if (error) { console.error("[trade-rewards] rpc:", error.message); return 0; }
       return data === true ? amount : 0;
     };
-    if (referrer) out.referral = await pay("referral", referrer, r.referral);
+    if (referrer) {
+      out.referral = await pay("referral", referrer, r.referral);
+      if (out.referral > 0) await notifyReferralGain({ referrer, referred: trader, usd: out.referral, ref: `trade:${buy.txId}`, source: "trade" });
+    }
     if (postOk && att) out.post = await pay("post", att.sharer, r.post);
   } catch (e) { console.error("[trade-rewards] award:", e); }
   return out;
