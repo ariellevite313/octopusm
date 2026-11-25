@@ -1,5 +1,6 @@
 "use client";
 
+import { TxButton, TxProgress, useTxSteps, type TxPhase } from "@/components/shared/tx-progress";
 import { captureVia } from "@/lib/social/share-via";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
@@ -277,6 +278,10 @@ export function PredictionDetail({
   const [successRef,    setSuccessRef]    = useState("");
   const [showWallet,    setShowWallet]    = useState(false);
   const [betOpen,       setBetOpen]       = useState(false);
+  // Suivi animé après la signature
+  const [phase,         setPhase]         = useState<TxPhase | null>(null);
+  const BET_STEPS = [tr("Signature received"), tr("Sending the payment"), tr("Recording your prediction"), tr("Sent for review")];
+  const betDone = useTxSteps(phase, BET_STEPS.length, 650);
   // Visiteur venu d'un post du fil (?via=…) : retenu pour la récompense de partage
   useEffect(() => { captureVia(market.id); }, [market.id]);
   // Option choisie depuis un post du fil (?option=…) : ouvre directement la mise
@@ -333,6 +338,7 @@ export function PredictionDetail({
     }
 
     setSubmitState("signing");
+    let t0 = Date.now();
 
     // Wallet EVM (MetaMask) → paris en USDC sur Arc ; sinon Solana
     const send = walletType === "metamask" ? submitBetArc : submitBet;
@@ -347,12 +353,20 @@ export function PredictionDetail({
       token,
       walletAddress,
       walletType: walletType!,
+      onSigned: () => { if (t0 > 0) { t0 = Date.now(); setPhase("running"); } },
     });
 
     if (result.success) {
+      setPhase("running");
+      // Les étapes défilent, la carte passe au vert, puis la fenêtre se ferme sur la confirmation
+      await new Promise((r) => setTimeout(r, Math.max(0, 2100 - (Date.now() - t0))));
+      setPhase("success");
+      await new Promise((r) => setTimeout(r, 2400));
+      setPhase(null);
       setSubmitState("success");
       setSuccessRef(result.reference);
     } else {
+      setPhase(null);
       setSubmitState("error");
       toast.error(tr(result.error));
     }
@@ -501,9 +515,26 @@ export function PredictionDetail({
           {/* 2 → 5 — Fenêtre de mise (s'ouvre au choix d'une option) */}
           {betOpen && selectedOpt && (
             <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center" role="dialog" aria-modal="true">
-              <div className="absolute inset-0 bg-black/60" onClick={() => setBetOpen(false)} aria-hidden />
+              <div className="absolute inset-0 bg-black/60" onClick={() => { if (phase === null) setBetOpen(false); }} aria-hidden />
               <div className="relative max-h-[94dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-card px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 md:rounded-[28px] md:pb-5">
                 <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted md:hidden" />
+                {phase !== null ? (
+                  <div className="pb-2 pt-1">
+                    <TxProgress
+                      phase={phase}
+                      done={betDone}
+                      title={phase === "success" && betDone >= BET_STEPS.length ? tr("Prediction sent") : tr("Placing your prediction")}
+                      subtitle={market.title}
+                      steps={BET_STEPS}
+                      rows={[
+                        { label: tr("Your pick"), value: selectedOpt.label },
+                        { label: tr("You pay"), value: token === "clawdtrust" ? `${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toLocaleString(LOCALES[lang])} CLT` : `$${computeReward(amount, selectedOpt.oddsMultiplier).totalCharged.toFixed(2)}` },
+                        { label: tr("To win"), value: <span className="text-up">{token === "clawdtrust" ? Math.round(computeReward(amount, selectedOpt.oddsMultiplier).netReward).toLocaleString(LOCALES[lang]) : `$${computeReward(amount, selectedOpt.oddsMultiplier).netReward.toFixed(2)}`}</span> },
+                      ]}
+                    />
+                    <div className="mt-5"><TxButton phase={phase} running={tr("Confirming…")} success={tr("Prediction sent")}>{tr("Confirm")}</TxButton></div>
+                  </div>
+                ) : <>
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex gap-1 rounded-full bg-muted p-1">
                     {((walletType === "metamask" ? ["usdc"] : ["usdc", "clawdtrust"]) as BetToken[]).map((t) => (
@@ -614,6 +645,7 @@ export function PredictionDetail({
                 <div className="mt-3">
                   <SwapKeypad value={rawAmount} onChange={setRawAmount} maxDecimals={token === "clawdtrust" ? 0 : 2} />
                 </div>
+                </>}
               </div>
             </div>
           )}

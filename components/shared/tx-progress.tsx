@@ -91,7 +91,7 @@ export function TxProgress({ phase, title, subtitle, steps, done, rows }: {
   );
 }
 
-/** Bouton d'action : blanc avec roue pendant l'opération, vert avec coche au succès. */
+/** Bouton d'action : verre glacé transparent et incolore pendant l'opération et au succès (roue, puis coche). */
 export function TxButton({ phase, running, success, onClick, disabled, children, type = "button" }: {
   phase: TxPhase | null;
   running: string;
@@ -104,10 +104,10 @@ export function TxButton({ phase, running, success, onClick, disabled, children,
   const ok = phase === "success";
   return (
     <button type={type} onClick={onClick} disabled={disabled || phase === "running"}
-      className={`relative flex h-[52px] w-full items-center justify-center gap-2 overflow-hidden rounded-full text-base font-extrabold transition-[background-color,color] duration-500 disabled:cursor-default ${
-        ok ? "bg-up text-[#04140b]" : "bg-foreground text-background"} ${phase === null ? "disabled:opacity-40" : ""}`}>
+      className={`relative flex h-[52px] w-full items-center justify-center gap-2 overflow-hidden rounded-full text-base font-extrabold transition-[background-color,color,box-shadow] duration-500 disabled:cursor-default ${
+        phase === null ? "bg-foreground text-background disabled:opacity-40" : "tx-glass text-foreground"}`}>
       {phase === "running" && <><Spinner className="size-4" /><span className="tx-fade">{running}</span></>}
-      {ok && <><span className="tx-fade">{success}</span><Check className="tx-pop size-5 [&_circle]:fill-[#04140b] [&_path]:stroke-[var(--up)]" /></>}
+      {ok && <><span className="tx-fade">{success}</span><Check className="tx-pop size-5 [&_circle]:fill-[var(--foreground)] [&_path]:stroke-[var(--background)]" /></>}
       {phase === null && children}
     </button>
   );

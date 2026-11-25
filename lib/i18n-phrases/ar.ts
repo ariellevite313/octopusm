@@ -1,5 +1,12 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Signature received": "تم استلام التوقيع",
+  "Sending the payment": "جارٍ إرسال الدفعة",
+  "Recording your prediction": "جارٍ تسجيل توقعك",
+  "Sent for review": "أُرسل للمراجعة",
+  "Prediction sent": "تم إرسال التوقع",
+  "Placing your prediction": "جارٍ إرسال توقعك",
+  "Your pick": "اختيارك",
   "Checking your balance": "جارٍ التحقق من رصيدك",
   "Sending OMERO": "جارٍ إرسال OMERO",
   "Delivering the bonbons": "جارٍ توصيل الحلوى",

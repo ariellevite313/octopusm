@@ -1,5 +1,12 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Signature received": "已收到签名",
+  "Sending the payment": "正在发送付款",
+  "Recording your prediction": "正在记录你的预测",
+  "Sent for review": "已提交审核",
+  "Prediction sent": "预测已发送",
+  "Placing your prediction": "正在提交预测",
+  "Your pick": "你的选择",
   "Checking your balance": "正在检查余额",
   "Sending OMERO": "正在发送 OMERO",
   "Delivering the bonbons": "正在送出糖果",

@@ -48,6 +48,8 @@ export type BetParams = {
   token: BetToken;
   walletAddress: string;
   walletType: WalletType;
+  /** Appelé dès que le wallet a signé (pour afficher le suivi animé) */
+  onSigned?: () => void;
 };
 
 export type BetResult =
@@ -244,6 +246,7 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
       // Sign + broadcast. No server-side verification — admin approves all bets.
       if (provider.signTransaction) {
         const signed = await provider.signTransaction(tx);
+        params.onSigned?.();
         signature = await connection.sendRawTransaction(
           (signed as unknown as { serialize(): Uint8Array }).serialize(),
           { maxRetries: 5, preflightCommitment: "confirmed" }
@@ -254,6 +257,7 @@ export async function submitBet(params: BetParams): Promise<BetResult> {
           preflightCommitment: "confirmed",
         });
         signature = res.signature;
+        params.onSigned?.();
       } else {
         throw new Error("Wallet does not support signing transactions.");
       }

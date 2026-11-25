@@ -20,6 +20,7 @@ export async function submitBetArc(params: BetParams): Promise<BetResult> {
 
   const sent = await sendArcUsdc({ from: walletAddress, amount: totalCharged, memo });
   if (!sent.success) return { success: false, error: sent.error };
+  params.onSigned?.();
   const txHash = sent.hash;
 
   try {

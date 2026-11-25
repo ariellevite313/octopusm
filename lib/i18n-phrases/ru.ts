@@ -1,5 +1,12 @@
 // Traductions des phrases du site (clé = texte anglais). Générées puis relues ; garder {variables}, <b>, [[ ]] et liens.
 const p: Record<string, string> = {
+  "Signature received": "Подпись получена",
+  "Sending the payment": "Отправка платежа",
+  "Recording your prediction": "Запись прогноза",
+  "Sent for review": "Отправлено на проверку",
+  "Prediction sent": "Прогноз отправлен",
+  "Placing your prediction": "Отправка прогноза",
+  "Your pick": "Твой выбор",
   "Checking your balance": "Проверка баланса",
   "Sending OMERO": "Отправка OMERO",
   "Delivering the bonbons": "Доставка конфет",
