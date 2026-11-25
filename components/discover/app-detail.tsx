@@ -111,9 +111,9 @@ function NetworkValue({ network }: { network: string }) {
 /** Liens X, Telegram et Discord du projet, s'il les a donnés. */
 function Socials({ s }: { s?: { x: string | null; telegram: string | null; discord: string | null } }) {
   if (!s || (!s.x && !s.telegram && !s.discord)) return null;
-  const btn = "flex size-12 items-center justify-center rounded-full bg-muted text-foreground transition-colors hover:bg-muted/70";
+  const btn = "flex size-9 items-center justify-center text-foreground [filter:drop-shadow(0_0_6px_var(--background))] transition-opacity hover:opacity-70";
   return (
-    <div className="mt-3 flex justify-center gap-3 lg:justify-start">
+    <div className="flex items-center gap-1">
       {s.x && <a href={s.x} target="_blank" rel="noopener noreferrer nofollow" aria-label="X" className={btn}><XIcon /></a>}
       {s.telegram && <a href={s.telegram} target="_blank" rel="noopener noreferrer nofollow" aria-label="Telegram" className={btn}><TgIcon /></a>}
       {s.discord && <a href={s.discord} target="_blank" rel="noopener noreferrer nofollow" aria-label="Discord" className={btn}><DiscordIcon /></a>}
@@ -205,7 +205,8 @@ export function AppDetail({ id }: { id: string }) {
         </div>
         <div className="absolute inset-x-0 top-0 flex items-center justify-between px-2 pt-2 sm:px-4">
           <Link href="/discover" aria-label={tr("Back")} className="flex size-11 items-center justify-center rounded-full bg-background/60 backdrop-blur hover:bg-background/80"><ArrowLeft className="size-5" /></Link>
-          <div className="relative">
+          <div className="relative flex items-center gap-1">
+            <Socials s={a.socials} />
             <button onClick={() => setMenu((v) => !v)} aria-label={tr("More")} className="flex size-11 items-center justify-center rounded-full bg-background/60 backdrop-blur hover:bg-background/80"><MoreVertical className="size-5" /></button>
             {menu && (
               <div className="absolute right-0 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
@@ -239,7 +240,6 @@ export function AppDetail({ id }: { id: string }) {
         <div className="mt-5 lg:mt-0">
           <AppIcon app={a} className="mb-4 hidden size-28 lg:block" />
           <a href={a.siteUrl} target="_blank" rel="noopener noreferrer" onClick={() => visit(a.id)} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background transition-opacity hover:opacity-90">{tr("Open website")}</a>
-          <Socials s={a.socials} />
           {d.isOwner && <BoostButton id={a.id} until={a.boostedUntil ?? null} onDone={load} />}
         </div>
       </div>
