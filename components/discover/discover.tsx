@@ -112,7 +112,7 @@ export function Discover() {
       ) : (
         <>
           {featured.length > 0 && (
-            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-none px-4">
+            <div className="-mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scrollbar-none px-4">
               {featured.map((a) => <Featured key={a.id} a={a} />)}
             </div>
           )}

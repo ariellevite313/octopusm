@@ -96,7 +96,7 @@ export function AppDetail({ id }: { id: string }) {
 
       {/* Images */}
       {images.length > 0 && (
-        <div className="-mx-4 flex snap-x gap-3 overflow-x-auto scrollbar-none px-4">
+        <div className="-mx-4 flex snap-x scroll-pl-4 gap-3 overflow-x-auto scrollbar-none px-4">
           {images.map((src) => (
             <button key={src} onClick={() => setShot(src)} className="h-[220px] shrink-0 snap-start overflow-hidden rounded-[18px] bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}

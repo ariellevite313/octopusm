@@ -1,5 +1,5 @@
 /** Discover : règles des fiches d'apps (validation partagée client et serveur, testée). */
-import { cleanHttpsUrl } from "@/lib/hackathon/apply";
+import { cleanHttpsUrl } from "@/lib/https-url";
 
 export const APP_CATEGORIES = ["ai", "defi", "gaming", "payments", "social", "tools", "nft", "other"] as const;
 export type AppCategory = (typeof APP_CATEGORIES)[number];

@@ -20,15 +20,8 @@ const SOL_ADDR = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const EVM_ADDR = /^0x[0-9a-fA-F]{40}$/;
 export const isWalletAddress = (s: string) => SOL_ADDR.test(s) || EVM_ADDR.test(s);
 
-/** Seules les URLs https:// sont acceptées. */
-export function cleanHttpsUrl(v: unknown, max = 300): string | null {
-  if (typeof v !== "string" || v.length > max) return null;
-  try {
-    const u = new URL(v.trim());
-    if (u.protocol !== "https:" || u.username || u.password) return null;
-    return u.toString();
-  } catch { return null; }
-}
+import { cleanHttpsUrl } from "@/lib/https-url";
+export { cleanHttpsUrl };
 
 export function validateApplication(input: ApplicationInput, applicant: string): { ok: true; value: ValidApplication } | { ok: false; error: string } {
   const name = typeof input.name === "string" ? input.name.trim() : "";
