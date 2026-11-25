@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
+import { PublicKey as SolPK } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
-import { judgeArcCreator, judgeSolanaCreator, verifyTokenCreator } from "@/lib/launch/verify-creator";
+import { judgeArcCreator, judgeSolanaCreator, verifyTokenCreator, parseDbcPool } from "@/lib/launch/verify-creator";
 import { buildSignMessage, verifyWalletSignature } from "@/lib/launch/wallet-signature";
 
 const CREATOR = "0xAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaa";
@@ -83,5 +84,25 @@ describe("verifyWalletSignature", () => {
     const signature = await account.signMessage({ message: buildSignMessage(base) });
     expect(await verifyWalletSignature({ chain: "evm", ...base, signature, now })).toEqual({ ok: true });
     expect((await verifyWalletSignature({ chain: "evm", ...base, targetId: "tok-3", signature, now })).ok).toBe(false);
+  });
+});
+
+describe("parseDbcPool (lecture brute d'une pool DBC)", () => {
+  const creator = "7nXdEukVURkwD8bwbDJH8nFtxrEaQwewoZV2DYYLCv1Y";
+  const mint = "2zexG89BnCH7BDZsfSih7UGcdvMDQ1qJVhBroqKpuBom";
+  const make = (disc = "d5e005d16245775c") => {
+    const d = Buffer.alloc(424);
+    Buffer.from(disc, "hex").copy(d, 0);
+    new SolPK(creator).toBuffer().copy(d, 104);
+    new SolPK(mint).toBuffer().copy(d, 136);
+    return d;
+  };
+  it("lit créateur et mint", () => {
+    expect(parseDbcPool({ owner: "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN", data: make() })).toEqual({ creator, baseMint: mint });
+  });
+  it("refuse un autre programme ou un autre type de compte", () => {
+    expect(parseDbcPool({ owner: "11111111111111111111111111111111", data: make() })).toBeNull();
+    expect(parseDbcPool({ owner: "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN", data: make("0000000000000000") })).toBeNull();
+    expect(parseDbcPool(null)).toBeNull();
   });
 });

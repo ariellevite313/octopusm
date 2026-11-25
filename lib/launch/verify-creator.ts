@@ -9,6 +9,7 @@
  *  - "unverified" : impossible de lire la chaîne maintenant (RPC, donnée manquante)
  */
 import { solanaConnection } from "@/lib/solana/rpc";
+import { PublicKey as SolPublicKey } from "@solana/web3.js";
 export type CreatorVerdict = "ok" | "mismatch" | "unverified";
 
 export type ArcCurveRecord = { token: string; curve: string; creator: string } | null;
@@ -94,12 +95,40 @@ export async function readSolanaPoolOnChain(poolAddress: string): Promise<Solana
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Client = (sdk as any).DynamicBondingCurveClient;
     const client = new Client(solanaConnection(), "confirmed");
-    const pool = await client.state.getPool(new PublicKey(poolAddress));
-    if (!pool) return null;
-    return { creator: String(pool.creator.toBase58()), baseMint: String(pool.baseMint.toBase58()) };
+    const pool = await client.state.getPool(new PublicKey(poolAddress)).catch(() => null);
+    if (pool) return { creator: String(pool.creator.toBase58()), baseMint: String(pool.baseMint.toBase58()) };
+    // Le SDK ne sait pas lire certaines pools (taille du compte différente selon la version du programme) :
+    // on lit alors le compte brut, en vérifiant qu'il appartient bien au programme DBC et que c'est une VirtualPool.
+    return await readSolanaPoolRaw(poolAddress);
+  } catch {
+    return readSolanaPoolRaw(poolAddress).catch(() => null);
+  }
+}
+
+const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
+const POOL_DISCRIMINATOR_HEX = "d5e005d16245775c";
+const POOL_CREATOR_OFFSET = 104;
+const POOL_BASE_MINT_OFFSET = 136;
+
+/** Lecture directe d'une VirtualPool Meteora DBC : créateur (octet 104) et mint de base (octet 136). */
+export async function readSolanaPoolRaw(poolAddress: string): Promise<SolanaPoolRecord> {
+  try {
+    const info = await solanaConnection().getAccountInfo(new SolPublicKey(poolAddress), "confirmed");
+    return parseDbcPool(info ? { owner: info.owner.toBase58(), data: Buffer.from(info.data) } : null);
   } catch {
     return null;
   }
+}
+
+/** Pur : décode une VirtualPool DBC à partir du compte brut, ou null si ce n'en est pas une. */
+export function parseDbcPool(acc: { owner: string; data: Buffer } | null): SolanaPoolRecord {
+  if (!acc || acc.owner !== DBC_PROGRAM) return null;
+  if (acc.data.length < POOL_BASE_MINT_OFFSET + 32) return null;
+  if (acc.data.subarray(0, 8).toString("hex") !== POOL_DISCRIMINATOR_HEX) return null;
+  return {
+    creator: new SolPublicKey(acc.data.subarray(POOL_CREATOR_OFFSET, POOL_CREATOR_OFFSET + 32)).toBase58(),
+    baseMint: new SolPublicKey(acc.data.subarray(POOL_BASE_MINT_OFFSET, POOL_BASE_MINT_OFFSET + 32)).toBase58(),
+  };
 }
 
 /** Point d'entrée : vérifie un token déjà enregistré (Solana ou Arc). */
