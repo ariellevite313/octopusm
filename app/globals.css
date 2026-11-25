@@ -704,7 +704,7 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 .tx-pop { animation: tx-pop .45s cubic-bezier(.22,1,.36,1) both; }
 .tx-check-path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: tx-draw .4s .15s ease forwards; }
 @keyframes tx-draw { to { stroke-dashoffset: 0; } }
-@keyframes tx-glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 45%, transparent); } 40% { box-shadow: 0 0 36px 2px color-mix(in srgb, var(--up) 35%, transparent); } 100% { box-shadow: 0 0 18px 0 color-mix(in srgb, var(--up) 14%, transparent); } }
+@keyframes tx-glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--foreground) 45%, transparent); } 40% { box-shadow: 0 0 36px 2px color-mix(in srgb, var(--foreground) 35%, transparent); } 100% { box-shadow: 0 0 18px 0 color-mix(in srgb, var(--foreground) 14%, transparent); } }
 .tx-glow { animation: tx-glow 1.4s ease both; }
 @media (prefers-reduced-motion: reduce) { .tx-in, .tx-fade, .tx-pop, .tx-glow { animation: none; } .tx-check-path { animation: none; stroke-dashoffset: 0; } }
 

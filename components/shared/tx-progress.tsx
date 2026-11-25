@@ -2,7 +2,7 @@
 
 /**
  * Suivi animé d'une opération (tip, retrait) : roue qui tourne, étapes qui se cochent une à une,
- * puis carte qui passe au vert avec une coche, et bouton qui devient vert.
+ * puis coche et contour de la couleur du texte (blanc en sombre, noir en clair), et bouton qui devient vert.
  */
 import { useEffect, useState } from "react";
 
@@ -20,8 +20,8 @@ function Spinner({ className = "" }: { className?: string }) {
 function Check({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <circle cx="12" cy="12" r="11" fill="var(--up)" />
-      <path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#04140b" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="tx-check-path" />
+      <circle cx="12" cy="12" r="11" fill="var(--foreground)" />
+      <path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="var(--background)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="tx-check-path" />
     </svg>
   );
 }
@@ -53,7 +53,7 @@ export function TxProgress({ phase, title, subtitle, steps, done, rows }: {
   const ok = phase === "success" && done >= steps.length;
   return (
     <div className="tx-in">
-      <div className={`rounded-[24px] border bg-muted/30 px-5 pb-5 pt-6 transition-[border-color,box-shadow] duration-500 ${ok ? "tx-glow border-up/50" : "border-border"}`}>
+      <div className={`rounded-[24px] border bg-muted/30 px-5 pb-5 pt-6 transition-[border-color,box-shadow] duration-500 ${ok ? "tx-glow border-foreground/40" : "border-border"}`}>
         <div className="flex flex-col items-center text-center">
           <span className="flex size-11 items-center justify-center">
             {ok ? <Check className="tx-pop size-10" /> : <Spinner className="size-8 text-foreground" />}
@@ -67,7 +67,7 @@ export function TxProgress({ phase, title, subtitle, steps, done, rows }: {
             return (
               <li key={s} className={`flex items-center gap-2.5 text-[13.5px] transition-colors duration-300 ${state === "todo" ? "text-muted-foreground/50" : state === "active" ? "text-foreground" : "text-muted-foreground"}`}>
                 <span className="flex size-4 shrink-0 items-center justify-center">
-                  {state === "done" ? <span className="tx-pop size-2.5 rounded-full bg-up shadow-[0_0_10px_var(--up)]" />
+                  {state === "done" ? <span className="tx-pop size-2.5 rounded-full bg-foreground shadow-[0_0_10px_color-mix(in_srgb,var(--foreground)_60%,transparent)]" />
                     : state === "active" ? <Spinner className="size-3.5" />
                     : <span className="size-2 rounded-full border border-current" />}
                 </span>
