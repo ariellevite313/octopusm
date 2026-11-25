@@ -1764,5 +1764,9 @@ const p: Record<string, string> = {
   "Applications are closed. Only registered projects compete.": "Başvurular kapandı. Yalnızca kayıtlı projeler yarışır.",
   "Anyone. Applications stay open until December 15. After that, only registered projects compete. A team has {n} members at most.": "Herkes katılabilir. Başvurular 15 Aralık'a kadar açık kalır. Sonrasında yalnızca kayıtlı projeler yarışır. Bir ekipte en fazla {n} üye olabilir.",
   "Anyone can apply until December 15. After that date, only registered projects compete. A team has 4 members at most. Only the top 50 projects are rewarded, with $500 at least each.": "Herkes 15 Aralık'a kadar başvurabilir. Bu tarihten sonra yalnızca kayıtlı projeler yarışır. Bir ekipte en fazla 4 üye olabilir. Yalnızca ilk 50 proje ödüllendirilir, her biri en az 500 $.",
+  "Sign manually": "Elle imzala",
+  "1. Enter your Aido wallet address. 2. Sign the message below with that wallet (personal_sign). 3. Paste the signature.": "1. Aido cüzdan adresinizi girin. 2. Aşağıdaki mesajı bu cüzdanla imzalayın (personal_sign). 3. İmzayı yapıştırın.",
+  "Signature (0x…)": "İmza (0x…)",
+  "The message is valid for 10 minutes.": "Mesaj 10 dakika geçerlidir.",
 };
 export default p;

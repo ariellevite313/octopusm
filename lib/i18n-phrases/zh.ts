@@ -1764,5 +1764,9 @@ const p: Record<string, string> = {
   "Applications are closed. Only registered projects compete.": "报名已截止。只有已报名的项目参赛。",
   "Anyone. Applications stay open until December 15. After that, only registered projects compete. A team has {n} members at most.": "任何人都可以参加。报名开放至 12 月 15 日，之后只有已报名的项目参赛。每队最多 {n} 人。",
   "Anyone can apply until December 15. After that date, only registered projects compete. A team has 4 members at most. Only the top 50 projects are rewarded, with $500 at least each.": "任何人都可在 12 月 15 日前报名。此后只有已报名的项目参赛。每队最多 4 人。仅奖励前 50 名项目，每个至少 500 美元。",
+  "Sign manually": "手动签名",
+  "1. Enter your Aido wallet address. 2. Sign the message below with that wallet (personal_sign). 3. Paste the signature.": "1. 输入你的 Aido 钱包地址。2. 用该钱包签署下方消息（personal_sign）。3. 粘贴签名。",
+  "Signature (0x…)": "签名 (0x…)",
+  "The message is valid for 10 minutes.": "该消息 10 分钟内有效。",
 };
 export default p;
