@@ -1,55 +1,62 @@
 "use client";
 
-/** Discovery : ce qui bouge sur OM en un coup d'œil (tokens tendance, nouveaux lancements, prédictions chaudes) et les autres sections. */
+/**
+ * Discover : la vitrine des apps construites avec un token OM, comme un store.
+ * Recherche, catégories, apps à la une, recommandées et nouveautés. Chaque app paie dans son propre token.
+ */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowRight, Award, Bot, CandlestickChart, Palette, Gem, Megaphone } from "lucide-react";
-import { BurningFire } from "@/components/shared/burning-fire";
-import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
-import { SolanaMark, ArcMark } from "@/components/shared/solana-mark";
+import { ArrowRight, Plus, Search } from "lucide-react";
 import { Mirage } from "@/components/shared/mirage";
 import { useT } from "@/lib/i18n";
+import { APP_CATEGORIES, APP_CATEGORY_LABEL } from "@/lib/discover";
+import { AppIcon, PaysWith, Rating, type AppCard } from "@/components/discover/app-bits";
 
-type Tok = { id: string; name: string; ticker: string; logo_url: string | null; mint_address: string | null; arc_launch_id: string | null; chain: string | null; is_verified?: boolean; market_cap_usd: number | null; volume_24h_usd?: number | null; created_at?: string };
-type Mkt = { id: string; type: string; title: string; href: string; img?: string; volume_usdc: number; bet_token: "usdc" | "clawdtrust"; options: { id: string; label: string; pct: number }[] };
-
-const usd = (n: number | null | undefined) => {
-  const v = Number(n) || 0;
-  return v >= 1e9 ? `$${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `$${(v / 1e3).toFixed(1)}K` : `$${v.toFixed(0)}`;
-};
-const slugOf = (t: Tok) => (t.chain === "arc" ? (t.mint_address ?? t.arc_launch_id ?? t.id) : (t.mint_address ?? t.id));
-
-function TokenRow({ t, rank, metric }: { t: Tok; rank?: number; metric: string }) {
+function Featured({ a }: { a: AppCard }) {
+  const { tr } = useT();
   return (
-    <Link href={`/launchpad/${slugOf(t)}`} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors hover:bg-muted/50">
-      {rank != null && <span className="num w-5 text-center text-[13px] font-bold text-muted-foreground">{rank}</span>}
-      <span className="relative size-10 shrink-0 overflow-hidden rounded-xl bg-muted">
-        {t.logo_url && <Image src={t.logo_url} alt="" fill className="object-cover" unoptimized />}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[15px] font-bold text-foreground">
-          <span className="truncate">{t.ticker}</span>
-          {t.chain === "arc" ? <ArcMark className="size-3.5 shrink-0" /> : <SolanaMark className="size-3.5 shrink-0" />}
-          {t.is_verified && <VerifiedTokenBadge className="size-3.5" />}
-        </span>
-        <span className="block truncate text-[12px] text-muted-foreground">{t.name}</span>
-      </span>
-      <span className="text-right">
-        <span className="num block text-[14px] font-bold text-foreground">{metric}</span>
-        <span className="num block text-[11px] text-muted-foreground">{usd(t.market_cap_usd)}</span>
-      </span>
+    <Link href={`/discover/${a.id}`} className="block w-[86%] shrink-0 snap-start sm:w-[420px]">
+      <div className="relative aspect-[16/9] overflow-hidden rounded-[22px] bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {a.banner && <img src={a.banner} alt="" className="size-full object-cover" />}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
+          <p className="line-clamp-2 text-[19px] font-bold leading-tight text-white">{a.tagline}</p>
+        </div>
+      </div>
+      <div className="mt-2.5 flex items-center gap-3">
+        <AppIcon app={a} className="size-11" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
+          <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">{tr(APP_CATEGORY_LABEL[a.category as keyof typeof APP_CATEGORY_LABEL] ?? "Other")}<Rating value={a.rating} count={a.ratings} /></p>
+        </div>
+        <span className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-bold text-background">{tr("Open")}</span>
+      </div>
     </Link>
   );
 }
 
-function Card({ title, icon, href, children }: { title: string; icon?: React.ReactNode; href?: string; children: React.ReactNode }) {
+function RowItem({ a }: { a: AppCard }) {
   const { tr } = useT();
   return (
-    <section className="rounded-[28px] border border-border bg-card p-4">
-      <div className="mb-1 flex items-center justify-between px-2">
-        <h2 className="flex items-center gap-2 text-[17px] font-bold text-foreground">{icon}{title}</h2>
-        {href && <Link href={href} className="flex items-center gap-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground">{tr("See all")}<ArrowRight className="size-3.5" /></Link>}
+    <Link href={`/discover/${a.id}`} className="flex items-center gap-3.5 rounded-2xl px-1 py-2.5 transition-colors hover:bg-muted/40">
+      <AppIcon app={a} className="size-16" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[15px] font-semibold text-foreground">{a.name}</p>
+        <p className="line-clamp-2 text-[13px] leading-snug text-muted-foreground">{a.tagline}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+          <Rating value={a.rating} count={a.ratings} /><span>{tr(APP_CATEGORY_LABEL[a.category as keyof typeof APP_CATEGORY_LABEL] ?? "Other")}</span><PaysWith app={a} />
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function Section({ title, children, href }: { title: string; children: React.ReactNode; href?: string }) {
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-[19px] font-bold text-foreground">{title}</h2>
+        {href && <Link href={href} aria-label={title} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><ArrowRight className="size-5" /></Link>}
       </div>
       {children}
     </section>
@@ -58,72 +65,88 @@ function Card({ title, icon, href, children }: { title: string; icon?: React.Rea
 
 export function Discover() {
   const { tr } = useT();
-  const [hot, setHot] = useState<Tok[] | null>(null);
-  const [fresh, setFresh] = useState<Tok[] | null>(null);
-  const [mk, setMk] = useState<Mkt[] | null>(null);
+  const [cat, setCat] = useState<string>("all");
+  const [q, setQ] = useState("");
+  const [top, setTop] = useState<AppCard[] | null>(null);
+  const [fresh, setFresh] = useState<AppCard[] | null>(null);
 
   useEffect(() => {
-    const j = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    j("/api/launchpad/trending?limit=8").then((d) => setHot(d?.tokens ?? []));
-    j("/api/launchpad/tokens?sort=new&limit=8").then((d) => setFresh(d?.tokens ?? []));
-    j("/api/markets/trending").then((d) => setMk(Array.isArray(d) ? d.slice(0, 6) : []));
-  }, []);
+    let off = false;
+    const t = setTimeout(() => {
+      const base = `/api/discover/apps?${cat !== "all" ? `category=${cat}&` : ""}${q.trim() ? `q=${encodeURIComponent(q.trim())}&` : ""}`;
+      fetch(`${base}sort=top`).then((r) => r.json()).then((j) => { if (!off) setTop(j.apps ?? []); }).catch(() => { if (!off) setTop([]); });
+      fetch(`${base}sort=new`).then((r) => r.json()).then((j) => { if (!off) setFresh(j.apps ?? []); }).catch(() => { if (!off) setFresh([]); });
+    }, q ? 300 : 0);
+    return () => { off = true; clearTimeout(t); };
+  }, [cat, q]);
 
-  const spin = <div className="flex justify-center py-8"><Mirage className="size-5 text-muted-foreground" /></div>;
-  const empty = <p className="py-8 text-center text-sm text-muted-foreground">{tr("Nothing here yet.")}</p>;
-
-  const shortcuts = [
-    { href: "/terminal", label: tr("Terminal"), text: tr("Trade 9 chains"), icon: CandlestickChart },
-    { href: "/hackathon", label: tr("Hackathon"), text: tr("Win up to $100,000"), icon: Award },
-    { href: "/nft", label: tr("NFT"), text: tr("Solana collections"), icon: Gem },
-    { href: "/studio", label: tr("Studio"), text: tr("Omero memes and avatars"), icon: Palette },
-    { href: "/janus", label: tr("Janus"), text: tr("Your trading AI"), icon: Bot },
-    { href: "/ambassadors", label: tr("Ambassadors"), text: tr("Earn by sharing"), icon: Megaphone },
-  ];
+  const loading = top === null || fresh === null;
+  const empty = !loading && top!.length === 0;
+  const featured = (top ?? []).filter((a) => a.banner).slice(0, 5);
 
   return (
-    <div className="space-y-4">
-      <div className="px-1">
-        <h1 className="text-[28px] font-bold tracking-tight text-foreground">{tr("Discover")}</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">{tr("What is moving on OMdotfun right now.")}</p>
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <label className="flex h-12 flex-1 items-center gap-2.5 rounded-full bg-muted px-4">
+            <Search className="size-5 shrink-0 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value.slice(0, 40))} placeholder={tr("Search apps")} className="min-w-0 flex-1 bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted-foreground" />
+          </label>
+          <Link href="/discover/submit" aria-label={tr("List my app")} className="flex h-12 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-bold text-background"><Plus className="size-4" /><span className="hidden sm:inline">{tr("List my app")}</span></Link>
+        </div>
+        <div className="-mx-4 flex gap-2 overflow-x-auto scrollbar-none px-4">
+          {["all", ...APP_CATEGORIES].map((c) => (
+            <button key={c} onClick={() => setCat(c)} className={`h-9 shrink-0 rounded-full border px-4 text-[14px] font-semibold ${cat === c ? "border-foreground bg-foreground text-background" : "border-border text-foreground"}`}>
+              {c === "all" ? tr("All") : tr(APP_CATEGORY_LABEL[c as keyof typeof APP_CATEGORY_LABEL])}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-6">
-        {shortcuts.map((s) => (
-          <Link key={s.href} href={s.href} className="rounded-2xl border border-border bg-card p-3.5 transition-colors hover:bg-muted/50">
-            <s.icon className="size-5 text-foreground" />
-            <p className="mt-2 text-[14px] font-bold text-foreground">{s.label}</p>
-            <p className="text-[12px] text-muted-foreground">{s.text}</p>
+      {loading ? <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div> : empty ? (
+        <div className="rounded-[28px] border border-border bg-card p-6 text-center">
+          <p className="text-[18px] font-bold">{q || cat !== "all" ? tr("No app found") : tr("Be the first app on OM")}</p>
+          <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Launch your token on OM, make it the payment of your app, then list your app here with your site and images.")}</p>
+          <Link href="/discover/submit" className="mt-4 inline-flex h-12 items-center rounded-full bg-foreground px-6 text-[15px] font-bold text-background">{tr("List my app")}</Link>
+        </div>
+      ) : (
+        <>
+          {featured.length > 0 && (
+            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scrollbar-none px-4">
+              {featured.map((a) => <Featured key={a.id} a={a} />)}
+            </div>
+          )}
+
+          <Section title={tr("Recommended for you")}>
+            <div className="-mx-4 flex gap-3 overflow-x-auto scrollbar-none px-4">
+              {top!.slice(0, 10).map((a) => (
+                <Link key={a.id} href={`/discover/${a.id}`} className="w-[104px] shrink-0">
+                  <AppIcon app={a} className="size-[104px]" />
+                  <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-tight text-foreground">{a.name}</p>
+                  <Rating value={a.rating} count={a.ratings} className="text-[12px] text-muted-foreground" />
+                </Link>
+              ))}
+            </div>
+          </Section>
+
+          <Section title={tr("Top rated")}>
+            <div className="grid gap-x-6 lg:grid-cols-2">{top!.slice(0, 8).map((a) => <RowItem key={a.id} a={a} />)}</div>
+          </Section>
+
+          <Section title={tr("New on OM")}>
+            <div className="grid gap-x-6 lg:grid-cols-2">{fresh!.slice(0, 8).map((a) => <RowItem key={a.id} a={a} />)}</div>
+          </Section>
+
+          <Link href="/discover/submit" className="flex items-center gap-4 rounded-[24px] border border-border bg-card p-4">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-foreground text-background"><Plus className="size-6" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold">{tr("List your app on Discover")}</span>
+              <span className="block text-[13px] text-muted-foreground">{tr("Your OM token must be the payment of your app.")}</span>
+            </span>
+            <ArrowRight className="size-5" />
           </Link>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title={tr("Trending tokens")} icon={<BurningFire className="!text-[17px]" />} href="/launchpad">
-          {hot === null ? spin : hot.length === 0 ? empty : hot.map((t, i) => <TokenRow key={t.id} t={t} rank={i + 1} metric={`${usd(t.volume_24h_usd)} 24h`} />)}
-        </Card>
-        <Card title={tr("New launches")} href="/launchpad">
-          {fresh === null ? spin : fresh.length === 0 ? empty : fresh.map((t) => <TokenRow key={t.id} t={t} metric={t.created_at ? new Date(t.created_at).toLocaleDateString() : ""} />)}
-        </Card>
-      </div>
-
-      <Card title={tr("Hot predictions")} href="/prediction">
-        {mk === null ? spin : mk.length === 0 ? empty : (
-          <div className="grid gap-2 lg:grid-cols-2">
-            {mk.map((m) => (
-              <Link key={m.id} href={m.href} className="rounded-2xl px-2 py-2.5 transition-colors hover:bg-muted/50">
-                <p className="line-clamp-2 text-[14px] font-semibold text-foreground">{m.title}</p>
-                <div className="mt-2 flex gap-1.5">
-                  {m.options.slice(0, 3).map((o) => (
-                    <span key={o.id} className="num truncate rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-foreground">{o.label} {Math.round(o.pct)}%</span>
-                  ))}
-                </div>
-                <p className="num mt-1.5 text-[11px] text-muted-foreground">{m.bet_token === "usdc" ? `$${Math.round(m.volume_usdc).toLocaleString()}` : `${Math.round(m.volume_usdc).toLocaleString()} CLT`}</p>
-              </Link>
-            ))}
-          </div>
-        )}
-      </Card>
+        </>
+      )}
     </div>
   );
 }
