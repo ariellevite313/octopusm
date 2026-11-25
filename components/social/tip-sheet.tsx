@@ -91,7 +91,7 @@ export function TipSheet({ postId, recipientName, onClose, onSent }: {
         </button>
 
         <div className="mb-4 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-full bg-muted"><BonbonIcon kind="orange" className="h-10" /></span>
+          <Image src="/octo-coin.png" alt="" width={44} height={44} className="size-11 shrink-0 rounded-full object-cover" unoptimized />
           <div className="min-w-0">
             <p className="text-lg font-bold">{tr("Send a tip")}</p>
             <p className="truncate text-[13px] text-muted-foreground">{tr("to {name}, for this post", { name: recipientName })}</p>
