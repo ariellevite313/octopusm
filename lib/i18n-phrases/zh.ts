@@ -1880,5 +1880,7 @@ const p: Record<string, string> = {
   "your referral earned you {v} CLT": "你的被推荐人为你赚了 {v} CLT",
   "this week your referrals earned you {v} from {n} friends": "本周你的被推荐人为你赚了 {v}（{n} 人）",
   "Top referrers": "最佳推荐人",
+  "Skip the tour": "跳过导览",
+  "Less than a minute": "不到一分钟",
 };
 export default p;

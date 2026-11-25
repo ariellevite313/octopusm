@@ -2609,5 +2609,7 @@ const p: Record<string, string> = {
   "your referral earned you {v} CLT": "ton filleul t'a fait gagner {v} CLT",
   "this week your referrals earned you {v} from {n} friends": "cette semaine, tes filleuls t'ont fait gagner {v} ({n} filleuls)",
   "Top referrers": "Meilleurs parrains",
+  "Skip the tour": "Passer la visite",
+  "Less than a minute": "Moins d'une minute",
 };
 export default p;

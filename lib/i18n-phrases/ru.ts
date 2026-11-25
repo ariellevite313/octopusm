@@ -1880,5 +1880,7 @@ const p: Record<string, string> = {
   "your referral earned you {v} CLT": "ваш реферал принёс вам {v} CLT",
   "this week your referrals earned you {v} from {n} friends": "на этой неделе рефералы принесли вам {v} ({n} рефералов)",
   "Top referrers": "Лучшие рефереры",
+  "Skip the tour": "Пропустить тур",
+  "Less than a minute": "Меньше минуты",
 };
 export default p;
