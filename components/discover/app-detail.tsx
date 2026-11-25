@@ -3,12 +3,12 @@
 /** Fiche d'une app Discover : en-tête, bouton Ouvrir, paiement en token, images, à propos, notes et avis, apps similaires. */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MoreVertical, Share2, Star } from "lucide-react";
+import { ArrowLeft, Flag, MoreVertical, Share2, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
-import { APP_CATEGORY_LABEL } from "@/lib/discover";
+import { APP_CATEGORY_LABEL, REPORT_REASONS, REPORT_REASON_LABEL } from "@/lib/discover";
 import { ShareSheet } from "@/components/shared/share-sheet";
 import { MiniPriceChart, type Trend } from "@/components/launchpad/mini-price-chart";
 import { Mirage } from "@/components/shared/mirage";
@@ -40,7 +40,7 @@ const price = (n: number | null | undefined) => {
 };
 
 /** Valeur du token du projet : prix, capitalisation, volume 24 h et courbe des dernières 24 h. */
-function TokenValue({ a }: { a: AppCard }) {
+function TokenValue({ a, paymentNote }: { a: AppCard; paymentNote: string }) {
   const { tr } = useT();
   const [trend, setTrend] = useState<Trend>("flat");
   const t = a.token;
@@ -50,8 +50,7 @@ function TokenValue({ a }: { a: AppCard }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {t.logo ? <img src={t.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" /> : <span className="size-11 shrink-0 rounded-full bg-muted" />}
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-muted-foreground">{tr("Token value")}</p>
-          <p className="flex items-baseline gap-2"><span className="num text-[24px] font-extrabold leading-tight">{price(t.price)}</span><span className="text-[14px] font-bold">${t.ticker}</span></p>
+          <p className="flex items-baseline gap-2"><span className="num text-[26px] font-extrabold leading-tight">{price(t.price)}</span><span className="text-[14px] font-bold">${t.ticker}</span></p>
         </div>
         <span className={`num shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold ${trend === "up" ? "bg-up/15 text-up" : trend === "down" ? "bg-down/15 text-down" : "bg-muted text-muted-foreground"}`}>24h</span>
       </div>
@@ -64,6 +63,12 @@ function TokenValue({ a }: { a: AppCard }) {
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-foreground text-[15px] font-bold text-background">{tr("Buy")} ${t.ticker}</Link>
         <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-muted text-[15px] font-bold">{tr("See the chart")}</Link>
+      </div>
+      {/* Paiement dans le token, puis avertissements (en petit, visibles par tous) */}
+      <div className="mt-4 space-y-1.5 border-t border-border pt-3 text-[11.5px] leading-snug text-muted-foreground">
+        <p><span className="font-semibold text-foreground">{tr("Payments on this website use ${t}", { t: t.ticker })}.</span> {paymentNote}</p>
+        <p>{tr("This project is run by its creator, not by OMdotfun. Its listing, rating and token price are never a guarantee and are not financial advice. Crypto can lose all its value: only use what you can afford to lose.")}</p>
+        <p className="font-semibold text-foreground">{tr("Never give your recovery phrase (12 or 24 words) to any website. No real project will ask for it. If this site asks for it, report it.")}</p>
       </div>
     </section>
   );
@@ -84,6 +89,9 @@ export function AppDetail({ id }: { id: string }) {
   const [shot, setShot] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [share, setShare] = useState(false);
+  const [report, setReport] = useState(false);
+  const [reason, setReason] = useState<string>("");
+  const [note, setNote] = useState("");
 
   const load = useCallback(() => {
     fetch(`/api/discover/apps/${id}`, { cache: "no-store" }).then(async (r) => {
@@ -130,6 +138,7 @@ export function AppDetail({ id }: { id: string }) {
             {menu && (
               <div className="absolute right-0 top-12 z-20 w-48 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
                 <button onClick={() => { setMenu(false); setShare(true); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] hover:bg-muted"><Share2 className="size-4" />{tr("Share")}</button>
+                {!d.isOwner && <button onClick={() => { setMenu(false); if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; } setReport(true); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] text-down hover:bg-muted"><Flag className="size-4" />{tr("Report")}</button>}
               </div>
             )}
           </div>
@@ -159,18 +168,7 @@ export function AppDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Paiement dans le token : visible par tous */}
-      <div className="flex items-start gap-3 rounded-[22px] border border-border bg-card p-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {a.token.logo ? <img src={a.token.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" /> : <span className="size-11 shrink-0 rounded-full bg-muted" />}
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold">{tr("Payments on this website use ${t}", { t: a.token.ticker })}</p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">{a.paymentNote}</p>
-        </div>
-        <Link href={`/launchpad/${a.token.slug}`} className="shrink-0 rounded-full bg-muted px-3.5 py-2 text-[13px] font-bold">{tr("Buy")}</Link>
-      </div>
-
-      <TokenValue a={a} />
+      <TokenValue a={a} paymentNote={a.paymentNote} />
 
       {/* Images */}
       {images.length > 0 && (
@@ -261,6 +259,36 @@ export function AppDetail({ id }: { id: string }) {
       </div>
 
       <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={`${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on OMdotfun Discover.`} images={a.banner ? [a.banner] : []} />
+
+      {report && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-[2px] sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) setReport(false); }}>
+          <div role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[28px] border-t border-border bg-background p-5 sm:rounded-[28px] sm:border">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[18px] font-bold">{tr("Report this project")}</p>
+              <button onClick={() => setReport(false)} aria-label={tr("Close")} className="flex size-9 items-center justify-center rounded-full hover:bg-muted"><X className="size-5" /></button>
+            </div>
+            <div className="space-y-2">
+              {REPORT_REASONS.map((r) => (
+                <label key={r} className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-[14px] ${reason === r ? "border-foreground" : "border-border"}`}>
+                  <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} className="size-4" />{tr(REPORT_REASON_LABEL[r])}
+                </label>
+              ))}
+            </div>
+            <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0, 300))} rows={3} placeholder={tr("Details (optional)")} className="mt-3 w-full resize-none rounded-2xl bg-muted px-3.5 py-3 text-[15px] outline-none" />
+            <button disabled={!reason || busy} onClick={async () => {
+              setBusy(true);
+              try {
+                const r = await fetch(`/api/discover/apps/${id}/report`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason, note }) });
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(j.error ?? "Could not send the report");
+                toast.success(tr("Thanks, the team will review this project"));
+                setReport(false); setReason(""); setNote("");
+              } catch (e) { toast.error(tr((e as Error).message)); }
+              setBusy(false);
+            }} className="mt-3 h-12 w-full rounded-full bg-foreground text-[15px] font-bold text-background disabled:opacity-40">{tr("Send the report")}</button>
+          </div>
+        </div>
+      )}
 
       {shot && (
         <button onClick={() => setShot(null)} aria-label={tr("Close")} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4">

@@ -10,6 +10,15 @@ export const MAX_SCREENSHOTS = 6;
 /** Prix normal d'une fiche Discover (par an). Gratuit pour l'instant : affiché barré avec la mention « Free ». */
 export const LISTING_PRICE_USD = 80;
 export const LISTING_FREE_NOW = true;
+/** Raisons d'un signalement de projet */
+export const REPORT_REASONS = ["asks_seed", "scam", "fake", "no_token_payment", "other"] as const;
+export const REPORT_REASON_LABEL: Record<(typeof REPORT_REASONS)[number], string> = {
+  asks_seed: "It asks for my recovery phrase (12 or 24 words)",
+  scam: "Scam or theft of funds",
+  fake: "Fake project or copies another one",
+  no_token_payment: "The token is not used to pay",
+  other: "Other",
+};
 
 export type AppInput = {
   tokenId?: unknown; name?: unknown; tagline?: unknown; description?: unknown; category?: unknown; siteUrl?: unknown;

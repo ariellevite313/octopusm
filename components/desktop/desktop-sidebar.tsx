@@ -33,7 +33,7 @@ function items(pathname: string) {
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     { href: "/terminal",               label: T("Terminal"),    icon: CandlestickChart, match: (p: string) => p.startsWith("/terminal") },
     { href: "/janus",                  label: T("Janus"),       icon: JanusIcon,  match: (p: string) => p.startsWith("/janus") },
-    { href: "/nft",                    label: T("NFT"),         icon: Gem,        match: (p: string) => p.startsWith("/nft") },
+    { href: "/nft",                    label: T("NFT"),         icon: Gem,        match: (p: string) => p.startsWith("/nft"), disabled: true },
     { href: "/studio",                 label: T("Studio"),      icon: Palette,    match: (p: string) => p.startsWith("/studio") },
     { href: "/ambassadors",            label: T("Ambassadors"), icon: Megaphone,      match: (p: string) => p.startsWith("/ambassadors") },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
@@ -119,8 +119,17 @@ export function DesktopSidebar() {
         <BrandLogo size={40} />
       </Link>
 
-      {items(pathname).filter((i) => (!i.auth || isAuthenticated) && (!("admin" in i) || isAdmin)).map(({ href, label, icon: Icon, match }) => {
+      {items(pathname).filter((i) => (!i.auth || isAuthenticated) && (!("admin" in i) || isAdmin)).map((item) => {
+        const { href, label, icon: Icon, match } = item;
         const active = match(pathname);
+        // Section désactivée : grisée, non cliquable, sans mention
+        if ("disabled" in item && item.disabled) return (
+          <span key={href} title={tr(label)} aria-label={tr(label)} aria-disabled="true"
+            className={`flex size-11 shrink-0 cursor-not-allowed select-none items-center justify-center rounded-2xl text-muted-foreground/40 ${row}`}>
+            <Icon className="size-[22px] shrink-0" strokeWidth={1.75} />
+            {lab(tr(label))}
+          </span>
+        );
         return (
           <Link
             key={href}

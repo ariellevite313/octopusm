@@ -23,7 +23,7 @@ const NAV_LINKS = [
   { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },
   { href: "/terminal",                label: T("Terminal"),    badge: undefined, disabled: false },
   { href: "/janus",                   label: T("Janus"),       badge: undefined, disabled: false },
-  { href: "/nft",                     label: T("NFT"),         badge: undefined, disabled: false },
+  { href: "/nft",                     label: T("NFT"),         badge: undefined, disabled: true },
   { href: "/studio",                  label: T("Studio"),      badge: undefined, disabled: false },
   { href: "/ambassadors",             label: T("Ambassadors"), badge: undefined, disabled: false },
   { href: "/live",                    label: T("Live scores"), badge: undefined, disabled: false },
