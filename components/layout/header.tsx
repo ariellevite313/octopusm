@@ -16,12 +16,15 @@ import { T } from "@/lib/i18n-mark";
 const NAV_LINKS = [
   { href: "/hackathon",              label: T("Hackathon"),   badge: undefined, disabled: false },
   { href: "/",                        label: T("Feed"),        badge: undefined, disabled: false },
+  { href: "/discover",                label: T("Discover"),    badge: undefined, disabled: false },
   { href: "/communities",             label: T("Communities"), badge: undefined, disabled: false },
   { href: "/prediction",              label: T("Markets"),     badge: undefined, disabled: false },
   { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
   { href: "/launchpad",               label: T("Launchpad"),   badge: undefined, disabled: false },
   { href: "/terminal",                label: T("Terminal"),    badge: undefined, disabled: false },
   { href: "/janus",                   label: T("Janus"),       badge: undefined, disabled: false },
+  { href: "/nft",                     label: T("NFT"),         badge: undefined, disabled: false },
+  { href: "/studio",                  label: T("Studio"),      badge: undefined, disabled: false },
   { href: "/ambassadors",             label: T("Ambassadors"), badge: undefined, disabled: false },
   { href: "/live",                    label: T("Live scores"), badge: undefined, disabled: false },
 ] satisfies { href: string; label: string; badge?: string; disabled: boolean; external?: boolean }[];

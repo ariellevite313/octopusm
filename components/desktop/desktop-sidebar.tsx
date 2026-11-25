@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/shared/brand-logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone, Shield } from "lucide-react";
+import { Users, LayoutGrid, Trophy, BarChart2, User, MessageSquare, Radio, Plug, Bot, Headset, Plus, Wallet, Coins, HelpCircle, BookOpen, ShieldCheck, Lock, Archive, MoreHorizontal, ExternalLink, PenLine, Rocket, Award, CandlestickChart, Megaphone, Shield, Compass, Gem, Palette } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { JanusIcon } from "@/components/janus/janus-icon";
 import { LanguageSelectRail } from "@/components/shared/language-select";
@@ -28,10 +28,13 @@ function items(pathname: string) {
   return [
     { href: "/hackathon",              label: T("Hackathon"),   icon: Award,      match: (p: string) => p.startsWith("/hackathon") },
     { href: "/",                       label: T("Feed"),        icon: MessageSquare, match: (p: string) => p === "/" || p.startsWith("/feed") || p.startsWith("/post/") },
+    { href: "/discover",               label: T("Discover"),    icon: Compass,    match: (p: string) => p.startsWith("/discover") },
     { href: "/communities",            label: T("Communities"), icon: Users,      match: (p: string) => p.startsWith("/communities") || p.startsWith("/c/") },
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     { href: "/terminal",               label: T("Terminal"),    icon: CandlestickChart, match: (p: string) => p.startsWith("/terminal") },
     { href: "/janus",                  label: T("Janus"),       icon: JanusIcon,  match: (p: string) => p.startsWith("/janus") },
+    { href: "/nft",                    label: T("NFT"),         icon: Gem,        match: (p: string) => p.startsWith("/nft") },
+    { href: "/studio",                 label: T("Studio"),      icon: Palette,    match: (p: string) => p.startsWith("/studio") },
     { href: "/ambassadors",            label: T("Ambassadors"), icon: Megaphone,      match: (p: string) => p.startsWith("/ambassadors") },
     // Le trophée ouvre le leaderboard de la section en cours (comme sur téléphone)
     predict
