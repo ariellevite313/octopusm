@@ -15,7 +15,17 @@ const COLS = 24;
 const DOTS = COLS * 3;
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`);
 const amt = (n: number) => (n >= 1e6 ? `${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n >= 100 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toPrecision(3));
-const usd = (p: number) => (p >= 1 ? `$${p.toFixed(2)}` : p >= 0.01 ? `$${p.toFixed(4)}` : `$${p.toPrecision(4)}`);
+const SUB = "₀₁₂₃₄₅₆₇₈₉";
+/** Prix court : les zéros après la virgule sont comptés en indice ($0.0₄214 = $0.0000214) */
+export const usd = (p: number) => {
+  if (!(p > 0)) return "$0";
+  if (p >= 1) return `$${p.toFixed(p >= 1000 ? 0 : 2)}`;
+  if (p >= 0.001) return `$${p.toPrecision(3)}`;
+  const q = Number(p.toPrecision(3));
+  const zeros = Math.floor(-Math.log10(q));
+  const digits = Math.round(q * 10 ** (zeros + 3)).toString().slice(0, 3).replace(/0+$/, "") || "0";
+  return `$0.0${String(zeros).split("").map((d) => SUB[+d]).join("")}${digits}`;
+};
 
 /** Chiffres qui défilent : seuls les caractères qui ont changé glissent depuis le bas. */
 export function RollingText({ value, className = "" }: { value: string; className?: string }) {
@@ -51,12 +61,12 @@ function Dots({ fill, ask }: { fill: number; ask: boolean }) {
   );
 }
 
-function Line({ r, ask, max, solUsd, onPick }: { r: BookRow; ask: boolean; max: number; solUsd: number; onPick: () => void }) {
+function Line({ r, ask, max, solUsd, unit, onPick }: { r: BookRow; ask: boolean; max: number; solUsd: number; unit: number; onPick: () => void }) {
   const fill = max > 0 ? Math.max(2, Math.round((r.sol / max) * DOTS)) : 0;
   return (
     <button onClick={onPick} className="flex w-full items-center gap-3 rounded-lg px-1.5 py-[7px] text-left text-[13px] transition-colors hover:bg-foreground/[0.04]">
       <Dots fill={fill} ask={ask} />
-      <RollingText value={money(r.mcap)} className={`ml-auto w-[68px] justify-end font-semibold ${ask ? "text-down" : "text-up"}`} />
+      <RollingText value={usd(r.mcap * unit)} className={`ml-auto w-[74px] justify-end font-semibold ${ask ? "text-down" : "text-up"}`} />
       <span className="flex w-[64px] items-center justify-end gap-1">
         {r.om && <span className="size-1.5 rounded-full bg-foreground" />}
         <RollingText value={amt(r.sol)} className="font-semibold text-foreground" />
@@ -77,6 +87,8 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
   }, [book]);
 
   if (!book) return <div className="space-y-1.5">{Array.from({ length: 14 }, (_, i) => <div key={i} className="h-[26px] animate-pulse rounded-lg bg-muted" />)}</div>;
+  // Prix d'un niveau = prix actuel × (capitalisation du niveau / capitalisation actuelle)
+  const unit = book.mcap > 0 ? book.price / book.mcap : 0;
   const max = Math.max(0, ...book.asks.map((r) => r.sol), ...book.bids.map((r) => r.sol));
   const bestAsk = Math.min(...book.asks.map((r) => r.mcap));
   const bestBid = Math.max(...book.bids.map((r) => r.mcap));
@@ -86,18 +98,18 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
     <div>
       <div className="flex items-center gap-3 px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         <span className="w-[142px]" />
-        <span className="ml-auto w-[68px] whitespace-nowrap text-right">{tr("MCap")}</span>
+        <span className="ml-auto w-[74px] whitespace-nowrap text-right">{tr("Price")}</span>
         <span className="w-[64px] text-right">SOL</span>
         <span className="hidden w-[56px] text-right min-[380px]:inline">{tr("Total")}</span>
       </div>
-      {book.asks.map((r, i) => <Line key={`a${i}`} r={r} ask max={max} solUsd={book.solUsd} onPick={() => onPick(r, true)} />)}
+      {book.asks.map((r, i) => <Line key={`a${i}`} r={r} ask max={max} solUsd={book.solUsd} unit={unit} onPick={() => onPick(r, true)} />)}
       <div className="my-1 flex items-center gap-3 border-y border-border/70 px-1.5 py-2.5">
-        <RollingText value={money(book.mcap)} className="text-[22px] font-bold tracking-tight text-foreground" />
+        <RollingText value={usd(book.price)} className="text-[22px] font-bold tracking-tight text-foreground" />
         <span className="ml-auto flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {tr("Price")}
+          {tr("MCap")}
           <span className={`flex items-center gap-0.5 text-[13px] normal-case tracking-normal ${dir > 0 ? "text-up" : "text-down"}`}>
             <svg width="9" height="8" viewBox="0 0 10 8" className={dir > 0 ? "" : "rotate-180"} fill="currentColor"><path d="M5 0l5 8H0z" /></svg>
-            <RollingText value={usd(book.price)} />
+            <RollingText value={money(book.mcap)} />
           </span>
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -105,7 +117,7 @@ export function OrderBook({ book, onPick }: { book: Book | null; onPick: (r: Boo
           <RollingText value={`${spread.toFixed(1)}%`} className="text-[13px] normal-case tracking-normal text-foreground" />
         </span>
       </div>
-      {book.bids.map((r, i) => <Line key={`b${i}`} r={r} ask={false} max={max} solUsd={book.solUsd} onPick={() => onPick(r, false)} />)}
+      {book.bids.map((r, i) => <Line key={`b${i}`} r={r} ask={false} max={max} solUsd={book.solUsd} unit={unit} onPick={() => onPick(r, false)} />)}
       <p className="mt-2 flex items-center gap-1.5 px-1.5 text-[10.5px] leading-tight text-muted-foreground"><span className="size-1.5 shrink-0 rounded-full bg-foreground" />{tr("OM limit order")}</p>
     </div>
   );
