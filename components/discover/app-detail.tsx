@@ -343,7 +343,7 @@ export function AppDetail({ id }: { id: string }) {
 
       </div>
 
-      <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={a.platform || a.noToken ? `${a.name}: ${a.tagline}. On OMdotfun Discover.` : `${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on OMdotfun Discover.`} images={a.banner ? [a.banner] : []} />
+      <ShareSheet open={share} onClose={() => setShare(false)} url={`/discover/${a.id}`} text={a.platform || a.noToken ? `${a.name}: ${a.tagline}. On the OM Store.` : `${a.name}: ${a.tagline}. Paid in $${a.token.ticker} on the OM Store.`} images={a.banner ? [a.banner] : []} />
 
       {report && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-[2px] sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) setReport(false); }}>

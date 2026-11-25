@@ -2653,5 +2653,11 @@ const p: Record<string, string> = {
   "Invalid X link": "X 链接无效",
   "Invalid Telegram link": "Telegram 链接无效",
   "Invalid Discord link": "Discord 链接无效",
+  "Store": "商店",
+  "Showcase your project on the OM Store": "在 OM Store 展示你的项目",
+  "Be the first project on the OM Store": "成为 OM Store 上的第一个项目",
+  "Your project is live on the OM Store": "你的项目已在 OM Store 上线",
+  "OM Store listing": "OM Store 页面",
+  "OM Store page (optional)": "OM Store 页面（可选）",
 };
 export default p;

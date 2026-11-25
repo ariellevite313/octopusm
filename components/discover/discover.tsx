@@ -102,7 +102,7 @@ function ListCta() {
       <span className="flex min-w-0 flex-1 items-center gap-4">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background transition-transform group-hover:scale-105"><Plus className="size-6" /></span>
         <span className="min-w-0">
-          <span className="block text-[16px] font-bold leading-tight">{tr("Showcase your project on Discover")}</span>
+          <span className="block text-[16px] font-bold leading-tight">{tr("Showcase your project on the OM Store")}</span>
           <span className="mt-0.5 block text-[13px] text-muted-foreground">{tr("With your OM token: free until 2027, then ${n} a year. Without a token: ${n} a year.", { n: 80 })}</span>
         </span>
       </span>
@@ -163,7 +163,7 @@ export function Discover() {
       {loading ? <div className="flex justify-center py-16"><Mirage className="size-5 text-muted-foreground" /></div> : empty ? (
         <div className="space-y-4">
           <div className="rounded-[28px] border border-border bg-card p-6 text-center">
-            <p className="text-[18px] font-bold">{searching ? tr("No project found") : tr("Be the first project on Discover")}</p>
+            <p className="text-[18px] font-bold">{searching ? tr("No project found") : tr("Be the first project on the OM Store")}</p>
             <p className="mx-auto mt-2 max-w-sm text-[14px] text-muted-foreground">{tr("Launch your token on OM, make it the payment of your website, then showcase it here with images.")}</p>
           </div>
           <ListCta />

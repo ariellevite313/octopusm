@@ -67,7 +67,7 @@ export function ApplyForm() {
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("What does it do?")}</span>
         <textarea required className={`${input} h-28 py-3`} value={f.description} onChange={set("description")} maxLength={600} /></label>
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("Website (https, required)")}</span><input required type="url" className={input} value={f.siteUrl} onChange={set("siteUrl")} placeholder="https://" /></label>
-      <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("Discover page (optional)")}</span><input type="url" className={input} value={f.discoverUrl} onChange={set("discoverUrl")} placeholder="https://omdot.fun/discover/…" /></label>
+      <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("OM Store page (optional)")}</span><input type="url" className={input} value={f.discoverUrl} onChange={set("discoverUrl")} placeholder="https://omdot.fun/discover/…" /></label>
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("X profile")}</span><input required className={input} value={f.xHandle} onChange={set("xHandle")} placeholder="@project" /></label>
       <label className="block"><span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{tr("Category")}</span>
         <select className={input} value={f.category} onChange={set("category")}>{Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{tr(v)}</option>)}</select></label>

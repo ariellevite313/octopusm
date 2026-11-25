@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Discover } from "@/components/discover/discover";
 
-export const metadata: Metadata = { title: "Discover", description: "Trending tokens, new launches and hot predictions on OMdotfun." };
+export const metadata: Metadata = { title: "OM Store", description: "Apps and projects built on OMdotfun." };
 
 export default function DiscoverPage() {
   return (

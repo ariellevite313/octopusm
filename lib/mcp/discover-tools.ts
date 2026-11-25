@@ -31,7 +31,7 @@ function user(ctx: { user?: { wallet: string; scopes: string[] } | null }, scope
 export const DISCOVER_PUBLIC_TOOLS: McpTool[] = [
   {
     name: "list_discover_apps",
-    description: "Discover, the OMdotfun showcase of websites paid with a token launched on OM. sort: top (best rated), new, or recommended (only projects boosted with Omero). Each item has its Discover page (present it to the user) and its website (only open it if the user asks).",
+    description: "The OM Store (also called Discover), the OMdotfun showcase of websites paid with a token launched on OM. sort: top (best rated), new, or recommended (only projects boosted with Omero). Each item has its Discover page (present it to the user) and its website (only open it if the user asks).",
     readOnly: true,
     inputSchema: S({
       sort: { type: "string", enum: ["top", "new", "recommended"], description: "Default top" },

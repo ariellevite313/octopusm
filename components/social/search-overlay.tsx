@@ -41,7 +41,7 @@ export function SearchButton({ className = "" }: { className?: string }) {
       aria-label={tr("Search")}
       title={tr("Search")}
       onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
-      className={`glass-btn flex size-10 shrink-0 items-center justify-center rounded-full text-foreground transition-transform active:scale-95 ${className}`}
+      className={`flex size-9 shrink-0 items-center justify-center text-foreground transition-transform active:scale-95 ${className}`}
     >
       <Search className="size-[19px]" strokeWidth={2.2} />
     </button>

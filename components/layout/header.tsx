@@ -1,5 +1,6 @@
 "use client";
 
+import { StoreIcon } from "@/components/shared/store-icon";
 import { NotificationMenuLink, useUnreadNotifications } from "@/components/social/notification-bell";
 import { useEffect, useState } from "react";
 import { SearchButton } from "@/components/social/search-overlay";
@@ -16,7 +17,7 @@ import { T } from "@/lib/i18n-mark";
 const NAV_LINKS = [
   { href: "/hackathon",              label: T("Hackathon"),   badge: undefined, disabled: false },
   { href: "/",                        label: T("Feed"),        badge: undefined, disabled: false },
-  { href: "/discover",                label: T("Discover"),    badge: undefined, disabled: false },
+  { href: "/discover",                label: T("Store"),    badge: undefined, disabled: false },
   { href: "/communities",             label: T("Communities"), badge: undefined, disabled: false },
   { href: "/prediction",              label: T("Markets"),     badge: undefined, disabled: false },
   { href: "/leaderboard/predictions", label: T("Leaderboard"), badge: undefined, disabled: false },
@@ -101,10 +102,18 @@ export function Header() {
 
           <div className="flex shrink-0 items-center gap-2">
             <Link
+              href="/discover"
+              aria-label="OM Store"
+              title="OM Store"
+              className="flex size-9 shrink-0 items-center justify-center text-foreground transition-transform active:scale-95"
+            >
+              <StoreIcon className="size-[19px]" />
+            </Link>
+            <Link
               href="/terminal"
               aria-label={tr("Terminal")}
               title={tr("Terminal")}
-              className="glass-btn flex size-10 shrink-0 items-center justify-center rounded-full text-foreground transition-transform active:scale-95"
+              className="flex size-9 shrink-0 items-center justify-center text-foreground transition-transform active:scale-95"
             >
               <svg viewBox="0 0 300 300" className="size-[19px]" fill="none" stroke="currentColor" strokeWidth="32" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M54 66 L124 136 L54 208" />

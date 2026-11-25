@@ -1,5 +1,6 @@
 "use client";
 
+import { StoreIcon } from "@/components/shared/store-icon";
 import { NotificationBell } from "@/components/social/notification-bell";
 import Link from "next/link";
 import { BrandLogo } from "@/components/shared/brand-logo";
@@ -28,7 +29,7 @@ function items(pathname: string) {
   return [
     { href: "/hackathon",              label: T("Hackathon"),   icon: Award,      match: (p: string) => p.startsWith("/hackathon") },
     { href: "/",                       label: T("Feed"),        icon: MessageSquare, match: (p: string) => p === "/" || p.startsWith("/feed") || p.startsWith("/post/") },
-    { href: "/discover",               label: T("Discover"),    icon: Compass,    match: (p: string) => p.startsWith("/discover") },
+    { href: "/discover",               label: T("Store"),       icon: StoreIcon,    match: (p: string) => p.startsWith("/discover") },
     { href: "/communities",            label: T("Communities"), icon: Users,      match: (p: string) => p.startsWith("/communities") || p.startsWith("/c/") },
     { href: "/launchpad",              label: T("Tokens"),      icon: LayoutGrid, match: (p: string) => p === "/launchpad" || (p.startsWith("/launchpad/") && !p.startsWith("/launchpad/create")) },
     { href: "/terminal",               label: T("Terminal"),    icon: CandlestickChart, match: (p: string) => p.startsWith("/terminal") },

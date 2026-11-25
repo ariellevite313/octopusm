@@ -105,7 +105,7 @@ export function SubmitApp() {
       if (!r) throw new Error("Could not save your app");
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "Could not save your app");
-      toast.success(tr("Your project is live on Discover"));
+      toast.success(tr("Your project is live on the OM Store"));
       router.push(`/discover/${j.id}`);
     } catch (err) { toast.error(tr((err as Error).message)); }
     setBusy(false);
@@ -136,7 +136,7 @@ export function SubmitApp() {
       <h1 className="text-[28px] font-bold">{tr("List my project")}</h1>
       {!noToken && (
         <div className="flex items-center justify-between gap-3 rounded-[22px] border border-border bg-card px-4 py-3.5">
-          <p className="text-[15px] font-bold">{tr("Discover listing")}</p>
+          <p className="text-[15px] font-bold">{tr("OM Store listing")}</p>
           <ListingPrice />
         </div>
       )}

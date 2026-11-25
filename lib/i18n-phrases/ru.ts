@@ -2651,5 +2651,11 @@ const p: Record<string, string> = {
   "Invalid X link": "Неверная ссылка на X",
   "Invalid Telegram link": "Неверная ссылка на Telegram",
   "Invalid Discord link": "Неверная ссылка на Discord",
+  "Store": "Магазин",
+  "Showcase your project on the OM Store": "Покажите свой проект в OM Store",
+  "Be the first project on the OM Store": "Станьте первым проектом в OM Store",
+  "Your project is live on the OM Store": "Ваш проект опубликован в OM Store",
+  "OM Store listing": "Карточка в OM Store",
+  "OM Store page (optional)": "Страница в OM Store (необязательно)",
 };
 export default p;
