@@ -765,6 +765,7 @@ const p: Record<string, string> = {
   "Tutorials": "Eğitimler",
   "Open navigation menu": "Gezinme menüsünü aç",
   "Menu": "Menü",
+  "Open menu": "Menüyü aç",
   "Close menu": "Menüyü kapat",
   "Connect Wallet": "Cüzdanı bağla",
   "Launch": "Başlat",

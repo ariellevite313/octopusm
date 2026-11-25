@@ -765,6 +765,7 @@ const p: Record<string, string> = {
   "Tutorials": "Tutoriales",
   "Open navigation menu": "Abrir menú de navegación",
   "Menu": "Menú",
+  "Open menu": "Abrir menú",
   "Close menu": "Cerrar menú",
   "Connect Wallet": "Conectar wallet",
   "Launch": "Lanzar",

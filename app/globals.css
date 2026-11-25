@@ -660,3 +660,11 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(16px, 1em); }
 }
+
+/* Menu latéral : les libellés glissent en entrant quand la barre s'ouvre */
+@keyframes sidebar-label-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.sidebar-label { animation: sidebar-label-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) { .sidebar-label { animation: none; } }
