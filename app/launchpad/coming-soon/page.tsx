@@ -6,6 +6,7 @@ import { getLaunchpadTokens } from "@/services/launchpad-service";
 import type { LaunchpadToken } from "@/services/launchpad-service";
 import { EmptyIcon } from "@/components/shared/empty-icon";
 import { Clock } from "lucide-react";
+import { Tr } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "Coming Soon",
@@ -19,7 +20,7 @@ function Countdown({ scheduledAt }: { scheduledAt: string }) {
   const now = new Date();
   const diff = target.getTime() - now.getTime();
 
-  if (diff <= 0) return <span className="text-up font-semibold">Launching now</span>;
+  if (diff <= 0) return <span className="text-up font-semibold"><Tr>Launching now</Tr></span>;
 
   const days  = Math.floor(diff / 86_400_000);
   const hours = Math.floor((diff % 86_400_000) / 3_600_000);
@@ -70,7 +71,7 @@ function ComingSoonCard({ token }: { token: LaunchpadToken }) {
 
       {/* Countdown */}
       <div className="text-right shrink-0">
-        <p className="text-[10px] text-muted-foreground mb-0.5">Launches in</p>
+        <p className="text-[10px] text-muted-foreground mb-0.5"><Tr>Launches in</Tr></p>
         {token.scheduled_at && <Countdown scheduledAt={token.scheduled_at} />}
       </div>
     </Link>
@@ -84,7 +85,7 @@ async function ComingSoonContent() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <EmptyIcon icon={Clock} className="mb-3" />
-        <p className="text-sm font-medium text-foreground mb-1">No scheduled launches yet</p>
+        <p className="text-sm font-medium text-foreground mb-1"><Tr>No scheduled launches yet</Tr></p>
         <p className="text-xs text-muted-foreground mb-5">
           Schedule your token launch up to 1 month in advance
         </p>
@@ -117,8 +118,8 @@ export default function ComingSoonPage() {
               ← Launchpad
             </Link>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Coming Soon</h1>
-          <p className="text-sm text-muted-foreground">Scheduled token launches</p>
+          <h1 className="text-2xl font-bold text-foreground"><Tr>Coming Soon</Tr></h1>
+          <p className="text-sm text-muted-foreground"><Tr>Scheduled token launches</Tr></p>
         </div>
         <Link
           href="/launchpad/create"

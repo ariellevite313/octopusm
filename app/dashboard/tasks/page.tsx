@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { TasksSection } from "@/components/dashboard/tasks-section";
 import { getTasksWithCompletion } from "@/services/task-service";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
+import { Tr } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "My Tasks",
@@ -39,7 +40,7 @@ export default async function TasksPage() {
 
   return (
     <div>
-      <h2 className="mb-3 text-base font-bold text-foreground">Tasks</h2>
+      <h2 className="mb-3 text-base font-bold text-foreground"><Tr>Tasks</Tr></h2>
       <Suspense fallback={<TasksSkeleton />}>
         <TasksLoader wallet={wallet} />
       </Suspense>

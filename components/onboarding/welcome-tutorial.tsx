@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { Award, CandlestickChart, Clock, Gift, Hash, Heart, MessageCircle, Rocket, Sparkles, TrendingUp, X } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { useT } from "@/lib/i18n";
+import { useT, Tr } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { BonbonIcon } from "@/components/shared/bonbon-icon";
 
@@ -90,7 +90,7 @@ export const TOUR_SLIDES: Slide[] = [
         </Panel>
         <Panel className="flex items-center gap-3 px-3.5 py-3">
           <span className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-[16px] font-bold">#</span>
-          <div className="flex-1"><p className="text-[15px] font-semibold">Solana memes</p><p className="num text-[12px] text-white/60">12.4K</p></div>
+          <div className="flex-1"><p className="text-[15px] font-semibold"><Tr>Solana memes</Tr></p><p className="num text-[12px] text-white/60">12.4K</p></div>
           <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-black">Join</span>
         </Panel>
         <Float src="/doge.png" className="-right-7 -top-7 size-16 rounded-full rotate-6" />
@@ -130,11 +130,11 @@ export const TOUR_SLIDES: Slide[] = [
             <img src="/octo-coin.png" alt="" className="size-14 rounded-2xl" />
             <div><p className="text-[17px] font-extrabold">$OMERO</p><p className="text-[12px] text-white/60">Omero Inu</p></div>
           </div>
-          <div className="mt-4 flex justify-between text-[12px] text-white/70"><span>Bonding curve</span><span className="num">72%</span></div>
+          <div className="mt-4 flex justify-between text-[12px] text-white/70"><span><Tr>Bonding curve</Tr></span><span className="num">72%</span></div>
           <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full w-[72%] rounded-full bg-[#ff9a3d]" /></div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-white/5 p-2.5"><p className="text-[11px] text-white/60">Market cap</p><p className="num text-[15px] font-bold">$1.25M</p></div>
-            <div className="rounded-xl bg-white/5 p-2.5"><p className="text-[11px] text-white/60">Your fees</p><p className="num text-[15px] font-bold text-[#4ade80]">+$842</p></div>
+            <div className="rounded-xl bg-white/5 p-2.5"><p className="text-[11px] text-white/60"><Tr>Market cap</Tr></p><p className="num text-[15px] font-bold">$1.25M</p></div>
+            <div className="rounded-xl bg-white/5 p-2.5"><p className="text-[11px] text-white/60"><Tr>Your fees</Tr></p><p className="num text-[15px] font-bold text-[#4ade80]">+$842</p></div>
           </div>
         </Panel>
         <Float src="/solana.png" className="-right-7 -top-7 size-14 rounded-full rotate-12" />
@@ -188,7 +188,7 @@ export const TOUR_SLIDES: Slide[] = [
     art: (
       <div className="relative mx-auto w-[80%] space-y-2">
         <Panel className="p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60">OM Builders Hackathon</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60"><Tr>OM Builders Hackathon</Tr></p>
           <p className="num mt-1 text-[30px] font-extrabold leading-none">$100,000</p>
           <div className="mt-4 grid grid-cols-4 gap-1.5">
             {[["20", "days"], ["10", "hours"], ["39", "min"], ["44", "sec"]].map(([v, l]) => (
@@ -198,7 +198,7 @@ export const TOUR_SLIDES: Slide[] = [
         </Panel>
         <Panel className="flex items-center gap-3 px-3.5 py-3">
           <span className="flex size-10 items-center justify-center rounded-full bg-white text-[13px] font-extrabold text-black">20%</span>
-          <div><p className="text-[15px] font-semibold">Ambassador</p><p className="text-[12px] text-white/60">of the fees on your referrals</p></div>
+          <div><p className="text-[15px] font-semibold"><Tr>Ambassador</Tr></p><p className="text-[12px] text-white/60">of the fees on your referrals</p></div>
         </Panel>
         <Float src="/bonbon-orange.png" className="-right-6 -top-10 h-20 rotate-12" />
       </div>

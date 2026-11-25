@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { useT } from "@/lib/i18n";
+import { useT, Tr } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { HACKATHON, MAX_TEAM } from "@/lib/hackathon/config";
 import { RULES } from "@/lib/hackathon/rules";
@@ -44,7 +44,7 @@ export function HackathonLanding() {
         <div className="relative max-w-3xl">
           <p className="flex items-center gap-2 text-[15px] font-semibold text-foreground"><span className="size-2 rounded-full bg-up" />{HACKATHON.name}</p>
           <h1 className="mt-5 text-[clamp(44px,11vw,108px)] font-extrabold leading-[0.95] tracking-tight text-foreground">
-            Build<br />on OM<br /><span className="text-muted-foreground">Hackathon</span>
+            Build<br />on OM<br /><span className="text-muted-foreground"><Tr>Hackathon</Tr></span>
           </h1>
           <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
             {tr("Launch your token on OM, grow a real community and climb the leaderboard. Up to {amount} USDC to win.", { amount: HACKATHON.maxPrizeUsdc.toLocaleString("en-US") })}

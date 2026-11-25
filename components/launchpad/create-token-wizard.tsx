@@ -1168,7 +1168,7 @@ export function CreateTokenWizard({
               )}
               <div className="min-w-0">
                 <p className="truncate text-lg font-bold text-foreground">Launch ${data.ticker}</p>
-                <p className="text-sm text-muted-foreground">Approve the signatures in your wallet. Keep this window open.</p>
+                <p className="text-sm text-muted-foreground"><Tr>Approve the signatures in your wallet. Keep this window open.</Tr></p>
               </div>
             </div>
             <LaunchButton tokenId={launchId} walletAddress={walletAddress} isScheduled={data.is_scheduled} autoStart />
@@ -1189,7 +1189,7 @@ export function CreateTokenWizard({
           <Link href="/launchpad" aria-label="Back" className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted">
             <ChevronLeft className="size-6" />
           </Link>
-          <h1 className="text-center text-[17px] font-bold text-foreground">Create a coin</h1>
+          <h1 className="text-center text-[17px] font-bold text-foreground"><Tr>Create a coin</Tr></h1>
           <span />
         </div>
         <CoinForm

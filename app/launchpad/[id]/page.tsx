@@ -38,6 +38,7 @@ import { VerifiedTokenBadge } from "@/components/shared/verified-token-badge";
 import { getProfiles, applyProfiles, commentWallets } from "@/lib/profiles";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
+import { Tr } from "@/lib/i18n";
 
 export const revalidate = 30;
 
@@ -412,8 +413,8 @@ export default async function TokenDetailPage({ params }: Props) {
 
       {isPending && (
         <div className="rounded-[22px] border border-dashed border-border px-5 py-10 text-center md:mx-6">
-          <p className="text-sm font-medium text-foreground mb-1">Awaiting launch</p>
-          <p className="text-xs text-muted-foreground">The chart will appear once the token is deployed on-chain.</p>
+          <p className="text-sm font-medium text-foreground mb-1"><Tr>Awaiting launch</Tr></p>
+          <p className="text-xs text-muted-foreground"><Tr>The chart will appear once the token is deployed on-chain.</Tr></p>
           {isCreator ? (
             <div className="mx-auto mt-5 max-w-sm space-y-2">
               <p className="text-xs text-muted-foreground">
@@ -422,15 +423,15 @@ export default async function TokenDetailPage({ params }: Props) {
               <LaunchButton tokenId={token.id} walletAddress={token.creator_wallet} isScheduled={token.is_scheduled} />
             </div>
           ) : (
-            <p className="mt-3 text-xs text-muted-foreground">Connect the creator wallet to finish this launch.</p>
+            <p className="mt-3 text-xs text-muted-foreground"><Tr>Connect the creator wallet to finish this launch.</Tr></p>
           )}
         </div>
       )}
 
       {isGraduated && (
         <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 text-center md:mx-6">
-          <p className="text-sm font-semibold text-indigo-400">Graduated to DAMM</p>
-          <p className="text-xs text-muted-foreground mt-1">This token is now fully tradeable.</p>
+          <p className="text-sm font-semibold text-indigo-400"><Tr>Graduated to DAMM</Tr></p>
+          <p className="text-xs text-muted-foreground mt-1"><Tr>This token is now fully tradeable.</Tr></p>
           {birdeyeTokenUrl && (
             <a href={birdeyeTokenUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-medium text-indigo-400 underline">
               Trade on Birdeye →
@@ -512,7 +513,7 @@ export default async function TokenDetailPage({ params }: Props) {
             {!isArc && isOnCurve && token.is_tradeable && !token.pool_address && !isCreator && (
               <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center space-y-1">
                 <p className="text-sm font-medium text-foreground">Pool indexing…</p>
-                <p className="text-xs text-muted-foreground">The swap will appear shortly.</p>
+                <p className="text-xs text-muted-foreground"><Tr>The swap will appear shortly.</Tr></p>
               </div>
             )}
 
@@ -542,8 +543,8 @@ export default async function TokenDetailPage({ params }: Props) {
             {/* Claim fees — creator only, Solana tokens only (Arc uses ClaimFeesArc above) */}
             {!isArc && isCreator && (isActive || isGraduated) && (
               <div className="pt-2 space-y-1.5">
-                <SectionLabel>Creator fees</SectionLabel>
-                <p className="text-xs text-muted-foreground mb-2">Claim your accumulated trading fees.</p>
+                <SectionLabel><Tr>Creator fees</Tr></SectionLabel>
+                <p className="text-xs text-muted-foreground mb-2"><Tr>Claim your accumulated trading fees.</Tr></p>
                 <ClaimFeesButton
                   tokenId={token.id}
                   walletAddress={token.creator_wallet}
@@ -572,7 +573,7 @@ export default async function TokenDetailPage({ params }: Props) {
               )}
           {/* Token info */}
           <div>
-            <SectionLabel>Token info</SectionLabel>
+            <SectionLabel><Tr>Token info</Tr></SectionLabel>
             <InfoRow label="Network" value={isArc ? "Arc" : "Solana"} />
             <InfoRow label="Supply"  value={formatSupply(token.supply)} />
             {token.first_buy_amount && (
@@ -590,7 +591,7 @@ export default async function TokenDetailPage({ params }: Props) {
 
           {/* Creator */}
           <div>
-            <SectionLabel>Creator</SectionLabel>
+            <SectionLabel><Tr>Creator</Tr></SectionLabel>
             <div className="flex items-center gap-2.5">
               <UserAvatar src={token.creator_avatar_src} name={creatorDisplayName ?? token.creator_wallet} size={32} />
               <div className="min-w-0 flex-1">
