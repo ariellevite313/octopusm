@@ -211,6 +211,9 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
         tx.add(createATAIx(web3, payerPK, recipientPK, mintPK, recipientATA));
       }
 
+      // Petite priorité de frais : la transaction est incluse plus vite quand le réseau est chargé (coût : environ 0,0005 $)
+      tx.add(web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 80_000 }));
+      tx.add(web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000 }));
       tx.add(createMemoIx(web3, payerPK, memo));
       tx.add(createTransferCheckedIx(
         web3, payerATA, recipientATA, mintPK, payerPK,
@@ -251,34 +254,38 @@ export async function submitPoolBet(params: PoolBetParams): Promise<PoolBetResul
     return { success: false, error: msg };
   }
 
-  // 5. Persist to payments table via API route (admin client bypasses RLS)
-  const apiRes = await fetch("/api/pools/predict", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      payment_request_id: `pool-req-${Date.now().toString(36)}`,
-      payment_reference:  reference,
-      title:              marketTitle,
-      subtitle:           optionLabel,
-      market_id:          marketId,
-        share_post_id:      readVia(marketId),
-      selection_id:       optionId,
-      selection_label:    optionLabel,
-      amount_usdc:        amount,
-      token,
-      tx_signature:       signature,
-      wallet_address:     walletAddress,
-    }),
+  // 5. Persist to payments table via API route (admin client bypasses RLS).
+  // Le serveur répond 503 tant qu'il ne voit pas encore la transaction : on réessaie, l'argent est déjà parti.
+  const payload = JSON.stringify({
+    payment_request_id: `pool-req-${Date.now().toString(36)}`,
+    payment_reference:  reference,
+    title:              marketTitle,
+    subtitle:           optionLabel,
+    market_id:          marketId,
+    share_post_id:      readVia(marketId),
+    selection_id:       optionId,
+    selection_label:    optionLabel,
+    amount_usdc:        amount,
+    token,
+    tx_signature:       signature,
+    wallet_address:     walletAddress,
   });
-
-  if (!apiRes.ok) {
-    const err = await apiRes.json().catch(() => ({})) as { error?: string };
-    const msg = err.error ?? `HTTP ${apiRes.status}`;
-    console.error("[pool-betting] payments insert:", msg);
-    return { success: false, error: `On-chain OK but registration failed: ${msg}. Contact support with TX: ${signature.slice(0,16)}` };
+  let lastMsg = "";
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const apiRes = await fetch("/api/pools/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+      if (apiRes.ok) return { success: true, reference, signature };
+      const err = await apiRes.json().catch(() => ({})) as { error?: string };
+      lastMsg = err.error ?? `HTTP ${apiRes.status}`;
+      // Seuls « pas encore confirmée » (503) et les erreurs serveur passagères valent un nouvel essai
+      if (apiRes.status !== 503 && apiRes.status < 500) break;
+    } catch (e) {
+      lastMsg = e instanceof Error ? e.message : "Network error";
+    }
   }
-
-  return { success: true, reference, signature };
+  console.error("[pool-betting] payments insert:", lastMsg);
+  return { success: false, error: `On-chain OK but registration failed: ${lastMsg}. Contact support with TX: ${signature.slice(0,16)}` };
 }
 
 // ─── Pool Creation ────────────────────────────────────────────────────────────
