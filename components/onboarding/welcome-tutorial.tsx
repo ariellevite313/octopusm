@@ -216,8 +216,20 @@ export function WelcomeTutorial({ forceOpen = false }: { forceOpen?: boolean } =
   const [tick, setTick] = useState(0); // relance l'animation de la barre en cours
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Déconnexion : le tutoriel se présentera de nouveau à la prochaine connexion
+  const lastWallet = useRef<string | null>(null);
+  useEffect(() => {
+    if (isAuthenticated && walletAddress) { lastWallet.current = walletAddress; return; }
+    if (!isAuthenticated && lastWallet.current) {
+      try { localStorage.removeItem(seenKey(lastWallet.current)); } catch { /* stockage indisponible */ }
+      lastWallet.current = null;
+      setOpen(false); setI(0);
+    }
+  }, [isAuthenticated, walletAddress]);
+
   useEffect(() => {
     if (!isAuthenticated || !walletAddress || read(seenKey(walletAddress))) return;
+    setI(0);
     const t = setTimeout(() => { if (read(AGE_KEY) && !read(seenKey(walletAddress))) setOpen(true); }, 1800);
     return () => clearTimeout(t);
   }, [isAuthenticated, walletAddress]);
