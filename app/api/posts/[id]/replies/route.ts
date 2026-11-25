@@ -6,6 +6,7 @@ import { getProfiles } from "@/lib/profiles";
 import { UUID_RE } from "@/lib/social/posts";
 import { notify } from "@/lib/social/notify";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
+import { limited } from "@/lib/limit";
 
 const norm = (w: string) => (/^0x[0-9a-fA-F]{40}$/.test(w) ? w.toLowerCase() : w);
 
@@ -46,6 +47,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  { const lim = await limited(req, "post-reply", 30, 60_000); if (lim) return lim; }
   const { id } = await params;
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   const s = await requireWallet();

@@ -15,8 +15,10 @@ import { isEvmChain, isAddr } from "@/lib/swap/evm";
 import { evmHolding, refMessage } from "@/lib/swap/chill-evm";
 import { CHILL_MIN_USD, CHILL_POSTS_PER_DAY } from "@/lib/swap/chill";
 import { arcHolding } from "@/lib/swap/chill-arc";
+import { limited } from "@/lib/limit";
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "chill-post", 20, 60_000); if (lim) return lim; }
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const b = (await req.json().catch(() => ({}))) as { mint?: unknown; body?: unknown; chain?: unknown; holder?: unknown; signature?: unknown; nonce?: unknown };

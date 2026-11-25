@@ -11,6 +11,7 @@ import { requireWallet } from "@/lib/social/session";
 import { enrichPosts, normWallet, POST_COLUMNS } from "@/lib/social/posts";
 import { createPost } from "@/lib/social/create-post";
 import { rankFeed, type RankRow } from "@/lib/social/rank";
+import { limited } from "@/lib/limit";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +121,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "post-create", 20, 60_000); if (lim) return lim; }
   const s = await requireWallet();
   if ("error" in s) return s.error;
 

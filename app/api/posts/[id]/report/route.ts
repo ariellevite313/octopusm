@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { UUID_RE } from "@/lib/social/posts";
+import { limited } from "@/lib/limit";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  { const lim = await limited(req, "post-report", 10, 60_000); if (lim) return lim; }
   const { id } = await params;
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   const s = await requireWallet();

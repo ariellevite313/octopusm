@@ -6,8 +6,10 @@ import { requireWallet } from "@/lib/social/session";
 import { UUID_RE } from "@/lib/social/posts";
 import { notify } from "@/lib/social/notify";
 import { checkTipInput, sendTip, TIP_ERRORS } from "@/lib/social/tips";
+import { limited } from "@/lib/limit";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  { const lim = await limited(req, "post-tip", 30, 60_000); if (lim) return lim; }
   const { id } = await params;
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   // L'envoyeur est toujours le compte connecté (jamais une adresse envoyée par la page). Adresses 0x en minuscules.

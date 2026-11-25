@@ -2,8 +2,10 @@
 import { NextResponse } from "next/server";
 import { requireWallet } from "@/lib/social/session";
 import { createArticle } from "@/lib/social/create-article";
+import { limited } from "@/lib/limit";
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "article-create", 10, 60_000); if (lim) return lim; }
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const input = await req.json().catch(() => null);

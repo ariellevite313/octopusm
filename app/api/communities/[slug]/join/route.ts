@@ -6,10 +6,12 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { getCommunity, memberOf } from "@/lib/social/communities";
+import { limited } from "@/lib/limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  { const lim = await limited(_req, "community-join", 30, 60_000); if (lim) return lim; }
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const { slug } = await params;

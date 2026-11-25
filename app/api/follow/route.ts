@@ -8,6 +8,7 @@ import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { requireWallet } from "@/lib/social/session";
 import { normWallet } from "@/lib/social/posts";
 import { notify } from "@/lib/social/notify";
+import { limited } from "@/lib/limit";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "follow", 40, 60_000); if (lim) return lim; }
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const { wallet } = (await req.json().catch(() => ({}))) as { wallet?: string };

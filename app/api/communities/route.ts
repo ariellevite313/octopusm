@@ -9,6 +9,7 @@ import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { requireWallet } from "@/lib/social/session";
 import { normWallet } from "@/lib/social/posts";
 import { moderateImage, moderateText, sniffImage } from "@/lib/moderation";
+import { limited } from "@/lib/limit";
 import {
   cleanSlug, cleanTags, COMMUNITY_CATEGORIES, COMMUNITY_COLUMNS, COMMUNITY_COST_OMERO, COMMUNITY_ERRORS, COMMUNITY_MAX_PER_WALLET,
   isReservedName, SLUG_RE, type Community,
@@ -62,6 +63,7 @@ async function uploadImage(db: any, file: File | null, path: string): Promise<{ 
 }
 
 export async function POST(req: Request) {
+  { const lim = await limited(req, "community-create", 5, 60_000); if (lim) return lim; }
   const s = await requireWallet();
   if ("error" in s) return s.error;
   const form = await req.formData().catch(() => null);
