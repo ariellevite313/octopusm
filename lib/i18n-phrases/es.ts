@@ -2712,5 +2712,16 @@ const p: Record<string, string> = {
   "See the market": "Ver el mercado",
   "Classic view": "Vista clásica",
   "Cards view": "Vista en tarjetas",
+  "Reached": "Alcanzado",
+  "{n} Omero left": "Faltan {n} Omero",
+  "Perks on OMdotfun": "Ventajas en OMdotfun",
+  "{level} badge": "Insignia {level}",
+  "Shown next to your name on your profile, posts and leaderboards.": "Se muestra junto a tu nombre en tu perfil, tus posts y las clasificaciones.",
+  "Animated frame: {frame}": "Marco animado: {frame}",
+  "An animated ring around your profile picture, yours to wear.": "Un anillo animado alrededor de tu foto de perfil, para llevar cuando quieras.",
+  "Every frame from earlier levels": "Todos los marcos de niveles anteriores",
+  "You keep all the animations unlocked before.": "Conservas todas las animaciones desbloqueadas antes.",
+  "Top of the map": "Cima del mapa",
+  "The highest level on OMdotfun.": "El nivel más alto de OMdotfun.",
 };
 export default p;

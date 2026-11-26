@@ -2712,5 +2712,16 @@ const p: Record<string, string> = {
   "See the market": "Pazarı gör",
   "Classic view": "Klasik görünüm",
   "Cards view": "Kart görünümü",
+  "Reached": "Ulaşıldı",
+  "{n} Omero left": "{n} Omero kaldı",
+  "Perks on OMdotfun": "OMdotfun'daki avantajlar",
+  "{level} badge": "{level} rozeti",
+  "Shown next to your name on your profile, posts and leaderboards.": "Profilinde, gönderilerinde ve sıralamalarda adının yanında görünür.",
+  "Animated frame: {frame}": "Animasyonlu çerçeve: {frame}",
+  "An animated ring around your profile picture, yours to wear.": "Profil fotoğrafının etrafında, istediğinde takabileceğin animasyonlu bir halka.",
+  "Every frame from earlier levels": "Önceki seviyelerin tüm çerçeveleri",
+  "You keep all the animations unlocked before.": "Daha önce açılan tüm animasyonlar sende kalır.",
+  "Top of the map": "Haritanın zirvesi",
+  "The highest level on OMdotfun.": "OMdotfun'daki en yüksek seviye.",
 };
 export default p;

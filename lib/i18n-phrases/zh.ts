@@ -2714,5 +2714,16 @@ const p: Record<string, string> = {
   "See the market": "查看市场",
   "Classic view": "经典视图",
   "Cards view": "卡片视图",
+  "Reached": "已达到",
+  "{n} Omero left": "还差 {n} Omero",
+  "Perks on OMdotfun": "OMdotfun 上的权益",
+  "{level} badge": "{level} 徽章",
+  "Shown next to your name on your profile, posts and leaderboards.": "显示在你的个人资料、帖子和排行榜的名字旁。",
+  "Animated frame: {frame}": "动画头像框：{frame}",
+  "An animated ring around your profile picture, yours to wear.": "环绕头像的动画光环，随时佩戴。",
+  "Every frame from earlier levels": "之前等级的所有头像框",
+  "You keep all the animations unlocked before.": "之前解锁的动画全部保留。",
+  "Top of the map": "地图之巅",
+  "The highest level on OMdotfun.": "OMdotfun 的最高等级。",
 };
 export default p;
