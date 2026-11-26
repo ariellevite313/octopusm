@@ -38,7 +38,7 @@ async function inline(u: string | null): Promise<string | null> {
     const r = await fetch(u, { signal: AbortSignal.timeout(4000) });
     if (!r.ok) return null;
     const type = r.headers.get("content-type") ?? "image/png";
-    if (!/^image\/(png|jpe?g|gif|webp)/.test(type)) return null;
+    if (!/^image\/(png|jpe?g|gif|webp|svg\+xml)/.test(type)) return null;
     return `data:${type};base64,${Buffer.from(await r.arrayBuffer()).toString("base64")}`;
   } catch { return null; }
 }
@@ -50,7 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any;
   const { data: app } = UUID.test(id)
-    ? await db.from("discover_apps").select("id, owner, name, tagline, category, icon_url, banner_url, rating_avg, rating_count, status").eq("id", id).eq("status", "live").maybeSingle()
+    ? await db.from("discover_apps").select("id, owner, token_id, name, tagline, category, icon_url, banner_url, rating_avg, rating_count, status").eq("id", id).eq("status", "live").maybeSingle()
     : { data: null };
   if (!app) {
     return new ImageResponse(<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#F4F4F6", fontSize: 40, color: "#71717a", fontFamily: "Inter" }}>OM Store</div>, { ...size, fonts: f });
@@ -66,7 +66,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const cat = APP_CATEGORY_LABEL[app.category as AppCategory] ?? "App";
   const rating = Number(app.rating_avg) || 0;
   const count = Number(app.rating_count) || 0;
-  const [banner, icon] = await Promise.all([inline(abs(app.banner_url)), inline(abs(app.icon_url))]);
+  // Icône : celle de la fiche, sinon le logo du token lié (comme sur la fiche), sinon l'initiale
+  let tokenLogo: string | null = null;
+  if (!app.icon_url && app.token_id) {
+    const { data: tk } = await db.from("launchpad_tokens").select("logo_url").eq("id", app.token_id).maybeSingle().then((r: unknown) => r, () => ({ data: null }));
+    tokenLogo = tk?.logo_url ?? null;
+  }
+  const [banner, icon] = await Promise.all([inline(abs(app.banner_url)), inline(abs(app.icon_url ?? tokenLogo))]);
   const nameSize = app.name.length > 18 ? 64 : app.name.length > 12 ? 80 : 92;
 
   const stat = (value: React.ReactNode, label: string, last = false) => (
@@ -98,7 +104,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           {icon
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={icon} alt="" width={190} height={190} style={{ width: 190, height: 190, borderRadius: 44, objectFit: "cover" }} />
-            : <div style={{ width: 190, height: 190, borderRadius: 44, background: "#0A0A0B" }} />}
+            : <div style={{ width: 190, height: 190, borderRadius: 44, background: "#FFFFFF", border: "2px solid #E4E4E7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 96, fontWeight: 800, color: "#0A0A0B" }}>{app.name.slice(0, 1).toUpperCase()}</div>}
         </div>
         <div style={{ marginTop: 30, fontSize: 34, color: "#52525B", maxWidth: 1060, display: "flex" }}>{app.tagline.length > 80 ? app.tagline.slice(0, 78) + "…" : app.tagline}</div>
         <div style={{ marginTop: "auto", display: "flex", alignItems: "center", paddingTop: 24 }}>
