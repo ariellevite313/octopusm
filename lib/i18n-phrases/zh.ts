@@ -2753,5 +2753,15 @@ const p: Record<string, string> = {
   "1h Vol": "1小时成交量",
   "24h Vol": "24小时成交量",
   "Not launched yet": "尚未发行",
+  "Boosted": "已推广",
+  "New on OM": "OM 新上线",
+  "Boost a token": "推广代币",
+  "Boost {symbol}": "推广 {symbol}",
+  "Shown in Trending tokens": "在热门代币中展示",
+  "Your balance": "你的余额",
+  "Boost for {amount} OMERO": "花费 {amount} OMERO 推广",
+  "{symbol} is boosted for {h} h": "{symbol} 已推广 {h} 小时",
+  "Invalid token address": "代币地址无效",
+  "Token not found in the Terminal": "终端中未找到该代币",
 };
 export default p;

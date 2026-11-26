@@ -2751,5 +2751,15 @@ const p: Record<string, string> = {
   "1h Vol": "Vol. 1 h",
   "24h Vol": "Vol. 24 h",
   "Not launched yet": "Ainda não lançado",
+  "Boosted": "Impulsionado",
+  "New on OM": "Novo no OM",
+  "Boost a token": "Impulsionar um token",
+  "Boost {symbol}": "Impulsionar {symbol}",
+  "Shown in Trending tokens": "Exibido em Tokens em alta",
+  "Your balance": "Seu saldo",
+  "Boost for {amount} OMERO": "Impulsionar por {amount} OMERO",
+  "{symbol} is boosted for {h} h": "{symbol} está impulsionado por {h} h",
+  "Invalid token address": "Endereço de token inválido",
+  "Token not found in the Terminal": "Token não encontrado no Terminal",
 };
 export default p;

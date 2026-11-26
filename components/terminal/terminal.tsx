@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Maximize2, PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { Maximize2, PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Rocket, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { getWalletProfile } from "@/services/wallet-service";
@@ -32,6 +32,7 @@ const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium
 import { executeSwap, mevOn, setMev, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
 import { LiveTrades } from "./live-trades";
+import { BoostTokenSheet } from "@/components/social/boost-token-sheet";
 import { ChartAlerts } from "./chart-alerts";
 import { PulseView } from "./pulse";
 import { Positions } from "./positions";
@@ -501,6 +502,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   const [tab, setTab] = useState<"trades" | "holders" | "predict" | "feed" | "about">("trades");
   const [shareCard, setShareCard] = useState<{ wallet: string | null } | null>(null);
   const [sheet, setSheet] = useState<"swap" | "quick" | "alert" | "limit" | null>(null);
+  const [boosting, setBoosting] = useState(false);
   const [preset, setPresetRaw] = useState<LimitPreset | null>(null);
   // Ordre préparé depuis le graphique : gardé 30 min (rafraîchissement, connexion du wallet)
   const PKEY = `om_limit_preset:${mint}`;
@@ -647,7 +649,11 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             {GT_NET[chain] && chain !== "arc" && mint !== SOL_MINT && (
               <button onClick={() => (isAuthenticated ? setSheet("alert") : window.dispatchEvent(new CustomEvent("open-wallet-connect")))} aria-label={tr("Price alert")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><Bell className="size-[21px]" /></button>
             )}
+            {!t.soon && (
+              <button onClick={() => setBoosting(true)} aria-label={tr("Boost")} title={tr("Boost")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><Rocket className="size-[21px]" /></button>
+            )}
             <button onClick={share} aria-label={tr("Share")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><Share2 className="size-[21px]" /></button>
+            {boosting && <BoostTokenSheet chain={chain} mint={mint} symbol={t.symbol} onClose={() => setBoosting(false)} />}
           </div>
         )}
       </div>

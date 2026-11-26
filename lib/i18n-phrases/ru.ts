@@ -2751,5 +2751,15 @@ const p: Record<string, string> = {
   "1h Vol": "Объём 1 ч",
   "24h Vol": "Объём 24 ч",
   "Not launched yet": "Ещё не запущен",
+  "Boosted": "Продвигается",
+  "New on OM": "Новый на OM",
+  "Boost a token": "Продвинуть токен",
+  "Boost {symbol}": "Продвинуть {symbol}",
+  "Shown in Trending tokens": "Показ в «Трендовых токенах»",
+  "Your balance": "Ваш баланс",
+  "Boost for {amount} OMERO": "Продвинуть за {amount} OMERO",
+  "{symbol} is boosted for {h} h": "{symbol} продвигается {h} ч",
+  "Invalid token address": "Неверный адрес токена",
+  "Token not found in the Terminal": "Токен не найден в Терминале",
 };
 export default p;

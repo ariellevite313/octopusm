@@ -2751,5 +2751,15 @@ const p: Record<string, string> = {
   "1h Vol": "1 sa Hacim",
   "24h Vol": "24 sa Hacim",
   "Not launched yet": "Henüz başlatılmadı",
+  "Boosted": "Öne çıkarıldı",
+  "New on OM": "OM'de yeni",
+  "Boost a token": "Bir token'ı öne çıkar",
+  "Boost {symbol}": "{symbol} öne çıkar",
+  "Shown in Trending tokens": "Trend tokenlarda gösterilir",
+  "Your balance": "Bakiyen",
+  "Boost for {amount} OMERO": "{amount} OMERO ile öne çıkar",
+  "{symbol} is boosted for {h} h": "{symbol} {h} saat öne çıkarıldı",
+  "Invalid token address": "Geçersiz token adresi",
+  "Token not found in the Terminal": "Token Terminal'de bulunamadı",
 };
 export default p;

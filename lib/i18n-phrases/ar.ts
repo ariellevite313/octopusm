@@ -2753,5 +2753,15 @@ const p: Record<string, string> = {
   "1h Vol": "حجم ساعة",
   "24h Vol": "حجم 24 ساعة",
   "Not launched yet": "لم يُطلق بعد",
+  "Boosted": "مُعزَّز",
+  "New on OM": "جديد على OM",
+  "Boost a token": "تعزيز رمز",
+  "Boost {symbol}": "تعزيز {symbol}",
+  "Shown in Trending tokens": "يظهر في الرموز الرائجة",
+  "Your balance": "رصيدك",
+  "Boost for {amount} OMERO": "تعزيز مقابل {amount} OMERO",
+  "{symbol} is boosted for {h} h": "تم تعزيز {symbol} لمدة {h} ساعة",
+  "Invalid token address": "عنوان الرمز غير صالح",
+  "Token not found in the Terminal": "لم يتم العثور على الرمز في المحطة",
 };
 export default p;
