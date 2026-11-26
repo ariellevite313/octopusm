@@ -763,6 +763,9 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
   box-shadow: 0 0 22px 2px var(--fgc, transparent);
   animation: om-pulse 2.4s ease-in-out infinite;
 }
+/* Version fine pour le fil : anneau de 3px, halo discret */
+.om-frame-sm::before { inset: -3px; -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); filter: drop-shadow(0 0 3px var(--fgc, transparent)); }
+.om-frame-sm::after { inset: -4px; box-shadow: 0 0 8px 0 var(--fgc, transparent); }
 .om-frame-blue    { --fa: #1d4ed8; --fb: #60a5fa; --fc: #dbeafe; --fgc: rgb(59 130 246 / .55); --fs: 5s; }
 .om-frame-green   { --fa: #15803d; --fb: #4ade80; --fc: #ecfccb; --fgc: rgb(34 197 94 / .5); --fs: 4.5s; }
 .om-frame-gold    { --fa: #a16207; --fb: #facc15; --fc: #fff7cc; --fgc: rgb(250 204 21 / .6); --fs: 3.5s; }

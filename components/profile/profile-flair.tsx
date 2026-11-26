@@ -18,9 +18,9 @@ function Crown() {
 }
 
 /** Entoure l'avatar du contour choisi (aucun contour : l'avatar seul) ; `crown` : la couronne du top 5 des gains. */
-export function FrameWrap({ frame, crown = false, children }: { frame: FrameId | null; crown?: boolean; children: React.ReactNode }) {
+export function FrameWrap({ frame, crown = false, small = false, children }: { frame: FrameId | null; crown?: boolean; small?: boolean; children: React.ReactNode }) {
   if (!frame && !crown) return <>{children}</>;
-  return <span className={`relative inline-flex rounded-full ${frame ? `om-frame om-frame-${frame}` : ""}`}>{children}{crown && <Crown />}</span>;
+  return <span className={`relative inline-flex rounded-full ${frame ? `om-frame om-frame-${frame}${small ? " om-frame-sm" : ""}` : ""}`}>{children}{crown && <Crown />}</span>;
 }
 
 /** Une mascotte par niveau atteint, chacune avec la puce de son niveau, qui bougent l'une après l'autre. */
