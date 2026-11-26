@@ -54,7 +54,10 @@ function price(n: number | null): string {
   if (n == null) return "-";
   if (n >= 1) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
   if (n >= 0.0001) return `$${n.toFixed(6).replace(/0+$/, "")}`;
-  return `$${n.toPrecision(3)}`;
+  if (!(n > 0)) return "$0";
+  // Très petit prix : zéros comptés en indice (0.0₅275), comme GMGN, au lieu de 2.75e-6
+  const z = -Math.floor(Math.log10(n)) - 1;
+  return `$0.0${String.fromCharCode(8320 + Math.min(z, 9))}${(n * 10 ** z).toFixed(4).slice(2, 5)}`;
 }
 const pct = (n: number) => `${Math.abs(n) >= 1000 ? Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 }) : Math.abs(n).toFixed(2)}%`;
 const isMintLike = (s: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
@@ -138,7 +141,12 @@ export function Terminal() {
   const dflt = { mint: SOL_MINT };
   // Ordinateur : la liste de gauche se replie à volonté (choix gardé) pour laisser toute la place au graphique
   const [listOpen, setListOpenRaw] = useState(true);
-  useEffect(() => { try { if (localStorage.getItem("om_term_list") === "0") setListOpenRaw(false); } catch { /* ignore */ } }, []);
+  // Sans choix gardé : liste repliée sur les écrans de moins de 1536 px, sinon le graphique et les infos sont écrasés
+  useEffect(() => {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem("om_term_list"); } catch { /* ignore */ }
+    if (saved === "0" || (saved == null && window.innerWidth < 1536)) setListOpenRaw(false);
+  }, []);
   const setListOpen = (v: boolean) => { setListOpenRaw(v); try { localStorage.setItem("om_term_list", v ? "1" : "0"); } catch { /* ignore */ } };
   return (
     <div className={`relative mx-auto pb-28 md:pb-10 lg:grid lg:gap-6 lg:px-4 lg:pt-4 ${listOpen ? "max-w-[1600px] lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[400px_minmax(0,1fr)]" : "max-w-[1680px] lg:grid-cols-[minmax(0,1fr)] lg:pl-14"}`}>
@@ -645,12 +653,12 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         )}
       </div>
 
-      <div className={`lg:grid lg:min-h-0 lg:flex-1 lg:grid-rows-[minmax(0,1fr)] lg:gap-5 ${isSol && mint !== SOL_MINT ? "lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_460px]" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
+      <div className={`lg:grid lg:min-h-0 lg:flex-1 lg:grid-rows-[minmax(0,1fr)] lg:gap-5 ${isSol && mint !== SOL_MINT ? "lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_460px]" : "lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]"}`}>
         <div className="min-w-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-8 lg:[scrollbar-width:thin]">
           {/* Prix */}
           <div className="flex items-start justify-between gap-3 px-4 pt-3">
             <div className="min-w-0">
-              <p className="num truncate text-[36px] font-bold leading-none tracking-tight text-foreground lg:text-[30px]">{price(live)}</p>
+              <p className="num whitespace-nowrap text-[36px] font-bold leading-none tracking-tight text-foreground lg:text-[clamp(22px,2vw,30px)]">{price(live)}</p>
               {diff != null && diffPct != null && (
                 <p className={`num mt-2 text-[14px] font-semibold ${diff >= 0 ? "text-up" : "text-down"}`}>
                   {diff >= 0 ? "▲" : "▼"} {price(Math.abs(diff))} ({pct(diffPct)}) <span className="font-normal text-muted-foreground">{rangeLabel}</span>
@@ -663,9 +671,9 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             </div>
           </div>
 
-          <div className="mt-3 hidden gap-6 px-4 lg:flex">
+          <div className="mt-3 hidden flex-wrap gap-x-6 gap-y-2 px-4 lg:flex">
             {([[tr("24h change"), t.change24h == null ? "-" : `${t.change24h >= 0 ? "+" : "-"}${pct(t.change24h)}`], [tr("Volume 24h"), compact(t.volume24h, 2)], [tr("Liquidity"), compact(t.liquidity, 2)], [tr("Pool created"), t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "-"]] as const).map(([k, v]) => (
-              <div key={k}><p className="text-[12px] text-muted-foreground">{k}</p><p className={`num text-[14px] font-semibold ${k === tr("24h change") && t.change24h != null ? (t.change24h >= 0 ? "text-up" : "text-down") : "text-foreground"}`}>{v}</p></div>
+              <div key={k} className="shrink-0"><p className="whitespace-nowrap text-[12px] text-muted-foreground">{k}</p><p className={`num text-[14px] font-semibold ${k === tr("24h change") && t.change24h != null ? (t.change24h >= 0 ? "text-up" : "text-down") : "text-foreground"}`}>{v}</p></div>
             ))}
           </div>
           {/* Graphique */}
