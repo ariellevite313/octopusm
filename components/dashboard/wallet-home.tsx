@@ -9,7 +9,8 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowDownToLine, ArrowLeftRight, Check, Copy, HandCoins, LogOut, RefreshCw, Share2, X } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, Check, Copy, HandCoins, Layers, LayoutList, LogOut, RefreshCw, Share2, X } from "lucide-react";
+import { WalletCards } from "@/components/dashboard/wallet-cards";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { disconnectWallet } from "@/lib/wallet/auth";
@@ -85,6 +86,11 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
   const [sheet, setSheet] = useState<"claim" | "deposit" | null>(null);
   const [share, setShare] = useState(false);
   const [withdraw, setWithdraw] = useState<"usdc" | "clawdtrust" | null>(null);
+  // Affichage de l'accueil sur téléphone : cartes empilées (par défaut) ou classique. Gardé sur l'appareil.
+  const [view, setView] = useState<"cards" | "classic">("cards");
+  const [rk, setRk] = useState(0);
+  useEffect(() => { try { if (localStorage.getItem("om-wallet-view") === "classic") setView("classic"); } catch { /* sans effet */ } }, []);
+  const switchView = () => { const v = view === "cards" ? "classic" : "cards"; setView(v); try { localStorage.setItem("om-wallet-view", v); } catch { /* sans effet */ } };
 
   const load = useCallback(async (fresh = false) => {
     setLoading(true);
@@ -107,7 +113,7 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
     toast.success(tr("Disconnected"));
     router.push("/");
   }
-  const refresh = () => { void load(true); window.dispatchEvent(new Event(BAGS_REFRESH)); };
+  const refresh = () => { void load(true); setRk((x) => x + 1); window.dispatchEvent(new Event(BAGS_REFRESH)); };
   const copy = () => navigator.clipboard.writeText(wallet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
 
   const total = bags?.total ?? 0;
@@ -139,6 +145,9 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
             {short(wallet)} {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           </button>
         </div>
+        <button onClick={switchView} aria-label={view === "cards" ? tr("Classic view") : tr("Cards view")} title={view === "cards" ? tr("Classic view") : tr("Cards view")} className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted lg:hidden">
+          {view === "cards" ? <LayoutList className="size-[22px]" /> : <Layers className="size-[22px]" />}
+        </button>
         <button onClick={refresh} disabled={loading} aria-label={tr("Refresh")} className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-muted disabled:opacity-50">
           <RefreshCw className={`size-[22px] ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -146,6 +155,10 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
         <button onClick={disconnect} aria-label={tr("Disconnect")} className="flex size-10 items-center justify-center rounded-full text-destructive hover:bg-muted"><LogOut className="size-[22px]" /></button>
       </div>
 
+      {/* Téléphone, affichage en cartes */}
+      {view === "cards" && <div className="relative mt-6 lg:hidden"><WalletCards wallet={wallet} onDeposit={() => setSheet("deposit")} refreshKey={rk} /></div>}
+
+      <div className={view === "cards" ? "hidden lg:block" : ""}>
       {/* Solde du wallet */}
       {bags ? (
         <>
@@ -171,6 +184,8 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
         <Tile label={tr("Trade")} onClick={() => router.push("/terminal")}><ArrowLeftRight className="size-6" /></Tile>
         <Tile label={tr("Deposit")} onClick={() => setSheet("deposit")}><ArrowDownToLine className="size-6" /></Tile>
         <Tile label={tr("Claim")} badge={claimBadge} onClick={() => setSheet("claim")}><HandCoins className="size-6" /></Tile>
+      </div>
+
       </div>
 
       {/* Onglets */}
