@@ -2749,5 +2749,6 @@ const p: Record<string, string> = {
   "1h TXs": "Сделки 1 ч",
   "1h Vol": "Объём 1 ч",
   "24h Vol": "Объём 24 ч",
+  "Not launched yet": "Ещё не запущен",
 };
 export default p;

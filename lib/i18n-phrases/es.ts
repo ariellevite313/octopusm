@@ -2749,5 +2749,6 @@ const p: Record<string, string> = {
   "1h TXs": "TX 1 h",
   "1h Vol": "Vol. 1 h",
   "24h Vol": "Vol. 24 h",
+  "Not launched yet": "Aún no lanzado",
 };
 export default p;

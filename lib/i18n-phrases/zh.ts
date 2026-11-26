@@ -2751,5 +2751,6 @@ const p: Record<string, string> = {
   "1h TXs": "1小时交易",
   "1h Vol": "1小时成交量",
   "24h Vol": "24小时成交量",
+  "Not launched yet": "尚未发行",
 };
 export default p;

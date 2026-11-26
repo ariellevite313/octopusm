@@ -6,7 +6,7 @@ import { PAIR_QUOTES } from "@/lib/solana/quotes";
 import { DOGE_MINT } from "@/lib/solana/doge";
 import { stocksList } from "@/lib/terminal-stocks";
 import { NextResponse } from "next/server";
-import { arcList, dsolList, pairList, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
+import { arcList, dsolList, pairList, solToken, OMERO_SOON, CHAINS, isSkipped, mergeLists, searchAll, terminalList, type TerminalChain, type TerminalToken } from "@/lib/terminal";
 import { jupVerified } from "@/lib/bags";
 import { cryptoFromCoinGecko } from "@/lib/terminal-crypto";
 import { arcMarket, dexList, dexSearch, enrichDex } from "@/lib/dexscreener";
@@ -16,11 +16,18 @@ import { createAdminClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 const READY = CHAINS.filter((c) => c.ready).map((c) => c.id);
 
-/** PEPE et DOGE (Solana) : toujours affichés en tête des listes Tendances, Crypto et Volume (cache 60 s). */
+/** Tête des listes Solana (Tendances, Crypto, Volume) : ClawdTrust, SOL, puis PEPE et DOGE (cache 60 s).
+ *  Omero, pas encore lancé, est ajouté en 3e position après les filtres. */
 let pinnedCache: { at: number; v: TerminalToken[] } | null = null;
 async function pinnedPairs(): Promise<TerminalToken[]> {
   if (pinnedCache && Date.now() - pinnedCache.at < 60_000) return pinnedCache.v;
   const out: TerminalToken[] = [];
+  const clt = PAIR_QUOTES.clt.mint;
+  const c = (await dexSearch(clt, ["solana"]).catch(() => [] as TerminalToken[])).find((x) => x.mint === clt);
+  out.push(c ? { ...c, verified: true, logo: PAIR_QUOTES.clt.logo }
+    : { mint: clt, symbol: "CLT", name: "ClawdTrust", logo: PAIR_QUOTES.clt.logo, price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null, chain: "solana", verified: true });
+  const sol = await solToken().catch(() => null);
+  if (sol) out.push(sol);
   for (const k of ["pepe", "doge"] as const) {
     const mint = PAIR_QUOTES[k].mint;
     const found = await dexSearch(mint, ["solana"]).catch(() => [] as TerminalToken[]);
@@ -87,7 +94,8 @@ export async function GET(req: Request) {
   const [gecko, arc, dex, arcDex] = await Promise.all([geckoPromise, arcPromise, dexPromise, arcDexPromise]);
   // Arc d'abord pour les recherches ciblées ; DexScreener en dernier (complète GeckoTerminal sans le remplacer)
   const merged = mergeLists([...gecko, arc, arcDex, dex], kind, 120);
-  if (chains.includes("solana") && (kind === "trending" || kind === "crypto" || kind === "volume")) {
+  const pinned = chains.includes("solana") && (kind === "trending" || kind === "crypto" || kind === "volume") && !["dex", "social", "site"].some((k) => u.searchParams.get(k));
+  if (pinned) {
     const pins = await pinnedPairs();
     if (pins.length) { const pm = new Set(pins.map((p) => p.mint)); merged.splice(0, merged.length, ...pins, ...merged.filter((t) => !pm.has(t.mint))); }
   }
@@ -104,5 +112,7 @@ export async function GET(req: Request) {
   const ver = await jupVerified(sol.map((t) => t.mint)).catch(() => new Set<string>());
   for (const t of tokens) t.verified = t.verified || t.href ? true : (t.chain ?? "solana") === "solana" ? ver.has(t.mint) || isMajorSolana(t.mint) : isMajorEvm(t.chain ?? "", t.mint);
   await pairBadges(tokens);
+  // Omero (pas encore lancé) juste après ClawdTrust et SOL dans les listes Solana
+  if (pinned) tokens.splice(Math.min(2, tokens.length), 0, OMERO_SOON);
   return NextResponse.json({ tokens }, { status: tokens.length || chains.length === 0 ? 200 : 200, headers: { "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30" } });
 }

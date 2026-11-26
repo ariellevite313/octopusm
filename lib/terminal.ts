@@ -20,6 +20,8 @@ export type TerminalToken = {
   issuer?: string | null;
   /** vérifié par Jupiter (Solana) ou lancé sur OM : pastille bleue */
   verified?: boolean;
+  /** Token annoncé mais pas encore lancé (Omero) : ligne affichée « Bientôt », sans ouverture */
+  soon?: boolean;
   /** Infos DexScreener : profil payé (Enhanced Token Info) ou boosté, site web, réseaux sociaux */
   dex?: DexInfo;
 };
@@ -113,6 +115,17 @@ async function gtJson(url: string) {
   if (!r.ok) throw new Error(`gecko ${r.status}`);
   return r.json();
 }
+
+/** SOL (pool SOL/USDC) pour la tête des listes Solana */
+export async function solToken(): Promise<TerminalToken | null> {
+  const sol = await gtJson(`${GT}/networks/solana/pools/${SOL_USDC_POOL}`).catch(() => null) as { data?: GtPool } | null;
+  const a = sol?.data?.attributes;
+  if (!a) return null;
+  return { mint: SOL_MINT, symbol: "SOL", name: "Solana", logo: "/chains/solana.png", price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), change1h: num(a.price_change_percentage?.h1), volume24h: num(a.volume_usd?.h24), mcap: cap(a.market_cap_usd) ?? cap(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: SOL_USDC_POOL, createdAt: null, chain: "solana", verified: true };
+}
+
+/** Omero : le token d'OM, annoncé avant son lancement */
+export const OMERO_SOON: TerminalToken = { mint: "omero-soon", symbol: "OMERO", name: "Omero", logo: "/octo-coin.png", price: null, change24h: null, volume24h: null, mcap: null, liquidity: null, pool: "", createdAt: null, chain: "solana", verified: true, soon: true };
 
 /** Gros tokens d'un réseau : pools au plus gros volume (2 pages), capitalisation >= 50 M$. SOL en tête sur Solana. */
 async function cryptoList(chain: TerminalChain, net: string): Promise<TerminalToken[]> {

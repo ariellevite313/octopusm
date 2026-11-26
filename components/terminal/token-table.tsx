@@ -115,14 +115,14 @@ export function TokenTable({ rows, active, onOpen, onClose, tabs }: {
               const tg = t.dex?.socials.find((s) => s.type === "telegram")?.url;
               const logo = logoFor(t.mint, t.logo);
               return (
-                <tr key={`${t.chain ?? "solana"}:${t.mint}`} onClick={() => onOpen(t)}
+                <tr key={`${t.chain ?? "solana"}:${t.mint}`} onClick={() => { if (!t.soon) onOpen(t); }}
                   className={`cursor-pointer border-b border-border/60 transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
                   <td className="px-5 py-2.5">
                     <TradeFlash v={t.price} className="rounded-xl">
                       <div className="flex items-center gap-3">
                         <span className="relative shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          {logo ? <img src={logo} alt="" className="size-10 rounded-full object-cover" /> : <span className="flex size-10 items-center justify-center rounded-full bg-muted text-[14px] font-bold">{t.symbol.slice(0, 1)}</span>}
+                          {logo ? <img src={logo} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} className="size-10 rounded-full bg-muted object-cover" /> : <span className="flex size-10 items-center justify-center rounded-full bg-muted text-[14px] font-bold">{t.symbol.slice(0, 1)}</span>}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={t.badge ?? `/chains/${t.chain ?? "solana"}.png`} alt="" className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full object-cover ring-2 ring-background" />
                         </span>

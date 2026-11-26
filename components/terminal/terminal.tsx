@@ -76,8 +76,10 @@ function useFavs() {
 
 // ── Petits éléments ───────────────────────────────────────────────────────────
 function Logo({ src, sym, size = "size-12" }: { src: string | null; sym: string; size?: string }) {
+  // Image qui ne charge pas (lien mort, site qui bloque) : la première lettre du token à la place d'un rond vide
+  const [bad, setBad] = useState<string | null>(null);
   // eslint-disable-next-line @next/next/no-img-element
-  return src ? <img src={src} alt="" loading="lazy" className={`${size} shrink-0 rounded-full bg-muted object-cover`} />
+  return src && bad !== src ? <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBad(src)} className={`${size} shrink-0 rounded-full bg-muted object-cover`} />
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-full bg-muted text-base font-bold text-foreground`}>{sym.slice(0, 1)}</span>;
 }
 function Tick({ className = "size-[18px]" }: { className?: string }) {
@@ -310,8 +312,8 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             </p>
           ) : rows.map((t) => (
             <TradeFlash key={`${t.chain ?? "solana"}:${t.mint}`} v={t.price} className="rounded-2xl">
-            <button onClick={() => open(t.mint, t)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
+            <button onClick={() => { if (!t.soon) open(t.mint, t); }} disabled={t.soon} aria-disabled={t.soon || undefined}
+              className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : t.soon ? "cursor-default" : "hover:bg-muted/40"}`}>
               <span className="relative shrink-0">
                 <Logo src={logoFor(t.mint, t.logo)} sym={t.symbol} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -319,11 +321,13 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               </span>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[17px] font-bold text-foreground"><span className="truncate">{t.symbol}</span>{t.verified && <Tick />}{isRug(t) && <span className="shrink-0 rounded-md bg-[#dc2626] px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-wide text-white">RUG</span>}</p>
-                <p className="num truncate text-[14px] text-muted-foreground">{t.issuer && <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{t.issuer}</span>}{t.issuer && t.name ? <span className="mr-1.5">{t.name}</span> : null}{compact(t.mcap)} {tr("cap.")}{t.dex?.paid && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Dex paid")}</span>}{(t.dex?.boost ?? 0) > 0 && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Boost")}</span>}</p>
+                <p className="num truncate text-[14px] text-muted-foreground">{t.issuer && <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{t.issuer}</span>}{t.issuer && t.name ? <span className="mr-1.5">{t.name}</span> : null}{t.soon ? tr("Not launched yet") : <>{compact(t.mcap)} {tr("cap.")}</>}{t.dex?.paid && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Dex paid")}</span>}{(t.dex?.boost ?? 0) > 0 && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground">{tr("Boost")}</span>}</p>
               </div>
               <div className="shrink-0 text-right">
+                {t.soon ? <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-bold text-foreground">{tr("Soon")}</span> : <>
                 <p className="num text-[17px] font-bold text-foreground">{price(t.price)}</p>
                 <Change v={t.change24h} className="text-[13px]" />
+                </>}
               </div>
             </button>
             </TradeFlash>

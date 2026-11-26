@@ -2751,5 +2751,6 @@ const p: Record<string, string> = {
   "1h TXs": "صفقات ساعة",
   "1h Vol": "حجم ساعة",
   "24h Vol": "حجم 24 ساعة",
+  "Not launched yet": "لم يُطلق بعد",
 };
 export default p;

@@ -2749,5 +2749,6 @@ const p: Record<string, string> = {
   "1h TXs": "1 sa İşlem",
   "1h Vol": "1 sa Hacim",
   "24h Vol": "24 sa Hacim",
+  "Not launched yet": "Henüz başlatılmadı",
 };
 export default p;
