@@ -115,27 +115,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // ────────────────────────────────────────────────────────────────────────
 
-    supabase.auth.getSession().then(({ data }) => {
-      const address = data.session?.user?.app_metadata?.wallet_address;
-      if (address) {
-        setWalletAddress(address);
-        void checkAdmin();
-      } else {
-        setWalletType(null);
-      }
-      setIsLoading(false);
-    });
+    // Secours : la session du navigateur peut manquer un instant (jeton en cours de renouvellement) alors que
+    // le serveur voit bien le wallet. On demande au serveur avant d'afficher « Connect wallet ».
+    const fromServer = () => fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null)).then((j: { wallet?: string | null } | null) => j?.wallet ?? null).catch(() => null);
+
+    supabase.auth.getSession()
+      .then(async ({ data }) => {
+        const address = data.session?.user?.app_metadata?.wallet_address ?? (await fromServer());
+        if (address) {
+          setWalletAddress(address);
+          void checkAdmin();
+          // Remet la session du navigateur à jour à partir du cookie du serveur
+          if (!data.session) void supabase.auth.refreshSession().catch(() => {});
+        } else {
+          setWalletType(null);
+        }
+      })
+      .catch(async () => { const w = await fromServer(); if (w) { setWalletAddress(w); void checkAdmin(); } })
+      .finally(() => setIsLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         const address = session?.user?.app_metadata?.wallet_address;
         if (address) {
           setWalletAddress(address);
           void checkAdmin();
-        } else {
+        } else if (event === "SIGNED_OUT") {
           setWalletAddress(null);
           setIsAdmin(false);
           setWalletType(null);
+        } else {
+          // Pas de session dans le navigateur sans déconnexion demandée : on vérifie auprès du serveur
+          void fromServer().then((w) => {
+            if (w) { setWalletAddress(w); return; }
+            setWalletAddress(null);
+            setIsAdmin(false);
+            setWalletType(null);
+          });
         }
       }
     );

@@ -107,6 +107,7 @@ export function BagsPanel({ tabs, embedded = false, octo }: { tabs?: React.React
     return () => window.removeEventListener("om-bags-refresh", on);
   }, [load]);
   const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const name = me?.display_name ?? me?.username ?? (walletAddress ? short(walletAddress) : "");
   const initials = (name || "OM").replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "OM";
@@ -157,6 +158,19 @@ export function BagsPanel({ tabs, embedded = false, octo }: { tabs?: React.React
       <h2 className="mt-8 flex items-center gap-1 text-[28px] font-bold tracking-tight text-foreground">{tr("Assets")}<ChevronRight className="size-6" strokeWidth={2.5} /></h2>
       <p className="text-[15px] text-muted-foreground">{data ? `${data.chain === "arc" ? "Arc" : "Solana"} · ${tr("{count} tokens", { count: data.main.length + data.small.length })}` : " "}</p>
       </>)}
+      {/* Recherche dans ses tokens : une simple icône, la case ne s'ouvre qu'en la touchant */}
+      {embedded && data && data.main.length + data.small.length > 6 && (
+        <div className="mb-1 flex h-11 items-center justify-end gap-2">
+          {searching && (
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search")} aria-label={tr("Search")}
+              className="h-10 min-w-0 flex-1 rounded-full bg-muted px-4 text-[15px] text-foreground outline-none placeholder:text-muted-foreground" />
+          )}
+          <button onClick={() => { if (searching) setQ(""); setSearching((v) => !v); }} aria-label={searching ? tr("Close") : tr("Search")} title={searching ? tr("Close") : tr("Search")}
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+            {searching ? <X className="size-5" /> : <Search className="size-5" />}
+          </button>
+        </div>
+      )}
       <div className={embedded ? "" : "mt-2"}>
         {loading && !data ? (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Mirage className="size-4" />{tr("Loading")}</div>
@@ -204,15 +218,6 @@ export function BagsPanel({ tabs, embedded = false, octo }: { tabs?: React.React
         <BottomSheet title={tr("Sell")} onClose={() => setSheet(null)}>
           {sellable.map((b) => <Row key={b.id} b={b} onOpen={(x) => { setSheet(null); setOpen(x); }} />)}
         </BottomSheet>
-      )}
-      {/* Dashboard unifié : recherche dans les actifs, au-dessus du menu du bas (trader : tuile « Trader » de l'en-tête) */}
-      {embedded && (
-        <div className="fixed inset-x-0 bottom-[92px] z-30 mx-auto flex max-w-2xl gap-3 px-4 md:bottom-6">
-          <label className="flex h-14 min-w-0 flex-1 items-center gap-2.5 rounded-full border border-border bg-background/95 px-5 shadow-sm backdrop-blur">
-            <Search className="size-5 shrink-0 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search")} className="min-w-0 flex-1 bg-transparent text-[17px] text-foreground outline-none placeholder:text-muted-foreground" />
-          </label>
-        </div>
       )}
       {open && <BagDetail b={open} onClose={() => setOpen(null)} onSwapped={() => setTimeout(() => void load(true), 4000)} />}
     </section>
