@@ -807,3 +807,8 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 @keyframes wc-pop { 0% { filter: brightness(1); } 40% { filter: brightness(1.25); } 100% { filter: brightness(1.08); } }
 @keyframes wc-shine { 0% { background-position: 120% 0; } 100% { background-position: -60% 0; } }
 @media (prefers-reduced-motion: reduce) { .wc-lit, .wc-lit::before { animation: none; } }
+
+/* Carte des niveaux : l'avatar sautille sur son île */
+.lm-me { animation: lm-hop 1.8s ease-in-out infinite; }
+@keyframes lm-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .lm-me { animation: none; } }

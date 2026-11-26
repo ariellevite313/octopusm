@@ -7,11 +7,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Check, Lock, X } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { Mirage } from "@/components/shared/mirage";
 import { FRAMES, canUseFrame, levelIndex, type FrameId } from "@/lib/profile-cosmetics";
+import { LevelMap } from "@/components/profile/level-map";
 
 type Level = { label: string; min: number; max: number | null; color: string; count: number };
 type Data = { total: number; levels: Level[]; frame: string | null; buddies: boolean; owned: string[]; isMe: boolean; balance: number | null };
@@ -95,27 +96,8 @@ export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: strin
                   </p>
                 </div>
 
-                {/* Tous les niveaux */}
-                <div className="mt-4 overflow-hidden rounded-[22px] border border-border bg-card">
-                  {d.levels.map((l, i) => {
-                    const reached = idx >= i;
-                    return (
-                      <div key={l.label} className={`flex items-center gap-3 px-4 py-3 ${i ? "border-t border-border" : ""} ${i === idx ? "bg-muted/60" : ""}`}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={`/badges/omero-${BADGE[l.label]}.png`} alt="" className={`size-8 ${reached ? "" : "opacity-35 grayscale"}`} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[15px] font-bold">{tr(l.label)}</p>
-                          <p className="num text-[12px] text-muted-foreground">{l.max ? `${n(l.min)} – ${n(l.max)}` : `${n(l.min)}+`} Omero</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="num text-[15px] font-bold">{n(l.count)}</p>
-                          <p className="text-[11px] text-muted-foreground">{tr(l.count === 1 ? "person" : "people")}</p>
-                        </div>
-                        <span className="flex w-6 justify-end">{reached ? <Check className="size-4 text-up" /> : <Lock className="size-3.5 text-muted-foreground" />}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {/* Tous les niveaux : carte au trésor, une île par niveau */}
+                <div className="mt-4"><LevelMap levels={d.levels} idx={idx} total={d.total} avatar={avatar} /></div>
 
                 {/* Animations : sur son propre profil seulement */}
                 {d.isMe && (
