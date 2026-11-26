@@ -249,7 +249,7 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
 
       {/* Avantages du niveau choisi */}
       {L && (
-        <div className="mt-3 rounded-[22px] border border-border bg-card p-4">
+        <div className="mt-4 px-1">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`/badges/omero-${BADGE[L.label]}.png`} alt="" className={`size-10 ${reachedSel ? "" : "opacity-50 grayscale"}`} />
@@ -258,14 +258,14 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
               <p className="num text-[12px] text-muted-foreground">{L.max ? `${n(L.min)} – ${n(L.max)}` : `${n(L.min)}+`} Omero · {n(L.count)} {tr(L.count === 1 ? "person" : "people")}</p>
             </div>
             {reachedSel
-              ? <span className="flex shrink-0 items-center gap-1 rounded-full bg-up/15 px-2.5 py-1 text-[12px] font-bold text-up"><Check className="size-3.5" />{tr("Reached")}</span>
-              : <span className="num flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12px] font-bold text-muted-foreground"><Lock className="size-3" />{tr("{n} Omero left", { n: n(Math.max(0, L.min - total)) })}</span>}
+              ? <span className="flex shrink-0 items-center gap-1 text-[13px] font-bold text-up"><Check className="size-4" />{tr("Reached")}</span>
+              : <span className="num flex shrink-0 items-center gap-1 text-[13px] font-bold text-muted-foreground"><Lock className="size-3.5" />{tr("{n} Omero left", { n: n(Math.max(0, L.min - total)) })}</span>}
           </div>
           <p className="mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{tr("Perks on OMdotfun")}</p>
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-3 space-y-4">
             {levelPerks(sel).map((pk) => (
-              <li key={pk.title} className="flex gap-3 rounded-2xl bg-muted/60 p-3">
-                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-white" style={{ background: L.color }}><Check className="size-3.5" /></span>
+              <li key={pk.title} className="flex gap-3">
+                <Check className="mt-0.5 size-5 shrink-0" strokeWidth={3} style={{ color: L.color }} />
                 <span className="min-w-0">
                   <span className="block text-[14px] font-bold">{tr(pk.title, { level: tr(L.label), frame: tr(frame?.name ?? "") })}</span>
                   <span className="block text-[12.5px] leading-snug text-muted-foreground">{tr(pk.text)}</span>
