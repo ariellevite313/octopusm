@@ -117,13 +117,13 @@ export function Celebrations() {
             const a = (i / 18) * Math.PI * 2;
             return (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src="/octo-coin.png" alt="" className="cel-coin pointer-events-none absolute left-1/2 top-1/2 size-10 rounded-full"
+              <img key={i} src="/omero-coin-3d.png" alt="" className="cel-coin pointer-events-none absolute left-1/2 top-1/2 size-11 object-contain"
                 style={{ ["--bx" as string]: `${Math.cos(a) * (90 + rnd(i) * 70)}px`, ["--by" as string]: `${Math.sin(a) * (90 + rnd(i, 2) * 70)}px`, animationDelay: `${rnd(i, 3) * .25}s` }} />
             );
           })}
           <div className="cel-pop relative text-center text-white" onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/octo-coin.png" alt="" className="cel-spin mx-auto size-24 rounded-full shadow-2xl" />
+            <img src="/omero-coin-3d.png" alt="" className="cel-spin mx-auto size-28 object-contain drop-shadow-[0_14px_30px_rgba(0,0,0,.45)]" />
             <p className="num mt-4 text-[44px] font-extrabold leading-none tracking-tight">+<Counter to={cur.amount} /></p>
             <p className="mt-1 text-[16px] font-bold opacity-90">OMERO</p>
             <p className="mt-2 text-[13px] opacity-80">{tr("Earned since your last visit")}</p>
