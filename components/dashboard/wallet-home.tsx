@@ -72,7 +72,7 @@ function Tile({ label, badge, onClick, children }: { label: string; badge?: stri
   );
 }
 
-export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: string; name: string; avatar: string | null; octo: number; active?: string }) {
+export function WalletHome({ wallet, name, avatar, octo, active, children }: { wallet: string; name: string; avatar: string | null; octo: number; active?: string; children?: React.ReactNode }) {
   const { tr } = useT();
   const router = useRouter();
   const { walletType, setWalletType } = useAuth();
@@ -90,6 +90,8 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
   // Affichage de l'accueil sur téléphone : cartes empilées (par défaut) ou classique. Gardé sur l'appareil.
   const [view, setView] = useState<"cards" | "classic">("cards");
   const [edit, setEdit] = useState(false);
+  // Mode cartes (téléphone) : le détail sous les cartes ne s'ouvre qu'en touchant son bouton
+  const [more, setMore] = useState(false);
   const [rk, setRk] = useState(0);
   useEffect(() => { try { if (localStorage.getItem("om-wallet-view") === "classic") setView("classic"); } catch { /* sans effet */ } }, []);
   const switchView = () => { const v = view === "cards" ? "classic" : "cards"; setView(v); try { localStorage.setItem("om-wallet-view", v); } catch { /* sans effet */ } };
@@ -193,13 +195,18 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
 
       </div>
 
-      {/* Onglets */}
-      <div className="relative -mx-4 mt-7 flex gap-6 overflow-x-auto px-4 [scrollbar-width:none]">
+      {/* Onglets : en mode cartes, des boutons qui ouvrent le détail (rien d'affiché sous les cartes sans les toucher) */}
+      <div className={`relative -mx-4 mt-7 flex overflow-x-auto px-4 [scrollbar-width:none] ${view === "cards" ? "gap-2 lg:gap-6" : "gap-6"}`}>
         {TABS.map((t) => {
           const on = t.href === "/dashboard" ? pathname === "/dashboard" : pathname === t.href || pathname.startsWith(t.href + "/");
-          return <Link key={t.href} href={t.href} className={`shrink-0 text-[18px] font-semibold transition-colors ${on ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{tr(t.label)}</Link>;
+          const lit = view === "cards" ? on && (more || pathname !== "/dashboard") : on;
+          const cls = view === "cards"
+            ? `shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition-colors lg:rounded-none lg:bg-transparent lg:px-0 lg:py-0 lg:text-[18px] ${lit ? "bg-foreground text-background lg:text-foreground" : "bg-muted text-foreground lg:text-muted-foreground"}`
+            : `shrink-0 text-[18px] font-semibold transition-colors ${on ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`;
+          return <Link key={t.href} href={t.href} onClick={(e) => { if (view !== "cards") return; if (on) { e.preventDefault(); setMore((m) => !m); } else setMore(true); }} className={cls}>{tr(t.label)}</Link>;
         })}
       </div>
+      {children && <div className={`mt-6 ${view === "cards" && !more && pathname === "/dashboard" ? "hidden lg:block" : ""}`}>{children}</div>}
 
       {sheet === "deposit" && (
         <Sheet title={tr("Deposit")} onClose={() => setSheet(null)}>

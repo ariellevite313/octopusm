@@ -28,10 +28,8 @@ export default async function DashboardLayout({
     <>
       <div className="mx-auto max-w-2xl px-4 py-6 pb-40 md:pb-24 space-y-6">
         {/* En-tête unifié : wallet, prédictions et lancements */}
-        <WalletHome wallet={wallet} name={displayLabel} avatar={avatarSrc} octo={data.octoBalance} />
-
-        {/* Sub-page content */}
-        {children}
+        {/* En mode cartes (téléphone), le contenu de la page s'ouvre avec son bouton */}
+        <WalletHome wallet={wallet} name={displayLabel} avatar={avatarSrc} octo={data.octoBalance}>{children}</WalletHome>
       </div>
       <DashboardBottomNavSwitch />
     </>
