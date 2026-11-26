@@ -858,3 +858,7 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 @media (prefers-reduced-motion: reduce) {
   .cel-fade, .cel-pop, .cel-fall, .cel-confetti, .cel-wobble, .cel-coin, .cel-spin, .cel-badge, .cel-rays, .pf-shake, .pf-up, .pf-down, .om-sway, .om-ripple, .om-twinkle, .om-next, .om-flow { animation: none; }
 }
+
+/* Barres de défilement invisibles partout (ordinateur compris) ; le défilement reste actif */
+html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display: none; width: 0; height: 0; }
