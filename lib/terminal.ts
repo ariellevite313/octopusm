@@ -9,6 +9,8 @@ import { isRemovedToken } from "@/lib/removed-tokens";
 export type TerminalToken = {
   mint: string; symbol: string; name: string; logo: string | null;
   price: number | null; change24h: number | null; change1h?: number | null; volume24h: number | null; mcap: number | null; liquidity: number | null;
+  /** Pour le tableau plein écran (GeckoTerminal) : variation 5 min, volume et transactions de la dernière heure */
+  change5m?: number | null; volume1h?: number | null; txns1h?: { buys: number; sells: number } | null;
   pool: string; createdAt: string | null;
   /** chaîne du token (solana par défaut) ; href : page OM à ouvrir à la place du Terminal (tokens Arc) */
   chain?: TerminalChain; href?: string | null;
@@ -64,7 +66,8 @@ export type GtPool = {
   attributes: {
     address: string; base_token_price_usd?: string | null; fdv_usd?: string | null; market_cap_usd?: string | null;
     reserve_in_usd?: string | null; pool_created_at?: string | null;
-    price_change_percentage?: { h1?: string | null; h24?: string | null }; volume_usd?: { h24?: string | null };
+    price_change_percentage?: { m5?: string | null; h1?: string | null; h24?: string | null }; volume_usd?: { h1?: string | null; h24?: string | null };
+    transactions?: { h1?: { buys?: number; sells?: number } };
   };
   relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } }; dex?: { data?: { id?: string } } };
 };
@@ -88,6 +91,8 @@ export function mapPools(json: { data?: GtPool[]; included?: GtToken[] }, chain:
       mint: base.address, symbol: base.symbol.slice(0, 16), name: base.name.slice(0, 40), logo: img,
       price: num(a.base_token_price_usd), change24h: num(a.price_change_percentage?.h24), change1h: num(a.price_change_percentage?.h1), volume24h: num(a.volume_usd?.h24),
       mcap: cap(a.market_cap_usd) ?? cap(a.fdv_usd), liquidity: num(a.reserve_in_usd), pool: a.address, createdAt: a.pool_created_at ?? null, chain,
+      change5m: num(a.price_change_percentage?.m5), volume1h: num(a.volume_usd?.h1),
+      txns1h: a.transactions?.h1 ? { buys: Number(a.transactions.h1.buys ?? 0), sells: Number(a.transactions.h1.sells ?? 0) } : null,
     });
   }
   return out;

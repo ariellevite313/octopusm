@@ -2919,5 +2919,8 @@ const p: Record<string, string> = {
   "Show a token you hold. When people buy or sell it from your post, you earn {pct}% of the OM fee with your Omero level, paid instantly. Up to 40% at level Red.": "Montre un token que tu détiens. Quand on l'achète ou le vend depuis ton post, tu gagnes {pct} % des frais OM avec ton niveau Omero, payés tout de suite. Jusqu'à 40 % au niveau Rouge.",
   "Full screen": "Plein écran",
   "Exit full screen": "Quitter le plein écran",
+  "1h TXs": "TX 1 h",
+  "1h Vol": "Vol. 1 h",
+  "24h Vol": "Vol. 24 h",
 };
 export default p;

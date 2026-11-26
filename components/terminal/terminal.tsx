@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
+import { Maximize2, PanelLeftClose, PanelLeftOpen, Activity, AlertTriangle, ArrowDownUp, BadgeCheck, Bell, Crosshair, CandlestickChart, Check, ChevronLeft, Copy, ExternalLink, Search, SlidersHorizontal, Share2, Star, Trophy, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { getWalletProfile } from "@/services/wallet-service";
@@ -45,6 +45,7 @@ import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
 import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
 import { Mirage } from "@/components/shared/mirage";
 import { TradeFlash } from "@/components/shared/trade-flash";
+import { TokenTable } from "./token-table";
 
 // ── Formats ───────────────────────────────────────────────────────────────────
 const compact = (n: number | null, d = 1) => n == null ? "-" : n >= 1e9 ? `$${(n / 1e9).toFixed(d)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(d)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(d)}K` : `$${n.toFixed(2)}`;
@@ -213,6 +214,9 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
     router.push(`/terminal?${c !== "solana" ? `chain=${c}&` : ""}mint=${m}`, { scroll: true });
   };
   const rows = tab === "favs" ? favs.favs : list && list.filter(adv.pass);
+  // Ordinateur : la liste en tableau plein écran, avec toutes les infos (comme GMGN)
+  const [full, setFull] = useState(false);
+  const closeFull = useCallback(() => setFull(false), []);
 
   return (
     <div className="px-4 pt-3 lg:px-0 lg:pt-0">
@@ -278,6 +282,11 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
           {filter !== "pulse" && ([[fDex, setFDex, tr("Dex paid")], [fSocial, setFSocial, tr("Social networks")], [fSite, setFSite, tr("Website")]] as const).map(([on, set, label]) => (
             <button key={label} onClick={() => set(!on)} aria-pressed={on} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${on ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{label}</button>
           ))}
+          {filter !== "pulse" && (
+            <button onClick={() => setFull(true)} title={tr("Full screen")} aria-label={tr("Full screen")} className="ml-auto hidden size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground lg:flex">
+              <Maximize2 className="size-3.5" />
+            </button>
+          )}
         </div>
       )}
 
@@ -320,6 +329,10 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
             </TradeFlash>
           ))}
       </div>
+      {full && rows && (
+        <TokenTable rows={rows} active={active} onClose={closeFull} onOpen={(t) => { setFull(false); open(t.mint, t); }}
+          tabs={([["trending", tr("Trending")], ["crypto", tr("Crypto")], ["stocks", tr("Stocks")], ["new", tr("New")], ["volume", tr("Top volume")]] as const).map(([k, label]) => ({ key: k, label, on: filter === k, pick: () => setFilter(k) }))} />
+      )}
       {advSheet && <Sheet title={tr("Filters")} onClose={() => setAdvSheet(false)}><AdvFiltersForm value={adv.f} onApply={(v) => { adv.save(v); setAdvSheet(false); }} /></Sheet>}
       {netSheet && <NetworkSheet selected={selected} onClose={() => setNetSheet(false)} list={filter} onPickList={(k) => { setFilter(k); setNetSheet(false); }} />}
     </div>

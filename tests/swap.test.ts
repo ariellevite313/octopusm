@@ -77,7 +77,7 @@ describe("terminal mapPools", () => {
         { id: "solana_SOL", attributes: { address: SOL_MINT, name: "Wrapped SOL", symbol: "SOL", image_url: "https://x/sol.png" } },
       ],
     });
-    expect(r).toEqual([{ mint: "BonkMint", symbol: "BONK", name: "Bonk", logo: null, price: 0.0001, change24h: -3.5, change1h: null, volume24h: 200000, mcap: 1000000, liquidity: 50000, pool: "pool1", createdAt: null, chain: "solana" }]);
+    expect(r).toEqual([{ mint: "BonkMint", symbol: "BONK", name: "Bonk", logo: null, price: 0.0001, change24h: -3.5, change1h: null, volume24h: 200000, mcap: 1000000, liquidity: 50000, pool: "pool1", createdAt: null, chain: "solana", change5m: null, volume1h: null, txns1h: null }]);
   });
 });
 

@@ -2748,5 +2748,8 @@ const p: Record<string, string> = {
   "Show a token you hold. When people buy or sell it from your post, you earn {pct}% of the OM fee with your Omero level, paid instantly. Up to 40% at level Red.": "اعرض توكنًا تملكه. عندما يشتريه أحد أو يبيعه من منشورك، تربح {pct}٪ من رسوم OM حسب مستواك في Omero، فورًا. حتى 40٪ في المستوى الأحمر.",
   "Full screen": "ملء الشاشة",
   "Exit full screen": "الخروج من ملء الشاشة",
+  "1h TXs": "صفقات ساعة",
+  "1h Vol": "حجم ساعة",
+  "24h Vol": "حجم 24 ساعة",
 };
 export default p;
