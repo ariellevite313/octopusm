@@ -57,7 +57,7 @@ function Head({ logo, label, right, round = true }: { logo: string | React.React
   );
 }
 
-type Card = { key: string; label: string; node: React.ReactNode; details: { rows: [string, string][]; actions: { label: string; href?: string; onClick?: () => void }[] } };
+type Card = { key: string; label: string; node: React.ReactNode; details: { rows: [string, string, string?][]; actions: { label: string; href?: string; onClick?: () => void }[] } };
 
 export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: string; onDeposit: () => void; refreshKey?: number }) {
   const { tr } = useT();
@@ -177,7 +177,8 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
       </div>
     ),
     details: {
-      rows: tokens.slice(0, 6).map((t) => [`$${t.symbol} · ${qty(t.amount)}`, `$${n2(t.value ?? 0)}`] as [string, string]),
+      // Chaque token ouvre sa page dans le Terminal
+      rows: tokens.slice(0, 12).map((t) => [`$${t.symbol} · ${qty(t.amount)}`, `$${n2(t.value ?? 0)}`, `/terminal?${t.chain === "arc" ? "chain=arc&" : ""}mint=${encodeURIComponent(t.id)}`] as [string, string, string]),
       actions: [{ label: tr("Trade"), href: "/terminal" }],
     },
   });
@@ -277,7 +278,11 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
 
       {openCard ? (
         <div className="mt-4 space-y-2">
-          {openCard.details.rows.map(([a, b]) => (
+          {openCard.details.rows.map(([a, b, href]) => href ? (
+            <Link key={a} href={href} className="flex h-11 items-center justify-between gap-3 rounded-[14px] border border-border bg-card px-3.5 transition-colors hover:bg-muted">
+              <span className="truncate text-[14px] font-semibold">{a}</span><span className="num shrink-0 text-[14px] font-bold">{b}</span>
+            </Link>
+          ) : (
             <div key={a} className="flex h-11 items-center justify-between gap-3 rounded-[14px] border border-border bg-card px-3.5">
               <span className="truncate text-[14px] font-semibold">{a}</span><span className="num shrink-0 text-[14px] font-bold">{b}</span>
             </div>
