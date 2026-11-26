@@ -283,16 +283,18 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments, hi
 
   const count = (n: number, onClick?: () => void) => n > 0 && (
     onClick
-      ? <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onClick(); }} className="num whitespace-nowrap text-[13px] font-semibold">{compactCount(n)}</span>
+      ? <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={tr("Post activity")} className="num -mx-1 whitespace-nowrap rounded-md px-1 py-1 text-[13px] font-semibold hover:underline">{compactCount(n)}</button>
       : <span className="num whitespace-nowrap text-[13px] font-semibold">{compactCount(n)}</span>
   );
 
   const actions = (
     <>
-      <button onClick={openTip} aria-label={tr("Send OMERO")} className="flex shrink-0 items-center gap-1 text-foreground">
-        <OmeroHeadIcon filled={post.tipped_by_me} className="size-[24px]" />
-        {count(post.tip_total ?? 0)}
-      </button>
+      <span className="flex shrink-0 items-center gap-1 text-foreground">
+        <button onClick={openTip} aria-label={tr("Send OMERO")} className="flex items-center">
+          <OmeroHeadIcon filled={post.tipped_by_me} className="size-[24px]" />
+        </button>
+        {count(post.tip_total ?? 0, () => setSupporters("tips"))}
+      </span>
       <span className="flex shrink-0 items-center gap-1">
         <button onClick={like} aria-label={tr("Like")} className="flex items-center">
           <Heart className={`size-[24px] ${post.liked_by_me ? "fill-[#f43f5e] text-[#f43f5e]" : "text-foreground"}`} strokeWidth={post.liked_by_me ? 0 : 1.9} />
