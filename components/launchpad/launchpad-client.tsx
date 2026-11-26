@@ -326,7 +326,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
   const isScheduled = token.is_scheduled && !token.is_tradeable;
   const creator = token.creator_display_name ?? shortAddr(token.creator_wallet, 4, 4);
   return (
-    <Link href={href} className="grid grid-cols-[minmax(0,1fr)_120px_120px_80px_auto] items-center gap-6 border-b border-border px-2 py-4 transition-colors last:border-0 hover:bg-muted/30">
+    <Link href={href} className="grid grid-cols-[minmax(0,1fr)_150px_110px_110px_70px_auto] items-center gap-6 border-b border-border px-2 py-4 transition-colors last:border-0 hover:bg-muted/30">
       <div className="flex min-w-0 items-center gap-4">
         <div className="relative size-14 shrink-0">
           <div className={`relative size-14 overflow-hidden rounded-[16px] bg-muted ring-2 ring-offset-2 ring-offset-background ${isScheduled ? "ring-violet-500" : RING[token.status] ?? "ring-border"}`}>
@@ -340,7 +340,14 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
           <p className="flex min-w-0 items-baseline gap-2">
             <span className="truncate text-[16px] font-bold tracking-tight text-foreground">{token.name}</span>
             {token.is_verified && <VerifiedTokenBadge className="size-4" />}
-            <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>
+            {/* Le ticker copie l'adresse du contrat (sans ouvrir la page du token) */}
+            {token.mint_address ? (
+              <button type="button" title={tr("Copy contract address")} aria-label={tr("Copy contract address")}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void navigator.clipboard.writeText(token.mint_address!).then(() => toast.success(tr("Address copied"))); }}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md text-sm text-muted-foreground hover:text-foreground">
+                ${token.ticker}<Copy className="size-3.5" />
+              </button>
+            ) : <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>}
           </p>
           <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {tr("by")}{" "}<UserAvatar src={token.creator_avatar_src} name={creator} size={16} className="mr-1 inline-flex align-text-bottom" /><span className="font-semibold text-foreground/80">{creator}</span>{(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
@@ -349,6 +356,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
           </p>
         </div>
       </div>
+      <MiniPriceChart chain={isArc ? "arc" : "solana"} pool={token.pool_address} mint={token.mint_address} curve={token.arc_launch_id} className="h-11 w-full" />
       <div className="text-right">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Mcap")}</p>
         <p className="num text-[15px] font-bold text-foreground">{fmtK(token.market_cap_usd)}</p>

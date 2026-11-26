@@ -1032,6 +1032,7 @@ const p: Record<string, string> = {
   "Decline": "رفض",
   "Review and confirm": "مراجعة وتأكيد",
   "Agent wallet": "محفظة الوكيل",
+  "Copy contract address": "نسخ عنوان العقد",
   "Address copied": "تم نسخ العنوان",
   "Copy profile link": "نسخ رابط الملف الشخصي",
   "Add a featured token": "إضافة رمز مميز",

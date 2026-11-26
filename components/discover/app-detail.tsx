@@ -105,7 +105,7 @@ function NetworkValue({ network }: { network: string }) {
     <Link href={c.href} className="block rounded-[24px] border border-border bg-card p-4 transition-colors hover:bg-muted/40 sm:p-5">
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <span className="flex size-11 shrink-0 items-center justify-center text-foreground">{network === "arc" ? <ArcMark className="size-9" /> : <SolanaMark className="size-9" />}</span>
+        <span className="flex size-11 shrink-0 items-center justify-center text-foreground">{network === "arc" ? <img src="/usdc-coin.png" alt="USDC" className="size-9 rounded-full object-cover" /> : <SolanaMark className="size-9" />}</span>
         <div className="min-w-0 flex-1">
           <p className="flex items-baseline gap-2"><span className="num text-[26px] font-extrabold leading-tight">{last == null ? "-" : `$${last.toLocaleString(undefined, { minimumFractionDigits: last < 10 ? 4 : 2, maximumFractionDigits: last < 10 ? 4 : 2 })}`}</span><span className="text-[14px] font-bold">{c.ticker}</span></p>
           <p className="text-[12px] text-muted-foreground">{tr("Network")}: {c.label}</p>

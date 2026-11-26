@@ -1030,6 +1030,7 @@ const p: Record<string, string> = {
   "Decline": "Rechazar",
   "Review and confirm": "Revisar y confirmar",
   "Agent wallet": "Wallet del agente",
+  "Copy contract address": "Copiar la dirección del contrato",
   "Address copied": "Dirección copiada",
   "Copy profile link": "Copiar enlace del perfil",
   "Add a featured token": "Añadir un token destacado",

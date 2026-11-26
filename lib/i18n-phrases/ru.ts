@@ -1030,6 +1030,7 @@ const p: Record<string, string> = {
   "Decline": "Отклонить",
   "Review and confirm": "Проверить и подтвердить",
   "Agent wallet": "Кошелёк агента",
+  "Copy contract address": "Скопировать адрес контракта",
   "Address copied": "Адрес скопирован",
   "Copy profile link": "Копировать ссылку на профиль",
   "Add a featured token": "Добавить рекомендуемый токен",

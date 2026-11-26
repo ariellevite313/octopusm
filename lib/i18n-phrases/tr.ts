@@ -1030,6 +1030,7 @@ const p: Record<string, string> = {
   "Decline": "Reddet",
   "Review and confirm": "İncele ve onayla",
   "Agent wallet": "Ajan cüzdanı",
+  "Copy contract address": "Kontrat adresini kopyala",
   "Address copied": "Adres kopyalandı",
   "Copy profile link": "Profil bağlantısını kopyala",
   "Add a featured token": "Öne çıkan token ekle",

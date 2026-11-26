@@ -1032,6 +1032,7 @@ const p: Record<string, string> = {
   "Decline": "拒绝",
   "Review and confirm": "查看并确认",
   "Agent wallet": "代理钱包",
+  "Copy contract address": "复制合约地址",
   "Address copied": "地址已复制",
   "Copy profile link": "复制个人主页链接",
   "Add a featured token": "添加推荐代币",
