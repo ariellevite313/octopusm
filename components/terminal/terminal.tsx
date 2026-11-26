@@ -622,6 +622,17 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           </div>
         ) : (
           <div className="flex shrink-0 items-center">
+            {/* Ordinateur : Buy et Limit en haut à droite, la colonne de droite suit ce choix */}
+            {desk && isSol && (
+              <div className="mr-2 hidden items-center gap-2 lg:flex">
+                {(["swap", "limit"] as const).map((k) => (
+                  <button key={k} onClick={() => setDeskTab(k)}
+                    className={`h-10 rounded-full px-6 text-[15px] font-bold ${deskTab === k ? "bg-foreground text-background" : "border border-border text-foreground hover:bg-muted"}`}>
+                    {k === "swap" ? tr("Buy") : mint === SOL_MINT ? tr("Limit") : tr("Limit and TWAP")}
+                  </button>
+                ))}
+              </div>
+            )}
             <button onClick={() => favs.toggle(t)} aria-label={tr("Favorites")} className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground">
               <Star className={`size-[22px] ${fav ? "fill-foreground text-foreground" : ""}`} />
             </button>
@@ -690,6 +701,13 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             )}
           </div>
 
+          {/* Ordinateur : historique des trades sous le graphique, avant l'avertissement */}
+          {desk && GT_NET[chain] && (
+            <div className="px-4 pt-3">
+              <p className="mb-1 text-[17px] font-bold">{tr("Trades")}</p>
+              <LiveTrades chain={chain} pool={t.pool} mint={mint} />
+            </div>
+          )}
           {/* Un seul bouton sous le graphique : sécurité et activité du dev */}
           <ChartAlerts chain={chain} mint={mint} withSecurity={mint !== SOL_MINT} withDev={isSol} />
 
@@ -716,11 +734,6 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         <aside className="hidden lg:block lg:overflow-y-auto lg:overscroll-contain lg:pb-8 lg:[scrollbar-width:thin]">
           <div className="space-y-3">
             {isSol ? <>
-              <div className="flex rounded-xl bg-muted p-1">
-                {(["swap", "limit"] as const).map((k) => (
-                  <button key={k} onClick={() => setDeskTab(k)} className={`flex-1 rounded-lg py-2 text-[14px] font-bold ${deskTab === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>{k === "swap" ? tr("Swap") : mint === SOL_MINT ? tr("Limit") : tr("Limit and TWAP")}</button>
-                ))}
-              </div>
               {deskTab === "limit"
                 ? (isAuthenticated && walletAddress && !walletAddress.startsWith("0x") && walletType
                     ? <div className="rounded-2xl border border-border p-4"><LimitSheet mint={mint} symbol={t.symbol} mcap={t.mcap ?? null} walletType={walletType} preset={preset} activity /></div>
@@ -728,13 +741,6 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
                 : <SwapBox mint={mint} />}
               <Verified info={info} />
             </> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
-            {/* Historique des trades sous l'achat, dans la même zone */}
-            {desk && GT_NET[chain] && (
-              <div className="pt-3">
-                <p className="mb-1 text-[16px] font-bold">{tr("Trades")}</p>
-                <LiveTrades chain={chain} pool={t.pool} mint={mint} />
-              </div>
-            )}
           </div>
         </aside>
       </div>
