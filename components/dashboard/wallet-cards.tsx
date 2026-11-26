@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/providers/auth-provider";
 import type { WalletType } from "@/lib/wallet/adapters";
+import { ArcMark, SolanaMark } from "@/components/shared/solana-mark";
 
 type Bag = { id: string; chain: "solana" | "arc"; symbol: string; name: string; logo: string | null; amount: number; value: number | null; change24h?: number | null; href: string | null };
 type Bags = { chain: "solana" | "arc"; main: Bag[]; small: Bag[]; total: number; change24h: number };
@@ -46,11 +47,11 @@ function Chip() {
     </svg>
   );
 }
-function Head({ logo, label, right, round = true }: { logo: string; label: React.ReactNode; right: React.ReactNode; round?: boolean }) {
+function Head({ logo, label, right, round = true }: { logo: string | React.ReactNode; label: React.ReactNode; right: React.ReactNode; round?: boolean }) {
   return (
     <div className="flex h-[30px] items-center justify-between">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <span className="flex items-center gap-2 text-[16px] font-bold"><img src={logo} alt="" className={`size-[26px] object-cover ${round ? "rounded-full" : "rounded-[7px]"}`} />{label}</span>
+      <span className="flex items-center gap-2 text-[16px] font-bold">{typeof logo === "string" ? <img src={logo} alt="" className={`size-[26px] object-cover ${round ? "rounded-full" : "rounded-[7px]"}`} /> : logo}{label}</span>
       <span className="num text-[16px] font-bold">{right}</span>
     </div>
   );
@@ -118,9 +119,9 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
           </g>
         </svg>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="wc-deco" src="/chains/solana.png" alt="" style={{ right: -30, top: 40, width: 150, height: 150, opacity: .14 }} />
+        <span className="wc-deco text-white" style={{ right: -24, top: 46, opacity: .12 }}><SolanaMark className="size-[140px]" /></span>
         <Chip />
-        <Head logo="/chains/solana.png" label="Solana" right={`${sol ? qty(sol.amount) : "0"} SOL`} />
+        <Head logo={<SolanaMark className="size-[22px] text-white" />} label="Solana" right={`${sol ? qty(sol.amount) : "0"} SOL`} />
         <p className="num ml-[58px] mt-[30px] text-[38px] font-extrabold leading-none tracking-tight">${n2(sol?.value ?? 0)}</p>
         <div className="mt-[34px] flex items-center justify-between">
           <p className="wc-emb font-mono text-[15px] font-semibold text-[#d8d8de]">•••• •••• {wallet.slice(-4)}</p>
@@ -142,7 +143,7 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
         <Chip />
         <Head logo="/usdc-coin.png" label="USDC" right={usdc ? n2(usdc.amount) : "0.00"} />
         <p className="num ml-[58px] mt-[30px] text-[38px] font-extrabold leading-none tracking-tight">${n2(usdc?.value ?? usdc?.amount ?? 0)}</p>
-        <div className="mt-[34px] flex gap-2 text-[12px] font-bold"><span className="rounded-full bg-white/20 px-2.5 py-1">{arc ? "Arc" : "Solana"}</span></div>
+        <div className="mt-[34px] flex items-center gap-1.5 text-[13px] font-bold">{arc ? <ArcMark className="size-4 text-white" /> : <SolanaMark className="size-4 text-white" />}{arc ? "Arc" : "Solana"}</div>
       </div>
     ),
     details: {

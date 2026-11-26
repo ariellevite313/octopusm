@@ -3,6 +3,7 @@
 /** Fiche d'une app Discover : en-tête, bouton Ouvrir, paiement en token, images, à propos, notes et avis, apps similaires. */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ArcMark, SolanaMark } from "@/components/shared/solana-mark";
 import { ArrowLeft, BadgeCheck, Flag, MoreVertical, Rocket, Share2, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
@@ -60,7 +61,7 @@ function TokenValue({ a, paymentNote }: { a: AppCard; paymentNote: string }) {
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <div className="rounded-2xl bg-muted/50 px-3 py-2.5"><p className="num text-[16px] font-bold">{usd(t.mcap)}</p><p className="text-[12px] text-muted-foreground">{tr("Market cap")}</p></div>
         <div className="rounded-2xl bg-muted/50 px-3 py-2.5"><p className="num text-[16px] font-bold">{usd(t.volume24h)}</p><p className="text-[12px] text-muted-foreground">{tr("Volume 24h")}</p></div>
-        <div className="col-span-2 rounded-2xl bg-muted/50 px-3 py-2.5 sm:col-span-1"><p className="text-[16px] font-bold">{t.chain === "arc" ? "Arc" : "Solana"}</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div>
+        <div className="col-span-2 rounded-2xl bg-muted/50 px-3 py-2.5 sm:col-span-1"><p className="flex items-center gap-1.5 text-[16px] font-bold">{t.chain === "arc" ? <ArcMark className="size-4" /> : <SolanaMark className="size-4" />}{t.chain === "arc" ? "Arc" : "Solana"}</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Link href={`/launchpad/${t.slug}`} className="flex h-11 items-center justify-center rounded-full bg-foreground text-[15px] font-bold text-background">{tr("Buy")} ${t.ticker}</Link>
@@ -72,6 +73,12 @@ function TokenValue({ a, paymentNote }: { a: AppCard; paymentNote: string }) {
       </div>
     </section>
   );
+}
+
+/** Logo de blockchain monochrome, sans fond ni bulle : prend la couleur du texte (blanc ou noir selon le thème), comme sur le launchpad. */
+function ChainMark({ id, className = "size-4" }: { id: string; className?: string }) {
+  const src = id === "arc" ? "/arc-mark.png" : id === "solana" ? "/solana-mark.png" : `/chains/mono/${id}.png`;
+  return <span role="img" aria-label={id} className={`inline-block shrink-0 bg-current ${className}`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})`, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center" }} />;
 }
 
 /** Réseau d'une fiche sans token (ou de l'admin) : cours du SOL pour Solana, de l'USDC pour Arc, sur 24 h. */
@@ -98,7 +105,7 @@ function NetworkValue({ network }: { network: string }) {
     <Link href={c.href} className="block rounded-[24px] border border-border bg-card p-4 transition-colors hover:bg-muted/40 sm:p-5">
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={c.logo} alt="" className="size-11 shrink-0 rounded-full object-cover" />
+        <span className="flex size-11 shrink-0 items-center justify-center text-foreground">{network === "arc" ? <ArcMark className="size-9" /> : <SolanaMark className="size-9" />}</span>
         <div className="min-w-0 flex-1">
           <p className="flex items-baseline gap-2"><span className="num text-[26px] font-extrabold leading-tight">{last == null ? "-" : `$${last.toLocaleString(undefined, { minimumFractionDigits: last < 10 ? 4 : 2, maximumFractionDigits: last < 10 ? 4 : 2 })}`}</span><span className="text-[14px] font-bold">{c.ticker}</span></p>
           <p className="text-[12px] text-muted-foreground">{tr("Network")}: {c.label}</p>
@@ -249,7 +256,7 @@ export function AppDetail({ id }: { id: string }) {
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="num text-[16px] font-bold">{compact(a.visits)}</p><p className="text-[12px] text-muted-foreground">{tr("Visits")}</p></div>
             <div className="flex-1 px-2 sm:flex-none sm:px-6 sm:text-left"><p className="text-[16px] font-bold">{cat}</p><p className="text-[12px] text-muted-foreground">{tr("Category")}</p></div>
             {a.platform || a.noToken
-              ? (a.network && a.network !== "other" ? <div className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network] ?? "-"}</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div> : null)
+              ? (a.network && a.network !== "other" ? <div className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="flex items-center justify-center gap-1.5 text-[16px] font-bold sm:justify-start"><ChainMark id={a.network} className="size-4" />{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network] ?? "-"}</p><p className="text-[12px] text-muted-foreground">{tr("Network")}</p></div> : null)
               : <Link href={`/launchpad/${a.token.slug}`} className="flex-1 px-2 sm:flex-none sm:pl-6 sm:text-left"><p className="text-[16px] font-bold">${a.token.ticker}</p><p className="text-[12px] text-muted-foreground">{tr("Its token")}</p></Link>}
           </div>
         </div>
@@ -280,7 +287,7 @@ export function AppDetail({ id }: { id: string }) {
         <p className="mt-2 whitespace-pre-line break-words text-[15px] leading-relaxed text-muted-foreground">{a.description}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{cat}</span>
-          {a.network && a.network !== "other" && <span className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-semibold">{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network]}</span>}
+          {a.network && a.network !== "other" && <span className="flex items-center gap-1.5 py-1.5 text-[13px] font-semibold"><ChainMark id={a.network} className="size-4" />{({ solana: "Solana", arc: "Arc", base: "Base", bnb: "BNB Chain", ethereum: "Ethereum" } as Record<string, string>)[a.network]}</span>}
         </div>
       </section>
 
