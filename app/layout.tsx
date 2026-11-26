@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/footer";
 import { CategoryNavWrapper } from "@/components/layout/category-nav-wrapper";
 import { AgeGate } from "@/components/layout/age-gate";
 import { WeeklyBoxPopup } from "@/components/dashboard/weekly-box-popup";
+import { Celebrations } from "@/components/shared/celebrations";
 import { WelcomeTutorial } from "@/components/onboarding/welcome-tutorial";
 import { ChillLauncher } from "@/components/social/chill-launcher";
 import { ComposeLauncher } from "@/components/social/compose-launcher";
@@ -79,6 +80,7 @@ export default async function RootLayout({
           <RefCapture />
           <AgeGate />
           <WeeklyBoxPopup />
+          <Celebrations />
           <WelcomeTutorial />
           <ChillLauncher />
           <ComposeLauncher />

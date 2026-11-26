@@ -2737,5 +2737,10 @@ const p: Record<string, string> = {
   "Your share of the OM fee on trades made from your bag posts.": "通过你的持仓帖交易时，你获得的 OM 手续费分成。",
   "+{pct}% Omero on swaps": "兑换多得 {pct}% Omero",
   "Extra Omero on every dollar you swap in the Terminal.": "在终端每兑换 1 美元都多得 Omero。",
+  "You received bonbons!": "你收到了糖果！",
+  "From {names}": "来自 {names}",
+  "Nice!": "太棒了！",
+  "Earned since your last visit": "自上次访问以来获得",
+  "New level": "新等级",
 };
 export default p;

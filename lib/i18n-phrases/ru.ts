@@ -2735,5 +2735,10 @@ const p: Record<string, string> = {
   "Your share of the OM fee on trades made from your bag posts.": "Ваша доля комиссии OM со сделок из ваших постов с пакетом.",
   "+{pct}% Omero on swaps": "+{pct} % Omero за обмены",
   "Extra Omero on every dollar you swap in the Terminal.": "Дополнительные Omero за каждый доллар обмена в Терминале.",
+  "You received bonbons!": "Вы получили конфеты!",
+  "From {names}": "От {names}",
+  "Nice!": "Отлично!",
+  "Earned since your last visit": "Заработано с прошлого визита",
+  "New level": "Новый уровень",
 };
 export default p;

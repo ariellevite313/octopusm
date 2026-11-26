@@ -27,6 +27,7 @@ const ROAD = "M150 830 C 150 760, 262 744, 262 664 S 98 604, 98 524 S 262 464, 2
 function Bush({ x, y, s = 1, r = 0 }: { x: number; y: number; s?: number; r?: number }) {
   return (
     <g transform={`translate(${x} ${y}) rotate(${r}) scale(${s})`}>
+     <g className="om-sway" style={{ animationDelay: `${(x + y) % 7 * 0.35}s` }}>
       {[0, 72, 144, 216, 288].map((a) => (
         <g key={a} transform={`rotate(${a})`}>
           <path d="M0 0 C 10 -8, 22 -10, 30 -2 C 22 8, 10 8, 0 0 Z" fill="#2f9e44" />
@@ -35,6 +36,7 @@ function Bush({ x, y, s = 1, r = 0 }: { x: number; y: number; s?: number; r?: nu
         </g>
       ))}
       <circle r="6" fill="#43c05a" />
+     </g>
     </g>
   );
 }
@@ -183,6 +185,8 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
             <ellipse cx="300" cy="530" rx="34" ry="23" fill="#4fb3e8" />
             <ellipse cx="292" cy="524" rx="20" ry="11" fill="#8fd6ff" opacity=".6" />
             <circle cx="312" cy="536" r="6" fill="#43a047" /><circle cx="314" cy="534" r="2" fill="#ff8fb1" />
+            <ellipse className="om-ripple" cx="292" cy="530" rx="14" ry="8" fill="none" stroke="#fff" strokeWidth="1.5" />
+            <ellipse className="om-ripple" cx="292" cy="530" rx="14" ry="8" fill="none" stroke="#fff" strokeWidth="1.5" style={{ animationDelay: "1.3s" }} />
           </g>
           <path d="M-10 760 C 30 740, 40 700, 70 690" stroke="#4fb3e8" strokeWidth="9" fill="none" strokeLinecap="round" opacity=".9" />
 
@@ -190,6 +194,8 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
           <path d={ROAD} fill="none" stroke="#b89e6c" strokeWidth="58" strokeLinecap="round" />
           <path d={ROAD} fill="none" stroke="url(#om-stones)" strokeWidth="50" strokeLinecap="round" />
           <path d={ROAD} fill="none" stroke="#fff3c4" strokeWidth="10" strokeLinecap="round" pathLength={1} strokeDasharray={`${walked} 1`} opacity=".55" />
+          {/* Petits pas qui avancent sur le chemin, vers le haut */}
+          <path className="om-flow" d={ROAD} fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="2 22" opacity=".7" />
 
           {/* Buissons et clôtures autour */}
           <Bush x={30} y={620} s={1.1} /><Bush x={330} y={760} s={1.2} r={20} /><Bush x={330} y={250} s={1} r={40} />
@@ -205,6 +211,7 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
             return (
               <g key={l.label} transform={`translate(${p.x} ${p.y})`} onClick={() => setSel(i)} style={{ cursor: "pointer" }} role="button" aria-label={tr(l.label)} aria-pressed={on}>
                 {on && <circle r="62" fill={l.color} opacity=".25" />}
+                {i === idx + 1 && <circle className="om-next" r="58" fill="none" stroke="#fff" strokeWidth="3" strokeDasharray="6 6" />}
                 <g filter="url(#om-shadow)">
                   <circle r="50" fill="#c9b48a" />
                   <circle r="50" fill="none" stroke="url(#om-stones)" strokeWidth="10" />
@@ -220,6 +227,9 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
                 <g transform="translate(0 16) scale(.62)" style={{ filter: reached ? undefined : "grayscale(1)", opacity: reached ? 1 : 0.75 }}>
                   <Scene i={i} />
                 </g>
+                {reached && [[-30, -18, 0], [32, 6, .6], [-6, 30, 1.2]].map(([sx, sy, dl], k) => (
+                  <path key={k} className="om-twinkle" style={{ animationDelay: `${dl + i * .3}s` }} d={`M${sx} ${sy - 6} L${sx + 1.6} ${sy - 1.6} L${sx + 6} ${sy} L${sx + 1.6} ${sy + 1.6} L${sx} ${sy + 6} L${sx - 1.6} ${sy + 1.6} L${sx - 6} ${sy} L${sx - 1.6} ${sy - 1.6} Z`} fill="#fffbe0" />
+                ))}
                 {!reached && <g transform="translate(28 -28)"><circle r="12" fill="#2b1a06" /><path d="M-4 -1 v-3 a4 4 0 0 1 8 0 v3" fill="none" stroke="#fff" strokeWidth="1.8" /><rect x="-5.5" y="-1" width="11" height="8" rx="1.5" fill="#fff" /></g>}
                 <g transform={`translate(${p.x > 180 ? -26 : 26} -54)`}>
                   <Sign label={l.label} count={`${n(l.count)} ${tr(l.count === 1 ? "person" : "people")}`} badge={BADGE[l.label]} on={on} reached={reached} tr={(x) => tr(x)} />

@@ -44,6 +44,7 @@ import { AdvFiltersForm, useAdvFilters } from "./advanced-filters";
 import { ShareSheet, TOKEN_PERKS } from "@/components/shared/share-sheet";
 import { TerminalLineChart, T_RANGES, type ChartMark, type ChartMode, type TRange } from "./line-chart";
 import { Mirage } from "@/components/shared/mirage";
+import { TradeFlash } from "@/components/shared/trade-flash";
 
 // ── Formats ───────────────────────────────────────────────────────────────────
 const compact = (n: number | null, d = 1) => n == null ? "-" : n >= 1e9 ? `$${(n / 1e9).toFixed(d)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(d)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(d)}K` : `$${n.toFixed(2)}`;
@@ -299,7 +300,8 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
               {tab === "favs" ? tr("No token in your watchlist yet") : err ? tr("Market data unavailable") : tr("No token found")}
             </p>
           ) : rows.map((t) => (
-            <button key={`${t.chain ?? "solana"}:${t.mint}`} onClick={() => open(t.mint, t)}
+            <TradeFlash key={`${t.chain ?? "solana"}:${t.mint}`} v={t.price} className="rounded-2xl">
+            <button onClick={() => open(t.mint, t)}
               className={`flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition-colors ${t.mint === active ? "bg-muted" : "hover:bg-muted/40"}`}>
               <span className="relative shrink-0">
                 <Logo src={logoFor(t.mint, t.logo)} sym={t.symbol} />
@@ -315,6 +317,7 @@ function Home({ selected, favs, active, onList, initialQ }: { selected: Terminal
                 <Change v={t.change24h} className="text-[13px]" />
               </div>
             </button>
+            </TradeFlash>
           ))}
       </div>
       {advSheet && <Sheet title={tr("Filters")} onClose={() => setAdvSheet(false)}><AdvFiltersForm value={adv.f} onApply={(v) => { adv.save(v); setAdvSheet(false); }} /></Sheet>}

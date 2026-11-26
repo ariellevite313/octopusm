@@ -21,6 +21,7 @@ import { EmptyIcon } from "@/components/shared/empty-icon";
 import { TokenFolderCard } from "@/components/launchpad/token-folder-card";
 import { useCardStyle, type CardStyle } from "@/lib/card-style";
 import { quoteOf } from "@/lib/solana/doge";
+import { TradeFlash } from "@/components/shared/trade-flash";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,7 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
   const mcap = token.market_cap_usd;
 
   return (
+    <TradeFlash v={mcap} className="rounded-[22px]">
     <Link
       href={`/launchpad/${token.mint_address ?? token.id}`}
       className="group relative flex flex-col overflow-hidden rounded-[22px] border bg-card p-2 transition-colors duration-200 hover:bg-muted/60"
@@ -208,6 +210,7 @@ export function TokenCard({ token }: { token: LaunchpadToken }) {
         </div>
       </div>
     </Link>
+    </TradeFlash>
   );
 }
 
