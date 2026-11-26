@@ -7,7 +7,7 @@
  * Données GeckoTerminal (OHLCV), même source que le graphique mobile.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MousePointer2, Minus, TrendingUp, Trash2 } from "lucide-react";
+import { Maximize2, Minimize2, MousePointer2, Minus, TrendingUp, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { Mirage } from "@/components/shared/mirage";
 
@@ -60,8 +60,10 @@ const KEY = (mint: string) => `om-draw:${mint}`;
 function readDrawings(mint: string): Drawing[] { try { const v = JSON.parse(localStorage.getItem(KEY(mint)) ?? "[]"); return Array.isArray(v) ? v.slice(0, 30) : []; } catch { return []; } }
 function writeDrawings(mint: string, d: Drawing[]) { try { localStorage.setItem(KEY(mint), JSON.stringify(d.slice(0, 30))); } catch { /* stockage indisponible */ } }
 
-export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel }: {
+export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel, title }: {
   mint: string; pool: string; network?: string;
+  /** nom affiché en plein écran (ex. « SOL ») */
+  title?: string;
   /** capitalisation / prix : pour afficher la capitalisation de chaque niveau */
   mcapPerPrice: number | null;
   /** clic sur un niveau : prix du niveau et libellé (ex. « Fib 61.8% ») */
@@ -69,6 +71,22 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
 }) {
   const { tr } = useT();
   const box = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  // Plein écran : celui du navigateur si possible, sinon le graphique couvre toute la fenêtre
+  const [full, setFull] = useState(false);
+  const toggleFull = () => {
+    const el = root.current;
+    if (!el) return;
+    if (document.fullscreenElement) { void document.exitFullscreen(); return; }
+    if (full) { setFull(false); return; }
+    if (el.requestFullscreen) el.requestFullscreen().then(() => setFull(true)).catch(() => setFull(true));
+    else setFull(true);
+  };
+  useEffect(() => {
+    const on = () => setFull(document.fullscreenElement === root.current);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const api = useRef<{ chart: any; series: any; bars: Bar[] } | null>(null);
   const [tf, setTfState] = useState<ProTf>("1H");
@@ -88,7 +106,7 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
 
   // Esc : annule le tracé en cours
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") { setPending(null); setTool("cursor"); } };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") { setPending(null); setTool("cursor"); if (!document.fullscreenElement) setFull(false); } };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, []);
@@ -223,8 +241,9 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={root} className={`flex h-full flex-col bg-background ${full ? "fixed inset-0 z-[120]" : ""}`}>
       <div className="flex items-center gap-1 border-b border-border px-2 py-1.5">
+        {full && title && <span className="mr-2 pl-1 text-[14px] font-bold text-foreground">{title}</span>}
         {PRO_TFS.map((k) => (
           <button key={k} onClick={() => setTf(k)} className={`rounded-md px-2.5 py-1 text-[12px] font-semibold ${tf === k ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{k}</button>
         ))}
@@ -238,6 +257,10 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
         )}
         <span className="ml-auto flex items-center gap-2 text-[11px] font-semibold">
           <span style={{ color: "#f2c14e" }}>MA 7</span><span style={{ color: "#d946ef" }}>MA 25</span><span style={{ color: "#22d3ee" }}>MA 99</span>
+          <button onClick={toggleFull} title={full ? tr("Exit full screen") : tr("Full screen")} aria-label={full ? tr("Exit full screen") : tr("Full screen")}
+            className="ml-1 flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+            {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </button>
         </span>
       </div>
       <div className="flex min-h-0 flex-1">

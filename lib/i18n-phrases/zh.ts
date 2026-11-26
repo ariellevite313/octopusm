@@ -2746,5 +2746,7 @@ const p: Record<string, string> = {
   "You earn {pct}% of the OM fee on trades from this post": "通过此帖子完成的交易，你可获得 OM 手续费的 {pct}%",
   "{name} holds it and earns {pct}% of the OM fee on trades from this post": "{name} 持有它，并可获得通过此帖子完成交易的 OM 手续费的 {pct}%",
   "Show a token you hold. When people buy or sell it from your post, you earn {pct}% of the OM fee with your Omero level, paid instantly. Up to 40% at level Red.": "展示你持有的代币。有人通过你的帖子买卖时，按你的 Omero 等级你可获得 OM 手续费的 {pct}%，即时到账。红色等级最高 40%。",
+  "Full screen": "全屏",
+  "Exit full screen": "退出全屏",
 };
 export default p;

@@ -2744,5 +2744,7 @@ const p: Record<string, string> = {
   "You earn {pct}% of the OM fee on trades from this post": "Вы получаете {pct}% комиссии OM со сделок из этого поста",
   "{name} holds it and earns {pct}% of the OM fee on trades from this post": "{name} держит его и получает {pct}% комиссии OM со сделок из этого поста",
   "Show a token you hold. When people buy or sell it from your post, you earn {pct}% of the OM fee with your Omero level, paid instantly. Up to 40% at level Red.": "Покажите токен, который у вас есть. Когда его покупают или продают из вашего поста, вы получаете {pct}% комиссии OM на вашем уровне Omero, сразу. До 40% на уровне Red.",
+  "Full screen": "Во весь экран",
+  "Exit full screen": "Выйти из полноэкранного режима",
 };
 export default p;

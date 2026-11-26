@@ -639,7 +639,7 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           {/* Graphique */}
           {desk && t.pool ? (
             <div className="mt-4 h-[560px] overflow-hidden rounded-2xl border border-border">
-              <ProChart mint={mint} pool={t.pool} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
+              <ProChart mint={mint} pool={t.pool} title={`${t.symbol}`} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
                 onLevel={(p, label) => {
                   if (!isSol) { toast.error(tr("Limit orders are available on Solana tokens.")); return; }
                   const cur = live ?? t.price ?? 0;
