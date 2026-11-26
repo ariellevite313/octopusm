@@ -318,6 +318,29 @@ const RING: Record<string, string> = {
   active: "ring-up", graduating: "ring-amber-500", graduated: "ring-sky-500", pending: "ring-border", cancelled: "ring-down",
 };
 
+/** Ticker cliquable : copie l'adresse du contrat, coche verte et notification « Adresse copiée ». */
+function CopyTicker({ ticker, address }: { ticker: string; address: string }) {
+  const { tr } = useT();
+  const [done, setDone] = useState(false);
+  async function copy(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    let ok = false;
+    try { await navigator.clipboard.writeText(address); ok = true; } catch {
+      // Repli quand le presse-papiers est refusé par le navigateur
+      try { const ta = document.createElement("textarea"); ta.value = address; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove(); } catch { ok = false; }
+    }
+    if (!ok) { toast.error(tr("Could not copy")); return; }
+    toast.success(tr("Address copied"), { description: `${address.slice(0, 6)}…${address.slice(-6)}` });
+    setDone(true); setTimeout(() => setDone(false), 1500);
+  }
+  return (
+    <button type="button" onClick={copy} title={tr("Copy contract address")} aria-label={tr("Copy contract address")}
+      className="inline-flex shrink-0 items-center gap-1.5 text-[15px] font-semibold text-foreground hover:underline">
+      ${ticker}{done ? <Check className="size-4 text-up" /> : <Copy className="size-4" />}
+    </button>
+  );
+}
+
 function TokenDeskRow({ token }: { token: LaunchpadToken }) {
   const { tr } = useT();
   const href = `/launchpad/${token.mint_address ?? token.id}`;
@@ -341,13 +364,7 @@ function TokenDeskRow({ token }: { token: LaunchpadToken }) {
             <span className="truncate text-[16px] font-bold tracking-tight text-foreground">{token.name}</span>
             {token.is_verified && <VerifiedTokenBadge className="size-4" />}
             {/* Le ticker copie l'adresse du contrat (sans ouvrir la page du token) */}
-            {token.mint_address ? (
-              <button type="button" title={tr("Copy contract address")} aria-label={tr("Copy contract address")}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void navigator.clipboard.writeText(token.mint_address!).then(() => toast.success(tr("Address copied"))); }}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md text-sm text-muted-foreground hover:text-foreground">
-                ${token.ticker}<Copy className="size-3.5" />
-              </button>
-            ) : <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>}
+            {token.mint_address ? <CopyTicker ticker={token.ticker} address={token.mint_address} /> : <span className="shrink-0 text-sm text-muted-foreground">${token.ticker}</span>}
           </p>
           <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {tr("by")}{" "}<UserAvatar src={token.creator_avatar_src} name={creator} size={16} className="mr-1 inline-flex align-text-bottom" /><span className="font-semibold text-foreground/80">{creator}</span>{(token.creator_octo ?? 0) > 0 && <OctoBadge totalOcto={token.creator_octo ?? 0} size={12} />}
