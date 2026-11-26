@@ -32,7 +32,6 @@ const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium
 import { executeSwap, mevOn, setMev, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
 import { LiveTrades } from "./live-trades";
-import { ChartShake } from "./chart-shake";
 import { ChartAlerts } from "./chart-alerts";
 import { PulseView } from "./pulse";
 import { Positions } from "./positions";
@@ -678,8 +677,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           </div>
           {/* Graphique */}
           {desk && t.pool ? (
-            <ChartShake mint={mint} chain={chain} className="mt-4 h-[560px] overflow-hidden">
-              <ProChart mint={mint} pool={t.pool} title={`${t.symbol}`} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
+            <div className="mt-4 h-[560px] overflow-hidden">
+              <ProChart mint={mint} chain={chain} pool={t.pool} title={`${t.symbol}`} network={GT_NET[chain] ?? chain} mcapPerPrice={t.mcap && t.price ? t.mcap / t.price : null}
                 onLevel={(p, label) => {
                   if (!isSol) { toast.error(tr("Limit orders are available on Solana tokens.")); return; }
                   const cur = live ?? t.price ?? 0;
@@ -691,8 +690,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
                   if (!(isAuthenticated && walletAddress && !walletAddress.startsWith("0x"))) { setWaitLimit(true); window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
                   openLimit();
                 }} />
-            </ChartShake>
-          ) : <ChartShake mint={mint} chain={chain} className="mt-4">{t.pool || t.price ? <TerminalLineChart pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</ChartShake>}
+            </div>
+          ) : <div className="mt-4">{t.pool || t.price ? <TerminalLineChart mint={mint} chain={chain} pool={t.pool} range={range} mode={mode} marks={showTrades ? marks : null} onChange={onChart} onHover={onHover} network={GT_NET[chain] ?? chain} fallbackPrice={t.price} /> : <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">{tr("Chart unavailable")}</div>}</div>}
           <div className={`items-center justify-center gap-1 px-4 py-2 ${desk && t.pool ? "hidden" : "flex"}`}>
             {T_RANGES.map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${range === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>

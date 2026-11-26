@@ -7,6 +7,7 @@
  * Données GeckoTerminal (OHLCV), même source que le graphique mobile.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CandlePulse, useCandlePulse } from "./chart-shake";
 import { Maximize2, Minimize2, MousePointer2, Minus, TrendingUp, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { Mirage } from "@/components/shared/mirage";
@@ -60,8 +61,10 @@ const KEY = (mint: string) => `om-draw:${mint}`;
 function readDrawings(mint: string): Drawing[] { try { const v = JSON.parse(localStorage.getItem(KEY(mint)) ?? "[]"); return Array.isArray(v) ? v.slice(0, 30) : []; } catch { return []; } }
 function writeDrawings(mint: string, d: Drawing[]) { try { localStorage.setItem(KEY(mint), JSON.stringify(d.slice(0, 30))); } catch { /* stockage indisponible */ } }
 
-export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel, title }: {
+export function ProChart({ mint, pool, network = "solana", chain, mcapPerPrice, onLevel, title }: {
   mint: string; pool: string; network?: string;
+  /** chaîne OM (solana, base…) : la dernière bougie vibre à chaque achat */
+  chain?: string;
   /** nom affiché en plein écran (ex. « SOL ») */
   title?: string;
   /** capitalisation / prix : pour afficher la capitalisation de chaque niveau */
@@ -89,6 +92,7 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
   }, []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const api = useRef<{ chart: any; series: any; bars: Bar[] } | null>(null);
+  const pulse = useCandlePulse(mint, chain ?? (network === "solana" ? "solana" : null), useCallback(() => (api.current ? { chart: api.current.chart, series: api.current.series } : null), []));
   const [tf, setTfState] = useState<ProTf>("1H");
   useEffect(() => { try { const v = localStorage.getItem("om-pro-tf") as ProTf | null; if (v && PRO_TFS.includes(v)) setTfState(v); } catch { /* stockage indisponible */ } }, []);
   const setTf = (v: ProTf) => { setTfState(v); try { localStorage.setItem("om-pro-tf", v); } catch { /* stockage indisponible */ } };
@@ -280,6 +284,7 @@ export function ProChart({ mint, pool, network = "solana", mcapPerPrice, onLevel
         </div>
         <div className="relative min-w-0 flex-1">
           <div ref={box} className="absolute inset-0" />
+          {state === "ok" && <CandlePulse g={pulse} />}
           {state === "ok" && (
             <svg className="absolute inset-0 h-full w-full" style={{ zIndex: 5, pointerEvents: tool === "cursor" ? "none" : "all", cursor: tool === "cursor" ? "default" : "crosshair" }}
               onClick={onOverlay} onMouseMove={onMove}>

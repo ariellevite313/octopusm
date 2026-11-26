@@ -1,7 +1,8 @@
 "use client";
 
 /** Graphique en ligne du Terminal (style épuré : pas d'axes, ligne du dernier prix, étiquette du prix). Données GeckoTerminal. */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CandlePulse, useBuyPulse, useCandlePulse } from "./chart-shake";
 import { useT } from "@/lib/i18n";
 import { Mirage } from "@/components/shared/mirage";
 
@@ -53,7 +54,7 @@ function toMarkers(pts: Pt[], marks: ChartMark[]) {
   }));
 }
 
-export function TerminalLineChart({ onHover, pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana", mode = "line", fallbackPrice = null, marks = null }: { onHover?: (p: { value: number; time: number } | null) => void; marks?: ChartMark[] | null; pool: string; range: TRange; mode?: ChartMode; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string; fallbackPrice?: number | null }) {
+export function TerminalLineChart({ onHover, pool, range, onChange, heightClass = "h-[300px] md:h-[360px]", network = "solana", mode = "line", fallbackPrice = null, marks = null, mint = null, chain = null }: { onHover?: (p: { value: number; time: number } | null) => void; mint?: string | null; chain?: string | null; marks?: ChartMark[] | null; pool: string; range: TRange; mode?: ChartMode; onChange?: (first: number, last: number) => void; heightClass?: string; network?: string; fallbackPrice?: number | null }) {
   const { tr } = useT();
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"load" | "ok" | "empty">("load");
@@ -62,6 +63,12 @@ export function TerminalLineChart({ onHover, pool, range, onChange, heightClass 
   cb.current = onChange;
   const hv = useRef(onHover);
   hv.current = onHover;
+  // Achat sur le token : la dernière bougie vibre (mode bougies) ou le point au bout de la ligne (mode courbe)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const live = useRef<{ chart: any; series: any } | null>(null);
+  const candlePulse = useCandlePulse(mode === "candle" ? mint : null, chain, useCallback(() => live.current, []));
+  const [dotKick, setDotKick] = useState(0);
+  useBuyPulse(mode === "candle" ? null : mint, chain, () => setDotKick((k) => k + 1));
 
   useEffect(() => {
     if ((!pool && !(fallbackPrice && fallbackPrice > 0)) || !box.current) { setState("empty"); return; }
@@ -104,6 +111,7 @@ export function TerminalLineChart({ onHover, pool, range, onChange, heightClass 
             priceLineVisible: true, priceLineStyle: 2, priceLineColor: color, lastValueVisible: true,
             priceFormat: { type: "custom", formatter: fmtPrice, minMove: 1e-10 },
           });
+      live.current = { chart, series };
       let lastPt = pts[pts.length - 1];
       const placeDot = () => {
         if (dead || !chart || !series) return;
@@ -134,14 +142,16 @@ export function TerminalLineChart({ onHover, pool, range, onChange, heightClass 
     } catch (e) { console.error("[terminal-chart]", e); if (!dead) setState("empty"); } })();
     const ro = new ResizeObserver(() => { if (chart && box.current) { chart.applyOptions({ width: box.current.clientWidth, height: box.current.clientHeight }); setTimeout(() => { try { chart.timeScale().fitContent(); } catch { /* retiré */ } }, 0); } });
     ro.observe(box.current);
-    return () => { dead = true; hv.current?.(null); ro.disconnect(); if (timer) clearInterval(timer); try { chart?.remove(); } catch { /* déjà retiré */ } };
+    return () => { dead = true; live.current = null; hv.current?.(null); ro.disconnect(); if (timer) clearInterval(timer); try { chart?.remove(); } catch { /* déjà retiré */ } };
   }, [pool, range, network, mode, fallbackPrice, marks]);
 
   return (
     <div className={`relative w-full ${heightClass}`}>
       <div ref={box} className="absolute inset-0" />
+      {state === "ok" && mode === "candle" && <CandlePulse g={candlePulse} />}
       {state === "ok" && dot && mode !== "candle" && (
         <span className="pointer-events-none absolute" style={{ left: dot.x, top: dot.y, transform: "translate(-50%, -50%)" }}>
+          {dotKick > 0 && <span key={dotKick} className="pf-dot absolute left-1/2 top-1/2 size-4 rounded-full" style={{ background: dot.color }} />}
           <span className="absolute left-1/2 top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full opacity-40" style={{ background: dot.color }} />
           <span className="relative block size-2.5 rounded-full" style={{ background: dot.color }} />
         </span>
