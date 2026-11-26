@@ -20,6 +20,8 @@ type Pred = { title: string; slug: string; choice: string; stake: number; token:
 type Summary = { omero: { balance: number; total: number; level: string | null; next: string | null; left: number | null; rank: number | null }; predictions: Pred[] };
 
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+/** ClawdTrust (CLT), partenaire d'OM : sa propre carte, comme Omero */
+const CLT_MINT = "DjdyfQGdtiejPhaSgraS1qaiWVhgrEFTSnd9bVnYBAGS";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const ORDER_KEY = "om-wallet-order";
 const TOP = 0, STEP = 76, H = 214;
@@ -93,7 +95,8 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
   const all = [...(bags?.main ?? []), ...(bags?.small ?? [])];
   const sol = all.find((b) => b.chain === "solana" && b.id === "native");
   const usdc = arc ? all.find((b) => b.chain === "arc" && b.id === "native") : all.find((b) => b.id === USDC_MINT);
-  const tokens = (bags?.main ?? []).filter((b) => b !== sol && b !== usdc && b.amount > 0);
+  const clt = arc ? undefined : all.find((b) => b.id === CLT_MINT);
+  const tokens = (bags?.main ?? []).filter((b) => b !== sol && b !== usdc && b !== clt && b.amount > 0);
   const tokensTotal = tokens.reduce((s, b) => s + (b.value ?? 0), 0);
   const brand = BRAND[walletType ?? (arc ? "metamask" : "phantom")] ?? BRAND.phantom;
   const om = sum?.omero;
@@ -117,6 +120,26 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
     details: {
       rows: [[tr("Balance"), `${int(om?.balance ?? 0)} Omero`], [tr("Total earned"), `${int(om?.total ?? 0)} Omero`], [tr("Level"), om?.level ? tr(om.level) : "-"], [tr("Rank"), om?.rank ? `#${int(om.rank)}` : "-"]],
       actions: [{ label: tr("Levels and animations"), href: `/profile/${wallet}` }],
+    },
+  });
+  // Carte ClawdTrust (CLT), à part comme Omero : solde, valeur, variation 24 h
+  if (!arc) cards.push({
+    key: "clt", label: "ClawdTrust",
+    node: (
+      <div className="wc-card wc-clt">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="wc-deco" src="/clawdtrust-coin.png" alt="" style={{ right: -40, bottom: -50, width: 210, height: 210, opacity: .35, mixBlendMode: "screen", transform: "rotate(-10deg)" }} />
+        <Head logo="/clawdtrust-coin.png" label="ClawdTrust" right={`${clt ? qty(clt.amount) : "0"} CLT`} />
+        <p className="num mt-[30px] text-[38px] font-extrabold leading-none tracking-tight">${n2(clt?.value ?? 0)}</p>
+        <div className="mt-[34px] flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[13px] font-bold"><SolanaMark className="size-4 text-white" />CLT · Solana</span>
+          {clt?.change24h != null && <span className={`text-[12px] font-bold ${clt.change24h >= 0 ? "text-[#7dffb0]" : "text-[#ffb3a8]"}`}>{clt.change24h >= 0 ? "+" : ""}{clt.change24h.toFixed(2)}% 24h</span>}
+        </div>
+      </div>
+    ),
+    details: {
+      rows: [[tr("Balance"), `${qty(clt?.amount ?? 0)} CLT`], [tr("Value"), `$${n2(clt?.value ?? 0)}`]],
+      actions: [{ label: tr("Trade"), href: `/terminal?mint=${CLT_MINT}` }, { label: tr("Token page"), href: `/launchpad/${CLT_MINT}` }],
     },
   });
   if (!arc) cards.push({
