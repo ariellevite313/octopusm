@@ -86,9 +86,8 @@ export async function readArcRecordOnChain(curve: string): Promise<ArcCurveRecor
 /** Lit la pool Meteora DBC : créateur et mint de base. */
 export async function readSolanaPoolOnChain(poolAddress: string): Promise<SolanaPoolRecord> {
   try {
-    const rpc = process.env.SOLANA_RPC_URL;
-    if (!rpc) return null;
-    const [{ Connection, PublicKey }, sdk] = await Promise.all([
+    // Pas de sortie si SOLANA_RPC_URL manque : solanaConnection() bascule sur les RPC de secours et le public
+    const [{ PublicKey }, sdk] = await Promise.all([
       import("@solana/web3.js"),
       import("@meteora-ag/dynamic-bonding-curve-sdk"),
     ]);
@@ -112,12 +111,16 @@ const POOL_BASE_MINT_OFFSET = 136;
 
 /** Lecture directe d'une VirtualPool Meteora DBC : créateur (octet 104) et mint de base (octet 136). */
 export async function readSolanaPoolRaw(poolAddress: string): Promise<SolanaPoolRecord> {
-  try {
-    const info = await solanaConnection().getAccountInfo(new SolPublicKey(poolAddress), "confirmed");
-    return parseDbcPool(info ? { owner: info.owner.toBase58(), data: Buffer.from(info.data) } : null);
-  } catch {
-    return null;
+  // 3 essais espacés : un RPC saturé un instant ne doit pas bloquer une candidature
+  for (let i = 0; i < 3; i++) {
+    try {
+      const info = await solanaConnection().getAccountInfo(new SolPublicKey(poolAddress), "confirmed");
+      return parseDbcPool(info ? { owner: info.owner.toBase58(), data: Buffer.from(info.data) } : null);
+    } catch {
+      if (i < 2) await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    }
   }
+  return null;
 }
 
 /** Pur : décode une VirtualPool DBC à partir du compte brut, ou null si ce n'en est pas une. */

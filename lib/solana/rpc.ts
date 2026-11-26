@@ -4,7 +4,7 @@
  *   SOLANA_RPC_URL            : RPC principal (Helius, QuickNode…)
  *   SOLANA_RPC_URL_FALLBACKS  : RPC de secours, séparés par des virgules (facultatif)
  *
- * Quand un RPC répond « 429 Too Many Requests », une erreur 5xx ou ne répond pas, la même requête
+ * Quand un RPC répond « 429 Too Many Requests », une erreur 5xx, refuse la clé (401/402/403) ou ne répond pas, la même requête
  * part tout de suite vers le RPC suivant, et le RPC saturé est mis de côté 30 secondes.
  * Une seule Connection est gardée par niveau de confirmation (pas une par requête).
  */
@@ -34,7 +34,8 @@ async function failoverFetch(input: RequestInfo | URL, init?: RequestInit): Prom
   for (const url of ordered) {
     try {
       const res = await fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(20_000) });
-      if (res.status === 429 || res.status >= 500) {
+      // 429 saturé, 5xx en panne, 401/402/403 clé refusée ou quota épuisé : on passe au RPC suivant
+      if (res.status === 429 || res.status >= 500 || res.status === 401 || res.status === 402 || res.status === 403) {
         badUntil.set(url, Date.now() + COOLDOWN_MS);
         lastRes = res;
         continue;
