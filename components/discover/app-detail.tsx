@@ -113,7 +113,7 @@ function NetworkValue({ network }: { network: string }) {
 /** Liens X, Telegram et Discord du projet, s'il les a donnés. */
 function Socials({ s }: { s?: { x: string | null; telegram: string | null; discord: string | null } }) {
   if (!s || (!s.x && !s.telegram && !s.discord)) return null;
-  const btn = "flex size-9 items-center justify-center text-foreground [filter:drop-shadow(0_0_6px_var(--background))] transition-opacity hover:opacity-70";
+  const btn = "flex size-9 items-center justify-center text-foreground transition-opacity hover:opacity-70";
   return (
     <div className="flex items-center gap-1">
       {s.x && <a href={s.x} target="_blank" rel="noopener noreferrer nofollow" aria-label="X" className={btn}><XIcon /></a>}

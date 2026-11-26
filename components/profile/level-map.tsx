@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * Carte au trésor des niveaux Omero : une île flottante par niveau (falaises en strates, herbe, décor et trésor),
- * reliées par un chemin en pointillés avec des étapes. Chaque île porte la puce de son niveau.
- * On touche une île : ses avantages sur la plateforme s'affichent sous la carte.
- * Dessin original en SVG (pas d'image externe).
+ * Omero Map : la carte des niveaux, comme un jardin vu de haut. Un chemin pavé serpente du bas vers le haut,
+ * avec une placette clôturée par niveau (décor et trésor du niveau, panneau en bois avec sa puce et son nom).
+ * Haies, buissons, mare et clôtures autour. Les placettes non atteintes sont grisées avec un cadenas ;
+ * l'avatar du profil est posé sur sa placette. On touche une placette : ses avantages s'affichent sous la carte.
+ * Dessin original en SVG (pas d'image externe, aucun personnage d'un autre jeu).
  */
 import { useEffect, useState } from "react";
 import { Check, Lock } from "lucide-react";
@@ -16,30 +17,47 @@ type Level = { label: string; min: number; max: number | null; color: string; co
 const BADGE: Record<string, string> = { Blue: "blue", Green: "green", Yellow: "yellow", Orange: "orange", Red: "red" };
 const n = (x: number) => Math.round(x).toLocaleString("en-US");
 
-/** Position de chaque île (de bas en haut, en zigzag) */
-const SPOTS = [{ x: 96, y: 618 }, { x: 262, y: 504 }, { x: 98, y: 388 }, { x: 262, y: 270 }, { x: 140, y: 112 }];
-/** Teintes de chaque île : herbe (clair, foncé), falaise (3 strates) */
-const PAL = [
-  { g1: "#e6f6ff", g2: "#9fd3f5", r: ["#9cc3e0", "#6f97b8", "#4d7394"] },
-  { g1: "#8fe07a", g2: "#43a047", r: ["#b08455", "#8a6239", "#634424"] },
-  { g1: "#c8e86a", g2: "#7cb342", r: ["#c79a5b", "#9c7238", "#6e4e22"] },
-  { g1: "#f7c27a", g2: "#e08a3c", r: ["#c06a3a", "#94482a", "#69301c"] },
-  { g1: "#7fe08a", g2: "#2e9e5b", r: ["#9b7b63", "#73563f", "#4f3826"] },
-];
+const W = 360, H = 800;
+/** Placettes des niveaux, de bas en haut, sur les virages du chemin */
+const SPOTS = [{ x: 262, y: 664 }, { x: 98, y: 524 }, { x: 262, y: 384 }, { x: 98, y: 244 }, { x: 200, y: 108 }];
+/** Le chemin passe par toutes les placettes */
+const ROAD = "M150 830 C 150 760, 262 744, 262 664 S 98 604, 98 524 S 262 464, 262 384 S 98 324, 98 244 S 200 188, 200 108 L 200 -30";
 
-/** Falaise en strates + dessus herbeux (île de base, environ 130 × 90) */
-function Isle({ p }: { p: (typeof PAL)[number] }) {
+/** Grand buisson de feuilles (vu de haut) */
+function Bush({ x, y, s = 1, r = 0 }: { x: number; y: number; s?: number; r?: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${r}) scale(${s})`}>
+      {[0, 72, 144, 216, 288].map((a) => (
+        <g key={a} transform={`rotate(${a})`}>
+          <path d="M0 0 C 10 -8, 22 -10, 30 -2 C 22 8, 10 8, 0 0 Z" fill="#2f9e44" />
+          <path d="M0 0 C 10 -8, 22 -10, 30 -2" fill="none" stroke="#1f7a33" strokeWidth="1.2" />
+          <path d="M4 -1 L 26 -2" stroke="#8be08f" strokeWidth="1" opacity=".7" />
+        </g>
+      ))}
+      <circle r="6" fill="#43c05a" />
+    </g>
+  );
+}
+/** Clôture en bois (poteaux et deux lisses) */
+function Fence({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2: number }) {
+  const k = Math.max(2, Math.round(Math.hypot(x2 - x1, y2 - y1) / 22));
   return (
     <g>
-      <path d="M-62 0 L-56 22 L-44 40 L-28 56 L-10 66 L8 64 L26 54 L42 38 L54 22 L62 0 Z" fill={p.r[0]} />
-      <path d="M-56 22 L-44 40 L-28 56 L-10 66 L8 64 L26 54 L42 38 L54 22 L40 30 L22 34 L2 30 L-18 34 L-38 28 Z" fill={p.r[1]} />
-      <path d="M-28 56 L-10 66 L8 64 L26 54 L14 52 L-2 56 L-16 52 Z" fill={p.r[2]} />
-      <path d="M-40 12 L-34 26 M-6 18 L-2 34 L-8 44 M24 14 L30 30 M44 10 L40 20" stroke="#000" strokeOpacity=".18" strokeWidth="1.5" fill="none" />
-      <ellipse cx="-20" cy="20" rx="5" ry="3" fill="#fff" opacity=".18" />
-      <ellipse cx="0" cy="0" rx="64" ry="20" fill={p.g2} />
-      <ellipse cx="0" cy="-3" rx="60" ry="17" fill={p.g1} />
-      <path d="M-60 2 Q -54 10 -46 4 Q -40 12 -32 6 Q -26 12 -18 7 M18 8 Q 26 13 32 6 Q 40 12 46 4 Q 52 10 60 2" stroke={p.g2} strokeWidth="3" fill="none" strokeLinecap="round" />
-      <ellipse cx="-14" cy="-8" rx="22" ry="5" fill="#fff" opacity=".18" />
+      <path d={`M${x1} ${y1 - 4} L${x2} ${y2 - 4} M${x1} ${y1 + 3} L${x2} ${y2 + 3}`} stroke="#5b6cc0" strokeWidth="3" strokeLinecap="round" />
+      {Array.from({ length: k + 1 }, (_, i) => <rect key={i} x={x1 + ((x2 - x1) * i) / k - 2.5} y={y1 + ((y2 - y1) * i) / k - 11} width="5" height="16" rx="1.5" fill="#3f4fa0" />)}
+    </g>
+  );
+}
+/** Panneau en bois sur poteau, avec la puce et le nom du niveau */
+function Sign({ label, count, badge, on, reached, tr }: { label: string; count: string; badge: string; on: boolean; reached: boolean; tr: (s: string) => string }) {
+  return (
+    <g>
+      <rect x="-2.5" y="-6" width="5" height="22" fill="#6b4a2b" />
+      <rect x="-56" y="-40" width="112" height="36" rx="7" fill={on ? "#3d2a0e" : "#c99a5b"} stroke="#6b4a2b" strokeWidth="2" />
+      <path d="M-52 -30 H52 M-52 -18 H52" stroke="#000" strokeOpacity=".08" />
+      <image href={`/badges/omero-${badge}.png`} x="-50" y="-36" width="28" height="28" style={{ filter: reached ? undefined : "grayscale(1)" }} />
+      <text x="-16" y="-24" fontSize="12.5" fontWeight="800" fill={on ? "#fff" : "#2b1a06"}>{tr(label)}</text>
+      <text x="-16" y="-11" fontSize="9" fontWeight="700" fill={on ? "#f3e2bd" : "#4a3214"}>{count}</text>
     </g>
   );
 }
@@ -126,78 +144,106 @@ function Scene({ i }: { i: number }) {
 
 export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx: number; total: number; avatar: string | null }) {
   const { tr } = useT();
-  // Île choisie : par défaut la suivante à atteindre (ou la dernière)
+  // Placette choisie : par défaut la suivante à atteindre (ou la dernière)
   const [sel, setSel] = useState(Math.min(levels.length - 1, Math.max(0, idx + 1)));
   useEffect(() => { setSel(Math.min(levels.length - 1, Math.max(0, idx + 1))); }, [idx, levels.length]);
 
-  const seg = (a: { x: number; y: number }, b: { x: number; y: number }) => `M${a.x} ${a.y - 4} C ${a.x} ${(a.y + b.y) / 2 - 16}, ${b.x} ${(a.y + b.y) / 2 + 16}, ${b.x} ${b.y - 4}`;
-  const cur = idx >= 0 ? levels[idx] : null, next = levels[idx + 1] ?? null;
-  const from = cur ? cur.min : 0;
-  const prog = next ? Math.min(1, Math.max(0, (total - from) / (next.min - from))) : 1;
   const L = levels[sel];
   const reachedSel = idx >= sel;
   const frame = L ? frameOfLevel(L.label) : null;
+  // Part du chemin déjà parcourue (0 à 1) : chaque placette atteinte, plus l'avance vers la suivante
+  const cur = idx >= 0 ? levels[idx] : null, next = levels[idx + 1] ?? null;
+  const prog = next ? Math.min(1, Math.max(0, (total - (cur ? cur.min : 0)) / (next.min - (cur ? cur.min : 0)))) : 1;
+  const stops = [0.13, 0.31, 0.5, 0.69, 0.87];
+  const walked = idx < 0 ? stops[0] * prog : idx >= stops.length - 1 ? 1 : stops[idx] + (stops[idx + 1] - stops[idx]) * prog;
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-[22px] border-[3px] border-[#7a5a2a]" style={{ background: "radial-gradient(120% 80% at 20% 10%, #f8ecd0 0%, #efdcb2 60%, #e0c48a 100%)" }}>
-        <svg viewBox="0 0 360 732" className="block w-full" role="img" aria-label={tr("Levels")}>
+      <div className="relative overflow-hidden rounded-[22px] border-[3px] border-[#2f6b2a]">
+        <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label="Omero Map">
           <defs>
-            <filter id="lm-shadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="8" stdDeviation="6" floodColor="#5a3d12" floodOpacity=".3" /></filter>
-            <pattern id="lm-grain" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#a07c40" opacity=".28" /><circle cx="4.5" cy="4" r=".5" fill="#a07c40" opacity=".2" /></pattern>
-            <radialGradient id="lm-edge" cx="50%" cy="50%" r="70%"><stop offset="70%" stopColor="#000" stopOpacity="0" /><stop offset="100%" stopColor="#6b4a1a" stopOpacity=".35" /></radialGradient>
-            <clipPath id="lm-av"><circle cx="0" cy="0" r="15" /></clipPath>
+            <linearGradient id="om-grass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6fcf4f" /><stop offset=".55" stopColor="#4fb83c" /><stop offset="1" stopColor="#3a9a33" /></linearGradient>
+            <pattern id="om-blades" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M3 10 l1.5 -5 M9 6 l-1 -4 M11 12 l1 -3" stroke="#2f8a2a" strokeWidth="1" opacity=".45" /><circle cx="6" cy="2" r=".9" fill="#a6ec7c" opacity=".5" /></pattern>
+            <pattern id="om-stones" width="26" height="26" patternUnits="userSpaceOnUse">
+              <rect width="26" height="26" fill="#ead9b5" />
+              <ellipse cx="7" cy="7" rx="5.5" ry="4.5" fill="#dcc79c" /><ellipse cx="19" cy="15" rx="6" ry="5" fill="#d8c294" /><ellipse cx="6" cy="20" rx="4" ry="3.5" fill="#e2cfa6" /><ellipse cx="20" cy="4" rx="3.5" ry="3" fill="#dfcaa0" />
+            </pattern>
+            <radialGradient id="om-sun" cx="30%" cy="20%" r="80%"><stop offset="0" stopColor="#fff7c2" stopOpacity=".35" /><stop offset=".6" stopColor="#fff7c2" stopOpacity="0" /></radialGradient>
+            <filter id="om-shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="2" dy="5" stdDeviation="3" floodColor="#0b3a0b" floodOpacity=".35" /></filter>
+            <clipPath id="om-av"><circle cx="0" cy="0" r="15" /></clipPath>
           </defs>
-          <rect width="360" height="732" fill="url(#lm-grain)" />
-          <rect width="360" height="732" fill="url(#lm-edge)" />
 
-          {SPOTS.slice(0, -1).map((a, i) => {
-            const b = SPOTS[i + 1];
-            const done = idx > i, going = idx === i;
-            return (
-              <g key={i}>
-                <path d={seg(a, b)} fill="none" stroke="#7a5a2a" strokeWidth="3" strokeDasharray="8 8" strokeLinecap="round" opacity=".6" />
-                {(done || going) && <path d={seg(a, b)} fill="none" stroke={levels[i]?.color ?? "#3b82f6"} strokeWidth="4.5" strokeLinecap="round" pathLength={1} strokeDasharray={`${done ? 1 : prog} 1`} />}
-                <circle cx={(a.x + b.x) / 2} cy={(a.y + b.y) / 2} r="10" fill={done ? levels[i + 1]?.color ?? "#9e9e9e" : "#cfd2d6"} stroke="#fff" strokeWidth="2.5" />
-                <circle cx={(a.x + b.x) / 2 - 3} cy={(a.y + b.y) / 2 - 3} r="3" fill="#fff" opacity=".6" />
-              </g>
-            );
-          })}
+          {/* Herbe */}
+          <rect width={W} height={H} fill="url(#om-grass)" />
+          <rect width={W} height={H} fill="url(#om-blades)" />
 
+          {/* Mare et ruisseau */}
+          <g filter="url(#om-shadow)">
+            <ellipse cx="300" cy="530" rx="40" ry="28" fill="#c9b48a" />
+            <ellipse cx="300" cy="530" rx="34" ry="23" fill="#4fb3e8" />
+            <ellipse cx="292" cy="524" rx="20" ry="11" fill="#8fd6ff" opacity=".6" />
+            <circle cx="312" cy="536" r="6" fill="#43a047" /><circle cx="314" cy="534" r="2" fill="#ff8fb1" />
+          </g>
+          <path d="M-10 760 C 30 740, 40 700, 70 690" stroke="#4fb3e8" strokeWidth="9" fill="none" strokeLinecap="round" opacity=".9" />
+
+          {/* Chemin pavé : bordure, pavés, puis la partie déjà parcourue en lumière */}
+          <path d={ROAD} fill="none" stroke="#b89e6c" strokeWidth="58" strokeLinecap="round" />
+          <path d={ROAD} fill="none" stroke="url(#om-stones)" strokeWidth="50" strokeLinecap="round" />
+          <path d={ROAD} fill="none" stroke="#fff3c4" strokeWidth="10" strokeLinecap="round" pathLength={1} strokeDasharray={`${walked} 1`} opacity=".55" />
+
+          {/* Buissons et clôtures autour */}
+          <Bush x={30} y={620} s={1.1} /><Bush x={330} y={760} s={1.2} r={20} /><Bush x={330} y={250} s={1} r={40} />
+          <Bush x={28} y={380} s={1.15} r={10} /><Bush x={180} y={300} s={0.8} r={30} /><Bush x={176} y={590} s={0.85} r={15} /><Bush x={36} y={110} s={1} r={55} />
+          <Fence x1={8} y1={22} x2={120} y2={30} /><Fence x1={290} y1={30} x2={352} y2={22} />
+          <Fence x1={8} y1={790} x2={95} y2={780} /><Fence x1={232} y1={782} x2={352} y2={792} />
+
+          {/* Placettes des niveaux (touchables) */}
           {levels.map((l, i) => {
             const p = SPOTS[i];
             const reached = idx >= i;
             const on = sel === i;
             return (
               <g key={l.label} transform={`translate(${p.x} ${p.y})`} onClick={() => setSel(i)} style={{ cursor: "pointer" }} role="button" aria-label={tr(l.label)} aria-pressed={on}>
-                {on && <ellipse cx="0" cy="18" rx="80" ry="42" fill={l.color} opacity=".18" />}
-                <g filter="url(#lm-shadow)" style={{ filter: reached ? undefined : "grayscale(1) brightness(1.05)", opacity: reached ? 1 : 0.72 }}>
-                  <Isle p={PAL[i]} />
+                {on && <circle r="62" fill={l.color} opacity=".25" />}
+                <g filter="url(#om-shadow)">
+                  <circle r="50" fill="#c9b48a" />
+                  <circle r="50" fill="none" stroke="url(#om-stones)" strokeWidth="10" />
+                  <circle r="43" fill="#5cc246" />
+                  <circle r="43" fill="url(#om-blades)" />
+                </g>
+                {/* Piquets et corde autour */}
+                {Array.from({ length: 10 }, (_, k) => {
+                  const a = (k / 10) * Math.PI * 2;
+                  return <circle key={k} cx={Math.cos(a) * 41} cy={Math.sin(a) * 41} r="3" fill="#8a5a2b" stroke="#5e3a17" />;
+                })}
+                <circle r="41" fill="none" stroke="#c48a4a" strokeWidth="1.5" strokeDasharray="3 3" />
+                <g transform="translate(0 16) scale(.62)" style={{ filter: reached ? undefined : "grayscale(1)", opacity: reached ? 1 : 0.75 }}>
                   <Scene i={i} />
                 </g>
-                <image href={`/badges/omero-${BADGE[l.label]}.png`} x="34" y="-66" width="30" height="30" style={{ filter: reached ? undefined : "grayscale(1)" }} />
-                {!reached && <g transform="translate(-50 -56)"><circle r="12" fill="#3d2a0e" /><path d="M-4 -1 v-3 a4 4 0 0 1 8 0 v3" fill="none" stroke="#fff" strokeWidth="1.8" /><rect x="-5.5" y="-1" width="11" height="8" rx="1.5" fill="#fff" /></g>}
-                <g transform="translate(0 84)">
-                  <rect x="-64" y="-14" width="128" height="36" rx="10" fill={on ? "#3d2a0e" : "#fff8e6"} stroke="#7a5a2a" strokeWidth="1.5" />
-                  <text x="0" y="1" textAnchor="middle" fontSize="13" fontWeight="800" fill={on ? "#fff" : "#3d2a0e"}>{tr(l.label)}</text>
-                  <text x="0" y="16" textAnchor="middle" fontSize="9.5" fontWeight="600" fill={on ? "#f3e2bd" : "#6b5530"}>{n(l.count)} {tr(l.count === 1 ? "person" : "people")}</text>
+                {!reached && <g transform="translate(28 -28)"><circle r="12" fill="#2b1a06" /><path d="M-4 -1 v-3 a4 4 0 0 1 8 0 v3" fill="none" stroke="#fff" strokeWidth="1.8" /><rect x="-5.5" y="-1" width="11" height="8" rx="1.5" fill="#fff" /></g>}
+                <g transform={`translate(${p.x > 180 ? -26 : 26} -54)`}>
+                  <Sign label={l.label} count={`${n(l.count)} ${tr(l.count === 1 ? "person" : "people")}`} badge={BADGE[l.label]} on={on} reached={reached} tr={(x) => tr(x)} />
                 </g>
               </g>
             );
           })}
 
+          {/* Avatar sur sa placette (ou au départ du chemin) */}
           {(() => {
-            const p = idx >= 0 ? SPOTS[idx] : { x: SPOTS[0].x + 104, y: SPOTS[0].y + 40 };
+            const p = idx >= 0 ? SPOTS[idx] : { x: 150, y: 770 };
             return (
-              <g transform={`translate(${p.x - 8} ${p.y - 84})`} style={{ pointerEvents: "none" }}>
+              <g transform={`translate(${p.x + (p.x > 180 ? 34 : -34)} ${p.y - 30})`} style={{ pointerEvents: "none" }}>
                 <g className="lm-me">
-                  <circle r="18" fill="#fff" stroke="#3d2a0e" strokeWidth="2" />
-                  {avatar ? <image href={avatar} x="-15" y="-15" width="30" height="30" clipPath="url(#lm-av)" preserveAspectRatio="xMidYMid slice" /> : <circle r="15" fill="#f26a12" />}
-                  <path d="M-6 16 L0 26 L6 16 Z" fill="#3d2a0e" />
+                  <circle r="18" fill="#fff" stroke="#2b1a06" strokeWidth="2" />
+                  {avatar ? <image href={avatar} x="-15" y="-15" width="30" height="30" clipPath="url(#om-av)" preserveAspectRatio="xMidYMid slice" /> : <circle r="15" fill="#f26a12" />}
+                  <path d="M-6 16 L0 26 L6 16 Z" fill="#2b1a06" />
                 </g>
               </g>
             );
           })()}
+
+          {/* Lumière du soleil */}
+          <rect width={W} height={H} fill="url(#om-sun)" style={{ pointerEvents: "none" }} />
         </svg>
       </div>
 
