@@ -4,7 +4,16 @@ import { solanaConnection } from "@/lib/solana/rpc";
 import { createAdminClient } from "@/lib/supabase/server";
 import { jupTokens } from "@/lib/bags";
 import { SOL_MINT, USDC_MINT, ataOf, feeMintFor, tradedMint } from "./core";
-import { CHILL_MIN_USD, RENT_EXEMPT_MIN } from "./chill";
+import { CHILL_MIN_USD, RENT_EXEMPT_MIN, chillShareBps } from "./chill";
+import { levelOfTotal } from "@/lib/octo-levels";
+
+/** Niveau Omero d'un portefeuille (-1 = aucun, 0 = Bleu … 4 = Rouge), d'après le total gagné (leaderboard_octo). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function holderLevel(db: any, wallet: string): Promise<number> {
+  const evm = /^0x[0-9a-fA-F]{40}$/.test(wallet);
+  const { data } = await db.from("leaderboard_octo").select("total_octo")[evm ? "ilike" : "eq"]("wallet_address", wallet).order("total_octo", { ascending: false }).limit(1).maybeSingle();
+  return levelOfTotal(Number(data?.total_octo ?? 0));
+}
 
 /** Valeur en $ détenue par `wallet` pour `mint` (solde sur la chaîne × prix Jupiter / DexScreener). */
 export async function holdingUsd(wallet: string, mint: string): Promise<{ amount: number; usd: number | null; price: number | null }> {
@@ -22,13 +31,13 @@ export async function holdingUsd(wallet: string, mint: string): Promise<{ amount
   return { amount, price, usd: price != null ? amount * price : null };
 }
 
-const cache = new Map<string, { at: number; v: { wallet: string; postId: string } | null }>();
+const cache = new Map<string, { at: number; v: { wallet: string; postId: string; shareBps: number } | null }>();
 
 /**
  * Détenteur à payer pour ce swap, ou null : le post doit être un sac sur ce token, l'auteur n'est pas l'acheteur,
  * il détient encore au moins 1 $ du token, et son compte peut recevoir la part (SOL ou USDC).
  */
-export async function resolveRef(postId: unknown, taker: string, inputMint: string, outputMint: string): Promise<{ wallet: string; postId: string } | null> {
+export async function resolveRef(postId: unknown, taker: string, inputMint: string, outputMint: string): Promise<{ wallet: string; postId: string; shareBps: number } | null> {
   if (typeof postId !== "string" || !/^[0-9a-f-]{36}$/i.test(postId)) return null;
   const key = `${postId}:${taker}:${inputMint}:${outputMint}`;
   const hit = cache.get(key);
@@ -49,7 +58,7 @@ export async function resolveRef(postId: unknown, taker: string, inputMint: stri
     } else if (feeMint === USDC_MINT) {
       if (!(await conn.getAccountInfo(ataOf(holder, new PublicKey(USDC_MINT))).catch(() => null))) return null;
     } else return null;
-    return { wallet: post.author as string, postId };
+    return { wallet: post.author as string, postId, shareBps: chillShareBps(await holderLevel(db, post.author)) };
   })().catch(() => null);
   cache.set(key, { at: Date.now(), v });
   if (cache.size > 5000) cache.delete(cache.keys().next().value as string);

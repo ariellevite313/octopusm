@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { isBanned } from "@/lib/moderation";
 import { awardOcto } from "@/lib/octo";
 import { notifyReferralGain } from "@/lib/referrals/notify-gain";
+import { holderLevel } from "@/lib/swap/chill-server";
 
 export const REFERRER_SHARE_OF_FEE = 0.1;
 /** Parrain ambassadeur (programme sur candidature, 20 places) : 20 % des frais de la plateforme */
@@ -83,6 +84,9 @@ export async function registerTradeAttribution(db: Db, postId: unknown, traderRa
  */
 export const OMERO_PER_USD = 1;
 const OMERO_SWAP_MAX = 10_000, OMERO_SWAP_DAILY = 20_000;
+/** Bonus d'Omero sur les swaps selon le niveau : aucun, Bleu, Vert, Jaune, Orange, Rouge */
+export const SWAP_OMERO_BONUS = [0, 0.05, 0.10, 0.15, 0.20, 0.25] as const;
+
 export async function awardSwapOmero(db: Db, t: { txId: string; trader: string; volumeUsd: number; feeUsd: number }): Promise<number> {
   try {
     if (!(t.volumeUsd >= 1) || !(t.feeUsd >= t.volumeUsd * 0.0025)) return 0;
@@ -91,7 +95,9 @@ export async function awardSwapOmero(db: Db, t: { txId: string; trader: string; 
     const since = new Date(); since.setUTCHours(0, 0, 0, 0);
     const { data } = await db.from("octo_transactions").select("amount").eq("wallet_address", trader).eq("type", "swap").like("label", "terminal:%").gte("created_at", since.toISOString());
     const today = ((data ?? []) as { amount: number }[]).reduce((s, r) => s + Number(r.amount || 0), 0);
-    const amount = Math.min(OMERO_SWAP_MAX, Math.floor(t.volumeUsd * OMERO_PER_USD), Math.max(0, OMERO_SWAP_DAILY - today));
+    // Bonus selon le niveau Omero du trader : +5 % (Bleu) à +25 % (Rouge) d'Omero en plus par $ échangé
+    const bonus = 1 + SWAP_OMERO_BONUS[(await holderLevel(db, trader).catch(() => -1)) + 1];
+    const amount = Math.min(Math.round(OMERO_SWAP_MAX * bonus), Math.floor(t.volumeUsd * OMERO_PER_USD * bonus), Math.max(0, Math.round(OMERO_SWAP_DAILY * bonus) - today));
     if (amount <= 0) return 0;
     await awardOcto(trader, amount, "swap", `terminal:${t.txId}`);
     return amount;

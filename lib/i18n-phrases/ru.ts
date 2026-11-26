@@ -2723,5 +2723,17 @@ const p: Record<string, string> = {
   "You keep all the animations unlocked before.": "Все ранее открытые анимации остаются у вас.",
   "Top of the map": "Вершина карты",
   "The highest level on OMdotfun.": "Самый высокий уровень на OMdotfun.",
+  "traded through your bag, you earned your share of the fee": "торговали через ваш пакет, вы получили свою долю комиссии",
+  "Includes a 0.5% OM fee, part of it goes to the holder who posted this bag.": "Включает комиссию OM 0,5 %, часть идёт держателю, опубликовавшему этот пакет.",
+  "Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.": "Включает комиссию OM 0,3 %, часть идёт держателю, опубликовавшему этот пакет.",
+  "Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.": "Покажите токен, который у вас есть. Когда его покупают или продают из вашего поста, вы получаете от 10 % до 40 % комиссии OM в зависимости от уровня Omero, сразу.",
+  "On EVM networks your share is added up for you and sent to your wallet.": "В сетях EVM ваша доля накапливается и отправляется на кошелёк.",
+  "You earn 10% to 40% of the OM fee on trades from this post, depending on your level": "Вы получаете от 10 % до 40 % комиссии OM со сделок из этого поста, в зависимости от уровня",
+  "{name} holds it and earns part of the OM fee on trades from this post": "{name} держит его и получает часть комиссии OM со сделок из этого поста",
+  "Show a token you hold, earn up to 40% of the fees": "Покажите токен, который у вас есть, получайте до 40 % комиссий",
+  "Chill your bag: {pct}% of the fees": "Chill your bag: {pct} % комиссий",
+  "Your share of the OM fee on trades made from your bag posts.": "Ваша доля комиссии OM со сделок из ваших постов с пакетом.",
+  "+{pct}% Omero on swaps": "+{pct} % Omero за обмены",
+  "Extra Omero on every dollar you swap in the Terminal.": "Дополнительные Omero за каждый доллар обмена в Терминале.",
 };
 export default p;

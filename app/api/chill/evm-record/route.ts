@@ -6,7 +6,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { EVM_CHAINS, isAddr, isEvmChain } from "@/lib/swap/evm";
-import { CHILL_EVM_SHARE_BPS, dataHash, verifyRef } from "@/lib/swap/chill-evm";
+import { dataHash, verifyRef } from "@/lib/swap/chill-evm";
+import { chillSharePct } from "@/lib/swap/chill";
+import { holderLevel } from "@/lib/swap/chill-server";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +38,9 @@ export async function POST(req: Request) {
   if (rc.status !== "0x1" || (tx.from ?? "").toLowerCase() !== taker.toLowerCase() || (tx.to ?? "").toLowerCase() !== to.toLowerCase() || dataHash(tx.input ?? "") !== dataHash(data))
     return NextResponse.json({ error: "Transaction does not match the quote" }, { status: 400 });
 
-  const owed = (BigInt(feeNative) * BigInt(CHILL_EVM_SHARE_BPS)) / 10_000n;
+  // Part du détenteur selon son niveau Omero : de 10 % à 40 % des frais
+  const sharePct = chillSharePct(await holderLevel(createAdminClient(), holder));
+  const owed = (BigInt(feeNative) * BigInt(sharePct)) / 100n;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (createAdminClient() as any).from("chill_rewards").insert({
     post_id: postId, chain, holder: holder.toLowerCase(), taker: taker.toLowerCase(), token: token.toLowerCase(), tx_hash: hash.toLowerCase(),

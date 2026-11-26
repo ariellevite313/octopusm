@@ -267,7 +267,7 @@ export function LevelMap({ levels, idx, total, avatar }: { levels: Level[]; idx:
               <li key={pk.title} className="flex gap-3">
                 <Check className="mt-0.5 size-5 shrink-0" strokeWidth={3} style={{ color: L.color }} />
                 <span className="min-w-0">
-                  <span className="block text-[14px] font-bold">{tr(pk.title, { level: tr(L.label), frame: tr(frame?.name ?? "") })}</span>
+                  <span className="block text-[14px] font-bold">{tr(pk.title, { level: tr(L.label), frame: tr(frame?.name ?? ""), ...pk.vars })}</span>
                   <span className="block text-[12.5px] leading-snug text-muted-foreground">{tr(pk.text)}</span>
                 </span>
               </li>

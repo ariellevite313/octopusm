@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     }
 
     // « Chill ton sac » : seulement pour un pool en SOL et un post valide (détenteur ≥ 1 $, pas soi-même)
-    let ref: { wallet: string } | null = null;
+    let ref: { wallet: string; shareBps: number } | null = null;
     if (body.ref && body.mintAddress) {
       try {
         const vp = await client.state.getPool(poolPk);
@@ -128,10 +128,12 @@ export async function POST(req: Request) {
         if (cfg.quoteMint?.toBase58?.() === SOL_MINT) ref = await resolveRef(body.ref, walletAddress, SOL_MINT, body.mintAddress);
       } catch { ref = null; }
     }
-    const omBps = SWAP_FEE_BPS - CHILL_SHARE_BPS;
+    // Part du détenteur selon son niveau Omero (10 % à 40 % des frais)
+    const shareBps = ref ? Math.min(CHILL_SHARE_BPS, ref.shareBps) : CHILL_SHARE_BPS;
+    const omBps = SWAP_FEE_BPS - shareBps;
     // Achat : les frais sont retirés du SOL échangé, le total payé reste celui saisi
     const buyOm  = ref && !swapBaseForQuote ? cutOf(BigInt(amountIn), omBps) : 0n;
-    const buyRef = ref && !swapBaseForQuote ? cutOf(BigInt(amountIn), CHILL_SHARE_BPS) : 0n;
+    const buyRef = ref && !swapBaseForQuote ? cutOf(BigInt(amountIn), shareBps) : 0n;
     const amountInBN  = new BN((BigInt(amountIn) - buyOm - buyRef).toString());
 
     // ── Quote estimation via SDK ─────────────────────────────────────────────
@@ -191,12 +193,12 @@ export async function POST(req: Request) {
       } else {
         // Vente : pris sur le minimum garanti, après le swap
         const minOut = BigInt(minimumAmountOut.toString());
-        const om = cutOf(minOut, omBps), rf = cutOf(minOut, CHILL_SHARE_BPS);
+        const om = cutOf(minOut, omBps), rf = cutOf(minOut, shareBps);
         if (om > 0n) swapTx.instructions.push(SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(SWAP_FEE_WALLET), lamports: om }));
         if (rf > 0n) swapTx.instructions.push(SystemProgram.transfer({ fromPubkey: user, toPubkey: new PublicKey(ref.wallet), lamports: rf }));
         estimatedOut = Math.max(0, estimatedOut - Math.floor((estimatedOut * SWAP_FEE_BPS) / 10_000));
       }
-      refBps = CHILL_SHARE_BPS;
+      refBps = shareBps;
     }
 
     // ── Attach blockhash and serialize ───────────────────────────────────────

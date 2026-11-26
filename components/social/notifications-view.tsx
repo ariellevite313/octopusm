@@ -52,7 +52,7 @@ export function NotificationsView() {
     : n.kind === "reply_reply" ? tr("replied to your reply")
     : n.kind === "reply_like" ? tr("liked your reply")
     : n.kind === "tip" ? tr("sent you OMERO on your post")
-    : n.kind === "chill" ? tr("traded through your bag, you earned 40% of the fee")
+    : n.kind === "chill" ? tr("traded through your bag, you earned your share of the fee")
     : n.kind === "weekly_box" ? tr("your weekly box result is in. Your OMERO is credited.")
     : n.kind === "price_alert" ? tr(n.data?.kind === "mcap_below" ? "fell below {v} market cap" : "went above {v} market cap", { v: money(n.data?.value ?? 0) })
     : n.kind === "wallet_trade" ? tr(n.data?.side === "buy" ? "bought {token}{usd}" : "sold {token}{usd}", { token: `$${n.data?.symbol ?? "token"}`, usd: n.data?.usd ? ` (${money(n.data.usd)})` : "" })

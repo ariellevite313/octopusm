@@ -4,13 +4,19 @@
  * `title` et `text` sont des phrases anglaises traduites à l'affichage ; {level} et {frame} sont remplacés par le nom traduit.
  */
 import { FRAMES } from "@/lib/profile-cosmetics";
+import { chillSharePct } from "@/lib/swap/chill";
 
-export type Perk = { title: string; text: string };
+/** Omero en plus sur les swaps du Terminal selon le niveau (même grille que lib/trade-rewards SWAP_OMERO_BONUS) */
+const SWAP_BONUS_PCT = [5, 10, 15, 20, 25];
+
+export type Perk = { title: string; text: string; vars?: Record<string, string> };
 
 export const frameOfLevel = (level: string) => FRAMES.find((f) => "level" in f.unlock && f.unlock.level === level) ?? null;
 
 export function levelPerks(index: number): Perk[] {
   const perks: Perk[] = [
+    { title: "Chill your bag: {pct}% of the fees", text: "Your share of the OM fee on trades made from your bag posts.", vars: { pct: String(chillSharePct(index)) } },
+    { title: "+{pct}% Omero on swaps", text: "Extra Omero on every dollar you swap in the Terminal.", vars: { pct: String(SWAP_BONUS_PCT[index] ?? 0) } },
     { title: "{level} badge", text: "Shown next to your name on your profile, posts and leaderboards." },
     { title: "Animated frame: {frame}", text: "An animated ring around your profile picture, yours to wear." },
   ];

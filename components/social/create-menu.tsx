@@ -51,7 +51,7 @@ export function CreateMenu({ onPosted }: { onPosted: (p: FeedPost) => void }) {
   const items = [
     { k: "post" as const, icon: PenLine, title: tr("Post"), sub: tr("Text, images or GIF") },
     { k: "article" as const, icon: FileText, title: tr("Article"), sub: tr("A long read with a cover and images") },
-    { k: "bag" as const, icon: Gem, title: tr("Chill your bag"), sub: tr("Show a token you hold, earn 40% of the fees") },
+    { k: "bag" as const, icon: Gem, title: tr("Chill your bag"), sub: tr("Show a token you hold, earn up to 40% of the fees") },
     { k: "pool" as const, icon: BarChart3, title: tr("Launch a pool"), sub: tr("Create a prediction pool") },
     { k: "token" as const, icon: Rocket, title: tr("Launch a token"), sub: tr("Solana or Arc") },
   ];

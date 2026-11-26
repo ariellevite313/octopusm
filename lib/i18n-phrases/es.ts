@@ -2723,5 +2723,17 @@ const p: Record<string, string> = {
   "You keep all the animations unlocked before.": "Conservas todas las animaciones desbloqueadas antes.",
   "Top of the map": "Cima del mapa",
   "The highest level on OMdotfun.": "El nivel más alto de OMdotfun.",
+  "traded through your bag, you earned your share of the fee": "operó a través de tu bolsa, ganaste tu parte de la comisión",
+  "Includes a 0.5% OM fee, part of it goes to the holder who posted this bag.": "Incluye una comisión OM del 0,5 %, parte va al holder que publicó esta bolsa.",
+  "Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.": "Incluye una comisión OM del 0,3 %, parte va al holder que publicó esta bolsa.",
+  "Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.": "Muestra un token que tienes. Cuando la gente lo compra o vende desde tu post, ganas del 10 % al 40 % de la comisión OM según tu nivel Omero, al instante.",
+  "On EVM networks your share is added up for you and sent to your wallet.": "En redes EVM tu parte se acumula y se envía a tu wallet.",
+  "You earn 10% to 40% of the OM fee on trades from this post, depending on your level": "Ganas del 10 % al 40 % de la comisión OM en los trades de este post, según tu nivel",
+  "{name} holds it and earns part of the OM fee on trades from this post": "{name} lo tiene y gana parte de la comisión OM en los trades de este post",
+  "Show a token you hold, earn up to 40% of the fees": "Muestra un token que tienes, gana hasta el 40 % de las comisiones",
+  "Chill your bag: {pct}% of the fees": "Chill your bag: {pct} % de las comisiones",
+  "Your share of the OM fee on trades made from your bag posts.": "Tu parte de la comisión OM en los trades hechos desde tus posts de bolsa.",
+  "+{pct}% Omero on swaps": "+{pct} % de Omero en swaps",
+  "Extra Omero on every dollar you swap in the Terminal.": "Omero extra por cada dólar que intercambias en el Terminal.",
 };
 export default p;

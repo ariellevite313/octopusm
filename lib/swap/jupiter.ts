@@ -29,7 +29,7 @@ export type SwapQuote = {
   /** « Chill ton sac » : part des frais envoyée au détenteur (bps) et son adresse */
   refBps: number; ref: string | null;
 };
-export type SwapRef = { wallet: string } | null;
+export type SwapRef = { wallet: string; shareBps?: number } | null;
 
 const toIx = (i: JIx) => new TransactionInstruction({
   programId: new PublicKey(i.programId),
@@ -85,7 +85,7 @@ function quoteOf(j: BuildRes, feeBps: number, feeMint: string | null): SwapQuote
  */
 async function plan(input: SwapInput, feeBps: number, taker: string, ref: SwapRef) {
   const feeMint = feeMintFor(input.inputMint, input.outputMint);
-  const { jupBps, refBps } = feeSplit(feeBps, !!ref && !!feeMint);
+  const { jupBps, refBps } = feeSplit(feeBps, !!ref && !!feeMint, ref?.shareBps);
   const isBuy = feeMint === input.inputMint;
   const buyCut = refBps > 0 && isBuy ? cutOf(BigInt(input.amount), refBps) : 0n;
   const jupInput = buyCut > 0n ? { ...input, amount: (BigInt(input.amount) - buyCut).toString() } : input;

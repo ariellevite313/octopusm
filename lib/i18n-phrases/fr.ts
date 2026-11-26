@@ -2896,5 +2896,17 @@ const p: Record<string, string> = {
   "You keep all the animations unlocked before.": "Tu gardes toutes les animations débloquées avant.",
   "Top of the map": "Sommet de la carte",
   "The highest level on OMdotfun.": "Le plus haut niveau d'OMdotfun.",
+  "traded through your bag, you earned your share of the fee": "est passé par ton sac, tu as gagné ta part des frais",
+  "Includes a 0.5% OM fee, part of it goes to the holder who posted this bag.": "Inclut 0,5 % de frais OM, dont une part va au détenteur qui a posté ce sac.",
+  "Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.": "Inclut 0,3 % de frais OM, dont une part va au détenteur qui a posté ce sac.",
+  "Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.": "Montre un token que tu détiens. Quand des gens l'achètent ou le vendent depuis ton post, tu gagnes de 10 % à 40 % des frais OM selon ton niveau Omero, payés tout de suite.",
+  "On EVM networks your share is added up for you and sent to your wallet.": "Sur les réseaux EVM, ta part est cumulée puis envoyée sur ton wallet.",
+  "You earn 10% to 40% of the OM fee on trades from this post, depending on your level": "Tu gagnes de 10 % à 40 % des frais OM sur les trades faits depuis ce post, selon ton niveau",
+  "{name} holds it and earns part of the OM fee on trades from this post": "{name} le détient et gagne une part des frais OM sur les trades faits depuis ce post",
+  "Show a token you hold, earn up to 40% of the fees": "Montre un token que tu détiens, gagne jusqu'à 40 % des frais",
+  "Chill your bag: {pct}% of the fees": "Chill ton sac : {pct} % des frais",
+  "Your share of the OM fee on trades made from your bag posts.": "Ta part des frais OM sur les trades faits depuis tes posts de sac.",
+  "+{pct}% Omero on swaps": "+{pct} % d'Omero sur les swaps",
+  "Extra Omero on every dollar you swap in the Terminal.": "Des Omero en plus sur chaque dollar échangé dans le Terminal.",
 };
 export default p;

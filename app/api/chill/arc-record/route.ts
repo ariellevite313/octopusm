@@ -7,7 +7,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { isAddr } from "@/lib/swap/evm";
-import { CHILL_EVM_SHARE_BPS } from "@/lib/swap/chill-evm";
+import { chillSharePct } from "@/lib/swap/chill";
+import { holderLevel } from "@/lib/swap/chill-server";
 import { ARC_CHILL_FEE_BPS, arcTradeUsdc } from "@/lib/swap/chill-arc";
 import { arcChillTag } from "@/lib/swap/chill-arc-tag";
 import { rateHit } from "@/lib/rate-limit";
@@ -34,7 +35,9 @@ export async function POST(req: Request) {
   if (t.taker === holder) return NextResponse.json({ ok: true, skipped: true });
 
   const fee = (t.usdc * BigInt(ARC_CHILL_FEE_BPS)) / 10_000n;   // frais OM : 0,5 % du montant en USDC
-  const owed = (fee * BigInt(CHILL_EVM_SHARE_BPS)) / 10_000n;   // 40 % pour le détenteur
+  // Part du détenteur selon son niveau Omero : de 10 % à 40 % des frais
+  const sharePct = chillSharePct(await holderLevel(admin, holder));
+  const owed = (fee * BigInt(sharePct)) / 100n;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (admin as any).from("chill_rewards").insert({
     post_id: postId, chain: "arc", holder, taker: t.taker, token, tx_hash: hash.toLowerCase(), fee_native: fee.toString(), owed_native: owed.toString(),

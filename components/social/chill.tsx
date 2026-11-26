@@ -34,20 +34,20 @@ function BagTrade({ mint, symbol, logo, side, postId, chain, onDone }: { mint: s
   useEffect(() => { if (isEvmChain(chain) || chain === "arc") return; fetch(`/api/swap/token?mint=${mint}`).then((r) => r.json()).then((j) => setCurve(j.token?.om_curve ?? null)).catch(() => setCurve(null)); }, [mint, chain]);
   if (chain === "arc") return (
     <div>
-      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.5% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
+      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.5% OM fee, part of it goes to the holder who posted this bag.")}</p>}
       <ArcTradeBox token={mint} symbol={symbol} refPost={postId} />
     </div>
   );
   if (isEvmChain(chain)) return (
     <div>
-      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
+      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.")}</p>}
       <EvmSwapBox chain={chain} token={mint} refPost={postId} />
     </div>
   );
   if (curve === undefined) return <div className="flex justify-center py-10"><Mirage className="size-5 text-muted-foreground" /></div>;
   if (curve) return (
     <div>
-      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, 40% of it goes to the holder who posted this bag.")}</p>}
+      {postId && <p className="mb-3 text-xs text-muted-foreground">{tr("Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.")}</p>}
       <TokenSwapDBC poolAddress={curve} mintAddress={mint} ticker={symbol} logoUrl={logo ?? undefined} refPost={postId} />
     </div>
   );
@@ -168,13 +168,13 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet title={tr("Chill your bag")} onClose={onClose}>
-      <p className="text-sm text-muted-foreground">{tr("Show a token you hold. When people buy or sell it from your post, you earn 40% of the OM fee, paid instantly.")}</p>
+      <p className="text-sm text-muted-foreground">{tr("Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.")}</p>
       <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
         {(["solana", ...(Object.keys(EVM_CHAINS) as EvmChain[]), "arc"] as Net[]).map((n) => (
           <button key={n} onClick={() => setNet(n)} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${net === n ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{netName(n)}</button>
         ))}
       </div>
-      {net !== "solana" && <p className="mt-2 text-xs text-muted-foreground">{tr("On EVM networks the 40% is added up for you and sent to your wallet.")}</p>}
+      {net !== "solana" && <p className="mt-2 text-xs text-muted-foreground">{tr("On EVM networks your share is added up for you and sent to your wallet.")}</p>}
       {!pick ? (
         <div className="mt-4">
           {net !== "solana" && !evmAddr ? (
@@ -251,7 +251,7 @@ export function BagCard({ postId, bag, authorName, mine }: { postId: string; bag
         </div>
       </div>
       {(m?.pool || m?.price) && bag.chain !== "arc" && <div className="-mx-1 mt-2"><TerminalLineChart pool={m.pool ?? ""} range="1D" heightClass="h-[110px]" fallbackPrice={m.price} network={(bag.chain && GT_NET[bag.chain as keyof typeof GT_NET]) || "solana"} /></div>}
-      <p className="mt-2 text-[12px] text-muted-foreground">{mine ? tr("You earn 40% of the OM fee on trades from this post") : tr("{name} holds it and earns 40% of the OM fee on trades from this post", { name: authorName })}</p>
+      <p className="mt-2 text-[12px] text-muted-foreground">{mine ? tr("You earn 10% to 40% of the OM fee on trades from this post, depending on your level") : tr("{name} holds it and earns part of the OM fee on trades from this post", { name: authorName })}</p>
       <div className="mt-3 flex gap-2">
         <button onClick={() => setSide("sell")} className="h-11 flex-1 rounded-full bg-muted text-[15px] font-bold text-foreground">{tr("Sell")}</button>
         <button onClick={() => setSide("buy")} className="h-11 flex-1 rounded-full bg-foreground text-[15px] font-bold text-background">{tr("Buy")}</button>

@@ -2725,5 +2725,17 @@ const p: Record<string, string> = {
   "You keep all the animations unlocked before.": "之前解锁的动画全部保留。",
   "Top of the map": "地图之巅",
   "The highest level on OMdotfun.": "OMdotfun 的最高等级。",
+  "traded through your bag, you earned your share of the fee": "有人通过你的持仓交易，你获得了手续费分成",
+  "Includes a 0.5% OM fee, part of it goes to the holder who posted this bag.": "含 0.5% OM 手续费，其中一部分归发布该持仓的持有者。",
+  "Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.": "含 0.3% OM 手续费，其中一部分归发布该持仓的持有者。",
+  "Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.": "展示你持有的代币。别人通过你的帖子买卖时，你按 Omero 等级获得 OM 手续费的 10% 到 40%，即时到账。",
+  "On EVM networks your share is added up for you and sent to your wallet.": "在 EVM 网络上，你的分成会累计后发送到你的钱包。",
+  "You earn 10% to 40% of the OM fee on trades from this post, depending on your level": "通过此帖的交易，你按等级获得 OM 手续费的 10% 到 40%",
+  "{name} holds it and earns part of the OM fee on trades from this post": "{name} 持有该代币，并从此帖的交易中获得部分 OM 手续费",
+  "Show a token you hold, earn up to 40% of the fees": "展示你持有的代币，最高赚取 40% 手续费",
+  "Chill your bag: {pct}% of the fees": "Chill your bag：手续费的 {pct}%",
+  "Your share of the OM fee on trades made from your bag posts.": "通过你的持仓帖交易时，你获得的 OM 手续费分成。",
+  "+{pct}% Omero on swaps": "兑换多得 {pct}% Omero",
+  "Extra Omero on every dollar you swap in the Terminal.": "在终端每兑换 1 美元都多得 Omero。",
 };
 export default p;

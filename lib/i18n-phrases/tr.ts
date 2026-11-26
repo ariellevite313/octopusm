@@ -2723,5 +2723,17 @@ const p: Record<string, string> = {
   "You keep all the animations unlocked before.": "Daha önce açılan tüm animasyonlar sende kalır.",
   "Top of the map": "Haritanın zirvesi",
   "The highest level on OMdotfun.": "OMdotfun'daki en yüksek seviye.",
+  "traded through your bag, you earned your share of the fee": "çantan üzerinden işlem yapıldı, ücretten payını kazandın",
+  "Includes a 0.5% OM fee, part of it goes to the holder who posted this bag.": "%0,5 OM ücreti içerir, bir kısmı bu çantayı paylaşan sahibe gider.",
+  "Includes a 0.3% OM fee, part of it goes to the holder who posted this bag.": "%0,3 OM ücreti içerir, bir kısmı bu çantayı paylaşan sahibe gider.",
+  "Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.": "Sahip olduğun bir tokeni göster. İnsanlar gönderinden alıp sattığında Omero seviyene göre OM ücretinin %10 ile %40'ını anında kazanırsın.",
+  "On EVM networks your share is added up for you and sent to your wallet.": "EVM ağlarında payın biriktirilir ve cüzdanına gönderilir.",
+  "You earn 10% to 40% of the OM fee on trades from this post, depending on your level": "Bu gönderiden yapılan işlemlerde seviyene göre OM ücretinin %10 ile %40'ını kazanırsın",
+  "{name} holds it and earns part of the OM fee on trades from this post": "{name} bunu tutuyor ve bu gönderiden yapılan işlemlerde OM ücretinden pay kazanıyor",
+  "Show a token you hold, earn up to 40% of the fees": "Sahip olduğun bir tokeni göster, ücretlerin %40'ına kadar kazan",
+  "Chill your bag: {pct}% of the fees": "Chill your bag: ücretlerin %{pct}'i",
+  "Your share of the OM fee on trades made from your bag posts.": "Çanta gönderilerinden yapılan işlemlerde OM ücretinden payın.",
+  "+{pct}% Omero on swaps": "Swap'larda +%{pct} Omero",
+  "Extra Omero on every dollar you swap in the Terminal.": "Terminal'de takas ettiğin her dolar için ekstra Omero.",
 };
 export default p;
