@@ -136,10 +136,10 @@ export function OnboardingModal({ walletAddress, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4 sm:py-6"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="relative max-h-[100dvh] w-full overflow-y-auto rounded-t-[32px] bg-background shadow-2xl ring-1 ring-border sm:max-w-[420px] sm:rounded-[32px]">
+      <div className="scrollbar-none relative max-h-[calc(100dvh-16px)] w-full overflow-y-auto overscroll-contain rounded-t-[32px] sm:max-h-[calc(100dvh-48px)] bg-background shadow-2xl ring-1 ring-border sm:max-w-[420px] sm:rounded-[32px]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(255,122,26,0.30),transparent_70%)]" />
 
         <button
