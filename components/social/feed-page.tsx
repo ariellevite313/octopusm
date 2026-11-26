@@ -5,7 +5,7 @@ import { HackathonTicker } from "@/components/hackathon/hackathon-ticker";
 import { FeedTokens } from "@/components/social/feed-tokens";
 
 /** Fil : collé au menu (une seule ligne de séparation, celle du menu) ; tendances et comptes à suivre à droite,
- *  puis « Tokens en tendance » sur écran large (sur écran moyen, en haut de la colonne de droite). */
+ *  puis la colonne « Tokens en tendance ». */
 export function FeedPage() {
   return (
     <div className="mx-auto flex w-full max-w-[1000px] justify-center lg:mx-0 lg:max-w-none lg:justify-start">
@@ -15,8 +15,8 @@ export function FeedPage() {
         <Suspense fallback={null}><FeedClient /></Suspense>
       </div>
       <FeedRightRail />
-      {/* Écran large : colonne « Tokens en tendance » dans la place libre à droite */}
-      <aside className="sticky top-0 hidden h-screen w-[340px] shrink-0 overflow-y-auto scrollbar-none py-3 pl-5 pr-4 min-[1500px]:block">
+      {/* Colonne à part « Tokens en tendance », dans la place libre à droite (pas mêlée aux tendances ni aux comptes à suivre) */}
+      <aside className="sticky top-0 hidden h-screen w-[300px] shrink-0 overflow-y-auto scrollbar-none py-3 pl-5 pr-4 xl:block">
         <FeedTokens />
       </aside>
     </div>

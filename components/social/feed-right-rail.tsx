@@ -6,7 +6,6 @@ import { Hash, Search } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
-import { FeedTokens } from "@/components/social/feed-tokens";
 
 type Trend = { kind: "tag" | "token"; label: string; count: number; href: string; logo: string | null; name: string | null };
 type Who = { wallet: string; username: string | null; name: string | null; avatar: string | null; followers: number };
@@ -46,7 +45,7 @@ export function FeedRightRail() {
   }
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[350px] shrink-0 space-y-4 overflow-y-auto scrollbar-none py-3 pl-6 xl:block">
+    <aside className="sticky top-0 hidden h-screen w-[320px] shrink-0 space-y-4 overflow-y-auto scrollbar-none py-3 pl-6 xl:block">
       {/* Recherche : ouvre la recherche complète (tokens, posts, comptes) */}
       <button
         type="button"
@@ -55,9 +54,6 @@ export function FeedRightRail() {
       >
         <Search className="size-[18px]" />{tr("Search tokens, posts, people")}
       </button>
-
-      {/* Écran moyen : « Tokens en tendance » ici (sur écran large, colonne à part) */}
-      <FeedTokens className="min-[1500px]:hidden" />
 
       {/* Tendances */}
       <section className="overflow-hidden rounded-2xl border border-border">
