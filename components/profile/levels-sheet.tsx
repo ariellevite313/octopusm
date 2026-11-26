@@ -28,10 +28,10 @@ function Preview({ frame, avatar, size = 52 }: { frame: FrameId | null; avatar: 
   return frame ? <span className={`om-frame om-frame-${frame}`}>{inner}</span> : inner;
 }
 
-export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: string | null }) {
+/** Niveau, progression, Omero Map et animations : dans la feuille « Niveaux » et dans la modification du profil. */
+export function LevelsPanel({ wallet, avatar }: { wallet: string; avatar: string | null }) {
   const { tr } = useT();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [d, setD] = useState<Data | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: strin
   const load = useCallback(() => {
     fetch(`/api/profile/levels?wallet=${encodeURIComponent(wallet)}`, { cache: "no-store" }).then((r) => r.json()).then((j) => { if (j.levels) setD(j); }).catch(() => {});
   }, [wallet]);
-  useEffect(() => { if (open) load(); }, [open, load]);
+  useEffect(() => { load(); }, [load]);
 
   async function act(body: Record<string, unknown>, key: string) {
     setBusy(key);
@@ -63,6 +63,78 @@ export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: strin
 
   return (
     <>
+      {!d ? <div className="flex justify-center py-12"><Mirage className="size-5 text-muted-foreground" /></div> : (
+        <>
+          {/* Niveau actuel et progression */}
+          <div className="rounded-[22px] border border-border bg-card p-4">
+            <div className="flex items-center gap-3">
+              {cur
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={`/badges/omero-${BADGE[cur.label]}.png`} alt="" className="size-12" />
+                : <span className="flex size-12 items-center justify-center rounded-full bg-muted"><Lock className="size-5 text-muted-foreground" /></span>}
+              <div className="min-w-0 flex-1">
+                <p className="text-[17px] font-bold">{cur ? tr("Level {name}", { name: tr(cur.label) }) : tr("No level yet")}</p>
+                <p className="num text-[14px] text-muted-foreground">{n(d.total)} Omero</p>
+              </div>
+            </div>
+            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: next?.color ?? cur?.color ?? "var(--foreground)" }} />
+            </div>
+            <p className="mt-2 text-[13px] font-semibold text-muted-foreground">
+              {next ? tr("{n} Omero left to reach {name}", { n: n(next.min - d.total), name: tr(next.label) }) : tr("Highest level reached")}
+            </p>
+          </div>
+
+          {/* Tous les niveaux : carte au trésor, une île par niveau */}
+          <div className="mt-4"><LevelMap levels={d.levels} idx={idx} total={d.total} avatar={avatar} /></div>
+
+          {/* Animations : sur son propre profil seulement */}
+          {d.isMe && (
+            <>
+              <div className="mt-5 flex items-center justify-between">
+                <p className="text-[16px] font-bold">{tr("Animations")}</p>
+                {d.balance != null && <p className="num text-[13px] font-semibold text-muted-foreground">{n(d.balance)} Omero</p>}
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {FRAMES.map((f) => {
+                  const usable = canUseFrame(f, d.total, d.owned);
+                  const worn = d.frame === f.id;
+                  const cost = "cost" in f.unlock ? f.unlock.cost : null;
+                  const lvl = "level" in f.unlock ? f.unlock.level : null;
+                  const k = `f:${f.id}`;
+                  return (
+                    <div key={f.id} className={`flex flex-col items-center rounded-[18px] border p-3 ${worn ? "border-foreground" : "border-border"} bg-card`}>
+                      <div className="flex h-[66px] items-center justify-center"><Preview frame={f.id} avatar={avatar} /></div>
+                      <p className="mt-1 truncate text-[12px] font-bold">{tr(f.name)}</p>
+                      {worn ? (
+                        <button onClick={() => act({ action: "equip", frame: null }, k)} disabled={!!busy} className="mt-2 h-8 w-full rounded-full bg-foreground text-[12px] font-bold text-background">{busy === k ? <Mirage className="mx-auto size-3.5" /> : tr("Worn")}</button>
+                      ) : usable ? (
+                        <button onClick={() => act({ action: "equip", frame: f.id }, k)} disabled={!!busy} className="mt-2 h-8 w-full rounded-full bg-muted text-[12px] font-bold">{busy === k ? <Mirage className="mx-auto size-3.5" /> : tr("Wear")}</button>
+                      ) : cost ? (
+                        confirm === f.id
+                          ? <button onClick={() => act({ action: "buy", frame: f.id }, k)} disabled={!!busy} className="mt-2 h-8 w-full rounded-full bg-foreground text-[12px] font-bold text-background">{busy === k ? <Mirage className="mx-auto size-3.5" /> : tr("Confirm")}</button>
+                          : <button onClick={() => setConfirm(f.id)} className="num mt-2 h-8 w-full rounded-full bg-muted text-[12px] font-bold">{n(cost)} Omero</button>
+                      ) : (
+                        <span className="mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-full bg-muted/50 text-[12px] font-semibold text-muted-foreground"><Lock className="size-3" />{tr(lvl ?? "")}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+            </>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: string | null }) {
+  const { tr } = useT();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
       <button onClick={() => setOpen(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-[13px] font-bold text-foreground transition-colors hover:bg-muted/70">
         {tr("Levels")}
       </button>
@@ -74,69 +146,7 @@ export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: strin
               <button onClick={() => setOpen(false)} aria-label={tr("Close")} className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-5" /></button>
             </div>
 
-            {!d ? <div className="flex justify-center py-12"><Mirage className="size-5 text-muted-foreground" /></div> : (
-              <>
-                {/* Niveau actuel et progression */}
-                <div className="rounded-[22px] border border-border bg-card p-4">
-                  <div className="flex items-center gap-3">
-                    {cur
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={`/badges/omero-${BADGE[cur.label]}.png`} alt="" className="size-12" />
-                      : <span className="flex size-12 items-center justify-center rounded-full bg-muted"><Lock className="size-5 text-muted-foreground" /></span>}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[17px] font-bold">{cur ? tr("Level {name}", { name: tr(cur.label) }) : tr("No level yet")}</p>
-                      <p className="num text-[14px] text-muted-foreground">{n(d.total)} Omero</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: next?.color ?? cur?.color ?? "var(--foreground)" }} />
-                  </div>
-                  <p className="mt-2 text-[13px] font-semibold text-muted-foreground">
-                    {next ? tr("{n} Omero left to reach {name}", { n: n(next.min - d.total), name: tr(next.label) }) : tr("Highest level reached")}
-                  </p>
-                </div>
-
-                {/* Tous les niveaux : carte au trésor, une île par niveau */}
-                <div className="mt-4"><LevelMap levels={d.levels} idx={idx} total={d.total} avatar={avatar} /></div>
-
-                {/* Animations : sur son propre profil seulement */}
-                {d.isMe && (
-                  <>
-                    <div className="mt-5 flex items-center justify-between">
-                      <p className="text-[16px] font-bold">{tr("Animations")}</p>
-                      {d.balance != null && <p className="num text-[13px] font-semibold text-muted-foreground">{n(d.balance)} Omero</p>}
-                    </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {FRAMES.map((f) => {
-                        const usable = canUseFrame(f, d.total, d.owned);
-                        const worn = d.frame === f.id;
-                        const cost = "cost" in f.unlock ? f.unlock.cost : null;
-                        const lvl = "level" in f.unlock ? f.unlock.level : null;
-                        const k = `f:${f.id}`;
-                        return (
-                          <div key={f.id} className={`flex flex-col items-center rounded-[18px] border p-3 ${worn ? "border-foreground" : "border-border"} bg-card`}>
-                            <div className="flex h-[66px] items-center justify-center"><Preview frame={f.id} avatar={avatar} /></div>
-                            <p className="mt-1 truncate text-[12px] font-bold">{tr(f.name)}</p>
-                            {worn ? (
-                              <button onClick={() => act({ action: "equip", frame: null }, k)} disabled={!!busy} className="mt-2 h-8 w-full rounded-full bg-foreground text-[12px] font-bold text-background">{busy === k ? <Mirage className="mx-auto size-3.5" /> : tr("Worn")}</button>
-                            ) : usable ? (
-                              <button onClick={() => act({ action: "equip", frame: f.id }, k)} disabled={!!busy} className="mt-2 h-8 w-full rounded-full bg-muted text-[12px] font-bold">{busy === k ? <Mirage className="mx-auto size-3.5" /> : tr("Wear")}</button>
-                            ) : cost ? (
-                              confirm === f.id
-                                ? <button onClick={() => act({ action: "buy", frame: f.id }, k)} disabled={!!busy} className="mt-2 h-8 w-full rounded-full bg-foreground text-[12px] font-bold text-background">{busy === k ? <Mirage className="mx-auto size-3.5" /> : tr("Confirm")}</button>
-                                : <button onClick={() => setConfirm(f.id)} className="num mt-2 h-8 w-full rounded-full bg-muted text-[12px] font-bold">{n(cost)} Omero</button>
-                            ) : (
-                              <span className="mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-full bg-muted/50 text-[12px] font-semibold text-muted-foreground"><Lock className="size-3" />{tr(lvl ?? "")}</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                  </>
-                )}
-              </>
-            )}
+            <LevelsPanel wallet={wallet} avatar={avatar} />
           </div>
         </div>,
         document.body,

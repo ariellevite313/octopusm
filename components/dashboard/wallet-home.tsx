@@ -20,6 +20,7 @@ import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
 import { ProfileShareSheet } from "@/components/profile/profile-share";
+import { ProfileEditSheet } from "@/components/dashboard/profile-edit-sheet";
 import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import { WaveTexture } from "@/components/dashboard/creator-fees-dashboard";
 
@@ -88,6 +89,7 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
   const [withdraw, setWithdraw] = useState<"usdc" | "clawdtrust" | null>(null);
   // Affichage de l'accueil sur téléphone : cartes empilées (par défaut) ou classique. Gardé sur l'appareil.
   const [view, setView] = useState<"cards" | "classic">("cards");
+  const [edit, setEdit] = useState(false);
   const [rk, setRk] = useState(0);
   useEffect(() => { try { if (localStorage.getItem("om-wallet-view") === "classic") setView("classic"); } catch { /* sans effet */ } }, []);
   const switchView = () => { const v = view === "cards" ? "classic" : "cards"; setView(v); try { localStorage.setItem("om-wallet-view", v); } catch { /* sans effet */ } };
@@ -134,13 +136,16 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
 
       {/* Identité */}
       <div className="relative flex items-center gap-3.5">
-        {avatar
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={avatar} alt="" className="size-14 shrink-0 rounded-full object-cover" />
-          // eslint-disable-next-line @next/next/no-img-element
-          : <img src="/omdot-icon.png" alt="" className="size-14 shrink-0 rounded-full bg-muted object-cover p-1.5" />}
+        {/* On touche la photo ou le nom : modification du profil (photo, noms, niveau, Omero Map) */}
+        <button type="button" onClick={() => setEdit(true)} aria-label={tr("Edit profile")} className="shrink-0 rounded-full">
+          {avatar
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={avatar} alt="" className="size-14 rounded-full object-cover" />
+            // eslint-disable-next-line @next/next/no-img-element
+            : <img src="/omdot-icon.png" alt="" className="size-14 rounded-full bg-muted object-cover p-1.5" />}
+        </button>
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-1.5 text-[19px] font-semibold text-foreground"><span className="truncate">{name}</span><OctoBadge totalOcto={octo} size={18} /></p>
+          <button type="button" onClick={() => setEdit(true)} className="flex min-w-0 max-w-full items-center gap-1.5 text-left text-[19px] font-semibold text-foreground"><span className="truncate">{name}</span><OctoBadge totalOcto={octo} size={18} /></button>
           <button onClick={copy} className="num flex items-center gap-1.5 text-[14px] text-muted-foreground hover:text-foreground">
             {short(wallet)} {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           </button>
@@ -240,6 +245,7 @@ export function WalletHome({ wallet, name, avatar, octo, active }: { wallet: str
         <WithdrawModal token={withdraw} balance={withdraw === "usdc" ? usdc : clt} onClose={() => { setWithdraw(null); void load(); }} />
       )}
       <ProfileShareSheet wallet={wallet} name={name} open={share} onClose={() => setShare(false)} />
+      <ProfileEditSheet wallet={wallet} open={edit} onClose={() => setEdit(false)} />
     </div>
   );
 }

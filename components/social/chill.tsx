@@ -23,6 +23,9 @@ import { useAuth } from "@/providers/auth-provider";
 import { connectEvmTrader, restoreEvmTrader, type TradingAccount } from "@/lib/wallet/evm-trading";
 import { refMessage } from "@/lib/swap/chill-evm-msg";
 import { Mirage } from "@/components/shared/mirage";
+import { TradeFlash } from "@/components/shared/trade-flash";
+import { chillSharePct } from "@/lib/swap/chill";
+import { levelOfTotal } from "@/lib/octo-levels";
 
 const MIN_USD = 1;
 const TokenSwapDBC = dynamic(() => import("@/components/launchpad/token-swap-dbc").then((m) => m.TokenSwapDBC), { ssr: false });
@@ -90,6 +93,12 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { walletAddress, isAuthenticated } = useAuth();
   const sessionEvm = isAuthenticated && !!walletAddress && walletAddress.startsWith("0x");
+  // Part de l'auteur selon son niveau Omero (10 % sans niveau ou Bleu, jusqu'à 40 % en Rouge)
+  const [myPct, setMyPct] = useState<number | null>(null);
+  useEffect(() => {
+    if (!walletAddress) return;
+    fetch(`/api/profile/levels?wallet=${encodeURIComponent(walletAddress)}`).then((r) => r.json()).then((j) => { if (typeof j.total === "number") setMyPct(chillSharePct(levelOfTotal(j.total))); }).catch(() => {});
+  }, [walletAddress]);
   const [net, setNet] = useState<Net>(sessionEvm ? "base" : "solana");
   const [bags, setBags] = useState<PickBag[] | null>(null);
   const [manual, setManual] = useState(false);
@@ -168,7 +177,9 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet title={tr("Chill your bag")} onClose={onClose}>
-      <p className="text-sm text-muted-foreground">{tr("Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.")}</p>
+      <p className="text-sm text-muted-foreground">{myPct != null
+        ? tr("Show a token you hold. When people buy or sell it from your post, you earn {pct}% of the OM fee with your Omero level, paid instantly. Up to 40% at level Red.", { pct: String(myPct) })
+        : tr("Show a token you hold. When people buy or sell it from your post, you earn 10% to 40% of the OM fee depending on your Omero level, paid instantly.")}</p>
       <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
         {(["solana", ...(Object.keys(EVM_CHAINS) as EvmChain[]), "arc"] as Net[]).map((n) => (
           <button key={n} onClick={() => setNet(n)} className={`h-8 shrink-0 rounded-lg px-3 text-[13px] font-semibold ${net === n ? "bg-foreground text-background" : "border border-border text-muted-foreground hover:text-foreground"}`}>{netName(n)}</button>
@@ -230,15 +241,24 @@ export function ChillComposer({ onClose }: { onClose: () => void }) {
 type Market = { pool: string | null; price: number | null; change24h: number | null; mcap: number | null };
 
 /** Carte du token dans un post « sac » : prix, petit graphique, et Acheter / Vendre liés à l'auteur. */
-export function BagCard({ postId, bag, authorName, mine }: { postId: string; bag: { mint: string; symbol: string; name: string; logo: string | null; chain?: string | null }; authorName: string; mine: boolean }) {
+export function BagCard({ postId, bag, authorName, mine, authorOcto = 0 }: { postId: string; bag: { mint: string; symbol: string; name: string; logo: string | null; chain?: string | null }; authorName: string; mine: boolean; authorOcto?: number }) {
   const { tr } = useT();
   const [m, setM] = useState<Market | null>(null);
   const [side, setSide] = useState<"buy" | "sell" | null>(null);
-  useEffect(() => { fetch(`/api/bags/token?mint=${bag.mint}${bag.chain ? `&chain=${bag.chain}` : ""}`).then((r) => r.json()).then((j) => setM(j.market ?? null)).catch(() => {}); }, [bag.mint]);
+  // Prix suivi en direct (comme Pump.fun) : la carte secoue et s'éclaire à chaque changement
+  useEffect(() => {
+    const get = () => fetch(`/api/bags/token?mint=${bag.mint}${bag.chain ? `&chain=${bag.chain}` : ""}`).then((r) => r.json()).then((j) => setM(j.market ?? null)).catch(() => {});
+    get();
+    const id = setInterval(() => { if (document.visibilityState === "visible") get(); }, 20_000);
+    return () => clearInterval(id);
+  }, [bag.mint, bag.chain]);
+  const pct = chillSharePct(levelOfTotal(authorOcto));
   const c = m?.change24h ?? null;
 
   return (
-    <div className="mt-3 rounded-3xl bg-muted/40 p-3.5" onClick={(e) => e.stopPropagation()}>
+    <>
+    <TradeFlash v={m?.price ?? null} className="mt-3 rounded-3xl">
+    <div className="rounded-3xl bg-muted/40 p-3.5" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-3">
         <Logo src={bag.logo} sym={bag.symbol} />
         <div className="min-w-0 flex-1">
@@ -251,16 +271,18 @@ export function BagCard({ postId, bag, authorName, mine }: { postId: string; bag
         </div>
       </div>
       {(m?.pool || m?.price) && bag.chain !== "arc" && <div className="-mx-1 mt-2"><TerminalLineChart pool={m.pool ?? ""} range="1D" heightClass="h-[110px]" fallbackPrice={m.price} network={(bag.chain && GT_NET[bag.chain as keyof typeof GT_NET]) || "solana"} /></div>}
-      <p className="mt-2 text-[12px] text-muted-foreground">{mine ? tr("You earn 10% to 40% of the OM fee on trades from this post, depending on your level") : tr("{name} holds it and earns part of the OM fee on trades from this post", { name: authorName })}</p>
+      <p className="mt-2 text-[12px] text-muted-foreground">{mine ? tr("You earn {pct}% of the OM fee on trades from this post", { pct: String(pct) }) : tr("{name} holds it and earns {pct}% of the OM fee on trades from this post", { name: authorName, pct: String(pct) })}</p>
       <div className="mt-3 flex gap-2">
         <button onClick={() => setSide("sell")} className="h-11 flex-1 rounded-full bg-muted text-[15px] font-bold text-foreground">{tr("Sell")}</button>
         <button onClick={() => setSide("buy")} className="h-11 flex-1 rounded-full bg-foreground text-[15px] font-bold text-background">{tr("Buy")}</button>
       </div>
+    </div>
+    </TradeFlash>
       {side && (
         <Sheet title={`$${bag.symbol}`} onClose={() => setSide(null)}>
           <BagTrade mint={bag.mint} symbol={bag.symbol} logo={bag.logo} side={side} chain={bag.chain} postId={mine ? undefined : postId} onDone={() => setSide(null)} />
         </Sheet>
       )}
-    </div>
+    </>
   );
 }

@@ -415,7 +415,7 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments, hi
       {post.article
         ? <div className="px-1"><ArticleCard post={post} /></div>
         : post.body && <PostText postId={post.id} body={post.body} mentions={post.mentions ?? {}} hideUrl={!!post.market} />}
-      {post.bag && <div className="px-1"><BagCard postId={post.id} bag={post.bag} authorName={name} mine={!!post.mine} /></div>}
+      {post.bag && <div className="px-1"><BagCard postId={post.id} bag={post.bag} authorName={name} mine={!!post.mine} authorOcto={post.author_octo ?? 0} /></div>}
       {post.market && <div className="px-1"><MarketCard m={post.market} postId={post.id} /></div>}
       {post.quoted && <div className="mt-3 px-1"><QuotedCard q={post.quoted} /></div>}
 
