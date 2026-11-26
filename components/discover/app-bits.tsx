@@ -2,10 +2,11 @@
 
 /** Pièces communes de Discover : icône d'app, étoiles, badge « paie en $TICKER ». */
 import { Star } from "lucide-react";
+import { XIcon, TgIcon, DiscordIcon } from "@/components/shared/share-sheet";
 
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
-  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform?: boolean; boostedUntil?: string | null; noToken?: boolean; network?: string | null; verified?: boolean;
+  rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform?: boolean; boostedUntil?: string | null; noToken?: boolean; network?: string | null; verified?: boolean; socials?: { x: string | null; telegram: string | null; discord: string | null };
   token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string; price?: number | null; mcap?: number | null; volume24h?: number | null; pool?: string | null; mint?: string | null; curve?: string | null };
 };
 
@@ -25,17 +26,27 @@ export function Rating({ value, count, className = "" }: { value: number; count?
  * Ce qui suit le nom d'un projet : la puce bleue (donnée par l'admin) puis l'icône du token
  * (ou du réseau pour une fiche sans token), sans son nom.
  */
-export function NameMarks({ app, size = "size-4" }: { app: Pick<AppCard, "token" | "platform" | "noToken" | "network" | "verified">; size?: string }) {
-  const net = (app.platform || app.noToken) && app.network && NET[app.network] ? app.network : null;
-  const src = app.platform || app.noToken ? (net ? `/chains/${net}.png` : null) : app.token?.logo ?? null;
-  const label = app.platform || app.noToken ? (net ? NET[net] : "") : `$${app.token?.ticker ?? ""}`;
-  if (!app.verified && !src) return null;
+export function NameMarks({ app, size = "size-4" }: { app: Pick<AppCard, "verified">; size?: string }) {
+  // Après le nom : seulement la puce bleue (plus de token ni de blockchain)
+  if (!app.verified) return null;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 align-middle">
+    <span className="inline-flex shrink-0 items-center align-middle">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {app.verified && <img src="/verified.png" alt="Verified" title="Verified" className={`${size} shrink-0 select-none object-contain`} draggable={false} />}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {src && <img src={src} alt={label} title={label} className={`${size} shrink-0 rounded-full object-cover`} />}
+      <img src="/verified.png" alt="Verified" title="Verified" className={`${size} shrink-0 select-none object-contain`} draggable={false} />
+    </span>
+  );
+}
+
+/** Réseaux sociaux du projet, en petites icônes sur la ligne sous le nom (dans une carte cliquable : boutons, pas de lien imbriqué). */
+export function SocialIcons({ s, className = "" }: { s?: AppCard["socials"]; className?: string }) {
+  if (!s || (!s.x && !s.telegram && !s.discord)) return null;
+  const go = (url: string) => (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); window.open(url, "_blank", "noopener,noreferrer"); };
+  const btn = "flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground [&_svg]:size-[14px]";
+  return (
+    <span className={`inline-flex items-center ${className}`}>
+      {s.x && <button type="button" onClick={go(s.x)} aria-label="X" className={btn}><XIcon /></button>}
+      {s.telegram && <button type="button" onClick={go(s.telegram)} aria-label="Telegram" className={btn}><TgIcon /></button>}
+      {s.discord && <button type="button" onClick={go(s.discord)} aria-label="Discord" className={btn}><DiscordIcon /></button>}
     </span>
   );
 }

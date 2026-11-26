@@ -5,6 +5,7 @@ type Db = any;
 export type AppCard = {
   id: string; name: string; tagline: string; category: string; icon: string | null; banner: string | null;
   rating: number; ratings: number; visits: number; siteUrl: string; createdAt: string; platform: boolean; boostedUntil: string | null; noToken: boolean; network: string | null; verified: boolean;
+  socials: { x: string | null; telegram: string | null; discord: string | null };
   token: { id: string; ticker: string; name: string; logo: string | null; chain: string; slug: string; price: number | null; mcap: number | null; volume24h: number | null; pool: string | null; mint: string | null; curve: string | null };
 };
 
@@ -29,7 +30,11 @@ export async function withTokens(db: Db, rows: Row[]) {
   const admins = new Set<string>();
   const nets = new Map<string, string | null>();
   const verified = new Set<string>();
+  const socials = new Map<string, { x: string | null; telegram: string | null; discord: string | null }>();
   if (rows.length) {
+    // Réseaux sociaux du projet (colonnes de la migration 20261220_discover_socials)
+    const { data: so, error: soErr } = await db.from("discover_apps").select("id, x_url, telegram_url, discord_url").in("id", rows.map((r) => r.id));
+    if (!soErr) for (const x of (so ?? []) as { id: string; x_url: string | null; telegram_url: string | null; discord_url: string | null }[]) socials.set(x.id, { x: x.x_url, telegram: x.telegram_url, discord: x.discord_url });
     const { data: b, error } = await db.from("discover_apps").select("id, boosted_until").in("id", rows.map((r) => r.id));
     if (!error) for (const x of (b ?? []) as { id: string; boosted_until: string | null }[]) boosts.set(x.id, x.boosted_until);
     // Réseau des fiches sans token (colonne de la migration 20261219)
@@ -56,6 +61,7 @@ export async function withTokens(db: Db, rows: Row[]) {
         id: r.id, name: r.name, tagline: r.tagline, category: r.category, icon: r.icon_url ?? own?.logo_url ?? null, banner: r.banner_url ?? r.screenshots?.[0] ?? null,
         rating: Number(r.rating_avg) || 0, ratings: Number(r.rating_count) || 0, visits: visits.get(r.id) ?? 0, siteUrl: r.site_url, createdAt: r.created_at,
         platform, boostedUntil: boosts.get(r.id) ?? null, noToken, network, verified: verified.has(r.id),
+        socials: socials.get(r.id) ?? { x: null, telegram: null, discord: null },
         token: { id: r.token_id ?? "", ticker: t?.ticker ?? "", name: t?.name ?? "", logo: t?.logo_url ?? null, chain, slug: (chain === "arc" ? t?.mint_address ?? t?.arc_launch_id : t?.mint_address) ?? r.token_id ?? "",
           price: t?.price_usd != null ? Number(t.price_usd) : null, mcap: t?.market_cap_usd != null ? Number(t.market_cap_usd) : null,
           volume24h: t?.volume_24h_usd != null ? Number(t.volume_24h_usd) : null, pool: t?.pool_address ?? null, mint: t?.mint_address ?? null, curve: t?.arc_launch_id ?? null },

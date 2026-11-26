@@ -219,7 +219,8 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
   const ordered = [...order.filter((k) => keys.includes(k)), ...keys.filter((k) => !order.includes(k))];
   const N = ordered.length;
   const openCard = cards.find((c) => c.key === open) ?? null;
-  const stackH = open ? H + 16 + 48 + Math.max(0, N - 1) * 10 : TOP + (N - 1) * STEP + H;
+  // Carte ouverte : elle seule reste visible, les autres s'effacent (aucun mélange avec les détails)
+  const stackH = open ? Math.round(H * 1.03) + 6 : TOP + (N - 1) * STEP + H;
 
   function save(next: string[]) { setOrder(next); try { localStorage.setItem(ORDER_KEY, JSON.stringify(next)); } catch { /* sans effet */ } }
   function down(key: string, e: React.PointerEvent) {
@@ -249,7 +250,6 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
 
   if (!bags && !sum) return <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-[76px] animate-pulse rounded-[20px] bg-muted" />)}</div>;
 
-  let k = 0;
   return (
     <div>
       <div className="relative transition-[height] duration-500" style={{ height: stackH }}>
@@ -258,15 +258,16 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
           const isOpen = open === key;
           const dragging = drag?.key === key;
           let top: number, scale = 1;
+          const hidden = !!open && !isOpen;
           if (!open) top = TOP + pos * STEP + (dragging ? drag!.dy : 0);
-          else if (isOpen) { top = 0; scale = 1.03; }
-          else { top = H + 16 + 48 + k * 10; scale = 0.94; k++; }
+          else if (isOpen) { top = 3; scale = 1.03; }
+          else { top = 40; scale = 0.92; }
           if (dragging) scale = 1.03;
           return (
             <button key={key} type="button" aria-label={c.label} aria-expanded={isOpen}
               onClick={() => tap(key)} onPointerDown={(e) => down(key, e)} onPointerMove={(e) => move(key, e)} onPointerUp={() => up(key)} onPointerCancel={() => up(key)}
-              className={`absolute inset-x-0 block h-[214px] w-full touch-none select-none text-left ${open && !isOpen ? "wc-dim" : ""}`}
-              style={{ top, transform: `scale(${scale})`, zIndex: dragging ? 50 : isOpen ? 40 : pos + 1, transition: dragging ? "transform .2s" : "top .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1.3,.36,1), opacity .4s, filter .4s" }}>
+              className={`absolute inset-x-0 block h-[214px] w-full touch-none select-none text-left ${hidden ? "pointer-events-none" : ""}`} tabIndex={hidden ? -1 : 0} aria-hidden={hidden || undefined}
+              style={{ top, transform: `scale(${scale})`, opacity: hidden ? 0 : 1, zIndex: dragging ? 50 : isOpen ? 40 : pos + 1, transition: dragging ? "transform .2s" : "top .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1.3,.36,1), opacity .4s, filter .4s" }}>
               <div className={isOpen ? "wc-lit absolute inset-0 rounded-[20px]" : "absolute inset-0"}>{c.node}</div>
             </button>
           );
