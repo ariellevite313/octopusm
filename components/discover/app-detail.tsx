@@ -183,6 +183,8 @@ export function AppDetail({ id }: { id: string }) {
     }).catch(() => setMissing(true));
   }, [id]);
   useEffect(load, [load]);
+  // Une visite comptée en ouvrant la page du projet (une par personne et par heure, côté serveur)
+  useEffect(() => { visit(id); }, [id]);
 
   /** Admin : donne ou retire la puce bleue du projet. */
   async function toggleVerified() {

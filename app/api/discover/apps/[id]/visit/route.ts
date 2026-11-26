@@ -1,4 +1,4 @@
-/** POST /api/discover/apps/:id/visit : compte une visite du site (bouton Discover). Une par adresse IP et par heure. */
+/** POST /api/discover/apps/:id/visit : compte une visite (page du projet ouverte ou site ouvert). Une par adresse IP et par heure. */
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { limited } from "@/lib/limit";
