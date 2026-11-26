@@ -10,6 +10,8 @@ import { T } from "@/lib/i18n-mark";
 import { MORE_ITEMS } from "@/lib/nav/more-items";
 import { useAuth } from "@/providers/auth-provider";
 import { COLOR_MODES, useColorMode } from "@/lib/color-mode";
+import { useFiat } from "@/lib/use-fiat";
+import { FIAT } from "@/lib/fiat";
 
 const row = "flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-muted hover:text-foreground";
 const isOn = (href: string, pathname: string) => pathname === href || pathname.startsWith(href + "/");
@@ -72,6 +74,7 @@ export function MenuFooter({ onSettings }: { onSettings: () => void }) {
 export function MenuSettingsPanel({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
   const { tr, lang, setLang } = useT();
   const { isAuthenticated } = useAuth();
+  const { code: fiatCode, setFiat } = useFiat();
   const pathname = usePathname();
   const items = [...MORE_ITEMS, { label: T("Archive"), description: "", href: "/archive", external: false }];
   return (
@@ -98,6 +101,18 @@ export function MenuSettingsPanel({ onBack, onClose }: { onBack: () => void; onC
               <button key={l.code} type="button" onClick={() => setLang(l.code)}
                 className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${lang === l.code ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
                 {l.short}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Monnaie d'affichage des soldes (réglée ici seulement, plus dans le wallet) */}
+        <div className="px-1 pb-1 pt-3">
+          <p className="mb-2 text-[13px] font-semibold text-muted-foreground">{tr("Currency")}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {FIAT.map((c) => (
+              <button key={c.code} type="button" onClick={() => setFiat(c.code)} title={c.name}
+                className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${fiatCode === c.code ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                {c.code}
               </button>
             ))}
           </div>

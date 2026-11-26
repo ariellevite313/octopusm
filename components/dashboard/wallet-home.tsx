@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { disconnectWallet } from "@/lib/wallet/auth";
 import { useFiat } from "@/lib/use-fiat";
-import { FIAT } from "@/lib/fiat";
 import { useT } from "@/lib/i18n";
 import { T } from "@/lib/i18n-mark";
 import { OctoBadge } from "@/components/leaderboard/octo-tier-badge";
@@ -80,7 +79,7 @@ export function WalletHome({ wallet, name, avatar, octo, active, children }: { w
   const { tr } = useT();
   const router = useRouter();
   const { walletType, setWalletType } = useAuth();
-  const { code: fiatCode, setFiat, money } = useFiat();
+  const { code: fiatCode, money } = useFiat();
   const currentPath = usePathname();
   const pathname = active ?? currentPath;
   const [bags, setBags] = useState<Bags | null>(null);
@@ -192,13 +191,6 @@ export function WalletHome({ wallet, name, avatar, octo, active, children }: { w
             <span className={`text-[11px] ${ch >= 0 ? "text-up" : "text-down"}`}>{ch >= 0 ? "▲" : "▼"}</span>
             {money(Math.abs(ch))} ({Math.abs(chPct).toFixed(2)}%)
           </p>
-          <label className="relative mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            {tr("Currency")}
-            <select value={fiatCode} onChange={(e) => setFiat(e.target.value)} aria-label={tr("Currency")}
-              className="rounded-lg border border-border bg-background px-1.5 py-0.5 text-xs font-bold text-foreground">
-              {FIAT.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
-            </select>
-          </label>
         </>
       ) : (
         <div className="relative mt-7 space-y-2.5 pb-[26px]"><div className="h-12 w-56 animate-pulse rounded-xl bg-muted" /><div className="h-4 w-32 animate-pulse rounded bg-muted" /></div>
