@@ -151,17 +151,6 @@ export function LevelsButton({ wallet, avatar }: { wallet: string; avatar: strin
                       })}
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between rounded-[18px] border border-border bg-card px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/profile/omero-peek.png" alt="" className="om-buddy h-9 w-auto" />
-                        <span className="text-[14px] font-bold">{tr("Omero mascots on my banner")}</span>
-                      </div>
-                      <button role="switch" aria-checked={d.buddies} onClick={() => act({ action: "buddies", on: !d.buddies }, "b")} disabled={!!busy}
-                        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${d.buddies ? "bg-foreground" : "bg-muted"}`}>
-                        <span className={`absolute top-1 size-5 rounded-full bg-background transition-all ${d.buddies ? "left-6" : "left-1"}`} />
-                      </button>
-                    </div>
                   </>
                 )}
               </>

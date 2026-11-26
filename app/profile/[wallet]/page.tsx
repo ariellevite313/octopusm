@@ -20,9 +20,9 @@ import { ProfileBio, ProfileCommunity, type PinnedCommunity } from "@/components
 import { memberFaces } from "@/lib/social/communities";
 import Link from "next/link";
 import { JanusBadgeIcon } from "@/components/janus/janus-icon";
-import { BannerBuddies, FrameWrap } from "@/components/profile/profile-flair";
+import { FrameWrap } from "@/components/profile/profile-flair";
 import { LevelsButton } from "@/components/profile/levels-sheet";
-import { buddyCount, frameOf, levelIndex, type FrameId } from "@/lib/profile-cosmetics";
+import { frameOf, levelIndex, type FrameId } from "@/lib/profile-cosmetics";
 import { OCTO_TIERS } from "@/components/leaderboard/octo-tier-badge";
 
 // ─── Page config ──────────────────────────────────────────────────────────────
@@ -118,7 +118,6 @@ async function ProfileContent({ wallet }: { wallet: string }) {
   // Bannière lue hors cache (le profil public est mis en cache 60 s)
   let bannerSrc: string | null = null;
   let frame: FrameId | null = null;
-  let buddies = true;
   let aiOwner: { wallet: string; name: string } | null = null;
   let aido: string | null = null;
   let aidoHandle: string | null = null;
@@ -128,13 +127,12 @@ async function ProfileContent({ wallet }: { wallet: string }) {
     const { data: b } = await admin.from("wallets").select("banner_src, ai_owner").eq("address", wallet).maybeSingle();
     bannerSrc = b?.banner_src ?? null;
     // Animations de profil (colonnes ajoutées par 20261221_profile_cosmetics)
-    const { data: fx } = await admin.from("wallets").select("profile_frame, profile_buddies").eq("address", wallet).maybeSingle();
+    const { data: fx } = await admin.from("wallets").select("profile_frame").eq("address", wallet).maybeSingle();
     if (fx) {
       const f = frameOf(fx.profile_frame);
       // Un contour de niveau n'est plus porté si le niveau est redescendu
       const lvlOk = !f || !("level" in f.unlock) || levelIndex(data.stats.octo_balance) >= OCTO_TIERS.findIndex((t) => t.label === (f.unlock as { level: string }).level);
       frame = f && lvlOk ? f.id : null;
-      buddies = fx.profile_buddies !== false;
     }
     if (b?.ai_owner) {
       const { data: o } = await admin.from("wallets").select("display_name, username").eq("address", b.ai_owner).maybeSingle();
@@ -180,7 +178,6 @@ async function ProfileContent({ wallet }: { wallet: string }) {
           className="profile-banner relative h-36 bg-cover bg-center sm:h-48"
           style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
         >
-          {buddies && <BannerBuddies count={buddyCount(data.stats.octo_balance)} />}
           <ProfileMenu wallet={wallet} hasFeatured={!!featured} name={displayName} />
           <BannerCamera wallet={wallet} />
         </div>
