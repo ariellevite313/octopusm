@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { checkSwapInput } from "@/lib/swap/core";
 import { swapTransaction, SwapError } from "@/lib/swap/jupiter";
 import { feeBpsFor } from "@/lib/swap/server";
+import { hasCrown } from "@/lib/top-earner";
+import { createAdminClient } from "@/lib/supabase/server";
 import { requireWallet } from "@/lib/social/session";
 import { resolveRef } from "@/lib/swap/chill-server";
 
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
   if (!c.ok) return NextResponse.json({ error: c.error }, { status: 400 });
   try {
     const ref = body.ref ? await resolveRef(body.ref, who.wallet, c.v.inputMint, c.v.outputMint) : null;
-    return NextResponse.json(await swapTransaction(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint, !!ref), who.wallet, ref));
+    return NextResponse.json(await swapTransaction(c.v, await feeBpsFor(c.v.inputMint, c.v.outputMint, !!ref, await hasCrown(createAdminClient(), who.wallet).catch(() => false)), who.wallet, ref));
   } catch (e) {
     if (e instanceof SwapError) return NextResponse.json({ error: e.message }, { status: e.status });
     console.error("[swap/tx]", e);

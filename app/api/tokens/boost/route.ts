@@ -11,6 +11,7 @@ import { CHAINS, solToken, type TerminalChain } from "@/lib/terminal";
 import { dexSearch } from "@/lib/dexscreener";
 import { SOL_MINT } from "@/lib/swap/core";
 import { TOKEN_BOOST_COST_OMERO, TOKEN_BOOST_HOURS, validTokenAddress } from "@/lib/token-boost";
+import { crownBoostCost, hasCrown } from "@/lib/top-earner";
 
 const ERRORS: Record<string, [string, number]> = { insufficient_balance: ["Not enough Omero", 402] };
 
@@ -38,7 +39,8 @@ export async function POST(req: Request) {
 
   const { data, error } = await db.rpc("boost_token", {
     p_wallet: s.wallet, p_chain: chain, p_mint: mint, p_symbol: meta.symbol.slice(0, 24), p_name: meta.name.slice(0, 60), p_logo: meta.logo,
-    p_cost: TOKEN_BOOST_COST_OMERO, p_hours: TOKEN_BOOST_HOURS,
+    // Couronne (top 5 des gains) : -30 % sur le boost
+    p_cost: crownBoostCost(TOKEN_BOOST_COST_OMERO, await hasCrown(db, s.wallet).catch(() => false)), p_hours: TOKEN_BOOST_HOURS,
   });
   if (error) { console.error("[tokens/boost]", error.message); return NextResponse.json({ error: "Could not boost right now" }, { status: 500 }); }
   if (data?.error) { const [msg, code] = ERRORS[data.error] ?? ["Could not boost right now", 400]; return NextResponse.json({ error: msg }, { status: code }); }

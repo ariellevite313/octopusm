@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { shortAddress } from "@/lib/format";
+import { crownPrice, useCrown } from "@/components/shared/use-crown";
 import { APP_CATEGORY_LABEL, BOOST_COST_OMERO, BOOST_DAYS, REPORT_REASONS, REPORT_REASON_LABEL } from "@/lib/discover";
 import { LOCALES } from "@/lib/i18n-mark";
 import { ShareSheet, XIcon, TgIcon, DiscordIcon } from "@/components/shared/share-sheet";
@@ -135,6 +136,8 @@ function BoostButton({ id, until, onDone }: { id: string; until: string | null; 
   const { tr, lang } = useT();
   const [busy, setBusy] = useState(false);
   const active = until && new Date(until).getTime() > Date.now();
+  // Couronne (top 5 des gains) : -30 %
+  const cost = crownPrice(BOOST_COST_OMERO, useCrown());
   const go = async () => {
     setBusy(true);
     try {
@@ -149,8 +152,8 @@ function BoostButton({ id, until, onDone }: { id: string; until: string | null; 
     <button onClick={go} disabled={busy} className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border text-[15px] font-bold transition-colors hover:bg-muted disabled:opacity-50">
       {busy ? <Mirage className="size-4" /> : <Rocket className="size-4" />}
       {active
-        ? tr("Boosted until {date} · extend for {n} Omero", { date: new Date(until!).toLocaleDateString(LOCALES[lang], { day: "numeric", month: "short" }), n: BOOST_COST_OMERO })
-        : tr("Boost for {n} Omero · {d} days", { n: BOOST_COST_OMERO, d: BOOST_DAYS })}
+        ? tr("Boosted until {date} · extend for {n} Omero", { date: new Date(until!).toLocaleDateString(LOCALES[lang], { day: "numeric", month: "short" }), n: cost })
+        : tr("Boost for {n} Omero · {d} days", { n: cost, d: BOOST_DAYS })}
     </button>
   );
 }

@@ -5,7 +5,7 @@ import type { FrameId } from "@/lib/profile-cosmetics";
 
 const BADGE: Record<string, string> = { Blue: "blue", Green: "green", Yellow: "yellow", Orange: "orange", Red: "red" };
 
-/** Couronne du n°1 des gains sur OM, posée sur l'avatar et qui se balance. */
+/** Couronne du top 5 des gains sur OM, posée sur l'avatar et qui se balance. */
 function Crown() {
   return (
     <svg className="om-crown" viewBox="0 0 32 24" role="img" aria-label="Top earner on OM">
@@ -17,7 +17,7 @@ function Crown() {
   );
 }
 
-/** Entoure l'avatar du contour choisi (aucun contour : l'avatar seul) ; `crown` : la couronne du n°1 des gains. */
+/** Entoure l'avatar du contour choisi (aucun contour : l'avatar seul) ; `crown` : la couronne du top 5 des gains. */
 export function FrameWrap({ frame, crown = false, children }: { frame: FrameId | null; crown?: boolean; children: React.ReactNode }) {
   if (!frame && !crown) return <>{children}</>;
   return <span className={`relative inline-flex rounded-full ${frame ? `om-frame om-frame-${frame}` : ""}`}>{children}{crown && <Crown />}</span>;

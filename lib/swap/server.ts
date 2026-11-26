@@ -1,3 +1,4 @@
+import { CROWN_SWAP_FEE_BPS } from "@/lib/top-earner";
 /** Serveur : frais applicables à une paire (0 pour les tokens lancés sur OM). */
 import { createAdminClient } from "@/lib/supabase/server";
 import { SWAP_FEE_BPS, tradedMint } from "./core";
@@ -17,10 +18,12 @@ export async function isOmToken(mint: string): Promise<boolean> {
   return om;
 }
 
-/** Frais OM : 0,3 % ; 0,03 % sur les tokens majeurs ; 0 % sur les tokens OM, sauf via un post « Chill ton sac » (0,3 % dont 40 % au détenteur). */
-export async function feeBpsFor(inputMint: string, outputMint: string, withRef = false): Promise<number> {
+/** Frais OM : 0,3 % (0,22 % avec la couronne) ; 0,03 % sur les tokens majeurs ; 0 % sur les tokens OM, sauf via un post « Chill ton sac » (0,3 % dont 40 % au détenteur). */
+export async function feeBpsFor(inputMint: string, outputMint: string, withRef = false, crown = false): Promise<number> {
   const traded = tradedMint(inputMint, outputMint);
   if (isMajorSolana(traded)) return MAJOR_FEE_BPS;
   if (withRef) return SWAP_FEE_BPS;
-  return (await isOmToken(traded)) ? 0 : SWAP_FEE_BPS;
+  if (await isOmToken(traded)) return 0;
+  // Couronne (top 5 des gains) : -25 % sur les frais de 0,3 %
+  return crown ? CROWN_SWAP_FEE_BPS : SWAP_FEE_BPS;
 }

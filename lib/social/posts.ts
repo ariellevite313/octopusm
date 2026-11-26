@@ -1,7 +1,7 @@
 /**
  * Helpers serveur du fil social : types, lecture enrichie (auteur, likes, token, états du viewer).
  */
-import { topEarnerWallet } from "@/lib/top-earner";
+import { crownWallets } from "@/lib/top-earner";
 import { getProfiles } from "@/lib/profiles";
 import type { FeaturedToken } from "@/lib/social/featured-token";
 
@@ -20,7 +20,7 @@ export type FeedPost = {
   author_octo: number;
   /** Animation de profil de l'auteur (contour animé autour de l'avatar) */
   author_frame?: import("@/lib/profile-cosmetics").FrameId | null;
-  /** L'auteur est le n°1 des gains sur OM : couronne sur son avatar */
+  /** L'auteur est dans le top 5 des gains sur OM : couronne sur son avatar */
   author_crown?: boolean;
   author_token: FeaturedToken | null;
   body: string;
@@ -164,7 +164,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
   ]);
   const tipperProfiles = await getProfiles(admin, [...tips.top.values()].flat());
   const communities = await loadCommunities(admin, ids);
-  const crownWallet = await topEarnerWallet(admin).catch(() => null);
+  const crowned = new Set(await crownWallets(admin).catch(() => [] as string[]));
 
   return entries.map(({ row: r, by }) => {
     const p = profiles.get(r.author);
@@ -181,7 +181,7 @@ export async function enrichPosts(admin: any, rowsIn: Row[], viewer: string | nu
       author_avatar: p?.avatar_src ?? null,
       author_octo: p?.octo ?? 0,
       author_frame: p?.frame ?? null,
-      author_crown: !!crownWallet && r.author === crownWallet,
+      author_crown: crowned.has(r.author),
       author_token: p?.token ?? null,
       body: r.body,
       images: r.images ?? [],

@@ -13,6 +13,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { Mirage } from "@/components/shared/mirage";
 import { CHAINS } from "@/lib/terminal";
 import { TOKEN_BOOST_COST_OMERO, TOKEN_BOOST_HOURS, validTokenAddress } from "@/lib/token-boost";
+import { crownPrice, useCrown } from "@/components/shared/use-crown";
 
 export const FEED_TOKENS_REFRESH = "om-feed-tokens-refresh";
 const int = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -32,7 +33,10 @@ export function BoostTokenSheet({ chain: chain0 = "solana", mint: mint0 = "", sy
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
 
   const ok = validTokenAddress(chain, mint.trim());
-  const short = bal != null && bal < TOKEN_BOOST_COST_OMERO;
+  // Couronne (top 5 des gains) : -30 %
+  const crown = useCrown();
+  const cost = crownPrice(TOKEN_BOOST_COST_OMERO, crown);
+  const short = bal != null && bal < cost;
 
   async function boost() {
     if (!isAuthenticated) { window.dispatchEvent(new CustomEvent("open-wallet-connect")); return; }
@@ -69,11 +73,11 @@ export function BoostTokenSheet({ chain: chain0 = "solana", mint: mint0 = "", sy
           <div className="flex items-center justify-between py-3 text-[15px]"><span className="text-muted-foreground">{tr("Shown in Trending tokens")}</span><span className="num font-semibold">{TOKEN_BOOST_HOURS} h</span></div>
           <div className="flex items-center justify-between py-3 text-[15px]"><span className="text-muted-foreground">{tr("Price")}</span><span className="num flex items-center gap-1.5 font-semibold">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/octo-coin.png" alt="" className="size-4 rounded-full" />{int(TOKEN_BOOST_COST_OMERO)} OMERO</span></div>
+            <img src="/octo-coin.png" alt="" className="size-4 rounded-full" />{crown && <s className="text-muted-foreground">{int(TOKEN_BOOST_COST_OMERO)}</s>}{int(cost)} OMERO</span></div>
           {bal != null && <div className="flex items-center justify-between py-3 text-[15px]"><span className="text-muted-foreground">{tr("Your balance")}</span><span className={`num font-semibold ${short ? "text-down" : ""}`}>{int(bal)} OMERO</span></div>}
         </div>
         <button onClick={boost} disabled={busy || !ok || short} className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[16px] font-bold text-background disabled:opacity-40">
-          {busy && <Mirage className="size-4" />}{short ? tr("Not enough Omero") : tr("Boost for {amount} OMERO", { amount: int(TOKEN_BOOST_COST_OMERO) })}
+          {busy && <Mirage className="size-4" />}{short ? tr("Not enough Omero") : tr("Boost for {amount} OMERO", { amount: int(cost) })}
         </button>
       </div>
     </div>,

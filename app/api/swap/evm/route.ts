@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { getWalletAddress } from "@/lib/auth/get-wallet";
 import { createAdminClient } from "@/lib/supabase/server";
+import { hasCrown } from "@/lib/top-earner";
 import { checkEvmInput, EvmSwapError, isAddr, zeroX } from "@/lib/swap/evm";
 import { evmHolding, signRef } from "@/lib/swap/chill-evm";
 import { CHILL_MIN_USD } from "@/lib/swap/chill";
@@ -31,6 +32,8 @@ export async function POST(req: Request) {
   const c = checkEvmInput(b, taker);
   if (!c.ok) return NextResponse.json({ error: c.error }, { status: 400 });
   try {
+    // Couronne (top 5 des gains) : -25 % sur les frais, sauf sur un trade « Chill ton sac »
+    if (!b.refPost && w && w.startsWith("0x")) c.v.crown = await hasCrown(createAdminClient(), w).catch(() => false);
     const q = await zeroX(c.v, b.mode === "quote" ? "quote" : "price");
     // Swap lancé depuis un post « sac » : jeton signé qui lie cette transaction au post, pour cumuler la part du détenteur
     if (q.tx && q.feeNative && taker && b.refPost) {
