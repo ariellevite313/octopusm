@@ -5,10 +5,22 @@ import type { FrameId } from "@/lib/profile-cosmetics";
 
 const BADGE: Record<string, string> = { Blue: "blue", Green: "green", Yellow: "yellow", Orange: "orange", Red: "red" };
 
-/** Entoure l'avatar du contour choisi (aucun contour : l'avatar seul). */
-export function FrameWrap({ frame, children }: { frame: FrameId | null; children: React.ReactNode }) {
-  if (!frame) return <>{children}</>;
-  return <span className={`om-frame om-frame-${frame}`}>{children}</span>;
+/** Couronne du n°1 des gains sur OM, posée sur l'avatar et qui se balance. */
+function Crown() {
+  return (
+    <svg className="om-crown" viewBox="0 0 32 24" role="img" aria-label="Top earner on OM">
+      <path d="M3 20 L1.5 6 L9.5 12 L16 2 L22.5 12 L30.5 6 L29 20 Z" fill="url(#om-crown-g)" stroke="#7c2d12" strokeWidth="1.2" strokeLinejoin="round" />
+      <rect x="3" y="19" width="26" height="3.5" rx="1.2" fill="#b45309" />
+      <circle cx="16" cy="13.5" r="2.2" fill="#f43f5e" /><circle cx="9" cy="15.5" r="1.5" fill="#f43f5e" /><circle cx="23" cy="15.5" r="1.5" fill="#f43f5e" />
+      <defs><linearGradient id="om-crown-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fde68a" /><stop offset="1" stopColor="#f59e0b" /></linearGradient></defs>
+    </svg>
+  );
+}
+
+/** Entoure l'avatar du contour choisi (aucun contour : l'avatar seul) ; `crown` : la couronne du n°1 des gains. */
+export function FrameWrap({ frame, crown = false, children }: { frame: FrameId | null; crown?: boolean; children: React.ReactNode }) {
+  if (!frame && !crown) return <>{children}</>;
+  return <span className={`relative inline-flex rounded-full ${frame ? `om-frame om-frame-${frame}` : ""}`}>{children}{crown && <Crown />}</span>;
 }
 
 /** Une mascotte par niveau atteint, chacune avec la puce de son niveau, qui bougent l'une après l'autre. */

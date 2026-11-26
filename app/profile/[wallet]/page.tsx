@@ -21,6 +21,7 @@ import { memberFaces } from "@/lib/social/communities";
 import Link from "next/link";
 import { JanusBadgeIcon } from "@/components/janus/janus-icon";
 import { FrameWrap } from "@/components/profile/profile-flair";
+import { topEarnerWallet } from "@/lib/top-earner";
 import { LevelsButton } from "@/components/profile/levels-sheet";
 import { frameOf, levelIndex, type FrameId } from "@/lib/profile-cosmetics";
 import { OCTO_TIERS } from "@/components/leaderboard/octo-tier-badge";
@@ -142,6 +143,8 @@ async function ProfileContent({ wallet }: { wallet: string }) {
     aido = l?.aido_address ?? null;
     aidoHandle = l?.aido_handle ?? null;
   } catch { /* colonnes absentes avant migration */ }
+  // Couronne : le n°1 des gains sur OM
+  const crown = (await topEarnerWallet(createAdminClient()).catch(() => null)) === wallet;
   const featured = (await getFeaturedTokens(createAdminClient(), [wallet])).get(wallet) ?? null;
   // Bio et communauté épinglée (colonnes ajoutées par la migration des communautés)
   let bio: string | null = null;
@@ -185,7 +188,7 @@ async function ProfileContent({ wallet }: { wallet: string }) {
         <div className="px-5 pb-5">
           {/* Avatar — large, overlapping the banner */}
           <div className="relative z-10 -mt-[60px] mb-3 flex items-end justify-between">
-            <FrameWrap frame={frame}>
+            <FrameWrap frame={frame} crown={crown}>
             {avatarSrc ? (
               <AvatarZoom src={avatarSrc} alt={displayName}>
                 <Image

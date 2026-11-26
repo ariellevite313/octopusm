@@ -773,6 +773,9 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 .om-frame-galaxy  { --fa: #1e1b4b; --fb: #7c3aed; --fc: #f0abfc; --fgc: rgb(124 58 237 / .6); --fs: 6s; }
 .om-frame-rainbow { --fa: #ef4444; --fb: #eab308; --fc: #3b82f6; --fgc: rgb(168 85 247 / .5); --fs: 3s; }
 .om-frame-neon::before, .om-frame-rainbow::before { animation: om-spin var(--fs) linear infinite, om-hue 6s linear infinite; }
+/* Couronne du contour Ruby : posée en haut, légèrement penchée, elle se balance */
+.om-crown { position: absolute; left: 50%; top: 0; width: 58%; height: auto; z-index: 2; pointer-events: none; transform-origin: 50% 100%; translate: -50% -78%; rotate: -8deg; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); animation: om-crown 3s ease-in-out infinite; }
+@keyframes om-crown { 0%, 100% { rotate: -8deg; } 50% { rotate: 6deg; } }
 @keyframes om-spin { to { rotate: 360deg; } }
 @keyframes om-hue { to { filter: hue-rotate(360deg) drop-shadow(0 0 8px var(--fgc)); } }
 @keyframes om-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
@@ -787,7 +790,7 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
   70% { transform: translateY(0) rotate(0deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .om-frame::before, .om-frame::after, .om-buddy { animation: none; }
+  .om-frame::before, .om-frame::after, .om-buddy, .om-crown { animation: none; }
 }
 
 /* ── Accueil du wallet en cartes (téléphone) ─────────────────────────────── */

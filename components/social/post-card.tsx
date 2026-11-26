@@ -28,6 +28,7 @@ import { ShareSheet, POST_PERKS } from "@/components/shared/share-sheet";
 import { OmeroHeadIcon } from "@/components/shared/omero-head-icon";
 import { TipSheet } from "./tip-sheet";
 import { SupportersSheet } from "./supporters-sheet";
+import { FrameWrap } from "@/components/profile/profile-flair";
 import { compactCount } from "@/lib/social/tips";
 import { ArticleCard } from "./article-card";
 import { BagCard } from "./chill";
@@ -385,7 +386,7 @@ export function PostCard({ post: initial, onRemoved, bar = false, onComments, hi
       )}
       {/* Auteur */}
       <div className="mb-3 flex items-center gap-3 px-1">
-        <ProfileHoverCard wallet={post.author} className="shrink-0"><Link href={`/profile/${post.author}`}><Avatar src={post.author_avatar} name={name} ring /></Link></ProfileHoverCard>
+        <ProfileHoverCard wallet={post.author} className="shrink-0"><Link href={`/profile/${post.author}`} className="block">{post.author_frame || post.author_crown ? <FrameWrap frame={post.author_frame ?? null} crown={!!post.author_crown}><Avatar src={post.author_avatar} name={name} ring={!post.author_frame} /></FrameWrap> : <Avatar src={post.author_avatar} name={name} ring />}</Link></ProfileHoverCard>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <ProfileHoverCard wallet={post.author} className="flex min-w-0">

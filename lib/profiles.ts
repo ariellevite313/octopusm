@@ -5,6 +5,7 @@ import { avatarOr, DEFAULT_AVATAR } from "@/lib/default-avatar";
  */
 
 import { getFeaturedTokens, type FeaturedToken } from "@/lib/social/featured-token";
+import type { FrameId } from "@/lib/profile-cosmetics";
 
 export type PublicProfile = {
   /** Nom affiché : display_name, sinon username, sinon null */
@@ -13,6 +14,8 @@ export type PublicProfile = {
   octo: number;
   /** Token recommandé (logo à côté du nom) */
   token?: FeaturedToken | null;
+  /** Animation de profil portée (contour animé autour de l'avatar), comme sur la page de profil */
+  frame?: FrameId | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +42,20 @@ export async function getProfiles(admin: any, addresses: string[]): Promise<Map<
     p.octo = Number(o.total_octo ?? 0);
     map.set(o.wallet_address, p);
   }
+  // Animation de profil : un contour de niveau n'est plus porté si le niveau est redescendu (colonne de 20261221_profile_cosmetics)
+  try {
+    const { data: fx } = await admin.from("wallets").select("address, profile_frame").in("address", addrs).not("profile_frame", "is", null);
+    const rows = (fx ?? []) as { address: string; profile_frame: string | null }[];
+    // Chargé seulement si quelqu'un porte un contour (le module des niveaux tire le composant des badges)
+    const [{ frameOf, levelIndex }, { OCTO_TIERS }] = rows.length ? await Promise.all([import("@/lib/profile-cosmetics"), import("@/components/leaderboard/octo-tier-badge")]) : [{ frameOf: () => null, levelIndex: () => -1 }, { OCTO_TIERS: [] as { label: string }[] }];
+    for (const r of rows) {
+      const f = frameOf(r.profile_frame);
+      const p = map.get(r.address);
+      if (!f || !p) continue;
+      const ok = !("level" in f.unlock) || levelIndex(p.octo) >= OCTO_TIERS.findIndex((t) => t.label === (f.unlock as { level: string }).level);
+      if (ok) p.frame = f.id;
+    }
+  } catch { /* colonne absente avant migration */ }
   for (const [addr, t] of featured) {
     const p = map.get(addr) ?? { name: null, avatar_src: DEFAULT_AVATAR, octo: 0 };
     p.token = t;
