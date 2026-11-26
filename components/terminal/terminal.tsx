@@ -138,7 +138,7 @@ export function Terminal() {
   useEffect(() => { try { if (localStorage.getItem("om_term_list") === "0") setListOpenRaw(false); } catch { /* ignore */ } }, []);
   const setListOpen = (v: boolean) => { setListOpenRaw(v); try { localStorage.setItem("om_term_list", v ? "1" : "0"); } catch { /* ignore */ } };
   return (
-    <div className={`relative mx-auto pb-28 md:pb-10 lg:grid lg:gap-6 lg:px-4 lg:pt-4 ${listOpen ? "max-w-[1400px] lg:grid-cols-[400px_minmax(0,1fr)]" : "max-w-[1680px] lg:grid-cols-[minmax(0,1fr)] lg:pl-14"}`}>
+    <div className={`relative mx-auto pb-28 md:pb-10 lg:grid lg:gap-6 lg:px-4 lg:pt-4 ${listOpen ? "max-w-[1600px] lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[400px_minmax(0,1fr)]" : "max-w-[1680px] lg:grid-cols-[minmax(0,1fr)] lg:pl-14"}`}>
       {!listOpen && (
         <button onClick={() => setListOpen(true)} title={tr("Show the token list")} aria-label={tr("Show the token list")}
           className="absolute left-3 top-4 z-30 hidden size-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground lg:flex">
@@ -505,6 +505,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   useEffect(() => { if (waitLimit && isAuthenticated && walletAddress && !walletAddress.startsWith("0x")) { setWaitLimit(false); openLimit(); } }, [waitLimit, isAuthenticated, walletAddress]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ordinateur : graphique pro avec outils de dessin (le téléphone garde le graphique simple)
   const [desk, setDesk] = useState(false);
+  // Ordinateur : les trades sont sous l'achat, l'onglet du centre s'ouvre sur les holders
+  useEffect(() => { if (desk) setTab((x) => (x === "trades" ? "holders" : x)); }, [desk]);
   useEffect(() => {
     const m = window.matchMedia("(min-width: 1024px)");
     const on = () => setDesk(m.matches);
@@ -583,7 +585,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
   };
 
   return (
-    <div className="min-w-0 pb-40 lg:pb-8">
+    // Ordinateur : chaque zone (graphique et onglets, achat et trades) défile seule, sans entraîner l'autre
+    <div className="min-w-0 pb-40 lg:flex lg:h-[calc(100vh-2rem)] lg:flex-col lg:pb-0">
       <ShareSheet
         open={!!shareCard}
         onClose={() => setShareCard(null)}
@@ -626,12 +629,12 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         )}
       </div>
 
-      <div className={`lg:grid lg:gap-5 ${isSol && mint !== SOL_MINT ? "lg:grid-cols-[minmax(0,1fr)_460px]" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
-        <div className="min-w-0">
+      <div className={`lg:grid lg:min-h-0 lg:flex-1 lg:grid-rows-[minmax(0,1fr)] lg:gap-5 ${isSol && mint !== SOL_MINT ? "lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_460px]" : "lg:grid-cols-[minmax(0,1fr)_360px]"}`}>
+        <div className="min-w-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-8 lg:[scrollbar-width:thin]">
           {/* Prix */}
           <div className="flex items-start justify-between gap-3 px-4 pt-3">
             <div className="min-w-0">
-              <p className="num text-[36px] font-bold leading-none tracking-tight text-foreground">{price(live)}</p>
+              <p className="num truncate text-[36px] font-bold leading-none tracking-tight text-foreground lg:text-[30px]">{price(live)}</p>
               {diff != null && diffPct != null && (
                 <p className={`num mt-2 text-[14px] font-semibold ${diff >= 0 ? "text-up" : "text-down"}`}>
                   {diff >= 0 ? "▲" : "▼"} {price(Math.abs(diff))} ({pct(diffPct)}) <span className="font-normal text-muted-foreground">{rangeLabel}</span>
@@ -689,11 +692,11 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
           {/* Détenteurs | Fil | À propos */}
           <div className="mt-2 flex border-b border-border px-4">
             {([["trades", tr("Trades")], ["holders", tr("Holders")], ["predict", tr("Predict")], ["feed", tr("Feed")], ["about", tr("About")]] as const).map(([k, label]) => (
-              <button key={k} onClick={() => setTab(k)} className={`flex-1 border-b-2 py-3 text-[15px] font-bold ${tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{label}</button>
+              <button key={k} onClick={() => setTab(k)} className={`flex-1 border-b-2 py-3 text-[15px] font-bold ${k === "trades" ? "lg:hidden" : ""} ${tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground"}`}>{label}</button>
             ))}
           </div>
           <div className="px-4 pt-3">
-            {tab === "trades" && <LiveTrades chain={chain} pool={t.pool} mint={mint} />}
+            {tab === "trades" && !desk && <LiveTrades chain={chain} pool={t.pool} mint={mint} />}
             {tab === "holders" && (mint === SOL_MINT
               ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">{tr("SOL is the native coin of Solana: millions of wallets hold it, so there is no top holders list.")}</p>
               : isSol || EVM_HOLDERS.includes(chain) ? <Holders mint={mint} chain={chain} price={live} />
@@ -706,8 +709,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
         </div>
 
         {/* Ordinateur : boîte de swap à droite */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-16 space-y-3">
+        <aside className="hidden lg:block lg:overflow-y-auto lg:overscroll-contain lg:pb-8 lg:[scrollbar-width:thin]">
+          <div className="space-y-3">
             {isSol ? <>
               <div className="flex rounded-xl bg-muted p-1">
                 {(["swap", "limit"] as const).map((k) => (
@@ -721,6 +724,13 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
                 : <SwapBox mint={mint} />}
               <Verified info={info} />
             </> : isEvmChain(chain) ? <EvmSwapBox chain={chain} token={mint} /> : chain === "arc" ? <ArcTradeBox token={mint} symbol={t.symbol} /> : <SoonTrade chain={chain} />}
+            {/* Historique des trades sous l'achat, dans la même zone */}
+            {desk && GT_NET[chain] && (
+              <div className="pt-3">
+                <p className="mb-1 text-[16px] font-bold">{tr("Trades")}</p>
+                <LiveTrades chain={chain} pool={t.pool} mint={mint} />
+              </div>
+            )}
           </div>
         </aside>
       </div>
