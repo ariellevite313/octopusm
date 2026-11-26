@@ -5,7 +5,8 @@
  * et un ticket par prédiction en cours. On touche une carte : elle sort de la pile, s'illumine et montre ses détails.
  * On glisse une carte vers le haut ou le bas pour changer l'ordre (gardé sur l'appareil).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { fetchCached, readCached } from "@/lib/wallet-cache";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -70,13 +71,23 @@ export function WalletCards({ wallet, onDeposit, refreshKey = 0 }: { wallet: str
   const startY = useRef(0);
   const moved = useRef(false);
 
+  // Dernières valeurs connues tout de suite (gardées sur l'appareil), puis mise à jour ; un échec garde l'affichage
+  useLayoutEffect(() => {
+    const b = readCached<Bags>(wallet, "/api/bags"); if (b) setBags(b);
+    const s = readCached<Summary>(wallet, "/api/wallet/summary"); if (s) setSum(s);
+  }, [wallet]);
   const load = useCallback(() => {
-    const j = <X,>(u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? (r.json() as Promise<X>) : null)).catch(() => null);
-    j<Bags>("/api/bags").then((b) => b && setBags(b));
-    j<Summary>("/api/wallet/summary").then((s) => s && setSum(s));
-  }, []);
+    void fetchCached<Bags>(wallet, "/api/bags").then((b) => b && setBags(b));
+    void fetchCached<Summary>(wallet, "/api/wallet/summary").then((s) => s && setSum(s));
+  }, [wallet]);
   useEffect(() => { load(); }, [load, refreshKey]);
-  useEffect(() => { try { const o = JSON.parse(localStorage.getItem(ORDER_KEY) ?? "[]"); if (Array.isArray(o)) setOrder(o); } catch { /* sans effet */ } }, []);
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === "visible") load(); };
+    const id = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
+  }, [load]);
+  useLayoutEffect(() => { try { const o = JSON.parse(localStorage.getItem(ORDER_KEY) ?? "[]"); if (Array.isArray(o)) setOrder(o); } catch { /* sans effet */ } }, []);
 
   const arc = wallet.startsWith("0x");
   const all = [...(bags?.main ?? []), ...(bags?.small ?? [])];

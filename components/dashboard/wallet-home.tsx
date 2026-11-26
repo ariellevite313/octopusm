@@ -5,7 +5,7 @@
  * identité avec le badge de niveau, solde du wallet sur 24 h, trois tuiles (Trader, Déposer, Réclamer)
  * et les onglets en texte. Les gains OM ne sont visibles que par la tuile Réclamer.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,6 +23,10 @@ import { ProfileShareSheet } from "@/components/profile/profile-share";
 import { ProfileEditSheet } from "@/components/dashboard/profile-edit-sheet";
 import { WithdrawModal } from "@/components/dashboard/withdraw-modal";
 import { WaveTexture } from "@/components/dashboard/creator-fees-dashboard";
+import { fetchCached, readCached } from "@/lib/wallet-cache";
+
+// Avant l'affichage (pas de saut entre cartes et classique) ; côté serveur, un simple effet
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type Bags = { total: number; change24h: number };
 type Bal = { usdcBalance: number; cltBalance: number; winningsUsdc?: number; referralUsdc?: number };
@@ -93,22 +97,36 @@ export function WalletHome({ wallet, name, avatar, octo, active, children }: { w
   // Mode cartes (téléphone) : le détail sous les cartes ne s'ouvre qu'en touchant son bouton
   const [more, setMore] = useState(false);
   const [rk, setRk] = useState(0);
-  useEffect(() => { try { if (localStorage.getItem("om-wallet-view") === "classic") setView("classic"); } catch { /* sans effet */ } }, []);
+  useIsoLayoutEffect(() => { try { if (localStorage.getItem("om-wallet-view") === "classic") setView("classic"); } catch { /* sans effet */ } }, []);
   const switchView = () => { const v = view === "cards" ? "classic" : "cards"; setView(v); try { localStorage.setItem("om-wallet-view", v); } catch { /* sans effet */ } };
 
+  const feesUrl = `/api/dashboard/pending-fees?wallet=${encodeURIComponent(wallet)}`;
   const load = useCallback(async (fresh = false) => {
     setLoading(true);
-    const j = <X,>(u: string) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? (r.json() as Promise<X>) : null)).catch(() => null);
     const [b, s, f] = await Promise.all([
-      j<Bags>(`/api/bags${fresh ? "?fresh=1" : ""}`),
-      j<Bal>("/api/balance"),
-      wallet.startsWith("0x") ? Promise.resolve(null) : j<Fees>(`/api/dashboard/pending-fees?wallet=${encodeURIComponent(wallet)}`),
+      fetchCached<Bags>(wallet, `/api/bags${fresh ? "?fresh=1" : ""}`),
+      fetchCached<Bal>(wallet, "/api/balance"),
+      wallet.startsWith("0x") ? Promise.resolve(null) : fetchCached<Fees>(wallet, feesUrl),
     ]);
+    // Un échec garde les valeurs déjà affichées
     if (b) setBags(b);
     if (s) setBal(s);
-    setFees(f);
+    if (f) setFees(f);
     setLoading(false);
-  }, [wallet]);
+  }, [wallet, feesUrl]);
+  // Dernières valeurs connues tout de suite, puis mise à jour
+  useIsoLayoutEffect(() => {
+    const b = readCached<Bags>(wallet, "/api/bags"); if (b) setBags(b);
+    const s = readCached<Bal>(wallet, "/api/balance"); if (s) setBal(s);
+    if (!wallet.startsWith("0x")) { const f = readCached<Fees>(wallet, feesUrl); if (f) setFees(f); }
+  }, [wallet, feesUrl]);
+  // Mise à jour toutes les 60 s quand la page est visible, et au retour sur l'onglet
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === "visible") void load(); };
+    const id = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
+  }, [load]);
   useEffect(() => { void load(); }, [load]);
 
   async function disconnect() {
@@ -183,7 +201,7 @@ export function WalletHome({ wallet, name, avatar, octo, active, children }: { w
           </label>
         </>
       ) : (
-        <div className="relative mt-7 space-y-2.5"><div className="h-12 w-56 animate-pulse rounded-xl bg-muted" /><div className="h-4 w-32 animate-pulse rounded bg-muted" /></div>
+        <div className="relative mt-7 space-y-2.5 pb-[26px]"><div className="h-12 w-56 animate-pulse rounded-xl bg-muted" /><div className="h-4 w-32 animate-pulse rounded bg-muted" /></div>
       )}
 
       {/* Actions */}

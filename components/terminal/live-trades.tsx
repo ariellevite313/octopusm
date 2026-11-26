@@ -7,6 +7,7 @@ import { EVM_CHAINS, isEvmChain } from "@/lib/swap/evm";
 import { EXTRA_EXPLORERS, GT_NET, type TerminalChain } from "@/lib/terminal";
 import type { LiveTrade } from "@/app/api/terminal/live-trades/route";
 import { onTokenTrade, solUsd } from "@/lib/pumpportal";
+import { TOKEN_TRADE } from "./chart-shake";
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 const usd = (n: number) => (n > 0 && n < 0.01 ? "<$0.01" : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(n < 10 ? 2 : 0)}`);
@@ -47,7 +48,11 @@ export function LiveTrades({ chain, pool, mint }: { chain: TerminalChain; pool: 
             for (const x of j.trades!) by.set(x.tx, x);
             return [...by.values()].sort((a, b) => b.t - a.t).slice(0, 120);
           });
-          if (!first && added.size) { setFresh(added); setTimeout(() => !off && setFresh(new Set()), 1500); }
+          if (!first && added.size) {
+            setFresh(added); setTimeout(() => !off && setFresh(new Set()), 1500);
+            // Le graphique vibre à chaque nouvel achat (ChartShake)
+            if (j.trades.some((x) => added.has(x.tx) && x.side === "buy")) window.dispatchEvent(new CustomEvent(TOKEN_TRADE, { detail: { mint, side: "buy" } }));
+          }
         }).catch(() => { if (!off) setFailed(true); });
     };
     load();

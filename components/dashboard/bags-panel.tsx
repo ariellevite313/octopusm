@@ -4,7 +4,8 @@
  * BAGS : le portefeuille connecté en lecture seule (solde, variation 24 h, actifs du plus gros au plus petit).
  * On peut acheter, vendre et swapper (Solana) ; aucun envoi de fonds depuis OM.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { fetchCached, readCached } from "@/lib/wallet-cache";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -85,15 +86,19 @@ export function BagsPanel({ tabs, embedded = false, octo }: { tabs?: React.React
   const [sheet, setSheet] = useState<"deposit" | "sell" | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Dernières valeurs connues tout de suite ; un échec garde la liste affichée (erreur seulement s'il n'y a rien)
+  useLayoutEffect(() => {
+    if (!walletAddress) return;
+    const c = readCached<Data>(walletAddress, "/api/bags");
+    if (c) { setData(c); setLoading(false); }
+  }, [walletAddress]);
   const load = useCallback(async (fresh = false) => {
+    if (!walletAddress) return;
     setLoading(true); setError(false);
-    try {
-      const r = await fetch(`/api/bags${fresh ? "?fresh=1" : ""}`, { cache: "no-store" });
-      if (!r.ok) throw new Error();
-      setData((await r.json()) as Data);
-    } catch { setError(true); }
+    const v = await fetchCached<Data>(walletAddress, `/api/bags${fresh ? "?fresh=1" : ""}`);
+    if (v) setData(v); else setError(true);
     setLoading(false);
-  }, []);
+  }, [walletAddress]);
   useEffect(() => { void load(); }, [load]);
   // Bouton « rafraîchir » de l'en-tête du dashboard
   useEffect(() => {

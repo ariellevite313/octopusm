@@ -843,6 +843,10 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 .pf-down { animation: pf-shake .5s cubic-bezier(.36,.07,.19,.97) both, pf-down 1s ease-out both; }
 @keyframes pf-up { 0% { background-color: color-mix(in srgb, var(--up) 28%, transparent); } 100% { background-color: transparent; } }
 @keyframes pf-down { 0% { background-color: color-mix(in srgb, var(--down) 28%, transparent); } 100% { background-color: transparent; } }
+/* Graphique du Terminal : vibre et s'éclaire en vert à chaque achat */
+.pf-chart-buy { position: relative; animation: pf-shake .45s cubic-bezier(.36,.07,.19,.97) both; }
+.pf-chart-buy::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: 16px; animation: pf-chart-glow .9s ease-out both; }
+@keyframes pf-chart-glow { 0% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--up) 70%, transparent), inset 0 0 70px color-mix(in srgb, var(--up) 22%, transparent); } 100% { box-shadow: inset 0 0 0 2px transparent, inset 0 0 70px transparent; } }
 
 /* Omero Map vivante */
 .om-sway { animation: om-sway 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
@@ -856,7 +860,7 @@ a, button, [role="button"], input, select, textarea, label, summary { touch-acti
 .om-flow { animation: om-flow 1.2s linear infinite; }
 @keyframes om-flow { to { stroke-dashoffset: -24; } }
 @media (prefers-reduced-motion: reduce) {
-  .cel-fade, .cel-pop, .cel-fall, .cel-confetti, .cel-wobble, .cel-coin, .cel-spin, .cel-badge, .cel-rays, .pf-shake, .pf-up, .pf-down, .om-sway, .om-ripple, .om-twinkle, .om-next, .om-flow { animation: none; }
+  .cel-fade, .cel-pop, .cel-fall, .cel-confetti, .cel-wobble, .cel-coin, .cel-spin, .cel-badge, .cel-rays, .pf-shake, .pf-up, .pf-down, .pf-chart-buy, .pf-chart-buy::after, .om-sway, .om-ripple, .om-twinkle, .om-next, .om-flow { animation: none; }
 }
 
 /* Barres de défilement invisibles partout (ordinateur compris) ; le défilement reste actif */
