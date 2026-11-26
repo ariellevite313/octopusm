@@ -2763,5 +2763,14 @@ const p: Record<string, string> = {
   "{symbol} is boosted for {h} h": "{symbol} 已推广 {h} 小时",
   "Invalid token address": "代币地址无效",
   "Token not found in the Terminal": "终端中未找到该代币",
+  "Search on X": "在 X 上搜索",
+  "Snipers": "狙击手",
+  "Bundlers": "捆绑买家",
+  "Tax": "税费",
+  "Mint off": "铸造已关闭",
+  "Mint on": "铸造已开启",
+  "Freeze off": "冻结已关闭",
+  "Freeze on": "冻结已开启",
+  "DexScreener boosts": "DexScreener 推广",
 };
 export default p;

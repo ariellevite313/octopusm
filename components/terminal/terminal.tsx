@@ -32,6 +32,7 @@ const SOL_USDC_POOL = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"; // Raydium
 import { executeSwap, mevOn, setMev, toRaw } from "@/lib/swap/client";
 import { isRug } from "@/lib/terminal-rug";
 import { LiveTrades } from "./live-trades";
+import { TokenInsights } from "./token-insights";
 import { BoostTokenSheet } from "@/components/social/boost-token-sheet";
 import { ChartAlerts } from "./chart-alerts";
 import { PulseView } from "./pulse";
@@ -676,6 +677,8 @@ function TokenView({ mint, chain, fromList, favs }: { mint: string; chain: Termi
             </div>
           </div>
 
+          {/* Infos du token sur une ligne (âge, réseaux, holders, top 10, dev, snipers, insiders, bundlers, LP, taxe…) */}
+          <div className="mt-3 px-4"><TokenInsights t={t} chain={chain} mint={mint} /></div>
           <div className="mt-3 hidden flex-wrap gap-x-6 gap-y-2 px-4 lg:flex">
             {([[tr("24h change"), t.change24h == null ? "-" : `${t.change24h >= 0 ? "+" : "-"}${pct(t.change24h)}`], [tr("Volume 24h"), compact(t.volume24h, 2)], [tr("Liquidity"), compact(t.liquidity, 2)], [tr("Pool created"), t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "-"]] as const).map(([k, v]) => (
               <div key={k} className="shrink-0"><p className="whitespace-nowrap text-[12px] text-muted-foreground">{k}</p><p className={`num text-[14px] font-semibold ${k === tr("24h change") && t.change24h != null ? (t.change24h >= 0 ? "text-up" : "text-down") : "text-foreground"}`}>{v}</p></div>

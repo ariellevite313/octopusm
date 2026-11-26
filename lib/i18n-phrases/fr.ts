@@ -2934,5 +2934,14 @@ const p: Record<string, string> = {
   "{symbol} is boosted for {h} h": "{symbol} est boosté pour {h} h",
   "Invalid token address": "Adresse de token invalide",
   "Token not found in the Terminal": "Token introuvable dans le Terminal",
+  "Search on X": "Chercher sur X",
+  "Snipers": "Snipers",
+  "Bundlers": "Bundlers",
+  "Tax": "Taxe",
+  "Mint off": "Mint désactivé",
+  "Mint on": "Mint activé",
+  "Freeze off": "Gel désactivé",
+  "Freeze on": "Gel activé",
+  "DexScreener boosts": "Boosts DexScreener",
 };
 export default p;

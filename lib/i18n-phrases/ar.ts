@@ -2763,5 +2763,14 @@ const p: Record<string, string> = {
   "{symbol} is boosted for {h} h": "تم تعزيز {symbol} لمدة {h} ساعة",
   "Invalid token address": "عنوان الرمز غير صالح",
   "Token not found in the Terminal": "لم يتم العثور على الرمز في المحطة",
+  "Search on X": "ابحث في X",
+  "Snipers": "القناصون",
+  "Bundlers": "المجمِّعون",
+  "Tax": "الضريبة",
+  "Mint off": "السك معطل",
+  "Mint on": "السك مفعل",
+  "Freeze off": "التجميد معطل",
+  "Freeze on": "التجميد مفعل",
+  "DexScreener boosts": "تعزيزات DexScreener",
 };
 export default p;

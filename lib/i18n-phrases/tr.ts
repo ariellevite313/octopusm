@@ -2761,5 +2761,14 @@ const p: Record<string, string> = {
   "{symbol} is boosted for {h} h": "{symbol} {h} saat öne çıkarıldı",
   "Invalid token address": "Geçersiz token adresi",
   "Token not found in the Terminal": "Token Terminal'de bulunamadı",
+  "Search on X": "X'te ara",
+  "Snipers": "Sniper'lar",
+  "Bundlers": "Bundler'lar",
+  "Tax": "Vergi",
+  "Mint off": "Mint kapalı",
+  "Mint on": "Mint açık",
+  "Freeze off": "Dondurma kapalı",
+  "Freeze on": "Dondurma açık",
+  "DexScreener boosts": "DexScreener boost'ları",
 };
 export default p;
